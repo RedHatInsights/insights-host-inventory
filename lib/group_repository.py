@@ -458,8 +458,19 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
 
         # Update host list, if provided
         if new_host_ids is not None:
+            # CRITICAL FIX for RHINENG-18151:
+            # Validate hosts BEFORE any deletions to prevent autoflush bug.
+            # _remove_hosts_from_group() calls _update_group_update_time() which does db.session.flush(),
+            # flushing deletions to the database BEFORE validation in _add_hosts_to_group() runs.
+            # If validation then fails, session.rollback() cannot undo already-flushed deletions.
+            # By validating FIRST, we ensure no deletions occur if validation fails.
+            hosts_to_add = list(new_host_ids - existing_host_ids)
+            if hosts_to_add:  # Only validate if there are new hosts to add
+                validate_add_host_list_to_group(hosts_to_add, group_id, identity.org_id)
+
+            # Now safe to proceed with deletions - validation has passed
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
-            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            _add_hosts_to_group(group_id, hosts_to_add, identity.org_id)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             removed_group_id_list = [str(ungrouped_group.id)]
