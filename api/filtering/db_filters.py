@@ -52,6 +52,9 @@ logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
+# Order-by fields that require a join to HostStaticSystemProfile
+ORDER_BY_STATIC_PROFILE_FIELDS = {"operating_system"}
+
 
 # Cache the column names from system profile tables for performance
 _DYNAMIC_PROFILE_FIELDS = None
@@ -93,7 +96,7 @@ def _extract_filter_fields(filter_dict):
     return fields
 
 
-def _needs_system_profile_joins(filter, system_type):
+def _needs_system_profile_joins(filter, order_by, system_type):
     """
     Dynamically determine if system profile table joins are needed based on
     which fields are being filtered.
@@ -104,8 +107,10 @@ def _needs_system_profile_joins(filter, system_type):
     if system_type:
         return True, False
 
+    # Ordering by specific fields may require joins even without filters
+    requires_static_for_order = order_by in ORDER_BY_STATIC_PROFILE_FIELDS
     if not filter:
-        return False, False
+        return requires_static_for_order, False
 
     # Get the system profile field sets
     dynamic_fields, static_fields = _get_system_profile_fields()
@@ -119,7 +124,7 @@ def _needs_system_profile_joins(filter, system_type):
         filter_fields.add("workloads")
 
     # Check if any filter fields match system profile fields
-    needs_static = bool(filter_fields & static_fields)
+    needs_static = bool(filter_fields & static_fields) or requires_static_for_order
     needs_dynamic = bool(filter_fields & dynamic_fields)
 
     return needs_static, needs_dynamic
@@ -534,7 +539,7 @@ def query_filters(
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
     # Dynamically determine if we need system profile joins based on what fields are being filtered
-    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type)
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by, system_type)
 
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile

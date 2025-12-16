@@ -154,7 +154,7 @@ def serialize_host(
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
-        "id": lambda: _serialize_uuid(host.id),
+        "id": lambda: serialize_uuid(host.id),
         "account": lambda: host.account,
         "org_id": lambda: host.org_id,
         "display_name": lambda: host.display_name,
@@ -176,7 +176,7 @@ def serialize_host(
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.system_profile_facts.get("os_release", None),
-        "openshift_cluster_id": lambda: _serialize_uuid(host.openshift_cluster_id),
+        "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically
@@ -230,7 +230,7 @@ def serialize_host_for_export_svc(
         host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
     )
 
-    serialized_host["host_id"] = _serialize_uuid(host.id)
+    serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
     if host.groups:
         serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
@@ -270,7 +270,7 @@ def serialize_group_without_host_count(group: Group) -> dict:
             account = None
 
     return {
-        "id": _serialize_uuid(group.id),
+        "id": serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": account,
         "name": group.name,
@@ -285,7 +285,7 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
 
 def _recursive_casefold(field_data):
@@ -350,7 +350,7 @@ def _deserialize_datetime(s):
     return dt.astimezone(UTC)
 
 
-def _serialize_uuid(u):
+def serialize_uuid(u):
     return str(u) if u else None
 
 
@@ -423,7 +423,7 @@ def _serialize_tags(tags):
 
 def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(staleness.id),
+        "id": serialize_uuid(staleness.id),
         "org_id": staleness.org_id,
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
@@ -454,6 +454,29 @@ class _WorkloadCompatConfig(TypedDict, total=False):
     path: list[str]
     fields: dict[str, str]
     flat_fields: dict[str, str]
+
+
+def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
+    """
+    Map host_type values for backward compatibility with downstream apps.
+
+    Downstream applications only recognize 'edge' as a special value.
+    All other values (bootc, conventional, cluster) should be mapped to empty string
+    to maintain backward compatibility.
+
+    Args:
+        host_type: The host_type value from the database/system profile
+
+    Returns:
+        str: Backward-compatible host_type value:
+            - "edge" for actual edge systems (only explicit "edge")
+            - "" (empty string) for all other types (bootc, conventional, cluster, etc.)
+
+    Note:
+        This mapping is only applied to Kafka events, not API responses.
+        API responses return the actual database values.
+    """
+    return "edge" if host_type == "edge" else ""
 
 
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
