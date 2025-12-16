@@ -1,22 +1,14 @@
 from __future__ import annotations
 
-from http import HTTPStatus
-from typing import Any
-
-from flask import abort
-from marshmallow import ValidationError
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
 
 from app.auth import get_current_identity
-from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
-from app.models import InputGroupSchema
 from app.models import db
-from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import serialize_group
 
 logger = get_logger(__name__)

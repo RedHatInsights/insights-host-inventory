@@ -89,12 +89,6 @@ def _validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: 
     return validated_patch_group_data, found_group
 
 
-
-
-
-
-
-
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.READ)
 @metrics.api_request_time.time()
