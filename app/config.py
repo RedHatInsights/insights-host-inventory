@@ -226,6 +226,14 @@ class Config:
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
+        self.kessel_auth_client_id = os.environ.get("KESSEL_AUTH_CLIENT_ID")
+        self.kessel_auth_client_secret = os.environ.get("KESSEL_AUTH_CLIENT_SECRET")
+        self.kessel_auth_oidc_issuer = os.environ.get("KESSEL_AUTH_OIDC_ISSUER")
+        self.kessel_auth_oidc_issuer = os.getenv(
+            "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
+        )
+        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
+
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
