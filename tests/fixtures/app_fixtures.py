@@ -26,6 +26,7 @@ def new_flask_app(database: str) -> Generator[FlaskApp]:  # noqa: ARG001
 
         db.session.remove()
         db.drop_all()
+        db.engine.dispose()
 
 
 @pytest.fixture(scope="function")
