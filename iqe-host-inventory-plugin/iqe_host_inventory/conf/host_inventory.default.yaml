@@ -31,6 +31,7 @@ default:
 
 prod:
   legacy_hostname: "api.access.redhat.com"
+  turnpike_base_url: "https://mtls.internal.console.redhat.com/api/rbac"
   default_user: insights_inventory_qe
   non_org_admin_user: insights_inventory_qe_2
   secondary_user: insights_qa
@@ -309,6 +310,7 @@ itl_stage:
 
 stage: &stage
   legacy_hostname: "api.access.stage.redhat.com"
+  turnpike_base_url: "https://mtls.internal.console.stage.redhat.com/api/rbac"
   default_user: insights_inventory_qe
   non_org_admin_user: insights_inventory_qe_2
   secondary_user: insights_qa
