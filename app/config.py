@@ -228,12 +228,10 @@ class Config:
 
         self.kessel_auth_client_id = os.environ.get("KESSEL_AUTH_CLIENT_ID")
         self.kessel_auth_client_secret = os.environ.get("KESSEL_AUTH_CLIENT_SECRET")
-        self.kessel_auth_oidc_issuer = os.environ.get("KESSEL_AUTH_OIDC_ISSUER")
         self.kessel_auth_oidc_issuer = os.getenv(
             "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
         )
-        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
-
+        self.kessel_insecure = not self.kessel_auth_client_id or not self.kessel_auth_client_secret
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
@@ -473,6 +471,7 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
+            self.logger.info("Kessel is running in %s mode.", "INSECURE" if self.kessel_insecure else "SECURE")
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

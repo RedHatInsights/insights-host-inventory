@@ -23,14 +23,17 @@ class Kessel:
     def __init__(self, config: Config):
         # Configure Kessel Oauth2 credentials
         client_builder = ClientBuilder(config.kessel_inventory_api_endpoint)
-        discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
-        self._auth_credentials = OAuth2ClientCredentials(
-            client_id=config.kessel_auth_client_id,
-            client_secret=config.kessel_auth_client_secret,
-            token_endpoint=discovery.token_endpoint,
-        )
+        if config.kessel_insecure:
+            client_builder = client_builder.insecure()
+        else:
+            discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
+            auth_credentials = OAuth2ClientCredentials(
+                client_id=config.kessel_auth_client_id,
+                client_secret=config.kessel_auth_client_secret,
+                token_endpoint=discovery.token_endpoint,
+            )
 
-        client_builder = client_builder.oauth2_client_authenticated(self._auth_credentials)
+            client_builder = client_builder.oauth2_client_authenticated(auth_credentials)
 
         self.inventory_svc, self.channel = client_builder.build()
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
