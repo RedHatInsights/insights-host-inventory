@@ -510,13 +510,15 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def post_rbac_workspace(name) -> UUID | None:
+def post_rbac_workspace(name, account_number: str | None = None) -> UUID | None:
     if inventory_config().bypass_kessel:
         return None
 
     rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
+    if account_number is not None:
+        request_data["account_number"] = account_number
 
     resp_data = _execute_rbac_http_request(
         method="POST",

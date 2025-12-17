@@ -249,30 +249,10 @@ def serialize_host_for_export_svc(
 
 
 def serialize_group_without_host_count(group: Group) -> dict:
-    # Handle account field: if missing or has no value, try to get from identity
-    account = None
-
-    # Check if group has account attribute and if it has a value
-    group_account = getattr(group, "account", None)
-    if group_account is not None and group_account != "":
-        # Group has account with a value, use it
-        account = group_account
-    else:
-        # Account is missing from group or has no value, try to get from identity
-        from app.auth import get_current_identity
-
-        try:
-            identity = get_current_identity()
-            identity_account = getattr(identity, "account_number", None)
-            account = identity_account if identity_account is not None and identity_account != "" else None
-        except (RuntimeError, AttributeError):
-            # No request context available or identity missing account_number
-            account = None
-
     return {
         "id": serialize_uuid(group.id),
         "org_id": group.org_id,
-        "account": account,
+        "account": group.account,
         "name": group.name,
         "ungrouped": group.ungrouped,
         "created": _serialize_datetime(group.created_on),

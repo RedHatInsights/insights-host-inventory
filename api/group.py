@@ -109,7 +109,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                     get_current_identity().org_id,
                 )
 
-            workspace_id = post_rbac_workspace(group_name)
+            workspace_id = post_rbac_workspace(group_name, get_current_identity().account_number)
             if workspace_id is None:
                 message = f"Error while creating workspace for {group_name}"
                 logger.exception(message)
