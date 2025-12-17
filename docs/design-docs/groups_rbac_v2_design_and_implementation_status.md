@@ -39,7 +39,7 @@ Migration of Groups endpoints from Host Inventory database-backed groups to RBAC
   "ungrouped": false,
   "created": "2025-11-06T20:40:41.233648+00:00",
   "updated": "2025-11-06T20:40:41.233653+00:00",
-  "host_count": 10 
+  "host_count": "10"
 }
 ```
 __host_count__ is provided by the hosts_groups table
