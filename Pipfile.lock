@@ -91,20 +91,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:cdd4cc3e5bb08ed8a0c5cc77eca78f98f0239521de0991f14e44b788b0c639b2",
-                "sha256:d21d22af9aeb1bad8e9b670a221d6534c0120f7e7baf523dafaca83f1f5c3f90"
+                "sha256:2537d9462b70f4432385202709d1c8aa2291f802cfd8588d33334112116c554a",
+                "sha256:54939f7fc1b2777771c2a66ecc77025b2af86e567b5cf68d30dc3838205f0a4a"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.9"
+            "version": "==1.42.11"
         },
         "botocore": {
             "hashes": [
-                "sha256:74f69bfd116cc7c8215481284957eecdb48580e071dd50cb8c64356a866abd8c",
-                "sha256:f99ba2ca34e24c4ebec150376c815646970753c032eb84f230874b2975a185a8"
+                "sha256:4c5278b9e0f6217f428aade811d409e321782bd14f0a202ff95a298d841be1f7",
+                "sha256:73b0796870f16ccd44729c767ade20e8ed62b31b3aa2be07b35377338dcf6d7c"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.9"
+            "version": "==1.42.11"
         },
         "cachelib": {
             "hashes": [
@@ -2350,11 +2350,12 @@
         },
         "filelock": {
             "hashes": [
-                "sha256:339b4732ffda5cd79b13f4e2711a31b0365ce445d95d243bb996273d072546a2",
-                "sha256:711e943b4ec6be42e1d4e6690b48dc175c822967466bb31c0c293f34334c13f4"
+                "sha256:15d9e9a67306188a44baa72f569d2bfd803076269365fdea0934385da4dc361a",
+                "sha256:b8360948b351b80f420878d8516519a2204b07aefcdcfd24912a5d33127f188c"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==3.20.0"
+            "version": "==3.20.1"
         },
         "greenlet": {
             "hashes": [
