@@ -11,15 +11,15 @@
 Migration of Groups endpoints from Host Inventory database-backed groups to RBAC v2 workspaces.
 
 **Status Summary:** <br/>
-  - [RHINENG-17393](https://issues.redhat.com/browse/RHINENG-17): Update GET /groups to use RBAC_v2.   ✅ **Complete**.  Delivery **blocked** by [RHCLOUD-42653](https://issues.redhat.com/browse/RHCLOUD-42653)<br/>
+  - [RHINENG-17393](https://issues.redhat.com/browse/RHINENG-17393): Update GET /groups to use RBAC_v2.   ⚠️ **In Review**.  Delivery **blocked** by [RHCLOUD-42653](https://issues.redhat.com/browse/RHCLOUD-42653)<br/>
   - [RHINENG-17397](https://issues.redhat.com/browse/RHINENG-17397): Update GET /groups/{group_id_list} to use RBAC v2. Delivery **blocked** by [RHCLOUD-43362](https://issues.redhat.com/browse/RHCLOUD-43362)<br/>
   - [RHINENG-17399](https://issues.redhat.com/browse/RHINENG-17399): Update POST /groups/{group_id}/hosts to use RBAC v2. Delivery **blocked** by [RHCLOUD-43362](https://issues.redhat.com/browse/RHCLOUD-43362)<br/>
   - [RHINENG-17400](https://issues.redhat.com/browse/RHINENG-17400): Update DELETE /groups/{group_id}/hosts/{host_id_list} to use RBAC v2. Delivery **blocked** by [RHCLOUD-43362](https://issues.redhat.com/browse/RHCLOUD-43362)<br/>
   - [RHINENG-21605](https://issues.redhat.com/browse/RHINENG-21605): Add GET endpoint for /groups/{group_id}/hosts. Delivery **blocked** by [RHCLOUD-43362](https://issues.redhat.com/browse/RHCLOUD-42653)<br/>
 
 **Feature Flags:**<br/>
-  - `FLAG_INVENTORY_KESSEL_PHASE_1` - Used for GET /groups (RHINENG-17393)<br/>
-  - `FLAG_INVENTORY_KESSEL_GROUPS` - Defined but not yet integrated for RHINENG-17397, RHINENG-17399, RHINENG-17400, RHINENG-21605)<br/>
+  - `hbi.api.kessel-phase-1` - Used for GET /groups (RHINENG-17393)<br/>
+  - `hbi.api.kessel-groups` - Defined but not yet integrated for RHINENG-17397, RHINENG-17399, RHINENG-17400, RHINENG-21605)<br/>
 
 ---
 
@@ -27,7 +27,7 @@ Migration of Groups endpoints from Host Inventory database-backed groups to RBAC
 
 ### RBAC v1 - Group Object (Database)
 
-**Source:** PostgreSQL `groups` table
+**Source:** PostgreSQL `groups` and `hosts_groups` table
 
 **JSON Object** provided by database query
 ```json
@@ -39,9 +39,10 @@ Migration of Groups endpoints from Host Inventory database-backed groups to RBAC
   "ungrouped": false,
   "created": "2025-11-06T20:40:41.233648+00:00",
   "updated": "2025-11-06T20:40:41.233653+00:00",
-  "host_count": 10
+  "host_count": 10 
 }
 ```
+__host_count__ is provided by the hosts_groups table
 
 ---
 
@@ -63,6 +64,7 @@ Migration of Groups endpoints from Host Inventory database-backed groups to RBAC
   "host_count": 10
 }
 ```
+__host_count__ is provided by the hosts_groups table
 
 ---
 
@@ -73,8 +75,8 @@ Migration of Groups endpoints from Host Inventory database-backed groups to RBAC
 | **id** | ✅ UUID | ✅ UUID | None |
 | **name** | ✅ string | ✅ string | None |
 | **org_id** | ✅ string | ✅ string | None |
-| **account** | ✅ string | ❌ Missing | Inject from identity (currently NULL) |
-| **ungrouped** | ✅ boolean | ❌ Missing | **NOT DERIVED** (serialization gap) |
+| **account** | ✅ string | ❌ Missing | Inject from identity |
+| **ungrouped** | ✅ boolean | ✅ string | `Derived` from the `type` field in workspace API response|
 | **created** | ✅ datetime | ✅ datetime | None |
 | **updated** | ✅ datetime | ✅ `modified` | Rename `modified` → `updated` |
 | **parent_id** | ❌ N/A | ✅ UUID | **Included in output** (extra field) |
@@ -96,13 +98,12 @@ No change required to get host_count as it is provided by Host Inventory
 
 ## Implementation Details (High Level)
 ### RHINENG-17393: GET /groups (List All Groups)
-#### Status: ✅ COMPLETE
-This work is complete unless groups and worspaces serialization is to be changed
+#### Status: ⚠️ BLOCKED
+This work is complete unless group and workspace serialization changes
 
 __Endpoint:__ `GET /api/inventory/v1/groups`<br/>
-<!-- __File__ `api/group.py:60-83`<br/> -->
+__File:__ `api/group.py`<br/>
 __Feature Flag:__ `FLAG_INVENTORY_KESSEL_PHASE_1` (enabled → RBAC v2, disabled → database)<br/>
-<!-- __Commit:__ 77bddf10 -->
 
 ### Implementation
 
@@ -111,9 +112,9 @@ __Function__ `get_group_list()`<br/>
 - __Input Parameters__<br/>
   - `name` (string, optional) - Filter by partial name match<br/>
   - `page` (int, default=1) - Page number<br/>
-  - `per_page` (int, default=100) - Items per page<br/>
-  - `order_by` (string, optional) - Sort field (⚠️ ignored in RBAC v2 mode<br/>
-  - `order_how` (string, optional) - Sort direction (⚠️ ignored in RBAC v2 mode)<br/>
+  - `per_page` (int, default=50) - Items per page<br/>
+  - `order_by` (string, optional) - Sort field (⚠️ **to be implemented** in RBAC v2)<br/>
+  - `order_how` (string, optional) - Sort direction (⚠️ **to be implemented** in RBAC v2)<br/>
   - `group_type` (string, optional) - Filter: `standard`, `ungrouped-hosts`<br/>
   - `rbac_filter` (dict) - RBAC permissions<br/>
 - __Output:__ `{"total": int, "count": int, "page": int, "per_page": int, "results": [...]}`<br/>
@@ -138,14 +139,14 @@ __Existing:__ `tests/test_api_groups_get.py` (13 tests)
 - Coverage: Basic GET /groups endpoint, pagination, filtering, RBAC permissions
 - RBAC v2 tests: `tests/test_rbac_v2.py` (8 tests covering workspace integration)
 
-**Test Coverage:** ✅ Adequate
+**Test Coverage:**
 
 ### Known Issues
 
 ⚠️ **RHCLOUD-42653:** RBAC v2 API lacks sorting support<br/>
 - __Impact:__ `order_by` and `order_how` parameters ignored when feature flag enabled<br/>
 - __Workaround:__ None<br/>
-- __Status:__ Tracked with RBAC v2 team<br/>
+- __Status:__ Tracked by management-fabric team<br/>
 
 ---
 
@@ -461,7 +462,7 @@ __Function:__ `get_groups_by_id()`<br/>
 
 | Ticket | Status | Endpoint | Blocker | Effort |
 |--------|--------|----------|---------|--------|
-| **RHINENG-17393** | ✅ Complete | GET /groups | Sorting (RHCLOUD-42653) | Done |
+| **RHINENG-17393** | ⚠️ Blocked | GET /groups | Sorting (RHCLOUD-42653) | Done |
 | **RHINENG-17397** | ⚠️ Blocked | GET /groups/{ids} | RHCLOUD-43362 | TBD |
 | **RHINENG-17399** | ❌ Pending | POST /groups/{id}/hosts | Missing function | 2-3 days |
 | **RHINENG-17400** | ❌ Pending | DELETE /groups/{id}/hosts/{ids} | Missing function | 1-2 days |
@@ -506,7 +507,7 @@ __Function:__ `get_groups_by_id()`<br/>
 
 **Total New Tests Needed:** 19 tests
 
-__NOTE:__ Groups fixutre or helper function may need updates if one serializing groups is changed.
+__NOTE:__ Groups fixture or helper function may need updates if one serializing groups is changed.
 
 ---
 
