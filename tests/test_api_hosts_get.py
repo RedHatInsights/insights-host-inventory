@@ -1,5 +1,6 @@
 import logging
 import random
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
@@ -876,6 +877,21 @@ def test_query_group_id_rejects_invalid_uuid(api_get):
 
     # Should return 400 Bad Request for invalid UUID
     assert response_status == 400
+
+
+def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 3)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_hosts_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
