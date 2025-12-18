@@ -38,7 +38,7 @@ setuptools = "~=80.9.0"
 certifi = "~=2025.11.12"
 ratelimit = "*"
 confluent-kafka = "==2.12.2"
-kessel-sdk = "~=2.1.0"
+kessel-sdk = {version = "~=2.1.0", extras = ["auth"]}
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==6.4.1"

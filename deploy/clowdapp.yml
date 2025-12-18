@@ -130,6 +130,19 @@ objects:
           key: psks.json
           name: rbac-psks
           optional: false
+    # Common Kessel auth secret reference
+    kesselClientId: &kesselClientId
+      valueFrom:
+        secretKeyRef:
+          key: client-id
+          name: kessel-auth-secret
+          optional: true
+    kesselClientSecret: &kesselClientSecret
+      valueFrom:
+        secretKeyRef:
+          key: client-secret
+          name: kessel-auth-secret
+          optional: true
     # Common namespace field reference
     namespaceFieldRef: &namespaceFieldRef
       valueFrom:
@@ -290,6 +303,10 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -390,6 +407,10 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -490,6 +511,10 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
         livenessProbe:
           failureThreshold: 3
           httpGet:
