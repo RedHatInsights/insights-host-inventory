@@ -67,6 +67,9 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
             "$ref": "#/components/parameters/branchId"
           },
           {
@@ -158,6 +161,9 @@
           },
           {
             "$ref": "#/components/parameters/groupNameListParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupIdListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -2038,6 +2044,18 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      },
+      "groupIdListParam": {
+        "in": "query",
+        "name": "group_id",
+        "description": "Filter by group ID (UUID format)",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
           }
         }
       },
