@@ -17,6 +17,7 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 
+from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
@@ -97,7 +98,9 @@ def _get_host_list_using_filters(
     else:
         additional_fields = ()
 
-    base_query = _find_hosts_entities_query(query=query_base, columns=columns).filter(*all_filters)
+    base_query = _find_hosts_entities_query(query=query_base, columns=columns, order_by=param_order_by).filter(
+        *all_filters
+    )
     host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
 
     # Count separately because the COUNT done by .paginate() is inefficient
@@ -239,12 +242,20 @@ def _order_how(column, order_how: str):
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
 
-def _find_hosts_entities_query(query=None, columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
+def _find_hosts_entities_query(
+    query=None,
+    columns: list[ColumnElement] | None = None,
+    identity: Any = None,
+    order_by: str | None = None,
+) -> Query:
     if not identity:
         identity = get_current_identity()
 
     if query is None:
         query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        # Add static profile join if needed for ordering
+        if order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
+            query = query.join(HostStaticSystemProfile, isouter=True)
         query = query.filter(Host.org_id == identity.org_id)
 
     if columns:
@@ -600,8 +611,9 @@ def get_sparse_system_profile(
         columns = [Host.id, Host.system_profile_facts]
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
+
     sp_query = (
-        _find_hosts_entities_query(columns=columns)
+        _find_hosts_entities_query(columns=columns, order_by=param_order_by)
         .filter(*all_filters)
         .order_by(*params_to_order_by(param_order_by, param_order_how))
     )

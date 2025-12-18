@@ -231,7 +231,9 @@ class Config:
         self.kessel_auth_oidc_issuer = os.getenv(
             "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
         )
-        self.kessel_insecure = not self.kessel_auth_client_id or not self.kessel_auth_client_secret
+        self.kessel_auth_enabled = os.environ.get("KESSEL_AUTH_ENABLED", "false").lower() == "true"
+        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
+
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
