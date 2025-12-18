@@ -304,17 +304,9 @@ objects:
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
           - name: KESSEL_AUTH_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                key: client-id
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                key: client-secret
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -416,17 +408,9 @@ objects:
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
           - name: KESSEL_AUTH_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                key: client-id
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                key: client-secret
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -626,10 +610,6 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - <<: *rbacPsks
             name: RBAC_PSKS
-          - name: KESSEL_AUTH_CLIENT_ID
-            <<: *kesselClientId
-          - name: KESSEL_AUTH_CLIENT_SECRET
-            <<: *kesselClientSecret
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -719,10 +699,6 @@ objects:
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
           - <<: *rbacPsks
             name: RBAC_PSKS
-          - name: KESSEL_AUTH_CLIENT_ID
-            <<: *kesselClientId
-          - name: KESSEL_AUTH_CLIENT_SECRET
-            <<: *kesselClientSecret
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_P1}
@@ -803,10 +779,6 @@ objects:
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
-          - name: KESSEL_AUTH_CLIENT_ID
-            <<: *kesselClientId
-          - name: KESSEL_AUTH_CLIENT_SECRET
-            <<: *kesselClientSecret
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
