@@ -304,17 +304,9 @@ objects:
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
           - name: KESSEL_AUTH_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                key: client-id
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                key: client-secret
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -416,17 +408,9 @@ objects:
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
           - name: KESSEL_AUTH_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                key: client-id
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                key: client-secret
-                name: kessel-auth-secret
-                optional: true
+            <<: *kesselClientSecret
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
