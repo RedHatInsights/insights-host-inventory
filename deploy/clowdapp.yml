@@ -2400,7 +2400,7 @@ parameters:
   value: 'false'
 - description: enable Kessel insecure mode
   name: KESSEL_INSECURE
-  value: 'true'
+  value: 'false'
 
 # =================================================================================
 # IV. Application Behavior & Tuning
