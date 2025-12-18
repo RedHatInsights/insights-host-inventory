@@ -307,6 +307,10 @@ objects:
             <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
             <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -411,6 +415,10 @@ objects:
             <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
             <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -515,6 +523,10 @@ objects:
             <<: *kesselClientId
           - name: KESSEL_AUTH_CLIENT_SECRET
             <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -2382,6 +2394,12 @@ parameters:
   value: 'false'
 - description: disable Kessel middleware
   name: BYPASS_KESSEL
+  value: 'false'
+- description: enable Kessel authentication
+  name: KESSEL_AUTH_ENABLED
+  value: 'false'
+- description: enable Kessel insecure mode
+  name: KESSEL_INSECURE
   value: 'false'
 
 # =================================================================================
