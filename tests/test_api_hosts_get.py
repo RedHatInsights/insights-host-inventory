@@ -873,7 +873,7 @@ def test_query_group_id_rejects_invalid_uuid(api_get):
     """Test that group_id parameter rejects non-UUID values."""
     # Try with an invalid UUID
     url = build_hosts_url(query="?group_id=invalid-uuid")
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
     # Should return 400 Bad Request for invalid UUID
     assert response_status == 400
