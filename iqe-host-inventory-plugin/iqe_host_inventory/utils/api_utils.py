@@ -40,7 +40,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_COLLECTION_PARAMS = ("group_name", "group_id", "staleness", "tags", "registered_with", "system_type")
+_COLLECTION_PARAMS = (
+    "group_name",
+    "group_id",
+    "staleness",
+    "tags",
+    "registered_with",
+    "system_type",
+)
 
 
 class HasApiClient(Protocol):

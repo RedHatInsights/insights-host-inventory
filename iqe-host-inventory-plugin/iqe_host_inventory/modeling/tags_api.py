@@ -101,7 +101,8 @@ class TagsAPIWrapper(BaseEntity):
             Only show tags of hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter tags by group_name of associated hosts, uses OR logic
-        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR logic
+        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR
+            logic
         :param list[str] registered_with: Filter tags by reporters of associated hosts,
             uses OR logic. Values starting with "!" mean NOT reported by given reporter.
             Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
@@ -221,7 +222,8 @@ class TagsAPIWrapper(BaseEntity):
             Only show tags of hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter tags by group_name of associated hosts, uses OR logic
-        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR logic
+        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR
+        logic
         :param list[str] registered_with: Filter tags by reporters of associated hosts,
             uses OR logic. Values starting with "!" mean NOT reported by given reporter.
             Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
