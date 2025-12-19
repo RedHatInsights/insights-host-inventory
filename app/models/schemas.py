@@ -134,9 +134,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
         if "mac_addresses" in data and data["mac_addresses"] is not None:
             mac_addresses = data["mac_addresses"]
             while ZERO_MAC_ADDRESS in mac_addresses:
-                from app.models import logger
-
-                logger.warning(f"Zero MAC address reported by: {data.get('reporter', 'Not Available')}")
                 mac_addresses.remove(ZERO_MAC_ADDRESS)
             if not mac_addresses:
                 del data["mac_addresses"]

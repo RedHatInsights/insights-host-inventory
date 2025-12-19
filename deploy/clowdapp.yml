@@ -130,6 +130,19 @@ objects:
           key: psks.json
           name: rbac-psks
           optional: false
+    # Common Kessel auth secret reference
+    kesselClientId: &kesselClientId
+      valueFrom:
+        secretKeyRef:
+          key: client-id
+          name: kessel-auth-secret
+          optional: true
+    kesselClientSecret: &kesselClientSecret
+      valueFrom:
+        secretKeyRef:
+          key: client-secret
+          name: kessel-auth-secret
+          optional: true
     # Common namespace field reference
     namespaceFieldRef: &namespaceFieldRef
       valueFrom:
@@ -290,6 +303,14 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -390,6 +411,14 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -490,6 +519,14 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -2358,6 +2395,12 @@ parameters:
 - description: disable Kessel middleware
   name: BYPASS_KESSEL
   value: 'false'
+- description: enable Kessel authentication
+  name: KESSEL_AUTH_ENABLED
+  value: 'false'
+- description: enable Kessel insecure mode
+  name: KESSEL_INSECURE
+  value: 'true'
 
 # =================================================================================
 # IV. Application Behavior & Tuning
