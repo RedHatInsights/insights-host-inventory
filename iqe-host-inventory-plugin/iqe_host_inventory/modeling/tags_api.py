@@ -58,6 +58,7 @@ class TagsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         registered_with: list[str] | None = None,
         system_type: list[str] | None = None,
         filter: list[str] | None = None,
@@ -100,6 +101,7 @@ class TagsAPIWrapper(BaseEntity):
             Only show tags of hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter tags by group_name of associated hosts, uses OR logic
+        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR logic
         :param list[str] registered_with: Filter tags by reporters of associated hosts,
             uses OR logic. Values starting with "!" mean NOT reported by given reporter.
             Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
@@ -145,6 +147,7 @@ class TagsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             per_page=per_page,
@@ -175,6 +178,7 @@ class TagsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         registered_with: list[str] | None = None,
         system_type: list[str] | None = None,
         filter: list[str] | None = None,
@@ -217,6 +221,7 @@ class TagsAPIWrapper(BaseEntity):
             Only show tags of hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter tags by group_name of associated hosts, uses OR logic
+        :param list[str] group_id: Filter tags by group_id (UUID) of associated hosts, uses OR logic
         :param list[str] registered_with: Filter tags by reporters of associated hosts,
             uses OR logic. Values starting with "!" mean NOT reported by given reporter.
             Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
@@ -259,6 +264,7 @@ class TagsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             per_page=per_page,
