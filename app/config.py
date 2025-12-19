@@ -6,8 +6,6 @@ import tempfile
 from datetime import timedelta
 from enum import Enum
 
-from app_common_python import DependencyEndpoints
-
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -43,8 +41,15 @@ class Config:
         import app_common_python
 
         cfg = app_common_python.LoadedConfig
-        kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
-        self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+
+        if cfg is None:
+            raise ValueError("Clowder is enabled, but no configuration was loaded")
+
+        kessel_inventory_dep = app_common_python.DependencyEndpoints.get("kessel-inventory", {}).get("api", None)
+        if kessel_inventory_dep is None:
+            raise ValueError("Could not find kessel-inventory endpoint in Clowder configuration")
+
+        self.kessel_inventory_api_endpoint = f"{kessel_inventory_dep.hostname}:{kessel_inventory_dep.port}"
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
