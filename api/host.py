@@ -101,6 +101,16 @@ def get_host_list(
     host_list = ()
     owner_id = None
     current_identity = get_current_identity()
+
+    # Validate mutually exclusive group filters
+    if group_name and group_id:
+        logger.error("Cannot specify both group_name and group_id filters simultaneously.")
+        flask.abort(
+            400,
+            "Cannot use both 'group_name' and 'group_id' filters together. "
+            "Please use only one group filter parameter.",
+        )
+
     has_complex_params = any(
         [
             display_name,
@@ -208,6 +218,15 @@ def delete_hosts_by_filter(
     filter=None,
     rbac_filter=None,
 ):
+    # Validate mutually exclusive group filters
+    if group_name and group_id:
+        logger.error("Cannot specify both group_name and group_id filters simultaneously.")
+        flask.abort(
+            400,
+            "Cannot use both 'group_name' and 'group_id' filters together. "
+            "Please use only one group filter parameter.",
+        )
+
     if not any(
         [
             display_name,

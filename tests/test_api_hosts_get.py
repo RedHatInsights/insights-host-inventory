@@ -873,10 +873,30 @@ def test_query_group_id_rejects_invalid_uuid(api_get):
     """Test that group_id parameter rejects non-UUID values."""
     # Try with an invalid UUID
     url = build_hosts_url(query="?group_id=invalid-uuid")
-    response_status, _ = api_get(url)
+    response_status, response_data = api_get(url)
 
     # Should return 400 Bad Request for invalid UUID
     assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 3)
+
+    # Try using both filters together
+    url = build_hosts_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
 
 
 def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
