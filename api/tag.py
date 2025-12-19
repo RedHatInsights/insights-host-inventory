@@ -34,6 +34,7 @@ def get_tags(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     order_by=None,
     order_how=None,
     page=None,
@@ -44,6 +45,15 @@ def get_tags(
     filter=None,
     rbac_filter=None,
 ):
+    # Validate mutually exclusive group filters
+    if group_name and group_id:
+        logger.error("Cannot specify both group_name and group_id filters simultaneously.")
+        flask.abort(
+            400,
+            "Cannot use both 'group_name' and 'group_id' filters together. "
+            "Please use only one group filter parameter.",
+        )
+
     limit, offset = pagination_params(page, per_page)
     escaped_search = None
     if search:
@@ -68,6 +78,7 @@ def get_tags(
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             order_by=order_by,
             order_how=order_how,
             staleness=staleness,

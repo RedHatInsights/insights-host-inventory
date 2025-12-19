@@ -1165,6 +1165,9 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
             "$ref": "#/components/parameters/registered_with"
           },
           {

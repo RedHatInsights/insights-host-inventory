@@ -687,6 +687,7 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/groupIdListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
