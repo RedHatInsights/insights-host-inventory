@@ -30,8 +30,9 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group_with_host_count
+from app.serialization import serialize_db_group_with_host_count
 from app.serialization import serialize_host
+from app.serialization import serialize_rbac_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -544,5 +545,22 @@ def get_ungrouped_group(identity: Identity) -> Group:
 
 
 def serialize_group(group: Group | dict, org_id: str) -> dict:
+    """
+    Serialize a group with host count.
+    Delegates to the appropriate serializer based on whether the group is from the database or RBAC v2.
+
+    Args:
+        group: Either a Group ORM object (from DB) or a dict (from RBAC v2)
+        org_id: The organization ID
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
     host_count = get_non_culled_hosts_count_in_group(group, org_id)
-    return serialize_group_with_host_count(group, host_count, org_id)
+
+    if isinstance(group, dict):
+        # RBAC v2 workspace (dict from RBAC API)
+        return serialize_rbac_workspace_with_host_count(group, org_id, host_count)
+    else:
+        # Database Group (ORM object)
+        return serialize_db_group_with_host_count(group, host_count)
