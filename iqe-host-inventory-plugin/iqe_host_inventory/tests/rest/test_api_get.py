@@ -1261,6 +1261,29 @@ def test_get_hosts_by_group_name(host_inventory: ApplicationHostInventory, case_
 
 
 @pytest.mark.ephemeral
+def test_get_hosts_by_group_id(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21927
+
+    metadata:
+        requirements: inv-hosts-filter-by-group_id
+        assignee: maarif
+        importance: high
+        title: Filter hosts by group_id
+    """
+    hosts = host_inventory.kafka.create_random_hosts(3)
+    group_name = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name, hosts=hosts[0])
+    host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[1])
+
+    response = host_inventory.apis.hosts.get_hosts(group_id=[group.id])
+    assert len(response) == 1
+    assert response[0].id == hosts[0].id
+    assert len(response[0].groups) == 1
+    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group)
+
+
+@pytest.mark.ephemeral
 def test_get_hosts_by_group_name_empty(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-5138

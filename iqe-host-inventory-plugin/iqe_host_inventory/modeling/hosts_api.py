@@ -164,6 +164,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -205,6 +206,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -253,6 +255,7 @@ class HostsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -288,6 +291,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -323,6 +327,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -370,6 +375,7 @@ class HostsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -924,6 +930,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -956,6 +963,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -996,6 +1004,7 @@ class HostsAPIWrapper(BaseEntity):
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
                 group_name=group_name,
+                group_id=group_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
@@ -1088,6 +1097,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1119,6 +1129,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1155,6 +1166,7 @@ class HostsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -1551,6 +1563,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1589,6 +1602,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1626,6 +1640,7 @@ class HostsAPIWrapper(BaseEntity):
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -1653,6 +1668,7 @@ class HostsAPIWrapper(BaseEntity):
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
                 group_name=group_name,
+                group_id=group_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
@@ -1678,6 +1694,7 @@ class HostsAPIWrapper(BaseEntity):
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
         group_name: list[str] | None = None,
+        group_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1711,6 +1728,7 @@ class HostsAPIWrapper(BaseEntity):
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
         :param list[str] group_name: Filter hosts by group_name, uses OR logic
+        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1752,6 +1770,7 @@ class HostsAPIWrapper(BaseEntity):
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
                 group_name=group_name,
+                group_id=group_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
