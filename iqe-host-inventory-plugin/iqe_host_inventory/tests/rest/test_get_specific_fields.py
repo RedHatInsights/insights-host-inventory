@@ -20,12 +20,27 @@ from iqe_host_inventory_api import ApiException
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
+# Legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
+LEGACY_WORKLOADS_FIELDS = {
+    "sap",
+    "sap_system",
+    "sap_sids",
+    "sap_instance_number",
+    "sap_version",
+    "ansible",
+    "intersystems",
+    "mssql",
+    "third_party_services",
+}
+
 
 @pytest.fixture
 def host_for_fields_tests(host_inventory: ApplicationHostInventory):
     host_data = host_inventory.datagen.create_host_data()
+    # Exclude legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
     for field in SYSTEM_PROFILE:
-        host_data["system_profile"][field.name] = generate_sp_field_value(field)
+        if field.name not in LEGACY_WORKLOADS_FIELDS:
+            host_data["system_profile"][field.name] = generate_sp_field_value(field)
     return host_inventory.kafka.create_host(host_data=host_data)
 
 
@@ -72,7 +87,26 @@ def endpoint_func(request):
 
 
 @pytest.mark.ephemeral
-@parametrize_field(SYSTEM_PROFILE)
+@parametrize_field(
+    SYSTEM_PROFILE,
+    condition=lambda f: f.name
+    not in (
+        # Legacy SAP fields migrated to workloads.sap.*
+        "sap",
+        "sap_system",
+        "sap_sids",
+        "sap_instance_number",
+        "sap_version",
+        # Legacy Ansible fields migrated to workloads.ansible.*
+        "ansible",
+        # Legacy InterSystems fields migrated to workloads.intersystems.*
+        "intersystems",
+        # Legacy MSSQL fields migrated to workloads.mssql.*
+        "mssql",
+        # Legacy CrowdStrike fields migrated to workloads.crowdstrike.*
+        "third_party_services",
+    ),
+)
 def test_get_specific_fields(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,
@@ -112,7 +146,13 @@ def test_get_specific_fields_multiple_fields(
         assignee: rpfannsc
         importance: high
     """
-    wanted_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Exclude legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
+    wanted_fields = sample(
+        fields_having(
+            SYSTEM_PROFILE, lambda f: f.name not in LEGACY_WORKLOADS_FIELDS, x_indexed=True
+        ),
+        20,
+    )
 
     returned_host = endpoint_func(host_inventory, host_for_fields_tests, wanted_fields)
     returned_sp = {
@@ -230,7 +270,13 @@ def test_get_host_list_selected_fields(
         importance: high
         title: Verify that GET /hosts returns only the selected fields
     """
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Exclude legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
+    selected_fields = sample(
+        fields_having(
+            SYSTEM_PROFILE, lambda f: f.name not in LEGACY_WORKLOADS_FIELDS, x_indexed=True
+        ),
+        20,
+    )
     fields = [field.name for field in selected_fields]
 
     response_hosts = _call_api(host_inventory, "/hosts", fields=fields)["results"]
@@ -257,7 +303,13 @@ def test_get_host_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Exclude legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
+    selected_fields = sample(
+        fields_having(
+            SYSTEM_PROFILE, lambda f: f.name not in LEGACY_WORKLOADS_FIELDS, x_indexed=True
+        ),
+        20,
+    )
     fields = [field.name for field in selected_fields]
 
     response_host = _call_api(host_inventory, f"/hosts/{host.id}", fields=fields)["results"][0]
@@ -281,7 +333,13 @@ def test_get_host_system_profile_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Exclude legacy workloads fields that are now migrated to workloads.* (RHINENG-21482)
+    selected_fields = sample(
+        fields_having(
+            SYSTEM_PROFILE, lambda f: f.name not in LEGACY_WORKLOADS_FIELDS, x_indexed=True
+        ),
+        20,
+    )
     fields = [field.name for field in selected_fields]
 
     response = _call_api(host_inventory, f"/hosts/{host.id}/system_profile", fields=fields)[

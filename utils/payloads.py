@@ -459,6 +459,12 @@ def rpm_list():
 
 def create_system_profile():
     return {
+        "ansible": {
+            "controller_version": "1.2.3",
+            "hub_version": "1.2.3",
+            "catalog_worker_version": "1.2.3",
+            "sso_version": "1.2.3",
+        },
         "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         "rhc_client_id": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
         "rhc_config_state": "044e36dc-4e2b-4e69-8948-9c65a7bf4976",
@@ -550,6 +556,19 @@ def create_system_profile():
             "openssl-0:3.0.1-1.el9.x86_64",
             "krb5-libs-0:1.16.1-23.fc29.i686",
         ],
+        "intersystems": {
+            "is_intersystems": True,
+            "running_instances": [
+                {
+                    "instance_name": "IRIS3",
+                    "product": "IRIS",
+                    "version": "2023.1",
+                }
+            ],
+        },
+        "mssql": {
+            "version": "15.2.0",
+        },
         "public_dns": ["ec2-203-0-113-12.compute-1.amazonaws.com"],
         "public_ipv4_addresses": ["203.0.113.12"],
         "releasever": "8",
@@ -595,6 +614,25 @@ def create_system_profile():
                 "hub_version": "1.2.3",
                 "catalog_worker_version": "1.2.3",
                 "sso_version": "1.2.3",
+            },
+            "ibm_db2": {
+                "is_running": True,
+            },
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [
+                    {
+                        "instance_name": "IRIS3",
+                        "product": "IRIS",
+                        "version": "2023.1",
+                    }
+                ],
+            },
+            "mssql": {
+                "version": "15.2.0",
+            },
+            "oracle_db": {
+                "is_running": True,
             },
             "rhel_ai": {
                 "variant": "RHEL AI",
@@ -774,41 +812,62 @@ def build_sap_host_chunk():
     payload = build_host_chunk()
     system_profile = payload["system_profile"]
 
-    # Randomly determine if this is a SAP system or not
-    is_sap_system = random.choice([True, False]) if USE_RANDOMNESS else True
+    # Always create SAP systems when using this builder
+    # (If you want mixed SAP/non-SAP, use build_host_chunk with randomness)
+    sap_sids_options = [
+        ["ABC", "XYZ"],
+        ["DEV", "QAS", "PRD"],
+        ["T01", "S02"],
+        ["ERP", "CRM"],
+        ["BW1", "BI2"],
+        ["H2O"],  # Single SID systems
+    ]
 
-    # Only add SAP workloads if this is actually a SAP system
-    if is_sap_system:
-        sap_sids_options = [
-            ["ABC", "XYZ"],
-            ["DEV", "QAS", "PRD"],
-            ["T01", "S02"],
-            ["ERP", "CRM"],
-            ["BW1", "BI2"],
-            [],  # Some SAP systems might have no SIDS
-        ]
+    sap_instance_numbers = ["00", "01", "02", "10", "20"]
+    sap_versions = [
+        "1.00.122.04.1478575636",
+        "2.00.122.04.1478575636",
+        "3.00.122.04.1478575636",
+        "1.00.055.00.1234567890",
+    ]
 
-        # Randomly choose SIDS for SAP systems
-        sap_sids = random.choice(sap_sids_options) if USE_RANDOMNESS else ["PRD", "QAS"]
+    # Randomly choose SIDS for SAP systems
+    sap_sids = random.choice(sap_sids_options) if USE_RANDOMNESS else ["PRD", "QAS"]
+    sap_instance_number = random.choice(sap_instance_numbers) if USE_RANDOMNESS else "00"
+    sap_version = random.choice(sap_versions) if USE_RANDOMNESS else "1.00.122.04.1478575636"
 
-        # Add SAP workloads data (goes to system_profiles_dynamic table)
-        system_profile["workloads"]["sap"] = {
-            "sap_system": True,  # Only True for actual SAP systems
-            "sids": sap_sids,
-        }
+    # Add legacy flat SAP fields (top-level in system_profile)
+    system_profile["sap_system"] = True
+    system_profile["sap_sids"] = sap_sids
+    system_profile["sap_instance_number"] = sap_instance_number
+    system_profile["sap_version"] = sap_version
 
-        # Add SAP-specific tags only for SAP systems
-        sap_tags = [
-            {"namespace": "SAP", "key": "environment", "value": random.choice(["production", "development", "test"])},
-            {"namespace": "SAP", "key": "landscape", "value": random.choice(["ERP", "BW", "CRM"])},
-        ]
+    # Add legacy nested SAP object (goes to system_profiles table)
+    system_profile["sap"] = {
+        "sap_system": True,
+        "sids": sap_sids,
+        "instance_number": sap_instance_number,
+        "version": sap_version,
+    }
 
-        if USE_RANDOMNESS:
-            payload["tags"].extend(random.sample(sap_tags, random.randint(0, len(sap_tags))))
-        else:
-            payload["tags"].extend(sap_tags)
+    # Add SAP workloads data (new canonical format)
+    system_profile["workloads"]["sap"] = {
+        "sap_system": True,
+        "sids": sap_sids,
+        "instance_number": sap_instance_number,
+        "version": sap_version,
+    }
 
-    # Non-SAP systems get no SAP workloads structure at all
+    # Add SAP-specific tags
+    sap_tags = [
+        {"namespace": "SAP", "key": "environment", "value": random.choice(["production", "development", "test"])},
+        {"namespace": "SAP", "key": "landscape", "value": random.choice(["ERP", "BW", "CRM"])},
+    ]
+
+    if USE_RANDOMNESS:
+        payload["tags"].extend(random.sample(sap_tags, random.randint(0, len(sap_tags))))
+    else:
+        payload["tags"].extend(sap_tags)
 
     return payload
 

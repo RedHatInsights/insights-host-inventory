@@ -526,7 +526,7 @@ def test_filter_hosts_by_system_profile_mssql(
     [
         pytest.param(field, id=field.name)
         for field in SYSTEM_PROFILE
-        if field.type not in ("custom", "array")
+        if field.type not in ("custom", "array") and field.name not in ("sap_system")
     ],
 )
 def test_filter_hosts_by_system_profile_fields_nil(
@@ -944,7 +944,7 @@ def test_filter_hosts_by_system_profile_multiple_values_without_brackets(
     versions = [
         host.system_profile["workloads"]["mssql"]["version"]
         for host in hosts
-        if host.system_profile.get("workloads").get("mssql", None)
+        if host.system_profile.get("workloads", {}).get("mssql", None)
     ]
     filter = [f"[mssql][version]={version}" for version in versions]
     with pytest.raises(ApiException) as err:
