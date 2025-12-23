@@ -71,6 +71,7 @@ from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
+from tests.helpers.test_utils import minimal_host
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
 
@@ -903,7 +904,7 @@ def test_with_all_fields(flask_app):
 
         actual = deserialize_host(full_input)
         expected = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_input,
             "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
             "system_profile_facts": full_input["system_profile"],
@@ -931,15 +932,17 @@ def test_with_only_required_fields_serialization_deserialize_host_compound(subte
                 }
             )
 
-        assert Host is type(host)
-        assert canonical_facts == host.canonical_facts
-        assert host.display_name is None
-        assert host.ansible_host is None
-        assert org_id == host.org_id
-        assert reporter == host.reporter
-        assert host.facts == {}
-        assert host.tags == {}
-        assert host.system_profile_facts == {}
+            assert Host is type(host)
+            serialized_canonical = serialize_canonical_facts(host)
+            for key, value in canonical_facts.items():
+                assert value == serialized_canonical.get(key)
+            assert host.display_name is None
+            assert host.ansible_host is None
+            assert org_id == host.org_id
+            assert reporter == host.reporter
+            assert host.facts == {}
+            assert host.tags == {}
+            assert host.system_profile_facts == {}
 
 
 def test_with_invalid_input_serialization_deserialize_host_compound(subtests, flask_app):
@@ -1069,7 +1072,7 @@ def test_with_all_common_fields_serialization_deserialize_host_compound(subtests
         with subtests.test(schema=HostSchema):
             actual = deserialize_host(full_input)
             expected = {
-                "canonical_facts": canonical_facts,
+                **canonical_facts,
                 **unchanged_input,
                 "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
                 "system_profile_facts": full_input["system_profile"],
@@ -1098,23 +1101,6 @@ def test_with_tags_serialization_deserialize_host_compound(flask_app):
 
         assert Host is type(host)
         assert tags == host.tags
-
-    """
-    Marshmallow ValidationError mock.
-    """
-
-    def __init__(self, messages, data):
-        self.messages = messages
-        self.data = data
-
-
-def _assertRaisedContext(exception, context):
-    assert context is exception.__context__
-
-
-def _assertRaisedFromNone(exception):
-    assert exception.__suppress_context__
-    assert exception.__cause__ is None
 
 
 @patch("app.models.schemas.Host")
@@ -1195,15 +1181,15 @@ def test_with_all_fields_serialization_deserialize_host_mocked(
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
             openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
@@ -1274,15 +1260,15 @@ def test_without_facts_serialization_deserialize_host_mocked(
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
             openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
@@ -1353,15 +1339,15 @@ def test_without_tags_serialization_deserialize_host_mocked(
             host_input["stale_timestamp"],
             host_input["reporter"],
             host_input["groups"],
-            insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-            subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-            satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-            fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-            bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-            ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-            mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-            provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-            provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
             openshift_cluster_id=host_input["openshift_cluster_id"],
         )
 
@@ -1414,38 +1400,38 @@ def test_without_display_name_serialization_deserialize_host_mocked(
             ],
             "openshift_cluster_id": str(uuid4()),
         }
-    host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-    result = deserialize_host({}, host_schema)
-    assert host.return_value == result
+        result = deserialize_host({}, host_schema)
+        assert host.return_value == result
 
-    deserialize_canonical_facts.assert_called_once_with(host_input)
-    deserialize_facts.assert_called_once_with(host_input["facts"])
-    deserialize_tags.assert_called_once_with(host_input["tags"])
-    host.assert_called_once_with(
-        deserialize_canonical_facts.return_value,
-        None,
-        host_input["ansible_host"],
-        host_input["account"],
-        host_input["org_id"],
-        deserialize_facts.return_value,
-        deserialize_tags.return_value,
-        [],
-        host_input["system_profile"],
-        host_input["stale_timestamp"],
-        host_input["reporter"],
-        host_input["groups"],
-        insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-        subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-        satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-        fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-        bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-        ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-        mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-        provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-        provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        openshift_cluster_id=host_input["openshift_cluster_id"],
-    )
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            None,
+            host_input["ansible_host"],
+            host_input["account"],
+            host_input["org_id"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            [],
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
+            host_input["groups"],
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
+        )
 
 
 @patch("app.models.schemas.Host")
@@ -1491,38 +1477,38 @@ def test_without_system_profile_serialization_deserialize_host_mocked(
             ],
             "openshift_cluster_id": str(uuid4()),
         }
-    host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-    result = deserialize_host({}, host_schema)
-    assert host.return_value == result
+        result = deserialize_host({}, host_schema)
+        assert host.return_value == result
 
-    deserialize_canonical_facts.assert_called_once_with(host_input)
-    deserialize_facts.assert_called_once_with(host_input["facts"])
-    deserialize_tags.assert_called_once_with(host_input["tags"])
-    host.assert_called_once_with(
-        deserialize_canonical_facts.return_value,
-        host_input["display_name"],
-        host_input["ansible_host"],
-        host_input["account"],
-        host_input["org_id"],
-        deserialize_facts.return_value,
-        deserialize_tags.return_value,
-        [],
-        {},
-        host_input["stale_timestamp"],
-        host_input["reporter"],
-        host_input["groups"],
-        insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-        subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-        satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-        fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-        bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-        ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-        mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-        provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-        provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        openshift_cluster_id=host_input["openshift_cluster_id"],
-    )
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
+            host_input["org_id"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            [],
+            {},
+            host_input["stale_timestamp"],
+            host_input["reporter"],
+            host_input["groups"],
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
+        )
 
 
 @patch("app.models.schemas.Host")
@@ -1556,38 +1542,38 @@ def test_without_groups_serialization_deserialize_host_mocked(
             "reporter": "some reporter",
             "openshift_cluster_id": str(uuid4()),
         }
-    host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
+        host_schema = Mock(**{"return_value.load.return_value": host_input, "build_model": HostSchema.build_model})
 
-    result = deserialize_host({}, host_schema)
-    assert host.return_value == result
+        result = deserialize_host({}, host_schema)
+        assert host.return_value == result
 
-    deserialize_canonical_facts.assert_called_once_with(host_input)
-    deserialize_facts.assert_called_once_with(host_input["facts"])
-    deserialize_tags.assert_called_once_with(host_input["tags"])
-    host.assert_called_once_with(
-        deserialize_canonical_facts.return_value,
-        host_input["display_name"],
-        host_input["ansible_host"],
-        host_input["account"],
-        host_input["org_id"],
-        deserialize_facts.return_value,
-        deserialize_tags.return_value,
-        [],
-        host_input["system_profile"],
-        host_input["stale_timestamp"],
-        host_input["reporter"],
-        [],
-        insights_id=deserialize_canonical_facts.return_value.get("insights_id"),
-        subscription_manager_id=deserialize_canonical_facts.return_value.get("subscription_manager_id"),
-        satellite_id=deserialize_canonical_facts.return_value.get("satellite_id"),
-        fqdn=deserialize_canonical_facts.return_value.get("fqdn"),
-        bios_uuid=deserialize_canonical_facts.return_value.get("bios_uuid"),
-        ip_addresses=deserialize_canonical_facts.return_value.get("ip_addresses"),
-        mac_addresses=deserialize_canonical_facts.return_value.get("mac_addresses"),
-        provider_id=deserialize_canonical_facts.return_value.get("provider_id"),
-        provider_type=deserialize_canonical_facts.return_value.get("provider_type"),
-        openshift_cluster_id=host_input["openshift_cluster_id"],
-    )
+        deserialize_canonical_facts.assert_called_once_with(host_input)
+        deserialize_facts.assert_called_once_with(host_input["facts"])
+        deserialize_tags.assert_called_once_with(host_input["tags"])
+        host.assert_called_once_with(
+            deserialize_canonical_facts.return_value,
+            host_input["display_name"],
+            host_input["ansible_host"],
+            host_input["account"],
+            host_input["org_id"],
+            deserialize_facts.return_value,
+            deserialize_tags.return_value,
+            [],
+            host_input["system_profile"],
+            host_input["stale_timestamp"],
+            host_input["reporter"],
+            [],
+            insights_id=host_input.get("insights_id"),
+            subscription_manager_id=host_input.get("subscription_manager_id"),
+            satellite_id=host_input.get("satellite_id"),
+            fqdn=host_input.get("fqdn"),
+            bios_uuid=host_input.get("bios_uuid"),
+            ip_addresses=host_input.get("ip_addresses"),
+            mac_addresses=host_input.get("mac_addresses"),
+            provider_id=host_input.get("provider_id"),
+            provider_type=host_input.get("provider_type"),
+            openshift_cluster_id=host_input["openshift_cluster_id"],
+        )
 
 
 @patch("app.models.schemas.Host")
@@ -1651,7 +1637,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_data,
             "facts": {
                 "some namespace": {"some key": "some value"},
@@ -1722,7 +1708,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                 }
                 host_init_data = {
                     "stale_timestamp": now(),
-                    "canonical_facts": {"subscription_manager_id": generate_uuid()},
+                    "subscription_manager_id": generate_uuid(),
                     **unchanged_data,
                     "facts": {},
                 }
@@ -1743,8 +1729,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                 staleness = get_sys_default_staleness()
                 actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
                 expected = {
-                    **host_init_data["canonical_facts"],
-                    "insights_id": None,
+                    "insights_id": "00000000-0000-0000-0000-000000000000",
                     "fqdn": None,
                     "satellite_id": None,
                     "bios_uuid": None,
@@ -1754,6 +1739,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     "provider_id": None,
                     "provider_type": None,
                     "openshift_cluster_id": None,
+                    "subscription_manager_id": str(host_init_data.get("subscription_manager_id")),
                     **unchanged_data,
                     "facts": [],
                     "groups": [],
@@ -1788,7 +1774,7 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
             ):
                 stale_timestamp = now() + timedelta(days=1)
             host = Host(
-                {"subscription_manager_id": generate_uuid()},
+                subscription_manager_id=generate_uuid(),
                 facts={},
                 stale_timestamp=stale_timestamp,
                 reporter="some reporter",
@@ -1844,7 +1830,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             "openshift_cluster_id": str(uuid4()),
         }
         host_init_data = {
-            "canonical_facts": canonical_facts,
+            **canonical_facts,
             **unchanged_data,
             "facts": facts,
             "stale_timestamp": stale_timestamp,
@@ -1892,7 +1878,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
         assert expected == actual
 
         # It is called twice, because we have 2 test cases
-        serialize_canonical_facts.assert_called_with(host_init_data["canonical_facts"])
+        serialize_canonical_facts.assert_called_with(host)
         serialize_facts.assert_called_with(host_init_data["facts"])
         serialize_tags.assert_called_with(host_init_data["tags"])
 
@@ -1906,7 +1892,7 @@ def test_non_empty_profile_is_not_changed_serialization_serialize_host_system_pr
             "system_memory_bytes": 4,
         }
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             system_profile_facts=system_profile_facts,
             stale_timestamp=now(),
@@ -1923,7 +1909,7 @@ def test_non_empty_profile_is_not_changed_serialization_serialize_host_system_pr
 def test_empty_profile_is_empty_dict_serialization_serialize_host_system_profile(flask_app):
     with flask_app.app.app_context():
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             display_name="some display name",
             stale_timestamp=now(),
             reporter="yupana",
@@ -2019,7 +2005,7 @@ def test_contains_all_values_unchanged_serialization_serialize_canonical_facts()
         "provider_id": "i-05d2313e6b9a42b16",
         "provider_type": "aws",
     }
-    assert canonical_facts == serialize_canonical_facts(canonical_facts)
+    assert canonical_facts == serialize_canonical_facts(minimal_host(**canonical_facts))
 
 
 def test_missing_fields_are_filled_with_none_serialization_serialize_canonical_facts():
@@ -2034,7 +2020,10 @@ def test_missing_fields_are_filled_with_none_serialization_serialize_canonical_f
         "provider_id",
         "provider_type",
     )
-    assert {field: None for field in canonical_fact_fields} == serialize_canonical_facts({})
+    expected = {field: None for field in canonical_fact_fields}
+    # insights_id should never be None - it defaults to zero UUID
+    expected["insights_id"] = "00000000-0000-0000-0000-000000000000"
+    assert expected == serialize_canonical_facts({})
 
 
 def test_non_empty_namespaces_become_dict_items_serialization_deserialize_facts():
