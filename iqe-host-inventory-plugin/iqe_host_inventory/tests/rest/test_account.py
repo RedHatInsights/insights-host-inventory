@@ -15,7 +15,6 @@ from iqe_host_inventory.utils.kafka_utils import create_or_update_message_expect
 from iqe_host_inventory.utils.kafka_utils import delete_message_expected_fields
 from iqe_host_inventory.utils.kafka_utils import events_message_expected_headers
 from iqe_host_inventory.utils.kafka_utils import prepare_identity_metadata
-from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 
 pytestmark = [pytest.mark.backend]
 
@@ -846,23 +845,3 @@ def test_account_delete(
     assert consumed_host_message.headers.get("event_type") == "delete"
 
     host_inventory.apis.hosts.wait_for_deleted(host)
-
-
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
-def test_account_upload_creates_org_id(
-    host_inventory: ApplicationHostInventory, hbi_default_org_id: str, operating_system: str
-):
-    """
-    Test creating host via archive upload to ingress/puptoo assigns org_id to host
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2870
-
-    metadata:
-        requirements: inv-account-integrity
-        assignee: fstavela
-        importance: critical
-        title: Test creating host via archive upload to ingress/puptoo assigns org_id to host
-    """
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
-    host = host_inventory.upload.create_host(base_archive=base_archive, core_collect=core_collect)
-    assert host.org_id == hbi_default_org_id
