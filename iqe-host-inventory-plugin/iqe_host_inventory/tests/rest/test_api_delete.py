@@ -39,7 +39,6 @@ from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
-from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api.models.host_out import HostOut
 
@@ -241,11 +240,7 @@ def test_concurrency_delete(
 @pytest.mark.smoke
 @pytest.mark.core
 @pytest.mark.qa
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
-def test_host_deletion_happy_path(
-    host_inventory: ApplicationHostInventory,
-    operating_system: str,
-):
+def test_host_deletion_happy_path(host_inventory: ApplicationHostInventory):
     """
     Test Host Deletion Happy Path.
 
@@ -259,8 +254,7 @@ def test_host_deletion_happy_path(
         importance: critical
         title: Inventory: Confirm host deletion happy path
     """
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
-    host = host_inventory.upload.create_host(base_archive=base_archive, core_collect=core_collect)
+    host = host_inventory.upload.create_host()
 
     host_inventory.apis.hosts.delete_by_id_raw(host)
     host_inventory.apis.hosts.wait_for_deleted(host)

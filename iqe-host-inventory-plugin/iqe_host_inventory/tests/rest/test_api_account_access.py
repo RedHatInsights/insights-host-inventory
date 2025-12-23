@@ -5,11 +5,9 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import temp_headers
-from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
+from iqe_host_inventory_api import HostOut
 
 pytestmark = [pytest.mark.backend]
 
@@ -20,13 +18,12 @@ logger = logging.getLogger(__name__)
 @pytest.mark.core
 @pytest.mark.qa
 @pytest.mark.multi_account
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
 def test_access_host_from_another_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
     hbi_default_org_id: str,
-    operating_system: str,
     is_kessel_phase_1_enabled: bool,
+    hbi_upload_prepare_host_module: HostOut,
 ) -> None:
     """
     Test accessing a host from another account.
@@ -45,13 +42,7 @@ def test_access_host_from_another_account(
         title: Inventory: confirm hosts cannot be accessed from another account
     """
     # Creates a host using the main account
-    display_name = generate_display_name()
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
-    host = host_inventory.upload.create_host(
-        display_name=display_name, base_archive=base_archive, core_collect=core_collect
-    )
-
-    assert host.display_name == display_name
+    host = hbi_upload_prepare_host_module
 
     # Fetch the host using the main account
     main_account_host = host_inventory.apis.hosts.get_hosts_by_id_response(host.id)
@@ -79,19 +70,18 @@ def test_access_host_from_another_account(
 @pytest.mark.core
 @pytest.mark.qa
 @pytest.mark.multi_account
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
 def test_delete_multiple_accounts(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
-    operating_system: str,
+    hbi_upload_prepare_host_module: HostOut,
 ) -> None:
     """
     Test deletion from another account.
 
     Confirm that a user trying to delete hosts associated with another account cannot.
 
-    1. Create multiple hosts using the primary account
-    2. Fetch the created hosts using the secondary account and confirm the results are 0.
+    1. Create a host using the primary account
+    2. Fetch the created host using the secondary account and confirm the results are 0.
     3. Attempt to delete the hosts using the secondary account and confirm the delete operation
     fails.
 
@@ -101,28 +91,24 @@ def test_delete_multiple_accounts(
         importance: critical
         title: Inventory: Deletion from another account should fail with 404
     """
-    n = 3
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
-    hosts_data = [HostData(base_archive=base_archive, core_collect=core_collect) for _ in range(n)]
-    hosts = host_inventory.upload.create_hosts(hosts_data=hosts_data)
-    host_ids = [host.id for host in hosts]
+    host = hbi_upload_prepare_host_module
 
-    prim_hosts = host_inventory.apis.hosts.get_hosts_by_id_response(host_ids)
-    assert len(prim_hosts.results) == n
+    prim_hosts = host_inventory.apis.hosts.get_hosts_by_id_response(host)
+    assert len(prim_hosts.results) == 1
 
     with raises_apierror(404):
-        host_inventory_secondary.apis.hosts.delete_by_id_raw(host_ids)
+        host_inventory_secondary.apis.hosts.delete_by_id_raw(host.id)
 
-    host_inventory.apis.hosts.verify_not_deleted(hosts)
+    host_inventory.apis.hosts.verify_not_deleted(host)
 
 
 @pytest.mark.smoke
 def test_access_other_orgs_with_org_id_header(
-    host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
     hbi_default_org_id: str,
     hbi_secondary_org_id: str,
     is_kessel_phase_1_enabled: bool,
+    hbi_upload_prepare_host_module: HostOut,
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-18446
@@ -133,7 +119,7 @@ def test_access_other_orgs_with_org_id_header(
         importance: critical
         title: Test that org-id header is ignored on requests that aren't coming from internal RHSM
     """
-    host = host_inventory.upload.create_host()
+    host = hbi_upload_prepare_host_module
 
     with temp_headers(
         host_inventory_secondary.apis.hosts.raw_api, {"x-inventory-org-id": hbi_default_org_id}

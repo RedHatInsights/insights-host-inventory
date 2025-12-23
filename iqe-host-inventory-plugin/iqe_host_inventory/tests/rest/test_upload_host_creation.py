@@ -15,6 +15,7 @@ from iqe_host_inventory.utils.staleness_utils import validate_host_timestamps
 from iqe_host_inventory.utils.tag_utils import sort_tags
 from iqe_host_inventory.utils.upload_utils import IMAGE_MODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
+from iqe_host_inventory_api import HostOut
 
 logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
@@ -23,8 +24,11 @@ pytestmark = [pytest.mark.backend]
 @pytest.mark.smoke
 @pytest.mark.core
 @pytest.mark.qa
+@pytest.mark.usefixtures("hbi_staleness_cleanup")
 @pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
-def test_create_new_host(host_inventory: ApplicationHostInventory, operating_system: str) -> None:
+def test_create_new_host(
+    host_inventory: ApplicationHostInventory, hbi_default_org_id: str, operating_system: str
+) -> None:
     """
     Test creation of new host via archive upload (Ingress/Puptoo)
 
@@ -47,8 +51,14 @@ def test_create_new_host(host_inventory: ApplicationHostInventory, operating_sys
     )
 
     assert host.display_name == display_name
+    assert host.org_id == hbi_default_org_id
+
     system_profile_response = host_inventory.apis.hosts.get_host_system_profile(host)
     assert system_profile_response.system_profile.operating_system.name == operating_system
+
+    # Ensure hosts created via ingress/puptoo have their culling dates calculated correctly
+    assert host.reporter == "puptoo"
+    validate_host_timestamps(host_inventory, host)
 
 
 @pytest.mark.smoke
@@ -159,29 +169,6 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
     assert retrieved_hosts[0].mac_addresses == [mac_address]
 
 
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_create_host_system_culling_data(host_inventory: ApplicationHostInventory) -> None:
-    """
-    Ensure hosts created via ingress/puptoo have their culling dates calculated correctly
-
-    1. Create a host via archive upload (Ingress/Puptoo)
-    2. Make sure the reporter is set to "puptoo"
-    3. Make sure each of the staleness timestamps is set correctly based on
-       the default staleness settings
-
-    metadata:
-        requirements: inv-host-create, inv-staleness-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Confirm hosts created via ingress/puptoo have their culling dates
-            calculated correctly
-    """
-    host = host_inventory.upload.create_host()
-
-    assert host.reporter == "puptoo"
-    validate_host_timestamps(host_inventory, host)
-
-
 @pytest.mark.smoke
 @pytest.mark.core
 @pytest.mark.qa
@@ -259,7 +246,9 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     assert fetched_host.results[0].system_profile.sap_system
 
 
-def test_create_image_mode_host(host_inventory: ApplicationHostInventory) -> None:
+def test_create_image_mode_host(
+    host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
+) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-8988
 
@@ -269,7 +258,7 @@ def test_create_image_mode_host(host_inventory: ApplicationHostInventory) -> Non
         importance: high
         title: Test creating and filtering image-mode hosts
     """
-    conventional_host = host_inventory.upload.create_host()
+    conventional_host = hbi_upload_prepare_host_module
     image_host = host_inventory.upload.create_host(base_archive=IMAGE_MODE_ARCHIVE)
 
     # Check correct data in system_profile
