@@ -324,10 +324,8 @@ class Host(LimitedHost):
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
         id_fact_fields = tuple(local_vars[field] for field in ID_FACTS)
-        if (
-            canonical_facts
-            and not any(id_fact in canonical_facts for id_fact in ID_FACTS)
-            and all(field is None for field in id_fact_fields)
+        if (canonical_facts and not any(id_fact in canonical_facts for id_fact in ID_FACTS)) or (
+            not canonical_facts and all(field is None for field in id_fact_fields)
         ):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 

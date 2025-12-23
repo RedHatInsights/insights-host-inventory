@@ -61,6 +61,42 @@ def test_update_fields(patch_doc, db_create_host, db_get_host, api_patch):
         assert getattr(record2, key) == patch_doc[key]
 
 
+@pytest.mark.parametrize(
+    "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
+)
+def test_checkin_canonical_facts(
+    event_datetime_mock,
+    event_producer_mock,
+    db_create_host,
+    db_get_host,
+    api_post,
+    canonical_facts,
+):
+    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+
+    post_doc = created_host.canonical_facts
+    updated_time = created_host.modified_on
+
+    response_status, _ = api_post(
+        build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
+    )
+
+    assert_response_status(response_status, expected_status=201)
+    record = db_get_host(created_host.id)
+
+    assert record.modified_on > updated_time
+    assert record.stale_timestamp == created_host.stale_timestamp
+    assert record.reporter == created_host.reporter
+
+    assert_patch_event_is_valid(
+        created_host,
+        event_producer_mock,
+        "123456",
+        event_datetime_mock,
+        created_host.display_name,
+    )
+
+
 @pytest.mark.usefixtures("event_producer_mock")
 def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
     canonical_facts = {"insights_id": generate_uuid()}
