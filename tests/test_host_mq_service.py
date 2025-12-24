@@ -3057,7 +3057,9 @@ def test_write_add_update_event_message(mocker):
         id = "host-id"
         org_id = "org-id"
         account = "acct"
-        canonical_facts = {"insights_id": str(generate_uuid())}
+        canonical_facts = {"insights_id": str(generate_uuid())}  # this line will be removed
+        insights_id = generate_uuid()
+        subscription_manager_id = generate_uuid()
         reporter = "puptoo"
         system_profile_facts = {"owner_id": "owner-id"}
         groups = [serialized_group]

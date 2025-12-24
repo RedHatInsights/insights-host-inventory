@@ -24,6 +24,17 @@ ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 # This elevated fact is to be used when the USE_SUBMAN_ID env is True
 ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
+CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
 
 COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
@@ -225,6 +236,14 @@ class Config:
         self.bypass_kessel = os.environ.get("BYPASS_KESSEL", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
+
+        self.kessel_auth_client_id = os.environ.get("KESSEL_AUTH_CLIENT_ID")
+        self.kessel_auth_client_secret = os.environ.get("KESSEL_AUTH_CLIENT_SECRET")
+        self.kessel_auth_oidc_issuer = os.getenv(
+            "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
+        )
+        self.kessel_auth_enabled = os.environ.get("KESSEL_AUTH_ENABLED", "false").lower() == "true"
+        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
 
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
@@ -465,6 +484,7 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
+            self.logger.info("Kessel is running in %s mode.", "INSECURE" if self.kessel_insecure else "SECURE")
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

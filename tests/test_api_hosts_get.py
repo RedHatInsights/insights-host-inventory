@@ -1023,10 +1023,17 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         assert ordered_insights_ids[index] == response_data["results"][index]["insights_id"]
 
 
-@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
-def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query):
+@pytest.mark.parametrize("num_hosts_to_query", (1, 3))
+@pytest.mark.parametrize("order_by", ("updated", "display_name", "group_name", "operating_system", "last_check_in"))
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_query_using_id_list(
+    mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query, order_by, order_how
+):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]])
+    url = build_hosts_url(
+        host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]],
+        query=f"?order_by={order_by}&order_how={order_how}",
+    )
 
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
@@ -1042,9 +1049,13 @@ def test_query_using_id_list_nonexistent_host(api_get):
     assert len(response_data["results"]) == 0
 
 
-@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
+@pytest.mark.parametrize("num_hosts_to_query", (1, 3))
 @pytest.mark.parametrize("sparse_request", (True, False))
-def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request):
+@pytest.mark.parametrize("order_by", ("updated", "display_name", "group_name", "operating_system", "last_check_in"))
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_query_sp_by_id_list_sparse(
+    db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request, order_by, order_how
+):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
@@ -1056,9 +1067,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     created_hosts_ids = [str(host.id) for host in created_hosts]
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
-    url = f"{host_list_url}/system_profile"
+    url = f"{host_list_url}/system_profile?order_by={order_by}&order_how={order_how}"
     if sparse_request:
-        url += "?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+        url += "&fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
     response_status, response_data = api_get(url)
 
