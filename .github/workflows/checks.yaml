@@ -10,6 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Validate commit message
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          path: code
+      - uses: actions/checkout@v5
+        with:
+          repository: "RH-HostInventory/changelog"
+          path: changelog
+      - run: pip3 install ./changelog
+      - run: python3 -m host_inventory_changelog commit-check
+        working-directory: code
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
