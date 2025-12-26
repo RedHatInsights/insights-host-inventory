@@ -8,6 +8,7 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import create_event_producer
 from app.queue.host_mq import HBIMessageConsumerBase
+from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
@@ -28,6 +29,7 @@ def main():
         config.host_ingress_topic: IngressMessageConsumer,
         config.system_profile_topic: SystemProfileMessageConsumer,
         config.workspaces_topic: WorkspaceMessageConsumer,
+        config.host_app_data_topic: HostAppMessageConsumer,
     }
 
     consumer = create_consumer(config)
