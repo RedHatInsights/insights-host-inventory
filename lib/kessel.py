@@ -1,8 +1,10 @@
 import grpc
 from grpc import StatusCode
+from kessel.auth import OAuth2ClientCredentials
+from kessel.auth import fetch_oidc_discovery
+from kessel.inventory.v1beta2 import ClientBuilder
 from kessel.inventory.v1beta2 import allowed_pb2
 from kessel.inventory.v1beta2 import check_request_pb2
-from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
 from kessel.inventory.v1beta2 import reporter_reference_pb2
 from kessel.inventory.v1beta2 import representation_type_pb2
 from kessel.inventory.v1beta2 import resource_reference_pb2
@@ -19,9 +21,23 @@ logger = get_logger(__name__)
 
 class Kessel:
     def __init__(self, config: Config):
-        # Configure gRPC channel with proper timeout and retry settings
-        self.channel = grpc.insecure_channel(config.kessel_target_url)
-        self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(self.channel)
+        client_builder = ClientBuilder(config.kessel_inventory_api_endpoint)
+
+        if config.kessel_auth_enabled:
+            # Configure Kessel Oauth2 credentials
+            discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
+            auth_credentials = OAuth2ClientCredentials(
+                client_id=config.kessel_auth_client_id,
+                client_secret=config.kessel_auth_client_secret,
+                token_endpoint=discovery.token_endpoint,
+            )
+
+            client_builder = client_builder.oauth2_client_authenticated(auth_credentials)
+
+        if config.kessel_insecure:
+            client_builder = client_builder.insecure()
+
+        self.inventory_svc, self.channel = client_builder.build()
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
 
     def _handle_grpc_error(self, e: grpc.RpcError, operation: str) -> bool:

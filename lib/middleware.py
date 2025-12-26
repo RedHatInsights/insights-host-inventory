@@ -134,7 +134,7 @@ def _execute_rbac_http_request(  # type: ignore[return]
             method_upper = method.upper()
             if method_upper == "GET":
                 common_kwargs["params"] = request_params
-            elif method_upper in ("POST", "PATCH"):
+            elif method_upper in {"POST", "PATCH"}:
                 common_kwargs["json"] = request_data
             elif method_upper != "DELETE":
                 raise ValueError(f"Unsupported method: {method}")
@@ -144,7 +144,7 @@ def _execute_rbac_http_request(  # type: ignore[return]
             rbac_response = http_method(**common_kwargs)
 
             rbac_response.raise_for_status()
-            return rbac_response.json()
+            return rbac_response.json() if rbac_response.text else None
     except HTTPError as e:
         status_code = e.response.status_code
         if status_code == 404 and skip_not_found:
@@ -314,9 +314,9 @@ def get_rbac_filter(
     # call the endpoint with the RBAC filtering data.
     if allowed:
         return True, {"groups": allowed_group_ids}
-    else:
-        rbac_permission_denied(logger, required_permission.value, rbac_data)
-        return False, None
+
+    rbac_permission_denied(logger, required_permission.value, rbac_data)
+    return False, None
 
 
 def kessel_type(type) -> str:
@@ -510,7 +510,7 @@ def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
             abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
-def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
+def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_kessel:
         return None
 
@@ -533,6 +533,7 @@ def post_rbac_workspace(name) -> UUID | None:  # type: ignore[return]
     except (KeyError, ValueError, TypeError) as e:
         rbac_failure(logger, e)
         abort(503, "Failed to parse RBAC response, request cannot be fulfilled")
+        return None  # Satisfy mypy
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:

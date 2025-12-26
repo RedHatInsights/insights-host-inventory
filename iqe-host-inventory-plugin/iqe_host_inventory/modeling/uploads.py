@@ -273,6 +273,9 @@ class HBIUploads(BaseEntity):
             f"Expected exactly one host to be created, got {len(hosts)}: {hosts}"
         )
 
+        logger.info("Waiting for the host to be retrievable via REST API: GET /hosts/<host_id>")
+        self._hosts_api.wait_for_created(hosts)
+
         if register_for_cleanup:
             self._host_inventory.cleanup.add_hosts(hosts, scope=cleanup_scope)
 
@@ -327,6 +330,9 @@ class HBIUploads(BaseEntity):
         delete_files(archives)
         if len(response_hosts) != len(insights_ids):
             raise HOSTS_NOT_CREATED_ERROR
+
+        logger.info("Waiting for the hosts to be retrievable via REST API: GET /hosts/<host_id>")
+        self._hosts_api.wait_for_created(response_hosts)
 
         if register_for_cleanup:
             self._host_inventory.cleanup.add_hosts(response_hosts, scope=cleanup_scope)

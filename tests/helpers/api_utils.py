@@ -691,6 +691,15 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
     return response
 
 
+def mocked_delete_workspace_empty_response(_self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.NO_CONTENT
+    response._content = b""
+
+    return response
+
+
 def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, url: str, **_: Any) -> Response:
     error_message = "Can't patch workspace with same name within same parent workspace"
 

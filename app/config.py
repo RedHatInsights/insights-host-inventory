@@ -6,6 +6,8 @@ import tempfile
 from datetime import timedelta
 from enum import Enum
 
+from app_common_python import DependencyEndpoints
+
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -22,6 +24,17 @@ ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 # This elevated fact is to be used when the USE_SUBMAN_ID env is True
 ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
+CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
 
 COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
@@ -41,6 +54,8 @@ class Config:
         import app_common_python
 
         cfg = app_common_python.LoadedConfig
+        kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
+        self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
@@ -156,6 +171,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
@@ -221,6 +237,14 @@ class Config:
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
+        self.kessel_auth_client_id = os.environ.get("KESSEL_AUTH_CLIENT_ID")
+        self.kessel_auth_client_secret = os.environ.get("KESSEL_AUTH_CLIENT_SECRET")
+        self.kessel_auth_oidc_issuer = os.getenv(
+            "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
+        )
+        self.kessel_auth_enabled = os.environ.get("KESSEL_AUTH_ENABLED", "false").lower() == "true"
+        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
+
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
@@ -273,6 +297,7 @@ class Config:
 
         self.kafka_producer = {
             "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
+            "enable.idempotence": "false",
             "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "65536")),
             "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "0")),
@@ -326,7 +351,6 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
-        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
 
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
@@ -460,6 +484,7 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
+            self.logger.info("Kessel is running in %s mode.", "INSECURE" if self.kessel_insecure else "SECURE")
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

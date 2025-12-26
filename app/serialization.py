@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import Any
 from typing import TypedDict
+from uuid import UUID
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -9,6 +11,7 @@ from marshmallow import ValidationError
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
+from app.config import CANONICAL_FACTS_FIELDS
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -51,18 +54,6 @@ _EXPORT_SERVICE_FIELDS = [
     "tags",
     "host_type",
 ]
-
-_CANONICAL_FACTS_FIELDS = (
-    "insights_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "provider_id",
-    "provider_type",
-)
 
 DEFAULT_FIELDS = (
     "id",
@@ -127,8 +118,9 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
-        del serialized_host[field_name]
+    for field_name in CANONICAL_FACTS_FIELDS:
+        if field_name in serialized_host and serialized_host[field_name] is None:
+            del serialized_host[field_name]
 
 
 def serialize_host(
@@ -150,11 +142,11 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = {**serialize_canonical_facts(host)}
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
-        "id": lambda: _serialize_uuid(host.id),
+        "id": lambda: serialize_uuid(host.id),
         "account": lambda: host.account,
         "org_id": lambda: host.org_id,
         "display_name": lambda: host.display_name,
@@ -176,7 +168,7 @@ def serialize_host(
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.system_profile_facts.get("os_release", None),
-        "openshift_cluster_id": lambda: _serialize_uuid(host.openshift_cluster_id),
+        "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically
@@ -230,7 +222,7 @@ def serialize_host_for_export_svc(
         host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
     )
 
-    serialized_host["host_id"] = _serialize_uuid(host.id)
+    serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
     if host.groups:
         serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
@@ -250,7 +242,7 @@ def serialize_host_for_export_svc(
 
 def serialize_group_without_host_count(group: Group) -> dict:
     return {
-        "id": _serialize_uuid(group.id),
+        "id": serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
@@ -265,7 +257,7 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
 
 def _recursive_casefold(field_data):
@@ -278,15 +270,31 @@ def _recursive_casefold(field_data):
 
 
 def _deserialize_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+    """
+    Deserialize canonical facts: apply case folding and filter falsy values.
+    """
+    return {field: _recursive_casefold(data[field]) for field in CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def _deserialize_all_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
+    """
+    Deserialize canonical facts: apply case folding, keeping None values.
+    """
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+def serialize_canonical_facts(host: Host | LimitedHost) -> dict[str, Any]:
+    canonical_facts = {}
+    for field in CANONICAL_FACTS_FIELDS:
+        value = getattr(host, field, None)
+        if isinstance(value, UUID):
+            value = serialize_uuid(value)
+        if field in {"ip_addresses", "mac_addresses"} and value == []:
+            value = None
+        if field == "insights_id" and value is None:
+            value = "00000000-0000-0000-0000-000000000000"
+        canonical_facts[field] = value
+    return canonical_facts
 
 
 def _deserialize_facts(data):
@@ -330,7 +338,7 @@ def _deserialize_datetime(s):
     return dt.astimezone(UTC)
 
 
-def _serialize_uuid(u):
+def serialize_uuid(u):
     return str(u) if u else None
 
 
@@ -403,7 +411,7 @@ def _serialize_tags(tags):
 
 def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(staleness.id),
+        "id": serialize_uuid(staleness.id),
         "org_id": staleness.org_id,
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
@@ -434,6 +442,29 @@ class _WorkloadCompatConfig(TypedDict, total=False):
     path: list[str]
     fields: dict[str, str]
     flat_fields: dict[str, str]
+
+
+def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
+    """
+    Map host_type values for backward compatibility with downstream apps.
+
+    Downstream applications only recognize 'edge' as a special value.
+    All other values (bootc, conventional, cluster) should be mapped to empty string
+    to maintain backward compatibility.
+
+    Args:
+        host_type: The host_type value from the database/system profile
+
+    Returns:
+        str: Backward-compatible host_type value:
+            - "edge" for actual edge systems (only explicit "edge")
+            - "" (empty string) for all other types (bootc, conventional, cluster, etc.)
+
+    Note:
+        This mapping is only applied to Kafka events, not API responses.
+        API responses return the actual database values.
+    """
+    return "edge" if host_type == "edge" else ""
 
 
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:

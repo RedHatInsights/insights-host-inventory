@@ -5,16 +5,22 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import Mock
+from uuid import UUID
 
 from confluent_kafka import TopicPartition
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.common import inventory_config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.models import Host
+from app.serialization import _deserialize_tags
 from app.serialization import serialize_facts
+from app.serialization import serialize_uuid
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -184,7 +190,7 @@ def assert_delete_event_is_valid(
 
     assert event["type"] == "delete"
 
-    assert host.canonical_facts.get("insights_id") == event["insights_id"]
+    assert serialize_uuid(host.insights_id) == event["insights_id"]
 
     assert event["initiated_by_frontend"] is initiated_by_frontend
 
@@ -195,7 +201,7 @@ def assert_delete_event_is_valid(
     assert event_producer.headers == expected_headers(
         "delete",
         event["request_id"],
-        host.canonical_facts.get("insights_id"),
+        serialize_uuid(host.insights_id),
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -229,15 +235,109 @@ def assert_delete_notification_is_valid(notification_event_producer, host):
 
     assert event["event_type"] == "system-deleted"
 
-    assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
+    assert serialize_uuid(host.insights_id) == event["events"][0]["payload"]["insights_id"]
 
 
-def assert_stale_notification_is_valid(notification_event_producer, host):
+def _assert_stale_notification_headers(headers: dict[str, Any] | None, event_type: str) -> None:
+    """Validate notification headers structure and content."""
+    assert headers is not None, "Headers should not be None"
+    assert isinstance(headers, dict), f"Headers should be a dict, got: {type(headers)}"
+
+    # Stale notifications don't include request_id (job-triggered, not request-triggered)
+    expected_header_keys = {"event_type", "producer", "rh-message-id"}
+    assert set(headers.keys()) == expected_header_keys, f"Header keys mismatch: {set(headers.keys())}"
+
+    assert headers["event_type"] == event_type, f"Header event_type mismatch: {headers['event_type']} != {event_type}"
+    # Producer is the hostname of the machine running the code
+    assert headers["producer"], "Producer header should not be empty"
+
+    # Validate rh-message-id is a valid UUID
+    try:
+        UUID(headers["rh-message-id"])
+    except ValueError as err:
+        raise AssertionError(f"rh-message-id is not a valid UUID: {headers['rh-message-id']}") from err
+
+
+def _assert_stale_notification_context(context: dict[str, Any], host: Host) -> None:
+    """Validate notification context structure and content."""
+    expected_context_keys = {
+        "inventory_id",
+        "hostname",
+        "display_name",
+        "rhel_version",
+        "tags",
+        "host_url",
+    }
+    assert set(context.keys()) == expected_context_keys, f"Context keys mismatch: {set(context.keys())}"
+
+    # Verify context field values
+    assert context["inventory_id"] == str(host.id)
+    assert context["display_name"] == host.display_name
+    assert context["hostname"] == host.canonical_facts.get("fqdn", "")
+
+    # Validate host_url
+    expected_host_url = f"{inventory_config().base_ui_url}/{host.id}"
+    assert context["host_url"] == expected_host_url, f"host_url mismatch: {context['host_url']} != {expected_host_url}"
+
+    # rhel_version is only populated for RHEL hosts
+    # Get operating_system from the static_system_profile relationship
+    os_info = {}
+    if host.static_system_profile and host.static_system_profile.operating_system:
+        os_info = host.static_system_profile.operating_system
+
+    if os_info.get("name", "").lower() == "rhel":
+        expected_version = f"{os_info.get('major')}.{os_info.get('minor')}"
+        assert context["rhel_version"] == expected_version
+    else:
+        assert context["rhel_version"] == ""
+
+    # Validate tags
+    expected_tags = _deserialize_tags(host.tags)
+    assert context["tags"] == expected_tags, f"Tags mismatch: {context['tags']} != {expected_tags}"
+
+
+def _assert_stale_notification_payload(payload: dict[str, Any], host: Host) -> None:
+    """Validate notification payload structure and content."""
+    expected_payload_keys = {
+        "insights_id",
+        "subscription_manager_id",
+        "satellite_id",
+        "groups",
+    }
+    assert set(payload.keys()) == expected_payload_keys, f"Payload keys mismatch: {set(payload.keys())}"
+
+    # Verify payload field values
+    assert payload["insights_id"] == host.canonical_facts.get("insights_id", "")
+    assert payload["subscription_manager_id"] == host.canonical_facts.get("subscription_manager_id", "")
+    assert payload["satellite_id"] == host.canonical_facts.get("satellite_id", "")
+
+    # Verify groups - a host can have at most 1 group
+    expected_groups = host.groups or []
+    payload_groups = payload.get("groups", [])
+    assert len(payload_groups) <= 1
+    assert len(payload_groups) == len(expected_groups)
+    if expected_groups:
+        assert payload_groups[0]["id"] == expected_groups[0].get("id")
+        assert payload_groups[0]["name"] == expected_groups[0].get("name")
+
+
+def assert_stale_notification_is_valid(notification_event_producer: MockEventProducer, host: Host) -> None:
+    """
+    Validate stale notification structure and content, including headers.
+
+    Args:
+        notification_event_producer: The mock event producer containing the notification
+        host: The host object to validate against
+    """
+    # Validate headers
+    _assert_stale_notification_headers(notification_event_producer.headers, "system-became-stale")
+
+    # Validate event body
     event = json.loads(notification_event_producer.event)
-
     assert isinstance(event, dict)
 
-    expected_keys = {
+    # Validate root level keys
+    expected_root_keys = {
         "timestamp",
         "event_type",
         "org_id",
@@ -246,11 +346,41 @@ def assert_stale_notification_is_valid(notification_event_producer, host):
         "context",
         "events",
     }
-    assert set(event.keys()) == expected_keys
+    assert set(event.keys()) == expected_root_keys, f"Root keys mismatch: {set(event.keys())}"
 
+    # Verify root level fields
     assert event["event_type"] == "system-became-stale"
+    assert event["org_id"] == host.org_id
+    assert event["application"] == "inventory"
+    assert event["bundle"] == "rhel"
 
-    assert host.canonical_facts.get("insights_id") == event["events"][0]["payload"]["insights_id"]
+    # Validate timestamp format and approximate value (within 10 seconds from now)
+    event_timestamp = event["timestamp"]
+    try:
+        parsed_timestamp = datetime.fromisoformat(event_timestamp.replace("Z", "+00:00"))
+    except ValueError as err:
+        raise AssertionError(f"Timestamp is not in correct ISO format: {event_timestamp}") from err
+
+    now = datetime.now(UTC)
+    time_diff = abs((now - parsed_timestamp).total_seconds())
+    assert time_diff < 10, f"Timestamp {parsed_timestamp} is more than 10 seconds from now ({now})"
+
+    # Validate context
+    _assert_stale_notification_context(event["context"], host)
+
+    # Validate events structure
+    assert isinstance(event["events"], list)
+    assert len(event["events"]) == 1
+
+    event_item = event["events"][0]
+    expected_event_keys = {"metadata", "payload"}
+    assert set(event_item.keys()) == expected_event_keys, f"Event keys mismatch: {set(event_item.keys())}"
+
+    # Validate metadata is empty dict
+    assert event_item["metadata"] == {}, f"Metadata should be empty dict, got: {event_item['metadata']}"
+
+    # Validate payload
+    _assert_stale_notification_payload(event_item["payload"], host)
 
 
 def assert_patch_event_is_valid(
@@ -287,15 +417,15 @@ def assert_patch_event_is_valid(
             "account": host.account,
             "display_name": display_name,
             "ansible_host": host.ansible_host,
-            "fqdn": host.canonical_facts.get("fqdn"),
+            "fqdn": host.fqdn,
             "groups": host.groups,
-            "insights_id": host.canonical_facts.get("insights_id"),
-            "bios_uuid": host.canonical_facts.get("bios_uuid"),
-            "ip_addresses": host.canonical_facts.get("ip_addresses"),
-            "mac_addresses": host.canonical_facts.get("mac_addresses"),
+            "insights_id": serialize_uuid(host.insights_id),
+            "bios_uuid": host.bios_uuid,
+            "ip_addresses": host.ip_addresses,
+            "mac_addresses": host.mac_addresses,
             "facts": serialize_facts(host.facts),
-            "satellite_id": host.canonical_facts.get("satellite_id"),
-            "subscription_manager_id": host.canonical_facts.get("subscription_manager_id"),
+            "satellite_id": host.satellite_id,
+            "subscription_manager_id": host.subscription_manager_id,
             "system_profile": host.system_profile_facts,
             "per_reporter_staleness": host.per_reporter_staleness,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
@@ -305,9 +435,9 @@ def assert_patch_event_is_valid(
             "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(UTC).isoformat(),
             "last_check_in": host.last_check_in.isoformat(),
-            "provider_id": host.canonical_facts.get("provider_id"),
-            "provider_type": host.canonical_facts.get("provider_type"),
-            "openshift_cluster_id": host.canonical_facts.get("openshift_cluster_id"),
+            "provider_id": host.provider_id,
+            "provider_type": host.provider_type,
+            "openshift_cluster_id": host.openshift_cluster_id,
         },
         "platform_metadata": {"b64_identity": to_auth_header(Identity(obj=identity))},
         "metadata": {"request_id": expected_request_id},
@@ -322,7 +452,7 @@ def assert_patch_event_is_valid(
     assert event_producer.headers == expected_headers(
         "updated",
         expected_request_id,
-        host.canonical_facts.get("insights_id"),
+        serialize_uuid(host.insights_id),
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -370,7 +500,7 @@ def assert_system_registered_notification_is_valid(notification_event_producer, 
     for item in event["events"]:
         payload = item["payload"]
         assert set(payload.keys()) == expected_payload_keys
-        assert host.insights_id == payload["insights_id"]
+        assert serialize_uuid(host.insights_id) == payload["insights_id"]
         assert isinstance(datetime.fromisoformat(payload["system_check_in"]), datetime)
 
 
@@ -413,7 +543,7 @@ def assert_synchronize_event_is_valid(
     assert set(event.keys()) == expected_keys
     assert timestamp.replace(tzinfo=UTC).isoformat() == event["timestamp"]
     assert event["type"] == "updated"
-    assert host.canonical_facts.get("insights_id") == event["host"]["insights_id"]
+    assert serialize_uuid(host.insights_id) == event["host"]["insights_id"]
     assert str(host.id) in event_producer.key
 
     # Assert groups data
@@ -427,7 +557,7 @@ def assert_synchronize_event_is_valid(
     assert event_producer.headers == expected_headers(
         "updated",
         event["metadata"]["request_id"],
-        host.canonical_facts.get("insights_id"),
+        serialize_uuid(host.insights_id),
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),

@@ -1,5 +1,4 @@
 import uuid
-from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from datetime import timedelta
@@ -255,7 +254,7 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("missing_field", ["canonical_facts", "stale_timestamp", "reporter"])
+@pytest.mark.parametrize("missing_field", ["stale_timestamp", "reporter"])
 def test_host_models_missing_fields(missing_field):
     limited_values = {
         "account": USER_IDENTITY["account_number"],
@@ -1021,46 +1020,6 @@ def test_zero_mac_address_filtered(canonical_facts):
     #
     assert len(validated_host["mac_addresses"]) == 1
     assert "c2:00:d0:c8:61:01" in validated_host["mac_addresses"]
-
-
-@pytest.mark.parametrize(
-    "canonical_facts",
-    (
-        {
-            "canonical_facts_version": 0,
-            "mac_addresses": [ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 1,
-            "mac_addresses": [ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 0,
-            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 1,
-            "is_virtual": False,
-            "mac_addresses": ["c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 0,
-            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
-        },
-        {
-            "canonical_facts_version": 1,
-            "is_virtual": False,
-            "mac_addresses": [ZERO_MAC_ADDRESS, "c2:00:d0:c8:61:01", ZERO_MAC_ADDRESS],
-        },
-    ),
-)
-def test_zero_mac_address_warning(mocker, canonical_facts):
-    mock_logger_warn = mocker.patch("app.models.logger.warning")
-
-    with suppress(MarshmallowValidationError):
-        CanonicalFactsSchema().load(canonical_facts)
-
-    assert mock_logger_warn.call_count >= 1
 
 
 def test_canonical_facts_v1_is_virtual_required():

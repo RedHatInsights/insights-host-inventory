@@ -9,6 +9,7 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import mocked_delete_workspace_empty_response
 from tests.helpers.api_utils import mocked_post_workspace_not_found
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -491,6 +492,33 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
         mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
 
         response_status, _ = api_delete_groups_kessel([group_id])
+        assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_delete_workspace_empty_response)
+def test_delete_existing_group_kessel_empty_response(api_delete_groups_kessel, db_create_group, mocker):
+    """
+    Test that deleting a group succeeds when Kessel returns HTTP 204 with an empty response body.
+    Before the fix, an empty response body would cause a JSONDecodeError, resulting in HTTP 503.
+    After the fix, the API should handle this gracefully and return HTTP 204.
+    """
+    group_id = db_create_group("test group").id
+
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Mock the metrics context manager bc we don't care about it here
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        response_status, _ = api_delete_groups_kessel([group_id])
+        # Should succeed with 204, not fail with 503 due to JSONDecodeError
         assert_response_status(response_status, expected_status=204)
 
 

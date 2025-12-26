@@ -246,11 +246,12 @@ class HBIMessageConsumerBase:
                         try:
                             self._process_batch()
                             break  # Success, exit retry loop
-                        except (InvalidRequestError, StaleDataError) as e:
+                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
                             """Handle database session errors with retry logic.
                             InvalidRequestError includes PendingRollbackError which occurs when the session
                             is in an invalid state. StaleDataError occurs when trying to update data that
-                            has been modified by another transaction.
+                            has been modified by another transaction. IntegrityError and UniqueViolation can
+                            occur when a unique constraint is violated.
                             Note: session_guard already calls rollback() when an exception occurs.
                             """
                             metrics.ingress_message_handler_failure.inc()
@@ -525,6 +526,7 @@ def _pg_notify_workspace(operation: str, id: str):
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+    logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
@@ -585,11 +587,8 @@ def _set_owner(host: Host, identity: Identity) -> Host:
         host.system_profile_facts["owner_id"] = cn
     else:
         reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
+            host.system_profile_facts["owner_id"] = _formatted_uuid(host.subscription_manager_id)
         else:
             if host.system_profile_facts["owner_id"] != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
@@ -602,11 +601,8 @@ def _set_owner(host: Host, identity: Identity) -> Host:
         host.static_system_profile.owner_id = cn
     else:
         reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.static_system_profile.owner_id = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
+            host.static_system_profile.owner_id = _formatted_uuid(host.subscription_manager_id)
         else:
             if str(host.static_system_profile.owner_id) != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
@@ -616,20 +612,34 @@ def _set_owner(host: Host, identity: Identity) -> Host:
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
 # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS blow up)
-# This functions looks for such invalid sequences with the intention of marking such messages as invalid
-def _validate_json_object_for_utf8(json_object):
+# Additionally, PostgreSQL does not allow NULL bytes (0x00) in text fields, so we need to sanitize those as well.
+# This function validates and sanitizes JSON objects for database storage
+def _sanitize_json_object_for_postgres(json_object):
     object_type = type(json_object)
     if object_type is str:
+        # Validate UTF-8 encoding (raises UnicodeEncodeError for invalid surrogate pairs)
         json_object.encode()
+        # Strip NULL bytes and log if any were found
+        if "\x00" in json_object:
+            sanitized = json_object.replace("\x00", "")
+            logger.warning(
+                "NULL byte(s) found in string field and removed",
+                extra={
+                    "original_length": len(json_object),
+                    "sanitized_length": len(sanitized),
+                },
+            )
+            return sanitized
+        return json_object
     elif object_type is dict:
-        for key, value in json_object.items():
-            _validate_json_object_for_utf8(key)
-            _validate_json_object_for_utf8(value)
+        return {
+            _sanitize_json_object_for_postgres(key): _sanitize_json_object_for_postgres(value)
+            for key, value in json_object.items()
+        }
     elif object_type is list:
-        for item in json_object:
-            _validate_json_object_for_utf8(item)
+        return [_sanitize_json_object_for_postgres(item) for item in json_object]
     else:
-        pass
+        return json_object
 
 
 @metrics.ingress_message_parsing_time.time()
@@ -637,7 +647,7 @@ def parse_operation_message(message: str | bytes, schema: type[Schema]):
     parsed_message = common_message_parser(message)
 
     try:
-        _validate_json_object_for_utf8(parsed_message)
+        parsed_message = _sanitize_json_object_for_postgres(parsed_message)
     except UnicodeEncodeError:
         logger.exception("Invalid Unicode sequence in message from message queue", extra={"incoming_message": message})
         metrics.ingress_message_parsing_failure.labels("invalid").inc()
@@ -671,7 +681,7 @@ def sync_event_message(message, session, event_producer):
             event = build_event(EventType.delete, host)
             headers = message_headers(
                 EventType.delete,
-                host.canonical_facts.get("insights_id"),
+                str(host.insights_id),
                 message["host"].get("reporter"),
                 host.system_profile_facts.get("host_type"),
                 host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -692,14 +702,14 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     )
     headers = message_headers(
         EventType.delete,
-        result.row.canonical_facts.get("insights_id"),
+        str(result.row.insights_id),
         result.row.reporter,
         result.row.system_profile_facts.get("host_type"),
         result.row.system_profile_facts.get("operating_system", {}).get("name"),
         str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
-    insights_id = result.row.canonical_facts.get("insights_id")
+    insights_id = result.row.insights_id
     owner_id = result.row.system_profile_facts.get("owner_id")
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
@@ -726,7 +736,7 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ):
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.row.canonical_facts.get("insights_id")
+        insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
         headers = message_headers(
