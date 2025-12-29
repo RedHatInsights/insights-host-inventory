@@ -99,3 +99,28 @@ export_service_message_handler_failure = Counter(
 export_service_message_handler_time = Summary(
     "export_service_message_handler_seconds", "Total time spent handling messages from the export service queue"
 )
+
+# Host App Data metrics
+host_app_message_handler_time = Summary(
+    "inventory_host_app_message_handler_seconds", "Total time spent handling host app data messages"
+)
+host_app_data_processing_success = Counter(
+    "inventory_host_app_data_processing_successes",
+    "Total number of host app data records successfully processed",
+    ["application", "org_id"],
+)
+host_app_data_parsing_failure = Counter(
+    "inventory_host_app_data_parsing_failures",
+    "Total number of host app data message parsing failures",
+    ["application"],
+)
+host_app_data_validation_failure = Counter(
+    "inventory_host_app_data_validation_failures",
+    "Total number of host app data validation failures",
+    ["application", "reason"],
+)
+host_app_data_processing_failure = Counter(
+    "inventory_host_app_data_processing_failures",
+    "Total number of host app data processing failures (database, unknown errors)",
+    ["application", "reason"],
+)
