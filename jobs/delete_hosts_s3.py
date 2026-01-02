@@ -75,9 +75,7 @@ def process_batch(
     global deleted_count, not_deleted_count, not_found_count
     with session_guard(session):
         logger.info(f"Processing batch of {len(batch)} Subscription Manager IDs...")
-        batch_hosts = (
-            session.query(Host).filter(Host.canonical_facts["subscription_manager_id"].astext.in_(batch)).all()
-        )
+        batch_hosts = session.query(Host).filter(Host.subscription_manager_id.in_(batch)).all()
 
         # The difference in length tells us how many were not found.
         not_found_count += len(batch) - len(batch_hosts)
