@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import Any
 from typing import TypedDict
+from uuid import UUID
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
@@ -9,6 +11,7 @@ from marshmallow import ValidationError
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
+from app.config import CANONICAL_FACTS_FIELDS
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -51,18 +54,6 @@ _EXPORT_SERVICE_FIELDS = [
     "tags",
     "host_type",
 ]
-
-_CANONICAL_FACTS_FIELDS = (
-    "insights_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "provider_id",
-    "provider_type",
-)
 
 DEFAULT_FIELDS = (
     "id",
@@ -127,8 +118,9 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
-        del serialized_host[field_name]
+    for field_name in CANONICAL_FACTS_FIELDS:
+        if field_name in serialized_host and serialized_host[field_name] is None:
+            del serialized_host[field_name]
 
 
 def serialize_host(
@@ -150,7 +142,7 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = {**serialize_canonical_facts(host)}
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
@@ -278,15 +270,31 @@ def _recursive_casefold(field_data):
 
 
 def _deserialize_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+    """
+    Deserialize canonical facts: apply case folding and filter falsy values.
+    """
+    return {field: _recursive_casefold(data[field]) for field in CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def _deserialize_all_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
+    """
+    Deserialize canonical facts: apply case folding, keeping None values.
+    """
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+def serialize_canonical_facts(host: Host | LimitedHost) -> dict[str, Any]:
+    canonical_facts = {}
+    for field in CANONICAL_FACTS_FIELDS:
+        value = getattr(host, field, None)
+        if isinstance(value, UUID):
+            value = serialize_uuid(value)
+        if field in {"ip_addresses", "mac_addresses"} and value == []:
+            value = None
+        if field == "insights_id" and value is None:
+            value = "00000000-0000-0000-0000-000000000000"
+        canonical_facts[field] = value
+    return canonical_facts
 
 
 def _deserialize_facts(data):

@@ -237,7 +237,7 @@ def _check_delete_event_fields(
     assert message.value["id"] == host.id
     assert message.value["account"] == host.account
     assert message.value["org_id"] == host.org_id
-    assert message.value["insights_id"] == host.insights_id
+    assert message.value["insights_id"] == str(host.insights_id)
     assert message.value["subscription_manager_id"] == host.subscription_manager_id
     assert message.value["initiated_by_frontend"] is initiated_by_frontend
     assert message.value["request_id"] == request_id
@@ -421,6 +421,10 @@ def check_mq_create_or_update_event_host_data(
         assert event_group_list[0].get("ungrouped") is True
 
     for field in HOST_FIELDS:
+        if field.name == "insights_id":
+            if expected_host_data.get("insights_id") is None:
+                expected_host_data["insights_id"] = "00000000-0000-0000-0000-000000000000"
+            continue
         if expected_host_data.get(field.name) is None:
             assert event_host_data.pop(field.name, None) is None
 
