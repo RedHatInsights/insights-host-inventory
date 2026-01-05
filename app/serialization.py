@@ -7,6 +7,7 @@ from uuid import UUID
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -123,6 +124,73 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
+def _build_system_profile_from_normalized(host, system_profile_fields=None) -> dict:
+    """
+    Build system profile dict from static and dynamic tables.
+    This replaces host.system_profile_facts.
+    """
+    system_profile = {}
+
+    # UUID fields that need string conversion
+    UUID_FIELDS = {"owner_id", "rhc_client_id", "rhc_config_state", "virtual_host_uuid"}
+    # Datetime fields that need ISO string conversion
+    DATETIME_FIELDS = {"captured_date", "last_boot_time"}
+    # Fields to exclude (metadata, not system profile data)
+    EXCLUDE_FIELDS = {"org_id", "host_id"}
+
+    # Build system profile from static table
+    # Use try/except to handle DetachedInstanceError if relationship not loaded
+    try:
+        if host.static_system_profile:
+            for column in host.static_system_profile.__table__.columns:
+                field_name = column.name
+
+                # Skip metadata fields
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                # Skip if filtering and this field not requested
+                if system_profile_fields and field_name not in system_profile_fields:
+                    continue
+
+                value = getattr(host.static_system_profile, field_name, None)
+                if value is not None:
+                    if field_name in UUID_FIELDS:
+                        system_profile[field_name] = serialize_uuid(value)
+                    else:
+                        system_profile[field_name] = value
+    except DetachedInstanceError:
+        # Relationship not loaded - skip
+        pass
+
+    # Build system profile from dynamic table
+    # Use try/except to handle DetachedInstanceError if relationship not loaded
+    try:
+        if host.dynamic_system_profile:
+            for column in host.dynamic_system_profile.__table__.columns:
+                field_name = column.name
+
+                # Skip metadata fields
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                # Skip if filtering and this field not requested
+                if system_profile_fields and field_name not in system_profile_fields:
+                    continue
+
+                value = getattr(host.dynamic_system_profile, field_name, None)
+                if value is not None:
+                    if field_name in DATETIME_FIELDS:
+                        system_profile[field_name] = _serialize_datetime(value)
+                    else:
+                        system_profile[field_name] = value
+    except DetachedInstanceError:
+        # Relationship not loaded - skip
+        pass
+
+    return system_profile
+
+
 def serialize_host(
     host,
     staleness_timestamps,
@@ -167,7 +235,7 @@ def serialize_host(
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
-        "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
         "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
@@ -176,11 +244,7 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = (
-            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
-            if host.system_profile_facts and system_profile_fields
-            else host.system_profile_facts or {}
-        )
+        serialized_host["system_profile"] = _build_system_profile_from_normalized(host, system_profile_fields)
 
         # Add backward compatibility for workload fields (only for Kafka events)
         if (
@@ -192,12 +256,12 @@ def serialize_host(
                 serialized_host["system_profile"]
             )
 
-        if (
-            system_profile_fields
-            and system_profile_fields.count("host_type") < 2
-            and serialized_host["system_profile"].get("host_type")
-        ):
-            del serialized_host["system_profile"]["host_type"]
+        # Map host_type for backward compatibility with downstream apps (cyndi)
+        # Downstream apps only recognize "edge" vs empty values
+        if for_mq and serialized_host["system_profile"].get("host_type"):
+            serialized_host["system_profile"]["host_type"] = _map_host_type_for_backward_compatibility(
+                serialized_host["system_profile"]["host_type"]
+            )
 
     # Handle groups separately
     if "groups" in fields:
@@ -257,7 +321,8 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    system_profile = _build_system_profile_from_normalized(host)
+    return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 
 def _recursive_casefold(field_data):
