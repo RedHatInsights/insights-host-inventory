@@ -91,7 +91,7 @@ class ActiveTag:
         self._count = count
 
     def to_dict(self):
-        """Returns the model properties as a dict"""
+        """Returns the model properties as a dict."""
         result = {}
 
         for attr, _ in self.openapi_types.items():
