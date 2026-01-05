@@ -548,7 +548,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
+        insights_id = str(existing_host.insights_id)
         owner_id = existing_host.system_profile_facts.get("owner_id")
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)

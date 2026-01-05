@@ -284,17 +284,19 @@ def _deserialize_all_canonical_facts(data):
     return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(host: Host | LimitedHost) -> dict[str, Any]:
+def serialize_canonical_facts(host: Host | LimitedHost, include_none: bool = True) -> dict[str, Any]:
     canonical_facts = {}
     for field in CANONICAL_FACTS_FIELDS:
         value = getattr(host, field, None)
         if isinstance(value, UUID):
             value = serialize_uuid(value)
-        if field in {"ip_addresses", "mac_addresses"} and value == []:
+        elif field in {"ip_addresses", "mac_addresses"} and value == []:
             value = None
-        if field == "insights_id" and value is None:
+        elif field == "insights_id" and value is None and include_none:
             value = DEFAULT_INSIGHTS_ID
-        canonical_facts[field] = value
+
+        if value is not None or include_none:
+            canonical_facts[field] = value
     return canonical_facts
 
 

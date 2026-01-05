@@ -223,7 +223,7 @@ def log_add_host_attempt(logger, input_host, sp_fields_to_log, identity: Identit
                 "account": input_host.account,
                 "org_id": input_host.org_id,
                 "display_name": input_host.display_name,
-                "canonical_facts": input_host.canonical_facts,
+                "insights_id": input_host.insights_id,
                 "reporter": input_host.reporter,
                 "stale_timestamp": input_host.stale_timestamp.isoformat(),
                 "tags": json.dumps(input_host.tags),

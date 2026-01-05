@@ -207,6 +207,6 @@ def query_associations_by_group_ids(
 def query_hosts_by_insights_id(
     inventory_db_session: Session, host_insights_ids: Collection[str]
 ) -> Any:
-    query = "SELECT id from hosts WHERE canonical_facts ->> 'insights_id' IN :ids;"
+    query = "SELECT id from hosts WHERE insights_id IN :ids;"
     t = text(query).bindparams(bindparam("ids", expanding=True))
     return inventory_db_session.execute(t, {"ids": host_insights_ids})
