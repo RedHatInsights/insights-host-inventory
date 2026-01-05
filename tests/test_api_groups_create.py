@@ -435,3 +435,42 @@ def test_wait_for_workspace_event_times_out_when_both_checks_fail(
     assert response.status_code == 503
     # poll() SHOULD have been called (we tried to wait for notifications)
     mock_pg_listen_connection.poll.assert_called()
+
+
+def test_create_group_sends_account_number_to_rbac(mocker):
+    """
+    Test that post_rbac_workspace sends account_number to RBAC.
+    This verifies the fix that includes account_number in the RBAC workspace creation request.
+    """
+    from lib.middleware import post_rbac_workspace
+
+    # Mock the internal RBAC HTTP request to capture arguments
+    mock_execute = mocker.patch("lib.middleware._execute_rbac_http_request", return_value={"id": str(generate_uuid())})
+
+    # Mock bypass_kessel to False (enable Kessel)
+    mocker.patch("lib.middleware.inventory_config", return_value=type("obj", (object,), {"bypass_kessel": False})())
+
+    # Mock get_rbac_v2_url
+    mocker.patch("lib.middleware.get_rbac_v2_url", return_value="http://rbac.example.com/workspaces/")
+
+    # Mock request and thread context
+    mock_request = mocker.MagicMock()
+    mock_request.headers = {"x-rh-identity": "test_identity_header"}
+    mocker.patch("lib.middleware.request", mock_request)
+    mocker.patch("lib.middleware.threadctx", type("obj", (object,), {"request_id": "test-request-id"})())
+
+    # Mock _build_rbac_request_headers (it will use our mocked request)
+    mocker.patch("lib.middleware._build_rbac_request_headers", return_value={"x-rh-identity": "test_header"})
+
+    # Call post_rbac_workspace with name and account_number
+    group_name = "test_group"
+    account_number = "123456"
+    post_rbac_workspace(group_name, account_number)
+
+    # Verify _execute_rbac_http_request was called with account_number in request_data
+    mock_execute.assert_called_once()
+    call_kwargs = mock_execute.call_args.kwargs
+    request_data = call_kwargs["request_data"]
+
+    assert request_data["name"] == group_name, "Request should include group name"
+    assert request_data["account_number"] == account_number, "Request should include account_number"
