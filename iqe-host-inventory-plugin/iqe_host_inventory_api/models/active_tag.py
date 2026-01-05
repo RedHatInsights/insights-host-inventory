@@ -91,7 +91,7 @@ class ActiveTag:
         self._count = count
 
     def to_dict(self):
-        """Returns the model properties as a dict"""
+        """Returns the model properties as a dict."""
         result = {}
 
         for attr, _ in self.openapi_types.items():
@@ -103,9 +103,9 @@ class ActiveTag:
             elif isinstance(value, dict):
                 result[attr] = dict(
                     map(
-                        lambda item: (item[0], item[1].to_dict())
-                        if hasattr(item[1], "to_dict")
-                        else item,
+                        lambda item: (
+                            (item[0], item[1].to_dict()) if hasattr(item[1], "to_dict") else item
+                        ),
                         value.items(),
                     )
                 )
