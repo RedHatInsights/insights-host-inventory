@@ -99,50 +99,45 @@ def _get_host_list_using_filters(
     param_order_by: str,
     param_order_how: str,
     fields: dict,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
-    system_profile_fields = []
-    if fields and fields.get("system_profile"):
-        additional_fields: tuple = ("system_profile",)
-        system_profile_fields = list(fields.get("system_profile", {}).keys())
-    else:
-        additional_fields = ()
+) -> tuple[list[Host], int, tuple, list[str]]:
+    # Check if 'system_profile' is requested to decide between "Full ORM" vs "Light Columns"
+    sp_fields_map = fields.get("system_profile", {}) if fields else {}
+    is_sp_requested = bool(sp_fields_map)
 
-        # When system_profile fields are requested, we need full ORM objects to use joinedload()
-        # Use defer() to exclude JSONB columns instead of loading them
-    if fields and fields.get("system_profile"):
-        # Get full ORM objects but defer (exclude) deprecated JSONB columns
-        base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by).filter(
-            *all_filters
-        )
+    additional_fields = ("system_profile",) if is_sp_requested else ()
+    system_profile_fields = list(sp_fields_map.keys()) if is_sp_requested else []
+
+    if is_sp_requested:
+        # Load full ORM objects (needed for relationships)
+        base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
+
+        # Defer loading of heavy JSONB columns unless strictly needed
         base_query = base_query.options(defer(Host.canonical_facts), defer(Host.system_profile_facts))
 
-        # Optimize: Only eager load tables that contain the requested fields
-        requested_sp_fields = set(fields.get("system_profile", {}).keys())
-        needs_static_join = bool(requested_sp_fields.intersection(STATIC_FIELDS))
-        needs_dynamic_join = bool(
-            requested_sp_fields.intersection(DYNAMIC_FIELDS) or requested_sp_fields.intersection(WORKLOADS_FIELDS)
-        )
+        # Conditionally join related tables based on requested fields
+        requested_keys = set(sp_fields_map.keys())
 
-        if needs_static_join:
+        if requested_keys & set(STATIC_FIELDS):
             base_query = base_query.options(joinedload(Host.static_system_profile))
-        if needs_dynamic_join:
+
+        if requested_keys & (set(DYNAMIC_FIELDS) | WORKLOADS_FIELDS):
             base_query = base_query.options(joinedload(Host.dynamic_system_profile))
     else:
-        # Use column selection for performance when system_profile not requested
-        columns = DEFAULT_COLUMNS.copy()
-        base_query = _find_hosts_entities_query(query=query_base, columns=columns, order_by=param_order_by).filter(
-            *all_filters
+        base_query = _find_hosts_entities_query(
+            query=query_base, columns=DEFAULT_COLUMNS.copy(), order_by=param_order_by
         )
 
-    host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    filtered_query = base_query.filter(*all_filters)
 
-    # Count separately because the COUNT done by .paginate() is inefficient
-    count_total = base_query.with_entities(func.count()).scalar()
+    # Optimized count that ignores ordering and columns
+    count_total = filtered_query.with_entities(func.count()).scalar()
 
-    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+    ordered_query = filtered_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    paginated_results = ordered_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+
     db.session.close()
 
-    return query_results.items, count_total, additional_fields, system_profile_fields
+    return paginated_results.items, count_total, additional_fields, system_profile_fields
 
 
 def get_host_list(

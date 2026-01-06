@@ -157,10 +157,9 @@ def _build_system_profile_from_normalized(host, system_profile_fields=None) -> d
         if requested_workload_subfields and not workloads_explicitly_requested:
             requested_fields.add("workloads")
 
-    sources = [host.static_system_profile, host.dynamic_system_profile]
-
-    for profile_source in sources:
+    for attr_name in ("static_system_profile", "dynamic_system_profile"):
         try:
+            profile_source = getattr(host, attr_name, None)
             if not profile_source:
                 continue
 
