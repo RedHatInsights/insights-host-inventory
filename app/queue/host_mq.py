@@ -55,12 +55,12 @@ from app.models import LimitedHostSchema
 from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
+from app.queue.enums import ConsumerApplication
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue import metrics
-from app.queue.enums import ConsumerApplication
 from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
@@ -610,24 +610,24 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         try:
             validated_msg = parse_operation_message(message, HostAppOperationSchema)
         except (json.JSONDecodeError, UnicodeEncodeError):
-            metrics.host_app_data_parsing_failure.labels(application=str(application)).inc()
+            metrics.host_app_data_parsing_failure.labels(application=application).inc()
             raise
         except ValidationError as e:
             logger.exception(
                 f"Schema validation failed for application {application}",
-                extra={"application": str(application), "error": str(e)},
+                extra={"application": application, "error": str(e)},
             )
             metrics.host_app_data_validation_failure.labels(
-                application=str(application), reason="schema_validation_error"
+                application=application, reason="schema_validation_error"
             ).inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error during validation for application {application}",
-                extra={"application": str(application), "error": str(e)},
+                extra={"application": application, "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=str(application), reason="unexpected_validation_error"
+                application=application, reason="unexpected_validation_error"
             ).inc()
             raise
 
@@ -640,7 +640,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         logger.info(
             f"Processing host app data message from {application}",
-            extra={"application": str(application), "org_id": org_id, "host_count": len(hosts)},
+            extra={"application": application, "org_id": org_id, "host_count": len(hosts)},
         )
 
         model_class, schema_class = self._get_app_classes(application)
@@ -654,7 +654,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                partial(log_host_app_data_upsert_via_mq, logger, str(application), org_id, []),
+                partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
             )
 
         self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
@@ -666,7 +666,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             None,
             None,
             None,
-            partial(log_host_app_data_upsert_via_mq, logger, str(application), org_id, host_ids),
+            partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
         )
 
     def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
@@ -712,19 +712,19 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             except ValidationError as e:
                 logger.error(
                     f"Data validation error for host {host_id} from {application}",
-                    extra={"host_id": host_id, "application": str(application), "errors": e.messages},
+                    extra={"host_id": host_id, "application": application, "errors": e.messages},
                 )
                 metrics.host_app_data_validation_failure.labels(
-                    application=str(application), reason="invalid_host_data"
+                    application=application, reason="invalid_host_data"
                 ).inc()
                 continue
             except Exception as e:
                 logger.exception(
                     f"Unexpected error validating data for host {host_id} from {application}",
-                    extra={"host_id": host_id, "application": str(application), "error": str(e)},
+                    extra={"host_id": host_id, "application": application, "error": str(e)},
                 )
                 metrics.host_app_data_validation_failure.labels(
-                    application=str(application), reason="unexpected_data_validation_error"
+                    application=application, reason="unexpected_data_validation_error"
                 ).inc()
                 continue
 
@@ -745,11 +745,11 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         try:
             success_count = host_app_repository.upsert_host_app_data(
                 model_class=model_class,
-                application=str(application),
+                application=application,
                 org_id=org_id,
                 hosts_data=hosts_data,
             )
-            metrics.host_app_data_processing_success.labels(application=str(application), org_id=org_id).inc(
+            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(
                 success_count
             )
 
@@ -757,35 +757,35 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
             # isn't properly configured for multiprocess mode. This is non-fatal.
             with suppress(TypeError, OSError):
-                metrics.host_app_data_last_processed_timestamp.labels(application=str(application), org_id=org_id).set(
+                metrics.host_app_data_last_processed_timestamp.labels(application=application, org_id=org_id).set(
                     time.time()
                 )
 
         except OperationalError as e:
             logger.exception(
                 f"Database operational error while upserting host app data for {application}",
-                extra={"application": str(application), "org_id": org_id, "error": str(e)},
+                extra={"application": application, "org_id": org_id, "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=str(application), reason="db_operational_error"
+                application=application, reason="db_operational_error"
             ).inc()
             raise
         except IntegrityError as e:
             logger.exception(
                 f"Database integrity error while upserting host app data for {application}",
-                extra={"application": str(application), "org_id": org_id, "error": str(e)},
+                extra={"application": application, "org_id": org_id, "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=str(application), reason="db_integrity_error"
+                application=application, reason="db_integrity_error"
             ).inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error while upserting host app data for {application}",
-                extra={"application": str(application), "org_id": org_id, "error": str(e)},
+                extra={"application": application, "org_id": org_id, "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=str(application), reason="unexpected_error"
+                application=application, reason="unexpected_error"
             ).inc()
             raise
 
