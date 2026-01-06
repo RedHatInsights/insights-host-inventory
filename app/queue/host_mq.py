@@ -55,12 +55,12 @@ from app.models import LimitedHostSchema
 from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
-from app.models.enums import ConsumerApplication
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue import metrics
+from app.queue.enums import ConsumerApplication
 from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType

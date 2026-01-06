@@ -10,7 +10,6 @@ from marshmallow import ValidationError
 
 from app.exceptions import ValidationException
 from app.models import db
-from app.models.enums import ConsumerApplication
 from app.models.host_app_data import HostAppDataAdvisor
 from app.models.host_app_data import HostAppDataCompliance
 from app.models.host_app_data import HostAppDataImageBuilder
@@ -18,6 +17,7 @@ from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataRemediations
 from app.models.host_app_data import HostAppDataVulnerability
+from app.queue.enums import ConsumerApplication
 from tests.helpers.test_utils import generate_uuid
 
 # Application test data configuration: (app_name, model_class, sample_data, fields_to_verify)
