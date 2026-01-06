@@ -55,12 +55,12 @@ from app.models import LimitedHostSchema
 from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
-from app.queue.enums import ConsumerApplication
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue import metrics
+from app.queue.enums import ConsumerApplication
 from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
@@ -749,9 +749,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 org_id=org_id,
                 hosts_data=hosts_data,
             )
-            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(
-                success_count
-            )
+            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(success_count)
 
             # Update data freshness metric with current timestamp
             # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
@@ -775,18 +773,14 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 f"Database integrity error while upserting host app data for {application}",
                 extra={"application": application, "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(
-                application=application, reason="db_integrity_error"
-            ).inc()
+            metrics.host_app_data_processing_failure.labels(application=application, reason="db_integrity_error").inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error while upserting host app data for {application}",
                 extra={"application": application, "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(
-                application=application, reason="unexpected_error"
-            ).inc()
+            metrics.host_app_data_processing_failure.labels(application=application, reason="unexpected_error").inc()
             raise
 
     def post_process_rows(self) -> None:
