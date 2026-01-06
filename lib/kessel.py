@@ -185,6 +185,10 @@ class Kessel:
                 "Kessel CheckBulk response is missing some resources: "
                 f"{len(response.pairs)} of {len(resource_ids)} resources are present in the response"
             )
+            logger.warning(
+                f"Expected resource IDs: {resource_ids}\n"
+                f"Response resource IDs: {[pair.request.object.resource_id for pair in response.pairs]}"
+            )
             return False
 
         # Check that all resources are allowed
