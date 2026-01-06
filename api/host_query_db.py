@@ -38,6 +38,7 @@ from app.models import Host
 from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
@@ -118,7 +119,9 @@ def _get_host_list_using_filters(
         # Optimize: Only eager load tables that contain the requested fields
         requested_sp_fields = set(fields.get("system_profile", {}).keys())
         needs_static_join = bool(requested_sp_fields.intersection(STATIC_FIELDS))
-        needs_dynamic_join = bool(requested_sp_fields.intersection(DYNAMIC_FIELDS))
+        needs_dynamic_join = bool(
+            requested_sp_fields.intersection(DYNAMIC_FIELDS) or requested_sp_fields.intersection(WORKLOADS_FIELDS)
+        )
 
         if needs_static_join:
             base_query = base_query.options(joinedload(Host.static_system_profile))

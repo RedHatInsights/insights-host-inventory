@@ -26,6 +26,7 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from app.models.constants import WORKLOADS_FIELDS
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -131,62 +132,68 @@ def _build_system_profile_from_normalized(host, system_profile_fields=None) -> d
     """
     system_profile = {}
 
-    # UUID fields that need string conversion
-    UUID_FIELDS = {"owner_id", "rhc_client_id", "rhc_config_state", "virtual_host_uuid"}
-    # Datetime fields that need ISO string conversion
-    DATETIME_FIELDS = {"captured_date", "last_boot_time"}
-    # Fields to exclude (metadata, not system profile data)
+    SERIALIZERS = {
+        "owner_id": serialize_uuid,
+        "rhc_client_id": serialize_uuid,
+        "rhc_config_state": serialize_uuid,
+        "virtual_host_uuid": serialize_uuid,
+        "captured_date": _serialize_datetime,
+        "last_boot_time": _serialize_datetime,
+    }
     EXCLUDE_FIELDS = {"org_id", "host_id"}
 
-    # Build system profile from static table
-    # Use try/except to handle DetachedInstanceError if relationship not loaded
-    try:
-        if host.static_system_profile:
-            for column in host.static_system_profile.__table__.columns:
+    requested_fields = set(system_profile_fields) if system_profile_fields else None
+
+    # Check if 'workloads' should be fetched implicitly to extract sub-fields later (backward compatibility)
+    requested_workload_subfields = set()
+    workloads_explicitly_requested = False
+
+    if requested_fields:
+        requested_workload_subfields = requested_fields & WORKLOADS_FIELDS
+        workloads_explicitly_requested = "workloads" in requested_fields
+
+        # If 'ansible' was requested but not 'workloads', we must fetch 'workloads'
+        # from DB first (backward compatibility)
+        if requested_workload_subfields and not workloads_explicitly_requested:
+            requested_fields.add("workloads")
+
+    sources = [host.static_system_profile, host.dynamic_system_profile]
+
+    for profile_source in sources:
+        try:
+            if not profile_source:
+                continue
+
+            for column in profile_source.__table__.columns:
                 field_name = column.name
 
-                # Skip metadata fields
                 if field_name in EXCLUDE_FIELDS:
                     continue
 
-                # Skip if filtering and this field not requested
-                if system_profile_fields and field_name not in system_profile_fields:
+                if requested_fields and field_name not in requested_fields:
                     continue
 
-                value = getattr(host.static_system_profile, field_name, None)
+                value = getattr(profile_source, field_name, None)
+
                 if value is not None:
-                    if field_name in UUID_FIELDS:
-                        system_profile[field_name] = serialize_uuid(value)
-                    else:
-                        system_profile[field_name] = value
-    except DetachedInstanceError:
-        # Relationship not loaded - skip
-        pass
+                    serializer = SERIALIZERS.get(field_name)
+                    system_profile[field_name] = serializer(value) if serializer else value
 
-    # Build system profile from dynamic table
-    # Use try/except to handle DetachedInstanceError if relationship not loaded
-    try:
-        if host.dynamic_system_profile:
-            for column in host.dynamic_system_profile.__table__.columns:
-                field_name = column.name
+        except DetachedInstanceError:
+            # Relationship not loaded - skip this source
+            pass
 
-                # Skip metadata fields
-                if field_name in EXCLUDE_FIELDS:
-                    continue
+    # Extract specific workload fields (e.g., 'rhel_ai') from the JSON structure if requested (backward compatibility)
+    if requested_workload_subfields:
+        workloads_data = system_profile.get("workloads", {})
+        if workloads_data:
+            for field in requested_workload_subfields:
+                if field in workloads_data:
+                    system_profile[field] = workloads_data[field]
 
-                # Skip if filtering and this field not requested
-                if system_profile_fields and field_name not in system_profile_fields:
-                    continue
-
-                value = getattr(host.dynamic_system_profile, field_name, None)
-                if value is not None:
-                    if field_name in DATETIME_FIELDS:
-                        system_profile[field_name] = _serialize_datetime(value)
-                    else:
-                        system_profile[field_name] = value
-    except DetachedInstanceError:
-        # Relationship not loaded - skip
-        pass
+    # Remove the full 'workloads' dict if the user didn't ask for it explicitly
+    if requested_workload_subfields and not workloads_explicitly_requested:
+        system_profile.pop("workloads", None)
 
     return system_profile
 
