@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import time
 import uuid
 from collections.abc import Callable
+from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
 from functools import partial
@@ -53,6 +55,7 @@ from app.models import LimitedHostSchema
 from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
+from app.models.enums import ConsumerApplication
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
@@ -563,69 +566,81 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
     # Mapping of application names to their corresponding model and schema classes
     APPLICATION_MAP = {
-        "advisor": (host_app_data.HostAppDataAdvisor, model_schemas.AdvisorDataSchema),
-        "vulnerability": (host_app_data.HostAppDataVulnerability, model_schemas.VulnerabilityDataSchema),
-        "patch": (host_app_data.HostAppDataPatch, model_schemas.PatchDataSchema),
-        "remediations": (host_app_data.HostAppDataRemediations, model_schemas.RemediationsDataSchema),
-        "compliance": (host_app_data.HostAppDataCompliance, model_schemas.ComplianceDataSchema),
-        "malware": (host_app_data.HostAppDataMalware, model_schemas.MalwareDataSchema),
-        "image_builder": (host_app_data.HostAppDataImageBuilder, model_schemas.ImageBuilderDataSchema),
+        ConsumerApplication.ADVISOR: (host_app_data.HostAppDataAdvisor, model_schemas.AdvisorDataSchema),
+        ConsumerApplication.VULNERABILITY: (
+            host_app_data.HostAppDataVulnerability,
+            model_schemas.VulnerabilityDataSchema,
+        ),
+        ConsumerApplication.PATCH: (host_app_data.HostAppDataPatch, model_schemas.PatchDataSchema),
+        ConsumerApplication.REMEDIATIONS: (
+            host_app_data.HostAppDataRemediations,
+            model_schemas.RemediationsDataSchema,
+        ),
+        ConsumerApplication.COMPLIANCE: (host_app_data.HostAppDataCompliance, model_schemas.ComplianceDataSchema),
+        ConsumerApplication.MALWARE: (host_app_data.HostAppDataMalware, model_schemas.MalwareDataSchema),
+        ConsumerApplication.IMAGE_BUILDER: (
+            host_app_data.HostAppDataImageBuilder,
+            model_schemas.ImageBuilderDataSchema,
+        ),
     }
 
     @metrics.host_app_message_handler_time.time()
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
-        application, request_id = self._extract_headers(headers)
+        application_str, request_id = self._extract_headers(headers)
 
-        if not application:
+        if not application_str:
             logger.error("Missing 'application' in Kafka message headers")
             metrics.host_app_data_validation_failure.labels(
                 application="unknown", reason="missing_application_header"
             ).inc()
             raise ValidationException("Missing 'application' field in Kafka message headers")
 
-        if application not in self.APPLICATION_MAP:
-            logger.error(f"Unknown application: {application}")
+        # Convert string to enum with validation
+        try:
+            application = ConsumerApplication.from_string(application_str)
+        except ValueError as e:
+            logger.error(f"Unknown application: {application_str}")
             metrics.host_app_data_validation_failure.labels(
-                application=application, reason="unknown_application"
+                application=application_str, reason="unknown_application"
             ).inc()
-            raise ValidationException(f"Unknown application: {application}")
+            raise ValidationException(str(e)) from e
 
         initialize_thread_local_storage(request_id)
 
         try:
             validated_msg = parse_operation_message(message, HostAppOperationSchema)
         except (json.JSONDecodeError, UnicodeEncodeError):
-            metrics.host_app_data_parsing_failure.labels(application=application).inc()
+            metrics.host_app_data_parsing_failure.labels(application=str(application)).inc()
             raise
         except ValidationError as e:
             logger.exception(
                 f"Schema validation failed for application {application}",
-                extra={"application": application, "error": str(e)},
+                extra={"application": str(application), "error": str(e)},
             )
             metrics.host_app_data_validation_failure.labels(
-                application=application, reason="schema_validation_error"
+                application=str(application), reason="schema_validation_error"
             ).inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error during validation for application {application}",
-                extra={"application": application, "error": str(e)},
+                extra={"application": str(application), "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=application, reason="unexpected_validation_error"
+                application=str(application), reason="unexpected_validation_error"
             ).inc()
             raise
 
         return self.process_message(application, validated_msg)
 
-    def process_message(self, application: str, validated_msg: dict[str, Any]) -> OperationResult:
+    def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
         org_id = validated_msg["org_id"]
         timestamp = validated_msg["timestamp"]
         hosts = validated_msg["hosts"]
 
         logger.info(
             f"Processing host app data message from {application}",
-            extra={"application": application, "org_id": org_id, "host_count": len(hosts)},
+            extra={"application": str(application), "org_id": org_id, "host_count": len(hosts)},
         )
 
         model_class, schema_class = self._get_app_classes(application)
@@ -639,7 +654,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
+                partial(log_host_app_data_upsert_via_mq, logger, str(application), org_id, []),
             )
 
         self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
@@ -651,7 +666,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             None,
             None,
             None,
-            partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
+            partial(log_host_app_data_upsert_via_mq, logger, str(application), org_id, host_ids),
         )
 
     def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
@@ -667,15 +682,22 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         return application, request_id
 
-    def _get_app_classes(self, application: str) -> tuple[type, type]:
-        """Get the model and schema classes for a given application."""
+    def _get_app_classes(self, application: ConsumerApplication) -> tuple[type, type]:
+        """Get the model and schema classes for a given application.
+
+        Args:
+            application: ConsumerApplication enum value
+
+        Returns:
+            Tuple of (model_class, schema_class)
+        """
         return self.APPLICATION_MAP[application]
 
     def _validate_and_prepare_hosts(
         self,
         hosts: list[dict],
         schema_class: type,
-        application: str,
+        application: ConsumerApplication,
         org_id: str,
         timestamp: datetime,
     ) -> list[dict]:
@@ -690,19 +712,19 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             except ValidationError as e:
                 logger.error(
                     f"Data validation error for host {host_id} from {application}",
-                    extra={"host_id": host_id, "application": application, "errors": e.messages},
+                    extra={"host_id": host_id, "application": str(application), "errors": e.messages},
                 )
                 metrics.host_app_data_validation_failure.labels(
-                    application=application, reason="invalid_host_data"
+                    application=str(application), reason="invalid_host_data"
                 ).inc()
                 continue
             except Exception as e:
                 logger.exception(
                     f"Unexpected error validating data for host {host_id} from {application}",
-                    extra={"host_id": host_id, "application": application, "error": str(e)},
+                    extra={"host_id": host_id, "application": str(application), "error": str(e)},
                 )
                 metrics.host_app_data_validation_failure.labels(
-                    application=application, reason="unexpected_data_validation_error"
+                    application=str(application), reason="unexpected_data_validation_error"
                 ).inc()
                 continue
 
@@ -717,38 +739,54 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         return valid_hosts_list
 
-    def _upsert_hosts(self, model_class: type, application: str, org_id: str, hosts_data: list[dict]) -> None:
+    def _upsert_hosts(
+        self, model_class: type, application: ConsumerApplication, org_id: str, hosts_data: list[dict]
+    ) -> None:
         try:
             success_count = host_app_repository.upsert_host_app_data(
                 model_class=model_class,
-                application=application,
+                application=str(application),
                 org_id=org_id,
                 hosts_data=hosts_data,
             )
-            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(success_count)
+            metrics.host_app_data_processing_success.labels(application=str(application), org_id=org_id).inc(
+                success_count
+            )
+
+            # Update data freshness metric with current timestamp
+            # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
+            # isn't properly configured for multiprocess mode. This is non-fatal.
+            with suppress(TypeError, OSError):
+                metrics.host_app_data_last_processed_timestamp.labels(application=str(application), org_id=org_id).set(
+                    time.time()
+                )
 
         except OperationalError as e:
             logger.exception(
                 f"Database operational error while upserting host app data for {application}",
-                extra={"application": application, "org_id": org_id, "error": str(e)},
+                extra={"application": str(application), "org_id": org_id, "error": str(e)},
             )
             metrics.host_app_data_processing_failure.labels(
-                application=application, reason="db_operational_error"
+                application=str(application), reason="db_operational_error"
             ).inc()
             raise
         except IntegrityError as e:
             logger.exception(
                 f"Database integrity error while upserting host app data for {application}",
-                extra={"application": application, "org_id": org_id, "error": str(e)},
+                extra={"application": str(application), "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(application=application, reason="db_integrity_error").inc()
+            metrics.host_app_data_processing_failure.labels(
+                application=str(application), reason="db_integrity_error"
+            ).inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error while upserting host app data for {application}",
-                extra={"application": application, "org_id": org_id, "error": str(e)},
+                extra={"application": str(application), "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(application=application, reason="unexpected_error").inc()
+            metrics.host_app_data_processing_failure.labels(
+                application=str(application), reason="unexpected_error"
+            ).inc()
             raise
 
     def post_process_rows(self) -> None:

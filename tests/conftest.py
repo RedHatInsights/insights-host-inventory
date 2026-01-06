@@ -1,7 +1,13 @@
 import os
 import sys
+from tempfile import mkdtemp
 
 from app.utils import HostWrapper
+
+# Set PROMETHEUS_MULTIPROC_DIR for Prometheus Gauge metrics
+# This helps in test environments, though the code has defensive handling
+os.environ.setdefault("PROMETHEUS_MULTIPROC_DIR", mkdtemp())
+
 
 # Make test helpers available to be imported
 sys.path.append(os.path.join(os.path.dirname(__file__), "helpers"))

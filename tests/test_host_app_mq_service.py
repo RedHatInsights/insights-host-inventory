@@ -10,6 +10,7 @@ from marshmallow import ValidationError
 
 from app.exceptions import ValidationException
 from app.models import db
+from app.models.enums import ConsumerApplication
 from app.models.host_app_data import HostAppDataAdvisor
 from app.models.host_app_data import HostAppDataCompliance
 from app.models.host_app_data import HostAppDataImageBuilder
@@ -22,14 +23,14 @@ from tests.helpers.test_utils import generate_uuid
 # Application test data configuration: (app_name, model_class, sample_data, fields_to_verify)
 APPLICATION_TEST_DATA = [
     pytest.param(
-        "advisor",
+        ConsumerApplication.ADVISOR,
         HostAppDataAdvisor,
         {"recommendations": 5, "incidents": 2},
         {"recommendations": 5, "incidents": 2},
         id="advisor",
     ),
     pytest.param(
-        "vulnerability",
+        ConsumerApplication.VULNERABILITY,
         HostAppDataVulnerability,
         {
             "total_cves": 50,
@@ -42,35 +43,35 @@ APPLICATION_TEST_DATA = [
         id="vulnerability",
     ),
     pytest.param(
-        "patch",
+        ConsumerApplication.PATCH,
         HostAppDataPatch,
         {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
         {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
         id="patch",
     ),
     pytest.param(
-        "remediations",
+        ConsumerApplication.REMEDIATIONS,
         HostAppDataRemediations,
         {"remediations_plans": 7},
         {"remediations_plans": 7},
         id="remediations",
     ),
     pytest.param(
-        "compliance",
+        ConsumerApplication.COMPLIANCE,
         HostAppDataCompliance,
         {"policies": 3, "last_scan": datetime.now(UTC).isoformat()},
         {"policies": 3},
         id="compliance",
     ),
     pytest.param(
-        "malware",
+        ConsumerApplication.MALWARE,
         HostAppDataMalware,
         {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat()},
         {"last_status": "clean", "last_matches": 0},
         id="malware",
     ),
     pytest.param(
-        "image_builder",
+        ConsumerApplication.IMAGE_BUILDER,
         HostAppDataImageBuilder,
         {"image_name": "rhel-9-base", "image_status": "active"},
         {"image_name": "rhel-9-base", "image_status": "active"},

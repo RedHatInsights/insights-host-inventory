@@ -2828,13 +2828,13 @@
             "type": "object",
             "properties": {
               "app_data": {
-                "$ref": "#/components/schemas/HostApplicationsData"
+                "$ref": "#/components/schemas/ConsumerApplicationsData"
               }
             }
           }
         ]
       },
-      "HostApplicationsData": {
+      "ConsumerApplicationsData": {
         "type": "object",
         "description": "Application-specific metrics and metadata associated with a host.",
         "properties": {

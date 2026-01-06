@@ -1877,8 +1877,8 @@ components:
       - type: object
         properties:
           app_data:
-            $ref: '#/components/schemas/HostApplicationsData'
-    HostApplicationsData:
+            $ref: '#/components/schemas/ConsumerApplicationsData'
+    ConsumerApplicationsData:
       type: object
       description: Application-specific metrics and metadata associated with a host.
       properties:

@@ -1,4 +1,5 @@
 from prometheus_client import Counter
+from prometheus_client import Gauge
 from prometheus_client import Info
 from prometheus_client import Summary
 
@@ -123,4 +124,9 @@ host_app_data_processing_failure = Counter(
     "inventory_host_app_data_processing_failures",
     "Total number of host app data processing failures (database, unknown errors)",
     ["application", "reason"],
+)
+host_app_data_last_processed_timestamp = Gauge(
+    "inventory_host_app_data_last_processed_timestamp",
+    "Unix timestamp of the last successfully processed message for each application",
+    ["application", "org_id"],
 )
