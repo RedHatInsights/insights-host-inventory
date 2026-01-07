@@ -21,6 +21,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
 from app.queue.event_producer import EventProducer
+from app.serialization import serialize_canonical_facts
 from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.handlers import ShutdownHandler
@@ -123,7 +124,7 @@ def delete_duplicate_hosts_by_org_id(
         last_host_id = host_list[-1].id  # Needed in case this host gets deleted
 
         for host in host_list:
-            canonical_facts = host.canonical_facts
+            canonical_facts = serialize_canonical_facts(host)
             logger.info(f"Find by canonical facts: {canonical_facts}")
             matching_hosts = find_matching_hosts(canonical_facts, hosts_query)
 
