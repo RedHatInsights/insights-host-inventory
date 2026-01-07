@@ -16,7 +16,6 @@ from typing import cast
 from uuid import UUID
 
 import pytest
-from app.config import DEFAULT_INSIGHTS_ID
 from confluent_kafka.error import ConsumeError
 from iqe_mq._transforms import MessageWrapper as MqMessageWrapper
 
@@ -26,6 +25,7 @@ from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
 from iqe_host_inventory.utils import assert_datetimes_equal
+from iqe_host_inventory.utils.datagen_utils import DEFAULT_INSIGHTS_ID
 from iqe_host_inventory.utils.datagen_utils import HOST_FIELDS
 from iqe_host_inventory.utils.datagen_utils import generate_user_identity
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
