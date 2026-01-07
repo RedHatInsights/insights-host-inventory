@@ -131,7 +131,8 @@ def _check_host_data(
 
     # Check system_profile
     response_system_profile = (
-        host_inventory.apis.hosts.get_hosts_system_profile_response(host_id)
+        host_inventory.apis.hosts
+        .get_hosts_system_profile_response(host_id)
         .results[0]
         .system_profile
     ).to_dict()

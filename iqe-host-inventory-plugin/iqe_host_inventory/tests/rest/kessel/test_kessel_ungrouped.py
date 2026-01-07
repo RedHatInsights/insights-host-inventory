@@ -4,6 +4,7 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
+from iqe_host_inventory_api import HostOut
 
 """
 REVISIT: Kessel still requires a special setup for the EE (see below).
@@ -19,6 +20,11 @@ To run in the EE:
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="module")
+def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
+    return host_inventory.upload.create_hosts(4, cleanup_scope="module")
 
 
 def test_kessel_create_hosts(host_inventory: ApplicationHostInventory):
@@ -69,7 +75,9 @@ def test_kessel_delete_host(host_inventory: ApplicationHostInventory):
     )
 
 
-def test_kessel_filter_ungrouped_hosts(host_inventory: ApplicationHostInventory):
+def test_kessel_filter_ungrouped_hosts(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-ungrouped
@@ -81,7 +89,7 @@ def test_kessel_filter_ungrouped_hosts(host_inventory: ApplicationHostInventory)
         0
     ].host_count
 
-    hosts = host_inventory.upload.create_hosts(4)
+    hosts = prepare_hosts
     host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[2:])
 
     ungrouped_hosts = host_inventory.apis.hosts.get_hosts(group_name=["Ungrouped Hosts"])
@@ -91,7 +99,9 @@ def test_kessel_filter_ungrouped_hosts(host_inventory: ApplicationHostInventory)
     assert {hosts[0].id, hosts[1].id}.issubset(ungrouped_host_ids)
 
 
-def test_kessel_get_hosts_ordering_with_ungrouped(host_inventory: ApplicationHostInventory):
+def test_kessel_get_hosts_ordering_with_ungrouped(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-ungrouped
@@ -99,7 +109,7 @@ def test_kessel_get_hosts_ordering_with_ungrouped(host_inventory: ApplicationHos
       importance: high
       title: Test get hosts group name ordering with a mix of grouped/ungrouped hosts
     """
-    hosts = host_inventory.upload.create_hosts(3)
+    hosts = prepare_hosts
 
     # The expectation is that ungrouped hosts come first.  Use group names that
     # would come before and after "ungrouped" alphabetically.
