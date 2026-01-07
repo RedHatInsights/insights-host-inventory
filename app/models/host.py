@@ -17,6 +17,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
 
 from app.config import CANONICAL_FACTS_FIELDS
+from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
 from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
@@ -252,7 +253,7 @@ class LimitedHost(db.Model):
     canonical_facts = db.Column(JSONB)
 
     # canonical facts
-    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default="00000000-0000-0000-0000-000000000000")
+    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default=DEFAULT_INSIGHTS_ID)
     subscription_manager_id = db.Column(db.String(36))
     satellite_id = db.Column(db.String(255))
     fqdn = db.Column(db.String(255))

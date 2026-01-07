@@ -12,6 +12,7 @@ from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
+from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -292,7 +293,7 @@ def serialize_canonical_facts(host: Host | LimitedHost) -> dict[str, Any]:
         if field in {"ip_addresses", "mac_addresses"} and value == []:
             value = None
         if field == "insights_id" and value is None:
-            value = "00000000-0000-0000-0000-000000000000"
+            value = DEFAULT_INSIGHTS_ID
         canonical_facts[field] = value
     return canonical_facts
 

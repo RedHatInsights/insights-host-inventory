@@ -80,7 +80,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
         headers = message_headers(
             EventType.updated,
-            host.canonical_facts.get("insights_id"),
+            str(host.insights_id),
             host.reporter,
             host.system_profile_facts.get("host_type"),
             host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -92,10 +92,10 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 
 def _invalidate_system_cache(host_list: list[Host], identity: Identity):
     for host in host_list:
-        insights_id = host.canonical_facts.get("insights_id")
+        insights_id = host.insights_id
         owner_id = host.system_profile_facts.get("owner_id")
         if insights_id and owner_id:
-            delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
+            delete_cached_system_keys(insights_id=str(insights_id), org_id=identity.org_id, owner_id=owner_id)
 
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):

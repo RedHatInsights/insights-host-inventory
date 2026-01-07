@@ -10,6 +10,7 @@ from sqlalchemy import text as sa_text
 from sqlalchemy.orm import sessionmaker
 
 from app import create_app
+from app.config import DEFAULT_INSIGHTS_ID
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
@@ -58,7 +59,7 @@ PUBLICATION_CONFIG = {
                     "per_reporter_staleness",
                     "insights_id",
                 ],
-                "publication_filter": "insights_id != '00000000-0000-0000-0000-000000000000'",
+                "publication_filter": f"insights_id != '{DEFAULT_INSIGHTS_ID}'",
             },
             {
                 "name": "system_profiles_dynamic",
@@ -72,7 +73,7 @@ PUBLICATION_CONFIG = {
                     "installed_products",
                     "workloads",
                 ],
-                "publication_filter": "insights_id != '00000000-0000-0000-0000-000000000000'",
+                "publication_filter": f"insights_id != '{DEFAULT_INSIGHTS_ID}'",
             },
             {
                 "name": "system_profiles_static",
@@ -96,7 +97,7 @@ PUBLICATION_CONFIG = {
                     "system_update_method",
                     "yum_repos",
                 ],
-                "publication_filter": "insights_id != '00000000-0000-0000-0000-000000000000'",
+                "publication_filter": f"insights_id != '{DEFAULT_INSIGHTS_ID}'",
             },
         ]
     }
