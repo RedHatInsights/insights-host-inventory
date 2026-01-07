@@ -595,7 +595,7 @@ def test_patch_group_with_invalid_hosts(
     # The patch should fail with a 400 error
     assert_response_status(response_status, 400)
     assert str(invalid_host_id) in response_data["detail"]
-    assert "not find" in response_data["detail"] or "not found" in response_data["detail"]
+    assert "not find" in response_data["detail"]
 
     # Verify that the group still has the original 3 hosts (unchanged)
     assert len(db_get_hosts_for_group(group_id)) == 3

@@ -462,9 +462,9 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
             if hosts_to_add:  # Only validate if there are new hosts to add
                 validate_add_host_list_to_group(hosts_to_add, group_id, identity.org_id)
 
+            _add_hosts_to_group(group_id, hosts_to_add, identity.org_id)
             # Now safe to proceed with deletions - validation has passed
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
-            _add_hosts_to_group(group_id, hosts_to_add, identity.org_id)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             removed_group_id_list = [str(ungrouped_group.id)]
