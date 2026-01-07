@@ -405,7 +405,7 @@ def get_host_system_profile_by_id(
 def _emit_patch_event(serialized_host, host):
     headers = message_headers(
         EventType.updated,
-        host.canonical_facts.get("insights_id"),
+        str(host.insights_id),
         host.reporter,
         host.system_profile_facts.get("host_type"),
         host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -444,7 +444,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
+            insights_id = host.insights_id
             owner_id = host.system_profile_facts.get("owner_id")
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
@@ -520,7 +520,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
+            insights_id = host.insights_id
             owner_id = host.system_profile_facts.get("owner_id")
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)

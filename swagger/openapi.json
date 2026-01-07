@@ -194,6 +194,110 @@
         }
       }
     },
+    "/beta/hosts-view": {
+      "get": {
+        "operationId": "api.host_views.get_host_views",
+        "tags": [
+          "hosts"
+        ],
+        "summary": "[WIP] Read aggregated host and application data",
+        "description": "**[Work In Progress]** This endpoint is under active development and currently returns HTTP 501 (Not Implemented).<br /><br /> Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/subscriptionManagerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerId"
+          },
+          {
+            "$ref": "#/components/parameters/providerType"
+          },
+          {
+            "$ref": "#/components/parameters/updatedStart"
+          },
+          {
+            "$ref": "#/components/parameters/updatedEnd"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInStart"
+          },
+          {
+            "$ref": "#/components/parameters/lastCheckInEnd"
+          },
+          {
+            "$ref": "#/components/parameters/groupNameListParam"
+          },
+          {
+            "$ref": "#/components/parameters/branchId"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostViewOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostOrderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/systemTypeParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostViewAppFilterParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostViewFieldsParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read host views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostViewQueryOutput"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "501": {
+            "description": "Not Implemented - endpoint under development."
+          }
+        }
+      }
+    },
     "/hosts/all": {
       "delete": {
         "operationId": "api.host.delete_all_hosts",
@@ -2020,6 +2124,75 @@
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
+      "hostViewFieldsParam": {
+        "in": "query",
+        "name": "fields",
+        "required": false,
+        "description": "Selects which application objects (or sub-fields) should be joined into the host view response. Supply `fields[app_data]` to fetch every supported application object, use `fields[advisor]` to request the entire Advisor object, or specify sub-fields such as `fields[vulnerability][]=critical_cves`. When this parameter is omitted, `app_data` remains empty and no additional joins are performed.",
+        "style": "deepObject",
+        "explode": true,
+        "example": {
+          "app_data": true,
+          "advisor": [
+            "recommendations"
+          ],
+          "vulnerability": [
+            "critical_cves"
+          ]
+        },
+        "schema": {
+          "$ref": "#/components/schemas/HostViewFieldsObject"
+        }
+      },
+      "hostViewAppFilterParam": {
+        "in": "query",
+        "name": "filter",
+        "required": false,
+        "description": "Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.",
+        "style": "deepObject",
+        "explode": true,
+        "example": {
+          "vulnerability": {
+            "critical_cves": {
+              "gte": "1"
+            }
+          },
+          "patch": {
+            "template": {
+              "eq": "production"
+            }
+          }
+        },
+        "schema": {
+          "$ref": "#/components/schemas/HostViewApplicationFilter"
+        }
+      },
+      "hostViewOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "description": "Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`.\n**Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in`\n**App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "display_name",
+            "group_name",
+            "updated",
+            "operating_system",
+            "last_check_in",
+            "advisor:recommendations",
+            "advisor:incidents",
+            "vulnerability:total_cves",
+            "vulnerability:critical_cves",
+            "patch:installable_advisories",
+            "remediations:remediations_plans",
+            "compliance:policies",
+            "compliance:last_scan",
+            "malware:last_matches",
+            "malware:last_scan"
+          ]
+        }
+      },
       "confirmDeleteAll": {
         "in": "query",
         "name": "confirm_delete_all",
@@ -2640,6 +2813,330 @@
               }
             }
           }
+        ]
+      },
+      "HostViewQueryOutput": {
+        "title": "Inventory view query result",
+        "description": "A paginated host view that optionally includes application data joins.",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "Combined host and application entries.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HostViewHost"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HostViewHost": {
+        "title": "Host with application data",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HostOut"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "app_data": {
+                "$ref": "#/components/schemas/HostApplicationsData"
+              }
+            }
+          }
+        ]
+      },
+      "HostApplicationsData": {
+        "type": "object",
+        "description": "Application-specific metrics and metadata associated with a host.",
+        "properties": {
+          "advisor": {
+            "$ref": "#/components/schemas/AdvisorAppData"
+          },
+          "vulnerability": {
+            "$ref": "#/components/schemas/VulnerabilityAppData"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/PatchAppData"
+          },
+          "remediations": {
+            "$ref": "#/components/schemas/RemediationsAppData"
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/ComplianceAppData"
+          },
+          "malware": {
+            "$ref": "#/components/schemas/MalwareAppData"
+          },
+          "image_builder": {
+            "$ref": "#/components/schemas/ImageBuilderAppData"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdvisorAppData": {
+        "type": "object",
+        "properties": {
+          "recommendations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "incidents": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "VulnerabilityAppData": {
+        "type": "object",
+        "properties": {
+          "total_cves": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "critical_cves": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high_severity_cves": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cves_with_security_rules": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cves_with_known_exploits": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "PatchAppData": {
+        "type": "object",
+        "properties": {
+          "installable_advisories": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "template": {
+            "type": "string"
+          },
+          "rhsm_locked_version": {
+            "type": "string"
+          }
+        }
+      },
+      "RemediationsAppData": {
+        "type": "object",
+        "properties": {
+          "remediations_plans": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ComplianceAppData": {
+        "type": "object",
+        "properties": {
+          "policies": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_scan": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MalwareAppData": {
+        "type": "object",
+        "properties": {
+          "last_status": {
+            "type": "string"
+          },
+          "last_matches": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_scan": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ImageBuilderAppData": {
+        "type": "object",
+        "properties": {
+          "image_name": {
+            "type": "string"
+          },
+          "image_status": {
+            "type": "string"
+          }
+        }
+      },
+      "HostViewFieldsObject": {
+        "type": "object",
+        "description": "Sparse fieldset declaration for application joins. Provide top-level keys that match application names; omit the parameter to skip all application data.",
+        "additionalProperties": false,
+        "properties": {
+          "app_data": {
+            "type": "boolean",
+            "description": "Include every available application object when true."
+          },
+          "advisor": {
+            "type": "array",
+            "description": "Advisor fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "recommendations",
+                "incidents"
+              ]
+            }
+          },
+          "vulnerability": {
+            "type": "array",
+            "description": "Vulnerability fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "total_cves",
+                "critical_cves",
+                "high_severity_cves",
+                "cves_with_security_rules",
+                "cves_with_known_exploits"
+              ]
+            }
+          },
+          "patch": {
+            "type": "array",
+            "description": "Patch fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "installable_advisories",
+                "template",
+                "rhsm_locked_version"
+              ]
+            }
+          },
+          "remediations": {
+            "type": "array",
+            "description": "Remediation Planner fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "remediations_plans"
+              ]
+            }
+          },
+          "compliance": {
+            "type": "array",
+            "description": "Compliance fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "policies",
+                "last_scan"
+              ]
+            }
+          },
+          "malware": {
+            "type": "array",
+            "description": "Malware Detection fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "last_status",
+                "last_matches",
+                "last_scan"
+              ]
+            }
+          },
+          "image_builder": {
+            "type": "array",
+            "description": "Image Builder fields to return; leave empty to include the full object.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image_name",
+                "image_status"
+              ]
+            }
+          }
+        }
+      },
+      "HostViewApplicationFilter": {
+        "type": "object",
+        "description": "Structure for the `filter[app_name][field][operator]=value` syntax applied to application metrics.",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/HostViewApplicationFilterField"
+        }
+      },
+      "HostViewApplicationFilterField": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/HostViewFilterComparison"
+        }
+      },
+      "HostViewFilterComparison": {
+        "type": "object",
+        "description": "Supported comparison operators for application metrics filtering.\n\n**Value comparisons:**\n- `eq` - Equal to\n- `ne` - Not equal to\n- `gt` - Greater than\n- `lt` - Less than\n- `gte` - Greater than or equal to\n- `lte` - Less than or equal to\n\n**Null checks:**\n- `nil` - Field is null/missing\n- `not_nil` - Field is not null/exists\n",
+        "additionalProperties": false,
+        "properties": {
+          "eq": {
+            "type": "string"
+          },
+          "ne": {
+            "type": "string"
+          },
+          "gt": {
+            "type": "string"
+          },
+          "lt": {
+            "type": "string"
+          },
+          "gte": {
+            "type": "string"
+          },
+          "lte": {
+            "type": "string"
+          },
+          "nil": {
+            "type": "boolean",
+            "description": "When true, matches hosts where this field is null/missing."
+          },
+          "not_nil": {
+            "type": "boolean",
+            "description": "When true, matches hosts where this field exists and is not null."
+          }
+        }
+      },
+      "AppSortableFields": {
+        "type": "string",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:installable_advisories` - Number of installable advisories\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:policies` - Number of compliance policies\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "enum": [
+          "advisor:recommendations",
+          "advisor:incidents",
+          "vulnerability:total_cves",
+          "vulnerability:critical_cves",
+          "patch:installable_advisories",
+          "remediations:remediations_plans",
+          "compliance:policies",
+          "compliance:last_scan",
+          "malware:last_matches",
+          "malware:last_scan"
         ]
       },
       "SystemProfileByHostOut": {
