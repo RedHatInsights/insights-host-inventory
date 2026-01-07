@@ -7,6 +7,7 @@ from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
+from iqe_host_inventory_api import HostOut
 
 """
 REVISIT: Kessel still requires a special setup for the EE (see below).
@@ -22,6 +23,11 @@ To run in the EE:
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="module")
+def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
+    return host_inventory.upload.create_hosts(3, cleanup_scope="module")
 
 
 def test_kessel_get_ungrouped_group(host_inventory: ApplicationHostInventory):
@@ -97,7 +103,9 @@ def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
     assert groups[0].id == standard_groups[0].id
 
 
-def test_kessel_create_group_with_hosts(host_inventory: ApplicationHostInventory):
+def test_kessel_create_group_with_hosts(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-groups
@@ -105,7 +113,7 @@ def test_kessel_create_group_with_hosts(host_inventory: ApplicationHostInventory
       importance: high
       title: Create a group with hosts and verify that the corresponding workspace is correct
     """
-    hosts = host_inventory.upload.create_hosts(3)
+    hosts = prepare_hosts
 
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name, hosts=hosts)
@@ -171,7 +179,9 @@ def test_kessel_delete_group(host_inventory: ApplicationHostInventory):
     assert "No Workspace matches the given query" in err.value.body
 
 
-def test_kessel_add_hosts_to_group(host_inventory: ApplicationHostInventory):
+def test_kessel_add_hosts_to_group(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-groups
@@ -183,7 +193,7 @@ def test_kessel_add_hosts_to_group(host_inventory: ApplicationHostInventory):
         0
     ].host_count
 
-    hosts = host_inventory.upload.create_hosts(3)
+    hosts = prepare_hosts
 
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
@@ -211,7 +221,9 @@ def test_kessel_add_hosts_to_group(host_inventory: ApplicationHostInventory):
     assert response_host.groups[0].id == ungrouped_group.id
 
 
-def test_kessel_remove_hosts_from_group(host_inventory: ApplicationHostInventory):
+def test_kessel_remove_hosts_from_group(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-groups
@@ -223,7 +235,7 @@ def test_kessel_remove_hosts_from_group(host_inventory: ApplicationHostInventory
         0
     ].host_count
 
-    hosts = host_inventory.upload.create_hosts(3)
+    hosts = prepare_hosts
     host_ids = {host.id for host in hosts}
 
     group_name = generate_display_name()
@@ -302,7 +314,9 @@ def test_kessel_delete_ungrouped(host_inventory: ApplicationHostInventory):
         host_inventory.apis.groups.delete_groups_raw(ungrouped_group)
 
 
-def test_kessel_remove_host_from_ungrouped(host_inventory: ApplicationHostInventory):
+def test_kessel_remove_host_from_ungrouped(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     metadata:
       requirements: inv-kessel-groups
@@ -310,7 +324,7 @@ def test_kessel_remove_host_from_ungrouped(host_inventory: ApplicationHostInvent
       importance: low
       title: Attempt to remove a host from the ungrouped group
     """
-    host = host_inventory.upload.create_host()
+    host = prepare_hosts[0]
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
     with raises_apierror(

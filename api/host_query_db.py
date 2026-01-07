@@ -51,10 +51,18 @@ __all__ = (
 logger = get_logger(__name__)
 
 DEFAULT_COLUMNS = [
-    Host.canonical_facts,
     Host.id,
     Host.account,
     Host.org_id,
+    Host.insights_id,
+    Host.subscription_manager_id,
+    Host.satellite_id,
+    Host.bios_uuid,
+    Host.ip_addresses,
+    Host.fqdn,
+    Host.mac_addresses,
+    Host.provider_id,
+    Host.provider_type,
     Host.display_name,
     Host.ansible_host,
     Host.facts,

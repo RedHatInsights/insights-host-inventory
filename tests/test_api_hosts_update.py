@@ -279,7 +279,7 @@ def test_patch_produces_update_event_no_insights_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_patch
 ):
     host = db_host()
-    del host.canonical_facts["insights_id"]
+    del host.insights_id
 
     created_host = db_create_host(host=host)
 

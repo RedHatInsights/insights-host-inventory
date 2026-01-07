@@ -143,7 +143,7 @@ def test_create_then_delete_without_insights_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
-    del host.canonical_facts["insights_id"]
+    del host.insights_id
 
     db_create_host(host=host)
 

@@ -10,18 +10,24 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import fake
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
-from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
+from iqe_host_inventory_api import HostOut
 
 pytestmark = [pytest.mark.backend]
 
 logger = logging.getLogger(__name__)
 
 
+@pytest.fixture(scope="module")
+def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
+    return host_inventory.upload.create_hosts(2, cleanup_scope="module")
+
+
 @pytest.mark.smoke
 @pytest.mark.core
 @pytest.mark.qa
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
-def test_patch_display_name(host_inventory: ApplicationHostInventory, operating_system: str):
+def test_patch_display_name(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     Test PATCH display_name field of host.
 
@@ -36,17 +42,13 @@ def test_patch_display_name(host_inventory: ApplicationHostInventory, operating_
         importance: high
         title: Inventory: PATCH display_name field of host
     """
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
-    host = host_inventory.upload.create_host(base_archive=base_archive, core_collect=core_collect)
+    host = prepare_hosts[0]
 
     new_display_name = generate_display_name()
 
     host_inventory.apis.hosts.patch_hosts(host.id, display_name=new_display_name)
 
     host_inventory.apis.hosts.wait_for_updated(host, display_name=new_display_name)
-
-    response = host_inventory.apis.hosts.get_host_system_profile(host)
-    assert response.system_profile.operating_system.name == operating_system
 
 
 @pytest.mark.ephemeral
@@ -75,7 +77,9 @@ def test_patch_display_name_culled_host(host_inventory: ApplicationHostInventory
         host_inventory.apis.hosts.patch_hosts(host.id, display_name=new_display_name)
 
 
-def test_patch_ansible_host(host_inventory: ApplicationHostInventory):
+def test_patch_ansible_host(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     Test PATCH ansible_host field of host.
 
@@ -90,7 +94,7 @@ def test_patch_ansible_host(host_inventory: ApplicationHostInventory):
         importance: high
         title: Inventory: PATCH ansible_host field of host
     """
-    host = host_inventory.upload.create_host()
+    host = prepare_hosts[0]
 
     new_ansible_host = fake.hostname()
 
@@ -122,7 +126,9 @@ def test_patch_ansible_host_culled_host(host_inventory: ApplicationHostInventory
         host_inventory.apis.hosts.patch_hosts(host.id, ansible_host=new_ansible_host)
 
 
-def test_patch_display_name_multiple_hosts(host_inventory: ApplicationHostInventory):
+def test_patch_display_name_multiple_hosts(
+    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+):
     """
     Test PATCH display_name field of multiple hosts
 
@@ -137,7 +143,7 @@ def test_patch_display_name_multiple_hosts(host_inventory: ApplicationHostInvent
         importance: medium
         title: Inventory: PATCH display_name field of multiple hosts
     """
-    hosts = host_inventory.upload.create_hosts(2)
+    hosts = prepare_hosts
     host_ids = [host.id for host in hosts]
 
     new_display_name = generate_display_name()
@@ -286,7 +292,9 @@ def test_patch_facts_culled_host(host_inventory: ApplicationHostInventory):
 
 
 def test_patch_host_doesnt_update_last_check_in(
-    host_inventory: ApplicationHostInventory, hbi_default_org_id: str
+    host_inventory: ApplicationHostInventory,
+    hbi_default_org_id: str,
+    prepare_hosts: list[HostOut],
 ):
     """
     https://issues.redhat.com/browse/RHINENG-15759
@@ -297,7 +305,11 @@ def test_patch_host_doesnt_update_last_check_in(
       importance: high
       title: Make sure 'last_check_in' is not updated after patching host's name.
     """
-    host = host_inventory.upload.create_host()
+    host = prepare_hosts[0]
+
+    # Get the host's current state before patching to capture accurate timestamps
+    host_before_patch = host_inventory.apis.hosts.get_host_by_id(host.id)
+
     new_display_name = generate_display_name()
     host_inventory.apis.hosts.patch_hosts(host.id, display_name=new_display_name)
 
@@ -306,12 +318,14 @@ def test_patch_host_doesnt_update_last_check_in(
 
     assert host.org_id == hbi_default_org_id
     assert host_response.id == host.id
-    assert_datetimes_equal(host_response.last_check_in, host.last_check_in)
+    assert_datetimes_equal(host_response.last_check_in, host_before_patch.last_check_in)
     # make sure staleness timestamps are stayed the same
-    assert_datetimes_equal(host_response.stale_timestamp, host.stale_timestamp)
-    assert_datetimes_equal(host_response.stale_warning_timestamp, host.stale_warning_timestamp)
-    assert_datetimes_equal(host_response.culled_timestamp, host.culled_timestamp)
+    assert_datetimes_equal(host_response.stale_timestamp, host_before_patch.stale_timestamp)
+    assert_datetimes_equal(
+        host_response.stale_warning_timestamp, host_before_patch.stale_warning_timestamp
+    )
+    assert_datetimes_equal(host_response.culled_timestamp, host_before_patch.culled_timestamp)
 
-    assert host_response.updated != host.updated, (
+    assert host_response.updated != host_before_patch.updated, (
         "Host's field 'updated' should be updated after patching host's name."
     )

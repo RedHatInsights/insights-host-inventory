@@ -122,7 +122,7 @@ def host_delete_event(event_type, host, initiated_by_frontend=False, platform_me
         "timestamp": datetime.now(UTC),
         "type": event_type.name,
         "id": host.id,
-        **serialize_canonical_facts(host.canonical_facts),
+        **serialize_canonical_facts(host),
         "org_id": host.org_id,
         "account": host.account,
         "initiated_by_frontend": initiated_by_frontend,
