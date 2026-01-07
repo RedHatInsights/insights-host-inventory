@@ -430,6 +430,24 @@ def test_request_id_is_reset(mocker, flask_app, ingress_message_consumer_mock):
         assert threadctx.request_id is None
 
 
+def test_threadctx_account_number_is_reset(flask_app, ingress_message_consumer_mock):
+    with flask_app.app.app_context():
+        # Create a host in one org
+        host = minimal_host(org_id=SYSTEM_IDENTITY["org_id"], account=SYSTEM_IDENTITY["account_number"])
+        message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+        ingress_message_consumer_mock.handle_message(json.dumps(message))
+        assert threadctx.account_number == SYSTEM_IDENTITY["account_number"]
+
+        # Create a host in a different org that has no account number
+        identity = deepcopy(SYSTEM_IDENTITY)
+        identity["org_id"] = "1234567890"
+        del identity["account_number"]
+        host = minimal_host(org_id=identity["org_id"])
+        message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+        ingress_message_consumer_mock.handle_message(json.dumps(message))
+        assert threadctx.account_number is None
+
+
 @mock.patch.object(IngressMessageConsumer, "handle_message", return_value=None, side_effect=[None, None])
 def test_shutdown_handler(handle_message_mock, mocker, flask_app):
     fake_consumer = mocker.Mock()
