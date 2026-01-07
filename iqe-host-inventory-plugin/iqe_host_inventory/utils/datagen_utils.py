@@ -110,6 +110,8 @@ DYNAMIC_SYSTEM_PROFILE_FIELDS = {
     "workloads",
 }
 
+DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
+
 
 def get_default_cloud_provider() -> str:
     return "test cloud provider"

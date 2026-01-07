@@ -38,7 +38,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                     per_reporter_staleness,
                     org_id,
                     groups
-                FROM hbi.hosts WHERE insights_id != '00000000-0000-0000-0000-000000000000';
+                FROM hbi.hosts WHERE insights_id != DEFAULT_INSIGHTS_ID;
         """
         session.execute(text(CREATE_SCHEMA_SQL))
         session.execute(text(CREATE_VIEW_SQL))
