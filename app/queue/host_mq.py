@@ -790,9 +790,9 @@ def write_message_batch(
                 logger.exception("Error while producing message", exc_info=exc)
 
 
-def initialize_thread_local_storage(request_id: str | None, org_id: str | None = None, account: str | None = None):
+def initialize_thread_local_storage(
+    request_id: str | None, org_id: str | None = None, account_number: str | None = None
+):
     threadctx.request_id = request_id
-    if org_id:
-        threadctx.org_id = org_id
-    if account:
-        threadctx.account = account
+    threadctx.org_id = org_id
+    threadctx.account_number = account_number
