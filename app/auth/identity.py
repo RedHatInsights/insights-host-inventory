@@ -86,9 +86,7 @@ class Identity:
                 self.x509 = result.get("x509")
 
             threadctx.org_id = self.org_id
-
-            if self.account_number:
-                threadctx.account_number = self.account_number
+            threadctx.account_number = self.account_number
 
         else:
             raise ValueError("Neither the org_id or token has been set")

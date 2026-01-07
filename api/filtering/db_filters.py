@@ -22,6 +22,7 @@ from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
+from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -50,7 +51,6 @@ __all__ = (
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
-DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
 # Order-by fields that require a join to HostStaticSystemProfile
 ORDER_BY_STATIC_PROFILE_FIELDS = {"operating_system"}
