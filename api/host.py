@@ -104,7 +104,7 @@ def get_host_list(
 
     # Validate mutually exclusive group filters
     if group_name and group_id:
-        logger.error("Cannot specify both group_name and group_id filters simultaneously.")
+        logger.warning("Cannot specify both group_name and group_id filters simultaneously.")
         flask.abort(
             400,
             "Cannot use both 'group_name' and 'group_id' filters together. "
@@ -220,7 +220,7 @@ def delete_hosts_by_filter(
 ):
     # Validate mutually exclusive group filters
     if group_name and group_id:
-        logger.error("Cannot specify both group_name and group_id filters simultaneously.")
+        logger.warning("Cannot specify both group_name and group_id filters simultaneously.")
         flask.abort(
             400,
             "Cannot use both 'group_name' and 'group_id' filters together. "

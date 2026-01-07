@@ -838,7 +838,7 @@ def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
 def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get):
     """
     Test that group_id filter returns correct hosts even when multiple groups have the same name.
-    This is the key requirement from RHINENG-<ticket>: with Kessel, multiple groups can have
+    This is the key requirement from RHINENG-17234: with Kessel, multiple groups can have
     the same name if they have different parents, and filtering by group_id ensures we get
     the correct group's hosts.
     """
