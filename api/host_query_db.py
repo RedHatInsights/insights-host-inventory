@@ -13,6 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
+from sqlalchemy.orm import defer
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
@@ -36,7 +38,10 @@ from app.models import Host
 from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.system_profile_transformer import DYNAMIC_FIELDS
+from app.models.system_profile_transformer import STATIC_FIELDS
 from app.serialization import serialize_host_for_export_svc
 
 __all__ = (
@@ -94,30 +99,45 @@ def _get_host_list_using_filters(
     param_order_by: str,
     param_order_how: str,
     fields: dict,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
-    columns = DEFAULT_COLUMNS.copy()
+) -> tuple[list[Host], int, tuple, list[str]]:
+    # Check if 'system_profile' is requested to decide between "Full ORM" vs "Light Columns"
+    sp_fields_map = fields.get("system_profile", {}) if fields else {}
+    is_sp_requested = bool(sp_fields_map)
 
-    system_profile_fields = ["host_type"]
-    if fields and fields.get("system_profile"):
-        additional_fields: tuple = ("system_profile",)
-        system_profile_fields += list(fields.get("system_profile", {}).keys())
-        columns = list(columns)
-        columns.append(Host.system_profile_facts)
+    additional_fields = ("system_profile",) if is_sp_requested else ()
+    system_profile_fields = list(sp_fields_map.keys()) if is_sp_requested else []
+
+    if is_sp_requested:
+        # Load full ORM objects (needed for relationships)
+        base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
+
+        # Defer loading of heavy JSONB columns unless strictly needed
+        base_query = base_query.options(defer(Host.canonical_facts), defer(Host.system_profile_facts))
+
+        # Conditionally join related tables based on requested fields
+        requested_keys = set(sp_fields_map.keys())
+
+        if requested_keys & set(STATIC_FIELDS):
+            base_query = base_query.options(joinedload(Host.static_system_profile))
+
+        if requested_keys & (set(DYNAMIC_FIELDS) | WORKLOADS_FIELDS):
+            base_query = base_query.options(joinedload(Host.dynamic_system_profile))
     else:
-        additional_fields = ()
+        base_query = _find_hosts_entities_query(
+            query=query_base, columns=DEFAULT_COLUMNS.copy(), order_by=param_order_by
+        )
 
-    base_query = _find_hosts_entities_query(query=query_base, columns=columns, order_by=param_order_by).filter(
-        *all_filters
-    )
-    host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    filtered_query = base_query.filter(*all_filters)
 
-    # Count separately because the COUNT done by .paginate() is inefficient
-    count_total = base_query.with_entities(func.count()).scalar()
+    # Optimized count that ignores ordering and columns
+    count_total = filtered_query.with_entities(func.count()).scalar()
 
-    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+    ordered_query = filtered_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    paginated_results = ordered_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+
     db.session.close()
 
-    return query_results.items, count_total, additional_fields, system_profile_fields
+    return paginated_results.items, count_total, additional_fields, system_profile_fields
 
 
 def get_host_list(
@@ -255,11 +275,10 @@ def _find_hosts_entities_query(
     identity: Any = None,
     order_by: str | None = None,
 ) -> Query:
-    if not identity:
-        identity = get_current_identity()
+    identity = identity or get_current_identity()
 
     if query is None:
-        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
         # Add static profile join if needed for ordering
         if order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
             query = query.join(HostStaticSystemProfile, isouter=True)
@@ -271,7 +290,7 @@ def _find_hosts_entities_query(
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # In this case, return a list of Hosts
     # wih the requested columns.

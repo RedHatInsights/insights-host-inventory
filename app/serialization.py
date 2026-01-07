@@ -7,6 +7,7 @@ from uuid import UUID
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -25,6 +26,7 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from app.models.constants import WORKLOADS_FIELDS
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -123,6 +125,78 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
+def _build_system_profile_from_normalized(host, system_profile_fields=None) -> dict:
+    """
+    Build system profile dict from static and dynamic tables.
+    This replaces host.system_profile_facts.
+    """
+    system_profile = {}
+
+    SERIALIZERS = {
+        "owner_id": serialize_uuid,
+        "rhc_client_id": serialize_uuid,
+        "rhc_config_state": serialize_uuid,
+        "virtual_host_uuid": serialize_uuid,
+        "captured_date": _serialize_datetime,
+        "last_boot_time": _serialize_datetime,
+    }
+    EXCLUDE_FIELDS = {"org_id", "host_id"}
+
+    requested_fields = set(system_profile_fields) if system_profile_fields else None
+
+    # Check if 'workloads' should be fetched implicitly to extract sub-fields later (backward compatibility)
+    requested_workload_subfields = set()
+    workloads_explicitly_requested = False
+
+    if requested_fields:
+        requested_workload_subfields = requested_fields & WORKLOADS_FIELDS
+        workloads_explicitly_requested = "workloads" in requested_fields
+
+        # If 'ansible' was requested but not 'workloads', we must fetch 'workloads'
+        # from DB first (backward compatibility)
+        if requested_workload_subfields and not workloads_explicitly_requested:
+            requested_fields.add("workloads")
+
+    for attr_name in ("static_system_profile", "dynamic_system_profile"):
+        try:
+            profile_source = getattr(host, attr_name, None)
+            if not profile_source:
+                continue
+
+            for column in profile_source.__table__.columns:
+                field_name = column.name
+
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                if requested_fields and field_name not in requested_fields:
+                    continue
+
+                value = getattr(profile_source, field_name, None)
+
+                if value is not None:
+                    serializer = SERIALIZERS.get(field_name)
+                    system_profile[field_name] = serializer(value) if serializer else value
+
+        except DetachedInstanceError:
+            # Relationship not loaded - skip this source
+            pass
+
+    # Extract specific workload fields (e.g., 'rhel_ai') from the JSON structure if requested (backward compatibility)
+    if requested_workload_subfields:
+        workloads_data = system_profile.get("workloads", {})
+        if workloads_data:
+            for field in requested_workload_subfields:
+                if field in workloads_data:
+                    system_profile[field] = workloads_data[field]
+
+    # Remove the full 'workloads' dict if the user didn't ask for it explicitly
+    if requested_workload_subfields and not workloads_explicitly_requested:
+        system_profile.pop("workloads", None)
+
+    return system_profile
+
+
 def serialize_host(
     host,
     staleness_timestamps,
@@ -167,7 +241,7 @@ def serialize_host(
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
-        "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
         "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
@@ -176,11 +250,7 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = (
-            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
-            if host.system_profile_facts and system_profile_fields
-            else host.system_profile_facts or {}
-        )
+        serialized_host["system_profile"] = _build_system_profile_from_normalized(host, system_profile_fields)
 
         # Add backward compatibility for workload fields (only for Kafka events)
         if (
@@ -192,12 +262,12 @@ def serialize_host(
                 serialized_host["system_profile"]
             )
 
-        if (
-            system_profile_fields
-            and system_profile_fields.count("host_type") < 2
-            and serialized_host["system_profile"].get("host_type")
-        ):
-            del serialized_host["system_profile"]["host_type"]
+        # Map host_type for backward compatibility with downstream apps (cyndi)
+        # Downstream apps only recognize "edge" vs empty values
+        if for_mq and serialized_host["system_profile"].get("host_type"):
+            serialized_host["system_profile"]["host_type"] = _map_host_type_for_backward_compatibility(
+                serialized_host["system_profile"]["host_type"]
+            )
 
     # Handle groups separately
     if "groups" in fields:
@@ -257,7 +327,8 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    system_profile = _build_system_profile_from_normalized(host)
+    return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 
 def _recursive_casefold(field_data):

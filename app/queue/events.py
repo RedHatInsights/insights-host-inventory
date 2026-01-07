@@ -84,6 +84,27 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
+def extract_system_profile_fields_for_headers(static_system_profile):
+    """
+    Extract system profile fields for event headers from static_system_profile.
+    Returns: (host_type, os_name, bootc_booted)
+    """
+    if not static_system_profile:
+        return None, None, "False"
+
+    host_type = static_system_profile.host_type
+
+    os_name = None
+    if static_system_profile.operating_system:
+        os_name = static_system_profile.operating_system.get("name")
+
+    bootc_booted = "False"
+    if static_system_profile.bootc_status:
+        bootc_booted = str(static_system_profile.bootc_status.get("booted") is not None)
+
+    return host_type, os_name, bootc_booted
+
+
 def message_headers(
     event_type: EventType,
     insights_id: str | None = None,

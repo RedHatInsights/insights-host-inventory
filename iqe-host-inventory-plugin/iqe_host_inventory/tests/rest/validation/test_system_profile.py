@@ -284,7 +284,7 @@ INCORRECT_MAC_ADDRESSES = (
 def validate_correct_value(  # NOQA: C901
     host_inventory: ApplicationHostInventory,
 ):
-    def _validate(field: Field, value, expected_value=None):
+    def _validate(field: Field, value, expected_value=None):  # NOQA: C901
         value = _unpack_param(value)
         host_data = host_inventory.datagen.create_host_data()
         host_data["system_profile"][field.name] = value
@@ -294,6 +294,8 @@ def validate_correct_value(  # NOQA: C901
             assert str(host.system_profile[field.name]).lower() == value.lower()
         elif isinstance(host.system_profile[field.name], int):
             assert host.system_profile[field.name] == int(value)
+        elif field.type == "date-time" and isinstance(host.system_profile[field.name], str):
+            assert parse_datetime(host.system_profile[field.name]) == parse_datetime(value)
         else:
             assert host.system_profile[field.name] == value
 
@@ -314,7 +316,8 @@ def validate_correct_value(  # NOQA: C901
             assert response_value == expected_value
         elif isinstance(response_value, datetime):
             assert parse_datetime(value) == response_value
-
+        elif field.type == "date-time" and isinstance(response_value, str):
+            assert parse_datetime(response_value) == parse_datetime(value)
         elif isinstance(response_value, bool):
             assert str(response_value).lower() == value.lower()
         elif isinstance(response_value, int):
