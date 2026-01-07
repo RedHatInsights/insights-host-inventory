@@ -25,6 +25,7 @@ from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
 from iqe_host_inventory.utils import assert_datetimes_equal
+from iqe_host_inventory.utils.datagen_utils import DEFAULT_INSIGHTS_ID
 from iqe_host_inventory.utils.datagen_utils import HOST_FIELDS
 from iqe_host_inventory.utils.datagen_utils import generate_user_identity
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -423,7 +424,7 @@ def check_mq_create_or_update_event_host_data(
     for field in HOST_FIELDS:
         if field.name == "insights_id":
             if expected_host_data.get("insights_id") is None:
-                expected_host_data["insights_id"] = "00000000-0000-0000-0000-000000000000"
+                expected_host_data["insights_id"] = DEFAULT_INSIGHTS_ID
             continue
         if expected_host_data.get(field.name) is None:
             assert event_host_data.pop(field.name, None) is None

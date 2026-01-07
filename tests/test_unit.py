@@ -30,6 +30,7 @@ from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.identity import from_bearer_token
+from app.config import DEFAULT_INSIGHTS_ID
 from app.config import Config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -1729,7 +1730,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                 staleness = get_sys_default_staleness()
                 actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
                 expected = {
-                    "insights_id": "00000000-0000-0000-0000-000000000000",
+                    "insights_id": DEFAULT_INSIGHTS_ID,
                     "fqdn": None,
                     "satellite_id": None,
                     "bios_uuid": None,
@@ -2022,7 +2023,7 @@ def test_missing_fields_are_filled_with_none_serialization_serialize_canonical_f
     )
     expected = {field: None for field in canonical_fact_fields}
     # insights_id should never be None - it defaults to zero UUID
-    expected["insights_id"] = "00000000-0000-0000-0000-000000000000"
+    expected["insights_id"] = DEFAULT_INSIGHTS_ID
     assert expected == serialize_canonical_facts({})
 
 

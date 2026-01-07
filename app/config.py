@@ -40,6 +40,8 @@ COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
 IMMUTABLE_ID_FACTS = ("provider_id",)
 
+DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
+
 
 class HostType(str, Enum):
     EDGE = "edge"
