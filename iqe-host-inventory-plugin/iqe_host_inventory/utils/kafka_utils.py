@@ -16,6 +16,7 @@ from typing import cast
 from uuid import UUID
 
 import pytest
+from app.config import DEFAULT_INSIGHTS_ID
 from confluent_kafka.error import ConsumeError
 from iqe_mq._transforms import MessageWrapper as MqMessageWrapper
 
@@ -423,7 +424,7 @@ def check_mq_create_or_update_event_host_data(
     for field in HOST_FIELDS:
         if field.name == "insights_id":
             if expected_host_data.get("insights_id") is None:
-                expected_host_data["insights_id"] = "00000000-0000-0000-0000-000000000000"
+                expected_host_data["insights_id"] = DEFAULT_INSIGHTS_ID
             continue
         if expected_host_data.get(field.name) is None:
             assert event_host_data.pop(field.name, None) is None

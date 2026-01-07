@@ -47,6 +47,7 @@ __all__ = (
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
+    "filter_canonical_facts_for_deduplication",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -54,7 +55,7 @@ AddHostResult = Enum("AddHostResult", ("created", "updated"))
 logger = get_logger(__name__)
 
 
-def _filter_canonical_facts_for_deduplication(canonical_facts: dict[str, Any]) -> dict[str, Any]:
+def filter_canonical_facts_for_deduplication(canonical_facts: dict[str, Any]) -> dict[str, Any]:
     """
     Filter out empty/unset values from canonical facts dictionary.
 
@@ -99,7 +100,7 @@ def add_host(
         operation_args = {}
 
     matched_host = None
-    canonical_facts = _filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
+    canonical_facts = filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
         matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
@@ -373,7 +374,7 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
     if input_host.id:
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
-        canonical_facts = _filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
+        canonical_facts = filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
         existing_host = find_existing_host(identity, canonical_facts)
 
     if existing_host:
