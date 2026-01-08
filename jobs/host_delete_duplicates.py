@@ -28,7 +28,6 @@ from lib.handlers import ShutdownHandler
 from lib.host_delete import delete_hosts
 from lib.host_repository import contains_no_incorrect_facts_filter
 from lib.host_repository import extract_immutable_and_id_facts
-from lib.host_repository import filter_canonical_facts_for_deduplication
 from lib.host_repository import matches_at_least_one_canonical_fact_filter
 from lib.metrics import delete_duplicate_host_count
 
@@ -125,7 +124,7 @@ def delete_duplicate_hosts_by_org_id(
         last_host_id = host_list[-1].id  # Needed in case this host gets deleted
 
         for host in host_list:
-            canonical_facts = filter_canonical_facts_for_deduplication(serialize_canonical_facts(host))
+            canonical_facts = serialize_canonical_facts(host, include_none=False)
             logger.info(f"Find by canonical facts: {canonical_facts}")
             matching_hosts = find_matching_hosts(canonical_facts, hosts_query)
 
