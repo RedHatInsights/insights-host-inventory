@@ -285,6 +285,18 @@ def _deserialize_all_canonical_facts(data):
 
 
 def serialize_canonical_facts(host: Host | LimitedHost, include_none: bool = True) -> dict[str, Any]:
+    """
+    Serialize canonical facts from a host object to a dictionary.
+
+    Args:
+        host: The host object (Host or LimitedHost) to serialize canonical facts from.
+        include_none: If True (default), includes all canonical fact fields in the output,
+            even when their values are None. If False, only includes fields with non-None values.
+
+    Returns:
+        A dictionary containing the serialized canonical facts. Empty lists for
+        ip_addresses and mac_addresses are converted to None.
+    """
     canonical_facts = {}
     for field in CANONICAL_FACTS_FIELDS:
         value = getattr(host, field, None)

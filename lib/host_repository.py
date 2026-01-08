@@ -300,10 +300,8 @@ def update_existing_host(
 
 
 def contains_no_incorrect_facts_filter(canonical_facts: dict[str, Any]) -> BinaryExpression:
-    # Returns True if the host does not contain any incorrect canonical fact values.
-    # Incorrect value = column has a value AND it doesn't match the input
-    # For arrays: column is not None AND column does NOT contain the input value
-    # For scalars: column is not None AND column != input value
+    # Does not contain any incorrect CF values
+    # Incorrect value = AND( column has value, column value != expected value )
     # -> NOT( OR( *Incorrect values ) )
     filter_: tuple = ()
     for key, value in canonical_facts.items():
@@ -325,8 +323,8 @@ def contains_no_incorrect_facts_filter_in_memory(host: Host, canonical_facts: di
 
 
 def matches_at_least_one_canonical_fact_filter(canonical_facts: dict[str, Any]) -> BooleanClauseList:
-    # Matches at least one correct CF value
-    # Scalars: column == value | Arrays: column contains value
+    # Contains at least one correct CF value
+    # Correct value = column value == expected value
     # -> OR( *correct values )
     filter_: tuple = ()
     for key, value in canonical_facts.items():
