@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from datetime import datetime
+from time import sleep
 from typing import Any
 from uuid import UUID
 
@@ -406,6 +407,9 @@ def test_groups_patch_good_and_not_existing_hosts(host_inventory: ApplicationHos
     ):
         host_inventory.apis.groups.patch_group(group, hosts=assigned_hosts, wait_for_updated=False)
 
+    # Adding this sleep based on debugging the test in iqe pod.  If it works,
+    # it may be related to kessel integration
+    sleep(10)
     host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts)
 
 
