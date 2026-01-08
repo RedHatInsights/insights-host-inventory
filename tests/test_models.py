@@ -51,7 +51,7 @@ def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
     created_host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
-            "canonical_facts": {"fqdn": fqdn, "subscription_manager_id": generate_uuid()},
+            "fqdn": fqdn,
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         },
     )
@@ -71,7 +71,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
     insights_id = generate_uuid()
 
     existing_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": expected_fqdn, "insights_id": insights_id}, "display_name": None}
+        extra_data={"fqdn": expected_fqdn, "insights_id": insights_id, "display_name": None}
     )
 
     # Clear the display_name
@@ -97,9 +97,7 @@ def test_update_existing_host_display_name_changing_fqdn(db_create_host):
     new_fqdn = "host2.domain2.com"
     insights_id = generate_uuid()
 
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": old_fqdn, "insights_id": insights_id}, "display_name": None}
-    )
+    existing_host = db_create_host(extra_data={"fqdn": old_fqdn, "insights_id": insights_id, "display_name": None})
 
     # Set the display_name to the old FQDN
     existing_host.display_name = old_fqdn
@@ -123,7 +121,7 @@ def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db
     expected_fqdn = "host1.domain1.com"
     insights_id = generate_uuid()
 
-    existing_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": None})
+    existing_host = db_create_host(extra_data={"insights_id": insights_id, "display_name": None})
 
     db.session.commit()
     assert existing_host.display_name == str(existing_host.id)
@@ -145,9 +143,7 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     fqdn = "host1.domain1.com"
     subman_id = generate_uuid()
 
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"fqdn": fqdn, "subscription_manager_id": subman_id}}
-    )
+    existing_host = db_create_host(extra_data={"fqdn": fqdn, "subscription_manager_id": subman_id})
 
     # Clear the display_name
     existing_host.display_name = None
@@ -157,7 +153,8 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
     # Update the host
     expected_fqdn = "different.domain1.com"
     input_host = Host(
-        {"fqdn": expected_fqdn, "subscription_manager_id": subman_id},
+        fqdn=expected_fqdn,
+        subscription_manager_id=subman_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -175,7 +172,7 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
     existing_host = db_create_host(
         SYSTEM_IDENTITY,
         extra_data={
-            "canonical_facts": {"insights_id": insights_id},
+            "insights_id": insights_id,
             "display_name": None,
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         },
@@ -258,7 +255,7 @@ def test_host_schema_invalid_tags(tags):
 def test_host_models_missing_fields(missing_field):
     limited_values = {
         "account": USER_IDENTITY["account_number"],
-        "canonical_facts": {"fqdn": "foo.qoo.doo.noo"},
+        "fqdn": "foo.qoo.doo.noo",
         "system_profile_facts": {"number_of_cpus": 1},
     }
     if missing_field in limited_values:
@@ -315,9 +312,7 @@ def test_update_host_with_tags(db_create_host):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
     old_tags_alt = Tag.create_flat_tags_from_structured([Tag("Sat", "env", "prod")])
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
-    )
+    existing_host = db_create_host(extra_data={"insights_id": insights_id, "display_name": "tagged", "tags": old_tags})
 
     assert existing_host.tags == old_tags
     assert existing_host.tags_alt == old_tags_alt
@@ -325,9 +320,7 @@ def test_update_host_with_tags(db_create_host):
     # On update each namespace in the input host's tags should be updated.
     new_tags = Tag.create_nested_from_tags([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
     new_tags_alt = Tag.create_flat_tags_from_structured([Tag("Sat", "env", "ci"), Tag("AWS", "env", "prod")])
-    input_host = db_create_host(
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": new_tags}
-    )
+    input_host = db_create_host(extra_data={"insights_id": insights_id, "display_name": "tagged", "tags": new_tags})
 
     existing_host.update(input_host)
 
@@ -340,12 +333,10 @@ def test_update_host_with_tags(db_create_host):
 def test_update_host_with_no_tags(db_create_host):
     insights_id = str(uuid.uuid4())
     old_tags = Tag("Sat", "env", "prod").to_nested()
-    existing_host = db_create_host(
-        extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged", "tags": old_tags}
-    )
+    existing_host = db_create_host(extra_data={"insights_id": insights_id, "display_name": "tagged", "tags": old_tags})
 
     # Updating a host should not remove any existing tags if tags are missing from the input host
-    input_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}, "display_name": "tagged"})
+    input_host = db_create_host(extra_data={"insights_id": insights_id, "display_name": "tagged"})
     existing_host.update(input_host)
 
     assert existing_host.tags == old_tags
@@ -359,7 +350,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "ansible_host": "ansible_host",
         "facts": [{"namespace": "namespace", "facts": {"key": "value"}}],
         "tags": {"namespace": {"key": ["value"]}},
-        "canonical_facts": {"subscription_manager_id": generate_uuid()},
+        "subscription_manager_id": generate_uuid(),
         "system_profile_facts": {"number_of_cpus": 1},
         "reporter": "reporter",
         "openshift_cluster_id": uuid.uuid4(),
@@ -376,7 +367,7 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
 def test_host_model_invalid_openshift_cluster_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         org_id=USER_IDENTITY["org_id"],
         openshift_cluster_id="invalid-uuid",
@@ -388,7 +379,7 @@ def test_host_model_invalid_openshift_cluster_id(db_create_host):
 def test_host_model_no_openshift_cluster_id_allowed(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         org_id=USER_IDENTITY["org_id"],
         openshift_cluster_id=None,
@@ -399,7 +390,7 @@ def test_host_model_no_openshift_cluster_id_allowed(db_create_host):
 def test_host_model_default_id(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -412,7 +403,7 @@ def test_host_model_default_id(db_create_host):
 def test_host_model_default_timestamps(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -431,7 +422,7 @@ def test_host_model_default_timestamps(db_create_host):
 def test_host_model_updated_timestamp(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="yupana",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -441,7 +432,7 @@ def test_host_model_updated_timestamp(db_create_host):
     db_create_host(host=host)
     after_insert_commit = now()
 
-    host.canonical_facts = {"fqdn": "ndqf"}
+    host.fqdn = "ndqf"
 
     db.session.commit()
     after_update_commit = now()
@@ -453,7 +444,7 @@ def test_host_model_updated_timestamp(db_create_host):
 def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         stale_timestamp=now(),
         reporter="ingress",
         org_id=USER_IDENTITY["org_id"],
@@ -473,7 +464,7 @@ def test_host_model_timestamp_timezones(db_create_host):
 def test_host_model_constraints(field, value, db_create_host):
     values = {
         "account": USER_IDENTITY["account_number"],
-        "canonical_facts": {"subscription_manager_id": generate_uuid()},
+        "subscription_manager_id": generate_uuid(),
         "stale_timestamp": now(),
         "org_id": USER_IDENTITY["org_id"],
         **{field: value},
@@ -492,7 +483,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=stale_timestamp,
@@ -519,7 +510,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
     subman_id = generate_uuid()
     input_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=puptoo_stale_timestamp,
@@ -544,7 +535,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     puptoo_stale_timestamp += timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=puptoo_stale_timestamp,
@@ -566,7 +557,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
         stale_timestamp=yupana_stale_timestamp,
@@ -601,7 +592,7 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
         stale_timestamp=yupana_stale_timestamp,
@@ -625,7 +616,7 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     yupana_stale_timestamp += timedelta(days=1)
 
     update_host = Host(
-        {"subscription_manager_id": subman_id},
+        subscription_manager_id=subman_id,
         display_name="display_name",
         reporter=new_reporter,
         stale_timestamp=yupana_stale_timestamp,
@@ -1245,7 +1236,7 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
 
 def test_create_host_validate_staleness(db_create_host, db_get_host):
     host_data = {
-        "canonical_facts": {"subscription_manager_id": generate_uuid()},
+        "subscription_manager_id": generate_uuid(),
         "stale_timestamp": now(),
         "reporter": "test_reporter",
     }
@@ -1260,8 +1251,8 @@ def test_create_host_validate_staleness(db_create_host, db_get_host):
     assert retrieved_host.reporter == host_data["reporter"]
 
 
-def test_create_host_with_canonical_facts(db_create_host_custom_canonical_facts, db_get_host):
-    canonical_facts = {
+def test_create_host_with_canonical_facts(db_create_host, db_get_host):
+    host_data = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
         "satellite_id": generate_uuid(),
@@ -1273,11 +1264,8 @@ def test_create_host_with_canonical_facts(db_create_host_custom_canonical_facts,
         "provider_type": "test_provider_type",
     }
 
-    host_data = {"canonical_facts": canonical_facts, **canonical_facts}
-
-    created_host = db_create_host_custom_canonical_facts(SYSTEM_IDENTITY, extra_data=host_data)
+    created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
     retrieved_host = db_get_host(created_host.id)
-    assert retrieved_host.canonical_facts == host_data["canonical_facts"]
     assert retrieved_host.insights_id == uuid.UUID(host_data["insights_id"])
     assert retrieved_host.subscription_manager_id == host_data["subscription_manager_id"]
     assert retrieved_host.satellite_id == host_data["satellite_id"]
@@ -1289,8 +1277,8 @@ def test_create_host_with_canonical_facts(db_create_host_custom_canonical_facts,
     assert retrieved_host.provider_type == host_data["provider_type"]
 
 
-def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonical_facts, db_get_host):
-    canonical_facts = {
+def test_create_host_with_missing_canonical_facts(db_create_host, db_get_host):
+    host_data = {
         "insights_id": generate_uuid(),
         "subscription_manager_id": generate_uuid(),
         "satellite_id": generate_uuid(),
@@ -1300,11 +1288,8 @@ def test_create_host_with_missing_canonical_facts(db_create_host_custom_canonica
         "provider_type": "test_provider_type",
     }
 
-    host_data = {"canonical_facts": canonical_facts, **canonical_facts}
-
-    created_host = db_create_host_custom_canonical_facts(SYSTEM_IDENTITY, extra_data=host_data)
+    created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
     retrieved_host = db_get_host(created_host.id)
-    assert retrieved_host.canonical_facts == host_data["canonical_facts"]
     assert retrieved_host.insights_id == uuid.UUID(host_data["insights_id"])
     assert retrieved_host.subscription_manager_id == host_data["subscription_manager_id"]
     assert retrieved_host.satellite_id == host_data["satellite_id"]
@@ -1321,7 +1306,7 @@ def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host):
     stale_timestamp = datetime.now() + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="rhsm-system-profile-bridge",
         stale_timestamp=stale_timestamp,
@@ -1347,7 +1332,7 @@ def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, mode
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
-        {"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="puptoo",
         stale_timestamp=stale_timestamp,

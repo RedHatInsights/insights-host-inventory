@@ -273,7 +273,7 @@ def _assert_stale_notification_context(context: dict[str, Any], host: Host) -> N
     # Verify context field values
     assert context["inventory_id"] == str(host.id)
     assert context["display_name"] == host.display_name
-    assert context["hostname"] == host.canonical_facts.get("fqdn", "")
+    assert context["hostname"] == ("" if host.fqdn is None else host.fqdn)
 
     # Validate host_url
     expected_host_url = f"{inventory_config().base_ui_url}/{host.id}"
@@ -307,9 +307,11 @@ def _assert_stale_notification_payload(payload: dict[str, Any], host: Host) -> N
     assert set(payload.keys()) == expected_payload_keys, f"Payload keys mismatch: {set(payload.keys())}"
 
     # Verify payload field values
-    assert payload["insights_id"] == host.canonical_facts.get("insights_id", "")
-    assert payload["subscription_manager_id"] == host.canonical_facts.get("subscription_manager_id", "")
-    assert payload["satellite_id"] == host.canonical_facts.get("satellite_id", "")
+    assert payload["insights_id"] == str(host.insights_id)
+    assert payload["subscription_manager_id"] == (
+        "" if host.subscription_manager_id is None else str(host.subscription_manager_id)
+    )
+    assert payload["satellite_id"] == ("" if host.satellite_id is None else str(host.satellite_id))
 
     # Verify groups - a host can have at most 1 group
     expected_groups = host.groups or []
