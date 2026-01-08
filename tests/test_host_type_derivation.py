@@ -149,7 +149,7 @@ class TestHostTypeDerivation:
 
         # Create update host with cluster type
         update_host = Host(
-            canonical_facts=host.canonical_facts,
+            insights_id=host.insights_id,
             reporter=host.reporter,
             org_id=host.org_id,
             system_profile_facts={"host_type": "cluster"},

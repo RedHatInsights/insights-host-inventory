@@ -47,29 +47,9 @@ def minimal_db_host(**values) -> Host:
     return Host(**data)
 
 
-def db_host_with_custom_canonical_facts(**values) -> Host:
-    data = db_host_with_custom_canonical_facts_dict(**values)
-    return Host(**data)
-
-
-def db_host_with_custom_canonical_facts_dict(**values) -> dict[str, Any]:
-    data = {
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
-        "reporter": "test-reporter",
-        **values,
-    }
-
-    if "org_id" in values:
-        data["org_id"] = values.get("org_id")
-    else:
-        data["org_id"] = USER_IDENTITY["org_id"]
-
-    return data
-
-
 def minimal_db_host_dict(**values) -> dict[str, Any]:
     data = {
-        "canonical_facts": {"insights_id": generate_uuid()},
+        "insights_id": generate_uuid(),
         "reporter": "test-reporter",
         **values,
     }
@@ -87,15 +67,13 @@ def db_host(**values):
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "test-display-name",
         "ansible_host": "test-ansible-host",
-        "canonical_facts": {
-            "insights_id": generate_uuid(),
-            "subscription_manager_id": generate_uuid(),
-            "bios_uuid": generate_uuid(),
-            "fqdn": "test-fqdn",
-            "satellite_id": generate_uuid(),
-            "ip_addresses": ["10.0.0.1"],
-            "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
-        },
+        "insights_id": generate_uuid(),
+        "subscription_manager_id": generate_uuid(),
+        "bios_uuid": generate_uuid(),
+        "fqdn": "test-fqdn",
+        "satellite_id": generate_uuid(),
+        "ip_addresses": ["10.0.0.1"],
+        "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
         "facts": {"ns1": {"key1": "value1"}},
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
         "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
@@ -133,7 +111,7 @@ def db_staleness_culling(**values):
 def create_reference_host_in_db(insights_id, reporter, system_profile, stale_timestamp):
     host = Host(
         org_id=SYSTEM_IDENTITY["org_id"],
-        canonical_facts={"insights_id": insights_id},
+        insights_id=insights_id,
         display_name="display_name",
         reporter=reporter,
         system_profile_facts=system_profile,
@@ -178,7 +156,7 @@ def create_rhsm_only_host(
     deletion_ts = deletion_timestamp if deletion_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
 
     host = minimal_db_host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="rhsm-system-profile-bridge",
         per_reporter_staleness={
             "rhsm-system-profile-bridge": {

@@ -53,7 +53,8 @@ def test_db_rhsm_schema_changes(inventory_db_session):
             will not broke external apps.
     """  # noqa: E501
     query = (
-        "select h.id as inventory_id, h.org_id, h.modified_on, h.account, h.display_name, "
+        "select h.id as inventory_id, h.org_id, h.modified_on, "
+        "h.account, h.display_name, h.insights_id, h.subscription_manager_id, "
         "h.facts->'rhsm'->>'orgId' as org_id, "
         "h.facts->'rhsm'->>'IS_VIRTUAL' as is_virtual, "
         "h.facts->'rhsm'->>'VM_HOST_UUID' as hypervisor_uuid, "
@@ -75,8 +76,6 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "h.system_profile_facts->>'cloud_provider' as cloud_provider, "
         "h.system_profile_facts->>'arch' as system_profile_arch, "
         "h.system_profile_facts->>'is_marketplace' as is_marketplace, "
-        "h.canonical_facts->>'subscription_manager_id' as subscription_manager_id, "
-        "h.canonical_facts->>'insights_id' as insights_id, "
         "rhsm_products.products, "
         "qpc_prods.qpc_products, "
         "qpc_certs.qpc_product_ids, "

@@ -375,7 +375,6 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
         if canonical_facts:
-            self.update_canonical_facts(canonical_facts)
             self.update_canonical_facts_columns(canonical_facts)
 
         self._update_derived_host_type()
@@ -410,7 +409,6 @@ class Host(LimitedHost):
                     canonical_facts_to_update[field] = value
 
         if canonical_facts_to_update:
-            self.update_canonical_facts(canonical_facts_to_update)
             self.update_canonical_facts_columns(canonical_facts_to_update)
 
         self._update_ansible_host(input_host.ansible_host)
@@ -463,17 +461,6 @@ class Host(LimitedHost):
             self.display_name_reporter = input_reporter
         else:
             self._apply_display_name_fallback(input_fqdn)
-
-    def update_canonical_facts(self, canonical_facts):
-        logger.debug(
-            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
-            self.id,
-            self.canonical_facts,
-            canonical_facts,
-        )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
 
     def update_canonical_facts_columns(self, canonical_facts):
         try:
