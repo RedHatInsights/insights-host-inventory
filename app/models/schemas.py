@@ -507,3 +507,58 @@ HostStaticSystemProfileSchema = _normalizer.create_static_schema()
 
 # Generate HostDynamicSystemProfileSchema dynamically from x-dynamic markers
 HostDynamicSystemProfileSchema = _normalizer.create_dynamic_schema()
+
+
+# Application-specific data schemas for host app data (Unified Inventory Views)
+# Based on host_app_events.spec.yaml OpenAPI specification
+class AdvisorDataSchema(MarshmallowSchema):
+    """Schema for Advisor application data."""
+
+    recommendations = fields.Int(allow_none=True)
+    incidents = fields.Int(allow_none=True)
+
+
+class VulnerabilityDataSchema(MarshmallowSchema):
+    """Schema for Vulnerability application data."""
+
+    total_cves = fields.Int(allow_none=True)
+    critical_cves = fields.Int(allow_none=True)
+    high_severity_cves = fields.Int(allow_none=True)
+    cves_with_security_rules = fields.Int(allow_none=True)
+    cves_with_known_exploits = fields.Int(allow_none=True)
+
+
+class PatchDataSchema(MarshmallowSchema):
+    """Schema for Patch application data."""
+
+    installable_advisories = fields.Int(allow_none=True)
+    template = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=255))
+    rhsm_locked_version = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))
+
+
+class RemediationsDataSchema(MarshmallowSchema):
+    """Schema for Remediations application data."""
+
+    remediations_plans = fields.Int(allow_none=True)
+
+
+class ComplianceDataSchema(MarshmallowSchema):
+    """Schema for Compliance application data."""
+
+    policies = fields.Int(allow_none=True)
+    last_scan = fields.DateTime(allow_none=True)
+
+
+class MalwareDataSchema(MarshmallowSchema):
+    """Schema for Malware application data."""
+
+    last_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))
+    last_matches = fields.Int(allow_none=True)
+    last_scan = fields.DateTime(allow_none=True)
+
+
+class ImageBuilderDataSchema(MarshmallowSchema):
+    """Schema for Image Builder application data."""
+
+    image_name = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=255))
+    image_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))

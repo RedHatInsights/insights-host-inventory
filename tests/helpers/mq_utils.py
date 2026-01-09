@@ -48,9 +48,10 @@ class MockEventProducer:
 
 
 class FakeMessage:
-    def __init__(self, error=None, message=None):
+    def __init__(self, error=None, message=None, headers=None):
         self.message = message or json.dumps({"platform_metadata": {"request_id": generate_uuid()}})
         self._error = error
+        self._headers = headers or []
 
     def value(self):
         return self.message
@@ -63,6 +64,9 @@ class FakeMessage:
 
     def offset(self):
         return 0
+
+    def headers(self):
+        return self._headers
 
 
 class MockFuture:

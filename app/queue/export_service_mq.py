@@ -45,7 +45,7 @@ class ExportEventSchema(Schema):
 
 class ExportServiceConsumer(HBIMessageConsumerBase):
     @metrics.export_service_message_handler_time.time()
-    def handle_message(self, message):
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):  # noqa: ARG002
         validated_msg = parse_export_service_message(message)
         message_handled = False
         try:
