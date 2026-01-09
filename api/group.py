@@ -215,7 +215,7 @@ def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Abort with 404 if any of the groups do not exist
-    if len(get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(group_id_list):
+    if len(get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(set(group_id_list)):
         abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
 
     if not inventory_config().bypass_kessel:
@@ -268,7 +268,7 @@ def get_groups_by_id(
         group_list, total = get_group_list_by_id_list_db(
             group_id_list, page, per_page, order_by, order_how, rbac_filter
         )
-        if total != len(group_id_list):
+        if total != len(set(group_id_list)):
             abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
     except ValueError as e:
         log_get_group_list_failed(logger)

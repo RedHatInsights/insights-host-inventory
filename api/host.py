@@ -332,7 +332,7 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
     if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
-        host_id_list
+        set(host_id_list)
     ):
         flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
@@ -352,7 +352,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
-        if total != len(host_id_list):
+        if total != len(set(host_id_list)):
             flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
     except ValueError as e:
         log_get_host_list_failed(logger)
@@ -376,7 +376,7 @@ def get_host_system_profile_by_id(
         total, host_list = get_sparse_system_profile(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
-        if total != len(host_id_list):
+        if total != len(set(host_id_list)):
             flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
     except ValueError as e:
         log_get_host_list_failed(logger)
@@ -414,7 +414,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
-    if len(hosts_to_update) != len(host_id_list):
+    if len(hosts_to_update) != len(set(host_id_list)):
         log_patch_host_failed(logger, host_id_list)
         flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
@@ -482,7 +482,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
-    if len(hosts_to_update) != len(host_id_list):
+    if len(hosts_to_update) != len(set(host_id_list)):
         error_msg = (
             "ERROR: The number of hosts requested does not match the number of hosts found in the host database.  "
             "This could happen if the namespace does not exist or the org_id associated with the call does "
