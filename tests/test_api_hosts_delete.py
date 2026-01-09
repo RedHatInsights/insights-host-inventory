@@ -627,10 +627,10 @@ def test_postgres_delete_filtered_hosts(
 
     # Make sure they were both deleted and produced deletion events
     assert '"type": "delete"' in event_producer_mock.event
-    _, response_data = api_get(build_hosts_url(host_1_id))
-    assert len(response_data["results"]) == 0
-    _, response_data = api_get(build_hosts_url(host_2_id))
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(host_1_id))
+    assert response_status == 404
+    response_status, _ = api_get(build_hosts_url(host_2_id))
+    assert response_status == 404
     _, response_data = api_get(build_hosts_url(host_3_id))
     assert len(response_data["results"]) == 1
 
@@ -673,7 +673,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     # Make sure the correct host was deleted and produced a deletion event
     assert '"type": "delete"' in event_producer_mock.event
 
-    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    response_status, _ = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert response_status == 404
+
+    _, response_data = api_get(build_hosts_url([not_matching_host_id]))
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == not_matching_host_id
 
@@ -681,7 +684,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     different_org_identity = deepcopy(USER_IDENTITY)
     different_org_identity["org_id"] = "12345"
     _, response_data = api_get(
-        build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]),
+        build_hosts_url([different_org_host_id]),
         identity=different_org_identity,
     )
     assert len(response_data["results"]) == 1

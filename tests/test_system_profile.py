@@ -138,10 +138,10 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_RBAC_allowed(mocker, subtests, api_get):
+def test_get_system_profile_RBAC_allowed(mocker, subtests, db_create_host, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
-    host_id = generate_uuid()
+    host_id = str(db_create_host().id)
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -172,16 +172,9 @@ def test_get_system_profile_RBAC_denied(mocker, db_create_host, subtests, api_ge
 
 
 def test_get_system_profile_of_host_that_does_not_exist(api_get):
-    expected_count = 0
-    expected_total = 0
-    host_id = generate_uuid()
+    response_status, _ = api_get(f"{HOST_URL}/{generate_uuid()}/system_profile")
 
-    response_status, response_data = api_get(f"{HOST_URL}/{host_id}/system_profile")
-
-    assert_response_status(response_status, 200)
-
-    assert response_data["count"] == expected_count
-    assert response_data["total"] == expected_total
+    assert_response_status(response_status, 404)
 
 
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])

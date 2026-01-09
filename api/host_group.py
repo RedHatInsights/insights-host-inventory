@@ -52,8 +52,11 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
         log_patch_group_failed(logger, group_id)
         return abort(HTTPStatus.NOT_FOUND)
 
-    if not get_host_list_by_id_list_from_db(host_id_list, identity):
-        return abort(HTTPStatus.NOT_FOUND)
+    if len(found_hosts := get_host_list_by_id_list_from_db(host_id_list, identity).all()) != len(host_id_list):
+        abort(
+            HTTPStatus.NOT_FOUND,
+            f"Hosts {set(host_id_list) - {host.id for host in found_hosts}} not found.",
+        )
 
     # Next, add the host-group associations
     if host_id_list is not None:
@@ -85,6 +88,12 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     identity = get_current_identity()
     if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
         abort(HTTPStatus.NOT_FOUND, "Group not found.")
+
+    if len(found_hosts := get_host_list_by_id_list_from_db(host_id_list, identity).all()) != len(host_id_list):
+        abort(
+            HTTPStatus.NOT_FOUND,
+            f"Hosts {set(host_id_list) - {host.id for host in found_hosts}} not found.",
+        )
 
     if group.ungrouped is True:
         abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")

@@ -36,6 +36,7 @@ from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
+from lib.group_repository import get_groups_by_id_list_from_db
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
@@ -213,6 +214,15 @@ def patch_group_by_id(group_id, body, rbac_filter=None):
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
+    # Abort with 404 if any of the groups do not exist
+    if len(found_groups := get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(
+        group_id_list
+    ):
+        abort(
+            HTTPStatus.NOT_FOUND,
+            f"Groups {set(group_id_list) - {group.id for group in found_groups}} not found.",
+        )
+
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
@@ -263,6 +273,11 @@ def get_groups_by_id(
         group_list, total = get_group_list_by_id_list_db(
             group_id_list, page, per_page, order_by, order_how, rbac_filter
         )
+        if total != len(group_id_list):
+            abort(
+                HTTPStatus.NOT_FOUND,
+                f"Groups {set(group_id_list) - {group.id for group in group_list}} not found.",
+            )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -278,6 +293,7 @@ def get_groups_by_id(
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     identity = get_current_identity()
     hosts_per_group = {}
+    hosts_not_found = []
 
     # Separate hosts per group
     for host_id in host_id_list:
@@ -286,6 +302,11 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
                 abort(HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group.")
 
             hosts_per_group.setdefault(str(group.id), []).append(host_id)
+        else:
+            hosts_not_found.append(host_id)
+
+    if hosts_not_found:
+        abort(HTTPStatus.NOT_FOUND, f"Hosts {hosts_not_found} not found.")
 
     requested_group_ids = set(hosts_per_group.keys())
 

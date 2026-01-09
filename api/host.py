@@ -331,6 +331,11 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @access(KesselResourceTypes.HOST.delete, id_param="host_id_list")
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
+    if len(
+        found_hosts := get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    ) != len(host_id_list):
+        flask.abort(HTTPStatus.NOT_FOUND, f"Hosts {set(host_id_list) - {host.id for host in found_hosts}} not found.")
+
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
@@ -347,6 +352,10 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        if total != len(host_id_list):
+            flask.abort(
+                HTTPStatus.NOT_FOUND, f"Hosts {set(host_id_list) - {host.id for host in host_list}} not found."
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -369,6 +378,10 @@ def get_host_system_profile_by_id(
         total, host_list = get_sparse_system_profile(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        if total != len(host_id_list):
+            flask.abort(
+                HTTPStatus.NOT_FOUND, f"Hosts {set(host_id_list) - {host.id for host in host_list}} not found."
+            )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -405,9 +418,11 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
-    if not hosts_to_update:
+    if len(hosts_to_update) != len(host_id_list):
         log_patch_host_failed(logger, host_id_list)
-        return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
+        flask.abort(
+            HTTPStatus.NOT_FOUND, f"Hosts {set(host_id_list) - {host.id for host in hosts_to_update}} not found."
+        )
 
     staleness = get_staleness_obj(current_identity.org_id)
 
