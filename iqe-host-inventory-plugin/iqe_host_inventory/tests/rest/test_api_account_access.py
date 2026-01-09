@@ -22,7 +22,6 @@ def test_access_host_from_another_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
     hbi_default_org_id: str,
-    is_kessel_phase_1_enabled: bool,
     hbi_upload_prepare_host_module: HostOut,
 ) -> None:
     """
@@ -50,12 +49,8 @@ def test_access_host_from_another_account(
     assert str(main_account_host.results[0].org_id) == str(hbi_default_org_id)
 
     # Fetch the host using the secondary account
-    if is_kessel_phase_1_enabled:
-        with raises_apierror(404):
-            host_inventory_secondary.apis.hosts.get_hosts_by_id_response(host.id)
-    else:
-        response = host_inventory_secondary.apis.hosts.get_hosts_by_id_response(host.id)
-        assert not response.total
+    with raises_apierror(404):
+        host_inventory_secondary.apis.hosts.get_hosts_by_id_response(host.id)
 
     response = host_inventory_secondary.apis.hosts.get_hosts_response(hostname_or_id=host.id)
     assert not response.total
@@ -128,9 +123,5 @@ def test_access_other_orgs_with_org_id_header(
         assert all(h.org_id == hbi_secondary_org_id for h in response_hosts)
         assert host.id not in [h.id for h in response_hosts]
 
-    if is_kessel_phase_1_enabled:
-        with raises_apierror(404):
-            host_inventory_secondary.apis.hosts.get_hosts_by_id(host)
-    else:
-        response_hosts = host_inventory_secondary.apis.hosts.get_hosts_by_id(host)
-        assert len(response_hosts) == 0
+    with raises_apierror(404):
+        host_inventory_secondary.apis.hosts.get_hosts_by_id(host)
