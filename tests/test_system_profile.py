@@ -177,6 +177,14 @@ def test_get_system_profile_of_host_that_does_not_exist(api_get):
     assert_response_status(response_status, 404)
 
 
+def test_get_system_profile_of_one_missing_host_and_one_valid_host(db_create_host, api_get):
+    valid_host_id = str(db_create_host().id)
+    missing_host_id = str(generate_uuid())
+    response_status, _ = api_get(f"{HOST_URL}/{valid_host_id},{missing_host_id}/system_profile")
+
+    assert_response_status(response_status, 404)
+
+
 @pytest.mark.parametrize("invalid_host_id", ["notauuid", "922680d3-4aa2-4f0e-9f39-38ab8ea318bb,notuuid"])
 def test_get_system_profile_with_invalid_host_id(api_get, invalid_host_id):
     _, response_data = api_get(f"{HOST_URL}/{invalid_host_id}/system_profile")
