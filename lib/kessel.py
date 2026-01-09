@@ -112,15 +112,22 @@ class Kessel:
             logger.error(f"Kessel check_for_update failed: {str(e)}", exc_info=True)
             return False
 
-    def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
-        """Build a subject reference for the current user."""
-        # Get user ID, falling back to username if user_id not available
-        user_id = current_identity.user.get("user_id") if current_identity.user else None
-        if not user_id:
-            user_id = current_identity.user.get("username") if current_identity.user else None
+    def _get_user_id_from_identity(self, current_identity: Identity) -> str:
+        """Extract user ID from identity with proper fallback logic."""
+        if not current_identity.user:
+            raise ValueError("No user information available in identity")
+
+        # Prefer user_id if available, fallback to username
+        user_id = current_identity.user.get("user_id") or current_identity.user.get("username")
 
         if not user_id:
-            raise ValueError("Unable to determine user ID from identity")
+            raise ValueError("Unable to determine user ID from identity - neither user_id nor username available")
+
+        return str(user_id)
+
+    def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
+        """Build a subject reference for the current user."""
+        user_id = self._get_user_id_from_identity(current_identity)
 
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
@@ -235,39 +242,45 @@ class Kessel:
                 return False
         return True
 
-    def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        object_type = representation_type_pb2.RepresentationType(
-            resource_type="workspace",
-            reporter_type="rbac",
-        )
+    def list_allowed_workspaces(self, current_identity: Identity, relation: str) -> list[str]:
+        """
+        List all workspaces the current user has the specified relation to.
 
-        # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
-        user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
-        )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
-        # logger.info(f"user_id resolved from the identity: {user_id}")
-        subject_ref = resource_reference_pb2.ResourceReference(
-            resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-        )
+        Args:
+            current_identity: The identity of the user making the request
+            relation: The relation to check (e.g., "view", "edit")
 
-        subject = subject_reference_pb2.SubjectReference(
-            resource=subject_ref,
-        )
+        Returns:
+            List of workspace IDs the user has access to
+        """
+        try:
+            object_type = representation_type_pb2.RepresentationType(
+                resource_type="workspace",
+                reporter_type="rbac",
+            )
 
-        request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-            object_type=object_type,
-            relation=relation,
-            subject=subject,
-        )
+            # Use the shared subject reference builder
+            subject = self._build_subject_reference(current_identity)
 
-        workspaces = list()
-        stream = self.inventory_svc.StreamedListObjects(request)
-        for workspace in stream:
-            workspaces.append(workspace.object.resource_id)
+            request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
+                object_type=object_type,
+                relation=relation,
+                subject=subject,
+            )
 
-        return workspaces
+            workspaces = []
+            stream = self.inventory_svc.StreamedListObjects(request, timeout=self.timeout)
+            for workspace in stream:
+                workspaces.append(workspace.object.resource_id)
+
+            return workspaces
+
+        except grpc.RpcError as e:
+            self._handle_grpc_error(e, "list_allowed_workspaces")
+            return []
+        except Exception as e:
+            logger.error(f"Kessel list_allowed_workspaces failed: {str(e)}", exc_info=True)
+            return []
 
     def close(self):
         """Close the gRPC channel."""

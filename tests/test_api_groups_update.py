@@ -1,17 +1,15 @@
-import contextlib
 import json
 from copy import deepcopy
-from unittest import mock
 
 import pytest
 from dateutil import parser
+from flask import abort
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import mocked_patch_workspace_name_exists
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -507,21 +505,17 @@ def test_patch_group_kessel_workspace_same_name_error(
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    mocker.patch(
-        "requests.Session.patch",
-        new=lambda self, url, **kwargs: mocked_patch_workspace_name_exists(
-            kessel_response_status, self, url, **kwargs
-        ),
-    )
+    # Mock patch_rbac_workspace to abort with the expected status code
+    # This simulates the behavior of _make_rbac_request which catches HTTPError and calls abort
+    def mock_patch_rbac_workspace_error(_workspace_id, name=None):  # noqa: ARG001
+        abort(kessel_response_status, "RBAC client error: Can't patch workspace with same name")
 
-    # Mock the metrics context manager bc we don't care about it here
-    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
-        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+    mocker.patch("api.group.patch_rbac_workspace", side_effect=mock_patch_rbac_workspace_error)
 
-        response_status, response_data = api_patch_group(existing_group_id, {"name": "new_group_name"})
+    response_status, _ = api_patch_group(existing_group_id, {"name": "new_group_name"})
 
-        # Should return the expected error status
-        assert_response_status(response_status, kessel_response_status)
+    # Should return the expected error status
+    assert_response_status(response_status, kessel_response_status)
 
     # Verify the original group is unchanged
     original_group = db_get_group_by_id(existing_group_id)
