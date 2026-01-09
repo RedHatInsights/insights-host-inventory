@@ -199,9 +199,9 @@ def test_patch_on_non_existent_host(api_patch):
 
 
 @pytest.mark.usefixtures("event_producer_mock")
-def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, api_patch):
+def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, db_get_host, api_patch):
     non_existent_id = generate_uuid()
-    host = db_create_host()
+    host = db_create_host(extra_data={"ansible_host": "OLD_ansible_host"})
 
     patch_doc = {"ansible_host": "NEW_ansible_host"}
 
@@ -209,6 +209,9 @@ def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, api_patc
     response_status, _ = api_patch(url, patch_doc)
 
     assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial update did not occur
+    assert db_get_host(host.id).ansible_host == "OLD_ansible_host"
 
 
 @pytest.mark.parametrize(
