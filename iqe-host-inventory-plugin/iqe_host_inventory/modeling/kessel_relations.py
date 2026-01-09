@@ -24,7 +24,7 @@ from iqe_host_inventory.utils.api_utils import accept_when
 
 HOST_NOT_SYNCED_ERROR = Exception("Host changes weren't successfully synced to Kessel Relations")
 
-GRPC_ENVS = ("clowder_smoke", "ephemeral", "smoke")
+EPHEMERAL_ENVS = ("clowder_smoke", "ephemeral", "smoke")
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class HBIKesselRelationsGRPC:
 
     @cached_property
     def is_grpc_env(self) -> bool:
-        return self.env.lower() in GRPC_ENVS
+        return self.env.lower() in EPHEMERAL_ENVS
 
     def read_tuples_turnpike_response(self, filter: RelationTupleFilter) -> Response:
         filter_dict = filter_to_dict(filter)
@@ -185,7 +185,7 @@ class HBIKesselRelationsGRPC:
         workspace: GROUP_OR_ID,
         *,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 30,
         error: Exception | None = HOST_NOT_SYNCED_ERROR,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host changes are successfully synced to Kessel Relations
@@ -197,7 +197,7 @@ class HBIKesselRelationsGRPC:
         :param float delay: A delay in seconds between attempts to retrieve the relation
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the host/workspace relation
-            Default: 10
+            Default: 30
         :param Exception error: An error to raise when the relation is not retrievable. If `None`,
             then no error will be raised and the method will finish successfully.
         :return HostWorkspaceRelationWrapper | None: Retrieved host/workspace relation
@@ -228,7 +228,7 @@ class HBIKesselRelationsGRPC:
         host: HOST_OR_ID,
         *,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 30,
         error: Exception | None = HOST_NOT_SYNCED_ERROR,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host is successfully deleted from Kessel Relations
@@ -238,7 +238,7 @@ class HBIKesselRelationsGRPC:
         :param float delay: A delay in seconds between attempts to check that the host is deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that the host is deleted
-            Default: 10
+            Default: 30
         :param Exception error: An error to raise when the relation is not retrievable. If `None`,
             then no error will be raised and the method will finish successfully.
         :return HostWorkspaceRelationWrapper | None: Retrieved relation if the host is not deleted
