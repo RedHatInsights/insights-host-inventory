@@ -597,7 +597,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         # Convert string to enum with validation
         try:
-            application = ConsumerApplication.from_string(application_str)
+            application = ConsumerApplication(application_str)
         except ValueError as e:
             logger.error(f"Unknown application: {application_str}")
             metrics.host_app_data_validation_failure.labels(

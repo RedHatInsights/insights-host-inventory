@@ -123,7 +123,7 @@ class TestHostAppMessageConsumerValidation:
             ("application", b"unknown_app"),
             ("request_id", generate_uuid().encode("utf-8")),
         ]
-        with pytest.raises(ValidationException, match="Unknown application"):
+        with pytest.raises(ValidationException, match="is not a valid ConsumerApplication"):
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
     def test_invalid_message_format(self, host_app_consumer):
