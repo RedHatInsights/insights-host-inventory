@@ -95,7 +95,7 @@ def test_kessel_filter_ungrouped_hosts(
     ungrouped_hosts = host_inventory.apis.hosts.get_hosts(group_name=["Ungrouped Hosts"])
     ungrouped_host_ids = {host.id for host in ungrouped_hosts}
 
-    assert len(ungrouped_hosts) == initial_ungrouped_count + 2
+    assert len(ungrouped_hosts) == initial_ungrouped_count - 2
     assert {hosts[0].id, hosts[1].id}.issubset(ungrouped_host_ids)
 
 

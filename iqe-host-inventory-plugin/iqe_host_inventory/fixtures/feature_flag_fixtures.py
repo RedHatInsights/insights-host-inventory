@@ -163,6 +163,11 @@ def is_kessel_phase_1_enabled(unleash: UnleashBackend | ConsoleDotProxyBackend):
     return unleash.is_enabled("hbi.api.kessel-phase-1")
 
 
+@pytest.fixture(scope="session")
+def is_kessel_phase_1_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
+    return unleash.is_enabled("hbi.api.kessel-phase-1")
+
+
 # Workloads fields backward compatibility
 
 
