@@ -2395,7 +2395,7 @@ def test_groups_not_overwritten_for_existing_hosts(
     group_id = str(group.id)
     host_id = str(host.id)
 
-    update_data = minimal_host(insights_id=host.canonical_facts["insights_id"], ansible_host="updated.ansible.host")
+    update_data = minimal_host(insights_id=str(host.insights_id), ansible_host="updated.ansible.host")
     created_key, created_event, _ = mq_create_or_update_host(update_data, return_all_data=True)
 
     assert created_key == host_id
@@ -2520,8 +2520,8 @@ def test_batch_mq_do_dedup_within_batch(
     # Check that only 1 host was created and it contains data from both messages
     db_hosts = db_get_hosts_by_subman_id(subman_id)
     assert len(db_hosts) == 1
-    assert db_hosts[0].canonical_facts["fqdn"] == host1["fqdn"]
-    assert db_hosts[0].canonical_facts["satellite_id"] == host2["satellite_id"]
+    assert db_hosts[0].fqdn == host1["fqdn"]
+    assert db_hosts[0].satellite_id == host2["satellite_id"]
 
 
 def test_batch_mq_two_different_hosts(
@@ -2586,7 +2586,8 @@ def test_batch_mq_do_dedup_in_db(
     subman_id = generate_uuid()
     display_name = generate_random_string()
     existing_host_data = minimal_db_host(
-        canonical_facts={"subscription_manager_id": subman_id, "fqdn": generate_random_string()},
+        subscription_manager_id=subman_id,
+        fqdn=generate_random_string(),
         display_name=display_name,
     )
     existing_host = db_create_host(host=existing_host_data)
@@ -2621,8 +2622,8 @@ def test_batch_mq_do_dedup_in_db(
     # Check that there is still only 1 host in DB with the same subman_id and it was properly updated
     db_hosts = db_get_hosts_by_subman_id(subman_id)
     assert len(db_hosts) == 1
-    assert db_hosts[0].canonical_facts["fqdn"] == existing_host.canonical_facts["fqdn"]
-    assert db_hosts[0].canonical_facts["satellite_id"] == msg_host2["satellite_id"]
+    assert db_hosts[0].fqdn == existing_host.fqdn
+    assert db_hosts[0].satellite_id == msg_host2["satellite_id"]
 
 
 def test_batch_mq_header_request_id_updates(mocker, flask_app):

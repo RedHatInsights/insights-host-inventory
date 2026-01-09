@@ -20,7 +20,6 @@ from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.config import COMPOUND_ID_FACTS
 from app.config import COMPOUND_ID_FACTS_MAP
-from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
@@ -47,31 +46,11 @@ __all__ = (
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
-    "filter_canonical_facts_for_deduplication",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
 
 logger = get_logger(__name__)
-
-
-def filter_canonical_facts_for_deduplication(canonical_facts: dict[str, Any]) -> dict[str, Any]:
-    """
-    Filter out empty/unset values from canonical facts dictionary.
-
-    This matches the original behavior of the old JSONB canonical_facts column which
-    only contained explicitly set (non-null) values.
-    """
-    result = {}
-    for key, value in canonical_facts.items():
-        # Skip None values
-        if value is None:
-            continue
-        # Skip the null UUID for insights_id (represents "not set")
-        if key == "insights_id" and value == DEFAULT_INSIGHTS_ID:
-            continue
-        result[key] = value
-    return result
 
 
 def add_host(
@@ -100,7 +79,7 @@ def add_host(
         operation_args = {}
 
     matched_host = None
-    canonical_facts = filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
+    canonical_facts = serialize_canonical_facts(input_host, include_none=False)
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
         matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
@@ -374,8 +353,8 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
     if input_host.id:
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
-        canonical_facts = filter_canonical_facts_for_deduplication(serialize_canonical_facts(input_host))
-        existing_host = find_existing_host(identity, canonical_facts)
+        input_host_canonical_facts = serialize_canonical_facts(input_host, include_none=False)
+        existing_host = find_existing_host(identity, input_host_canonical_facts)
 
     if existing_host:
         logger.debug("Updating system profile on an existing host")
