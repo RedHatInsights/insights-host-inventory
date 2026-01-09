@@ -48,6 +48,18 @@ def test_delete_non_existent_host(api_delete_host):
     assert_response_status(response_status, expected_status=404)
 
 
+def test_delete_with_missing_host_id_and_valid_host_id(db_create_host, api_delete_host, db_get_host):
+    # Attempt to simultaneously delete a real host and a missing host
+    valid_host_id = db_create_host().id
+    missing_host_id = generate_uuid()
+    response_status, _ = api_delete_host(f"{str(valid_host_id)},{str(missing_host_id)}")
+
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial deletion did not occur
+    assert db_get_host(valid_host_id)
+
+
 def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
