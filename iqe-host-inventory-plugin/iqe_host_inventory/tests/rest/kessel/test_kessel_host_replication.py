@@ -8,8 +8,10 @@ from time import sleep
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.modeling.kessel_relations import EPHEMERAL_ENVS
 from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.modeling.wrappers import KesselOutboxWrapper
 from iqe_host_inventory.tests.db.test_host_reaper import execute_reaper
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -76,6 +78,26 @@ def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
     return host_inventory.upload.create_hosts(8, cleanup_scope="module")
 
 
+def verify_kessel_event(
+    message: KesselOutboxWrapper,
+    host: HostOut | HostWrapper,
+    *,
+    group_id: str,
+    insights_id: str | None = None,
+    ansible_host: str | None = None,
+    satellite_id: str | None = None,
+    subscription_manager_id: str | None = None,
+) -> None:
+    assert message.host_id == host.id
+    assert message.workspace_id == group_id
+    assert message.insights_id == (insights_id or host.insights_id)
+    assert message.ansible_host == (ansible_host or host.ansible_host)
+    assert message.satellite_id == (satellite_id or host.satellite_id)
+    assert message.subscription_manager_id == (
+        subscription_manager_id or host.subscription_manager_id
+    )
+
+
 def test_kessel_repl_create_hosts(
     host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
 ) -> None:
@@ -94,7 +116,40 @@ def test_kessel_repl_create_hosts(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(
+            host_ids=[host.id for host in hosts]
+        )
+        assert len(messages) == len(hosts)
+        for i, message in enumerate(messages):
+            verify_kessel_event(message, hosts[i], group_id=ungrouped_group.id)
+
+
+@pytest.mark.ephemeral
+def test_kessel_repl_create_full_host(
+    host_inventory: ApplicationHostInventory, hbi_kessel_relations_grpc: HBIKesselRelationsGRPC
+) -> None:
+    """
+    https://issues.redhat.com/browse/RHINENG-19245
+
+    metadata:
+      requirements: inv-kessel-hosts
+      assignee: fstavela
+      importance: high
+      title: Verify that full host data is replicated to Kessel
+    """
+    host_data = host_inventory.datagen.create_complete_host_data()
+    host = host_inventory.kafka.create_host(host_data=host_data)
+
+    ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
+
+    hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
+
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id)
 
 
 @pytest.mark.ephemeral
@@ -116,7 +171,11 @@ def test_kessel_repl_create_minimal_host(
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id)
 
 
 @pytest.mark.ephemeral
@@ -152,7 +211,10 @@ def test_kessel_repl_update_host(
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id)
 
     host_update_data = host_data.copy()
     host_update_data[update_field] = update_value
@@ -161,7 +223,12 @@ def test_kessel_repl_update_host(
     host_inventory.apis.hosts.wait_for_updated(host, **{update_field: update_value})  # type: ignore[arg-type]
 
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(
+            messages[0], host, group_id=ungrouped_group.id, **{update_field: update_value}
+        )
 
 
 @pytest.mark.ephemeral
@@ -185,7 +252,10 @@ def test_kessel_repl_update_host_multiple_fields(
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id)
 
     updates = {
         "ansible_host": "Update ansible_host",
@@ -202,7 +272,10 @@ def test_kessel_repl_update_host_multiple_fields(
     host_inventory.apis.hosts.wait_for_updated(host, **updates)  # type: ignore[arg-type]
 
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id, **updates)
 
 
 @pytest.mark.ephemeral
@@ -222,13 +295,21 @@ def test_kessel_repl_update_host_via_api(
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(messages[0], host, group_id=ungrouped_group.id)
 
     updated_ansible_host = generate_display_name()
     host_inventory.apis.hosts.patch_hosts(host, ansible_host=updated_ansible_host)
 
     hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-    # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
+    if host_inventory.application.config.current_env.lower() in EPHEMERAL_ENVS:
+        messages = host_inventory.kafka.wait_for_filtered_kessel_messages(host_ids=[host.id])
+        assert len(messages) == 1
+        verify_kessel_event(
+            messages[0], host, group_id=ungrouped_group.id, ansible_host=updated_ansible_host
+        )
 
 
 @pytest.mark.parametrize("host_count", [1, 3])
@@ -252,7 +333,6 @@ def test_kessel_repl_delete_hosts_by_id(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     host_inventory.apis.hosts.delete_by_id(hosts[:host_count])
 
@@ -263,7 +343,6 @@ def test_kessel_repl_delete_hosts_by_id(
         assert (
             hbi_kessel_relations_grpc.get_host_workspace_tuple(host, ungrouped_group) is not None
         )
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 @pytest.mark.ephemeral
@@ -294,7 +373,6 @@ def test_kessel_repl_delete_hosts_by_filter(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     host_inventory.apis.hosts.delete_filtered(display_name=hosts_data[0]["display_name"])
 
@@ -305,7 +383,6 @@ def test_kessel_repl_delete_hosts_by_filter(
         assert (
             hbi_kessel_relations_grpc.get_host_workspace_tuple(host, ungrouped_group) is not None
         )
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_create_group_with_hosts(
@@ -329,7 +406,6 @@ def test_kessel_repl_create_group_with_hosts(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_add_hosts_to_group(
@@ -357,11 +433,9 @@ def test_kessel_repl_add_hosts_to_group(
 
     for host in hosts[:2]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     for host in hosts[2:]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_remove_hosts_from_group(
@@ -390,11 +464,9 @@ def test_kessel_repl_remove_hosts_from_group(
 
     for host in hosts[:2]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     for host in hosts[2:]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_remove_hosts_from_multiple_groups(
@@ -418,16 +490,13 @@ def test_kessel_repl_remove_hosts_from_multiple_groups(
 
     for host in hosts[:2]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group1)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
     for host in hosts[2:4]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group2)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     host_inventory.apis.groups.remove_hosts_from_multiple_groups(hosts[:4])
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_patch_group_add_hosts(
@@ -451,7 +520,6 @@ def test_kessel_repl_patch_group_add_hosts(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_patch_group_remove_hosts(
@@ -474,13 +542,11 @@ def test_kessel_repl_patch_group_remove_hosts(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     host_inventory.apis.groups.patch_group(group, hosts=[])
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_patch_group_change_hosts(
@@ -505,22 +571,18 @@ def test_kessel_repl_patch_group_change_hosts(
 
     for host in hosts[:4]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     for host in hosts[4:]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     # Remove 2 hosts from the group and add 2 new hosts to the group at the same time
     host_inventory.apis.groups.patch_group(group, hosts=hosts[2:6])
 
     for host in hosts[2:6]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
     for host in hosts[:2] + hosts[6:]:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 def test_kessel_repl_delete_group(
@@ -545,7 +607,6 @@ def test_kessel_repl_delete_group(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
-        # TODO: Verify that each replicated field (see list above) is correct in Kessel Inventory
 
 
 @pytest.mark.ephemeral
