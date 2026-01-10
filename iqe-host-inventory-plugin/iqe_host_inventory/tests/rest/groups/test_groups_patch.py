@@ -378,6 +378,9 @@ def test_groups_patch_not_existing_hosts(host_inventory: ApplicationHostInventor
     with raises_apierror(400, f"Could not find existing host(s) with ID {{'{host_id}'}}."):
         host_inventory.apis.groups.patch_group(group, hosts=host_id, wait_for_updated=False)
 
+    # Adding this sleep based on debugging the test in iqe pod.  If it works,
+    # it may be related to kessel integration
+    sleep(20)
     host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts)
 
 
@@ -409,7 +412,7 @@ def test_groups_patch_good_and_not_existing_hosts(host_inventory: ApplicationHos
 
     # Adding this sleep based on debugging the test in iqe pod.  If it works,
     # it may be related to kessel integration
-    sleep(10)
+    sleep(20)
     host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts)
 
 
