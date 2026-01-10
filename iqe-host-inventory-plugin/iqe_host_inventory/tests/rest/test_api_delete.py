@@ -587,8 +587,9 @@ def test_delete_bulk_hostname_or_id(
     assert post_delete_count == pre_delete_count - 5
     response = host_inventory.apis.hosts.get_hosts_response(hostname_or_id=searched_value)
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
-    assert response_ids == set(hosts_ids[5:])
+    # If we try to query all of the hosts by ID, we should get a 404 error because one is missing
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)
 
     # Host ID
     pre_delete_count = host_inventory.apis.hosts.get_hosts_response().total
