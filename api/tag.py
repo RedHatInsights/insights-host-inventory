@@ -7,6 +7,7 @@ from api import flask_json_response
 from api import metrics
 from api import pagination_params
 from api.host_query_db import get_tag_list as get_tag_list_db
+from api.validation import check_group_name_and_id
 from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
@@ -46,13 +47,7 @@ def get_tags(
     rbac_filter=None,
 ):
     # Validate mutually exclusive group filters
-    if group_name and group_id:
-        logger.warning("Cannot specify both group_name and group_id filters simultaneously.")
-        flask.abort(
-            400,
-            "Cannot use both 'group_name' and 'group_id' filters together. "
-            "Please use only one group filter parameter.",
-        )
+    check_group_name_and_id(group_name, group_id)
 
     limit, offset = pagination_params(page, per_page)
     escaped_search = None

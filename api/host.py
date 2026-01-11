@@ -25,6 +25,7 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
+from api.validation import check_group_name_and_id
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -103,13 +104,7 @@ def get_host_list(
     current_identity = get_current_identity()
 
     # Validate mutually exclusive group filters
-    if group_name and group_id:
-        logger.warning("Cannot specify both group_name and group_id filters simultaneously.")
-        flask.abort(
-            400,
-            "Cannot use both 'group_name' and 'group_id' filters together. "
-            "Please use only one group filter parameter.",
-        )
+    check_group_name_and_id(group_name, group_id)
 
     has_complex_params = any(
         [
@@ -219,13 +214,7 @@ def delete_hosts_by_filter(
     rbac_filter=None,
 ):
     # Validate mutually exclusive group filters
-    if group_name and group_id:
-        logger.warning("Cannot specify both group_name and group_id filters simultaneously.")
-        flask.abort(
-            400,
-            "Cannot use both 'group_name' and 'group_id' filters together. "
-            "Please use only one group filter parameter.",
-        )
+    check_group_name_and_id(group_name, group_id)
 
     if not any(
         [
