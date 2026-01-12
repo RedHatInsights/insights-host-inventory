@@ -13,6 +13,7 @@ from app.config import Config
 from app.models import db
 from app.queue.event_producer import EventProducer
 from app.queue.export_service_mq import ExportServiceConsumer
+from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
@@ -228,6 +229,12 @@ def export_service_consumer_mock(mocker):
 def workspace_message_consumer_mock(mocker):
     mocker.patch("app.queue.host_mq._pg_notify_workspace")
     yield WorkspaceMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mocker.Mock())
+
+
+@pytest.fixture(scope="function")
+def host_app_consumer(flask_app, event_producer, mocker):
+    """Fixture to create HostAppMessageConsumer for testing."""
+    yield HostAppMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
 
 
 @pytest.fixture(scope="function")

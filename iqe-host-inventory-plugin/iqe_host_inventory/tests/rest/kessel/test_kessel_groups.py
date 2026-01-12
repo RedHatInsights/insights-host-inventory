@@ -214,7 +214,7 @@ def test_kessel_add_hosts_to_group(
         assert host.groups[0].id == group.id
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
-    assert ungrouped_group.host_count == initial_ungrouped_count + 1
+    assert ungrouped_group.host_count == initial_ungrouped_count - 2
 
     response_host = host_inventory.apis.hosts.get_host_by_id(hosts[2])
     assert response_host.groups[0].name == ungrouped_group.name
@@ -231,10 +231,6 @@ def test_kessel_remove_hosts_from_group(
       importance: high
       title: Test that a host is moved properly from grouped to ungrouped
     """
-    initial_ungrouped_count = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[
-        0
-    ].host_count
-
     hosts = prepare_hosts
     host_ids = {host.id for host in hosts}
 
@@ -245,6 +241,10 @@ def test_kessel_remove_hosts_from_group(
 
     workspace = host_inventory.apis.workspaces.get_workspace_by_id(group.id)
     assert workspace.name == group_name
+
+    initial_ungrouped_count = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[
+        0
+    ].host_count
 
     host_inventory.apis.groups.remove_hosts_from_group(group, hosts[:2])
     group = host_inventory.apis.groups.get_groups(name=group_name)[0]
