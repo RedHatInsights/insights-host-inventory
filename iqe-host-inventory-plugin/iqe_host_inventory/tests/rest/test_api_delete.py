@@ -635,11 +635,11 @@ def test_delete_bulk_insights_id(
     host_inventory.apis.hosts.wait_for_deleted(hosts_ids[:3])
     post_delete_count = host_inventory.apis.hosts.get_hosts_response().total
     assert post_delete_count == pre_delete_count - 3
-    response = host_inventory.apis.hosts.get_hosts_response(
-        insights_id=hosts_data[0]["insights_id"]
-    )
-    assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_response(insights_id=hosts_data[0]["insights_id"])
+
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[3:])}
     assert response_ids == set(hosts_ids[3:])
 
 
@@ -685,7 +685,9 @@ def test_delete_bulk_subscription_manager_id(
             subscription_manager_id=hosts_data[0]["subscription_manager_id"]
         )
         assert response.total == 0
-        response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+        response_ids = {
+            host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[3:])
+        }
         assert response_ids == set(hosts_ids[3:])
 
 
@@ -724,7 +726,7 @@ def test_delete_bulk_provider_id(
         provider_id=hosts_data[0]["provider_id"]
     )
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[1:])}
     assert response_ids == set(hosts_ids[1:])
 
 
@@ -764,7 +766,7 @@ def test_delete_bulk_provider_type(
     assert pre_delete_count - 3 >= post_delete_count >= 2
     response = host_inventory.apis.hosts.get_hosts_response(provider_type="ibm")
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[3:])}
     assert response_ids == set(hosts_ids[3:])
 
 
@@ -977,9 +979,11 @@ def test_delete_bulk_tags(
     host_inventory.apis.hosts.wait_for_deleted(hosts_ids[:2])
     post_delete_count = host_inventory.apis.hosts.get_hosts_response().total
     assert post_delete_count == pre_delete_count - 2
-    response = host_inventory.apis.hosts.get_hosts_response(tags=[str_tag])
-    assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_response(tags=[str_tag])
+
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[2:])}
     assert response_ids == set(hosts_ids[2:])
 
 
@@ -1020,7 +1024,7 @@ def test_delete_bulk_tags_multiple_values(
     assert post_delete_count == pre_delete_count - 4
     response = host_inventory.apis.hosts.get_hosts_response(tags=str_tags)
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[4:])}
     assert response_ids == set(hosts_ids[4:])
 
 
@@ -1138,7 +1142,7 @@ def test_delete_bulk_filter_operating_system_multiple_values(
     response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
     assert response.total == 0
     response_ids = {
-        host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids_primary)
+        host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids_primary[3:])
     }
     assert response_ids == set(hosts_ids_primary[3:])
 
@@ -1192,7 +1196,7 @@ def test_delete_bulk_filter_sap_sids(
 
     response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[2:])}
     assert response_ids == set(hosts_ids[2:])
 
 
@@ -1243,7 +1247,7 @@ def test_delete_bulk_filter_sap_sids_multiple_values(
 
     response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
     assert response.total == 0
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[2:])}
     assert response_ids == set(hosts_ids[2:])
 
 
@@ -2238,12 +2242,12 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
             subscription_manager_id=searched_subman_id
         )
 
-    response_hosts = host_inventory.apis.hosts.get_hosts_by_id(primary_org_hosts)
+    response_hosts = host_inventory.apis.hosts.get_hosts_by_id(primary_org_hosts[1])
     assert len(response_hosts) == 1
     assert response_hosts[0].id == primary_org_hosts[1].id
 
     # Make sure the host from different org wasn't deleted
-    response_hosts = host_inventory_secondary.apis.hosts.get_hosts_by_id(secondary_org_host)
+    response_hosts = host_inventory_secondary.apis.hosts.get_hosts_by_id([secondary_org_host.id])
     assert len(response_hosts) == 1
     assert response_hosts[0].id == secondary_org_host.id
 
