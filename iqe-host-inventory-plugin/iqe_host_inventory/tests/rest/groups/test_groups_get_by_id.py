@@ -337,11 +337,8 @@ def test_groups_get_by_id_different_account(
     host_inventory.apis.groups.create_groups(groups_data_primary)
     groups_secondary = host_inventory_secondary.apis.groups.create_groups(groups_data_secondary)
 
-    response = host_inventory.apis.groups.get_groups_by_id_response(groups_secondary[0])
-    assert response.count == 0
-    assert response.total == 0
-    assert response.page == 1
-    assert response.results == []
+    with raises_apierror(404):
+        host_inventory.apis.groups.get_groups_by_id_response(groups_secondary[0])
 
 
 @pytest.mark.ephemeral
@@ -700,11 +697,8 @@ class TestGetGroupByIDEmptyGroups:
           title: Get groups by IDs - not existing group
         """
         groups_ids = [generate_uuid() for _ in range(how_many)]
-        response = host_inventory.apis.groups.get_groups_by_id_response(groups_ids)
-        assert response.count == 0
-        assert response.total == 0
-        assert response.page == 1
-        assert response.results == []
+        with raises_apierror(404):
+            host_inventory.apis.groups.get_groups_by_id_response(groups_ids)
 
     def test_groups_get_by_id_good_and_non_existing(
         self, setup_empty_groups_primary, host_inventory
