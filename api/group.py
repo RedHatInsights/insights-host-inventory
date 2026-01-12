@@ -42,6 +42,7 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
@@ -293,12 +294,13 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
                 abort(HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group.")
 
             hosts_per_group.setdefault(str(group.id), []).append(host_id)
-        else:
-            abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     requested_group_ids = set(hosts_per_group.keys())
 
     rbac_group_id_check(rbac_filter, requested_group_ids)
+
+    if len(get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()) != len(set(host_id_list)):
+        abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     delete_count = 0
 
