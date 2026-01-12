@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 import warnings
 from collections.abc import Collection
 from collections.abc import Iterable
@@ -686,6 +687,11 @@ class HBIKafkaActions(BaseEntity):
         """
         # We can't use sets because some fields are lists, which are unhashable
         yet_to_be_found = deepcopy(values)
+
+        # Convert UUID objects to strings for comparison (applies to any UUID field)
+        yet_to_be_found = [
+            str(value) if isinstance(value, uuid.UUID) else value for value in yet_to_be_found
+        ]
         found: list[HOST_DATA_OUT] = []
         messages = []
         for message, value in self._walk_filtered_messages_with_value(
