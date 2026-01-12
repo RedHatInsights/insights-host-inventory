@@ -272,7 +272,7 @@ def test_add_missing_host_to_existing_group(db_create_group, api_add_hosts_to_gr
     host_id_list = [str(uuid.uuid4())]
 
     response_status, _ = api_add_hosts_to_group(group_id, host_id_list)
-    assert response_status == 404
+    assert response_status == 400
 
 
 def test_add_valid_host_and_missing_host_to_existing_group(
@@ -284,7 +284,7 @@ def test_add_valid_host_and_missing_host_to_existing_group(
     host_id_list = [valid_host_id, missing_host_id]
 
     response_status, _ = api_add_hosts_to_group(group_id, host_id_list)
-    assert response_status == 404
+    assert response_status == 400
     assert len(db_get_hosts_for_group(group_id)) == 0
 
 
