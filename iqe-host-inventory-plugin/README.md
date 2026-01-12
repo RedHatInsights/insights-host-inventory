@@ -364,18 +364,68 @@ to the pod first. To deploy the pod without running the tests, just add `--debug
 end of the `deploy-iqe-cji` command:
 
 3. Deploy the pod:
-`POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
-4. Install setuptools:
-`oc rsh -n $NAMESPACE $POD pip install -i https://pypi.python.org/simple setuptools_scm`
-5. Copy your local changes to the pod (make sure that you are in your iqe-hbi folder):
-`oc cp -n $NAMESPACE . $POD:iqe-host-inventory-plugin`
-6. Initiate shell session in the pod: `oc rsh -n $NAMESPACE $POD`
-7. Change directory to the `iqe-host-inventory` plugin and install it:
+```bash
+POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)
 ```
+
+4. Install setuptools in the pod:
+```bash
+oc rsh -n $NAMESPACE $POD pip install -i https://pypi.python.org/simple setuptools_scm
+```
+
+5. Copy your local changes to the pod:
+
+You have two options for copying files: `oc cp` (one-time copy) or `oc rsync` (continuous sync).
+
+#### Option A: One-time copy with `oc cp`
+
+Use this when you just want to copy files once and run tests:
+
+```bash
+# Make sure you're in the iqe-host-inventory-plugin directory
+oc cp -n $NAMESPACE . $POD:iqe-host-inventory-plugin
+```
+
+#### Option B: Continuous sync with `oc rsync` (Recommended for active development)
+
+Use this when you're actively developing and want file changes to automatically sync to the pod.
+
+**Advantages:**
+- Automatically syncs file changes as you save them
+- No need to manually copy files after each change
+- Faster iteration during development
+- Only syncs changed files (more efficient than `oc cp`)
+
+**Setup:**
+
+a. In your current terminal, make sure you're in the `iqe-host-inventory-plugin` directory
+
+b. Set up continuous sync using `watch` (updates every second):
+```bash
+watch -n 1 "oc rsync -n $NAMESPACE --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' --exclude='.pytest_cache' --exclude='venv' . $POD:iqe-host-inventory-plugin"
+```
+
+**What this does:**
+- `watch -n 1` - Runs the rsync command every 1 second
+- `--exclude` flags - Prevents syncing unnecessary files (git history, Python cache, virtual env)
+- Automatically detects and syncs only changed files
+
+**Tip:** Keep this terminal open while developing. You'll see output each time files are synced to the pod.
+
+6. Initiate shell session in the pod:
+```bash
+oc rsh -n $NAMESPACE $POD
+```
+
+7. Change directory to the `iqe-host-inventory` plugin and install it:
+```bash
 cd iqe-host-inventory-plugin/
 pip install -i https://pypi.python.org/simple -e .
 ```
-8. Now you can run the tests the same way you would do it locally, for example:
+
+8. Run the tests:
+
+Now you can run the tests the same way you would do it locally. For example:
 ```
 iqe tests plugin host_inventory -k "test_create_single_host"
 ```
