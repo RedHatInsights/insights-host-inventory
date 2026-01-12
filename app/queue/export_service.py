@@ -8,6 +8,7 @@ from requests import Response
 from requests import Session
 from requests.adapters import HTTPAdapter
 
+from app_common_python import LoadedConfig
 from api.host_query_db import get_hosts_to_export
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
@@ -134,6 +135,7 @@ def create_export(
                 url=request_url,
                 headers=request_headers,
                 data=_format_export_data(host_data, exportFormat).encode("utf-8"),
+                verify=LoadedConfig.tlsCAPath,
             )
             _handle_export_response(response, exportUUID, exportFormat)
             export_created = True
