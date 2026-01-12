@@ -102,7 +102,6 @@ def test_access_other_orgs_with_org_id_header(
     host_inventory_secondary: ApplicationHostInventory,
     hbi_default_org_id: str,
     hbi_secondary_org_id: str,
-    is_kessel_phase_1_enabled: bool,
     hbi_upload_prepare_host_module: HostOut,
 ) -> None:
     """

@@ -109,7 +109,6 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -226,7 +225,6 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group_
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:

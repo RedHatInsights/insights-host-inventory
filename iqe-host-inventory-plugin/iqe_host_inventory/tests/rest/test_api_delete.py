@@ -91,7 +91,6 @@ def test_delete_multiple_hosts_with_invalid_id(
 def test_delete_existing_and_non_existent_hosts(
     host_inventory: ApplicationHostInventory,
     hosts_for_negative_tests: list[HostOut],
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -104,15 +103,10 @@ def test_delete_existing_and_non_existent_hosts(
     bad_host_list = [host.id for host in hosts_for_negative_tests]
     bad_host_list[1] = generate_uuid()
 
-    if is_kessel_phase_1_enabled:
-        # Issue DELETE and expect a 404
-        with raises_apierror(404):
-            host_inventory.apis.hosts.delete_by_id_raw(bad_host_list)
-        host_inventory.apis.hosts.verify_not_deleted(hosts_for_negative_tests)
-    else:
-        # Issue DELETE and expect it to ignore the non-existent host_id
+    # Issue DELETE and expect a 404
+    with raises_apierror(404):
         host_inventory.apis.hosts.delete_by_id_raw(bad_host_list)
-        host_inventory.apis.hosts.wait_for_deleted(bad_host_list)
+    host_inventory.apis.hosts.verify_not_deleted(hosts_for_negative_tests)
 
 
 @pytest.mark.smoke
@@ -815,8 +809,8 @@ def test_delete_bulk_registered_with(
     response = host_inventory.apis.hosts.get_hosts_response(registered_with=registered_with)
     assert response.total == 0
 
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(all_hosts_ids)}
-    assert response_ids == not_to_delete_hosts_ids
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id(all_hosts_ids)
 
 
 @pytest.mark.ephemeral
@@ -852,7 +846,12 @@ def test_delete_bulk_registered_with_negative_values(
     )
     assert response.total == 0
 
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(all_hosts_ids)}
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id(all_hosts_ids)
+
+    response_ids = {
+        host.id for host in host_inventory.apis.hosts.get_hosts_by_id(not_to_delete_hosts_ids)
+    }
     assert response_ids == not_to_delete_hosts_ids
 
 
@@ -891,7 +890,7 @@ def test_delete_bulk_registered_with_temp_old(
     response = host_inventory.apis.hosts.get_hosts_response(registered_with=["insights"])
     assert response.total == 0
 
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids)}
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[1])}
     assert hosts_ids[1] in response_ids
 
 
