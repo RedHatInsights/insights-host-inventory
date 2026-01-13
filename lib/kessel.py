@@ -13,7 +13,6 @@ from kessel.inventory.v1beta2.check_bulk_response_pb2 import CheckBulkResponse
 from kessel.inventory.v1beta2.check_for_update_response_pb2 import CheckForUpdateResponse
 from kessel.inventory.v1beta2.check_response_pb2 import CheckResponse
 from kessel.rbac.v2 import list_workspaces
-from kessel.rbac.v2 import principal_subject
 
 from app.auth.identity import Identity
 from app.auth.rbac import KesselPermission
@@ -240,8 +239,17 @@ class Kessel:
         user_id = (
             current_identity.user["user_id"] or current_identity.user["username"]
         )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
+        # logger.info(f"user_id resolved from the identity: {user_id}")
+        subject_ref = resource_reference_pb2.ResourceReference(
+            resource_type="principal",
+            resource_id=f"redhat/{user_id}",  # Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
+            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
+        )
 
-        subject = principal_subject(user_id, "redhat")
+        subject = subject_reference_pb2.SubjectReference(
+            resource=subject_ref,
+        )
+
         stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
         return [workspace.object.resource_id for workspace in stream]
 
