@@ -636,8 +636,10 @@ def test_delete_bulk_insights_id(
     post_delete_count = host_inventory.apis.hosts.get_hosts_response().total
     assert post_delete_count == pre_delete_count - 3
 
-    with raises_apierror(404):
-        host_inventory.apis.hosts.get_hosts_response(insights_id=hosts_data[0]["insights_id"])
+    response = host_inventory.apis.hosts.get_hosts_response(
+        insights_id=hosts_data[0]["insights_id"]
+    )
+    assert response.total == 0
 
     response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[3:])}
     assert response_ids == set(hosts_ids[3:])
@@ -941,7 +943,11 @@ def test_delete_bulk_staleness(
     response = host_inventory.apis.hosts.get_hosts_response(staleness=["stale_warning"])
     assert response.total == 0
 
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
+    # Make sure we get 404 when trying to get hosts that don't exist
+    with raises_apierror(404):
+        {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
+
+    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_to_keep)}
     logger.info(f"Response IDs: {response_ids}")
     assert response_ids == hosts_to_keep
 
@@ -980,8 +986,8 @@ def test_delete_bulk_tags(
     post_delete_count = host_inventory.apis.hosts.get_hosts_response().total
     assert post_delete_count == pre_delete_count - 2
 
-    with raises_apierror(404):
-        host_inventory.apis.hosts.get_hosts_response(tags=[str_tag])
+    response = host_inventory.apis.hosts.get_hosts_response(tags=[str_tag])
+    assert response.total == 0
 
     response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[2:])}
     assert response_ids == set(hosts_ids[2:])

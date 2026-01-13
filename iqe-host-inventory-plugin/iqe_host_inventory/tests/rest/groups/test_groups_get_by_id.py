@@ -369,8 +369,18 @@ def test_groups_get_by_id_my_and_different_account(
     groups_primary = host_inventory.apis.groups.create_groups(groups_data_primary)
     groups_secondary = host_inventory_secondary.apis.groups.create_groups(groups_data_secondary)
 
-    searched_groups = [groups_primary[0], groups_secondary[0], groups_primary[1]]
-    response = host_inventory.apis.groups.get_groups_by_id_response(searched_groups)
+    # Make sure we get 404 when trying to get a group from a different account
+    with raises_apierror(404):
+        response = host_inventory.apis.groups.get_groups_by_id_response([
+            groups_primary[0],
+            groups_secondary[0],
+            groups_primary[1],
+        ])
+
+    response = host_inventory.apis.groups.get_groups_by_id_response([
+        groups_primary[0],
+        groups_primary[1],
+    ])
     assert response.count == 2
     assert response.total == 2
     assert response.page == 1
@@ -714,8 +724,18 @@ class TestGetGroupByIDEmptyGroups:
         """
         groups = setup_empty_groups_primary[:2]
 
-        groups_ids = [groups[0].id, generate_uuid(), groups[1].id]
-        response = host_inventory.apis.groups.get_groups_by_id_response(groups_ids)
+        # Make sure we get 404 when trying to get a group that doesn't exist
+        with raises_apierror(404):
+            host_inventory.apis.groups.get_groups_by_id_response([
+                groups[0].id,
+                generate_uuid(),
+                groups[1].id,
+            ])
+
+        response = host_inventory.apis.groups.get_groups_by_id_response([
+            groups[0].id,
+            groups[1].id,
+        ])
         assert response.count == 2
         assert response.total == 2
         assert response.page == 1
