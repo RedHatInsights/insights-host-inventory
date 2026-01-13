@@ -37,7 +37,7 @@ spec:
   - name: hermetic
     value: "true"
   - name: prefetch-input
-    value: '[{"type": "rpm", "path": "./.hermetic_builds"},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}, {"type": "generic", "path": "."}]'
+    value: '[{"type": "rpm", "path": "./.hermetic_builds"},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}]'
   - name: prefetch-dev-package-managers
     value: "true"
   pipelineRef:
