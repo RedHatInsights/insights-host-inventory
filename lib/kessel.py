@@ -241,12 +241,9 @@ class Kessel:
             current_identity.user["user_id"] or current_identity.user["username"]
         )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
 
-        with self.channel:
-            subject = principal_subject(user_id, "redhat")
-            stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
-            workspaces = [workspace.object.resource_id for workspace in stream]
-
-        return workspaces
+        subject = principal_subject(user_id, "redhat")
+        stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
+        return [workspace.object.resource_id for workspace in stream]
 
     def close(self):
         """Close the gRPC channel."""
