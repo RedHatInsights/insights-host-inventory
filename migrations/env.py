@@ -7,6 +7,7 @@ from sqlalchemy import Engine
 from sqlalchemy import engine_from_config
 from sqlalchemy import inspect
 from sqlalchemy import pool
+from sqlalchemy import text
 from sqlalchemy.schema import CreateSchema
 
 from app.logging import get_logger
@@ -105,22 +106,27 @@ def run_migrations_online():
     connection = engine.connect()
     create_schema_if_not_exists(engine, connection, schema_name)
 
-    # Get current revision
-    configure_context(connection, schema_name)
-    curr_revision = context.get_context().get_current_revision()
-
-    # If there is no current revision, we need to migrate the version_table
-    if curr_revision is None:
-        migrate_alembic_version_table(connection)
-
     try:
+        # Acquire lock BEFORE checking revision to prevent TOCTOU race conditions.
+        # This ensures only one pod can check and run migrations at a time.
+        logger.info("Acquiring advisory lock for migrations...")
+        connection.execute(text("SELECT pg_advisory_lock(1);"))
+        logger.info("Advisory lock acquired.")
+
+        # Get current revision (now protected by the lock)
+        configure_context(connection, schema_name)
+        curr_revision = context.get_context().get_current_revision()
+
+        # If there is no current revision, we need to migrate the version_table
+        if curr_revision is None:
+            migrate_alembic_version_table(connection)
+
         with context.begin_transaction():
-            # Lock so multiple pods don't run the same migration simultaneously
-            context.execute("select pg_advisory_lock(1);")
             context.run_migrations()
     finally:
         # Release the lock
-        context.execute("select pg_advisory_unlock(1);")
+        logger.info("Releasing advisory lock...")
+        connection.execute(text("SELECT pg_advisory_unlock(1);"))
         connection.close()
 
 

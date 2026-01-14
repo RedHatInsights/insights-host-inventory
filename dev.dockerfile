@@ -18,6 +18,7 @@ COPY jobs/ jobs/
 COPY Makefile Makefile
 COPY gunicorn.conf.py gunicorn.conf.py
 COPY inv_migration_runner.py inv_migration_runner.py
+COPY wait_for_migrations.py wait_for_migrations.py
 COPY inv_mq_service.py inv_mq_service.py
 COPY inv_export_service.py inv_export_service.py
 COPY logconfig.yaml logconfig.yaml
