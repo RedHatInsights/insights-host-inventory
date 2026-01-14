@@ -8,7 +8,7 @@ Method | HTTP request | Description
 
 
 # **api_tag_get_tags**
-> ActiveTags api_tag_get_tags(tags=tags, order_by=order_by, order_how=order_how, per_page=per_page, page=page, staleness=staleness, search=search, display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, registered_with=registered_with, system_type=system_type, filter=filter)
+> ActiveTags api_tag_get_tags(tags=tags, order_by=order_by, order_how=order_how, per_page=per_page, page=page, staleness=staleness, search=search, display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, filter=filter)
 
 Get the active host tags for a given account
 
@@ -64,13 +64,14 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
     last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
     group_name = ['group_name_example'] # List[str] | Filter by group name (optional)
+    group_id = ['group_id_example'] # List[str] | Filter by group ID (UUID format) (optional)
     registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
     system_type = ['system_type_example'] # List[str] | Filters systems by type (optional)
     filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
 
     try:
         # Get the active host tags for a given account
-        api_response = api_instance.api_tag_get_tags(tags=tags, order_by=order_by, order_how=order_how, per_page=per_page, page=page, staleness=staleness, search=search, display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, registered_with=registered_with, system_type=system_type, filter=filter)
+        api_response = api_instance.api_tag_get_tags(tags=tags, order_by=order_by, order_how=order_how, per_page=per_page, page=page, staleness=staleness, search=search, display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, filter=filter)
         print("The response of TagsApi->api_tag_get_tags:\n")
         pprint(api_response)
     except Exception as e:
@@ -102,6 +103,7 @@ Name | Type | Description  | Notes
  **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
  **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
  **group_name** | [**List[str]**](str.md)| Filter by group name | [optional]
+ **group_id** | [**List[str]**](str.md)| Filter by group ID (UUID format) | [optional]
  **registered_with** | [**List[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
  **system_type** | [**List[str]**](str.md)| Filters systems by type | [optional]
  **filter** | [**Dict[str, SystemProfileNestedObjectValue]**](SystemProfileNestedObjectValue.md)| Filters hosts based on system_profile fields. For example: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;workloads\&quot;: {\&quot;sap\&quot;: {\&quot;sap_system\&quot;: {\&quot;eq\&quot;: \&quot;true\&quot;}}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][sap_system][eq]&#x3D;true\&quot; &lt;br /&gt;&lt;br /&gt; To get \&quot;edge\&quot; hosts, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;host_type\&quot;: {\&quot;eq\&quot;: \&quot;edge\&quot;}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][host_type][eq]&#x3D;edge\&quot; &lt;br /&gt;&lt;br /&gt; To get hosts with an specific operating system, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;operating_system\&quot;: {\&quot;name\&quot;: {\&quot;eq\&quot;: \&quot;rhel\&quot;}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][name][eq]&#x3D;rhel\&quot; | [optional]
