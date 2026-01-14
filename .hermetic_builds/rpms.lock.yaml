@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-231.el9_7.2
     sourcerpm: glibc-2.34-231.el9_7.2.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.16.1.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.20.1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 2993337
-    checksum: sha256:3b3c3dd0e7e442f8d44d33e9c8c5d2989045626b53977de2c28ff174b3b26c5b
+    size: 2995425
+    checksum: sha256:ea2365970de61d610802f7fc88d650e9ea7cc184409963fe4c8f8e684a342971
     name: kernel-headers
-    evr: 5.14.0-611.16.1.el9_7
-    sourcerpm: kernel-5.14.0-611.16.1.el9_7.src.rpm
+    evr: 5.14.0-611.20.1.el9_7
+    sourcerpm: kernel-5.14.0-611.20.1.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 66082
@@ -123,20 +123,20 @@ arches:
     name: libnsl2
     evr: 2.0.0-1.el9
     sourcerpm: libnsl2-2.0.0-1.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libpq-13.20-1.el9_5.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libpq-13.23-1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 218118
-    checksum: sha256:49223c484013c214fe1b785d92232a9eff0f0329c5c0cdda8705d992b3ef51f7
+    size: 213691
+    checksum: sha256:36674e762f7e3d5f8e3c0c4b607c8b03eaaa5a830729dd8c8a9c8f8be93f6d60
     name: libpq
-    evr: 13.20-1.el9_5
-    sourcerpm: libpq-13.20-1.el9_5.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libpq-devel-13.20-1.el9_5.x86_64.rpm
+    evr: 13.23-1.el9_7
+    sourcerpm: libpq-13.23-1.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libpq-devel-13.23-1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 104767
-    checksum: sha256:5ada557e3b9570b8d475647140cb380bdc5096103fa9cfba2b692563c49afa85
+    size: 100153
+    checksum: sha256:cee41c19f18f9bc97c41da9abb06741db322d5fc8e634d6acd3fe7f251610f83
     name: libpq-devel
-    evr: 13.20-1.el9_5
-    sourcerpm: libpq-13.20-1.el9_5.src.rpm
+    evr: 13.23-1.el9_7
+    sourcerpm: libpq-13.23-1.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libselinux-devel-3.6-3.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 166987
@@ -669,20 +669,20 @@ arches:
     name: perl-vars
     evr: 1.05-481.1.el9_6
     sourcerpm: perl-5.32.1-481.1.el9_6.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.10-1.module+el9.7.0+23477+80afd791.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-16.11-1.module+el9.7.0+23784+0c5a3b34.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 2036797
-    checksum: sha256:c4cc5b8f44e882c241669252bc0a7d3d70706dd7aa606b1210721b9e34189222
+    size: 2054979
+    checksum: sha256:0f2d21cc4032402c294d9c06e4a4cd6b44a3a27082facbcc49322ef5c578e220
     name: postgresql
-    evr: 16.10-1.module+el9.7.0+23477+80afd791
-    sourcerpm: postgresql-16.10-1.module+el9.7.0+23477+80afd791.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.10-1.module+el9.7.0+23477+80afd791.x86_64.rpm
+    evr: 16.11-1.module+el9.7.0+23784+0c5a3b34
+    sourcerpm: postgresql-16.11-1.module+el9.7.0+23784+0c5a3b34.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/postgresql-private-libs-16.11-1.module+el9.7.0+23784+0c5a3b34.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 145907
-    checksum: sha256:0618daf73cb649234d5e4193de8298c3666a12f37b46bbf48f8d959c8b3544e5
+    size: 146663
+    checksum: sha256:40b04532f49a9cff18686559783239a8bdb6b69344edefb35d02eb18a5c40d1c
     name: postgresql-private-libs
-    evr: 16.10-1.module+el9.7.0+23477+80afd791
-    sourcerpm: postgresql-16.10-1.module+el9.7.0+23477+80afd791.src.rpm
+    evr: 16.11-1.module+el9.7.0+23784+0c5a3b34
+    sourcerpm: postgresql-16.11-1.module+el9.7.0+23784+0c5a3b34.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.12-1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 27900
@@ -1121,12 +1121,12 @@ arches:
     checksum: sha256:28fda2510dfa3d80c6f227354c3e917a104374e97566419e71ef5e246887c4e2
     name: libnsl2
     evr: 2.0.0-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/l/libpq-13.20-1.el9_5.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/l/libpq-13.23-1.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 21656211
-    checksum: sha256:f8a7450157ff99ce1e9268d62ca07f4495f81ece030b049937a939f57c71729e
+    size: 21691434
+    checksum: sha256:7653a5e0ed9149076cb95d0e25e0a1953cb75dd2b89545ca9b773e09b267f52f
     name: libpq
-    evr: 13.20-1.el9_5
+    evr: 13.23-1.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/l/llvm-20.1.8-3.el9.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
     size: 147354701
@@ -1355,12 +1355,12 @@ arches:
     checksum: sha256:71e7c3e0eb8d62e314cf45b89d5be318ddb507399a96018079dd5fffe2b18de9
     name: perl-podlators
     evr: 1:4.14-460.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.10-1.module+el9.7.0+23477+80afd791.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/postgresql-16.11-1.module+el9.7.0+23784+0c5a3b34.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 48170830
-    checksum: sha256:9eee28d0b776668b1ff9090b413fe20854d0c7fd75709f6b3a7de10d8ebe5732
+    size: 48200250
+    checksum: sha256:e7d0f7d01b9e7b68d472852630b925f9fd978d37cdb071a44ab723adcc70519b
     name: postgresql
-    evr: 16.10-1.module+el9.7.0+23477+80afd791
+    evr: 16.11-1.module+el9.7.0+23784+0c5a3b34
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.12-1.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
     size: 20864528
@@ -1463,12 +1463,12 @@ arches:
     checksum: sha256:a05f582ec42e89258ee5e10af96dee4300bcb2a6a69a76bfb5b46f79e6a6a47b
     name: gzip
     evr: 1.12-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.16.1.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.20.1.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 150873598
-    checksum: sha256:cbe2e69d23fab8caee5190e56f5c050c1958ab81e4bb5881c529e9a4c4f37735
+    size: 150886826
+    checksum: sha256:ab41bdbf10aa39c0e093319efaaeca2edfeb3f1ef5e2c0b6854d5f7c7baa98e5
     name: kernel
-    evr: 5.14.0-611.16.1.el9_7
+    evr: 5.14.0-611.20.1.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/keyutils-1.6.3-1.el9.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
     size: 150790
@@ -1674,7 +1674,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/bef6a2382bdd12e98bf85f4fe32cb393bb3ab1e4c81d93fd56b2bea940074c9b-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/c6ec7d621d544036371ab1c17193eab2a855a18d31b5a76a4a4a8ac152221a7b-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 39501
-    checksum: sha256:bef6a2382bdd12e98bf85f4fe32cb393bb3ab1e4c81d93fd56b2bea940074c9b
+    size: 41320
+    checksum: sha256:c6ec7d621d544036371ab1c17193eab2a855a18d31b5a76a4a4a8ac152221a7b
