@@ -182,7 +182,7 @@ def test_groups_remove_hosts_from_multiple_groups_non_existing_host(host_invento
       title: Test removing non-existing host from group by using
              DELETE /groups/hosts/<host_ids> endpoint
     """
-    with raises_apierror(404, "The provided hosts were not found."):
+    with raises_apierror(404, "One or more hosts not found."):
         host_inventory.apis.groups.remove_hosts_from_multiple_groups(
             generate_uuid(), wait_for_removed=False
         )
