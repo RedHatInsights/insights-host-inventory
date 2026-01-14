@@ -62,12 +62,14 @@ def wait_for_migrations(logger) -> bool:
         elapsed = time.time() - start_time
         if elapsed > MAX_WAIT_SECONDS:
             logger.error(f"Timed out after {MAX_WAIT_SECONDS}s waiting for migrations")
+            engine.dispose()
             return False
 
         current_revision = get_current_db_revision(engine, schema)
 
         if current_revision == head_revision:
             logger.info(f"Migrations complete! Current revision: {current_revision}")
+            engine.dispose()
             return True
 
         logger.info(
