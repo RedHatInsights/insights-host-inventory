@@ -11,7 +11,6 @@ import os
 import sys
 import time
 
-from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy import text
@@ -29,8 +28,7 @@ MAX_WAIT_SECONDS = int(os.getenv("WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS", "300"))
 
 def get_head_revision() -> str:
     """Get the expected head revision from alembic migration scripts."""
-    alembic_cfg = Config("migrations/alembic.ini")
-    script_dir = ScriptDirectory.from_config(alembic_cfg)
+    script_dir = ScriptDirectory("migrations")
     return script_dir.get_current_head()
 
 
