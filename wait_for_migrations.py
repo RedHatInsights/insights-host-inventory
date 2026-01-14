@@ -23,16 +23,15 @@ from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 
 LOGGER_NAME = "wait-for-migrations"
-POLL_INTERVAL_SECONDS = 5
-MAX_WAIT_SECONDS = 300  # 5 minutes
+POLL_INTERVAL_SECONDS = int(os.getenv("WAIT_FOR_MIGRATIONS_POLL_INTERVAL_SECONDS", "5"))
+MAX_WAIT_SECONDS = int(os.getenv("WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS", "300"))
 
 
 def get_head_revision() -> str:
     """Get the expected head revision from alembic migration scripts."""
     alembic_cfg = Config("migrations/alembic.ini")
     script_dir = ScriptDirectory.from_config(alembic_cfg)
-    head = script_dir.get_current_head()
-    return head
+    return script_dir.get_current_head()
 
 
 def get_current_db_revision(engine, schema: str) -> str | None:
