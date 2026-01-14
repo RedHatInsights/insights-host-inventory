@@ -19,6 +19,7 @@ from app.models.schemas import RequiredHostIdListSchema
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import rbac_group_id_check
 
@@ -49,6 +50,9 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 
     if not group_to_update:
         log_patch_group_failed(logger, group_id)
+        return abort(HTTPStatus.NOT_FOUND)
+
+    if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
     # Next, add the host-group associations
@@ -85,6 +89,7 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
     if group.ungrouped is True:
         abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
-    remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer)
+    if remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer) == 0:
+        abort(HTTPStatus.NOT_FOUND, "Hosts not found.")
 
     return Response(None, HTTPStatus.NO_CONTENT)
