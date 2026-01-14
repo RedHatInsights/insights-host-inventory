@@ -158,6 +158,11 @@ objects:
     # Base image and args for jobs
     jobPodSpecBase: &jobPodSpecBase
       image: ${IMAGE}:${IMAGE_TAG}
+    # Init container that waits for DB migrations to complete
+    # Used by deployments that need the DB schema to be up-to-date before starting
+    migrationWaitInitContainer: &migrationWaitInitContainer
+      - args: ["./wait_for_migrations.py"]
+        inheritEnv: true
   spec:
     envName: ${ENV_NAME}
     featureFlags: true
@@ -448,6 +453,7 @@ objects:
           enabled: true
       podSpec:
         <<: *gunicornPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: APP_NAME
             value: ${APP_NAME}
@@ -527,6 +533,8 @@ objects:
             value: ${KESSEL_INSECURE}
           - name: KESSEL_AUTH_ENABLED
             value: ${KESSEL_AUTH_ENABLED}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -551,6 +559,7 @@ objects:
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -622,6 +631,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -722,6 +733,7 @@ objects:
       replicas: ${{REPLICAS_SP}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -791,6 +803,8 @@ objects:
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -802,6 +816,7 @@ objects:
       replicas: ${{REPLICAS_WORKSPACES}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -869,6 +884,8 @@ objects:
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           <<: *mqLivenessProbe
           initialDelaySeconds: 20
@@ -938,6 +955,7 @@ objects:
       replicas: ${{REPLICAS_HOST_APP_DATA}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -991,6 +1009,8 @@ objects:
             value: ${KAFKA_HOST_APP_DATA_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_HOST_APP_DATA_MQ}
@@ -2487,6 +2507,9 @@ parameters:
 - description: enable Kessel insecure mode
   name: KESSEL_INSECURE
   value: 'true'
+- description: How long to wait for DB migrations to complete
+  name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+  value: '300'
 
 # =================================================================================
 # IV. Application Behavior & Tuning

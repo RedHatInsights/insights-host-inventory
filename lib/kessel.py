@@ -7,13 +7,12 @@ from kessel.inventory.v1beta2 import allowed_pb2
 from kessel.inventory.v1beta2 import check_bulk_request_pb2
 from kessel.inventory.v1beta2 import check_request_pb2
 from kessel.inventory.v1beta2 import reporter_reference_pb2
-from kessel.inventory.v1beta2 import representation_type_pb2
 from kessel.inventory.v1beta2 import resource_reference_pb2
-from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
 from kessel.inventory.v1beta2 import subject_reference_pb2
 from kessel.inventory.v1beta2.check_bulk_response_pb2 import CheckBulkResponse
 from kessel.inventory.v1beta2.check_for_update_response_pb2 import CheckForUpdateResponse
 from kessel.inventory.v1beta2.check_response_pb2 import CheckResponse
+from kessel.rbac.v2 import list_workspaces
 
 from app.auth.identity import Identity
 from app.auth.rbac import KesselPermission
@@ -236,14 +235,9 @@ class Kessel:
         return True
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        object_type = representation_type_pb2.RepresentationType(
-            resource_type="workspace",
-            reporter_type="rbac",
-        )
-
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
+            current_identity.user["user_id"] or current_identity.user["username"]
         )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
         # logger.info(f"user_id resolved from the identity: {user_id}")
         subject_ref = resource_reference_pb2.ResourceReference(
@@ -256,18 +250,8 @@ class Kessel:
             resource=subject_ref,
         )
 
-        request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-            object_type=object_type,
-            relation=relation,
-            subject=subject,
-        )
-
-        workspaces = list()
-        stream = self.inventory_svc.StreamedListObjects(request)
-        for workspace in stream:
-            workspaces.append(workspace.object.resource_id)
-
-        return workspaces
+        stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
+        return [workspace.object.resource_id for workspace in stream]
 
     def close(self):
         """Close the gRPC channel."""
