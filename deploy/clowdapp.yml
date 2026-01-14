@@ -161,7 +161,7 @@ objects:
     # Init container that waits for DB migrations to complete
     # Used by deployments that need the DB schema to be up-to-date before starting
     migrationWaitInitContainer: &migrationWaitInitContainer
-      - args: ["./utils/wait_for_migrations.py"]
+      - args: ["./wait_for_migrations.py"]
         inheritEnv: true
   spec:
     envName: ${ENV_NAME}

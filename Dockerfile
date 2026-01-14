@@ -46,6 +46,7 @@ COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
 COPY inv_migration_runner.py inv_migration_runner.py
+COPY wait_for_migrations.py wait_for_migrations.py
 COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 
