@@ -337,19 +337,16 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
         # Extract the filter value to check if it's a nil/not_nil query
         _, _, filter_value = _convert_dict_to_json_path_and_value(filter_param)
 
-        # Special handling for nil/not_nil queries:
-        # - Root-level fields (sap_system, sap_sids): Check only legacy location
-        #   (workloads location would match all non-migrated hosts)
-        # - Nested paths (sap.sap_system, rhel_ai.variant, etc.): Check only workloads location
-        #   (legacy location would match all hosts without that nested structure)
+        # For nil/not_nil queries, check only workloads location since legacy root-level
+        # fields are no longer stored (they're now in workloads.* structure)
         if filter_value in ["nil", "not_nil"]:
-            if field_name in ["sap_system", "sap_sids"]:
-                # Root-level legacy field - check only legacy location
-                return build_single_filter(filter_param)
+            if field_name == "sap_system":
+                workloads_filter_param = {"workloads": {"sap": filter_param}}
+            elif field_name == "sap_sids":
+                workloads_filter_param = {"workloads": {"sap": {"sids": filter_param.get("sap_sids")}}}
             else:
-                # Nested workloads path - check only workloads location
                 workloads_filter_param = {"workloads": filter_param}
-                return build_single_filter(workloads_filter_param)
+            return build_single_filter(workloads_filter_param)
 
         # For other values, check both legacy and workloads locations
         # handle workloads fields

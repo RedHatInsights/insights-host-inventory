@@ -183,15 +183,25 @@ def serialize_host(
             else host.system_profile_facts or {}
         )
 
-        # Add backward compatibility for workload fields (only for Kafka events)
-        if (
-            for_mq
-            and serialized_host["system_profile"]
-            and get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
+        # Add backward compatibility for workload fields
+        if serialized_host["system_profile"] and get_flag_value(
+            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
         ):
+            # Temporarily add workloads from source for backward compat if needed
+            if "workloads" not in serialized_host["system_profile"] and host.system_profile_facts:
+                workloads_data = host.system_profile_facts.get("workloads")
+                if workloads_data:
+                    serialized_host["system_profile"]["workloads"] = workloads_data
+
             serialized_host["system_profile"] = _add_workloads_backward_compatibility(
                 serialized_host["system_profile"]
             )
+
+            # Re-filter to only keep requested fields
+            if system_profile_fields:
+                serialized_host["system_profile"] = {
+                    k: v for k, v in serialized_host["system_profile"].items() if k in system_profile_fields
+                }
 
         if (
             system_profile_fields
