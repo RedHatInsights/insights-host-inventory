@@ -327,5 +327,5 @@ def test_groups_remove_hosts_from_multiple_groups_my_and_different_account(
             [host_primary, host_secondary], wait_for_removed=False
         )
 
-    host_inventory.apis.groups.verify_not_updated(group_primary, hosts=[])
+    host_inventory.apis.groups.verify_not_updated(group_primary, hosts=host_primary)
     host_inventory_secondary.apis.groups.verify_not_updated(group_secondary, hosts=host_secondary)
