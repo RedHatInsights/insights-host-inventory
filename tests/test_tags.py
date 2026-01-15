@@ -282,7 +282,9 @@ def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get):
-    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_host_tags_url(host_list_or_id=host.id)
     response_status, _ = api_get(url, SYSTEM_IDENTITY)

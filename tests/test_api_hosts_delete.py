@@ -48,6 +48,18 @@ def test_delete_non_existent_host(api_delete_host):
     assert_response_status(response_status, expected_status=404)
 
 
+def test_delete_with_missing_host_id_and_valid_host_id(db_create_host, api_delete_host, db_get_host):
+    # Attempt to simultaneously delete a real host and a missing host
+    valid_host_id = db_create_host().id
+    missing_host_id = generate_uuid()
+    response_status, _ = api_delete_host(f"{str(valid_host_id)},{str(missing_host_id)}")
+
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial deletion did not occur
+    assert db_get_host(valid_host_id)
+
+
 def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
@@ -627,10 +639,10 @@ def test_postgres_delete_filtered_hosts(
 
     # Make sure they were both deleted and produced deletion events
     assert '"type": "delete"' in event_producer_mock.event
-    _, response_data = api_get(build_hosts_url(host_1_id))
-    assert len(response_data["results"]) == 0
-    _, response_data = api_get(build_hosts_url(host_2_id))
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(host_1_id))
+    assert response_status == 404
+    response_status, _ = api_get(build_hosts_url(host_2_id))
+    assert response_status == 404
     _, response_data = api_get(build_hosts_url(host_3_id))
     assert len(response_data["results"]) == 1
 
@@ -673,7 +685,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     # Make sure the correct host was deleted and produced a deletion event
     assert '"type": "delete"' in event_producer_mock.event
 
-    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    response_status, _ = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert response_status == 404
+
+    _, response_data = api_get(build_hosts_url([not_matching_host_id]))
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == not_matching_host_id
 
@@ -681,7 +696,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     different_org_identity = deepcopy(USER_IDENTITY)
     different_org_identity["org_id"] = "12345"
     _, response_data = api_get(
-        build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]),
+        build_hosts_url([different_org_host_id]),
         identity=different_org_identity,
     )
     assert len(response_data["results"]) == 1
