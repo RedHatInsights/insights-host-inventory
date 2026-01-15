@@ -19,6 +19,7 @@ from sqlalchemy.exc import ProgrammingError
 
 from app.config import Config as AppConfig
 from app.environment import RuntimeEnvironment
+from app.logging import configure_logging
 from app.logging import get_logger
 
 LOGGER_NAME = "wait-for-migrations"
@@ -80,6 +81,7 @@ def wait_for_migrations(logger) -> bool:
 
 
 def main():
+    configure_logging()
     logger = get_logger(LOGGER_NAME)
     logger.info("Starting migration wait...")
 

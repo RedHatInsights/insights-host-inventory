@@ -55,6 +55,7 @@ from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import YUM_REPO2
+from tests.helpers.test_utils import assert_system_profile_with_workloads_migration
 from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_random_string
 from tests.helpers.test_utils import generate_uuid
@@ -656,6 +657,10 @@ def test_add_host_with_system_profile(mq_create_or_update_host):
 
     expected_results = {"host": {**host.data()}}
 
+    # Remove legacy workloads fields from expected results since they are migrated and removed
+    # Legacy fields (like sap_sids) are removed during pre_load, only workloads.* is stored
+    del expected_results["host"]["system_profile"]["sap_sids"]
+
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
     key, event, headers = mq_create_or_update_host(host, return_all_data=True)
@@ -692,9 +697,10 @@ def test_add_host_without_defer_to(models_datetime_mock, mq_create_or_update_hos
 
     returned_host = db_get_host(existing_host_id)
     # Compare all expected fields are present and match
-    for key, value in updated_system_profile.items():
-        assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
-        assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
+    # Note: Legacy fields like sap_sids are migrated to workloads.sap.sids during pre_load
+    # The test helper valid_system_profile() includes both legacy sap_sids and workloads.ansible
+    # After migration, sap_sids is removed and migrated data is in workloads.sap
+    assert_system_profile_with_workloads_migration(returned_host.system_profile_facts, updated_system_profile)
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -726,6 +732,8 @@ def test_add_host_defer_to(models_datetime_mock, mq_create_or_update_host, db_ge
 
     returned_host = db_get_host(existing_host_id)
     # Compare all expected fields are present and match (profile should NOT have been updated)
+    # Note: Since create_reference_host_in_db bypasses schema migration, legacy fields remain as-is
+    # The defer_to_reporter option means the update was skipped, so data remains in original format
     for key, value in original_system_profile.items():
         assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
         assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
@@ -761,9 +769,8 @@ def test_add_host_defer_to_wrong_reporter(models_datetime_mock, mq_create_or_upd
 
     returned_host = db_get_host(existing_host_id)
     # Compare all expected fields are present and match
-    for key, value in updated_system_profile.items():
-        assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
-        assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
+    # Note: Legacy fields like sap_sids are migrated to workloads.sap.sids during pre_load
+    assert_system_profile_with_workloads_migration(returned_host.system_profile_facts, updated_system_profile)
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -794,9 +801,8 @@ def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
         assert str(updated_host.id) == str(existing_host_id)
         returned_host = db_get_host(existing_host_id)
         # Compare all expected fields are present and match
-        for key, value in updated_system_profile.items():
-            assert key in returned_host.system_profile_facts, f"Expected key '{key}' not found in system_profile"
-            assert returned_host.system_profile_facts[key] == value, f"Mismatch for key '{key}'"
+        # Note: Legacy fields like sap_sids are migrated to workloads.sap.sids during pre_load
+        assert_system_profile_with_workloads_migration(returned_host.system_profile_facts, updated_system_profile)
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -1141,6 +1147,10 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
 
     expected_results = {"host": {**host.data()}}
 
+    # Remove legacy workloads fields from expected results since they are migrated and removed
+    # Legacy fields (like sap_sids) are removed during pre_load, only workloads.* is stored
+    del expected_results["host"]["system_profile"]["sap_sids"]
+
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
@@ -1309,7 +1319,7 @@ def test_add_host_workloads_populate_legacy_fields_in_kafka_event(mq_create_or_u
 @pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_host):
     """
-    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILY=false,
+    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY=false,
     Kafka events include ONLY the workloads.* structure without legacy backward
     compatibility fields.
     """
@@ -1328,18 +1338,19 @@ def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_ho
         system_profile=system_profile,
     )
 
-    _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    with patch("app.serialization.get_flag_value", return_value=False):
+        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
-    # Verify the event has workloads structure
-    assert "workloads" in event["host"]["system_profile"]
-    assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
-    assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
+        # Verify the event has workloads structure
+        assert "workloads" in event["host"]["system_profile"]
+        assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
+        assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
 
-    # Verify the event does NOT have legacy backward compatibility fields
-    assert "sap" not in event["host"]["system_profile"]
-    assert "sap_system" not in event["host"]["system_profile"]
-    assert "sap_sids" not in event["host"]["system_profile"]
-    assert "ansible" not in event["host"]["system_profile"]
+        # Verify the event does NOT have legacy backward compatibility fields
+        assert "sap" not in event["host"]["system_profile"]
+        assert "sap_system" not in event["host"]["system_profile"]
+        assert "sap_sids" not in event["host"]["system_profile"]
+        assert "ansible" not in event["host"]["system_profile"]
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))

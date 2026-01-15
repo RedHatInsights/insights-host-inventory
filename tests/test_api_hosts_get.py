@@ -1441,9 +1441,17 @@ def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_
     host_data = {"system_profile_facts": {}}
     host_id = str(db_create_host(extra_data=host_data).id)
 
-    nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+    # Note: sap_system is now stored in workloads.sap.sap_system, not at root level.
+    # db_create_host fixture bypasses schema validation (which would migrate legacy fields),
+    # so we need to use the correct workloads structure directly.
+    if sp_filter_bool_field == "sap_system":
+        nomatch_host_data_1 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}
+        nomatch_host_data_2 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}}
+    else:
+        nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+        nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
+
     nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_host_data_1).id)
-    nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
     nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_host_data_2).id)
 
     url = build_hosts_url(query=f"?filter[system_profile][{sp_filter_bool_field}]{filter_append}=nil")
