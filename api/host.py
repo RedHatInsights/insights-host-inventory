@@ -521,6 +521,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
     limit, offset = pagination_params(page, per_page)
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
+    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
+        set(host_id_list)
+    ):
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
     return _build_paginated_host_tags_response(total, page, per_page, counts)
 
@@ -531,6 +536,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
+
+    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
+        set(host_id_list)
+    ):
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
 
