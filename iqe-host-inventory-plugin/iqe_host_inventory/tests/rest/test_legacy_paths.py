@@ -216,8 +216,7 @@ def check_legacy_delete_hosts_by_id(
 
     logger.info(f"Legacy URL to be used for the test: GET {url}")
     response = session.get(url, verify=False)
-    assert response.status_code == 200
-    assert len(response.json()["results"]) == 0
+    assert response.status_code == 404
 
 
 def check_legacy_get_groups(session: RobustSession, base_url: str) -> None:

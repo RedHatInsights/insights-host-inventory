@@ -199,16 +199,19 @@ def test_patch_on_non_existent_host(api_patch):
 
 
 @pytest.mark.usefixtures("event_producer_mock")
-def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, api_patch):
+def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, db_get_host, api_patch):
     non_existent_id = generate_uuid()
-    host = db_create_host()
+    host = db_create_host(extra_data={"ansible_host": "OLD_ansible_host"})
 
     patch_doc = {"ansible_host": "NEW_ansible_host"}
 
     url = build_hosts_url(host_list_or_id=f"{non_existent_id},{host.id}")
     response_status, _ = api_patch(url, patch_doc)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial update did not occur
+    assert db_get_host(host.id).ansible_host == "OLD_ansible_host"
 
 
 @pytest.mark.parametrize(
@@ -527,7 +530,7 @@ def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_creat
     response_status, response_data = api_patch(url, {"display_name": new_display_name})
 
     assert_response_status(response_status, 404)
-    assert response_data["detail"] == "Requested host not found."
+    assert "not found" in response_data["detail"]
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
