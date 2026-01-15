@@ -19,10 +19,10 @@ from sqlalchemy.exc import ProgrammingError
 
 from app.config import Config as AppConfig
 from app.environment import RuntimeEnvironment
+from app.logging import configure_logging
 from app.logging import get_logger
 
-logger = get_logger(__name__)
-
+LOGGER_NAME = "wait-for-migrations"
 POLL_INTERVAL_SECONDS = int(os.getenv("WAIT_FOR_MIGRATIONS_POLL_INTERVAL_SECONDS", "5"))
 MAX_WAIT_SECONDS = int(os.getenv("WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS", "300"))
 
@@ -45,7 +45,7 @@ def get_current_db_revision(engine, schema: str) -> str | None:
         return None
 
 
-def wait_for_migrations() -> bool:
+def wait_for_migrations(logger) -> bool:
     """
     Wait until database migrations are complete.
 
@@ -81,8 +81,11 @@ def wait_for_migrations() -> bool:
 
 
 def main():
+    configure_logging()
+    logger = get_logger(LOGGER_NAME)
     logger.info("Starting migration wait...")
-    success = wait_for_migrations()
+
+    success = wait_for_migrations(logger)
     sys.exit(0 if success else 1)
 
 
