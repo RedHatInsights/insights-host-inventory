@@ -275,41 +275,6 @@ def test_delete_hosts_from_different_groups_RBAC_denied(
     assert event_producer.write_event.call_count == 0
 
 
-def test_delete_hosts_no_group(
-    db_create_group,
-    db_create_host,
-    db_get_hosts_for_group,
-    db_create_host_group_assoc,
-    api_remove_hosts_from_diff_groups,
-    event_producer,
-    mocker,
-):
-    mocker.patch.object(event_producer, "write_event")
-
-    group_id = str(db_create_group("test_group1").id)
-    host_id_list = [str(db_create_host().id) for _ in range(2)]
-
-    # Add one host to the group
-    db_create_host_group_assoc(host_id_list[0], group_id)
-
-    # Confirm that the associations exist
-    hosts_before = db_get_hosts_for_group(group_id)
-    assert len(hosts_before) == 1
-
-    response_status, _ = api_remove_hosts_from_diff_groups(host_id_list)
-    assert_response_status(response_status, 204)
-
-    # Confirm that the host was removed from the group
-    hosts1_after = db_get_hosts_for_group(group_id)
-    assert len(hosts1_after) == 0
-
-    assert event_producer.write_event.call_count == 1
-    for call_arg in event_producer.write_event.call_args_list:
-        host = json.loads(call_arg[0][0])["host"]
-        assert host["id"] == host_id_list[0]
-        assert host["groups"][0]["ungrouped"] is True
-
-
 @pytest.mark.usefixtures("event_producer")
 def test_delete_non_empty_group(api_delete_groups, db_create_group_with_hosts):
     group = db_create_group_with_hosts("non_empty_group", 3)

@@ -182,7 +182,7 @@ def test_groups_remove_hosts_from_multiple_groups_non_existing_host(host_invento
       title: Test removing non-existing host from group by using
              DELETE /groups/hosts/<host_ids> endpoint
     """
-    with raises_apierror(404, "The provided hosts were not found."):
+    with raises_apierror(404, "One or more hosts not found."):
         host_inventory.apis.groups.remove_hosts_from_multiple_groups(
             generate_uuid(), wait_for_removed=False
         )
@@ -203,12 +203,12 @@ def test_groups_remove_hosts_from_multiple_groups_good_and_non_existing_hosts(
              DELETE /groups/hosts/<host_ids> endpoint
     """
     hosts = host_inventory.kafka.create_random_hosts(2)
-    group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
+    host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
 
-    host_inventory.apis.groups.remove_hosts_from_multiple_groups(
-        [hosts[0].id, generate_uuid()], wait_for_removed=False
-    )
-    host_inventory.apis.groups.verify_updated(group, hosts=hosts[1])
+    with raises_apierror(404):
+        host_inventory.apis.groups.remove_hosts_from_multiple_groups(
+            [hosts[0].id, generate_uuid()], wait_for_removed=False
+        )
 
 
 @pytest.mark.parametrize(
@@ -290,7 +290,7 @@ def test_groups_remove_hosts_from_multiple_groups_different_account(
         generate_display_name(), hosts=host_secondary
     )
 
-    with raises_apierror(404, match_message="The provided hosts were not found."):
+    with raises_apierror(404, match_message="One or more hosts not found."):
         host_inventory.apis.groups.remove_hosts_from_multiple_groups(
             host_secondary, wait_for_removed=False
         )
@@ -322,9 +322,10 @@ def test_groups_remove_hosts_from_multiple_groups_my_and_different_account(
         generate_display_name(), hosts=host_secondary
     )
 
-    host_inventory.apis.groups.remove_hosts_from_multiple_groups(
-        [host_primary, host_secondary], wait_for_removed=False
-    )
+    with raises_apierror(404):
+        host_inventory.apis.groups.remove_hosts_from_multiple_groups(
+            [host_primary, host_secondary], wait_for_removed=False
+        )
 
-    host_inventory.apis.groups.verify_updated(group_primary, hosts=[])
+    host_inventory.apis.groups.verify_not_updated(group_primary, hosts=host_primary)
     host_inventory_secondary.apis.groups.verify_not_updated(group_secondary, hosts=host_secondary)

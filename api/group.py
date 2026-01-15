@@ -39,11 +39,13 @@ from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
+from lib.group_repository import get_groups_by_id_list_from_db
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
+from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import patch_rbac_workspace
@@ -243,6 +245,10 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
+    # Abort with 404 if any of the groups do not exist
+    if len(get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(set(group_id_list)):
+        abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(get_current_identity())
@@ -293,6 +299,8 @@ def get_groups_by_id(
         group_list, total = get_group_list_by_id_list_db(
             group_id_list, page, per_page, order_by, order_how, rbac_filter
         )
+        if total != len(set(group_id_list)):
+            abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -320,6 +328,9 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     requested_group_ids = set(hosts_per_group.keys())
 
     rbac_group_id_check(rbac_filter, requested_group_ids)
+
+    if len(get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()) != len(set(host_id_list)):
+        abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     delete_count = 0
 

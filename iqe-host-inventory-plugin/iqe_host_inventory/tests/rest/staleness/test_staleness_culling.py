@@ -16,6 +16,7 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_tags
@@ -276,8 +277,8 @@ def test_host_stale_warning_to_culled(
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale_warning"])
     assert host.id not in [host.id for host in response_hosts]
 
-    culled_hosts = host_inventory.apis.hosts.get_hosts_by_id_response(host)
-    assert culled_hosts.total == 0
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id_response(host)
 
 
 @pytest.mark.ephemeral

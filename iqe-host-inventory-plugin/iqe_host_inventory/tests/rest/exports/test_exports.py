@@ -8,6 +8,7 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.exports_fixtures import ExportResources
 from iqe_host_inventory.modeling.uploads import HostData
+from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning_culled
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
@@ -172,8 +173,8 @@ def test_export_hosts_mixed_states(host_inventory: ApplicationHostInventory) -> 
     sleep(3)  # Probably not needed, but just in case...
 
     # Verify the culled hosts are no longer available
-    culled_hosts = host_inventory.apis.hosts.get_hosts_by_id(culled_hosts_ids)
-    assert len(culled_hosts) == 0
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id(culled_hosts_ids)
 
     report = host_inventory.apis.exports.export_hosts()
     processed_report = host_inventory.apis.exports.convert_export_report(report)
