@@ -52,10 +52,19 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
 class HostAppDataPatch(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_patch"
 
-    installable_advisories = db.Column(db.Integer, nullable=True)
-    template = db.Column(db.String(255), nullable=True)
-    rhsm_locked_version = db.Column(db.String(50), nullable=True)
-
+    advisories_rhsa_applicable = db.Column(db.Integer, nullable=True)
+    advisories_rhba_applicable = db.Column(db.Integer, nullable=True)
+    advisories_rhea_applicable = db.Column(db.Integer, nullable=True)
+    advisories_other_applicable = db.Column(db.Integer, nullable=True)
+    advisories_rhsa_installable = db.Column(db.Integer, nullable=True)
+    advisories_rhba_installable = db.Column(db.Integer, nullable=True)
+    advisories_rhea_installable = db.Column(db.Integer, nullable=True)
+    advisories_other_installable = db.Column(db.Integer, nullable=True)
+    packages_applicable = db.Column(db.Integer, nullable=True)
+    packages_installable = db.Column(db.Integer, nullable=True)
+    packages_installed = db.Column(db.Integer, nullable=True)
+    template_name = db.Column(db.String(255), nullable=True)
+    template_uuid = db.Column(UUID(as_uuid=True), nullable=True)
 
 class HostAppDataRemediations(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_remediations"
