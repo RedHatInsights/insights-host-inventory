@@ -175,12 +175,10 @@ def test_host_became_stale(
             host = minimal_db_host(
                 reporter="puptoo",
                 display_name="complete-test-host",
-                canonical_facts={
-                    "insights_id": generate_uuid(),
-                    "subscription_manager_id": generate_uuid(),
-                    "satellite_id": generate_uuid(),
-                    "fqdn": "complete-host.example.com",
-                },
+                insights_id=generate_uuid(),
+                subscription_manager_id=generate_uuid(),
+                satellite_id=generate_uuid(),
+                fqdn="complete-host.example.com",
                 tags={"namespace": {"key": ["value1", "value2"]}},
                 system_profile_facts=system_profile,
             )

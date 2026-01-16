@@ -35,6 +35,7 @@ from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_sample_profile_data
 from tests.helpers.test_utils import now
@@ -81,7 +82,7 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id},
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -106,7 +107,8 @@ def test_update_existing_host_display_name_changing_fqdn(db_create_host):
 
     # Update the host
     input_host = Host(
-        {"fqdn": new_fqdn, "insights_id": insights_id},
+        fqdn=new_fqdn,
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -128,7 +130,8 @@ def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id, "fqdn": expected_fqdn},
+        insights_id=insights_id,
+        fqdn=expected_fqdn,
         reporter="puptoo",
         stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
@@ -185,7 +188,7 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
 
     # Update the host
     input_host = Host(
-        {"insights_id": insights_id},
+        insights_id=insights_id,
         display_name="",
         reporter="puptoo",
         stale_timestamp=now(),
@@ -1784,9 +1787,7 @@ def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
 
     # Create a host with an insights_id
     insights_id_str = "8db0ffb4-ed3c-4376-968f-e4fdc734f193"
-    host = db_create_host(
-        extra_data={"canonical_facts": {"insights_id": insights_id_str}, "display_name": "test-host"}
-    )
+    host = db_create_host(extra_data={"insights_id": insights_id_str, "display_name": "test-host"})
 
     # Commit to ensure the host is fully persisted
     db.session.commit()
@@ -1799,7 +1800,7 @@ def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
 
     # Update with the same canonical facts (insights_id as string)
     # This should NOT mark insights_id as modified
-    host.update_canonical_facts_columns({"insights_id": insights_id_str})
+    host.update(base_host(insights_id=insights_id_str, tags={}))
 
     # Get the inspection after update
     inspected_after = inspect(host)
@@ -1810,6 +1811,110 @@ def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
 
     # Verify the value is still the same
     assert str(host.insights_id) == insights_id_str
+
+
+@pytest.mark.parametrize(
+    "field_name,uuid_value",
+    [
+        ("subscription_manager_id", generate_uuid()),
+        ("bios_uuid", generate_uuid()),
+        ("satellite_id", generate_uuid()),
+    ],
+)
+def test_update_canonical_facts_columns_string_uuid_comparison(db_create_host, field_name, uuid_value):
+    """
+    Test that updating a host with the same string UUID canonical fact value doesn't incorrectly
+    flag the field as modified when comparing string values.
+
+    This test verifies that canonical facts fields stored as strings (but validated as UUIDs)
+    are correctly compared and don't trigger false positive change detection.
+    """
+    from sqlalchemy import inspect
+
+    # Create a host with the string UUID field
+    extra_data = {field_name: uuid_value, "display_name": "test-host"}
+    host = db_create_host(extra_data=extra_data)
+
+    # Commit to ensure the host is fully persisted
+    db.session.commit()
+
+    # Verify the UUID field is stored correctly
+    field_value = getattr(host, field_name)
+    assert field_value == uuid_value
+
+    # Get the inspection before update
+    _ = inspect(host)
+
+    # Update with the same canonical facts (UUID as string)
+    # This should NOT mark the field as modified
+    update_data = {field_name: uuid_value, "tags": {}}
+    host.update(base_host(**update_data))
+
+    # Get the inspection after update
+    inspected_after = inspect(host)
+
+    # Verify that the UUID field was NOT marked as modified
+    history = inspected_after.attrs[field_name].history
+    assert not history.has_changes(), f"{field_name} should not be marked as changed when value is the same"
+
+    # Verify the value is still the same
+    field_value_after = getattr(host, field_name)
+    assert field_value_after == uuid_value
+
+
+def test_host_init_raises_when_no_canonical_facts():
+    """
+    Host.__init__ must validate that at least one canonical fact field is present.
+    """
+    with pytest.raises(ValidationException, match="At least one of the canonical fact fields must be present"):
+        # No canonical facts and no ID facts provided
+        Host(
+            account=USER_IDENTITY["account_number"],
+            org_id=USER_IDENTITY["org_id"],
+            reporter="test",
+            stale_timestamp=now(),
+        )
+
+
+def test_host_init_raises_when_only_non_id_canonical_facts():
+    """
+    Host.__init__ must validate that at least one ID fact is present, even if
+    non-ID canonical facts are provided.
+    """
+    with pytest.raises(ValidationException, match="At least one of the ID fact fields must be present"):
+        # Only non-ID canonical facts (e.g. fqdn) should raise the ID-fact validation error
+        Host(
+            account=USER_IDENTITY["account_number"],
+            org_id=USER_IDENTITY["org_id"],
+            reporter="test",
+            stale_timestamp=now(),
+            fqdn="only-fqdn.example.com",
+        )
+
+
+def test_host_init_with_subscription_manager_id_sets_id(flask_app):
+    """
+    Host.__init__ must accept a valid ID fact supplied as an explicit field and
+    correctly set the host id when USE_SUBMAN_ID is enabled.
+    """
+    subscription_manager_id = generate_uuid()
+
+    # Set USE_SUBMAN_ID config
+    flask_app.app.config["USE_SUBMAN_ID"] = True
+
+    with flask_app.app.app_context():
+        host = Host(
+            account=USER_IDENTITY["account_number"],
+            org_id=USER_IDENTITY["org_id"],
+            reporter="test",
+            stale_timestamp=now(),
+            subscription_manager_id=subscription_manager_id,
+        )
+
+        # The constructor should succeed and set id to subscription_manager_id
+        assert host.id is not None
+        assert str(host.id) == subscription_manager_id
+        assert host.subscription_manager_id == subscription_manager_id
 
 
 def test_create_host_app_data_advisor(db_create_host):

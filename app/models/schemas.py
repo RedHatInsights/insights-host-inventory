@@ -247,9 +247,8 @@ class LimitedHostSchema(CanonicalFactsSchema):
         return {**data, "system_profile": system_profile}
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
+    def build_model(data, facts, tags, tags_alt=None):
         return LimitedHost(
-            canonical_facts=canonical_facts,
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -528,11 +527,10 @@ class HostSchema(LimitedHostSchema):
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
-    def build_model(data, canonical_facts, facts, tags, tags_alt=None):
+    def build_model(data, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
         return Host(
-            canonical_facts,
             data.get("display_name"),
             data.get("ansible_host"),
             data.get("account"),

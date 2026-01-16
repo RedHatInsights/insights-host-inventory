@@ -112,11 +112,9 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     db_create_multiple_hosts(
         how_many=1,
         extra_data={
-            "canonical_facts": {
-                "insights_id": insights_id,
-                "provider_type": ProviderType.AZURE.value,
-                "provider_id": provider_id,
-            },
+            "insights_id": insights_id,
+            "provider_type": ProviderType.AZURE.value,
+            "provider_id": provider_id,
             "display_name": display_name,
             "tags": _deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
             "per_reporter_staleness": per_reporter_staleness,
