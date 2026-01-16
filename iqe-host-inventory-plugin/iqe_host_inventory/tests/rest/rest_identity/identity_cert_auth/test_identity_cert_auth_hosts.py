@@ -272,10 +272,15 @@ def test_cert_auth_get_host_tags(
     """
     hosts = hbi_setup_tagged_hosts_for_identity_cert_auth
 
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_host_tags_response([
+            hosts["correct_owner_id_host"].id,
+            hosts["without_owner_id_host"].id,
+            hosts["wrong_owner_id_host"].id,
+        ])
+
     response = host_inventory_system_correct.apis.hosts.get_host_tags_response([
         hosts["correct_owner_id_host"].id,
-        hosts["without_owner_id_host"].id,
-        hosts["wrong_owner_id_host"].id,
     ])
     assert response.count == 1
     assert (
@@ -303,10 +308,15 @@ def test_cert_auth_get_host_tag_count(
     """
     hosts = hbi_setup_tagged_hosts_for_identity_cert_auth
 
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_host_tags_count_response([
+            hosts["correct_owner_id_host"].id,
+            hosts["without_owner_id_host"].id,
+            hosts["wrong_owner_id_host"].id,
+        ])
+
     response = host_inventory_system_correct.apis.hosts.get_host_tags_count_response([
         hosts["correct_owner_id_host"].id,
-        hosts["without_owner_id_host"].id,
-        hosts["wrong_owner_id_host"].id,
     ])
     assert response.count == 1
     assert response.results[hosts["correct_owner_id_host"].id] == 1
@@ -732,8 +742,8 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = host_inventory_identity_auth_system.apis.hosts.get_host_tags_response(host.id)
-        assert response.count == 0
+        with raises_apierror(404):
+            host_inventory_identity_auth_system.apis.hosts.get_host_tags_response(host.id)
 
     @pytest.mark.ephemeral
     def test_cert_auth_get_host_tag_count_different_account(
@@ -754,10 +764,8 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = host_inventory_identity_auth_system.apis.hosts.get_host_tags_count_response(
-            host.id
-        )
-        assert response.count == 0
+        with raises_apierror(404):
+            host_inventory_identity_auth_system.apis.hosts.get_host_tags_count_response(host.id)
 
     @pytest.mark.ephemeral
     def test_cert_auth_patch_display_name_different_account(
