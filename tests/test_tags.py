@@ -80,7 +80,20 @@ def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
     """
     url = build_host_tags_url(generate_uuid())
 
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
+
+
+def test_get_tags_of_hosts_partial_not_found(api_get, db_create_host):
+    """
+    send a request for multiple hosts where some exist and some don't
+    """
+    existing_host = db_create_host()
+    non_existent_id = generate_uuid()
+    url = build_host_tags_url(host_list_or_id=[str(existing_host.id), non_existent_id])
+
+    response_status, _ = api_get(url)
 
     assert response_status == 404
 
