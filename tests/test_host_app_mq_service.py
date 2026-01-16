@@ -45,8 +45,20 @@ APPLICATION_TEST_DATA = [
     pytest.param(
         ConsumerApplication.PATCH,
         HostAppDataPatch,
-        {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
-        {"installable_advisories": 15, "template": "baseline-template", "rhsm_locked_version": "9.4"},
+        {
+            "advisories_rhsa_applicable": 10,
+            "advisories_rhba_applicable": 5,
+            "advisories_rhsa_installable": 8,
+            "packages_installable": 50,
+            "template_name": "baseline-template",
+        },
+        {
+            "advisories_rhsa_applicable": 10,
+            "advisories_rhba_applicable": 5,
+            "advisories_rhsa_installable": 8,
+            "packages_installable": 50,
+            "template_name": "baseline-template",
+        },
         id="patch",
     ),
     pytest.param(
@@ -453,8 +465,8 @@ class TestHostAppDataValidation:
         org_id = host.org_id
         host_id = str(host.id)
 
-        # template should be max 255 chars
-        patch_data = {"installable_advisories": 10, "template": "x" * 300, "rhsm_locked_version": "8.5"}
+        # template_name should be max 255 chars
+        patch_data = {"advisories_rhsa_installable": 10, "template_name": "x" * 300}
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=patch_data)
 
         headers = [("application", b"patch"), ("request_id", generate_uuid().encode("utf-8"))]

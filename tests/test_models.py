@@ -1981,14 +1981,25 @@ def test_create_host_app_data_patch(db_create_host):
     """Test creating a HostAppDataPatch record."""
     host = db_create_host()
     current_time = now()
+    template_uuid = uuid.uuid4()
 
     patch_data = HostAppDataPatch(
         org_id=host.org_id,
         host_id=host.id,
         last_updated=current_time,
-        installable_advisories=25,
-        template="production-template",
-        rhsm_locked_version="9.2",
+        advisories_rhsa_applicable=10,
+        advisories_rhba_applicable=5,
+        advisories_rhea_applicable=3,
+        advisories_other_applicable=2,
+        advisories_rhsa_installable=8,
+        advisories_rhba_installable=4,
+        advisories_rhea_installable=2,
+        advisories_other_installable=1,
+        packages_applicable=100,
+        packages_installable=50,
+        packages_installed=500,
+        template_name="production-template",
+        template_uuid=template_uuid,
     )
 
     db.session.add(patch_data)
@@ -2000,9 +2011,19 @@ def test_create_host_app_data_patch(db_create_host):
     assert retrieved is not None
     assert retrieved.org_id == host.org_id
     assert retrieved.host_id == host.id
-    assert retrieved.installable_advisories == 25
-    assert retrieved.template == "production-template"
-    assert retrieved.rhsm_locked_version == "9.2"
+    assert retrieved.advisories_rhsa_applicable == 10
+    assert retrieved.advisories_rhba_applicable == 5
+    assert retrieved.advisories_rhea_applicable == 3
+    assert retrieved.advisories_other_applicable == 2
+    assert retrieved.advisories_rhsa_installable == 8
+    assert retrieved.advisories_rhba_installable == 4
+    assert retrieved.advisories_rhea_installable == 2
+    assert retrieved.advisories_other_installable == 1
+    assert retrieved.packages_applicable == 100
+    assert retrieved.packages_installable == 50
+    assert retrieved.packages_installed == 500
+    assert retrieved.template_name == "production-template"
+    assert retrieved.template_uuid == template_uuid
     assert retrieved.last_updated == current_time
 
 
@@ -2173,7 +2194,7 @@ def test_multiple_app_data_records_same_host(db_create_host):
         org_id=host.org_id,
         host_id=host.id,
         last_updated=current_time,
-        installable_advisories=25,
+        advisories_rhsa_installable=25,
     )
 
     db.session.add_all([advisor_data, vuln_data, patch_data])
@@ -2189,7 +2210,7 @@ def test_multiple_app_data_records_same_host(db_create_host):
     assert patch_retrieved is not None
     assert advisor_retrieved.recommendations == 5
     assert vuln_retrieved.total_cves == 150
-    assert patch_retrieved.installable_advisories == 25
+    assert patch_retrieved.advisories_rhsa_installable == 25
 
 
 def test_delete_all_app_data_types_on_host_delete(db_create_host):
@@ -2205,7 +2226,7 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
         org_id=host.org_id, host_id=host.id, last_updated=current_time, total_cves=150
     )
     patch_data = HostAppDataPatch(
-        org_id=host.org_id, host_id=host.id, last_updated=current_time, installable_advisories=25
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, advisories_rhsa_installable=25
     )
     remediation_data = HostAppDataRemediations(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, remediations_plans=3
