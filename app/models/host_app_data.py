@@ -66,6 +66,7 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
     template_name = db.Column(db.String(255), nullable=True)
     template_uuid = db.Column(UUID(as_uuid=True), nullable=True)
 
+
 class HostAppDataRemediations(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_remediations"
 
