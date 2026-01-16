@@ -443,7 +443,8 @@ class GroupsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_group_get_group_list"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_group_get_group_list"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -567,7 +568,8 @@ class GroupsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_group_get_groups_by_id"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_group_get_groups_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -691,7 +693,8 @@ class GroupsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_group_patch_group_by_id"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_group_patch_group_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -835,7 +838,8 @@ class GroupsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_group_add_host_list_to_group"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_group_add_host_list_to_group"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -972,7 +976,8 @@ class GroupsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_group_delete_hosts_from_group"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_group_delete_hosts_from_group"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]

@@ -100,7 +100,8 @@ class SystemProfileApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_system_profile_get_operating_system"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_system_profile_get_operating_system"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -242,7 +243,8 @@ class SystemProfileApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_system_profile_get_sap_sids"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_system_profile_get_sap_sids"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -376,7 +378,8 @@ class SystemProfileApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_system_profile_get_sap_system"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_system_profile_get_sap_system"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -504,7 +507,8 @@ class SystemProfileApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_system_profile_validate_schema"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_system_profile_validate_schema"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]

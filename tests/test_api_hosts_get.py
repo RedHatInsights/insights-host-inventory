@@ -1,5 +1,6 @@
 import logging
 import random
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
@@ -794,6 +795,124 @@ def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_host
     assert (group_result := response_data["results"][0]["groups"][0])["name"] == "test_group"
     assert group_result["id"] == str(ungrouped_group_id)
     assert group_result["ungrouped"] is ungrouped
+
+
+def test_query_using_group_id(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by group_id parameter."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+
+    # Create other groups that we don't want in the response
+    db_create_group_with_hosts("test_group_2", hosts_per_group)
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using group_id
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "test_group_1"
+
+
+def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by multiple group_id parameters."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+    group2 = db_create_group_with_hosts("test_group_2", hosts_per_group)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using multiple group_ids
+    url = build_hosts_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group * 2
+    returned_group_ids = {result["groups"][0]["id"] for result in response_data["results"]}
+    assert returned_group_ids == {str(group1.id), str(group2.id)}
+
+
+def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get):
+    """
+    Test that group_id filter returns correct hosts even when multiple groups have the same name.
+    This is the key requirement from RHINENG-17234: with Kessel, multiple groups can have
+    the same name if they have different parents, and filtering by group_id ensures we get
+    the correct group's hosts.
+    """
+    # Create two groups with the same name
+    group1 = db_create_group_with_hosts("duplicate_name", 3)
+    group2 = db_create_group_with_hosts("duplicate_name", 5)
+
+    # Query using group_id for the first group
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group1, not group2
+    assert len(response_data["results"]) == 3
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+    # Query using group_id for the second group
+    url = build_hosts_url(query=f"?group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group2, not group1
+    assert len(response_data["results"]) == 5
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group2.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+
+def test_query_group_id_rejects_invalid_uuid(api_get):
+    """Test that group_id parameter rejects non-UUID values."""
+    # Try with an invalid UUID
+    url = build_hosts_url(query="?group_id=invalid-uuid")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request for invalid UUID
+    assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 3)
+
+    # Try using both filters together
+    url = build_hosts_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
+
+
+def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 3)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_hosts_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
 
 
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):

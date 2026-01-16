@@ -90,7 +90,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_all_hosts"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_delete_all_hosts"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -198,7 +199,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_host_by_id"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_delete_host_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -269,6 +271,7 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
@@ -310,6 +313,7 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
@@ -344,6 +348,7 @@ class HostsApi:
             "last_check_in_start",
             "last_check_in_end",
             "group_name",
+            "group_id",
             "registered_with",
             "system_type",
             "staleness",
@@ -361,7 +366,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_delete_hosts_by_filter"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_delete_hosts_by_filter"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -400,6 +406,9 @@ class HostsApi:
         if "group_name" in local_var_params and local_var_params["group_name"] is not None:
             query_params.append(("group_name", local_var_params["group_name"]))
             collection_formats["group_name"] = "multi"
+        if "group_id" in local_var_params and local_var_params["group_id"] is not None:
+            query_params.append(("group_id", local_var_params["group_id"]))
+            collection_formats["group_id"] = "multi"
         if (
             "registered_with" in local_var_params
             and local_var_params["registered_with"] is not None
@@ -662,7 +671,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_exists"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_get_host_exists"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -727,6 +737,7 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -774,6 +785,7 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -814,6 +826,7 @@ class HostsApi:
             "last_check_in_start",
             "last_check_in_end",
             "group_name",
+            "group_id",
             "branch_id",
             "per_page",
             "page",
@@ -883,6 +896,9 @@ class HostsApi:
         if "group_name" in local_var_params and local_var_params["group_name"] is not None:
             query_params.append(("group_name", local_var_params["group_name"]))
             collection_formats["group_name"] = "multi"
+        if "group_id" in local_var_params and local_var_params["group_id"] is not None:
+            query_params.append(("group_id", local_var_params["group_id"]))
+            collection_formats["group_id"] = "multi"
         if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
             query_params.append(("branch_id", local_var_params["branch_id"]))
         if "per_page" in local_var_params and local_var_params["per_page"] is not None:
@@ -1026,7 +1042,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_system_profile_by_id"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_get_host_system_profile_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -1160,7 +1177,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_get_host_tag_count"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_get_host_tag_count"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -1681,7 +1699,8 @@ class HostsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_host_patch_host_by_id"
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_patch_host_by_id"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
