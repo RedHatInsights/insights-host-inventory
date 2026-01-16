@@ -5,6 +5,8 @@ This module provides the /beta/hosts-view endpoint that returns host data
 combined with application-specific metrics (Advisor, Vulnerability, etc.)
 """
 
+from typing import Any
+
 import flask
 
 from api import api_operation
@@ -100,15 +102,11 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str) -> dict:
 
     # Fetch data from each app data table using the registry
     for app_name, spec in APP_DATA_SPECS.items():
-        model = spec["model"]
-        fields = spec["fields"]
-        extra = spec["extra"]
+        model: Any = spec["model"]
+        fields: tuple = spec["fields"]  # type: ignore[assignment]
+        extra: dict = spec["extra"]  # type: ignore[assignment]
 
-        rows = (
-            db.session.query(model)
-            .filter(model.org_id == org_id, model.host_id.in_(host_ids))
-            .all()
-        )
+        rows = db.session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
 
         app_data_by_app[app_name] = {
             str(row.host_id): {
