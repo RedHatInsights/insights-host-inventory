@@ -856,6 +856,25 @@ def test_get_tags_by_group_id(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
+def test_get_tags_with_group_name_and_group_id(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21927
+
+    metadata:
+        requirements: inv-tags-get-list, inv-hosts-filter-by-group_name, inv-hosts-filter-by-group_id, inv-api-validation
+        assignee: maarif
+        importance: high
+        negative: true
+        title: Verify 400 error when both group_name and group_id filters are used together for tags
+    """
+    group_name = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name)
+
+    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
+        host_inventory.apis.tags.get_tags_response(group_name=[group_name], group_id=[group.id])
+
+
+@pytest.mark.ephemeral
 def test_get_tags_by_group_name_empty(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-5138

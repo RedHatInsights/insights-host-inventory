@@ -2104,6 +2104,25 @@ def test_delete_bulk_group_id(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
+def test_delete_bulk_with_group_name_and_group_id(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21927
+
+    metadata:
+        requirements: inv-hosts-delete-filtered-hosts, inv-hosts-filter-by-group_name, inv-hosts-filter-by-group_id, inv-api-validation
+        assignee: maarif
+        importance: high
+        negative: true
+        title: Verify 400 error when both group_name and group_id filters are used together for delete
+    """
+    group_name = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name)
+
+    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
+        host_inventory.apis.hosts.delete_filtered(group_name=[group_name], group_id=[group.id])
+
+
+@pytest.mark.ephemeral
 def test_delete_bulk_group_name_empty(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-5138
