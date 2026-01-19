@@ -12,6 +12,8 @@ if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     exit 1
 fi
 
+git submodule update --init
+
 # Create tmp dir to store data in during job run (do NOT store in $WORKSPACE)
 export TMP_JOB_DIR=$(mktemp -d -p "$HOME" -t "jenkins-${JOB_NAME}-${BUILD_NUMBER}-XXXXXX")
 echo "job tmp dir location: $TMP_JOB_DIR"
