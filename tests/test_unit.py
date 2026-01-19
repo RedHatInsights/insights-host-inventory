@@ -1170,7 +1170,6 @@ def test_with_all_fields_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(host_input["facts"])
         deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
@@ -1249,7 +1248,6 @@ def test_without_facts_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(None)
         deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
@@ -1328,7 +1326,6 @@ def test_without_tags_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(host_input["facts"])
         deserialize_tags.assert_called_once_with(None)
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
@@ -1410,7 +1407,6 @@ def test_without_display_name_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(host_input["facts"])
         deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             None,
             host_input["ansible_host"],
             host_input["account"],
@@ -1487,7 +1483,6 @@ def test_without_system_profile_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(host_input["facts"])
         deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
@@ -1552,7 +1547,6 @@ def test_without_groups_serialization_deserialize_host_mocked(
         deserialize_facts.assert_called_once_with(host_input["facts"])
         deserialize_tags.assert_called_once_with(host_input["tags"])
         host.assert_called_once_with(
-            deserialize_canonical_facts.return_value,
             host_input["display_name"],
             host_input["ansible_host"],
             host_input["account"],
@@ -1618,10 +1612,10 @@ def _add_seconds(stale_timestamp, seconds):
 def test_with_all_fields_serialization_serialize_host_compound(flask_app):
     with flask_app.app.app_context():
         canonical_facts = {
-            "insights_id": str(uuid4()),
-            "subscription_manager_id": str(uuid4()),
-            "satellite_id": str(uuid4()),
-            "bios_uuid": str(uuid4()),
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
+            "satellite_id": generate_uuid(),
+            "bios_uuid": generate_uuid(),
             "ip_addresses": ["10.10.0.1", "10.0.0.2"],
             "fqdn": "some fqdn",
             "mac_addresses": ["c2:00:d0:c8:61:01"],
@@ -1693,6 +1687,10 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             ),
             "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
         }
+        expected["insights_id"] = str(expected["insights_id"])
+        expected["subscription_manager_id"] = str(expected["subscription_manager_id"])
+        expected["satellite_id"] = str(expected["satellite_id"])
+        expected["bios_uuid"] = str(expected["bios_uuid"])
 
         assert expected == actual
 
@@ -1805,9 +1803,15 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
 def test_with_all_fields_serialization_serialize_host_mocked(
     serialize_canonical_facts, serialize_facts, serialize_tags, flask_app
 ):
+    insights_id = generate_uuid()
+    fqdn = "some fqdn"
     with flask_app.app.app_context():
-        canonical_facts = {"insights_id": str(uuid4()), "fqdn": "some fqdn"}
-        serialize_canonical_facts.return_value = canonical_facts
+        canonical_facts = {"insights_id": insights_id, "fqdn": fqdn}
+        serialized_canonical_facts = {
+            "insights_id": str(insights_id),
+            "fqdn": fqdn,
+        }
+        serialize_canonical_facts.return_value = serialized_canonical_facts
         facts = [
             {"namespace": "some namespace", "facts": {"some key": "some value"}},
             {"namespace": "another namespace", "facts": {"another key": "another value"}},
@@ -1856,7 +1860,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
         staleness = get_sys_default_staleness()
         actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
         expected = {
-            **canonical_facts,
+            **serialized_canonical_facts,
             **unchanged_data,
             "facts": serialize_facts.return_value,
             "tags": serialize_tags.return_value,
