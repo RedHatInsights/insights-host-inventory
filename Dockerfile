@@ -1,3 +1,11 @@
+FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1767847254 AS kafka_build
+
+USER 0
+ADD librdkafka .
+RUN ./configure --prefix=/usr && \
+    make && \
+    make install
+
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
@@ -16,15 +24,11 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     ln -s /usr/bin/python3.12 /usr/bin/python && \
     ln -s /usr/bin/python3.12 /usr/bin/python3
 
-# Download and install librdkafka
-RUN curl -L https://github.com/confluentinc/librdkafka/archive/refs/tags/v2.10.1.zip -o /tmp/librdkafka.zip || cp /cachi2/output/deps/generic/v2.10.1.zip /tmp/librdkafka.zip && \
-    unzip /tmp/librdkafka.zip -d /tmp && \
-    cd /tmp/librdkafka-2.10.1 && \
-    ./configure --prefix=/usr && \
-    make && \
-    make install && \
-    ldconfig && \
-    rm -rf /tmp/librdkafka*
+# Install librdkafka
+COPY --from=kafka_build /usr/lib/librdkafka*.so* /usr/lib/
+COPY --from=kafka_build /usr/lib/pkgconfig/rdkafka*.pc /usr/lib/pkgconfig/
+COPY --from=kafka_build /usr/include/librdkafka /usr/include/librdkafka
+RUN ldconfig
 
 COPY api/ api/
 COPY app/ app/

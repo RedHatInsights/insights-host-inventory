@@ -37,7 +37,7 @@ def create_multi_reporter_host(
     deletion_ts = deletion_timestamp if deletion_timestamp is not None else FAR_FUTURE_STALE_TIMESTAMP
 
     host = minimal_db_host(
-        canonical_facts={"insights_id": generate_uuid()},
+        insights_id=generate_uuid(),
         reporter="puptoo",
         per_reporter_staleness={
             "puptoo": {
