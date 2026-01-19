@@ -237,7 +237,7 @@ class Kessel:
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
-            (current_identity.user.get("user_id") or current_identity.user.get("username"))
+            current_identity.user.get("user_id")
             if current_identity.user
             else (
                 current_identity.service_account.get("client_id") or current_identity.service_account.get("username")
