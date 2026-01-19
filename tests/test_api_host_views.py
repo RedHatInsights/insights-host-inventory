@@ -108,9 +108,11 @@ class TestHostViewWithAppData:
             host.id,
             host.org_id,
             "patch",
-            installable_advisories=15,
-            template="test-template",
-            rhsm_locked_version="8.6",
+            advisories_rhsa_installable=8,
+            advisories_rhba_installable=4,
+            advisories_rhea_installable=2,
+            advisories_other_installable=1,
+            template_name="test-template",
         )
 
         url = build_host_view_url()
@@ -119,8 +121,12 @@ class TestHostViewWithAppData:
         assert_response_status(response_status, 200)
         result = response_data["results"][0]
         assert "patch" in result["app_data"]
-        assert result["app_data"]["patch"]["installable_advisories"] == 15
-        assert result["app_data"]["patch"]["template"] == "test-template"
+        # API returns all patch fields directly
+        assert result["app_data"]["patch"]["advisories_rhsa_installable"] == 8
+        assert result["app_data"]["patch"]["advisories_rhba_installable"] == 4
+        assert result["app_data"]["patch"]["advisories_rhea_installable"] == 2
+        assert result["app_data"]["patch"]["advisories_other_installable"] == 1
+        assert result["app_data"]["patch"]["template_name"] == "test-template"
 
     def test_host_with_multiple_app_data(self, api_get, db_create_host, db_create_host_app_data):
         """Host with multiple app_data types should return all in app_data."""
@@ -129,9 +135,9 @@ class TestHostViewWithAppData:
             host.id,
             host.org_id,
             "patch",
-            installable_advisories=15,
-            template="baseline-template",
-            rhsm_locked_version="8.6",
+            advisories_rhsa_installable=10,
+            advisories_rhba_installable=5,
+            template_name="baseline-template",
         )
         db_create_host_app_data(
             host.id,
@@ -173,9 +179,9 @@ class TestHostViewWithMultipleHosts:
             host1_id,
             host1_org_id,
             "patch",
-            installable_advisories=15,
-            template="baseline-template",
-            rhsm_locked_version="8.6",
+            advisories_rhsa_installable=10,
+            advisories_rhba_installable=5,
+            template_name="baseline-template",
         )
 
         # Host 2 has vulnerability data
@@ -217,9 +223,9 @@ class TestHostViewWithMultipleHosts:
             host_with_data_id,
             host_with_data_org_id,
             "patch",
-            installable_advisories=10,
-            template="production",
-            rhsm_locked_version="9.0",
+            advisories_rhsa_installable=6,
+            advisories_rhba_installable=4,
+            template_name="production",
         )
 
         url = build_host_view_url()
@@ -247,9 +253,9 @@ class TestHostViewFilters:
             host1.id,
             host1.org_id,
             "patch",
-            installable_advisories=12,
-            template="dev-template",
-            rhsm_locked_version="8.8",
+            advisories_rhsa_installable=7,
+            advisories_rhba_installable=5,
+            template_name="dev-template",
         )
 
         url = build_host_view_url(query="?display_name=unique-host")
@@ -259,7 +265,8 @@ class TestHostViewFilters:
         assert response_data["total"] == 1
         assert response_data["results"][0]["display_name"] == "unique-host-name.example.com"
         assert "patch" in response_data["results"][0]["app_data"]
-        assert response_data["results"][0]["app_data"]["patch"]["installable_advisories"] == 12
+        assert response_data["results"][0]["app_data"]["patch"]["advisories_rhsa_installable"] == 7
+        assert response_data["results"][0]["app_data"]["patch"]["advisories_rhba_installable"] == 5
 
     def test_pagination(self, api_get, db_create_multiple_hosts):
         """Pagination should work correctly."""
@@ -292,7 +299,7 @@ class TestHostViewAppDataEdgeCases:
     """Test edge cases for app_data in hosts-view endpoint."""
 
     def test_patch_data(self, api_get, db_create_host, db_create_host_app_data):
-        """Patch data should include installable_advisories, template, and rhsm_locked_version."""
+        """Patch data should include all advisory and package fields."""
         host = db_create_host()
         host_id = str(host.id)
         host_org_id = host.org_id
@@ -300,9 +307,18 @@ class TestHostViewAppDataEdgeCases:
             host_id,
             host_org_id,
             "patch",
-            installable_advisories=25,
-            template="production-baseline",
-            rhsm_locked_version="9.2",
+            advisories_rhsa_applicable=20,
+            advisories_rhba_applicable=10,
+            advisories_rhea_applicable=5,
+            advisories_other_applicable=3,
+            advisories_rhsa_installable=15,
+            advisories_rhba_installable=5,
+            advisories_rhea_installable=3,
+            advisories_other_installable=2,
+            packages_applicable=100,
+            packages_installable=50,
+            packages_installed=500,
+            template_name="production-baseline",
         )
 
         url = build_host_view_url()
@@ -311,9 +327,22 @@ class TestHostViewAppDataEdgeCases:
         assert_response_status(response_status, 200)
         result = response_data["results"][0]
         assert "patch" in result["app_data"]
-        assert result["app_data"]["patch"]["installable_advisories"] == 25
-        assert result["app_data"]["patch"]["template"] == "production-baseline"
-        assert result["app_data"]["patch"]["rhsm_locked_version"] == "9.2"
+        patch_data = result["app_data"]["patch"]
+        # Verify all fields are returned
+        assert patch_data["advisories_rhsa_applicable"] == 20
+        assert patch_data["advisories_rhba_applicable"] == 10
+        assert patch_data["advisories_rhea_applicable"] == 5
+        assert patch_data["advisories_other_applicable"] == 3
+        assert patch_data["advisories_rhsa_installable"] == 15
+        assert patch_data["advisories_rhba_installable"] == 5
+        assert patch_data["advisories_rhea_installable"] == 3
+        assert patch_data["advisories_other_installable"] == 2
+        assert patch_data["packages_applicable"] == 100
+        assert patch_data["packages_installable"] == 50
+        assert patch_data["packages_installed"] == 500
+        assert patch_data["template_name"] == "production-baseline"
+        # template_uuid is not set, so it should not be in the response
+        assert "template_uuid" not in patch_data
 
     def test_compliance_data(self, api_get, db_create_host, db_create_host_app_data):
         """Compliance data should include policies and last_scan."""
