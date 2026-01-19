@@ -239,9 +239,7 @@ class Kessel:
         user_id = (
             current_identity.user.get("user_id")
             if current_identity.user
-            else (
-                current_identity.service_account.get("client_id") or current_identity.service_account.get("username")
-            )
+            else current_identity.service_account.get("client_id")
         )
         # logger.info(f"user_id resolved from the identity: {user_id}")
         subject_ref = resource_reference_pb2.ResourceReference(
