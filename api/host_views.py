@@ -5,8 +5,6 @@ This module provides the /beta/hosts-view endpoint that returns host data
 combined with application-specific metrics (Advisor, Vulnerability, etc.)
 """
 
-from typing import Any
-
 import flask
 
 from api import api_operation
@@ -19,68 +17,12 @@ from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
-from app.models import HostAppDataAdvisor
-from app.models import HostAppDataCompliance
-from app.models import HostAppDataImageBuilder
-from app.models import HostAppDataMalware
-from app.models import HostAppDataPatch
-from app.models import HostAppDataRemediations
-from app.models import HostAppDataVulnerability
 from app.models.database import db
+from app.models.host_app_data import get_app_data_models
 from app.serialization import serialize_host
 from lib.middleware import access
 
 logger = get_logger(__name__)
-
-# Registry of app data specifications
-# Each entry defines: model class, fields to extract, and any special field handlers
-APP_DATA_SPECS = {
-    "advisor": {
-        "model": HostAppDataAdvisor,
-        "fields": ("recommendations", "incidents"),
-        "extra": {},
-    },
-    "vulnerability": {
-        "model": HostAppDataVulnerability,
-        "fields": (
-            "total_cves",
-            "critical_cves",
-            "high_severity_cves",
-            "cves_with_security_rules",
-            "cves_with_known_exploits",
-        ),
-        "extra": {},
-    },
-    "patch": {
-        "model": HostAppDataPatch,
-        "fields": ("installable_advisories", "template", "rhsm_locked_version"),
-        "extra": {},
-    },
-    "remediations": {
-        "model": HostAppDataRemediations,
-        "fields": ("remediations_plans",),
-        "extra": {},
-    },
-    "compliance": {
-        "model": HostAppDataCompliance,
-        "fields": ("policies",),
-        "extra": {
-            "last_scan": lambda row: row.last_scan.isoformat() if row.last_scan else None,
-        },
-    },
-    "malware": {
-        "model": HostAppDataMalware,
-        "fields": ("last_status", "last_matches"),
-        "extra": {
-            "last_scan": lambda row: row.last_scan.isoformat() if row.last_scan else None,
-        },
-    },
-    "image_builder": {
-        "model": HostAppDataImageBuilder,
-        "fields": ("image_name", "image_status"),
-        "extra": {},
-    },
-}
 
 
 def _fetch_app_data_for_hosts(host_ids: list, org_id: str) -> dict:
@@ -97,33 +39,14 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str) -> dict:
     if not host_ids:
         return {}
 
-    host_id_strs = [str(h) for h in host_ids]
-    app_data_by_app: dict[str, dict[str, dict]] = {}
+    # Initialize result with empty dict for each host
+    result: dict[str, dict] = {str(host_id): {} for host_id in host_ids}
 
-    # Fetch data from each app data table using the registry
-    for app_name, spec in APP_DATA_SPECS.items():
-        model: Any = spec["model"]
-        fields: tuple = spec["fields"]  # type: ignore[assignment]
-        extra: dict = spec["extra"]  # type: ignore[assignment]
-
+    # Fetch data from each app data table and populate result directly
+    for app_name, model in get_app_data_models().items():
         rows = db.session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
-
-        app_data_by_app[app_name] = {
-            str(row.host_id): {
-                **{field: getattr(row, field) for field in fields},
-                **{name: fn(row) for name, fn in extra.items()},
-            }
-            for row in rows
-        }
-
-    # Build result: for each host, include only apps that have data
-    result: dict[str, dict] = {}
-    for host_id in host_id_strs:
-        app_data = {}
-        for app_name, data_dict in app_data_by_app.items():
-            if host_id in data_dict:
-                app_data[app_name] = data_dict[host_id]
-        result[host_id] = app_data
+        for row in rows:
+            result[str(row.host_id)][app_name] = row.serialize()
 
     return result
 
@@ -210,6 +133,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=None,
             tags=tags,
             page=page,
             per_page=per_page,
