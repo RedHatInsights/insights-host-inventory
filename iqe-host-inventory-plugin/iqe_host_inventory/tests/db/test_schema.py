@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from uuid import UUID
 
 import pytest
 from iqe.utils.blockers import iqe_blocker
@@ -139,7 +140,7 @@ def test_db_schema_hosts_minimal(inventory_db_session):
     assert all(key in created_attrs for key in host_attrs.keys())
     for key, value in created_attrs.items():
         if key in host_attrs:
-            if key == "id":
+            if isinstance(value, UUID):
                 assert host_attrs[key] == str(value)
             else:
                 assert host_attrs[key] == value
@@ -175,6 +176,7 @@ def test_db_schema_hosts_max_len(inventory_db_session):
             rand_str(): [],
         }
     }
+    canonical_facts = generate_canonical_facts()
     host = minimal_db_host(
         account=generate_string_of_length(10),
         org_id=generate_string_of_length(36),
@@ -183,7 +185,7 @@ def test_db_schema_hosts_max_len(inventory_db_session):
         facts=generate_facts(),
         tags=tags,
         tags_alt=convert_tag_from_nested_to_structured(tags),
-        canonical_facts=generate_canonical_facts(),
+        **canonical_facts,
         system_profile_facts=create_system_profile_facts(),
         groups=groups,
         reporter=reporter,
@@ -199,7 +201,7 @@ def test_db_schema_hosts_max_len(inventory_db_session):
 
     assert set(created_attrs.keys()) == set(host_attrs.keys())
     for key, value in created_attrs.items():
-        if key == "id":
+        if isinstance(value, UUID):
             assert host_attrs[key] == str(value)
         else:
             assert host_attrs[key] == value

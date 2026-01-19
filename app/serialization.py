@@ -102,7 +102,8 @@ def deserialize_host(
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
     tags_alt = validated_data.get("tags_alt", [])
-    return schema.build_model(validated_data, canonical_facts, facts, tags, tags_alt)
+    main_data = {**validated_data, **canonical_facts}
+    return schema.build_model(main_data, facts, tags, tags_alt)
 
 
 def deserialize_canonical_facts(raw_data, all=False):

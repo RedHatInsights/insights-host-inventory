@@ -27,7 +27,7 @@ class TestRhsmSpBridgeUtilityFunctions:
         """Test that rhsm-system-profile-bridge-only hosts should stay fresh forever."""
         with flask_app.app.app_context():
             host = Host(
-                canonical_facts={"subscription_manager_id": generate_uuid()},
+                subscription_manager_id=generate_uuid(),
                 reporter="rhsm-system-profile-bridge",
                 stale_timestamp=datetime.now(UTC),
                 org_id=USER_IDENTITY["org_id"],
@@ -45,7 +45,7 @@ class TestRhsmSpBridgeUtilityFunctions:
     def test_should_host_stay_fresh_forever_false(self):
         """Test that hosts with multiple reporters should not stay fresh forever."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="puptoo",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -72,7 +72,7 @@ class TestRhsmSpBridgeStalenessTimestamps:
     def test_get_staleness_timestamps_rhsm_sp_bridge_only(self):
         """Test that rhsm-system-profile-bridge-only hosts get far-future timestamps."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -96,7 +96,7 @@ class TestRhsmSpBridgeStalenessTimestamps:
     def test_get_staleness_timestamps_normal_host(self):
         """Test that normal hosts get regular timestamps."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="puptoo",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -118,7 +118,7 @@ class TestRhsmSpBridgeStalenessTimestamps:
     def test_get_reporter_staleness_timestamps_rhsm_sp_bridge_only(self):
         """Test that per-reporter staleness for rhsm-system-profile-bridge-only hosts gets far-future timestamps."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -146,7 +146,7 @@ class TestRhsmSpBridgeHostModel:
     def test_reporter_stale_rhsm_conduit_only_always_false(self, db_create_host):
         """Test that rhsm-system-profile-bridge-only hosts never report as stale."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(UTC) - timedelta(days=10),  # Way in the past
             org_id=USER_IDENTITY["org_id"],
@@ -170,7 +170,7 @@ class TestRhsmSpBridgeHostModel:
     def test_reporter_stale_normal_host_can_be_stale(self, db_create_host):
         """Test that normal hosts can be stale."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="puptoo",
             stale_timestamp=datetime.now(UTC) - timedelta(days=10),
             org_id=USER_IDENTITY["org_id"],
@@ -198,7 +198,7 @@ class TestRhsmSpBridgeSerialization:
     def test_serialize_per_reporter_staleness_rhsm_sp_bridge_only(self):
         """Test that per-reporter staleness serialization uses far-future timestamps for rhsm-only hosts."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="rhsm-system-profile-bridge",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -223,7 +223,7 @@ class TestRhsmSpBridgeSerialization:
     def test_serialize_per_reporter_staleness_normal_host(self):
         """Test that per-reporter staleness serialization uses normal timestamps for regular hosts."""
         host = Host(
-            canonical_facts={"subscription_manager_id": generate_uuid()},
+            subscription_manager_id=generate_uuid(),
             reporter="puptoo",
             stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
@@ -247,7 +247,7 @@ class TestRhsmSpBridgeSerialization:
 def test_rhsm_conduit_reporter():
     """Parametrized test to ensure rhsm-system-profile-bridge behavior."""
     host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="rhsm-system-profile-bridge",
         stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
@@ -276,7 +276,7 @@ def test_rhsm_conduit_reporter():
 def test_multiple_reporters_parametrized(reporters):
     """Parametrized test to ensure hosts with multiple reporters don't stay fresh forever."""
     host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter=reporters[0],
         stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
