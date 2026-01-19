@@ -223,12 +223,8 @@ def test_group_id_list_filter_not_found(db_create_group, api_get):
     for idx in range(10):
         db_create_group(f"extraGroup_{idx}")
 
-    response_status, response_data = api_get(GROUP_URL + "/" + generate_uuid())
-
-    assert response_status == 200
-    assert response_data["total"] == 0
-    assert response_data["count"] == 0
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(f"{GROUP_URL}/{generate_uuid()}")
+    assert response_status == 404
 
 
 def test_group_query_pagination(subtests, db_create_group, api_get):

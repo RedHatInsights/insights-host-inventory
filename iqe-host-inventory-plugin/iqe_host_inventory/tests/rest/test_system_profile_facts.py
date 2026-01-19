@@ -62,6 +62,7 @@ def test_system_profile_facts_sap_system(
     Test System Profile Facts - Create a new host with a SAP system fact via MQ
 
     Confirm that is possible to create a host with a SAP system profile fact
+    After RHINENG-21482, SAP data is storred in workloads.sap structure.
 
     metadata:
         requirements: inv-host-create, inv-hosts-get-system_profile
@@ -70,13 +71,25 @@ def test_system_profile_facts_sap_system(
         title: Inventory: System Profile Fact - SAP System
     """
     host_data = host_inventory.datagen.create_host_data()
-    host_data["system_profile"]["sap_system"] = sap_system
+
+    if "workloads" not in host_data["system_profile"]:
+        host_data["system_profile"]["workloads"] = {}
+
+    host_data["system_profile"]["workloads"] = {
+        "sap": {
+            "sap_system": sap_system,
+        },
+    }
 
     host = host_inventory.kafka.create_host(host_data=host_data)
 
     fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
 
-    assert fetched_host.results[0].system_profile.sap_system == sap_system
+    # Verify workloads.sap.sap_system is returned correctly
+    system_profile_dict = fetched_host.results[0].system_profile.to_dict()
+    assert "workloads" in system_profile_dict
+    assert "sap" in system_profile_dict["workloads"]
+    assert system_profile_dict["workloads"]["sap"]["sap_system"] == sap_system
 
 
 @pytest.mark.smoke
@@ -96,6 +109,7 @@ def test_system_profile_facts_sap_sid(
 ) -> None:
     """
     Test System Profile Facts - Create a new host with a SAP sids fact via MQ
+    After RHINENG-21482, SAP data is storred in workloads.sap structure.
 
     metadata:
         requirements: inv-host-create, inv-hosts-get-system_profile
@@ -104,17 +118,26 @@ def test_system_profile_facts_sap_sid(
         title: Inventory: System Profile Fact - SAP sids
     """
     host_data = host_inventory.datagen.create_host_data()
-    host_data["system_profile"]["sap_sids"] = sap_sid
-    host_data["system_profile"]["sap_system"] = True
-    host_data["system_profile"]["workloads"] = {"sap": {}}
-    host_data["system_profile"]["workloads"]["sap"]["sids"] = sap_sid
-    host_data["system_profile"]["workloads"]["sap"]["sap_system"] = True
+
+    if "workloads" not in host_data["system_profile"]:
+        host_data["system_profile"]["workloads"] = {}
+
+    host_data["system_profile"]["workloads"] = {
+        "sap": {
+            "sap_system": True,
+            "sids": sap_sid,
+        },
+    }
 
     host = host_inventory.kafka.create_host(host_data=host_data)
 
     fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
 
-    assert fetched_host.results[0].system_profile.sap_sids == sap_sid
+    # Verify workloads.sap.sids is returned correctly
+    system_profile_dict = fetched_host.results[0].system_profile.to_dict()
+    assert "workloads" in system_profile_dict
+    assert "sap" in system_profile_dict["workloads"]
+    assert system_profile_dict["workloads"]["sap"]["sids"] == sap_sid
 
 
 @pytest.mark.smoke

@@ -10,6 +10,7 @@ default:
     events_topic: platform.inventory.events
     system_profile_topic: platform.inventory.system-profile
     notifications_topic: platform.notifications.ingress
+    kessel_outbox_topic: outbox.event.kessel.resources
     events_timeout: 10
   service_objects:
     api:

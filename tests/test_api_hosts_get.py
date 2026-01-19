@@ -21,7 +21,6 @@ from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
-from tests.helpers.api_utils import api_query_test
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_host_lists_equal
 from tests.helpers.api_utils import assert_response_status
@@ -48,9 +47,10 @@ from tests.helpers.test_utils import now
 logger = logging.getLogger(__name__)
 
 
-def test_query_single_non_existent_host(api_get, subtests):
+def test_query_single_non_existent_host(api_get):
     url = build_hosts_url(host_list_or_id=generate_uuid())
-    api_query_test(api_get, subtests, url, [])
+    response_status, _ = api_get(url)
+    assert response_status == 404
 
 
 def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests):
@@ -269,9 +269,10 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
             get_host_list_mock.assert_not_called()
 
 
-@pytest.mark.usefixtures("enable_rbac")
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
-    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, _ = api_get(url, SYSTEM_IDENTITY)
@@ -1162,10 +1163,8 @@ def test_query_using_id_list(
 
 
 def test_query_using_id_list_nonexistent_host(api_get):
-    response_status, response_data = api_get(build_hosts_url(generate_uuid()))
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(generate_uuid()))
+    assert response_status == 404
 
 
 @pytest.mark.parametrize("num_hosts_to_query", (1, 3))
@@ -1290,9 +1289,9 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
 
     url = build_hosts_url(host_list_or_id=created_host_id)
     # The host should not be returned as it is in the "culled" state
-    response_status, response_data = api_get(url)
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
+    # Because the host is culled, the API should return a 404
+    response_status, _ = api_get(url)
+    assert response_status == 404
 
 
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
@@ -1352,7 +1351,7 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         db_create_multiple_hosts(
             how_many=1,
             extra_data={
-                "canonical_facts": {"insights_id": insights_id},
+                "insights_id": insights_id,
                 "per_reporter_staleness": registered_with_host_data[insights_id],
             },
         )
@@ -1561,9 +1560,17 @@ def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_
     host_data = {"system_profile_facts": {}}
     host_id = str(db_create_host(extra_data=host_data).id)
 
-    nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+    # Note: sap_system is now stored in workloads.sap.sap_system, not at root level.
+    # db_create_host fixture bypasses schema validation (which would migrate legacy fields),
+    # so we need to use the correct workloads structure directly.
+    if sp_filter_bool_field == "sap_system":
+        nomatch_host_data_1 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}
+        nomatch_host_data_2 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}}
+    else:
+        nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+        nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
+
     nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_host_data_1).id)
-    nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
     nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_host_data_2).id)
 
     url = build_hosts_url(query=f"?filter[system_profile][{sp_filter_bool_field}]{filter_append}=nil")
@@ -1585,7 +1592,7 @@ def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_
             "?hostname_or_id=1*m",
             [
                 {"display_name": "HkqL12lmIW"},
-                {"canonical_facts": {"fqdn": "HkqL1m2lIW", "subscription_manager_id": generate_uuid()}},
+                {"fqdn": "HkqL1m2lIW", "subscription_manager_id": generate_uuid()},
             ],
         ),
     ),
@@ -1597,7 +1604,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
     # Create host with differing SP
     nomatch_host_facts = [
         {"display_name": "masdf1"},
-        {"canonical_facts": {"fqdn": "masdf1", "subscription_manager_id": generate_uuid()}},
+        {"fqdn": "masdf1", "subscription_manager_id": generate_uuid()},
     ]
     nomatch_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in nomatch_host_facts]
 
@@ -2281,7 +2288,7 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
 
 def test_get_host_exists_found(db_create_host, api_get):
     insights_id = generate_uuid()
-    created_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}})
+    created_host = db_create_host(extra_data={"insights_id": insights_id})
 
     url = build_host_exists_url(insights_id)
     response_status, response_data = api_get(url)
@@ -2302,9 +2309,7 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
 
     # Create 2 hosts with the same Insights ID
     for _ in range(2):
-        db_create_host(
-            extra_data={"canonical_facts": {"insights_id": insights_id, "subscription_manager_id": generate_uuid()}}
-        )
+        db_create_host(extra_data={"insights_id": insights_id, "subscription_manager_id": generate_uuid()})
 
     url = build_host_exists_url(insights_id)
     response_status, _ = api_get(url)
@@ -2321,8 +2326,7 @@ def test_get_host_exists_granular_rbac(
     accessible_group_id = db_create_group("accessible_group").id
     accessible_insights_id_list = [generate_uuid() for _ in range(3)]
     accessible_host_id_list = [
-        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
-        for insights_id in accessible_insights_id_list
+        db_create_host(extra_data={"insights_id": insights_id}).id for insights_id in accessible_insights_id_list
     ]
     for host_id in accessible_host_id_list:
         db_create_host_group_assoc(host_id, accessible_group_id)
@@ -2331,8 +2335,7 @@ def test_get_host_exists_granular_rbac(
     inaccessible_group_id = db_create_group("inaccessible_group").id
     inaccessible_insights_id_list = [generate_uuid() for _ in range(2)]
     inaccessible_host_id_list = [
-        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
-        for insights_id in inaccessible_insights_id_list
+        db_create_host(extra_data={"insights_id": insights_id}).id for insights_id in inaccessible_insights_id_list
     ]
     for host_id in inaccessible_host_id_list:
         db_create_host_group_assoc(host_id, inaccessible_group_id)
@@ -2657,14 +2660,16 @@ def test_db_get_hosts_by_subman_id_multiple_hosts_org_filtering(db_get_hosts_by_
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id_1,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
     host2 = db_create_host(
         identity={"account_number": "123", "org_id": org_id_2},
         extra_data={
             "org_id": org_id_2,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
 
@@ -2698,14 +2703,16 @@ def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_i
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
     host2 = db_create_host(
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
 

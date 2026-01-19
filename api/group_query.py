@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func

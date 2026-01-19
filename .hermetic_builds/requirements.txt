@@ -85,12 +85,12 @@ typing-extensions==4.15.0; python_version >= '3.9'
 tzlocal==5.3.1; python_version >= '3.9'
 ujson==5.10.0
 unleashclient==5.12.2
-urllib3==2.6.0
+urllib3==2.6.3
 uvicorn[standard]==0.38.0; python_version >= '3.9'
 uvloop==0.22.1; python_full_version >= '3.8.0'
 validators==0.35.0
 watchfiles==1.1.1; python_version >= '3.9'
 watchtower==3.4.0
 websockets==15.0.1; python_version >= '3.9'
-werkzeug==3.1.4; python_version >= '3.9'
+werkzeug==3.1.5; python_version >= '3.9'
 zipp==3.23.0; python_version >= '3.9'

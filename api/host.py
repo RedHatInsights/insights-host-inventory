@@ -345,6 +345,11 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @access(KesselResourceTypes.HOST.delete, id_param="host_id_list")
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
+    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
+        set(host_id_list)
+    ):
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
@@ -361,6 +366,8 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        if total != len(set(host_id_list)):
+            flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -383,6 +390,8 @@ def get_host_system_profile_by_id(
         total, host_list = get_sparse_system_profile(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        if total != len(set(host_id_list)):
+            flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -419,9 +428,9 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
-    if not hosts_to_update:
+    if len(hosts_to_update) != len(set(host_id_list)):
         log_patch_host_failed(logger, host_id_list)
-        return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     staleness = get_staleness_obj(current_identity.org_id)
 
@@ -487,7 +496,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
-    if len(hosts_to_update) != len(host_id_list):
+    if len(hosts_to_update) != len(set(host_id_list)):
         error_msg = (
             "ERROR: The number of hosts requested does not match the number of hosts found in the host database.  "
             "This could happen if the namespace does not exist or the org_id associated with the call does "
@@ -524,6 +533,11 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
+    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
+        set(host_id_list)
+    ):
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
@@ -535,6 +549,11 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
+    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
+        set(host_id_list)
+    ):
+        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
@@ -562,7 +581,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
+        insights_id = str(existing_host.insights_id)
         owner_id = existing_host.system_profile_facts.get("owner_id")
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)

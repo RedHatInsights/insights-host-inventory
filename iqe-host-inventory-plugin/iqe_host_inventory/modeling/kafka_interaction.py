@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import uuid
 import warnings
+from collections.abc import Collection
+from collections.abc import Iterable
 from collections.abc import Iterator
 from copy import deepcopy
 from functools import cached_property
@@ -31,6 +34,7 @@ from iqe_host_inventory.modeling.wrappers import ErrorNotificationWrapper
 from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
+from iqe_host_inventory.modeling.wrappers import KesselOutboxWrapper
 from iqe_host_inventory.modeling.wrappers import RegisteredNotificationWrapper
 from iqe_host_inventory.modeling.wrappers import StaleNotificationWrapper
 from iqe_host_inventory.utils import get_account_number
@@ -59,6 +63,7 @@ T = TypeVar(
     DeleteNotificationWrapper,
     RegisteredNotificationWrapper,
     StaleNotificationWrapper,
+    KesselOutboxWrapper,
 )
 
 SAP_FILTER_DISPLAY_NAME = ".HBI-FILTER-TEST"
@@ -317,6 +322,20 @@ def _sort_created_hosts(
     return created_hosts
 
 
+def _sort_kessel_messages(
+    messages: list[KesselOutboxWrapper],
+    host_ids: Iterable[str],
+) -> list[KesselOutboxWrapper]:
+    """Sorts kessel messages by the input order of host_ids"""
+    sorted_messages = []
+    for host_id in host_ids:
+        for message in messages:
+            if message.host_id == host_id:
+                sorted_messages.append(message)
+                break
+    return sorted_messages
+
+
 @attr.s
 class HBIKafkaActions(BaseEntity):
     @cached_property
@@ -345,6 +364,15 @@ class HBIKafkaActions(BaseEntity):
         return consumer
 
     @cached_property
+    def _kessel_outbox_consumer(self) -> IQEKafkaConsumer:
+        """We need a separate consumer for the kessel events, otherwise they are consumed at the
+        time when we are waiting for host events produced by HBI, and then we can't see them."""
+        consumer = self.application.mq.get_consumer_for_plugin(self._host_inventory)
+        consumer.subscribe([self.kessel_outbox_topic])
+        consumer.mini_drain()
+        return consumer
+
+    @cached_property
     def _producer(self) -> IQEKafkaProducer:
         return self.application.mq.producer
 
@@ -363,6 +391,10 @@ class HBIKafkaActions(BaseEntity):
     @cached_property
     def events_topic(self) -> str:
         return self._kafka_config.events_topic
+
+    @cached_property
+    def kessel_outbox_topic(self) -> str:
+        return self._kafka_config.kessel_outbox_topic
 
     @cached_property
     def identity(self) -> dict:
@@ -655,6 +687,11 @@ class HBIKafkaActions(BaseEntity):
         """
         # We can't use sets because some fields are lists, which are unhashable
         yet_to_be_found = deepcopy(values)
+
+        # Convert UUID objects to strings for comparison (applies to any UUID field)
+        yet_to_be_found = [
+            str(value) if isinstance(value, uuid.UUID) else value for value in yet_to_be_found
+        ]
         found: list[HOST_DATA_OUT] = []
         messages = []
         for message, value in self._walk_filtered_messages_with_value(
@@ -675,6 +712,35 @@ class HBIKafkaActions(BaseEntity):
         self, *, timeout: int | None = None
     ) -> Iterator[ErrorNotificationWrapper]:
         return self._walk_messages(ErrorNotificationWrapper, timeout=timeout)
+
+    def walk_kessel_messages(self, *, timeout: int | None = None) -> Iterator[KesselOutboxWrapper]:
+        for message in self._kessel_outbox_consumer.walk_messages(
+            timeout=timeout or self._events_wait_time, wrap=False
+        ):
+            yield KesselOutboxWrapper.from_message(message)
+
+    def walk_filtered_kessel_messages(
+        self, host_ids: Collection[str], *, timeout: int | None = None
+    ) -> Iterator[KesselOutboxWrapper]:
+        for message in self.walk_kessel_messages(timeout=timeout):
+            if message.host_id in host_ids:
+                yield message
+
+    def wait_for_filtered_kessel_messages(
+        self, host_ids: Collection[str], *, timeout: int | None = None
+    ) -> list[KesselOutboxWrapper]:
+        log.info("Waiting for Kessel Outbox events.")
+        yet_to_be_found = set(host_ids)
+        found = set()
+        messages = []
+        for message in self.walk_filtered_kessel_messages(host_ids, timeout=timeout):
+            yet_to_be_found.remove(message.host_id)
+            found.add(message.host_id)
+            messages.append(message)
+            if not yet_to_be_found:
+                return _sort_kessel_messages(messages, host_ids)
+        else:
+            raise KafkaMessageNotFoundError(KesselOutboxWrapper, yet_to_be_found, found)
 
     def walk_host_messages_with_value(
         self,

@@ -7,6 +7,10 @@ export IQE_MARKER_EXPRESSION="backend and smoke"
 export IQE_FILTER_EXPRESSION=""
 export IQE_CJI_TIMEOUT="30m"
 
+# Workaround - clone submodules - initialize and update them
+cd ${APP_ROOT}
+git submodule update --init
+
 # build the PR commit image
 source $CICD_ROOT/build.sh
 

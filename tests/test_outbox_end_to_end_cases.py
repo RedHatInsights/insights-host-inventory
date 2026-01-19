@@ -53,11 +53,9 @@ class TestOutboxE2ECases:
         """Test complete flow for a successful 'created' event."""
         # Create a host with all required fields
         host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-                "fqdn": "test-host.example.com",
-            },
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
+            "fqdn": "test-host.example.com",
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         }
 
@@ -87,10 +85,8 @@ class TestOutboxE2ECases:
         """Test complete flow for a successful 'updated' event."""
         # Create a host
         host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-            },
+            "insights_id": generate_uuid(),
+            "subscription_manager_id": generate_uuid(),
             "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
         }
 
@@ -222,13 +218,14 @@ class TestOutboxE2ECases:
     def test_host_without_id_error(self, db_create_host):  # noqa: ARG002
         """Test error handling when host object has no ID."""
         # Create a host object without setting the ID
-        host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-            }
-        }
-        host_without_id = Host(canonical_facts=host_data["canonical_facts"], reporter="test-reporter")
+        insights_id = generate_uuid()
+        subscription_manager_id = generate_uuid()
+
+        host_without_id = Host(
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            reporter="test-reporter",
+        )
         host_without_id.id = None  # Explicitly set to None
 
         with pytest.raises(OutboxSaveException) as exc_info:
@@ -245,13 +242,13 @@ class TestOutboxE2ECases:
 
     def test_invalid_host_id_format_error(self):
         """Test error handling for invalid host_id format."""
-        host_data = {
-            "canonical_facts": {
-                "insights_id": generate_uuid(),
-                "subscription_manager_id": generate_uuid(),
-            }
-        }
-        host = Host(canonical_facts=host_data["canonical_facts"], reporter="test-reporter")
+        insights_id = generate_uuid()
+        subscription_manager_id = generate_uuid()
+        host = Host(
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            reporter="test-reporter",
+        )
         host.id = uuid.uuid4()
 
         with pytest.raises(OutboxSaveException) as exc_info:
@@ -1277,11 +1274,6 @@ class TestOutboxE2ECases:
         insights_id = generate_uuid()
         subscription_manager_id = generate_uuid()
         host_data = {
-            "canonical_facts": {
-                "insights_id": insights_id,
-                "subscription_manager_id": subscription_manager_id,
-                "fqdn": "test-kafka-host.example.com",
-            },
             "insights_id": insights_id,
             "subscription_manager_id": subscription_manager_id,
             "fqdn": "test-kafka-host.example.com",
@@ -1293,7 +1285,7 @@ class TestOutboxE2ECases:
 
         # Verify the host was created successfully
         assert created_host is not None
-        assert created_host.canonical_facts["fqdn"] == "test-kafka-host.example.com"
+        assert created_host.fqdn == "test-kafka-host.example.com"
         assert str(created_host.id) == host_id
 
         # Retrieve the host to ensure it has all necessary data
@@ -1326,7 +1318,7 @@ class TestOutboxE2ECases:
         final_host = db_get_host(created_host.id)
         assert final_host is not None
         assert str(final_host.id) == host_id
-        assert final_host.canonical_facts["fqdn"] == "test-kafka-host.example.com"
+        assert final_host.fqdn == "test-kafka-host.example.com"
 
     @pytest.mark.usefixtures("event_producer_mock")
     def test_delete_hosts_from_group_with_outbox_validation_and_ungrouped_assignment(
@@ -1358,11 +1350,6 @@ class TestOutboxE2ECases:
             insights_id = generate_uuid()
             subscription_manager_id = generate_uuid()
             host_data = {
-                "canonical_facts": {
-                    "insights_id": insights_id,
-                    "subscription_manager_id": subscription_manager_id,
-                    "fqdn": f"test-delete-host-{i + 1}.example.com",
-                },
                 "insights_id": insights_id,
                 "subscription_manager_id": subscription_manager_id,
                 "fqdn": f"test-delete-host-{i + 1}.example.com",
@@ -1379,7 +1366,7 @@ class TestOutboxE2ECases:
         # Verify all hosts were created successfully
         for i, (created_host, host_id) in enumerate(zip(created_hosts, host_ids, strict=False)):
             assert created_host is not None
-            assert created_host.canonical_facts["fqdn"] == f"test-delete-host-{i + 1}.example.com"
+            assert created_host.fqdn == f"test-delete-host-{i + 1}.example.com"
             assert created_host.display_name == f"Test Delete Host {i + 1}"
             assert str(created_host.id) == host_id
 
@@ -1396,7 +1383,7 @@ class TestOutboxE2ECases:
             assert len(initial_host.groups) == 0  # Host not in any group initially
 
         # Add all 3 hosts to the group via API
-        response_status, response_data = api_add_hosts_to_group(group_id, host_ids)
+        response_status, _ = api_add_hosts_to_group(group_id, host_ids)
 
         # Verify the API request was successful
         assert response_status == 200
@@ -1506,7 +1493,7 @@ class TestOutboxE2ECases:
             final_host = db_get_host(host_id)
             assert final_host is not None
             assert str(final_host.id) == host_id
-            assert final_host.canonical_facts["fqdn"] == f"test-delete-host-{i + 1}.example.com"
+            assert final_host.fqdn == f"test-delete-host-{i + 1}.example.com"
             assert final_host.display_name == f"Test Delete Host {i + 1}"
 
             # Verify the host has the correct group information

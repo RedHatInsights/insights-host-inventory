@@ -10,6 +10,7 @@ import pytest
 from app.auth.identity import from_auth_header
 from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
+from app.serialization import serialize_canonical_facts
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import RBACFilterOperation
@@ -62,7 +63,7 @@ def test_update_fields(patch_doc, db_create_host, db_get_host, api_patch):
 
 
 @pytest.mark.parametrize(
-    "canonical_facts", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
+    "extra_data", [{"insights_id": generate_uuid()}, {"insights_id": generate_uuid(), "fqdn": generate_uuid()}]
 )
 def test_checkin_canonical_facts(
     event_datetime_mock,
@@ -70,11 +71,11 @@ def test_checkin_canonical_facts(
     db_create_host,
     db_get_host,
     api_post,
-    canonical_facts,
+    extra_data,
 ):
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    created_host = db_create_host(extra_data=extra_data)
 
-    post_doc = created_host.canonical_facts
+    post_doc = serialize_canonical_facts(created_host, include_none=False)
     updated_time = created_host.modified_on
 
     response_status, _ = api_post(
@@ -99,14 +100,16 @@ def test_checkin_canonical_facts(
 
 @pytest.mark.usefixtures("event_producer_mock")
 def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
-    canonical_facts = {"insights_id": generate_uuid()}
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    extra_data = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data=extra_data)
 
     deserialize_canonical_facts_mock = mocker.patch(
         "api.host.deserialize_canonical_facts", wraps=deserialize_canonical_facts
     )
 
-    post_doc = {**created_host.canonical_facts, "checkin_frequency": 720}
+    canonical_facts = serialize_canonical_facts(created_host, include_none=False)
+
+    post_doc = {**canonical_facts, "checkin_frequency": 720}
     response_status, _ = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
@@ -118,10 +121,11 @@ def test_checkin_checkin_frequency_valid(db_create_host, api_post, mocker):
 @pytest.mark.usefixtures("event_producer_mock")
 @pytest.mark.parametrize(("checkin_frequency",), ((-1,), (0,), (2881,), ("not a number",)))
 def test_checkin_checkin_frequency_invalid(db_create_host, api_post, checkin_frequency):
-    canonical_facts = {"insights_id": generate_uuid()}
-    created_host = db_create_host(extra_data={"canonical_facts": canonical_facts})
+    extra_data = {"insights_id": generate_uuid()}
+    created_host = db_create_host(extra_data=extra_data)
+    canonical_facts = serialize_canonical_facts(created_host, include_none=False)
 
-    post_doc = {**created_host.canonical_facts, "checkin_frequency": checkin_frequency}
+    post_doc = {**canonical_facts, "checkin_frequency": checkin_frequency}
     response_status, _ = api_post(
         build_host_checkin_url(), post_doc, extra_headers={"x-rh-insights-request-id": "123456"}
     )
@@ -195,16 +199,19 @@ def test_patch_on_non_existent_host(api_patch):
 
 
 @pytest.mark.usefixtures("event_producer_mock")
-def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, api_patch):
+def test_patch_on_multiple_hosts_with_some_non_existent(db_create_host, db_get_host, api_patch):
     non_existent_id = generate_uuid()
-    host = db_create_host()
+    host = db_create_host(extra_data={"ansible_host": "OLD_ansible_host"})
 
     patch_doc = {"ansible_host": "NEW_ansible_host"}
 
     url = build_hosts_url(host_list_or_id=f"{non_existent_id},{host.id}")
     response_status, _ = api_patch(url, patch_doc)
 
-    assert_response_status(response_status, expected_status=200)
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial update did not occur
+    assert db_get_host(host.id).ansible_host == "OLD_ansible_host"
 
 
 @pytest.mark.parametrize(
@@ -523,7 +530,7 @@ def test_patch_host_with_RBAC_denied_specific_groups(mocker, api_patch, db_creat
     response_status, response_data = api_patch(url, {"display_name": new_display_name})
 
     assert_response_status(response_status, 404)
-    assert response_data["detail"] == "Requested host not found."
+    assert "not found" in response_data["detail"]
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")

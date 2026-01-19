@@ -8,7 +8,7 @@ from iqe.base.http import RobustSession
 from iqe_turnpike.tests.config_wrappers import get_primary_turnpike_user
 from kessel.relations.v1beta1.relation_tuples_pb2_grpc import KesselTupleServiceStub
 
-from iqe_host_inventory.modeling.kessel_relations import GRPC_ENVS
+from iqe_host_inventory.modeling.kessel_relations import EPHEMERAL_ENVS
 from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 
 
@@ -16,7 +16,7 @@ from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 def hbi_turnpike_http_client(
     application: Application,
 ) -> Generator[RobustSession | None, None, None]:
-    if application.config.current_env.lower() in GRPC_ENVS:
+    if application.config.current_env.lower() in EPHEMERAL_ENVS:
         yield None
         return
 

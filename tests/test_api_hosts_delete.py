@@ -48,6 +48,18 @@ def test_delete_non_existent_host(api_delete_host):
     assert_response_status(response_status, expected_status=404)
 
 
+def test_delete_with_missing_host_id_and_valid_host_id(db_create_host, api_delete_host, db_get_host):
+    # Attempt to simultaneously delete a real host and a missing host
+    valid_host_id = db_create_host().id
+    missing_host_id = generate_uuid()
+    response_status, _ = api_delete_host(f"{str(valid_host_id)},{str(missing_host_id)}")
+
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial deletion did not occur
+    assert db_get_host(valid_host_id)
+
+
 def test_delete_with_invalid_host_id(api_delete_host):
     host_id = "notauuid"
 
@@ -164,7 +176,7 @@ def test_delete_hosts_filtered_by_subscription_manager_id(
     db_create_host(host=db_host())
     host = db_create_host(host=db_host())
     response_status, response_data = api_delete_filtered_hosts(
-        query_parameters={"subscription_manager_id": host.canonical_facts["subscription_manager_id"]}
+        query_parameters={"subscription_manager_id": host.subscription_manager_id}
     )
     assert response_data["hosts_found"] == 1
     assert response_data["hosts_deleted"] == 1
@@ -618,7 +630,7 @@ def test_postgres_delete_filtered_hosts(
     host_3_id = db_create_host(extra_data={"display_name": "asdf", "reporter": "puptoo"}).id
 
     # Create another host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Delete the first two hosts using the bulk deletion endpoint
     response_status, response_data = api_delete_filtered_hosts(request_body)
@@ -627,10 +639,10 @@ def test_postgres_delete_filtered_hosts(
 
     # Make sure they were both deleted and produced deletion events
     assert '"type": "delete"' in event_producer_mock.event
-    _, response_data = api_get(build_hosts_url(host_1_id))
-    assert len(response_data["results"]) == 0
-    _, response_data = api_get(build_hosts_url(host_2_id))
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(host_1_id))
+    assert response_status == 404
+    response_status, _ = api_get(build_hosts_url(host_2_id))
+    assert response_status == 404
     _, response_data = api_get(build_hosts_url(host_3_id))
     assert len(response_data["results"]) == 1
 
@@ -654,16 +666,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     that they make when a host is unregistered from RHSM, to delete it from Insights Inventory.
     """
     searched_subman_id = generate_uuid()
-    matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}}).id
-    )
-    not_matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}}).id
-    )
+    matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": searched_subman_id}).id)
+    not_matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": generate_uuid()}).id)
     different_org_host_id = str(
-        db_create_host(
-            extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}, "org_id": "12345"}
-        ).id
+        db_create_host(extra_data={"subscription_manager_id": searched_subman_id, "org_id": "12345"}).id
     )
 
     # Delete the host using the bulk deletion endpoint
@@ -679,7 +685,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     # Make sure the correct host was deleted and produced a deletion event
     assert '"type": "delete"' in event_producer_mock.event
 
-    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    response_status, _ = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert response_status == 404
+
+    _, response_data = api_get(build_hosts_url([not_matching_host_id]))
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == not_matching_host_id
 
@@ -687,7 +696,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     different_org_identity = deepcopy(USER_IDENTITY)
     different_org_identity["org_id"] = "12345"
     _, response_data = api_get(
-        build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]),
+        build_hosts_url([different_org_host_id]),
         identity=different_org_identity,
     )
     assert len(response_data["results"]) == 1
@@ -697,7 +706,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
 @pytest.mark.usefixtures("event_producer_mock")
 def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_delete_filtered_hosts):
     # Create a host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Call the delete endpoint when no hosts match the criteria
     response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
@@ -742,7 +751,7 @@ def test_log_create_delete(
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_with_ui_host(db_create_host, api_delete_host, event_datetime_mock, event_producer_mock):
-    host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
+    host = db_create_host(extra_data={"subscription_manager_id": generate_uuid()})
     headers = {"x-rh-frontend-origin": "hcc"}
 
     response_status, _ = api_delete_host(host.id, extra_headers=headers)

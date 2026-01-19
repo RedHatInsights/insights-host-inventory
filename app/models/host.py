@@ -56,7 +56,6 @@ class LimitedHost(db.Model):
 
     def __init__(
         self,
-        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -87,8 +86,6 @@ class LimitedHost(db.Model):
             tags_alt = self._populate_tags_alt_from_tags(tags)
         if groups is None:
             groups = []
-
-        self.canonical_facts = canonical_facts
 
         if display_name:
             self.display_name = display_name
@@ -250,18 +247,18 @@ class LimitedHost(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
-    canonical_facts = db.Column(JSONB)
+    canonical_facts = db.Column(JSONB, default=dict)  # deprecated
 
     # canonical facts
     insights_id = db.Column(UUID(as_uuid=True), nullable=False, default=DEFAULT_INSIGHTS_ID)
-    subscription_manager_id = db.Column(db.String(36))
-    satellite_id = db.Column(db.String(255))
-    fqdn = db.Column(db.String(255))
-    bios_uuid = db.Column(db.String(36))
-    ip_addresses = db.Column(JSONB)
-    mac_addresses = db.Column(JSONB)
-    provider_id = db.Column(db.String(500))
-    provider_type = db.Column(db.String(50))
+    subscription_manager_id = db.Column(db.String(36), nullable=True)
+    satellite_id = db.Column(db.String(255), nullable=True)
+    fqdn = db.Column(db.String(255), nullable=True)
+    bios_uuid = db.Column(db.String(36), nullable=True)
+    ip_addresses = db.Column(JSONB, nullable=True)
+    mac_addresses = db.Column(JSONB, nullable=True)
+    provider_id = db.Column(db.String(500), nullable=True)
+    provider_type = db.Column(db.String(50), nullable=True)
 
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
@@ -287,7 +284,6 @@ class Host(LimitedHost):
 
     def __init__(
         self,
-        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -318,22 +314,17 @@ class Host(LimitedHost):
         if groups is None:
             groups = []
 
-        # Leaving canonical_facts to avoid changing too much of the code at once
         local_vars = locals()
         fact_fields = tuple(local_vars[field] for field in CANONICAL_FACTS_FIELDS)
-        if not canonical_facts and all(field is None for field in fact_fields):
+        if all(field is None for field in fact_fields):
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
         id_fact_fields = tuple(local_vars[field] for field in ID_FACTS)
-        if (canonical_facts and not any(id_fact in canonical_facts for id_fact in ID_FACTS)) or (
-            not canonical_facts and all(field is None for field in id_fact_fields)
-        ):
+        if all(field is None for field in id_fact_fields):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
-        if current_app.config["USE_SUBMAN_ID"] and (
-            canonical_facts and "subscription_manager_id" in canonical_facts or subscription_manager_id is not None
-        ):
-            id = subscription_manager_id or canonical_facts["subscription_manager_id"]
+        if current_app.config["USE_SUBMAN_ID"] and subscription_manager_id is not None:
+            id = subscription_manager_id
 
         if not reporter:
             raise ValidationException("The reporter field must be present.")
@@ -342,7 +333,6 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts,
             display_name,
             ansible_host,
             account,
@@ -374,9 +364,6 @@ class Host(LimitedHost):
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
-        if canonical_facts:
-            self.update_canonical_facts(canonical_facts)
-            self.update_canonical_facts_columns(canonical_facts)
 
         self._update_derived_host_type()
 
@@ -387,30 +374,13 @@ class Host(LimitedHost):
     def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
         self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.fqdn)
 
-        # Build canonical_facts from both the dict and individual fields
-        # This ensures all canonical facts (like provider_id) are included even if they're
-        # not in the canonical_facts dict but are set as individual fields
         canonical_facts_to_update = {}
-        if input_host.canonical_facts:
-            # Convert UUID objects to strings for JSON serialization
-            for key, value in input_host.canonical_facts.items():
-                if isinstance(value, uuid.UUID):
-                    canonical_facts_to_update[key] = str(value)
-                else:
-                    canonical_facts_to_update[key] = value
-
-        # Also include canonical facts from individual fields
         for field in CANONICAL_FACTS_FIELDS:
             value = getattr(input_host, field, None)
             if value is not None:
-                # Convert UUID objects to strings for JSON serialization
-                if isinstance(value, uuid.UUID):
-                    canonical_facts_to_update[field] = str(value)
-                else:
-                    canonical_facts_to_update[field] = value
+                canonical_facts_to_update[field] = value
 
         if canonical_facts_to_update:
-            self.update_canonical_facts(canonical_facts_to_update)
             self.update_canonical_facts_columns(canonical_facts_to_update)
 
         self._update_ansible_host(input_host.ansible_host)
@@ -463,17 +433,6 @@ class Host(LimitedHost):
             self.display_name_reporter = input_reporter
         else:
             self._apply_display_name_fallback(input_fqdn)
-
-    def update_canonical_facts(self, canonical_facts):
-        logger.debug(
-            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
-            self.id,
-            self.canonical_facts,
-            canonical_facts,
-        )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
 
     def update_canonical_facts_columns(self, canonical_facts):
         try:

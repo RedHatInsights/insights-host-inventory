@@ -468,5 +468,256 @@ class StaleNotificationWrapper(BaseNotificationWrapper):
     groups = DataAlias[list[dict[str, str]]](lookup_alias=BaseNotificationWrapper.payload)
 
 
+@dataclass(eq=False, order=False)
+class KesselOutboxWrapper:
+    """Example kessel outbox event:
+
+    {
+      "schema":{
+        "type":"struct",
+        "fields":[
+          {
+            "type":"string",
+            "optional":true,
+            "field":"id"
+          },
+          {
+            "type":"struct",
+            "fields":[
+              {
+                "type":"struct",
+                "fields":[
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"org_id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"created_at"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"workspace_id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"resource_type"
+                  }
+                ],
+                "optional":true,
+                "name":"payload.data.metadata",
+                "field":"metadata"
+              },
+              {
+                "type":"struct",
+                "fields":[
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"api_href"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"console_href"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"reporter_type"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"reporter_version"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"local_resource_id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"reporter_instance_id"
+                  }
+                ],
+                "optional":true,
+                "name":"payload.data.reporter_data",
+                "field":"reporter_data"
+              },
+              {
+                "type":"struct",
+                "fields":[
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"insights_id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"ansible_host"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"satellite_id"
+                  },
+                  {
+                    "type":"string",
+                    "optional":true,
+                    "field":"subscription_manager_id"
+                  }
+                ],
+                "optional":true,
+                "name":"payload.data.resource_data",
+                "field":"resource_data"
+              }
+            ],
+            "optional":true,
+            "name":"payload.data",
+            "field":"data"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"time"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"type"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"source"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"subject"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"specversion"
+          },
+          {
+            "type":"string",
+            "optional":true,
+            "field":"datacontenttype"
+          }
+        ],
+        "optional":true,
+        "name":"payload"
+      },
+      "payload":{
+        "id":"df5753f5-ec9f-11f0-ae82-0a580a804a7b",
+        "data":{
+          "metadata":{
+            "id":"019b9e0c-974a-70b2-81d0-05903177d9b7",
+            "org_id":"",
+            "created_at":"0001-01-01T00:00:00Z",
+            "workspace_id":"019b9e0a-d518-7bb1-8b90-0f26dcf8037d",
+            "resource_type":"host"
+          },
+          "reporter_data":{
+            "api_href":"https://apihref.com/",
+            "console_href":"https://www.console.com/",
+            "reporter_type":"hbi",
+            "reporter_version":"1.0",
+            "local_resource_id":"29d99e76-0a07-4845-8e69-2c218cd4aee6",
+            "reporter_instance_id":"redhat"
+          },
+          "resource_data":{
+            "insights_id":"2755693d-c394-4998-9864-e6ed4793a289",
+            "ansible_host":"rhiqe.desktop-25.johnson-dunn.org",
+            "satellite_id":"f790ae9b-aef5-49de-802d-1d1126c5414c",
+            "subscription_manager_id":"5a097ded-1c10-4245-8a87-b7448b1f5eff"
+          }
+        },
+        "time":"0001-01-01T00:00:00Z",
+        "type":"redhat.inventory.resources.host.created",
+        "source":"",
+        "subject":"/resources/host/019b9e0c-974a-70b2-81d0-05903177d9b7",
+        "specversion":"1.0",
+        "datacontenttype":"application/json"
+      }
+    }
+    """
+
+    _data: dict[str, Any]
+    _raw_message: Message | None = field(repr=False, default=None)
+
+    @classmethod
+    def from_message(cls, msg: Message):
+        value = msg.value()
+        data = {
+            "key": msg.key(),
+            "headers": dict(msg.headers()),
+            "topic": msg.topic(),
+            "value": value,
+        }
+        return cls(data, msg)
+
+    def data(self) -> dict[str, Any]:
+        return self._data
+
+    key = DataAlias[str]()
+    value = DataAlias[dict[str, Any]]()
+    headers = DataAlias[dict[str, Any]]()
+
+    @property
+    def payload_data(self) -> dict[str, Any]:
+        return self.value.get("payload", {}).get("data", {})
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        return self.payload_data.get("metadata", {})
+
+    @property
+    def workspace_id(self) -> str | None:
+        return self.metadata.get("workspace_id")
+
+    @property
+    def reporter_data(self) -> dict[str, Any]:
+        return self.payload_data.get("reporter_data", {})
+
+    @property
+    def host_id(self) -> str | None:
+        return self.reporter_data.get("local_resource_id")
+
+    @property
+    def resource_data(self) -> dict[str, Any]:
+        return self.payload_data.get("resource_data", {})
+
+    @property
+    def insights_id(self) -> str | None:
+        return self.resource_data.get("insights_id")
+
+    @property
+    def subscription_manager_id(self) -> str | None:
+        return self.resource_data.get("subscription_manager_id")
+
+    @property
+    def satellite_id(self) -> str | None:
+        return self.resource_data.get("satellite_id")
+
+    @property
+    def ansible_host(self) -> str | None:
+        return self.resource_data.get("ansible_host")
+
+
 class KafkaMessageNotFoundError(LookupError):
-    """raised when kafka messages where not found"""
+    """raised when kafka messages were not found"""

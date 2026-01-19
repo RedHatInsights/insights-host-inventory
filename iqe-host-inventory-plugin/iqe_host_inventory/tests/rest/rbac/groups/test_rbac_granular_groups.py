@@ -272,7 +272,6 @@ class TestRBACGranularGroupsWritePermission:
         rbac_setup_resources_for_granular_rbac: RBacResources,
         host_inventory: ApplicationHostInventory,
         host_inventory_non_org_admin: ApplicationHostInventory,
-        prepare_hosts: list[HostOut],
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -284,7 +283,7 @@ class TestRBACGranularGroupsWritePermission:
           title: Test that users with granular RBAC access can add hosts to correct groups
         """
         groups = rbac_setup_resources_for_granular_rbac[1][:2]
-        host1, host2 = prepare_hosts
+        host1, host2 = host_inventory.upload.create_hosts(2)
 
         host_inventory_non_org_admin.apis.groups.add_hosts_to_group(
             groups[0], hosts=host1, wait_for_added=False

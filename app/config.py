@@ -130,6 +130,7 @@ class Config:
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
         self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
+        self.host_app_data_topic = topic(os.environ.get("KAFKA_HOST_APP_DATA_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
@@ -184,6 +185,7 @@ class Config:
         self.notification_topic = os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notifications.ingress")
         self.export_service_topic = os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests")
         self.workspaces_topic = os.environ.get("KAFKA_WORKSPACES_TOPIC", "outbox.event.workspace")
+        self.host_app_data_topic = os.environ.get("KAFKA_HOST_APP_DATA_TOPIC", "platform.inventory.host-apps")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
@@ -502,6 +504,7 @@ class Config:
                 self.logger.info("Kafka Events Topic: %s", self.event_topic)
                 self.logger.info("Kafka Notification Topic: %s", self.notification_topic)
                 self.logger.info("Kafka Export Service Topic: %s", self.export_service_topic)
+                self.logger.info("Kafka Host App Data Topic: %s", self.host_app_data_topic)
                 self.logger.info("Export Service Endpoint: %s", self.export_service_endpoint)
 
             if self._runtime_environment.event_producer_enabled:

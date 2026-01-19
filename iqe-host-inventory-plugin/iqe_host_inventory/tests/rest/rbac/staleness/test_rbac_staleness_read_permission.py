@@ -110,7 +110,7 @@ class TestRBACStalenessReadPermission:
         assert response.org_id == hbi_non_org_admin_user_org_id
 
 
-class TestRBACHostsNoReadPermission:
+class TestRBACStalenessNoReadPermission:
     @pytest.mark.usefixtures("no_read_permission_user_setup")
     def test_rbac_staleness_no_read_permission_get_staleness_defaults(
         self,

@@ -24,6 +24,7 @@ from typing_extensions import ParamSpec
 
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
 from iqe_host_inventory.schemas import per_reporter_staleness_from_dict
+from iqe_host_inventory.utils.datagen_utils import DEFAULT_INSIGHTS_ID
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 
@@ -42,12 +43,23 @@ class Host(Base):
     org_id = Column(String())
     display_name = Column(String())
     ansible_host = Column(String())
+    insights_id = Column(UUID(as_uuid=True))
+    subscription_manager_id = Column(String())
+    satellite_id = Column(String())
+    fqdn = Column(String())
+    bios_uuid = Column(String())
+    ip_addresses = Column(JSONB)
+    mac_addresses = Column(JSONB)
+    provider_id = Column(String())
+    provider_type = Column(String())
     created_on = Column(DateTime(timezone=True))
     modified_on = Column(DateTime(timezone=True))
     facts = Column(JSONB)
     tags = Column(JSONB)
     tags_alt = Column(JSONB)
-    canonical_facts = Column(JSONB)
+    canonical_facts = Column(
+        JSONB
+    )  # DEPRECATED: Do not use. Set to {} only to satisfy NOT NULL constraint.
     system_profile_facts = Column(JSONB)
     groups = Column(JSONB)
     last_check_in = Column(DateTime(timezone=True))
@@ -118,18 +130,26 @@ class AsDictWrapperDecorator[T]:
 
 @AsDictWrapper.decorate(Host)
 def minimal_db_host(empty_strings: bool = False, **fields: Any) -> dict[str, Any]:
-    return {
+    result = {
         "id": generate_uuid(),
         "org_id": "" if empty_strings else generate_uuid(),
         "created_on": datetime.now(UTC),
         "modified_on": datetime.now(UTC),
         "last_check_in": datetime.now(UTC),
-        "canonical_facts": {},
         "groups": [],
         "stale_timestamp": datetime.now(UTC),
         "reporter": "" if empty_strings else "iqe-hbi",
         **fields,
     }
+    # Set insights_id to DEFAULT_INSIGHTS_ID if not provided or None, matching main app behavior
+    if result.get("insights_id") is None:
+        result["insights_id"] = DEFAULT_INSIGHTS_ID
+    # Set canonical_facts to empty dict to satisfy NOT NULL constraint
+    # (deprecated field, do not use)
+    # Tests should use individual canonical fact columns
+    if "canonical_facts" not in result or result["canonical_facts"] is None:
+        result["canonical_facts"] = {}
+    return result
 
 
 @AsDictWrapper.decorate(Group)
@@ -207,6 +227,6 @@ def query_associations_by_group_ids(
 def query_hosts_by_insights_id(
     inventory_db_session: Session, host_insights_ids: Collection[str]
 ) -> Any:
-    query = "SELECT id from hosts WHERE canonical_facts ->> 'insights_id' IN :ids;"
+    query = "SELECT id from hosts WHERE insights_id IN :ids;"
     t = text(query).bindparams(bindparam("ids", expanding=True))
     return inventory_db_session.execute(t, {"ids": host_insights_ids})

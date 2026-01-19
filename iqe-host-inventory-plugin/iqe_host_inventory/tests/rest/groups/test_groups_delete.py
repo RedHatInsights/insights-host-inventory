@@ -171,7 +171,7 @@ def test_groups_delete_non_existing_group(host_inventory: ApplicationHostInvento
             delete anything.
     """
     with host_inventory.apis.groups.verify_group_count_not_changed():
-        with raises_apierror(404, match_message="No groups found for deletion."):
+        with raises_apierror(404, match_message="One or more groups not found."):
             host_inventory.apis.groups.raw_api.api_group_delete_groups([group_id])
 
 
@@ -221,7 +221,7 @@ def test_groups_delete_group_from_different_account(
     group_secondary = host_inventory_secondary.apis.groups.create_group(group_name, hosts=hosts)
     group_primary = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(404, match_message="No groups found for deletion."):
+    with raises_apierror(404, match_message="One or more groups not found."):
         host_inventory.apis.groups.raw_api.api_group_delete_groups([group_secondary.id])
 
     # ensure groups weren't deleted from db

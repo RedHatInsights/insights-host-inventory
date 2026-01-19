@@ -81,10 +81,22 @@ def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
     """
     url = build_host_tags_url(generate_uuid())
 
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
+
+
+def test_get_tags_of_hosts_partial_not_found(api_get, db_create_host):
+    """
+    send a request for multiple hosts where some exist and some don't
+    """
+    existing_host = db_create_host()
+    non_existent_id = generate_uuid()
+    url = build_host_tags_url(host_list_or_id=[str(existing_host.id), non_existent_id])
+
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
 
 
 def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api_get, subtests):
@@ -113,11 +125,9 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     db_create_multiple_hosts(
         how_many=1,
         extra_data={
-            "canonical_facts": {
-                "insights_id": insights_id,
-                "provider_type": ProviderType.AZURE.value,
-                "provider_id": provider_id,
-            },
+            "insights_id": insights_id,
+            "provider_type": ProviderType.AZURE.value,
+            "provider_id": provider_id,
             "display_name": display_name,
             "tags": _deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
             "per_reporter_staleness": per_reporter_staleness,
@@ -157,8 +167,20 @@ def test_get_tags_count_of_host_that_does_not_exist(api_get):
     url = build_tags_count_url(host_list_or_id=generate_uuid())
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
+
+
+def test_get_tags_count_of_hosts_partial_not_found(api_get, db_create_host):
+    """
+    send a request for multiple hosts where some exist and some don't
+    """
+    existing_host = db_create_host()
+    non_existent_id = generate_uuid()
+    url = build_tags_count_url(host_list_or_id=[str(existing_host.id), non_existent_id])
+
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
 
 
 def test_get_tags_from_host_with_no_tags(api_get, db_create_host):
@@ -188,7 +210,7 @@ def test_get_tags_count_from_host_with_no_tags(api_get, db_create_host):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
+def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, db_create_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -196,7 +218,8 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = build_host_tags_url(host_list_or_id=generate_uuid())
+            host_id = str(db_create_host().id)
+            url = build_host_tags_url(host_list_or_id=host_id)
             response_status, _ = api_get(url)
 
             assert_response_status(response_status, 200)
@@ -267,8 +290,7 @@ def test_get_tags_count_of_host_that_does_not_exist_via_db(api_get):
     url = build_tags_count_url(host_list_or_id=generate_uuid())
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
 
 
 def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
@@ -285,7 +307,9 @@ def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get):
-    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_host_tags_url(host_list_or_id=host.id)
     response_status, _ = api_get(url, SYSTEM_IDENTITY)

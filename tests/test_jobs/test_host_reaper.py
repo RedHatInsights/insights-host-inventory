@@ -341,7 +341,8 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(
     past_time = datetime.now(UTC) - timedelta(days=30)
 
     mixed_reporter_host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid(), "insights_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
+        insights_id=generate_uuid(),
         display_name="mixed-reporter-host",
         reporter="rhsm-system-profile-bridge",
         org_id=USER_IDENTITY["org_id"],
@@ -407,7 +408,7 @@ def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(
 def test_host_reaper_filter_logic_parametrized(reporters: list[str]) -> None:
     """Parametrized test for host reaper filter logic."""
     host = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         display_name="test-host",
         reporter=reporters[0],
         stale_timestamp=datetime.now(UTC),

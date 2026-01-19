@@ -223,7 +223,15 @@ def log_add_host_attempt(logger, input_host, sp_fields_to_log, identity: Identit
                 "account": input_host.account,
                 "org_id": input_host.org_id,
                 "display_name": input_host.display_name,
-                "canonical_facts": input_host.canonical_facts,
+                "insights_id": input_host.insights_id,
+                "subscription_manager_id": input_host.subscription_manager_id,
+                "satellite_id": input_host.satellite_id,
+                "fqdn": input_host.fqdn,
+                "bios_uuid": input_host.bios_uuid,
+                "ip_addresses": input_host.ip_addresses,
+                "mac_addresses": input_host.mac_addresses,
+                "provider_id": input_host.provider_id,
+                "provider_type": input_host.provider_type,
                 "reporter": input_host.reporter,
                 "stale_timestamp": input_host.stale_timestamp.isoformat(),
                 "tags": json.dumps(input_host.tags),
@@ -288,8 +296,8 @@ def log_patch_group_success(logger, group_id):
     logger.info(f"Patched group: {group_id}")
 
 
-def log_patch_group_failed(logger, group_id):
-    logger.debug(f"Failed to find group during patch operation: {group_id}")
+def log_patch_group_failed(logger, group_id, message="Group not found."):
+    logger.error(f"Failed to patch group with id {group_id}: {message}")
 
 
 def rbac_failure(logger, error_message=None):
@@ -356,3 +364,10 @@ def log_update_group_via_mq(logger, group_id):
 
 def log_delete_groups_via_mq(logger, num_deleted, group_id):
     logger.info(f"{num_deleted} groups deleted via MQ with ID: {group_id}")
+
+
+def log_host_app_data_upsert_via_mq(logger, application, org_id, host_ids):
+    logger.info(
+        f"Successfully processed host app data from {application}",
+        extra={"application": application, "org_id": org_id, "host_ids": host_ids},
+    )
