@@ -672,7 +672,7 @@ inv-staleness-hosts:
     stale_timestamp is set by the reporter when the host is created and is updated each time the host is updated.
     Usually, stale_timestamp is set to 28 hours in the future.
     stale_warning_timestamp is automatically set to stale_timestamp + 7 days.
-    culled_timestamp is automatically set to stale_warning_timestamp + 7 days.
+    culled_timestamp is automatically set to stale_warning_timestamp + 16 days.
     Culled hosts should not be accessible.
   priority: high
 

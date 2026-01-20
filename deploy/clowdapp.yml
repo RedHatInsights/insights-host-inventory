@@ -158,6 +158,11 @@ objects:
     # Base image and args for jobs
     jobPodSpecBase: &jobPodSpecBase
       image: ${IMAGE}:${IMAGE_TAG}
+    # Init container that waits for DB migrations to complete
+    # Used by deployments that need the DB schema to be up-to-date before starting
+    migrationWaitInitContainer: &migrationWaitInitContainer
+      - args: ["./wait_for_migrations.py"]
+        inheritEnv: true
   spec:
     envName: ${ENV_NAME}
     featureFlags: true
@@ -448,6 +453,7 @@ objects:
           enabled: true
       podSpec:
         <<: *gunicornPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: APP_NAME
             value: ${APP_NAME}
@@ -527,6 +533,8 @@ objects:
             value: ${KESSEL_INSECURE}
           - name: KESSEL_AUTH_ENABLED
             value: ${KESSEL_AUTH_ENABLED}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -551,6 +559,7 @@ objects:
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -622,6 +631,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -722,6 +733,7 @@ objects:
       replicas: ${{REPLICAS_SP}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -791,6 +803,8 @@ objects:
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -802,6 +816,7 @@ objects:
       replicas: ${{REPLICAS_WORKSPACES}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -869,6 +884,8 @@ objects:
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           <<: *mqLivenessProbe
           initialDelaySeconds: 20
@@ -934,6 +951,73 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_EXPORT_SVC}
             memory: ${MEMORY_REQUEST_EXPORT_SVC}
+    - name: mq-host-app-data
+      replicas: ${{REPLICAS_HOST_APP_DATA}}
+      podSpec:
+        <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
+        env:
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_APP_DATA_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_APP_DATA_TOPIC}
+          - name: KAFKA_HOST_APP_DATA_TOPIC
+            value: ${KAFKA_HOST_APP_DATA_TOPIC}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOST_APP_DATA_MQ}
+            memory: ${MEMORY_LIMIT_HOST_APP_DATA_MQ}
+          requests:
+            cpu: ${CPU_REQUEST_HOST_APP_DATA_MQ}
+            memory: ${MEMORY_REQUEST_HOST_APP_DATA_MQ}
 
     jobs:
     - name: reaper
@@ -1753,6 +1837,8 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_APP_DATA_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS}}
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1829,11 +1915,11 @@ objects:
 #            "created_on" AS "created_at",
 #            "modified_on" AS "updated_at",
 #            "reporter" AS "reporter",
-#            "canonical_facts"->>'insights_id' AS "insights_id",
-#            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
-#            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
-#            "canonical_facts"->>'provider_id' AS "provider_id",
-#            "canonical_facts"->>'provider_type' AS "provider_type"
+#            "insights_id" AS "insights_id",
+#            "subscription_manager_id" AS "subscription_manager_id",
+#            "bios_uuid" AS "bios_uuid",
+#            "provider_id" AS "provider_id",
+#            "provider_type" AS "provider_type"
 #          FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups
         chunksize: 10000
@@ -1882,10 +1968,10 @@ objects:
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
         query: >-
           SELECT
-            "canonical_facts"->>'provider_type' AS "provider_type",
+            "provider_type" AS "provider_type",
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
-          GROUP BY "canonical_facts"->>'provider_type';
+          GROUP BY "provider_type";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
         chunksize: 10000
         query: >-
@@ -1916,37 +2002,37 @@ objects:
           FROM (
             SELECT
               "org_id",
-              "canonical_facts"->>'insights_id' AS "id_value",
+              "insights_id" AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'insights_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'insights_id',
+              "insights_id",
               "reporter"
 
             UNION ALL
 
             SELECT
               "org_id",
-              "canonical_facts"->>'subscription_manager_id' AS "id_value",
+              "subscription_manager_id" AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'subscription_manager_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NULL
-              AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" IS NULL
+              AND "subscription_manager_id" IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'subscription_manager_id',
+              "subscription_manager_id",
               "reporter"
           ) AS "aa"
           WHERE
@@ -2106,6 +2192,9 @@ parameters:
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
   value: "2"
+- description: Replica count for mq-host-app-data consumer
+  name: REPLICAS_HOST_APP_DATA
+  value: "1"
 
 # -- NGINX Resources --
 - displayName: Minimum replicas for NGINX
@@ -2171,6 +2260,14 @@ parameters:
 - name: MEMORY_REQUEST_EXPORT_SVC
   value: 256Mi
 - name: MEMORY_LIMIT_EXPORT_SVC
+  value: 512Mi
+- name: CPU_REQUEST_HOST_APP_DATA_MQ
+  value: 250m
+- name: CPU_LIMIT_HOST_APP_DATA_MQ
+  value: 500m
+- name: MEMORY_REQUEST_HOST_APP_DATA_MQ
+  value: 256Mi
+- name: MEMORY_LIMIT_HOST_APP_DATA_MQ
   value: 512Mi
 
 # -- Job Resources --
@@ -2341,6 +2438,15 @@ parameters:
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
+- name: KAFKA_HOST_APP_DATA_TOPIC
+  description: The topic for host application data from downstream services
+  value: platform.inventory.host-apps
+- name: KAFKA_HOST_APP_DATA_GROUP
+  description: The Kafka consumer group for host app data consumer
+  value: inventory-views
+- name: NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host app data topic
+  value: '1'
 
 # -- Database Configuration --
 - description: Database name
@@ -2401,6 +2507,9 @@ parameters:
 - description: enable Kessel insecure mode
   name: KESSEL_INSECURE
   value: 'true'
+- description: How long to wait for DB migrations to complete
+  name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+  value: '300'
 
 # =================================================================================
 # IV. Application Behavior & Tuning
@@ -2456,6 +2565,8 @@ parameters:
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
+  value: '1'
+- name: MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
   value: '0.5'

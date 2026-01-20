@@ -69,7 +69,6 @@ def check_events_and_notifications(
 def test_reaper_script(
     inventory_db_session: Session,
     host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ) -> None:
     """
     Ensure that the host reaper script is removing the culled hosts from the database
@@ -149,9 +148,5 @@ def test_reaper_script(
     assert response_ids == non_culled_hosts_ids
 
     for host_id in culled_hosts_ids:
-        if is_kessel_phase_1_enabled:
-            with raises_apierror(404):
-                host_inventory.apis.hosts.get_hosts_by_id(host_id)
-        else:
-            response = host_inventory.apis.hosts.get_hosts_by_id(host_id)
-            assert len(response) == 0
+        with raises_apierror(404):
+            host_inventory.apis.hosts.get_hosts_by_id(host_id)

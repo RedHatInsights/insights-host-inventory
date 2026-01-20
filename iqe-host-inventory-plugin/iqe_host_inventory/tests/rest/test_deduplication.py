@@ -14,6 +14,7 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_host_field_value
@@ -492,8 +493,8 @@ def test_dedup_culled_host(host_inventory: ApplicationHostInventory) -> None:
     )
 
     # Check that the first host didn't get updated and is still culled
-    response = host_inventory.apis.hosts.get_hosts_by_id(host)
-    assert len(response) == 0
+    with raises_apierror(404):
+        host_inventory.apis.hosts.get_hosts_by_id(host)
 
 
 @pytest.mark.smoke

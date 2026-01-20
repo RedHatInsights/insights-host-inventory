@@ -4,12 +4,15 @@ from kessel.auth import OAuth2ClientCredentials
 from kessel.auth import fetch_oidc_discovery
 from kessel.inventory.v1beta2 import ClientBuilder
 from kessel.inventory.v1beta2 import allowed_pb2
+from kessel.inventory.v1beta2 import check_bulk_request_pb2
 from kessel.inventory.v1beta2 import check_request_pb2
 from kessel.inventory.v1beta2 import reporter_reference_pb2
-from kessel.inventory.v1beta2 import representation_type_pb2
 from kessel.inventory.v1beta2 import resource_reference_pb2
-from kessel.inventory.v1beta2 import streamed_list_objects_request_pb2
 from kessel.inventory.v1beta2 import subject_reference_pb2
+from kessel.inventory.v1beta2.check_bulk_response_pb2 import CheckBulkResponse
+from kessel.inventory.v1beta2.check_for_update_response_pb2 import CheckForUpdateResponse
+from kessel.inventory.v1beta2.check_response_pb2 import CheckResponse
+from kessel.rbac.v2 import list_workspaces
 
 from app.auth.identity import Identity
 from app.auth.rbac import KesselPermission
@@ -126,11 +129,11 @@ class Kessel:
 
         return subject_reference_pb2.SubjectReference(resource=subject_ref)
 
-    def _check_single_resource(
-        self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
-    ) -> bool:
-        """Check permission for a single resource."""
-        object_ref = resource_reference_pb2.ResourceReference(
+    def _build_object_reference(
+        self, permission: KesselPermission, resource_id: str
+    ) -> resource_reference_pb2.ResourceReference:
+        """Build an object reference for a resource."""
+        return resource_reference_pb2.ResourceReference(
             resource_type=permission.resource_type.name,  # e.g., "host"
             resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(
@@ -139,13 +142,17 @@ class Kessel:
             ),
         )
 
+    def _check_single_resource(
+        self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
+    ) -> bool:
+        """Check permission for a single resource."""
         request = check_request_pb2.CheckRequest(
             subject=subject_ref,
             relation=permission.resource_permission,  # e.g., "view"
-            object=object_ref,
+            object=self._build_object_reference(permission, resource_id),
         )
 
-        response = self.inventory_svc.Check(request, timeout=self.timeout)
+        response: CheckResponse = self.inventory_svc.Check(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources(
@@ -155,31 +162,60 @@ class Kessel:
         resource_ids: list[str],
     ) -> bool:
         """Check permissions for multiple resources. All must be accessible."""
-        return all(self._check_single_resource(subject_ref, permission, resource_id) for resource_id in resource_ids)
+        if not resource_ids:
+            raise ValueError("resource_ids can't be empty")
+
+        # Build bulk request items for all resources
+        items = [
+            check_bulk_request_pb2.CheckBulkRequestItem(
+                subject=subject_ref,
+                relation=permission.resource_permission,
+                object=self._build_object_reference(permission, resource_id),
+            )
+            for resource_id in resource_ids
+        ]
+
+        bulk_request = check_bulk_request_pb2.CheckBulkRequest(items=items)
+        response: CheckBulkResponse = self.inventory_svc.CheckBulk(bulk_request, timeout=self.timeout)
+
+        # Check that all resources are present in the response
+        if len(response.pairs) != len(resource_ids):
+            logger.warning(
+                "Kessel CheckBulk response is missing some resources: "
+                f"{len(response.pairs)} of {len(resource_ids)} resources are present in the response"
+            )
+            logger.warning(
+                f"Expected resource IDs: {resource_ids}\n"
+                f"Response resource IDs: {[pair.request.object.resource_id for pair in response.pairs]}"
+            )
+            return False
+
+        # Check that all resources are allowed
+        for pair in response.pairs:
+            # If there's an error for this item, treat as denied
+            if pair.HasField("error"):
+                logger.warning(f"Kessel CheckBulk error for resource: {pair.error.message}")
+                return False
+            if pair.item.allowed != allowed_pb2.Allowed.ALLOWED_TRUE:
+                return False
+
+        return True
 
     def _check_single_resource_for_update(
         self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
     ) -> bool:
         """Check update permission for a single resource."""
-        # For updates, we might need a different relation like "edit" or "write"
-        # This depends on how permissions are modeled in Kessel
-        update_permission = permission.resource_permission.replace("view", "edit")
-
-        object_ref = resource_reference_pb2.ResourceReference(
-            resource_type=permission.resource_type.name,
-            resource_id=resource_id,
-            reporter=reporter_reference_pb2.ReporterReference(
-                type=permission.resource_type.namespace, instance_id="redhat"
-            ),
-        )
+        if permission.resource_permission == "view":
+            logger.error("_check_single_resource_for_update called with 'view' permission")
+            raise ValueError("Update check cannot be performed with 'view' permission")
 
         request = check_request_pb2.CheckRequest(
             subject=subject_ref,
-            relation=update_permission,
-            object=object_ref,
+            relation=permission.resource_permission,
+            object=self._build_object_reference(permission, resource_id),
         )
 
-        response = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
+        response: CheckForUpdateResponse = self.inventory_svc.CheckForUpdate(request, timeout=self.timeout)
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources_for_update(
@@ -189,21 +225,22 @@ class Kessel:
         resource_ids: list[str],
     ) -> bool:
         """Check update permissions for multiple resources. All must be updatable."""
+        if not resource_ids:
+            raise ValueError("resource_ids can't be empty")
+
+        # CheckBulk doesn't support CheckForUpdate, so we iterate over single resource checks
         for resource_id in resource_ids:
             if not self._check_single_resource_for_update(subject_ref, permission, resource_id):
                 return False
         return True
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        object_type = representation_type_pb2.RepresentationType(
-            resource_type="workspace",
-            reporter_type="rbac",
-        )
-
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
-            current_identity.user["user_id"] if current_identity.user["user_id"] else current_identity.user["username"]
-        )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
+            current_identity.user.get("user_id")
+            if current_identity.user
+            else current_identity.service_account.get("client_id")
+        )
         # logger.info(f"user_id resolved from the identity: {user_id}")
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
@@ -215,18 +252,8 @@ class Kessel:
             resource=subject_ref,
         )
 
-        request = streamed_list_objects_request_pb2.StreamedListObjectsRequest(
-            object_type=object_type,
-            relation=relation,
-            subject=subject,
-        )
-
-        workspaces = list()
-        stream = self.inventory_svc.StreamedListObjects(request)
-        for workspace in stream:
-            workspaces.append(workspace.object.resource_id)
-
-        return workspaces
+        stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
+        return [workspace.object.resource_id for workspace in stream]
 
     def close(self):
         """Close the gRPC channel."""

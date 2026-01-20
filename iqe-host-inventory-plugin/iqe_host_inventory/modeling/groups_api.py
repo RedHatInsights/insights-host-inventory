@@ -622,7 +622,12 @@ class GroupsAPIWrapper(BaseEntity):
         """
 
         def get_groups() -> list[GroupOutWithHostCount]:
-            return self.get_groups_by_id(groups)
+            try:
+                return self.get_groups_by_id(groups)
+            except ApiException as e:
+                if e.status == 404:
+                    return []
+                raise
 
         def all_deleted(response_groups: list[GroupOutWithHostCount]) -> bool:
             return len(response_groups) == 0

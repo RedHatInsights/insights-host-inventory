@@ -100,6 +100,7 @@ def rbac_non_org_admin_rbac_admin_setup_class(
     host_inventory: ApplicationHostInventory,
     host_inventory_non_org_admin: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
+    is_kessel_phase_1_enabled_session: bool,
 ) -> Generator[ApplicationHostInventory]:
     """
     Fixture to create a Group, Role for giving an 'rbac:*:*' permission to a user
@@ -110,6 +111,8 @@ def rbac_non_org_admin_rbac_admin_setup_class(
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
     role = host_inventory.apis.rbac.get_rbac_admin_role()
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
+
+    wait_for_kessel_sync(is_kessel_phase_1_enabled_session)
 
     yield host_inventory_non_org_admin
 
@@ -158,9 +161,12 @@ def rbac_inventory_admin_user_setup(hbi_non_org_admin_user_rbac_setup):
 
 @pytest.fixture(scope="function")
 def rbac_inventory_user_without_permissions_setup(
-    host_inventory: ApplicationHostInventory, hbi_non_org_admin_user_username: str
+    host_inventory: ApplicationHostInventory,
+    hbi_non_org_admin_user_username: str,
+    is_kessel_phase_1_enabled: bool,
 ):
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
+    wait_for_kessel_sync(is_kessel_phase_1_enabled)
 
 
 @pytest.fixture(scope="function")
@@ -371,9 +377,12 @@ def rbac_inventory_admin_granular_user_setup_class(
 
 @pytest.fixture(scope="class")
 def rbac_inventory_user_without_permissions_setup_class(
-    host_inventory: ApplicationHostInventory, hbi_non_org_admin_user_username: str
+    host_inventory: ApplicationHostInventory,
+    hbi_non_org_admin_user_username: str,
+    is_kessel_phase_1_enabled_session: bool,
 ):
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
+    wait_for_kessel_sync(is_kessel_phase_1_enabled_session)
 
 
 @pytest.fixture(scope="class")

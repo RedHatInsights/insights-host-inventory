@@ -527,3 +527,82 @@ def test_patch_group_kessel_workspace_same_name_error(
     original_group = db_get_group_by_id(existing_group_id)
     assert original_group.name == "original_group_name"
     assert original_group.modified_on == original_modified_on
+
+
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.parametrize(
+    "invalid_host_scenario",
+    [
+        "single_nonexistent",  # PATCH with only non-existent host ID
+        "mixed_valid_invalid",  # PATCH with mix of valid and invalid host IDs
+    ],
+)
+def test_patch_group_with_invalid_hosts(
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    db_get_group_by_id,
+    api_patch_group,
+    event_producer,
+    mocker,
+    invalid_host_scenario,
+):
+    """
+    Test that patching a group with invalid host IDs fails and leaves the group unchanged
+    when Kessel is enabled.
+
+    This is a regression test for the bug where failed PATCH operations would incorrectly
+    clear host-group associations due to premature database flushes before validation completed.
+
+    Scenarios:
+    - single_nonexistent: PATCH with only a non-existent host ID
+    - mixed_valid_invalid: PATCH with a mix of valid and invalid host IDs
+
+    Expected behavior:
+    - PATCH returns 400 error
+    - Group retains original host associations (no hosts removed)
+    - Group modified_on timestamp unchanged
+    - No events produced
+    """
+    # Mock the event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create group with 3 hosts
+    group = db_create_group_with_hosts("test_group", 3)
+    group_id = group.id
+    orig_modified_on = group.modified_on
+
+    # Verify the group has 3 hosts initially
+    initial_hosts = db_get_hosts_for_group(group_id)
+    assert len(initial_hosts) == 3
+
+    # Get existing host IDs for mixed scenario
+    existing_host_ids = [str(h.id) for h in initial_hosts]
+
+    # Generate invalid host ID
+    invalid_host_id = generate_uuid()
+
+    # Build patch list based on scenario
+    if invalid_host_scenario == "single_nonexistent":
+        patch_host_ids = [invalid_host_id]
+    elif invalid_host_scenario == "mixed_valid_invalid":
+        # 2 valid hosts from the group + 1 invalid
+        patch_host_ids = existing_host_ids[:2] + [invalid_host_id]
+
+    # Attempt to patch the group with invalid host ID(s)
+    patch_doc = {"host_ids": patch_host_ids}
+    response_status, response_data = api_patch_group(group_id, patch_doc)
+
+    # The patch should fail with a 400 error
+    assert_response_status(response_status, 400)
+    assert str(invalid_host_id) in response_data["detail"]
+    assert "not find" in response_data["detail"]
+
+    # Verify that the group still has the original 3 hosts (unchanged)
+    assert len(db_get_hosts_for_group(group_id)) == 3
+
+    # Verify that the group's modified_on timestamp hasn't changed
+    retrieved_group = db_get_group_by_id(group_id)
+    assert retrieved_group.modified_on == orig_modified_on
+
+    # Verify that no events were produced
+    assert event_producer.write_event.call_count == 0

@@ -138,11 +138,19 @@ def test_cert_auth_get_host_by_id(
 
     response = host_inventory_system_correct.apis.hosts.get_hosts_by_id_response([
         hosts["correct_owner_id"].id,
-        hosts["without_owner_id"].id,
-        hosts["wrong_owner_id"].id,
     ])
     assert response.count == 1
     assert response.results[0].id == hosts["correct_owner_id"].id
+
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_hosts_by_id_response([
+            hosts["without_owner_id"].id,
+        ])
+
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_hosts_by_id_response([
+            hosts["wrong_owner_id"].id,
+        ])
 
 
 @pytest.mark.ephemeral
@@ -230,12 +238,19 @@ def test_cert_auth_get_host_system_profile(
 
     response = host_inventory_system_correct.apis.hosts.get_hosts_system_profile_response([
         hosts["correct_owner_id"].id,
-        hosts["without_owner_id"].id,
-        hosts["wrong_owner_id"].id,
     ])
     assert response.count == 1
     assert response.results[0].id == hosts["correct_owner_id"].id
     assert response.results[0].system_profile.owner_id == inventory_cert_system_owner_id
+
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_hosts_system_profile_response([
+            hosts["without_owner_id"].id,
+        ])
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_hosts_system_profile_response([
+            hosts["wrong_owner_id"].id,
+        ])
 
 
 @pytest.mark.ephemeral
@@ -257,10 +272,15 @@ def test_cert_auth_get_host_tags(
     """
     hosts = hbi_setup_tagged_hosts_for_identity_cert_auth
 
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_host_tags_response([
+            hosts["correct_owner_id_host"].id,
+            hosts["without_owner_id_host"].id,
+            hosts["wrong_owner_id_host"].id,
+        ])
+
     response = host_inventory_system_correct.apis.hosts.get_host_tags_response([
         hosts["correct_owner_id_host"].id,
-        hosts["without_owner_id_host"].id,
-        hosts["wrong_owner_id_host"].id,
     ])
     assert response.count == 1
     assert (
@@ -288,10 +308,15 @@ def test_cert_auth_get_host_tag_count(
     """
     hosts = hbi_setup_tagged_hosts_for_identity_cert_auth
 
+    with raises_apierror(404):
+        host_inventory_system_correct.apis.hosts.get_host_tags_count_response([
+            hosts["correct_owner_id_host"].id,
+            hosts["without_owner_id_host"].id,
+            hosts["wrong_owner_id_host"].id,
+        ])
+
     response = host_inventory_system_correct.apis.hosts.get_host_tags_count_response([
         hosts["correct_owner_id_host"].id,
-        hosts["without_owner_id_host"].id,
-        hosts["wrong_owner_id_host"].id,
     ])
     assert response.count == 1
     assert response.results[hosts["correct_owner_id_host"].id] == 1
@@ -629,8 +654,8 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = host_inventory_identity_auth_system.apis.hosts.get_hosts_by_id_response(host.id)
-        assert response.count == 0
+        with raises_apierror(404):
+            host_inventory_identity_auth_system.apis.hosts.get_hosts_by_id_response(host.id)
 
     @pytest.mark.ephemeral
     def test_cert_auth_get_host_by_display_name_different_account(
@@ -694,12 +719,10 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = (
+        with raises_apierror(404):
             host_inventory_identity_auth_system.apis.hosts.get_hosts_system_profile_response(
                 host.id
             )
-        )
-        assert response.count == 0
 
     @pytest.mark.ephemeral
     def test_cert_auth_get_host_tags_different_account(
@@ -719,8 +742,8 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = host_inventory_identity_auth_system.apis.hosts.get_host_tags_response(host.id)
-        assert response.count == 0
+        with raises_apierror(404):
+            host_inventory_identity_auth_system.apis.hosts.get_host_tags_response(host.id)
 
     @pytest.mark.ephemeral
     def test_cert_auth_get_host_tag_count_different_account(
@@ -741,10 +764,8 @@ class TestCertAuthHostsDifferentAccount:
         """
         host = setup_host_with_owner_id_secondary_class
 
-        response = host_inventory_identity_auth_system.apis.hosts.get_host_tags_count_response(
-            host.id
-        )
-        assert response.count == 0
+        with raises_apierror(404):
+            host_inventory_identity_auth_system.apis.hosts.get_host_tags_count_response(host.id)
 
     @pytest.mark.ephemeral
     def test_cert_auth_patch_display_name_different_account(

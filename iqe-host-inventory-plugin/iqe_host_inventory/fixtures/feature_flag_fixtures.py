@@ -163,34 +163,6 @@ def is_kessel_phase_1_enabled(unleash: UnleashBackend | ConsoleDotProxyBackend):
     return unleash.is_enabled("hbi.api.kessel-phase-1")
 
 
-# Workloads fields backward compatibility
-
-
 @pytest.fixture(scope="session")
-def enable_workloads_fields_backward_compatibility_session(
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-    workloads_fields_backward_compatibility_flag: str,
-) -> Generator[None, None, None]:
-    toggle_feature_flag(unleash, workloads_fields_backward_compatibility_flag)
-
-    yield
-
-    toggle_feature_flag(unleash, workloads_fields_backward_compatibility_flag, enable=False)
-
-
-@pytest.fixture(scope="session")
-def workloads_fields_backward_compatibility_flag(
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-) -> str:
-    feature_flag = "hbi.workloads_fields_backward_compatibility"
-
-    if isinstance(unleash, UnleashBackend) and not unleash.has_flag(feature_flag):
-        flag_request = UnleashFlagRequest(
-            name=feature_flag,
-            description="hbi.workloads_fields_backward_compatibility flag",
-            type=_RequestType.RELEASE,
-            impressionData=False,
-        )
-        unleash.admin.create_flag(flag_request=flag_request)
-
-    return feature_flag
+def is_kessel_phase_1_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
+    return unleash.is_enabled("hbi.api.kessel-phase-1")

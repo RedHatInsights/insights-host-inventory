@@ -152,7 +152,8 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
 
 def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
-    # First, validate that the hosts can even be added to the group
+    # Validate that the hosts exist and can be added to the group
+    # This must happen BEFORE any database modifications to ensure clean rollback on failure
     validate_add_host_list_to_group(host_id_list, group_id, org_id)
 
     # Filter out hosts that are already in the group
@@ -457,8 +458,8 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
 
         # Update host list, if provided
         if new_host_ids is not None:
-            _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
             _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
+            _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             removed_group_id_list = [str(ungrouped_group.id)]

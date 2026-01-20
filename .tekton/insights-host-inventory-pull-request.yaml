@@ -10,7 +10,7 @@ metadata:
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: (event == "pull_request" && target_branch == "master") || (event
       == "push" && target_branch.startsWith("gh-readonly-queue/master/"))
-    pipelinesascode.tekton.dev/pipeline: https://github.com/RedHatInsights/konflux-pipelines/raw/v1.57.0/pipelines/docker-build-oci-ta.yaml
+    pipelinesascode.tekton.dev/pipeline: https://github.com/RedHatInsights/konflux-pipelines/raw/v1.58.0/pipelines/docker-build-oci-ta.yaml
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: insights-host-inventory
@@ -38,7 +38,7 @@ spec:
   - name: hermetic
     value: "false"
   # - name: prefetch-input
-  #   value: '[{"type": "rpm", "path": "./.hermetic_builds"},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}, {"type": "generic", "path": "."}]'
+  #   value: '[{"type": "rpm", "path": "./.hermetic_builds"},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}]'
   - name: prefetch-dev-package-managers
     value: "true"
   pipelineRef:

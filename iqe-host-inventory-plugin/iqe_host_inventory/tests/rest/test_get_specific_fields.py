@@ -15,17 +15,71 @@ from iqe_host_inventory.utils.datagen_utils import fields_having
 from iqe_host_inventory.utils.datagen_utils import generate_sp_field_value
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.datagen_utils import parametrize_field
+from iqe_host_inventory.utils.datagen_utils import sync_workloads_with_individual_fields
 from iqe_host_inventory_api import ApiException
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
+# Legacy workloads field mappings (RHINENG-21482)
+# Maps legacy field names to their corresponding paths in workloads.*
+# Used to verify backward compatibility returns correct values from workloads.*
+LEGACY_FIELD_TO_WORKLOADS_PATH: dict[str, tuple[str, ...]] = {
+    # SAP flat fields (root level) → workloads.sap.*
+    "sap_system": ("sap", "sap_system"),
+    "sap_sids": ("sap", "sids"),
+    "sap_instance_number": ("sap", "instance_number"),
+    "sap_version": ("sap", "version"),
+    # SAP nested object → workloads.sap
+    "sap": ("sap",),
+    # Direct workload mappings → workloads.*
+    "ansible": ("ansible",),
+    "mssql": ("mssql",),
+    "intersystems": ("intersystems",),
+    # CrowdStrike: third_party_services.crowdstrike → workloads.crowdstrike
+    "third_party_services": ("crowdstrike",),
+}
+
+# Derived set of all legacy field names
+LEGACY_WORKLOADS_FIELDS = set(LEGACY_FIELD_TO_WORKLOADS_PATH.keys())
+
+
+def get_expected_value_from_workloads(system_profile: dict, field_name: str):
+    """
+    Get the expected value for a legacy field from workloads.* structure.
+
+    Args:
+        system_profile: The system profile dictionary containing workloads.*
+        field_name: The legacy field name (e.g., 'sap_sids', 'ansible')
+
+    Returns:
+        The expected value from workloads.* that should match the legacy field
+    """
+    if field_name not in LEGACY_FIELD_TO_WORKLOADS_PATH:
+        raise ValueError(f"Field '{field_name}' is not a legacy workload field")
+
+    workload_path = LEGACY_FIELD_TO_WORKLOADS_PATH[field_name]
+    expected_value = system_profile["workloads"]
+
+    for key in workload_path:
+        expected_value = expected_value[key]
+
+    return expected_value
+
 
 @pytest.fixture
 def host_for_fields_tests(host_inventory: ApplicationHostInventory):
     host_data = host_inventory.datagen.create_host_data()
+    # Generate all system profile fields including workloads
     for field in SYSTEM_PROFILE:
         host_data["system_profile"][field.name] = generate_sp_field_value(field)
+
+    # Sync workloads.* with individual legacy fields to ensure consistency
+    # This ensures workloads.sap matches sap.*, workloads.ansible matches ansible.*, etc.
+    host_data["system_profile"] = sync_workloads_with_individual_fields(
+        host_data["system_profile"]
+    )
+
     return host_inventory.kafka.create_host(host_data=host_data)
 
 
@@ -92,12 +146,25 @@ def test_get_specific_fields(
 
     assert set(returned_sp) == {field.name}
 
-    if isinstance(returned_sp[field.name], datetime):
-        assert returned_sp[field.name] == datetime.fromisoformat(
-            host_for_fields_tests.system_profile[field.name]
+    # For legacy fields, verify they're populated from workloads.* via backward compatibility
+    if field.name in LEGACY_WORKLOADS_FIELDS:
+        expected_value = get_expected_value_from_workloads(
+            host_for_fields_tests.system_profile, field.name
         )
+
+        # For third_party_services, the returned value is nested under crowdstrike
+        if field.name == "third_party_services":
+            assert returned_sp[field.name]["crowdstrike"] == expected_value
+        else:
+            assert returned_sp[field.name] == expected_value
     else:
-        assert returned_sp[field.name] == host_for_fields_tests.system_profile[field.name]
+        # For non-legacy fields, compare against the field value directly
+        if isinstance(returned_sp[field.name], datetime):
+            assert returned_sp[field.name] == datetime.fromisoformat(
+                host_for_fields_tests.system_profile[field.name]
+            )
+        else:
+            assert returned_sp[field.name] == host_for_fields_tests.system_profile[field.name]
 
 
 @pytest.mark.ephemeral
@@ -112,6 +179,7 @@ def test_get_specific_fields_multiple_fields(
         assignee: rpfannsc
         importance: high
     """
+    # Sample 20 random fields including legacy fields
     wanted_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
 
     returned_host = endpoint_func(host_inventory, host_for_fields_tests, wanted_fields)
@@ -122,12 +190,25 @@ def test_get_specific_fields_multiple_fields(
     assert set(returned_sp) == {field.name for field in wanted_fields}
 
     for field in wanted_fields:
-        if isinstance(returned_sp[field.name], datetime):
-            assert returned_sp[field.name] == datetime.fromisoformat(
-                host_for_fields_tests.system_profile[field.name]
+        # For legacy fields, verify they're populated from workloads.* via backward compatibility
+        if field.name in LEGACY_WORKLOADS_FIELDS:
+            expected_value = get_expected_value_from_workloads(
+                host_for_fields_tests.system_profile, field.name
             )
+
+            # For third_party_services, the returned value is nested under crowdstrike
+            if field.name == "third_party_services":
+                assert returned_sp[field.name]["crowdstrike"] == expected_value
+            else:
+                assert returned_sp[field.name] == expected_value
         else:
-            assert returned_sp[field.name] == host_for_fields_tests.system_profile[field.name]
+            # For non-legacy fields, compare against the field value directly
+            if isinstance(returned_sp[field.name], datetime):
+                assert returned_sp[field.name] == datetime.fromisoformat(
+                    host_for_fields_tests.system_profile[field.name]
+                )
+            else:
+                assert returned_sp[field.name] == host_for_fields_tests.system_profile[field.name]
 
 
 @pytest.mark.ephemeral
@@ -230,6 +311,7 @@ def test_get_host_list_selected_fields(
         importance: high
         title: Verify that GET /hosts returns only the selected fields
     """
+    # Sample 20 random fields including legacy fields
     selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
     fields = [field.name for field in selected_fields]
 
@@ -257,6 +339,7 @@ def test_get_host_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
+    # Sample 20 random fields including legacy fields
     selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
     fields = [field.name for field in selected_fields]
 
@@ -281,6 +364,7 @@ def test_get_host_system_profile_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
+    # Sample 20 random fields including legacy fields
     selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
     fields = [field.name for field in selected_fields]
 
