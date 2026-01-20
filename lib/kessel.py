@@ -238,7 +238,7 @@ class Kessel:
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
             current_identity.user.get("user_id")
-            if hasattr(current_identity, "user")
+            if getattr(current_identity, "user", None)
             else current_identity.service_account.get("client_id")
         )
         # logger.info(f"user_id resolved from the identity: {user_id}")
