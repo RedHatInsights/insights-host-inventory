@@ -861,11 +861,13 @@ def test_get_tags_with_group_name_and_group_id(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-        requirements: inv-tags-get-list, inv-hosts-filter-by-group_name, inv-hosts-filter-by-group_id, inv-api-validation
+        requirements: inv-tags-get-list, inv-hosts-filter-by-group_name, \
+            inv-hosts-filter-by-group_id, inv-api-validation
         assignee: maarif
         importance: high
         negative: true
-        title: Verify 400 error when both group_name and group_id filters are used together for tags
+        title: Verify 400 error when both group_name and group_id filters are used \
+            together for tags
     """
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)

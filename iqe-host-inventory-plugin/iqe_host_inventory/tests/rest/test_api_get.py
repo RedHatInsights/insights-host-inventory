@@ -1283,7 +1283,8 @@ def test_get_hosts_with_group_name_and_group_id(host_inventory: ApplicationHostI
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-        requirements: inv-hosts-filter-by-group_name, inv-hosts-filter-by-group_id, inv-api-validation
+        requirements: inv-hosts-filter-by-group_name, inv-hosts-filter-by-group_id, \
+            inv-api-validation
         assignee: maarif
         importance: high
         negative: true
