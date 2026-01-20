@@ -49,6 +49,7 @@ from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
+from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
@@ -2828,3 +2829,123 @@ def test_days_to_seconds_with_conventional_days_culling_utility_functions():
     # These should match the inverse of the conventional constants (for whole days)
     assert days_to_seconds(7) == 604800  # 7 days = CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
     assert days_to_seconds(30) == 2592000  # 30 days = CONVENTIONAL_TIME_TO_DELETE_SECONDS
+
+
+def test_add_workloads_backward_compatibility_removes_none_values():
+    """
+    Test that _add_workloads_backward_compatibility removes None values from workloads.*.
+
+    This ensures that None values in workloads.* fields (like workloads.ansible.hub_version)
+    are removed from the response, which would otherwise cause OpenAPI spec validation failures
+    since those fields are defined as type 'string' without nullable: true.
+
+    Regression test for production 500 errors like:
+    - 'results.63.system_profile.workloads.ansible.hub_version'
+    - 'results.14.system_profile.workloads.crowdstrike.falcon_version'
+    - 'results.0.system_profile.workloads.sap.version'
+    """
+    # Test case 1: ansible with None hub_version
+    system_profile = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "hub_version": None,  # This should be removed from workloads.ansible
+            }
+        }
+    }
+    result = _add_workloads_backward_compatibility(system_profile)
+
+    # None value should be removed from workloads.ansible
+    assert "hub_version" not in result["workloads"]["ansible"]
+    assert result["workloads"]["ansible"]["controller_version"] == "4.5.6"
+    # Legacy field should also not have the None value
+    assert result["ansible"]["controller_version"] == "4.5.6"
+    assert "hub_version" not in result["ansible"]
+
+    # Test case 2: crowdstrike with None falcon_version
+    system_profile = {
+        "workloads": {
+            "crowdstrike": {
+                "falcon_aid": "abc123",
+                "falcon_version": None,  # This should be removed from workloads.crowdstrike
+            }
+        }
+    }
+    result = _add_workloads_backward_compatibility(system_profile)
+
+    # None value should be removed from workloads.crowdstrike
+    assert "falcon_version" not in result["workloads"]["crowdstrike"]
+    assert result["workloads"]["crowdstrike"]["falcon_aid"] == "abc123"
+    # Legacy field should also not have the None value
+    assert result["third_party_services"]["crowdstrike"]["falcon_aid"] == "abc123"
+    assert "falcon_version" not in result["third_party_services"]["crowdstrike"]
+
+    # Test case 3: sap with None version
+    system_profile = {
+        "workloads": {
+            "sap": {
+                "sap_system": True,
+                "sids": ["H2O"],
+                "version": None,  # This should be removed from workloads.sap
+            }
+        }
+    }
+    result = _add_workloads_backward_compatibility(system_profile)
+
+    # None value should be removed from workloads.sap
+    assert "version" not in result["workloads"]["sap"]
+    assert result["workloads"]["sap"]["sap_system"] is True
+    assert result["workloads"]["sap"]["sids"] == ["H2O"]
+    # Legacy nested field should also not have the None value
+    assert result["sap"]["sap_system"] is True
+    assert result["sap"]["sids"] == ["H2O"]
+    assert "version" not in result["sap"]
+    # Legacy flat fields should also not have the None value
+    assert result["sap_system"] is True
+    assert result["sap_sids"] == ["H2O"]
+    assert "sap_version" not in result
+
+
+def test_add_workloads_backward_compatibility_copies_valid_values():
+    """Test that _add_workloads_backward_compatibility correctly copies non-None values."""
+    system_profile = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "hub_version": "1.2.3",
+            },
+            "crowdstrike": {
+                "falcon_aid": "abc123",
+                "falcon_backend": "us-1",
+                "falcon_version": "7.14.16703.0",
+            },
+            "sap": {
+                "sap_system": True,
+                "sids": ["H2O"],
+                "instance_number": "00",
+                "version": "1.00.122.04.1478575636",
+            },
+        }
+    }
+    result = _add_workloads_backward_compatibility(system_profile)
+
+    # Ansible values
+    assert result["ansible"]["controller_version"] == "4.5.6"
+    assert result["ansible"]["hub_version"] == "1.2.3"
+
+    # CrowdStrike values
+    assert result["third_party_services"]["crowdstrike"]["falcon_aid"] == "abc123"
+    assert result["third_party_services"]["crowdstrike"]["falcon_backend"] == "us-1"
+    assert result["third_party_services"]["crowdstrike"]["falcon_version"] == "7.14.16703.0"
+
+    # SAP nested values
+    assert result["sap"]["sap_system"] is True
+    assert result["sap"]["sids"] == ["H2O"]
+    assert result["sap"]["instance_number"] == "00"
+    assert result["sap"]["version"] == "1.00.122.04.1478575636"
+
+    # SAP flat values
+    assert result["sap_system"] is True
+    assert result["sap_sids"] == ["H2O"]
+    assert result["sap_instance_number"] == "00"
+    assert result["sap_version"] == "1.00.122.04.1478575636"

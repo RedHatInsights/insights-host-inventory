@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Database Operations
 - `make upgrade_db` - Run database migrations to upgrade to the latest schema
 - `make migrate_db message="Description"` - Generate a new database migration
-- `make gen_hbi_schema_dump` - Create a schema dump for replication subscribers
 
 ### Testing and Quality
 - `pytest --cov=.` - Run all tests with coverage

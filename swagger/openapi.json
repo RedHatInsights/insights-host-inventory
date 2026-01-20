@@ -675,7 +675,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/hostOrderByParam"
+            "$ref": "#/components/parameters/tagOrderByParam"
           },
           {
             "$ref": "#/components/parameters/hostOrderHowParam"
@@ -725,7 +725,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/hostOrderByParam"
+            "$ref": "#/components/parameters/tagOrderByParam"
           },
           {
             "$ref": "#/components/parameters/hostOrderHowParam"
@@ -1916,6 +1916,21 @@
             "group_name",
             "updated",
             "operating_system",
+            "last_check_in"
+          ]
+        },
+        "description": "Ordering field name"
+      },
+      "tagOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "display_name",
+            "group_name",
+            "updated",
             "last_check_in"
           ]
         },

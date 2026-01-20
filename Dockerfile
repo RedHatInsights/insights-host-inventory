@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1767847254 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1768264882 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -17,6 +17,7 @@ WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make git && \
+    microdnf update -y gnupg2 && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
     rpm -qa | sort > packages-after-devel-install.txt && \
@@ -49,9 +50,7 @@ COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
-COPY inv_migration_runner.py inv_migration_runner.py
 COPY wait_for_migrations.py wait_for_migrations.py
-COPY app_migrations/ app_migrations/
 COPY jobs/ jobs/
 
 ENV PIP_NO_CACHE_DIR=1
@@ -61,7 +60,14 @@ ENV PIPENV_VENV_IN_PROJECT=1
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install pipenv && \
     python3 -m pip install dumb-init && \
-    pipenv install --system
+    python3 -m pip install "jaraco-context>=6.1.0" && \
+    pipenv install --system && \
+    # Patch vendored jaraco.context inside setuptools (CVE GHSA-58pv-8j8x-9vj2)
+    SETUPTOOLS_VENDOR=$(python3 -c "import setuptools; import os; print(os.path.join(os.path.dirname(setuptools.__file__), '_vendor'))") && \
+    JARACO_SOURCE=$(python3 -c "import jaraco.context; import os; print(os.path.dirname(jaraco.context.__file__))") && \
+    rm -rf "${SETUPTOOLS_VENDOR}/jaraco/context.py" && \
+    cp -r "${JARACO_SOURCE}"/* "${SETUPTOOLS_VENDOR}/jaraco/" && \
+    rm -rf "${SETUPTOOLS_VENDOR}/jaraco.context-"*.dist-info
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \

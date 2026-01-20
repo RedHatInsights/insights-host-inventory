@@ -28,7 +28,6 @@ please see the
     - [Identity enforcement](#identity-enforcement)
 - [Payload Tracker integration](#payload-tracker-integration)
 - [Database migrations](#database-migrations)
-- [Schema dumps (for replication subscribers)](#schema-dumps-for-replication-subscribers)
 - [Docker builds](#docker-builds)
 - [Metrics](#metrics)
 - [Documentation] (#documentation)
@@ -468,21 +467,7 @@ Generate new migration scripts with:
 make migrate_db message="Description of your changes"
 ```
 
-* **Replicated Tables**: If your migration affects replicated tables, ensure you create and apply migrations for them
-  first. See [app_migrations/README.md](app_migrations/README.md) for details.
 
-## Schema Dumps (for replication subscribers)
-
-Capture the current HBI schema state with:
-
-```bash
-make gen_hbi_schema_dump
-```
-
-* Generates a SQL file in `app_migrations` named `hbi_schema_<YYYY-MM-dd>.sql`.
-* Creates a symbolic link `hbi_schema_latest.sql` pointing to the latest dump.
-
-_Note_: Use the optional `SCHEMA_VERSION` variable to customize the filename.
 
 ## Docker Builds
 

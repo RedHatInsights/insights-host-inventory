@@ -1915,11 +1915,11 @@ objects:
 #            "created_on" AS "created_at",
 #            "modified_on" AS "updated_at",
 #            "reporter" AS "reporter",
-#            "canonical_facts"->>'insights_id' AS "insights_id",
-#            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
-#            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
-#            "canonical_facts"->>'provider_id' AS "provider_id",
-#            "canonical_facts"->>'provider_type' AS "provider_type"
+#            "insights_id" AS "insights_id",
+#            "subscription_manager_id" AS "subscription_manager_id",
+#            "bios_uuid" AS "bios_uuid",
+#            "provider_id" AS "provider_id",
+#            "provider_type" AS "provider_type"
 #          FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups
         chunksize: 10000
@@ -1968,10 +1968,10 @@ objects:
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
         query: >-
           SELECT
-            "canonical_facts"->>'provider_type' AS "provider_type",
+            "provider_type" AS "provider_type",
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
-          GROUP BY "canonical_facts"->>'provider_type';
+          GROUP BY "provider_type";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
         chunksize: 10000
         query: >-
@@ -2002,37 +2002,37 @@ objects:
           FROM (
             SELECT
               "org_id",
-              "canonical_facts"->>'insights_id' AS "id_value",
+              "insights_id" AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'insights_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'insights_id',
+              "insights_id",
               "reporter"
 
             UNION ALL
 
             SELECT
               "org_id",
-              "canonical_facts"->>'subscription_manager_id' AS "id_value",
+              "subscription_manager_id" AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'subscription_manager_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NULL
-              AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" IS NULL
+              AND "subscription_manager_id" IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'subscription_manager_id',
+              "subscription_manager_id",
               "reporter"
           ) AS "aa"
           WHERE
