@@ -237,8 +237,10 @@ class Kessel:
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
         # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
         user_id = (
-            current_identity.user["user_id"] or current_identity.user["username"]
-        )  # HACK: this is ONLY to continue testing while waiting for the user_id bits to start working
+            current_identity.user.get("user_id")
+            if current_identity.user
+            else current_identity.service_account.get("client_id")
+        )
         # logger.info(f"user_id resolved from the identity: {user_id}")
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
