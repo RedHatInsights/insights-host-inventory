@@ -63,7 +63,10 @@ class TestRBACSAGranularHosts:
         expected_hosts = rbac_setup_resources_for_granular_rbac.host_groups[0]
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        response = host_inventory_sa_2.apis.hosts.get_hosts_by_id_response(all_hosts)
+        with raises_apierror(404):
+            host_inventory_sa_2.apis.hosts.get_hosts_by_id_response(all_hosts)
+
+        response = host_inventory_sa_2.apis.hosts.get_hosts_by_id_response(expected_hosts_ids)
         response_hosts_ids = {host.id for host in response.results}
 
         assert response.count == len(expected_hosts)
@@ -112,10 +115,10 @@ class TestRBACSAGranularHosts:
         host1 = rbac_setup_resources_for_granular_rbac.host_groups[2][0]
         host2 = rbac_setup_resources_for_granular_rbac.host_groups[3][0]
 
-        with raises_apierror(404, "No hosts found for deletion."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_sa_2.apis.hosts.delete_by_id_raw(host1)
 
-        with raises_apierror(404, "No hosts found for deletion."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_sa_2.apis.hosts.delete_by_id_raw(host2)
 
         host_inventory.apis.hosts.verify_not_deleted([host1, host2])

@@ -499,15 +499,16 @@ def access(permission: KesselPermission, id_param: str = ""):
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
-    if rbac_filter and "groups" in rbac_filter:
-        # Find the IDs that are in requested_ids but not rbac_filter
-        disallowed_ids = requested_ids.difference(rbac_filter["groups"])
-        if len(disallowed_ids) > 0:
-            # id check is only called before writing to groups, permission so far is always the same
-            required_permission = "inventory:groups:write"
-            joined_ids = ", ".join(disallowed_ids)
-            rbac_group_permission_denied(logger, joined_ids, required_permission)
-            abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
+    if rbac_filter and "groups" in rbac_filter and (disallowed_ids := requested_ids.difference(rbac_filter["groups"])):
+        # id check is only called before writing to groups, permission so far is always the same
+        required_permission = "inventory:groups:write"
+        joined_ids = ", ".join(disallowed_ids)
+        rbac_group_permission_denied(logger, joined_ids, required_permission)
+        abort(
+            HTTPStatus.FORBIDDEN,
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
+        )
 
 
 def post_rbac_workspace(name) -> UUID | None:
