@@ -113,6 +113,10 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -174,6 +178,8 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -221,6 +227,7 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -314,6 +321,10 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -375,6 +386,8 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -422,6 +435,7 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -515,6 +529,10 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -576,6 +594,8 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -623,6 +643,7 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -660,6 +681,7 @@ class TagsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        group_id,
         registered_with,
         system_type,
         filter,
@@ -675,6 +697,7 @@ class TagsApi:
             "tags": "multi",
             "staleness": "multi",
             "group_name": "multi",
+            "group_id": "multi",
             "registered_with": "multi",
             "system_type": "multi",
         }
@@ -765,6 +788,9 @@ class TagsApi:
 
         if group_name is not None:
             _query_params.append(("group_name", group_name))
+
+        if group_id is not None:
+            _query_params.append(("group_id", group_id))
 
         if registered_with is not None:
             _query_params.append(("registered_with", registered_with))

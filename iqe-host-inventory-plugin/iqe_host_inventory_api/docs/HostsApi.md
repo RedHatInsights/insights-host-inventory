@@ -177,7 +177,7 @@ void (empty response body)
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_delete_hosts_by_filter**
-> api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
+> api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
 
 Delete the entire list of hosts filtered by the given parameters
 
@@ -228,6 +228,7 @@ updated_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last modi
 last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
 last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
 group_name = ['group_name_example'] # list[str] | Filter by group name (optional)
+group_id = ['group_id_example'] # list[str] | Filter by group ID (UUID format) (optional)
 registered_with = ['registered_with_example'] # list[str] | Filters out any host not registered by the specified reporters (optional)
 system_type = ['system_type_example'] # list[str] | Filters systems by type (optional)
 staleness = ['staleness_example'] # list[str] | Culling states of the hosts. (optional)
@@ -237,7 +238,7 @@ subscription_manager_id = 'subscription_manager_id_example' # str | Filter by su
 
     try:
         # Delete the entire list of hosts filtered by the given parameters
-        api_instance.api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
+        api_instance.api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_delete_hosts_by_filter: %s\n" % e)
 ```
@@ -257,6 +258,7 @@ Name | Type | Description  | Notes
  **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
  **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
  **group_name** | [**list[str]**](str.md)| Filter by group name | [optional]
+ **group_id** | [**list[str]**](str.md)| Filter by group ID (UUID format) | [optional]
  **registered_with** | [**list[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
  **system_type** | [**list[str]**](str.md)| Filters systems by type | [optional]
  **staleness** | [**list[str]**](str.md)| Culling states of the hosts. | [optional]
@@ -457,7 +459,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_get_host_list**
-> HostQueryOutput api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+> HostQueryOutput api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
 
 Read the entire list of hosts
 
@@ -509,6 +511,7 @@ updated_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last modi
 last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
 last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
 group_name = ['group_name_example'] # list[str] | Filter by group name (optional)
+group_id = ['group_id_example'] # list[str] | Filter by group ID (UUID format) (optional)
 branch_id = 'branch_id_example' # str | Filter by branch_id (optional)
 per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
 page = 1 # int | A page number of the items to return. (optional) (default to 1)
@@ -523,7 +526,7 @@ fields = {'key': {}} # dict(str, object) | Fetches only mentioned system_profile
 
     try:
         # Read the entire list of hosts
-        api_response = api_instance.api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+        api_response = api_instance.api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
         pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_get_host_list: %s\n" % e)
@@ -545,6 +548,7 @@ Name | Type | Description  | Notes
  **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
  **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
  **group_name** | [**list[str]**](str.md)| Filter by group name | [optional]
+ **group_id** | [**list[str]**](str.md)| Filter by group ID (UUID format) | [optional]
  **branch_id** | **str**| Filter by branch_id | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
