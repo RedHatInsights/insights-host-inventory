@@ -2002,7 +2002,7 @@ objects:
           FROM (
             SELECT
               "org_id",
-              "insights_id" AS "id_value",
+              "insights_id"::text AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'insights_id' AS "id_type"
