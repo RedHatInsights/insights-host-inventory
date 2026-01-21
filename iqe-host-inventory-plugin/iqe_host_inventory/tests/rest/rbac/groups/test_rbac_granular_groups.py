@@ -143,7 +143,9 @@ class TestRBACGranularGroupsReadPermission:
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
         with raises_apierror(
-            403, f"You do not have access to the the following groups: {all_groups[2].id}"
+            403,
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
@@ -317,7 +319,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.patch_group(
                 group, name=new_group_name, wait_for_updated=False
@@ -346,7 +349,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.remove_hosts_from_group(
                 group, hosts=hosts, wait_for_removed=False
@@ -376,7 +380,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.remove_hosts_from_multiple_groups(
                 hosts=hosts, wait_for_removed=False
@@ -407,7 +412,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {groups[-1].id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.remove_hosts_from_multiple_groups(
                 all_hosts, wait_for_removed=False
@@ -438,7 +444,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.add_hosts_to_group(
                 group, hosts=new_hosts, wait_for_added=False
@@ -466,7 +473,8 @@ class TestRBACGranularGroupsWritePermission:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
 
@@ -831,7 +839,11 @@ def test_rbac_granular_groups_read_permission_null_group(
     )
 
     # Test
-    with raises_apierror(403, "You do not have access to the the following groups: "):
+    with raises_apierror(
+        403,
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
+    ):
         host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(groups)
 
 
@@ -864,7 +876,8 @@ def test_rbac_granular_groups_write_permission_null_group(
     new_name = generate_display_name()
     with raises_apierror(
         403,
-        f"You do not have access to the the following groups: {groups[2].id}",
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
     ):
         host_inventory_non_org_admin.apis.groups.patch_group(
             groups[2], name=new_name, wait_for_updated=False
@@ -908,7 +921,8 @@ def test_rbac_granular_groups_read_permission_null_and_normal_group(
     for group in groups[1:]:
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
@@ -979,7 +993,8 @@ def test_rbac_granular_groups_write_permission_null_and_normal_group_wrong(
     new_name = generate_display_name()
     with raises_apierror(
         403,
-        f"You do not have access to the the following groups: {groups[2].id}",
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
     ):
         host_inventory_non_org_admin.apis.groups.patch_group(
             groups[2], name=new_name, wait_for_updated=False
@@ -1294,7 +1309,9 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
         with raises_apierror(
-            403, f"You do not have access to the the following groups: {all_groups[2].id}"
+            403,
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
@@ -1350,7 +1367,8 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
 
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.patch_group(
                 group, name=new_group_name, wait_for_updated=False
