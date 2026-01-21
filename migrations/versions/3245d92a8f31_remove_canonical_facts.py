@@ -1,6 +1,6 @@
 """remove canonical facts
 
-Revision ID: 3245d92a8f31
+Revision ID: b2c3d4e5f6a7
 Revises: abc123def456
 Create Date: 2026-01-19 11:49:58.438639
 
@@ -15,7 +15,7 @@ from utils.partitioned_table_index_helper import create_partitioned_table_index
 
 # revision identifiers, used by Alembic.
 revision = "3245d92a8f31"
-down_revision = "abc123def456"
+down_revision = "b2c3d4e5f6a7"
 branch_labels = None
 depends_on = None
 
