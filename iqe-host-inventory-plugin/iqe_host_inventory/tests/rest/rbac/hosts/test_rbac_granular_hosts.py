@@ -114,7 +114,12 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
+        with raises_apierror(404):
+            host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
+
+        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+            expected_hosts_ids
+        )
         response_hosts_ids = {host.id for host in response.results}
 
         assert response.count == len(expected_hosts)
@@ -142,8 +147,12 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
+        with raises_apierror(404):
+            host_inventory_non_org_admin.apis.hosts.get_hosts_system_profile_response(
+                all_hosts_ids
+            )
         response = host_inventory_non_org_admin.apis.hosts.get_hosts_system_profile_response(
-            all_hosts_ids
+            expected_hosts_ids
         )
         response_hosts_ids = {host.id for host in response.results}
 
@@ -174,7 +183,12 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_host_tags_response(all_hosts_ids)
+        with raises_apierror(404):
+            host_inventory_non_org_admin.apis.hosts.get_host_tags_response(all_hosts_ids)
+
+        response = host_inventory_non_org_admin.apis.hosts.get_host_tags_response(
+            expected_hosts_ids
+        )
 
         assert response.count == len(expected_hosts)
         assert all(host_id in response.results for host_id in expected_hosts_ids)
@@ -203,6 +217,9 @@ class TestRBACGranularHostsReadPermission:
             + rbac_setup_resources_for_granular_rbac[0][1]
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
+
+        with raises_apierror(404):
+            host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(
             all_hosts_ids
@@ -499,10 +516,10 @@ class TestRBACGranularHostsWritePermission:
         host1 = rbac_setup_resources_for_granular_rbac[0][2][0]
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
-        with raises_apierror(404, "No hosts found for deletion."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.delete_by_id_raw(host1.id)
 
-        with raises_apierror(404, "No hosts found for deletion."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.delete_by_id_raw(host2.id)
 
         host_inventory.apis.hosts.verify_not_deleted([host1.id, host2.id])
@@ -527,12 +544,12 @@ class TestRBACGranularHostsWritePermission:
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
         new_display_name = generate_display_name()
-        with raises_apierror(404, "Requested host not found."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host1.id, display_name=new_display_name, wait_for_updated=False
             )
 
-        with raises_apierror(404, "Requested host not found."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host2.id, display_name=new_display_name, wait_for_updated=False
             )
@@ -806,7 +823,10 @@ def test_rbac_granular_hosts_read_permission_single_group(
     hosts = flatten(rbac_setup_resources_for_granular_rbac[0])
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][0]}
 
-    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+    with raises_apierror(404):
+        host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+
+    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
@@ -873,7 +893,10 @@ def test_rbac_granular_hosts_read_permission_null_group(
     hosts = flatten(rbac_setup_resources_for_granular_rbac[0])
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][3]}
 
-    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+    with raises_apierror(404):
+        host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+
+    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
@@ -942,7 +965,7 @@ def test_rbac_granular_hosts_write_permission_null_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404, "Requested host not found."):
+    with raises_apierror(404, "One or more hosts not found."):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
@@ -982,7 +1005,10 @@ def test_rbac_granular_hosts_read_permission_null_and_normal_group(
         + rbac_setup_resources_for_granular_rbac[0][3]
     }
 
-    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+    with raises_apierror(404):
+        host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+
+    response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
@@ -1063,7 +1089,7 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404, "Requested host not found."):
+    with raises_apierror(404, "One or more hosts not found."):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )

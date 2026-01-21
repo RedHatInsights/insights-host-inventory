@@ -274,7 +274,11 @@ def test_rbac_granular_groups_read_permission_ungrouped_group(
     )
 
     # Test
-    with raises_apierror(403, "You do not have access to the the following groups: "):
+    with raises_apierror(
+        403,
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
+    ):
         host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(groups)
 
 
@@ -303,7 +307,8 @@ def test_rbac_granular_groups_write_permission_ungrouped_group(
     new_name = generate_display_name()
     with raises_apierror(
         403,
-        f"You do not have access to the the following groups: {groups[2].id}",
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
     ):
         host_inventory_non_org_admin.apis.groups.patch_group(
             groups[2], name=new_name, wait_for_updated=False
@@ -343,7 +348,8 @@ def test_rbac_granular_groups_read_permission_ungrouped_and_normal_group(
     for group in groups[1:]:
         with raises_apierror(
             403,
-            f"You do not have access to the the following groups: {group.id}",
+            "You don't have the permission to access the requested resource. "
+            "It is either read-protected or not readable by the server.",
         ):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
@@ -406,7 +412,8 @@ def test_rbac_granular_groups_write_permission_ungrouped_and_normal_group_wrong(
     new_name = generate_display_name()
     with raises_apierror(
         403,
-        f"You do not have access to the the following groups: {groups[2].id}",
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server.",
     ):
         host_inventory_non_org_admin.apis.groups.patch_group(
             groups[2], name=new_name, wait_for_updated=False
