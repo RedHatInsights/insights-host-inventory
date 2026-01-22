@@ -84,6 +84,7 @@ lint.extend-select = [
 ]
 lint.extend-ignore = [
   "RUF045", # dataclass assignment without annotation
+  "RUF067", # non-empty-init-module - intentional for plugin architecture
   "SIM117", # merge stacked with statements
   "SIM118", # replace dict.keys iteration with dictkeys set operations
 ]
