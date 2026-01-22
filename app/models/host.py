@@ -9,7 +9,6 @@ from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import orm
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -44,10 +43,7 @@ DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
     __table_args__ = (
-        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-        Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxorgid", "org_id"),
-        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
@@ -247,7 +243,6 @@ class LimitedHost(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
-    canonical_facts = db.Column(JSONB, default=dict)  # deprecated
 
     # canonical facts
     insights_id = db.Column(UUID(as_uuid=True), nullable=False, default=DEFAULT_INSIGHTS_ID)
