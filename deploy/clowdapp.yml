@@ -2002,7 +2002,7 @@ objects:
           FROM (
             SELECT
               "org_id",
-              "insights_id" AS "id_value",
+              "insights_id"::text AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'insights_id' AS "id_type"
@@ -2010,7 +2010,7 @@ objects:
               "hbi"."hosts"
             WHERE
               "provider_id" IS NULL
-              AND "insights_id" IS NOT NULL
+              AND "insights_id" != '00000000-0000-0000-0000-000000000000'::uuid
             GROUP BY
               "org_id",
               "insights_id",
@@ -2028,7 +2028,7 @@ objects:
               "hbi"."hosts"
             WHERE
               "provider_id" IS NULL
-              AND "insights_id" IS NULL
+              AND "insights_id" = '00000000-0000-0000-0000-000000000000'::uuid
               AND "subscription_manager_id" IS NOT NULL
             GROUP BY
               "org_id",

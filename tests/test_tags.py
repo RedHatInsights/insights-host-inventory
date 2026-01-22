@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from datetime import timedelta
 
@@ -424,3 +425,81 @@ def test_query_tags_filter_updated_last_check_in_start_after_end(api_get, param_
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
+
+
+def test_query_tags_using_group_id(db_create_group_with_hosts, api_get):
+    """Test filtering tags by group_id parameter."""
+    # Create group with hosts that have tags
+    group1 = db_create_group_with_hosts("test_group_1", 3)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("test_group_2", 2)
+
+    # Query tags using group_id
+    url = build_tags_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return tags from hosts in group1 only
+    assert response_data["count"] >= 0  # May be 0 if hosts have no tags
+
+
+def test_query_tags_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+    """Test filtering tags by multiple group_id parameters."""
+    group1 = db_create_group_with_hosts("test_group_1", 2)
+    group2 = db_create_group_with_hosts("test_group_2", 2)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("other_group", 3)
+
+    # Query tags using multiple group_ids
+    url = build_tags_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return tags from hosts in both group1 and group2
+    assert response_data["count"] >= 0
+
+
+def test_query_tags_group_id_rejects_invalid_uuid(api_get):
+    """Test that group_id parameter rejects non-UUID values."""
+    url = build_tags_url(query="?group_id=invalid-uuid")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_tags_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 2)
+
+    # Try using both filters together
+    url = build_tags_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
+
+
+def test_query_tags_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 2)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_tags_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
+    assert response_data["count"] == 0

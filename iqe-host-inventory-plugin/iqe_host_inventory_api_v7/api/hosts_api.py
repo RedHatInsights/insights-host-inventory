@@ -565,6 +565,10 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -622,6 +626,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -668,6 +674,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -732,6 +739,10 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -789,6 +800,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -835,6 +848,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -899,6 +913,10 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
             Field(description="Filters out any host not registered by the specified reporters"),
@@ -956,6 +974,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -1002,6 +1022,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -1034,6 +1055,7 @@ class HostsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        group_id,
         registered_with,
         system_type,
         staleness,
@@ -1050,6 +1072,7 @@ class HostsApi:
 
         _collection_formats: dict[str, str] = {
             "group_name": "multi",
+            "group_id": "multi",
             "registered_with": "multi",
             "system_type": "multi",
             "staleness": "multi",
@@ -1121,6 +1144,9 @@ class HostsApi:
 
         if group_name is not None:
             _query_params.append(("group_name", group_name))
+
+        if group_id is not None:
+            _query_params.append(("group_id", group_id))
 
         if registered_with is not None:
             _query_params.append(("registered_with", registered_with))
@@ -1821,6 +1847,10 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
+        ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -1902,6 +1932,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -1959,6 +1991,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2029,6 +2062,10 @@ class HostsApi:
         ] = None,
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
+        ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
         ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
@@ -2111,6 +2148,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -2168,6 +2207,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2238,6 +2278,10 @@ class HostsApi:
         ] = None,
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
+        ] = None,
+        group_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by group ID (UUID format)"),
         ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
@@ -2320,6 +2364,8 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param group_id: Filter by group ID (UUID format)
+        :type group_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -2377,6 +2423,7 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            group_id=group_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2414,6 +2461,7 @@ class HostsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        group_id,
         branch_id,
         per_page,
         page,
@@ -2435,6 +2483,7 @@ class HostsApi:
 
         _collection_formats: dict[str, str] = {
             "group_name": "multi",
+            "group_id": "multi",
             "staleness": "multi",
             "tags": "multi",
             "registered_with": "multi",
@@ -2509,6 +2558,9 @@ class HostsApi:
 
         if group_name is not None:
             _query_params.append(("group_name", group_name))
+
+        if group_id is not None:
+            _query_params.append(("group_id", group_id))
 
         if branch_id is not None:
             _query_params.append(("branch_id", branch_id))
