@@ -91,20 +91,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:247e54f24116ad6792cfc14b274288383af3ec3433b0547da8a14a8bd6e81950",
-                "sha256:6c9c4dece67bf72d82ba7dff48e33a56a87cdf9b16c8887f88ca7789a95d3317"
+                "sha256:0ba535985f139cf38455efd91f3801fe72e5cce6ded2df5aadfd63177d509675",
+                "sha256:695ac7e62dfde28cc1d3b28a581cce37c53c729d48ea0f4cd0dbf599856850cf"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.29"
+            "version": "==1.42.32"
         },
         "botocore": {
             "hashes": [
-                "sha256:0fe869227a1dfe818f691a31b8c1693e39be8056a6dff5d6d4b3fc5b3a5e7d42",
-                "sha256:b45f8dfc1de5106a9d040c5612f267582e68b2b2c5237477dff85c707c1c5d11"
+                "sha256:4c0a9fe23e060c019e327cd5e4ea1976a1343faba74e5301ebfc9549cc584ccb",
+                "sha256:9c1ce43687cc4c0bba12054b229b3464265c699e2de4723998d86791254a5a37"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.29"
+            "version": "==1.42.32"
         },
         "cachelib": {
             "hashes": [
@@ -643,11 +643,11 @@
         },
         "jmespath": {
             "hashes": [
-                "sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980",
-                "sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe"
+                "sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d",
+                "sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64"
             ],
-            "markers": "python_version >= '3.7'",
-            "version": "==1.0.1"
+            "markers": "python_version >= '3.9'",
+            "version": "==1.1.0"
         },
         "jsonify": {
             "hashes": [
