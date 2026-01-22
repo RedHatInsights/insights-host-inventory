@@ -36,6 +36,7 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/groupIdListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -77,6 +78,7 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/groupIdListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
@@ -375,7 +377,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/tagOrderByParam'
         - $ref: '#/components/parameters/hostOrderHowParam'
         - $ref: '#/components/parameters/searchParam'
       responses:
@@ -403,7 +405,7 @@ paths:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/tagOrderByParam'
         - $ref: '#/components/parameters/hostOrderHowParam'
       responses:
         '200':
@@ -735,6 +737,7 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/groupIdListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
@@ -1150,6 +1153,18 @@ components:
           - operating_system
           - last_check_in
       description: Ordering field name
+    tagOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - display_name
+          - group_name
+          - updated
+          - last_check_in
+      description: Ordering field name
     groupOrderByParam:
       name: order_by
       in: query
@@ -1443,6 +1458,15 @@ components:
         type: array
         items:
           type: string
+    groupIdListParam:
+      in: query
+      name: group_id
+      description: Filter by group ID (UUID format)
+      required: false
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
     groupId:
       in: path
       name: group_id

@@ -123,6 +123,9 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
+        # CRITICAL: Explicitly commit the transaction to persist migration changes.
+        connection.commit()
     finally:
         # Release the lock
         logger.info("Releasing advisory lock...")

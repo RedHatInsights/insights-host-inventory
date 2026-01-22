@@ -25,6 +25,7 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
+from api.validation import check_group_name_and_id
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -84,6 +85,7 @@ def get_host_list(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     tags=None,
     page=1,
     per_page=100,
@@ -100,6 +102,10 @@ def get_host_list(
     host_list = ()
     owner_id = None
     current_identity = get_current_identity()
+
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     has_complex_params = any(
         [
             display_name,
@@ -112,6 +118,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             order_by,
             order_how,
@@ -153,6 +160,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             page,
             per_page,
@@ -197,6 +205,7 @@ def delete_hosts_by_filter(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     registered_with=None,
     system_type=None,
     staleness=None,
@@ -204,6 +213,9 @@ def delete_hosts_by_filter(
     filter=None,
     rbac_filter=None,
 ):
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     if not any(
         [
             display_name,
@@ -218,6 +230,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,
@@ -242,6 +255,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,

@@ -2092,6 +2092,50 @@ def test_delete_bulk_group_name(host_inventory: ApplicationHostInventory, case_i
 
 
 @pytest.mark.ephemeral
+def test_delete_bulk_group_id(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21927
+
+    metadata:
+        requirements: inv-hosts-delete-filtered-hosts, inv-hosts-filter-by-group_id
+        assignee: maarif
+        importance: high
+        title: Delete hosts by group_id
+    """
+    hosts = host_inventory.kafka.create_random_hosts(3)
+    group_name = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name, hosts=hosts[0])
+    host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[1])
+
+    host_inventory.apis.hosts.delete_filtered(group_id=[group.id])
+    host_inventory.apis.hosts.wait_for_deleted(hosts[0])
+    response_hosts = host_inventory.apis.hosts.get_hosts(group_id=[group.id])
+    assert len(response_hosts) == 0
+    host_inventory.apis.hosts.verify_not_deleted(hosts[1:])
+
+
+@pytest.mark.ephemeral
+def test_delete_bulk_with_group_name_and_group_id(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21927
+
+    metadata:
+        requirements: inv-hosts-delete-filtered-hosts, inv-hosts-filter-by-group_name, \
+            inv-hosts-filter-by-group_id, inv-api-validation
+        assignee: maarif
+        importance: high
+        negative: true
+        title: Verify 400 error when both group_name and group_id filters are used \
+            together for delete
+    """
+    group_name = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name)
+
+    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
+        host_inventory.apis.hosts.delete_filtered(group_name=[group_name], group_id=[group.id])
+
+
+@pytest.mark.ephemeral
 def test_delete_bulk_group_name_empty(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-5138

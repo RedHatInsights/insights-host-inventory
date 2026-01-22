@@ -67,6 +67,9 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
             "$ref": "#/components/parameters/branchId"
           },
           {
@@ -158,6 +161,9 @@
           },
           {
             "$ref": "#/components/parameters/groupNameListParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupIdListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -669,7 +675,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/hostOrderByParam"
+            "$ref": "#/components/parameters/tagOrderByParam"
           },
           {
             "$ref": "#/components/parameters/hostOrderHowParam"
@@ -719,7 +725,7 @@
             "$ref": "#/components/parameters/pageParam"
           },
           {
-            "$ref": "#/components/parameters/hostOrderByParam"
+            "$ref": "#/components/parameters/tagOrderByParam"
           },
           {
             "$ref": "#/components/parameters/hostOrderHowParam"
@@ -1261,6 +1267,9 @@
           },
           {
             "$ref": "#/components/parameters/groupNameListParam"
+          },
+          {
+            "$ref": "#/components/parameters/groupIdListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -1912,6 +1921,21 @@
         },
         "description": "Ordering field name"
       },
+      "tagOrderByParam": {
+        "name": "order_by",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "display_name",
+            "group_name",
+            "updated",
+            "last_check_in"
+          ]
+        },
+        "description": "Ordering field name"
+      },
       "groupOrderByParam": {
         "name": "order_by",
         "in": "query",
@@ -2211,6 +2235,18 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      },
+      "groupIdListParam": {
+        "in": "query",
+        "name": "group_id",
+        "description": "Filter by group ID (UUID format)",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
           }
         }
       },

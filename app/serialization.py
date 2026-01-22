@@ -495,7 +495,8 @@ def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
 
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     """
-    Populate legacy workload fields with data from workloads.* for backward compatibility.
+    Populate legacy workload fields with data from workloads.* for backward compatibility,
+    and remove None values from workloads.* to comply with OpenAPI spec.
 
     This ensures subscribers can transition from legacy root-level fields to the new
     workloads structure for SAP, Ansible, InterSystems, MSSQL, and CrowdStrike.
@@ -564,19 +565,24 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
         if not data:
             continue
 
+        # Remove None values from workloads.* to comply with OpenAPI spec
+        none_keys = [k for k, v in data.items() if v is None]
+        for k in none_keys:
+            del data[k]
+
         # ensure nested path exists
         target = system_profile
         for p in cfg["path"]:
             target = target.setdefault(p, {})
 
-        # copy each mapped field
+        # copy each mapped field (skip None values to comply with OpenAPI spec)
         for new_field, out_key in cfg["fields"].items():
-            if new_field in data:
+            if data.get(new_field) is not None:
                 target[out_key] = data[new_field]
 
         # handle any top‐level “flat” mappings
         for new_field, out_key in cfg.get("flat_fields", {}).items():
-            if new_field in data:
+            if data.get(new_field) is not None:
                 system_profile[out_key] = data[new_field]
 
     return system_profile
