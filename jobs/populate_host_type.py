@@ -82,31 +82,20 @@ def _get_hosts_with_null_host_type(session: Session, chunk_size: int, last_host_
     return query.order_by(Host.id).limit(chunk_size).all()
 
 
-def _update_host_type(host: Host, logger: Logger, dry_run: bool = False) -> bool:
+def _update_host_type(host: Host, logger: Logger) -> None:
     """
     Update the host_type column for a single host using _derive_host_type().
 
     Args:
         host: Host object to update
         logger: Logger instance
-        dry_run: If True, only log what would be updated
 
-    Returns:
-        True if the host was updated, False otherwise
+    Raises:
+        Exception: If deriving or setting host_type fails
     """
-    try:
-        derived_type = host._derive_host_type()
-
-        if dry_run:
-            logger.info(f"[DRY RUN] Would update Host {host.id} host_type to '{derived_type}'")
-            return True
-
-        host.host_type = derived_type
-        logger.debug(f"Updated Host {host.id} host_type to '{derived_type}'")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to update Host {host.id}: {e}")
-        return False
+    derived_type = host._derive_host_type()
+    host.host_type = derived_type
+    logger.debug(f"Updated Host {host.id} host_type to '{derived_type}'")
 
 
 def run(config: Config, logger: Logger, session: Session, application: FlaskApp) -> None:
@@ -153,19 +142,22 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
 
             batch_hosts_updated = 0
 
-            with session_guard(session):
+            with session_guard(session, close=False):
                 for host in hosts:
-                    if _update_host_type(host, logger, dry_run):
+                    try:
+                        _update_host_type(host, logger)
                         batch_hosts_updated += 1
+                    except Exception:
+                        logger.exception("Failed to update Host %s", host.id)
 
                 last_host_id = hosts[-1].id
-                session.flush()
 
             total_hosts_processed += len(hosts)
             total_hosts_updated += batch_hosts_updated
 
             logger.info(f"Processed batch of {len(hosts)} hosts, updated {batch_hosts_updated} hosts")
 
+        session.close()
         logger.info(
             f"Job completed. Total hosts processed: {total_hosts_processed}, "
             f"total hosts updated: {total_hosts_updated}"
