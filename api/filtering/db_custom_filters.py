@@ -284,7 +284,12 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         value: str | None
         jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
-        target_field = Host.system_profile_facts[(jsonb_path)].astext
+        # For single-level paths, use ->> operator; for nested paths, use #>> operator
+        # This ensures we match the indexes which use ->> for single-level fields
+        if len(jsonb_path) == 1:
+            target_field = Host.system_profile_facts[jsonb_path[0]].astext
+        else:
+            target_field = Host.system_profile_facts[(jsonb_path)].astext
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
         # Use the default comparator for the field type, if not provided
