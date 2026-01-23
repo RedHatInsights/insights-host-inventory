@@ -10,20 +10,111 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
+from api.host_query import build_paginated_host_list_response
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
+from app.common import inventory_config
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from app.models.schemas import RequiredHostIdListSchema
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
+from lib.middleware import get_rbac_workspace_by_id
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
+
+
+@api_operation
+@access(KesselResourceTypes.HOST.view)
+@metrics.api_request_time.time()
+def get_host_list_by_group(
+    group_id,
+    display_name=None,
+    fqdn=None,
+    hostname_or_id=None,
+    insights_id=None,
+    page=1,
+    per_page=100,
+    order_by=None,
+    order_how=None,
+    staleness=None,
+    tags=None,
+    registered_with=None,
+    filter=None,
+    fields=None,
+    rbac_filter=None,
+):
+    """
+    Get the list of hosts in a specific group.
+
+    Behind feature flag: hbi.api.kessel-groups
+    - If enabled: Validates group via RBAC v2 workspace API
+    - If disabled: Validates group via database
+
+    Args:
+        group_id: UUID of the group/workspace
+        ... (standard host filtering parameters)
+
+    Returns:
+        Paginated list of hosts in the group
+    """
+    identity = get_current_identity()
+    rbac_group_id_check(rbac_filter, {group_id})
+
+    # Validate group exists
+    # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
+    # Otherwise, use database validation
+    if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Validate workspace exists
+        try:
+            get_rbac_workspace_by_id(group_id)
+        except ResourceNotFoundException:
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+    else:
+        # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
+        group = get_group_by_id_from_db(group_id, identity.org_id)
+        if not group:
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+
+    # Import here to avoid circular dependency
+    from lib.host_repository import get_host_list_by_group_id
+
+    # Get hosts from database (regardless of feature flag - host data is in DB)
+    try:
+        host_list, total, additional_fields, system_profile_fields = get_host_list_by_group_id(
+            group_id=group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            tags=tags,
+            page=page,
+            per_page=per_page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            registered_with=registered_with,
+            filter=filter,
+            fields=fields,
+            rbac_filter=rbac_filter,
+        )
+    except ValueError as e:
+        logger.exception(f"Error getting hosts for group {group_id}")
+        abort(HTTPStatus.BAD_REQUEST, str(e))
+
+    # Build and return paginated response
+    json_data = build_paginated_host_list_response(
+        total, page, per_page, host_list, additional_fields, system_profile_fields
+    )
+    return flask_json_response(json_data)
 
 
 @api_operation
