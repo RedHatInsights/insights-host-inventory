@@ -519,7 +519,7 @@ smoke:
   users: &smoke-users
     insights_inventory_qe:
       identity:
-        account_number: &smoke-primary-account "0369233"
+        account_number: &smoke-primary-account "0369234"
         org_id: &smoke-primary-org "3340851"
         type: User
         auth_type: basic-auth
@@ -541,7 +541,7 @@ smoke:
           is_entitled: true
     insights_inventory_qe_2:
       identity:
-        account_number: *smoke-primary-account
+        account_number: "0369235"
         org_id: *smoke-primary-org
         type: User
         auth_type: basic-auth
@@ -657,7 +657,7 @@ ephemeral:
     inventory_ui_account:
       attributes:
         type: User
-        account_number: "0369233"
+        account_number: "0369234"
         email: "inventory_ui_account@acme.com"
         first_name: "John"
         last_name: "Doe"
@@ -667,7 +667,7 @@ ephemeral:
         locale: "en_US"
       identity:
         org_id: "3340851"
-        account_number: "0369233"
+        account_number: "0369234"
       auth:
         jwt_grant_type: password
         username: "ephemeral-user"
