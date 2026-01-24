@@ -394,12 +394,38 @@ def test_get_hosts_from_empty_group(db_create_group, api_get_hosts_from_group):
     assert len(response_data["results"]) == 0
 
 
-def test_get_hosts_from_missing_group(api_get_hosts_from_group):
-    """Test getting hosts from a group that doesn't exist - should return 404"""
+@pytest.mark.parametrize(
+    "bypass_kessel,flag_enabled,expect_rbac_call",
+    [
+        (True, False, False),  # Default path (no mocking needed)
+        (False, True, True),  # Kessel enabled, should call RBAC API
+        (False, False, False),  # Kessel disabled, should use DB
+    ],
+    ids=["default", "kessel_enabled", "kessel_disabled"],
+)
+def test_get_hosts_from_missing_group(mocker, api_get_hosts_from_group, bypass_kessel, flag_enabled, expect_rbac_call):
+    """Test 404 error for nonexistent group across different feature flag states"""
     missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
+
+    # Mock configuration only when not using default path
+    if not bypass_kessel or flag_enabled:
+        mock_config = mocker.patch("api.host_group.inventory_config")
+        mock_config.return_value.bypass_kessel = bypass_kessel
+        mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+
+        # Mock RBAC workspace API when Kessel is enabled
+        if expect_rbac_call:
+            from app.exceptions import ResourceNotFoundException
+
+            mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
+            mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
 
     response_status, response_data = api_get_hosts_from_group(missing_group_id)
     assert response_status == 404
+
+    # Verify RBAC API was called when expected
+    if expect_rbac_call:
+        mock_get_workspace.assert_called_once_with(missing_group_id)
 
 
 def test_get_hosts_from_group_with_pagination(
@@ -502,6 +528,37 @@ def test_get_hosts_from_group_with_ordering(
         assert response_data["results"][idx]["display_name"] == expected_name
 
 
+@pytest.mark.parametrize(
+    "order_param,param_value,expected_error_text",
+    [
+        ("order_by", "invalid_field", "invalid_field"),
+        ("order_how", "SIDEWAYS", "sideways"),
+    ],
+    ids=["invalid_order_by", "invalid_order_how"],
+)
+def test_get_hosts_from_group_invalid_ordering(
+    db_create_group,
+    db_create_host,
+    db_create_host_group_assoc,
+    api_get_hosts_from_group,
+    order_param,
+    param_value,
+    expected_error_text,
+):
+    """Test 400 error for invalid ordering parameters"""
+    group_id = db_create_group("test_group").id
+    host_id = db_create_host().id
+    db_create_host_group_assoc(host_id, group_id)
+
+    # Build query parameters with one invalid value
+    query_params = {"order_by": "display_name", "order_how": "ASC"}
+    query_params[order_param] = param_value
+
+    response_status, response_data = api_get_hosts_from_group(group_id, query_parameters=query_params)
+    assert response_status == 400
+    assert expected_error_text in response_data["detail"].lower()
+
+
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_hosts_from_group_RBAC_denied(subtests, mocker, db_create_group, api_get_hosts_from_group):
     """Test that RBAC denies access when user lacks read permissions"""
@@ -519,93 +576,38 @@ def test_get_hosts_from_group_RBAC_denied(subtests, mocker, db_create_group, api
             assert_response_status(response_status, 403)
 
 
-def test_get_hosts_from_group_with_kessel_groups_flag_enabled(
-    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group
+@pytest.mark.parametrize(
+    "flag_enabled",
+    [True, False],
+    ids=["kessel_enabled", "kessel_disabled"],
+)
+def test_get_hosts_from_group_with_kessel_feature_flag(
+    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group, flag_enabled
 ):
-    """Test endpoint with bypass_kessel=False and FLAG_INVENTORY_KESSEL_GROUPS=True (RBAC v2 path)"""
+    """Test successful host retrieval with different Kessel feature flag states"""
     # Create a group and host
     group_id = db_create_group("test_group").id
     host = db_create_host()
     db_create_host_group_assoc(host.id, group_id)
 
-    # Mock bypass_kessel=False and flag=True to test RBAC v2 workspace validation path
+    # Mock bypass_kessel=False and flag=flag_enabled
     mock_config = mocker.patch("api.host_group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
 
-    # Mock the RBAC workspace API to return a valid workspace
-    mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-    mock_get_workspace.return_value = {"id": str(group_id), "name": "test_group"}
+    if flag_enabled:
+        # Mock the RBAC workspace API to return a valid workspace
+        mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
+        mock_get_workspace.return_value = {"id": str(group_id), "name": "test_group"}
 
     # Call the endpoint
     response_status, response_data = api_get_hosts_from_group(group_id)
 
-    # Verify RBAC v2 workspace validation was called
-    mock_get_workspace.assert_called_once_with(str(group_id))
+    # Verify RBAC v2 workspace validation was called if enabled
+    if flag_enabled:
+        mock_get_workspace.assert_called_once_with(str(group_id))
 
     # Verify response
     assert response_status == 200
     assert response_data["total"] == 1
     assert len(response_data["results"]) == 1
-
-
-def test_get_hosts_from_missing_group_with_kessel_groups_flag_enabled(mocker, api_get_hosts_from_group):
-    """Test 404 error with bypass_kessel=False and FLAG_INVENTORY_KESSEL_GROUPS=True"""
-    missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
-
-    # Mock bypass_kessel=False and flag=True
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
-    # Mock RBAC workspace API to raise ResourceNotFoundException
-    from app.exceptions import ResourceNotFoundException
-
-    mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-    mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
-
-    # Call the endpoint
-    response_status, response_data = api_get_hosts_from_group(missing_group_id)
-
-    # Verify RBAC v2 was called and 404 was returned
-    mock_get_workspace.assert_called_once_with(missing_group_id)
-    assert response_status == 404
-
-
-def test_get_hosts_from_group_with_kessel_groups_flag_disabled(
-    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group
-):
-    """Test endpoint with bypass_kessel=False and FLAG_INVENTORY_KESSEL_GROUPS=False (DB path)"""
-    # Create a group and host
-    group_id = db_create_group("test_group").id
-    host = db_create_host()
-    db_create_host_group_assoc(host.id, group_id)
-
-    # Mock bypass_kessel=False and flag=False to test database validation path
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=False)
-
-    # Call the endpoint
-    response_status, response_data = api_get_hosts_from_group(group_id)
-
-    # Verify response (should use database path)
-    assert response_status == 200
-    assert response_data["total"] == 1
-    assert len(response_data["results"]) == 1
-
-
-def test_get_hosts_from_missing_group_with_kessel_groups_flag_disabled(mocker, api_get_hosts_from_group):
-    """Test 404 error with bypass_kessel=False and FLAG_INVENTORY_KESSEL_GROUPS=False"""
-    missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
-
-    # Mock bypass_kessel=False and flag=False
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=False)
-
-    # Call the endpoint
-    response_status, response_data = api_get_hosts_from_group(missing_group_id)
-
-    # Verify 404 was returned via database check
-    assert response_status == 404

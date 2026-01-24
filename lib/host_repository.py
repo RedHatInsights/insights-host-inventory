@@ -46,7 +46,6 @@ __all__ = (
     "find_non_culled_hosts",
     "update_existing_host",
     "host_query",
-    "get_host_list_by_group_id",
 )
 
 AddHostResult = Enum("AddHostResult", ("created", "updated"))
@@ -417,8 +416,3 @@ def host_query(
     org_id: str,
 ) -> Query:
     return Host.query.filter(Host.org_id == org_id)
-
-
-# Import at end of file to avoid circular dependency
-# Re-export for use in api.host_group module
-from api.host_query_db import get_host_list_by_group_id  # noqa: E402, F401

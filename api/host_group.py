@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import UUID
 
 from flask import Response
 from flask import abort
@@ -11,6 +12,7 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.host_query import build_paginated_host_list_response
+from api.host_query_db import get_host_list_by_group_id
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
@@ -36,7 +38,7 @@ logger = get_logger(__name__)
 @access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_host_list_by_group(
-    group_id,
+    group_id: UUID,
     display_name=None,
     fqdn=None,
     hostname_or_id=None,
@@ -60,14 +62,18 @@ def get_host_list_by_group(
     - If disabled: Validates group via database
 
     Args:
-        group_id: UUID of the group/workspace
+        group_id: UUID of the group/workspace (validated by OpenAPI schema)
         ... (standard host filtering parameters)
 
     Returns:
         Paginated list of hosts in the group
+
+    Note:
+        The group_id is automatically validated by Connexion via the OpenAPI
+        schema (NonStrictUUID), so no manual validation is needed.
     """
     identity = get_current_identity()
-    rbac_group_id_check(rbac_filter, {group_id})
+    rbac_group_id_check(rbac_filter, {str(group_id)})
 
     # Validate group exists
     # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
@@ -75,22 +81,19 @@ def get_host_list_by_group(
     if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace exists
         try:
-            get_rbac_workspace_by_id(group_id)
+            get_rbac_workspace_by_id(str(group_id))
         except ResourceNotFoundException:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
         # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
-        group = get_group_by_id_from_db(group_id, identity.org_id)
+        group = get_group_by_id_from_db(str(group_id), identity.org_id)
         if not group:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
-
-    # Import here to avoid circular dependency
-    from lib.host_repository import get_host_list_by_group_id
 
     # Get hosts from database (regardless of feature flag - host data is in DB)
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_group_id(
-            group_id=group_id,
+            group_id=str(group_id),
             display_name=display_name,
             fqdn=fqdn,
             hostname_or_id=hostname_or_id,
@@ -125,7 +128,7 @@ def get_host_list_by_group(
 # (V1 doesn't require any host permissions to move a host but does require write group permission on the origin
 # and destination, which this preserves)
 @metrics.api_request_time.time()
-def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
+def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data
     try:
         validated_data = RequiredHostIdListSchema().load({"host_ids": host_id_list})
@@ -134,24 +137,24 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
         logger.exception(f"Input validation error while adding hosts to group: {host_id_list}")
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
-    rbac_group_id_check(rbac_filter, {group_id})
+    rbac_group_id_check(rbac_filter, {str(group_id)})
     identity = get_current_identity()
 
-    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
+    group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
 
     if not group_to_update:
-        log_patch_group_failed(logger, group_id)
-        return abort(HTTPStatus.NOT_FOUND)
+        log_patch_group_failed(logger, str(group_id))
+        return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
     if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
 
     # Next, add the host-group associations
     if host_id_list is not None:
-        add_hosts_to_group(group_id, host_id_list, identity, current_app.event_producer)
+        add_hosts_to_group(str(group_id), host_id_list, identity, current_app.event_producer)
 
-    updated_group = get_group_by_id_from_db(group_id, identity.org_id)
-    log_host_group_add_succeeded(logger, host_id_list, group_id)
+    updated_group = get_group_by_id_from_db(str(group_id), identity.org_id)
+    log_host_group_add_succeeded(logger, host_id_list, str(group_id))
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 
 
@@ -163,7 +166,7 @@ def add_host_list_to_group(group_id, host_id_list, rbac_filter=None):
 # (V1 doesn't require any host permissions to move a host but does require write group permission on the
 # origin and destination, which this preserves)
 @metrics.api_request_time.time()
-def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
+def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data
     try:
         validated_data = RequiredHostIdListSchema().load({"host_ids": host_id_list})
@@ -172,15 +175,15 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
         logger.exception(f"Input validation error while removing hosts from group: {host_id_list}")
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
-    rbac_group_id_check(rbac_filter, {group_id})
+    rbac_group_id_check(rbac_filter, {str(group_id)})
     identity = get_current_identity()
-    if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
-        abort(HTTPStatus.NOT_FOUND, "Group not found.")
+    if (group := get_group_by_id_from_db(str(group_id), identity.org_id)) is None:
+        abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
     if group.ungrouped is True:
         abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
-    if remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer) == 0:
-        abort(HTTPStatus.NOT_FOUND, "Hosts not found.")
+    if remove_hosts_from_group(str(group_id), host_id_list, identity, current_app.event_producer) == 0:
+        abort(HTTPStatus.NOT_FOUND, "Hosts not found")
 
     return Response(None, HTTPStatus.NO_CONTENT)
