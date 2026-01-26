@@ -193,23 +193,46 @@ def drop_partitioned_table_index(
         logger.info(f"Successfully dropped index '{index_name}' from parent table")
 
     else:
-        # For managed mode (stage, production), drop the parent index.
-        # PostgreSQL automatically cascades the drop to all partition indexes.
+        # For managed mode (stage, production), we need to handle two scenarios:
         #
-        # Note: DROP INDEX CONCURRENTLY cannot be used on partitioned tables
-        # (PostgreSQL limitation), so we must use regular DROP INDEX which
-        # acquires ACCESS EXCLUSIVE lock. This is unavoidable for partitioned indexes.
+        # 1. Normal case: Parent index exists with attached partition indexes.
+        #    Dropping the parent automatically cascades to all attached partitions.
+        #
+        # 2. Failed creation case: A previous index creation failed mid-way, leaving
+        #    orphaned partition indexes (not attached to any parent). These must be
+        #    cleaned up explicitly.
+        #
+        # Note: DROP INDEX CONCURRENTLY cannot be used on partitioned tables or their
+        # attached indexes (PostgreSQL limitation).
         if_exists_clause = "IF EXISTS" if if_exists else ""
 
         try:
+            # Step 1: Drop the parent index (if it exists).
+            # This cascades to all attached partition indexes.
             logger.info(f"Dropping index '{index_name}' from parent table '{schema}.{table_name}'")
-            logger.info("(Partition indexes will be dropped automatically by PostgreSQL)")
 
             op.execute(
                 text(f"""
                     DROP INDEX {if_exists_clause} {schema}.{index_name};
                 """)
             )
+
+            # Step 2: Clean up any orphaned partition indexes from failed creations.
+            # These are partition indexes that were created but never attached to a parent
+            # (e.g., if create_partitioned_table_index failed after creating some partition
+            # indexes but before creating the parent index).
+            logger.info(f"Cleaning up any orphaned partition indexes from {num_partitions} partitions...")
+
+            for i in range(num_partitions):
+                partition_index_name = f"{table_name}_p{i}_{index_name}"
+
+                # Use IF EXISTS since most/all partition indexes will already be gone
+                # (dropped by the cascade from the parent index drop above).
+                op.execute(
+                    text(f"""
+                        DROP INDEX {if_exists_clause} {schema}.{partition_index_name};
+                    """)
+                )
 
             logger.info(f"Successfully dropped index '{index_name}' from parent table and all partitions")
 
