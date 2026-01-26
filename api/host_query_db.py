@@ -219,8 +219,8 @@ def get_host_list_by_group_id(
     """
     Get a paginated list of hosts that belong to a specific group.
 
-    This function queries hosts with all standard filtering capabilities,
-    but restricts results to hosts associated with the specified group_id.
+    This is a convenience wrapper around get_host_list() that accepts
+    a single group_id string instead of a list.
 
     Args:
         group_id: UUID of the group to filter by
@@ -242,11 +242,9 @@ def get_host_list_by_group_id(
     Returns:
         Tuple of (host_list, total_count, additional_fields, system_profile_fields)
     """
-    # Use the standard query_filters function with group_ids parameter
-    # This automatically adds the necessary joins and filters for the group
-    all_filters, query_base = query_filters(
-        fqdn=fqdn,
+    return get_host_list(
         display_name=display_name,
+        fqdn=fqdn,
         hostname_or_id=hostname_or_id,
         insights_id=insights_id,
         subscription_manager_id=None,
@@ -257,18 +255,19 @@ def get_host_list_by_group_id(
         last_check_in_start=None,
         last_check_in_end=None,
         group_name=None,
-        group_ids=[group_id],  # Pass group_id as a list to use existing filtering logic
+        group_id=[group_id],  # Convert single ID to list
         tags=tags,
+        page=page,
+        per_page=per_page,
+        param_order_by=order_by,
+        param_order_how=order_how,
         staleness=staleness,
         registered_with=registered_with,
         system_type=None,
         filter=filter,
+        fields=fields,
         rbac_filter=rbac_filter,
-        order_by=order_by,
-        identity=get_current_identity(),
     )
-
-    return _get_host_list_using_filters(query_base, all_filters, page, per_page, order_by, order_how, fields)
 
 
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None:

@@ -395,37 +395,52 @@ def test_get_hosts_from_empty_group(db_create_group, api_get_hosts_from_group):
 
 
 @pytest.mark.parametrize(
-    "bypass_kessel,flag_enabled,expect_rbac_call",
+    "bypass_kessel,flag_enabled,expect_rbac_call,expect_db_call",
     [
-        (True, False, False),  # Default path (no mocking needed)
-        (False, True, True),  # Kessel enabled, should call RBAC API
-        (False, False, False),  # Kessel disabled, should use DB
+        (True, False, False, True),  # Kessel bypassed, should use DB
+        (False, True, True, False),  # Kessel enabled, should call RBAC API
+        (False, False, False, True),  # Kessel disabled, should use DB
     ],
-    ids=["default", "kessel_enabled", "kessel_disabled"],
+    ids=["bypass_kessel", "kessel_enabled", "kessel_disabled"],
 )
-def test_get_hosts_from_missing_group(mocker, api_get_hosts_from_group, bypass_kessel, flag_enabled, expect_rbac_call):
+def test_get_hosts_from_missing_group(
+    mocker, api_get_hosts_from_group, bypass_kessel, flag_enabled, expect_rbac_call, expect_db_call
+):
     """Test 404 error for nonexistent group across different feature flag states"""
     missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
 
-    # Mock configuration only when not using default path
-    if not bypass_kessel or flag_enabled:
-        mock_config = mocker.patch("api.host_group.inventory_config")
-        mock_config.return_value.bypass_kessel = bypass_kessel
-        mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+    # Always mock configuration to make test deterministic
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = bypass_kessel
+    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
 
-        # Mock RBAC workspace API when Kessel is enabled
-        if expect_rbac_call:
-            from app.exceptions import ResourceNotFoundException
+    # Mock RBAC workspace API for Kessel-enabled path
+    if expect_rbac_call:
+        from app.exceptions import ResourceNotFoundException
 
-            mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-            mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
+        mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
+        mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
+
+    # Mock database call for non-Kessel paths
+    if expect_db_call:
+        mock_get_group_db = mocker.patch("api.host_group.get_group_by_id_from_db")
+        mock_get_group_db.return_value = None  # Group not found
 
     response_status, response_data = api_get_hosts_from_group(missing_group_id)
     assert response_status == 404
 
-    # Verify RBAC API was called when expected
+    # Verify correct code path was taken
     if expect_rbac_call:
         mock_get_workspace.assert_called_once_with(missing_group_id)
+        # DB should NOT be called when RBAC v2 is used
+        if "mock_get_group_db" in locals():
+            mock_get_group_db.assert_not_called()
+
+    if expect_db_call:
+        mock_get_group_db.assert_called_once_with(missing_group_id, mocker.ANY)
+        # RBAC API should NOT be called when DB is used
+        if "mock_get_workspace" in locals():
+            mock_get_workspace.assert_not_called()
 
 
 def test_get_hosts_from_group_with_pagination(
