@@ -226,8 +226,6 @@ def drop_partitioned_table_index(
             for i in range(num_partitions):
                 partition_index_name = f"{table_name}_p{i}_{index_name}"
 
-                # Use IF EXISTS since most/all partition indexes will already be gone
-                # (dropped by the cascade from the parent index drop above).
                 op.execute(
                     text(f"""
                         DROP INDEX {if_exists_clause} {schema}.{partition_index_name};
