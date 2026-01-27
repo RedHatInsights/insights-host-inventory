@@ -113,6 +113,10 @@ inv-hosts-filter-by-group_name:
     FE: I should be able to filter hosts by "Workspace" filter.
   priority: critical
 
+inv-hosts-filter-by-group_id:
+  summary: Filter hosts by the ID of the group it is associated with
+  priority: critical
+
 inv-hosts-get-by-sp-scalar-fields:
   summary: Filter hosts by system_profile scalar fields
   description: >
