@@ -34,6 +34,9 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from app.serialization import serialize_workspace_with_host_count
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -46,8 +49,10 @@ from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import get_non_culled_hosts_count_by_group_id
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -295,19 +300,54 @@ def get_groups_by_id(
 ):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    try:
-        group_list, total = get_group_list_by_id_list_db(
-            group_id_list, page, per_page, order_by, order_how, rbac_filter
-        )
-        if total != len(set(group_id_list)):
+    # Feature flag check for RBAC v2 integration
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Fetch workspaces from RBAC v2 API
+        try:
+            workspaces = get_rbac_workspaces_by_ids(group_id_list)
+
+            # Serialize workspaces to group format (already serialized as dicts)
+            identity = get_current_identity()
+            group_list = [
+                serialize_workspace_with_host_count(
+                    workspace,
+                    identity.org_id,
+                    get_non_culled_hosts_count_by_group_id(workspace["id"], identity.org_id),
+                )
+                for workspace in workspaces
+            ]
+
+            total = len(group_list)
+
+            if total != len(set(group_id_list)):
+                abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+
+        except ResourceNotFoundException:
+            log_get_group_list_failed(logger)
             abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
-    except ValueError as e:
-        log_get_group_list_failed(logger)
-        abort(400, str(e))
+        except ValueError as e:
+            log_get_group_list_failed(logger)
+            abort(400, str(e))
 
-    log_get_group_list_succeeded(logger, group_list)
+        log_get_group_list_succeeded(logger, group_list)
+        # group_list is already serialized, so build response directly
+        return flask_json_response(
+            {"total": total, "count": len(group_list), "page": page, "per_page": per_page, "results": group_list}
+        )
+    else:
+        # RBAC v1 path: Use database queries (existing implementation)
+        try:
+            group_list, total = get_group_list_by_id_list_db(
+                group_id_list, page, per_page, order_by, order_how, rbac_filter
+            )
+            if total != len(set(group_id_list)):
+                abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+        except ValueError as e:
+            log_get_group_list_failed(logger)
+            abort(400, str(e))
 
-    return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
+        log_get_group_list_succeeded(logger, group_list)
+        return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
 
 
 @api_operation

@@ -400,15 +400,42 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+def get_non_culled_hosts_count_by_group_id(group_id: str, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group by group ID.
+
+    This is a convenience function for when you have a group_id string
+    (e.g., from RBAC v2 workspace) and don't want to fetch the Group object.
+
+    Args:
+        group_id: UUID of the group/workspace as string
+        org_id: Organization ID
+
+    Returns:
+        int: Count of non-culled hosts in the group
+    """
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
 
     return find_non_culled_hosts(query).count()
+
+
+def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group.
+
+    Args:
+        group: Group object
+        org_id: Organization ID
+
+    Returns:
+        int: Count of non-culled hosts in the group
+    """
+    return get_non_culled_hosts_count_by_group_id(str(group.id), org_id)
 
 
 # Ensures that the query is filtered by org_id

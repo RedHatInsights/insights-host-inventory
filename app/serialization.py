@@ -268,6 +268,72 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
+def serialize_workspace_without_host_count(workspace: dict, org_id: str) -> dict:
+    """
+    Serialize a workspace object from RBAC v2 API to group format.
+
+    Transforms workspace dict to match the group schema expected by the API,
+    handling field mappings and injecting missing fields.
+
+    Field Mappings:
+    - id: Direct copy (UUID)
+    - name: Direct copy (string)
+    - org_id: Injected from identity (not in workspace response)
+    - account: Injected from identity (not in workspace response)
+    - ungrouped: Derived from workspace "type" field ("ungrouped-hosts" -> True)
+    - created: Direct copy (datetime)
+    - updated: Renamed from workspace "modified" field
+    - parent_id: Included if present (extra field)
+    - description: Included if present (extra field)
+    - type: Included if present (extra field)
+
+    Args:
+        workspace: Workspace dict from RBAC v2 API
+        org_id: Organization ID from current identity
+
+    Returns:
+        dict: Serialized workspace in group format
+    """
+    from app.auth import get_current_identity
+
+    identity = get_current_identity()
+
+    serialized = {
+        "id": workspace["id"],
+        "name": workspace["name"],
+        "org_id": org_id,
+        "account": identity.account_number,
+        "ungrouped": workspace.get("type") == "ungrouped-hosts",
+        "created": workspace["created"],
+        "updated": workspace.get("modified", workspace["created"]),  # Rename "modified" -> "updated"
+    }
+
+    # Include extra workspace-specific fields if present
+    if "parent_id" in workspace:
+        serialized["parent_id"] = workspace["parent_id"]
+    if "description" in workspace:
+        serialized["description"] = workspace["description"]
+    if "type" in workspace:
+        serialized["type"] = workspace["type"]
+
+    return serialized
+
+
+def serialize_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize a workspace object with host count.
+
+    Args:
+        workspace: Workspace dict from RBAC v2 API
+        org_id: Organization ID from current identity
+        host_count: Number of non-culled hosts in this workspace
+
+    Returns:
+        dict: Serialized workspace with host_count field
+    """
+    return {**serialize_workspace_without_host_count(workspace, org_id), "host_count": host_count}
+
+
 def serialize_host_system_profile(host):
     return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 
