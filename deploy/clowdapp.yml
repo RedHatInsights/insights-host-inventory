@@ -1933,7 +1933,6 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_HOST_APP_DATA_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS}}
-
 # This CJI runs the DB migrations each time we deploy a new image.
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
