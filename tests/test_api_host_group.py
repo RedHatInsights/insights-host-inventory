@@ -350,3 +350,151 @@ def test_add_host_list_with_duplicate_host_ids(db_create_group, api_add_hosts_to
     response_status, response_data = api_add_hosts_to_group(group_id, host_ids)
     assert response_status == 400
     assert "Host IDs must be unique." in response_data["detail"]
+
+
+# RBAC v2 Integration Tests (RHINENG-17399)
+
+
+def test_add_hosts_to_group_rbac_v2_workspace_validation_success(
+    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
+):
+    """
+    Test that POST /groups/{group_id}/hosts validates workspace via RBAC v2
+    when feature flag is enabled and workspace exists.
+
+    JIRA: RHINENG-17399
+    """
+    # Mock event producer to avoid errors
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create group and hosts in database
+    group = db_create_group("test_group")
+    host1 = db_create_host()
+    host2 = db_create_host()
+
+    # Save IDs before session closes
+    group_id = group.id
+    host1_id = host1.id
+    host2_id = host2.id
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return workspace
+    mock_workspace = {"id": str(group_id), "name": "test_group", "org_id": "12345", "type": "standard"}
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=mock_workspace)
+
+    # Call endpoint
+    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
+
+    # Verify success
+    assert response_status == 200
+    assert response_data["id"] == str(group_id)
+    assert response_data["name"] == "test_group"
+
+
+def test_add_hosts_to_group_rbac_v2_workspace_not_found(
+    mocker, event_producer, db_create_host, api_add_hosts_to_group
+):
+    """
+    Test that POST /groups/{group_id}/hosts returns 404 when RBAC v2
+    workspace is not found.
+
+    JIRA: RHINENG-17399
+    """
+    # Mock event producer to avoid errors
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create hosts but no group
+    host1 = db_create_host()
+    host2 = db_create_host()
+    group_id = generate_uuid()
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return None (not found)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+
+    # Call endpoint
+    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1.id), str(host2.id)])
+
+    # Verify 404 error
+    assert response_status == 404
+    assert "not found" in response_data["detail"].lower()
+
+
+def test_add_hosts_to_group_feature_flag_disabled(
+    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
+):
+    """
+    Test that POST /groups/{group_id}/hosts uses database validation
+    when feature flag is disabled (RBAC v1 path).
+
+    JIRA: RHINENG-17399
+    """
+    # Mock event producer to avoid errors
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create group and hosts in database
+    group = db_create_group("test_group")
+    host1 = db_create_host()
+    host2 = db_create_host()
+
+    # Save IDs before session closes
+    group_id = group.id
+    host1_id = host1.id
+    host2_id = host2.id
+
+    # Mock feature flag disabled (RBAC v1 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=False)
+
+    # Call endpoint - should use database validation, NOT workspace fetch
+    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
+
+    # Verify success using database path
+    assert response_status == 200
+    assert response_data["id"] == str(group_id)
+    assert response_data["name"] == "test_group"
+
+
+def test_add_hosts_to_group_rbac_v2_bypass_kessel_enabled(
+    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
+):
+    """
+    Test that POST /groups/{group_id}/hosts uses database path when
+    bypass_kessel is enabled (even if feature flag is enabled).
+
+    JIRA: RHINENG-17399
+    """
+    # Mock event producer to avoid errors
+    mocker.patch.object(event_producer, "write_event")
+
+    # Create group and hosts
+    group = db_create_group("test_group")
+    host1 = db_create_host()
+    host2 = db_create_host()
+
+    # Save IDs before session closes
+    group_id = group.id
+    host1_id = host1.id
+    host2_id = host2.id
+
+    # Mock bypass_kessel enabled (should use database path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = True  # This takes precedence
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Call endpoint - should use database validation despite feature flag
+    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
+
+    # Verify success using database path
+    assert response_status == 200
+    assert response_data["id"] == str(group_id)
+    assert response_data["name"] == "test_group"
