@@ -103,7 +103,20 @@ objects:
     appName: host-inventory
     jobs:
       - populate-host-type
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: run-db-migrations-${IMAGE_TAG}
+  spec:
+    appName: host-inventory
+    jobs:
+      - run-db-migrations
 parameters:
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
 - name: SYNCHRONIZER_ONLY_RUN_NUMBER
