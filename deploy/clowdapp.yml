@@ -1900,6 +1900,10 @@ objects:
             value: "true"
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
