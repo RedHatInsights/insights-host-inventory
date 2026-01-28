@@ -16,10 +16,10 @@ from api.metrics import outbound_http_response_time
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.instrumentation import pendo_failure
-from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from jobs.common import excepthook
 from lib.db import session_guard
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
@@ -53,10 +53,6 @@ def _init_db(config):
 
 def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
-
-
-def _excepthook(logger, exc_type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("Pendo Syncher failed", exc_info=(exc_type, value, traceback))
 
 
 def _process_response(pendo_response, logger):
@@ -145,10 +141,9 @@ def main(logger):
 
 
 if __name__ == "__main__":
-    configure_logging()
-
     logger = get_logger(LOGGER_NAME)
-    sys.excepthook = partial(_excepthook, logger)
+    job_type = "Pendo Syncher"
+    sys.excepthook = partial(excepthook, logger, job_type)
 
     threadctx.request_id = None
     main(logger)
