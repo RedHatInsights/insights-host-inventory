@@ -107,6 +107,8 @@ services:
       depends_on:
         db:
           condition: service_healthy
+      security_opt:
+        - label=disable
 
     prometheus-gateway:
       container_name: prometheus_gateway
@@ -180,6 +182,8 @@ services:
       volumes:
         - .:/opt/app-root/src
       command: python3 dev_server.py
+      security_opt:
+        - label=disable
 
     hbi-mq:
       container_name: hbi-mq
@@ -202,3 +206,5 @@ services:
       volumes:
         - .:/opt/app-root/src
       command: python3 inv_mq_service.py
+      security_opt:
+        - label=disable
