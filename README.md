@@ -30,7 +30,7 @@ please see the
 - [Database migrations](#database-migrations)
 - [Docker builds](#docker-builds)
 - [Metrics](#metrics)
-- [Documentation] (#documentation)
+- [Documentation](#documentation)
 - [Release process](#release-process)
     - [Pull request](#1-pull-request)
     - [Latest image and smoke tests](#2-latest-image-and-smoke-tests)
@@ -467,7 +467,10 @@ Generate new migration scripts with:
 make migrate_db message="Description of your changes"
 ```
 
+### Running Database Migrations
 
+In managed environments, the database migrations are run by the `run-db-migrations` job.
+This job runs once per release, as its name contains the image tag (`run-db-migrations-<IMAGE_TAG>).
 
 ## Docker Builds
 
