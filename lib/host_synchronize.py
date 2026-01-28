@@ -6,6 +6,7 @@ from app.logging import get_logger
 from app.models import Host
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import serialize_group_without_host_count
 from app.serialization import serialize_host
@@ -64,13 +65,14 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
 
             serialized_host = serialize_host(host, Timestamps.from_config(config), staleness=staleness)
             event = build_event(EventType.updated, serialized_host)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
             headers = message_headers(
                 EventType.updated,
                 str(host.insights_id),
                 host.reporter,
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                host_type,
+                os_name,
+                bootc_booted,
             )
             # in case of a failed update event, event_producer logs the message.
             # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856

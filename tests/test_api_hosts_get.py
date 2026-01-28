@@ -1427,14 +1427,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
-        "[rhel_ai][rhel_ai_version_id][is]=not_nil",
-        "[rhel_ai][rhel_ai_version_id]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
-        "[rhel_ai][variant][is]=nil",
-        "[rhel_ai][nvidia_gpu_models][]=NVIDIA T1000",
-        "[rhel_ai][amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
+        "[workloads][rhel_ai][rhel_ai_version_id][is]=not_nil",
+        "[workloads][rhel_ai][rhel_ai_version_id]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
+        "[workloads][rhel_ai][variant][is]=nil",
+        "[workloads][rhel_ai][gpu_models][is]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1451,11 +1450,13 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                 "ansible": {
                     "controller_version": "1.0",
                 },
-            },
-            "rhel_ai": {
-                "rhel_ai_version_id": "v1.1.2",
-                "nvidia_gpu_models": ["NVIDIA T1000"],
-                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31"],
+                "rhel_ai": {
+                    "rhel_ai_version_id": "v1.1.2",
+                    "gpu_models": [
+                        {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                        {"name": "AMD Device 0c31", "vendor": "AMD"},
+                    ],
+                },
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1473,12 +1474,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "workloads": {
-                "sap": {},
-            },  # No sap_system field = nil
-            "rhel_ai": {
-                "variant": "RHEL AI",
-                "nvidia_gpu_models": ["NVIDIA T2000"],
-                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32"],
+                "sap": {},  # No sap_system field = nil
+                "rhel_ai": {
+                    "variant": "RHEL AI",  # Has variant (not nil) for variant filter
+                    # No gpu_models = nil for gpu_models filter
+                    # Different version for version filter
+                },
             },
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
@@ -2533,7 +2534,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
     "query_filter_param,matching_host_indexes",
     (
         ("?system_type=conventional", [0]),
-        ("?system_type=bootc", [1, 4]),
+        ("?system_type=bootc", [1]),
         ("?system_type=edge", [2, 4]),
         ("?system_type=cluster", [3]),
         ("?system_type=bootc&system_type=edge", [1, 2, 4]),

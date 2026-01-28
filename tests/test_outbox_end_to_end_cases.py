@@ -257,22 +257,23 @@ class TestOutboxE2ECases:
         # The error should be caught during schema validation
         assert "OutboxSaveException" in str(type(exc_info.value))
 
-    @patch("lib.outbox_repository.OutboxSchema")
-    def test_schema_validation_error(self, mock_schema, db_create_host, db_get_host):
+    def test_schema_validation_error(self, db_create_host, db_get_host):
         """Test error handling for schema validation failures."""
-        # Mock schema to raise validation error
-        mock_schema_instance = Mock()
-        mock_schema_instance.load.side_effect = MarshmallowValidationError("Invalid data")
-        mock_schema.return_value = mock_schema_instance
-
+        # Create host first (before mocking) to avoid interference with automatic outbox events
         created_host = db_create_host(SYSTEM_IDENTITY)
         host_id = str(created_host.id)
         host = db_get_host(created_host.id)
 
-        with pytest.raises(OutboxSaveException) as exc_info:
-            write_event_to_outbox(EventType.created, host_id, host)
+        # Now mock the schema to raise validation error for the explicit call
+        with patch("lib.outbox_repository.OutboxSchema") as mock_schema:
+            mock_schema_instance = Mock()
+            mock_schema_instance.load.side_effect = MarshmallowValidationError("Invalid data")
+            mock_schema.return_value = mock_schema_instance
 
-        assert "Invalid host or event was provided" in str(exc_info.value)
+            with pytest.raises(OutboxSaveException) as exc_info:
+                write_event_to_outbox(EventType.created, host_id, host)
+
+            assert "Invalid host or event was provided" in str(exc_info.value)
 
     def test_database_error_handling(self, db_create_host, db_get_host):
         """Test error handling for database errors."""
@@ -304,17 +305,19 @@ class TestOutboxE2ECases:
 
             assert "Failed to save event to outbox" in str(exc_info.value)
 
-    @patch("lib.outbox_repository.outbox_save_success")
-    def test_success_metrics_tracking(self, mock_success_metric, db_create_host, db_get_host):
+    def test_success_metrics_tracking(self, db_create_host, db_get_host):
         """Test that success metrics are properly tracked."""
+        # Create host first (before mocking) to avoid counting automatic outbox events
         created_host = db_create_host(SYSTEM_IDENTITY)
         host_id = str(created_host.id)
         host = db_get_host(created_host.id)
 
-        result = write_event_to_outbox(EventType.created, host_id, host)
+        # Now mock the metric for the explicit call only
+        with patch("lib.outbox_repository.outbox_save_success") as mock_success_metric:
+            result = write_event_to_outbox(EventType.created, host_id, host)
 
-        assert result is True
-        mock_success_metric.inc.assert_called_once()
+            assert result is True
+            mock_success_metric.inc.assert_called_once()
 
     @patch("lib.outbox_repository.outbox_save_failure")
     def test_failure_metrics_tracking(self, mock_failure_metric):

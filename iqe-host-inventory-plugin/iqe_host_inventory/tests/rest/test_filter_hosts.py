@@ -1344,44 +1344,47 @@ def test_filter_hosts_with_invalid_system_profile_operating_system(
         (["[rhel_ai_version_id][]=v1.1.2"], [2]),
         (["[rhel_ai_version_id][]=v1.1.4"], [4, 5, 6]),
         (["[rhel_ai_version_id][]=v1.1.2", "[variant][]=Centos"], []),
-        (["[nvidia_gpu_models][]=NVIDIA T1000"], [1, 3, 5, 6]),
-        (["[nvidia_gpu_models][]=NVIDIA T1000", "[nvidia_gpu_models][]=Tesla 2"], [3]),
-        (["[nvidia_gpu_models][]=NVIDIA T1000", "[nvidia_gpu_models][]=Tesla"], [1, 3]),
+        (["[gpu_models][name][]=NVIDIA T1000"], [1, 3, 5, 6]),
+        (["[gpu_models][name][]=NVIDIA T1000", "[gpu_models][name][]=Tesla 2"], [3]),
         (
-            ["[nvidia_gpu_models][]=NVIDIA T1000", "[nvidia_gpu_models][]=Tesla V100-PCIE-16GB"],
+            ["[gpu_models][name][]=NVIDIA T1000", "[gpu_models][name][]=Tesla V100-PCIE-16GB"],
             [1, 3],
         ),
-        (["[intel_gaudi_hpu_models][]=Habana Labs Ltd. Device 10202"], [2, 3]),
-        (["[intel_gaudi_hpu_models][]=Habana Labs Ltd. Device 1021"], [6]),
+        (["[gpu_models][name][]=Habana Labs Ltd. Device 10202"], [2, 3]),
+        (["[gpu_models][name][]=Habana Labs Ltd. Device 1021"], [6]),
         (
             [
-                "[intel_gaudi_hpu_models][]=Habana Labs Ltd. Device 10202",
-                "[intel_gaudi_hpu_models][]=Habana Labs Ltd. HL-2001 AI Training Accelerator",
+                "[gpu_models][name][]=Habana Labs Ltd. Device 10202",
+                "[gpu_models][name][]=Habana Labs Ltd. HL-2001 AI Training Accelerator",
             ],
             [3],
         ),
-        (["[amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34"], [1, 2, 3]),
+        (["[gpu_models][name][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34"], [1, 2, 3]),
         (
             [
-                "[amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-                "[amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
+                "[gpu_models][name][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
+                "[gpu_models][name][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
             ],
             [2],
         ),
         (
             [
                 "[rhel_ai_version_id][]=v1.1.3",
-                "[amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
+                "[gpu_models][name][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
             ],
             [1, 3],
         ),
         (
             [
                 "[rhel_ai_version_id][]=v1.1.3",
-                "[amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c350000",
+                "[gpu_models][name][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c350000",
             ],
             [3],
         ),
+        (["[gpu_models][vendor][]=Nvidia"], [1, 3, 4, 5, 6]),
+        (["[gpu_models][vendor][]=Intel"], [1, 2, 3, 4, 6]),
+        (["[gpu_models][vendor][]=AMD"], [1, 2, 3, 4, 5]),
+        (["[gpu_models][vendor][]=Nvidia", "[gpu_models][vendor][]=Intel"], [1, 3, 4, 6]),
     ],
 )
 def test_filter_hosts_by_system_profile_rhel_ai(
@@ -1403,7 +1406,7 @@ def test_filter_hosts_by_system_profile_rhel_ai(
     expected_ids = {hosts[i].id for i in expected_hosts}
     not_expected_ids = {host.id for host in hosts} - expected_ids
 
-    filter = [f"[rhel_ai]{param}" for param in params]
+    filter = [f"[workloads][rhel_ai]{param}" for param in params]
     response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
     response_ids = {host.id for host in response.results}
     log_response_hosts_indices(hosts, response_ids)
