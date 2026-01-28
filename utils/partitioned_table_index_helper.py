@@ -86,23 +86,37 @@ def create_partitioned_table_index(
         # For managed mode (stage, production), create concurrent indexes on partitions first
         try:
             # Step 1: Create indexes on all partition tables using CREATE INDEX CONCURRENTLY
+            # CONCURRENTLY requires running outside of a transaction. We must:
+            # 1. Commit the current transaction (so CONCURRENTLY doesn't wait for it)
+            # 2. Use a separate connection in autocommit mode
+            # 3. Start a new transaction for subsequent operations
             logger.info(f"Creating indexes on {num_partitions} partitions using CREATE INDEX CONCURRENTLY...")
 
             unique_clause = "UNIQUE" if unique else ""
 
-            for i in range(num_partitions):
-                partition_name = f"{table_name}_p{i}"
-                partition_index_name = f"{table_name}_p{i}_{index_name}"
+            bind = op.get_bind()
+            engine = bind.engine
 
-                logger.info(f"  Creating index '{partition_index_name}' on partition '{partition_name}'")
+            # Commit the current transaction so CONCURRENTLY doesn't wait for it
+            bind.commit()
 
-                with op.get_context().autocommit_block():
-                    op.execute(
+            # Use a separate connection with autocommit for CONCURRENTLY operations
+            with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as autocommit_conn:
+                for i in range(num_partitions):
+                    partition_name = f"{table_name}_p{i}"
+                    partition_index_name = f"{table_name}_p{i}_{index_name}"
+
+                    logger.info(f"  Creating index '{partition_index_name}' on partition '{partition_name}'")
+
+                    autocommit_conn.execute(
                         text(f"""
                             CREATE {unique_clause} INDEX CONCURRENTLY IF NOT EXISTS {partition_index_name}
                             ON {schema}.{partition_name} {index_definition};
                         """)
                     )
+
+            # Start a new transaction for subsequent operations
+            bind.begin()
 
             logger.info("Successfully created indexes on all partitions")
 
