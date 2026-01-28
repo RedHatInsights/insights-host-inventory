@@ -344,7 +344,29 @@ def kessel_verb(perm) -> str:
 def get_kessel_filter(
     kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
+    logger.debug(
+        "get_kessel_filter called",
+        extra={
+            "identity_type": current_identity.identity_type,
+            "org_id": current_identity.org_id,
+            "permission_resource_type": permission.resource_type.name if permission.resource_type else None,
+            "permission_resource_permission": permission.resource_permission,
+            "permission_workspace_permission": permission.workspace_permission,
+            "permission_write_operation": permission.write_operation,
+            "ids_count": len(ids),
+            "ids": ids[:10] if ids else [],  # Log first 10 IDs for debugging
+        },
+    )
+
     if current_identity.identity_type not in CHECKED_TYPES:
+        logger.debug(
+            "get_kessel_filter: identity_type not in CHECKED_TYPES, bypassing check",
+            extra={
+                "identity_type": current_identity.identity_type,
+                "checked_types": [t.value for t in CHECKED_TYPES],
+                "is_host_resource": permission.resource_type == KesselResourceTypes.HOST,
+            },
+        )
         if permission.resource_type == KesselResourceTypes.HOST:
             return True, None
         else:
@@ -353,13 +375,19 @@ def get_kessel_filter(
     if len(ids) > 0:
         if permission.write_operation:
             # Write specific object(s) by id(s)
-            if kessel_client.check_for_update(current_identity, permission, ids):
+            logger.debug("get_kessel_filter: checking write permission for specific IDs via check_for_update")
+            result = kessel_client.check_for_update(current_identity, permission, ids)
+            logger.debug(f"get_kessel_filter: check_for_update result={result}")
+            if result:
                 return True, None
             else:
                 return False, None  # The objects are not authorized - reject the request.
         else:
             # Read specific object(s) by id(s)
-            if kessel_client.check(current_identity, permission, ids):
+            logger.debug("get_kessel_filter: checking read permission for specific IDs via check")
+            result = kessel_client.check(current_identity, permission, ids)
+            logger.debug(f"get_kessel_filter: check result={result}")
+            if result:
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
                 return False, None  # The objects are not authorized - reject the request.
@@ -368,10 +396,26 @@ def get_kessel_filter(
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
+    logger.debug(
+        "get_kessel_filter: no specific IDs, calling ListAllowedWorkspaces",
+        extra={"relation": relation},
+    )
     workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
+    logger.debug(
+        "get_kessel_filter: ListAllowedWorkspaces result",
+        extra={"workspaces_count": len(workspaces), "workspaces": workspaces[:10] if workspaces else []},
+    )
     # NOTE: this won't work for checks that require a permission to be unfiltered
     # Ex: some org-level permissions OR permissions like add group (which we may not need to handle)
     if len(workspaces) == 0:
+        logger.warning(
+            "get_kessel_filter: no allowed workspaces returned, denying access",
+            extra={
+                "identity_type": current_identity.identity_type,
+                "org_id": current_identity.org_id,
+                "relation": relation,
+            },
+        )
         return False, None
     else:
         return True, {"groups": workspaces}

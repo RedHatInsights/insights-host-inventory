@@ -64,19 +64,34 @@ class Kessel:
         Check if the current user has permission to access the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
         """
+        logger.debug(
+            "Kessel.check called",
+            extra={
+                "identity_type": current_identity.identity_type,
+                "org_id": current_identity.org_id,
+                "permission_resource_type": permission.resource_type.name if permission.resource_type else None,
+                "permission_resource_permission": permission.resource_permission,
+                "ids_count": len(ids),
+                "ids": ids[:10] if ids else [],
+            },
+        )
         try:
             # Build the subject reference (the user making the request)
             subject_ref = self._build_subject_reference(current_identity)
 
             if len(ids) == 1:
                 # Single resource check
-                return self._check_single_resource(subject_ref, permission, str(ids[0]))
+                result = self._check_single_resource(subject_ref, permission, str(ids[0]))
+                logger.debug(f"Kessel.check: single resource check result={result}", extra={"resource_id": ids[0]})
+                return result
             elif len(ids) > 1:
                 # Bulk check - all resources must be accessible
-                return self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
+                result = self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
+                logger.debug(f"Kessel.check: bulk resource check result={result}", extra={"ids_count": len(ids)})
+                return result
             else:
                 # No specific IDs - this shouldn't happen in normal Check flow
-                logger.warning("Check called with empty ID list")
+                logger.warning("Kessel.check called with empty ID list")
                 return False
 
         except grpc.RpcError as e:
@@ -90,19 +105,38 @@ class Kessel:
         Check if the current user has permission to update the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
         """
+        logger.debug(
+            "Kessel.check_for_update called",
+            extra={
+                "identity_type": current_identity.identity_type,
+                "org_id": current_identity.org_id,
+                "permission_resource_type": permission.resource_type.name if permission.resource_type else None,
+                "permission_resource_permission": permission.resource_permission,
+                "ids_count": len(ids),
+                "ids": ids[:10] if ids else [],
+            },
+        )
         try:
             # Build the subject reference (the user making the request)
             subject_ref = self._build_subject_reference(current_identity)
 
             if len(ids) == 1:
                 # Single resource update check
-                return self._check_single_resource_for_update(subject_ref, permission, ids[0])
+                result = self._check_single_resource_for_update(subject_ref, permission, ids[0])
+                logger.debug(
+                    f"Kessel.check_for_update: single resource check result={result}", extra={"resource_id": ids[0]}
+                )
+                return result
             elif len(ids) > 1:
                 # Bulk update check - all resources must be updatable
-                return self._check_bulk_resources_for_update(subject_ref, permission, ids)
+                result = self._check_bulk_resources_for_update(subject_ref, permission, ids)
+                logger.debug(
+                    f"Kessel.check_for_update: bulk resource check result={result}", extra={"ids_count": len(ids)}
+                )
+                return result
             else:
                 # No specific IDs - this shouldn't happen in normal check_for_update flow
-                logger.warning("check_for_update called with empty ID list")
+                logger.warning("Kessel.check_for_update called with empty ID list")
                 return False
 
         except grpc.RpcError as e:
@@ -112,14 +146,42 @@ class Kessel:
             return False
 
     def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
-        """Build a subject reference for the current user."""
-        # Get user ID, falling back to username if user_id not available
-        user_id = current_identity.user.get("user_id") if current_identity.user else None
-        if not user_id:
-            user_id = current_identity.user.get("username") if current_identity.user else None
+        """Build a subject reference for the current user or service account."""
+        user_id = None
+
+        # Try to get user_id from user identity
+        if getattr(current_identity, "user", None):
+            user_id = current_identity.user.get("user_id")
+            if not user_id:
+                user_id = current_identity.user.get("username")
+            logger.debug(
+                "_build_subject_reference: resolved user_id from user identity",
+                extra={"user_id": user_id, "identity_type": current_identity.identity_type},
+            )
+
+        # Fall back to service_account client_id if user_id not found
+        if not user_id and getattr(current_identity, "service_account", None):
+            user_id = current_identity.service_account.get("client_id")
+            logger.debug(
+                "_build_subject_reference: resolved user_id from service_account identity",
+                extra={"user_id": user_id, "identity_type": current_identity.identity_type},
+            )
 
         if not user_id:
+            logger.error(
+                "_build_subject_reference: unable to determine user ID from identity",
+                extra={
+                    "identity_type": current_identity.identity_type,
+                    "has_user": hasattr(current_identity, "user"),
+                    "has_service_account": hasattr(current_identity, "service_account"),
+                },
+            )
             raise ValueError("Unable to determine user ID from identity")
+
+        logger.debug(
+            "_build_subject_reference: building subject reference",
+            extra={"user_id": user_id, "resource_id": f"redhat/{user_id}"},
+        )
 
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
@@ -235,16 +297,57 @@ class Kessel:
         return True
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
-        # logger.info(f"user identity that reached the kessel lib: {current_identity.user}")
-        user_id = (
-            current_identity.user.get("user_id")
-            if getattr(current_identity, "user", None)
-            else current_identity.service_account.get("client_id")
+        logger.debug(
+            "ListAllowedWorkspaces called",
+            extra={
+                "identity_type": current_identity.identity_type,
+                "org_id": current_identity.org_id,
+                "relation": relation,
+                "has_user": hasattr(current_identity, "user") and current_identity.user is not None,
+                "has_service_account": hasattr(current_identity, "service_account")
+                and getattr(current_identity, "service_account", None) is not None,
+            },
         )
-        # logger.info(f"user_id resolved from the identity: {user_id}")
+
+        # Resolve user_id based on identity type
+        user_id = None
+        if getattr(current_identity, "user", None):
+            user_id = current_identity.user.get("user_id")
+            logger.debug(
+                "ListAllowedWorkspaces: resolved user_id from user identity",
+                extra={"user_id": user_id},
+            )
+        elif getattr(current_identity, "service_account", None):
+            user_id = current_identity.service_account.get("client_id")
+            logger.debug(
+                "ListAllowedWorkspaces: resolved user_id from service_account identity",
+                extra={"user_id": user_id, "service_account": current_identity.service_account},
+            )
+        else:
+            logger.error(
+                "ListAllowedWorkspaces: unable to resolve user_id - no user or service_account in identity",
+                extra={
+                    "identity_type": current_identity.identity_type,
+                    "identity_dict": current_identity._asdict() if hasattr(current_identity, "_asdict") else None,
+                },
+            )
+
+        if not user_id:
+            logger.error(
+                "ListAllowedWorkspaces: user_id is None or empty, returning empty workspace list",
+                extra={"identity_type": current_identity.identity_type},
+            )
+            return []
+
+        resource_id = f"redhat/{user_id}"
+        logger.debug(
+            "ListAllowedWorkspaces: building subject reference",
+            extra={"resource_id": resource_id, "relation": relation},
+        )
+
         subject_ref = resource_reference_pb2.ResourceReference(
             resource_type="principal",
-            resource_id=f"redhat/{user_id}",  # Platform/IdP/whatever 'redhat' is, probably needs to be parameterized
+            resource_id=resource_id,
             reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
         )
 
@@ -252,8 +355,32 @@ class Kessel:
             resource=subject_ref,
         )
 
-        stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
-        return [workspace.object.resource_id for workspace in stream]
+        try:
+            stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
+            workspaces = [workspace.object.resource_id for workspace in stream]
+            logger.debug(
+                "ListAllowedWorkspaces: successfully retrieved workspaces",
+                extra={"workspace_count": len(workspaces), "workspaces": workspaces[:10] if workspaces else []},
+            )
+            return workspaces
+        except grpc.RpcError as e:
+            logger.error(
+                "ListAllowedWorkspaces: gRPC error",
+                extra={
+                    "error_code": e.code().name if hasattr(e, "code") else None,
+                    "error_details": e.details() if hasattr(e, "details") else str(e),
+                    "user_id": user_id,
+                    "relation": relation,
+                },
+            )
+            return []
+        except Exception as e:
+            logger.error(
+                f"ListAllowedWorkspaces: unexpected error: {str(e)}",
+                extra={"user_id": user_id, "relation": relation},
+                exc_info=True,
+            )
+            return []
 
     def close(self):
         """Close the gRPC channel."""
