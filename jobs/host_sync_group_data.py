@@ -36,8 +36,8 @@ def _init_db(config):
     return sessionmaker(bind=engine)
 
 
-def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("Host.groups synchronizer failed", exc_info=value)
+def _excepthook(logger, exc_type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
+    logger.exception("Host.groups synchronizer failed", exc_info=(exc_type, value, traceback))
 
 
 def run(config, logger, session, shutdown_handler):

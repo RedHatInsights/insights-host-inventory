@@ -55,8 +55,8 @@ def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
 
 
-def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("Pendo Syncher failed", exc_info=value)
+def _excepthook(logger, exc_type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
+    logger.exception("Pendo Syncher failed", exc_info=(exc_type, value, traceback))
 
 
 def _process_response(pendo_response, logger):
