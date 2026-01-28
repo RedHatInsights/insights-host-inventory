@@ -12,15 +12,19 @@ from api import metrics
 from api.group_query import build_group_response
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
+from app.common import inventory_config
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from app.models.schemas import RequiredHostIdListSchema
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
+from lib.middleware import get_rbac_workspace_by_id
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -83,11 +87,24 @@ def delete_hosts_from_group(group_id, host_id_list, rbac_filter=None):
 
     rbac_group_id_check(rbac_filter, {group_id})
     identity = get_current_identity()
-    if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
-        abort(HTTPStatus.NOT_FOUND, "Group not found.")
 
-    if group.ungrouped is True:
-        abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
+    # Feature flag check for RBAC v2 workspace validation
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Validate workspace via RBAC v2 API
+        workspace = get_rbac_workspace_by_id(str(group_id))
+        if not workspace:
+            abort(HTTPStatus.NOT_FOUND, "Group not found.")
+
+        # Check if workspace is ungrouped type
+        if workspace.get("type") == "ungrouped-hosts":
+            abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
+    else:
+        # RBAC v1 path: Validate group via database
+        if (group := get_group_by_id_from_db(group_id, identity.org_id)) is None:
+            abort(HTTPStatus.NOT_FOUND, "Group not found.")
+
+        if group.ungrouped is True:
+            abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
     if remove_hosts_from_group(group_id, host_id_list, identity, current_app.event_producer) == 0:
         abort(HTTPStatus.NOT_FOUND, "Hosts not found.")
