@@ -35,15 +35,14 @@ COLLECTED_METRICS = (
 
 
 @synchronize_fail_count.count_exceptions()
-def run(config, logger, session, event_producer, shutdown_handler, application):
-    with application.app.app_context():
-        query_hosts = session.query(Host)
-        query_staleness = session.query(Staleness)
-        update_count = synchronize_hosts(
-            query_hosts, query_staleness, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down
-        )
-        logger.info(f"Total number of hosts synchronized: {update_count}")
-        return update_count
+def run(config, logger, session, event_producer, shutdown_handler):
+    query_hosts = session.query(Host)
+    query_staleness = session.query(Staleness)
+    update_count = synchronize_hosts(
+        query_hosts, query_staleness, event_producer, config.script_chunk_size, config, shutdown_handler.shut_down
+    )
+    logger.info(f"Total number of hosts synchronized: {update_count}")
+    return update_count
 
 
 def main(logger):
@@ -58,8 +57,8 @@ def main(logger):
     prometheus_shutdown = partial(push_to_gateway, config.prometheus_pushgateway, job, registry)
     register_shutdown(prometheus_shutdown, "Pushing metrics")
 
-    with session_guard(session):
-        run(config, logger, session, event_producer, shutdown_handler, application)
+    with session_guard(session), application.app.app_context():
+        run(config, logger, session, event_producer, shutdown_handler)
 
 
 if __name__ == "__main__":

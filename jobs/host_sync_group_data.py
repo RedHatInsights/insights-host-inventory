@@ -15,18 +15,17 @@ PROMETHEUS_JOB = "inventory-host-group-synchronizer"
 LOGGER_NAME = "inventory_host_group_synchronizer"
 
 
-def run(config, logger, session, shutdown_handler, application):
-    with application.app.app_context():
-        update_count, failed_count = sync_group_data(session, config.script_chunk_size, shutdown_handler.shut_down)
-        logger.info(f"Total number of host.groups updated: {update_count}")
-        logger.info(f"Total number of hosts failed to update: {failed_count}")
+def run(config, logger, session, shutdown_handler):
+    update_count, failed_count = sync_group_data(session, config.script_chunk_size, shutdown_handler.shut_down)
+    logger.info(f"Total number of host.groups updated: {update_count}")
+    logger.info(f"Total number of hosts failed to update: {failed_count}")
 
 
 def main(logger):
     config, session, _, _, shutdown_handler, application = job_setup((), PROMETHEUS_JOB)
 
-    with session_guard(session):
-        run(config, logger, session, shutdown_handler, application)
+    with session_guard(session), application.app.app_context():
+        run(config, logger, session, shutdown_handler)
 
 
 if __name__ == "__main__":
