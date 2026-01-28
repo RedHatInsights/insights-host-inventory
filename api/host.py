@@ -405,9 +405,15 @@ def _emit_patch_event(serialized_host, host):
         EventType.updated,
         str(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host.host_type,
+        host.static_system_profile.operating_system.get("name")
+        if host.static_system_profile and host.static_system_profile.operating_system
+        else None,
+        str(
+            host.static_system_profile.bootc_status.get("booted") is not None
+            if host.static_system_profile and host.static_system_profile.bootc_status
+            else False
+        ),
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
@@ -443,7 +449,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = host.insights_id
-            owner_id = host.system_profile_facts.get("owner_id")
+            owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -519,7 +525,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = host.insights_id
-            owner_id = host.system_profile_facts.get("owner_id")
+            owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -582,7 +588,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         insights_id = str(existing_host.insights_id)
-        owner_id = existing_host.system_profile_facts.get("owner_id")
+        owner_id = existing_host.static_system_profile.owner_id if existing_host.static_system_profile else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
         return flask_json_response(serialized_host, 201)

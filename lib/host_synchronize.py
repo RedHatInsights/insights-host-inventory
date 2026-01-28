@@ -68,9 +68,15 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
                 EventType.updated,
                 str(host.insights_id),
                 host.reporter,
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                host.host_type,
+                host.static_system_profile.operating_system.get("name")
+                if host.static_system_profile and host.static_system_profile.operating_system
+                else None,
+                str(
+                    host.static_system_profile.bootc_status.get("booted") is not None
+                    if host.static_system_profile and host.static_system_profile.bootc_status
+                    else False
+                ),
             )
             # in case of a failed update event, event_producer logs the message.
             # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856

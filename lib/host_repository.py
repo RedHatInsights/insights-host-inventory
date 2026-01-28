@@ -345,7 +345,10 @@ def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_f
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
-    if not input_host.system_profile_facts:
+    # Check if system profile data exists in normalized tables
+    has_static_profile = input_host.static_system_profile is not None
+    has_dynamic_profile = input_host.dynamic_system_profile is not None
+    if not (has_static_profile or has_dynamic_profile):
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
@@ -360,7 +363,11 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         logger.debug("Updating system profile on an existing host")
         logger.debug(f"existing host = {existing_host}")
 
-        existing_host.update_system_profile(input_host.system_profile_facts)
+        # Reconstruct system profile from input host's normalized tables
+        from app.serialization import _reconstruct_system_profile_from_normalized_tables
+
+        input_system_profile = _reconstruct_system_profile_from_normalized_tables(input_host)
+        existing_host.update_system_profile(input_system_profile)
 
         metrics.update_host_count.inc()
         logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
