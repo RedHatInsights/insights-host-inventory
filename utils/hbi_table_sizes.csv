@@ -1,0 +1,7 @@
+table_name,heap_size_gb,toast_size_gb,indexes_size_gb,total_size_gb,query_timestamp
+hbi.hosts,22.58,220.124,18.032,260.737,2026-01-28T15:37:51.135953
+hbi.system_profiles_static,7.997,21.375,2.631,32.004,2026-01-28T15:37:51.840944
+hbi.system_profiles_dynamic,9.183,120.194,1.117,130.493,2026-01-28T15:37:52.659805
+hbi.hosts,22.580,220.124,18.032,260.737,2026-01-28T15:47:34.100249
+hbi.system_profiles_static,7.997,21.375,2.631,32.004,2026-01-28T15:47:34.914391
+hbi.system_profiles_dynamic,9.183,120.194,1.117,130.493,2026-01-28T15:47:35.613942
