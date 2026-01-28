@@ -39,9 +39,11 @@ logger = get_logger(LOGGER_NAME)
 
 
 def _get_git_response(path: str) -> dict:
-    return json.loads(
-        get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN)).content.decode("utf-8")
-    )
+    response = get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN))
+    if response.status_code >= 400:
+        logger.error(f"GitHub API request failed: {response.status_code} - {response.text}")
+        raise RuntimeError(f"GitHub API request failed with status {response.status_code}: {response.text}")
+    return json.loads(response.content.decode("utf-8"))
 
 
 def _post_git_response(path: str, content: str) -> Response:
