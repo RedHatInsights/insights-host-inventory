@@ -78,8 +78,8 @@ APPLICATION_TEST_DATA = [
     pytest.param(
         ConsumerApplication.MALWARE,
         HostAppDataMalware,
-        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat()},
-        {"last_status": "clean", "last_matches": 0},
+        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat(), "total_matches": 0},
+        {"last_status": "clean", "last_matches": 0, "total_matches": 0},
         id="malware",
     ),
     pytest.param(
