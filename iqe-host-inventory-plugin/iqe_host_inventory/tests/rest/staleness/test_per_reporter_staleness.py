@@ -425,7 +425,7 @@ def test_per_reporter_registered_with(
     """Test per reporter registered_with filter with custom staleness
 
     metadata:
-        requirements: inv-staleness-hosts
+        requirements: inv-staleness-hosts, inv-hosts-filter-by-registered_with
         assignee: msager
         importance: high
         title: Test per reporter staleness
@@ -456,6 +456,14 @@ def test_per_reporter_registered_with(
     )
     set_staleness(host_inventory, deltas)
 
+    # Create an RHSM-only host (should stay fresh forever)
+    rhsm_host_data = host_inventory.datagen.create_host_data(
+        host_type=host_type,
+        reporter="rhsm-system-profile-bridge",
+    )
+    rhsm_host = host_inventory.kafka.create_host(rhsm_host_data)
+    host_inventory.apis.hosts.get_host_by_id(rhsm_host)
+
     host_data.update(
         reporter="yupana",
         stale_timestamp=generate_timestamp(delta=timedelta(days=3)),
@@ -466,6 +474,29 @@ def test_per_reporter_registered_with(
     host_with_yupana = host_inventory.apis.hosts.get_host_by_id(host)
     verify_staleness(host_inventory, host_with_yupana, "yupana")
 
+    # Create a host with RHSM + other reporter (should not stay fresh forever)
+    rhsm_multi_host_data = host_inventory.datagen.create_host_data(
+        host_type=host_type,
+        reporter="rhsm-system-profile-bridge",
+    )
+    rhsm_multi_host = host_inventory.kafka.create_host(rhsm_multi_host_data)
+    host_inventory.apis.hosts.wait_for_updated(rhsm_multi_host)
+    sleep(1)
+
+    # Add another reporter to RHSM multi host
+    rhsm_multi_host_data.update(
+        reporter="puptoo",
+        ansible_host=generate_display_name(),
+    )
+    host_inventory.kafka.create_host(rhsm_multi_host_data)
+    host_inventory.apis.hosts.wait_for_updated(rhsm_multi_host, reporter="puptoo")
+
+    # Both reporters should find the host initially
+    response = host_inventory.apis.hosts.get_hosts(
+        hostname_or_id=host.id, registered_with=["puptoo"]
+    )
+    assert len(response) == 1
+
     response = host_inventory.apis.hosts.get_hosts(
         hostname_or_id=host.id, registered_with=["yupana"]
     )
@@ -473,6 +504,11 @@ def test_per_reporter_registered_with(
 
     logger.info("yupana check in")
     log_staleness_timestamps(response[0], "all")
+
+    response = host_inventory.apis.hosts.get_hosts(
+        hostname_or_id=host.id, registered_with=["puptoo"], staleness=["fresh"]
+    )
+    assert len(response) == 0
 
     # Do a few more yupana checkins to keep the host fresh.
     for _ in range(3):
@@ -509,6 +545,16 @@ def test_per_reporter_registered_with(
         hostname_or_id=host.id, registered_with=["yupana"]
     )
     assert len(response) == 0
+
+    # Wait longer than culled time - RHSM-only host should still be fresh
+    sleep(deltas[2] + 1)
+
+    # RHSM-only host should still be found (stays fresh forever)
+    response = host_inventory.apis.hosts.get_hosts(
+        hostname_or_id=rhsm_host.id, staleness=["fresh"]
+    )
+    assert len(response) == 1
+    assert response[0].id == rhsm_host.id
 
 
 def create_hosts_reporter_state(
