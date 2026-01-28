@@ -56,8 +56,13 @@ class Config:
         import app_common_python
 
         cfg = app_common_python.LoadedConfig
-        kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
-        self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+
+        # Only configure Kessel from DependencyEndpoints if the dependency exists
+        try:
+            kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
+            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+        except KeyError:
+            self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
