@@ -96,17 +96,13 @@ def _extract_filter_fields(filter_dict):
     return fields
 
 
-def _needs_system_profile_joins(filter, order_by, system_type):
+def _needs_system_profile_joins(filter, order_by):
     """
     Dynamically determine if system profile table joins are needed based on
-    which fields are being filtered.
+    which fields are being filtered or sorted.
 
     Returns: (needs_static_join, needs_dynamic_join)
     """
-    # system_type always use static profile fields
-    if system_type:
-        return True, False
-
     # Ordering by specific fields may require joins even without filters
     requires_static_for_order = order_by in ORDER_BY_STATIC_PROFILE_FIELDS
     if not filter:
@@ -130,26 +126,13 @@ def _needs_system_profile_joins(filter, order_by, system_type):
     return needs_static, needs_dynamic
 
 
-# Static system type filter mappings
+# ALL system types now use Host.host_type directly
+# The trigger intelligently derives 'bootc' or 'conventional' from bootc_status
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
-    SystemType.CONVENTIONAL.value: and_(
-        or_(
-            HostStaticSystemProfile.bootc_status.is_(None),
-            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.is_(None),
-            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext == "",
-        ),
-        or_(
-            HostStaticSystemProfile.host_type.is_(None),
-            HostStaticSystemProfile.host_type == "",
-        ),
-    ),
-    SystemType.BOOTC.value: and_(
-        HostStaticSystemProfile.bootc_status.isnot(None),
-        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.isnot(None),
-        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
-    ),
-    SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
-    SystemType.CLUSTER.value: HostStaticSystemProfile.host_type == SystemType.CLUSTER.value,
+    SystemType.CONVENTIONAL.value: Host.host_type == SystemType.CONVENTIONAL.value,
+    SystemType.BOOTC.value: Host.host_type == SystemType.BOOTC.value,
+    SystemType.EDGE.value: Host.host_type == SystemType.EDGE.value,
+    SystemType.CLUSTER.value: Host.host_type == SystemType.CLUSTER.value,
 }
 
 
@@ -538,8 +521,8 @@ def query_filters(
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
-    # Dynamically determine if we need system profile joins based on what fields are being filtered
-    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by, system_type)
+    # Dynamically determine if we need system profile joins based on filtering and ordering
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by)
 
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
@@ -549,12 +532,12 @@ def query_filters(
 
     # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = query_base.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query_base = query_base.outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # Add system profile joins if needed (dynamic detection or explicit request)
     if needs_static_join:
-        query_base = query_base.join(HostStaticSystemProfile, isouter=True)
+        query_base = query_base.outerjoin(HostStaticSystemProfile)
     if needs_dynamic_join:
-        query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
+        query_base = query_base.outerjoin(HostDynamicSystemProfile)
 
     return filters, query_base

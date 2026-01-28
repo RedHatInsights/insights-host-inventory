@@ -13,6 +13,7 @@ from dateutil.parser import parse as parse_datetime
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import ErrorNotificationWrapper
+from iqe_host_inventory.utils import normalize_datetime_to_utc
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import generate_digits
@@ -284,7 +285,7 @@ INCORRECT_MAC_ADDRESSES = (
 def validate_correct_value(  # NOQA: C901
     host_inventory: ApplicationHostInventory,
 ):
-    def _validate(field: Field, value, expected_value=None):
+    def _validate(field: Field, value, expected_value=None):  # NOQA: C901
         value = _unpack_param(value)
         host_data = host_inventory.datagen.create_host_data()
         host_data["system_profile"][field.name] = value
@@ -294,6 +295,10 @@ def validate_correct_value(  # NOQA: C901
             assert str(host.system_profile[field.name]).lower() == value.lower()
         elif isinstance(host.system_profile[field.name], int):
             assert host.system_profile[field.name] == int(value)
+        elif field.type == "date-time" and isinstance(host.system_profile[field.name], str):
+            expected_dt = normalize_datetime_to_utc(parse_datetime(value))
+            actual_dt = normalize_datetime_to_utc(parse_datetime(host.system_profile[field.name]))
+            assert expected_dt == actual_dt
         else:
             assert host.system_profile[field.name] == value
 
@@ -313,8 +318,13 @@ def validate_correct_value(  # NOQA: C901
                 expected_value = str(expected_value)
             assert response_value == expected_value
         elif isinstance(response_value, datetime):
-            assert parse_datetime(value) == response_value
-
+            expected_dt = normalize_datetime_to_utc(parse_datetime(value))
+            actual_dt = normalize_datetime_to_utc(response_value)
+            assert expected_dt == actual_dt
+        elif field.type == "date-time" and isinstance(response_value, str):
+            expected_dt = normalize_datetime_to_utc(parse_datetime(value))
+            actual_dt = normalize_datetime_to_utc(parse_datetime(response_value))
+            assert expected_dt == actual_dt
         elif isinstance(response_value, bool):
             assert str(response_value).lower() == value.lower()
         elif isinstance(response_value, int):
@@ -374,19 +384,17 @@ def validate_correct_disk_devices(validate_correct_object_array):
 
 
 @pytest.fixture
-def validate_correct_rhel_ai(validate_correct_value):
-    field = get_sp_field_by_name("rhel_ai")
+def validate_incorrect_workloads_rhel_ai(host_inventory: ApplicationHostInventory):
+    """
+    Validate that invalid rhel_ai values are rejected via workloads.rhel_ai path.
+    """
+    from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
 
     def _validate(values):
-        rhel_ai_attrs = [
-            "variant",
-            "intel_gaudi_hpu_models",
-            "rhel_ai_version_id",
-            "nvidia_gpu_models",
-            "amd_gpu_models",
-        ]
-        expected_values = normalize_object(rhel_ai_attrs, values)
-        validate_correct_value(field, values, expected_values)
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"] = {"workloads": {"rhel_ai": values}}
+        with pytest.raises(KafkaMessageNotFoundError):
+            host_inventory.kafka.create_host(host_data, timeout=1)
 
     yield _validate
 
@@ -463,6 +471,44 @@ def validate_correct_system_purpose(validate_correct_value):
     yield _validate
 
 
+def _add_missing_fields_to_dict(target: dict, fields: list[str]) -> None:
+    """Add None for missing fields in a dict."""
+    for field in fields:
+        if field not in target:
+            target[field] = None
+
+
+def _add_missing_fields_to_array_items(target: dict, array_items: dict) -> None:
+    """Add None for missing fields in array element dicts."""
+    for array_field, item_fields in array_items.items():
+        array_value = target.get(array_field)
+        if not isinstance(array_value, list):
+            continue
+        for item in array_value:
+            if isinstance(item, dict):
+                _add_missing_fields_to_dict(item, item_fields)
+
+
+def _normalize_workloads_expected_value(expected_value: dict | None, nested_attrs: dict) -> None:
+    """Normalize expected workloads value to match OpenAPI client's to_dict() behavior.
+
+    The OpenAPI client's to_dict() adds None for missing fields defined in the schema.
+    This ensures the expected value matches by adding the same None fields for:
+    - Nested object fields (e.g., ansible.controller_version)
+    - Array element fields (e.g., rhel_ai.gpu_models[].memory)
+    """
+    if expected_value is None:
+        return
+
+    for workload_name, workload_value in expected_value.items():
+        if workload_value is None or workload_name not in nested_attrs:
+            continue
+
+        schema = nested_attrs[workload_name]
+        _add_missing_fields_to_dict(workload_value, schema.get("fields", []))
+        _add_missing_fields_to_array_items(workload_value, schema.get("array_items", {}))
+
+
 @pytest.fixture
 def validate_correct_workloads(validate_correct_value):
     field = get_sp_field_by_name("workloads")
@@ -480,36 +526,39 @@ def validate_correct_workloads(validate_correct_value):
         ]
         expected_value = normalize_object(workloads_attrs, value)
 
-        # Define nested attributes for each workload type
+        # Define nested attributes for each workload type.
+        # "fields" are top-level fields in the workload object.
+        # "array_items" defines fields for elements within array fields.
         nested_attrs = {
-            "ansible": [
-                "controller_version",
-                "hub_version",
-                "catalog_worker_version",
-                "sso_version",
-            ],
-            "crowdstrike": ["falcon_aid", "falcon_backend", "falcon_version"],
-            "ibm_db2": ["is_running"],
-            "intersystems": ["is_intersystems", "running_instances"],
-            "mssql": ["version"],
-            "oracle_db": ["is_running"],
-            "rhel_ai": [
-                "variant",
-                "rhel_ai_version_id",
-                "gpu_models",
-                "ai_models",
-                "free_disk_storage",
-            ],
-            "sap": ["sap_system", "sids", "instance_number", "version"],
+            "ansible": {
+                "fields": [
+                    "controller_version",
+                    "hub_version",
+                    "catalog_worker_version",
+                    "sso_version",
+                ],
+            },
+            "crowdstrike": {"fields": ["falcon_aid", "falcon_backend", "falcon_version"]},
+            "ibm_db2": {"fields": ["is_running"]},
+            "intersystems": {"fields": ["is_intersystems", "running_instances"]},
+            "mssql": {"fields": ["version"]},
+            "oracle_db": {"fields": ["is_running"]},
+            "rhel_ai": {
+                "fields": [
+                    "variant",
+                    "rhel_ai_version_id",
+                    "gpu_models",
+                    "ai_models",
+                    "free_disk_storage",
+                ],
+                "array_items": {
+                    "gpu_models": ["name", "vendor", "memory", "count"],
+                },
+            },
+            "sap": {"fields": ["sap_system", "sids", "instance_number", "version"]},
         }
 
-        # Ensure nested fields have None when not provided
-        if expected_value is not None:  # workloads is not None
-            for workload_name, nested_value in expected_value.items():
-                if workload_name in nested_attrs:
-                    for nested_key in nested_attrs[workload_name]:
-                        if nested_value is not None and nested_key not in nested_value:
-                            nested_value[nested_key] = None
+        _normalize_workloads_expected_value(expected_value, nested_attrs)
 
         validate_correct_value(field, value, expected_value)
 
@@ -1861,43 +1910,43 @@ def test_validate_system_profile_conversions(
 
 
 @pytest.mark.ephemeral
-def test_validate_system_profile_rhel_ai(validate_correct_rhel_ai, validate_incorrect_value):
+def test_validate_system_profile_rhel_ai(
+    validate_correct_workloads, validate_incorrect_workloads_rhel_ai
+):
     """
-    Test validation of system_profile rhel_ai field
+    Test validation of system_profile workloads.rhel_ai field
 
     https://issues.redhat.com/browse/RHINENG-14894
+
+    Note: rhel_ai is no longer a top-level field, it's now only valid inside workloads.rhel_ai
 
     metadata:
         assignee: zabikeno
         importance: medium
         requirements: inv-mq-host-field-validation, inv-host-create
-        title: Validation of system_profile rhel_ai field
+        title: Validation of system_profile workloads.rhel_ai field
     """
-    rhel_ai = get_sp_field_by_name("rhel_ai")
-
     correct_rhel_ai = {
         "variant": "RHEL AI",
         "rhel_ai_version_id": "v1.1.3",
-        "nvidia_gpu_models": ["NVIDIA T1000", "Tesla V100-PCIE-16GB"],
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device 1020",
-            "Habana Labs Ltd. HL-2000 AI Training Accelerator [Gaudi]",
+        "gpu_models": [
+            {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+            {"name": "Tesla V100-PCIE-16GB", "vendor": "Nvidia", "memory": "16GB"},
+            {"name": "Habana Labs Ltd. Device 1020", "vendor": "Intel", "count": 2},
         ],
-        "amd_gpu_models": [
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-        ],
+        "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+        "free_disk_storage": "500GB",
     }
-    validate_correct_rhel_ai(correct_rhel_ai)
+    validate_correct_workloads({"rhel_ai": correct_rhel_ai})
 
     def _test_property(name: str, correct_values: list, incorrect_values: list) -> None:
         tested_rhel_ai = deepcopy(correct_rhel_ai)
         for value in correct_values:
             tested_rhel_ai[name] = value
-            validate_correct_rhel_ai(tested_rhel_ai)
+            validate_correct_workloads({"rhel_ai": tested_rhel_ai})
         for value in incorrect_values:
             tested_rhel_ai[name] = value
-            validate_incorrect_value(rhel_ai, tested_rhel_ai)
+            validate_incorrect_workloads_rhel_ai(tested_rhel_ai)
 
     _test_property(
         "rhel_ai_version_id",
@@ -1909,13 +1958,31 @@ def test_validate_system_profile_rhel_ai(validate_correct_rhel_ai, validate_inco
         [generate_string_of_length(0), generate_string_of_length(7)],
         [generate_string_of_length(1025), 111],
     )
+    _test_property(
+        "free_disk_storage",
+        [generate_string_of_length(0), generate_string_of_length(32)],
+        [generate_string_of_length(33), 111],
+    )
 
-    CORRECT_SUBFIELD_VALUES = [
+    # Test gpu_models array of objects
+    CORRECT_GPU_MODELS = [
         [],
-        [generate_string_of_length(1, 128)],
-        [generate_string_of_length(1, 128), generate_string_of_length(1, 100)],
+        [{"name": "GPU 1", "vendor": "Nvidia"}],
+        [{"name": "GPU 1", "vendor": "Nvidia", "memory": "8GB", "count": 1}],
+        [{"name": "GPU 1"}, {"name": "GPU 2", "vendor": "AMD"}],
     ]
-    INCORRECT_SUBFIELD_VALUES = [[1], generate_string_of_length(1, 100), {}]
-    _test_property("nvidia_gpu_models", CORRECT_SUBFIELD_VALUES, INCORRECT_SUBFIELD_VALUES)
-    _test_property("amd_gpu_models", CORRECT_SUBFIELD_VALUES, INCORRECT_SUBFIELD_VALUES)
-    _test_property("intel_gaudi_hpu_models", CORRECT_SUBFIELD_VALUES, INCORRECT_SUBFIELD_VALUES)
+    INCORRECT_GPU_MODELS = [
+        "not an array",
+        [{"name": 123}],  # name must be string
+        123,
+    ]
+    _test_property("gpu_models", CORRECT_GPU_MODELS, INCORRECT_GPU_MODELS)
+
+    # Test ai_models array of strings
+    CORRECT_AI_MODELS = [
+        [],
+        [generate_string_of_length(1, 256)],
+        [generate_string_of_length(1, 256), generate_string_of_length(1, 100)],
+    ]
+    INCORRECT_AI_MODELS = [[1], generate_string_of_length(1, 100), {}]
+    _test_property("ai_models", CORRECT_AI_MODELS, INCORRECT_AI_MODELS)

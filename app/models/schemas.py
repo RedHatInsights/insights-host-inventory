@@ -291,6 +291,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         "intersystems": {"nested_field": "intersystems"},
         "mssql": {"nested_field": "mssql"},
         "crowdstrike": {"nested_field": "third_party_services.crowdstrike"},
+        "rhel_ai": {"nested_field": "rhel_ai"},
     }
 
     @staticmethod

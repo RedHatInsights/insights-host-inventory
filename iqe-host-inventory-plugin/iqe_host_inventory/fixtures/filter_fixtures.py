@@ -605,74 +605,81 @@ def setup_hosts_for_rhel_ai_filtering(
 ) -> list[HostWrapper]:
     hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(7)
     hosts_data[0]["system_profile"].pop("rhel_ai", None)
+    hosts_data[0]["system_profile"].pop("workloads", None)
 
-    hosts_data[1]["system_profile"]["rhel_ai"] = {
-        "variant": "RHEL AI",
-        "rhel_ai_version_id": "v1.1.3",
-        "nvidia_gpu_models": ["NVIDIA T1000", "Tesla V100-PCIE-16GB"],
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device",
-            "Habana Labs Ltd. HL-2000 AI Training Accelerator",
-        ],
-        "amd_gpu_models": [
-            "Advanced Micro Devices",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-        ],
+    # Use workloads.rhel_ai with the new gpu_models structure
+    hosts_data[1]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.3",
+            "gpu_models": [
+                {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                {"name": "Tesla V100-PCIE-16GB", "vendor": "Nvidia"},
+                {"name": "Habana Labs Ltd. Device", "vendor": "Intel"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34", "vendor": "AMD"},
+            ],
+        }
     }
-    hosts_data[2]["system_profile"]["rhel_ai"] = {
-        "variant": "RHEL AI",
-        "rhel_ai_version_id": "v1.1.2",
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device 10202",
-            "Habana Labs Ltd. HL-2000 AI Training Accelerator",
-        ],
-        "amd_gpu_models": [
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-        ],
+    hosts_data[2]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.2",
+            "gpu_models": [
+                {"name": "Habana Labs Ltd. Device 10202", "vendor": "Intel"},
+                {"name": "Habana Labs Ltd. HL-2000 AI Training Accelerator", "vendor": "Intel"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31", "vendor": "AMD"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34", "vendor": "AMD"},
+            ],
+        }
     }
-    hosts_data[3]["system_profile"]["rhel_ai"] = {
-        "variant": "RHEL AI",
-        "rhel_ai_version_id": "v1.1.3",
-        "nvidia_gpu_models": ["NVIDIA T1000", "Tesla V100-PCIE-16GB", "Tesla 2"],
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device 10202",
-            "Habana Labs Ltd. HL-2001 AI Training Accelerator ",
-        ],
-        "amd_gpu_models": [
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c350000",
-        ],
+    hosts_data[3]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.3",
+            "gpu_models": [
+                {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                {"name": "Tesla V100-PCIE-16GB", "vendor": "Nvidia"},
+                {"name": "Tesla 2", "vendor": "Nvidia"},
+                {"name": "Habana Labs Ltd. Device 10202", "vendor": "Intel"},
+                {"name": "Habana Labs Ltd. HL-2001 AI Training Accelerator", "vendor": "Intel"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34", "vendor": "AMD"},
+                {
+                    "name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c350000",
+                    "vendor": "AMD",
+                },
+            ],
+        }
     }
 
-    hosts_data[4]["system_profile"]["rhel_ai"] = {
-        "variant": "RHEL AI",
-        "rhel_ai_version_id": "v1.1.4",
-        "nvidia_gpu_models": ["Tesla V100-PCIE-16GB"],
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device 1020",
-            "Habana Labs Ltd. HL-2000 AI Training Accelerator",
-        ],
-        "amd_gpu_models": [
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c380000000",
-        ],
+    hosts_data[4]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.4",
+            "gpu_models": [
+                {"name": "Tesla V100-PCIE-16GB", "vendor": "Nvidia"},
+                {"name": "Habana Labs Ltd. Device 1020", "vendor": "Intel"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32", "vendor": "AMD"},
+            ],
+        }
     }
-    hosts_data[5]["system_profile"]["rhel_ai"] = {
-        "variant": "RHEL AI",
-        "rhel_ai_version_id": "v1.1.4",
-        "nvidia_gpu_models": ["NVIDIA T1000"],
-        "amd_gpu_models": [
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
-            "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c3700000",
-        ],
+    hosts_data[5]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "variant": "RHEL AI",
+            "rhel_ai_version_id": "v1.1.4",
+            "gpu_models": [
+                {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                {"name": "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31", "vendor": "AMD"},
+            ],
+        }
     }
-    hosts_data[6]["system_profile"]["rhel_ai"] = {
-        "rhel_ai_version_id": "v1.1.4",
-        "nvidia_gpu_models": ["NVIDIA T1000"],
-        "intel_gaudi_hpu_models": [
-            "Habana Labs Ltd. Device 1021",
-        ],
+    hosts_data[6]["system_profile"]["workloads"] = {
+        "rhel_ai": {
+            "rhel_ai_version_id": "v1.1.4",
+            "gpu_models": [
+                {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                {"name": "Habana Labs Ltd. Device 1021", "vendor": "Intel"},
+            ],
+        }
     }
 
     return host_inventory.kafka.create_hosts(hosts_data=hosts_data, cleanup_scope="module")

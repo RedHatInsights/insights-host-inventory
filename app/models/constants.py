@@ -25,8 +25,11 @@ WORKLOADS_FIELDS = {
     "oracle_db",
     "rhel_ai",
     "sap",
+    "sap_instance_number",
     "sap_sids",
     "sap_system",
+    "sap_version",
+    "third_party_services",
 }
 
 MIN_CANONICAL_FACTS_VERSION = 0

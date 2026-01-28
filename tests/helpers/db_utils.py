@@ -114,10 +114,12 @@ def create_reference_host_in_db(insights_id, reporter, system_profile, stale_tim
         insights_id=insights_id,
         display_name="display_name",
         reporter=reporter,
-        system_profile_facts=system_profile,
         stale_timestamp=stale_timestamp,
     )
     db.session.add(host)
+    db.session.flush()
+    if system_profile:
+        host.update_system_profile(system_profile)
     db.session.commit()
     return host
 
