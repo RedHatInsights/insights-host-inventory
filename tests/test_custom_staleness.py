@@ -1,13 +1,20 @@
+from datetime import UTC
 from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 
+from api.host_query import staleness_timestamps
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.models import db
+from app.staleness_serialization import get_reporter_staleness_timestamps
+from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
+from tests.helpers.api_utils import create_host_with_reporter
+from tests.helpers.api_utils import create_reporter_data
 from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import now
 
@@ -28,6 +35,43 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
+
+
+def _setup_staleness_test_context(flask_app, event_producer, mocker, feature_flag_enabled=None):
+    """Helper to set up common test context with datetime mocking and app context.
+
+    Returns a context manager that handles all the setup and teardown.
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _context():
+        mock_datetime_patcher = patch("app.models.utils.datetime")
+        mock_datetime = mock_datetime_patcher.__enter__()
+
+        patches = [mock_datetime_patcher]
+
+        if feature_flag_enabled is not None:
+            mock_flag_patcher = patch("lib.feature_flags.get_flag_value")
+            mock_get_flag_value = mock_flag_patcher.__enter__()
+            mock_get_flag_value.return_value = feature_flag_enabled
+            patches.append(mock_flag_patcher)
+
+        app_context = flask_app.app.app_context()
+        app_context.__enter__()
+        mocker.patch.object(event_producer, "write_event")
+
+        _now = now()
+        mock_datetime.now.return_value = _now
+
+        try:
+            yield _now
+        finally:
+            app_context.__exit__(None, None, None)
+            for p in patches:
+                p.__exit__(None, None, None)
+
+    return _context()
 
 
 @pytest.mark.parametrize("num_hosts", [1, 2, 3])
@@ -245,105 +289,431 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
     This test creates hosts with multiple reporters, makes some culled via timestamp manipulation,
     and verifies that the registered_with filter correctly handles culled vs fresh reporters.
     """
-
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
-    with patch("app.models.utils.datetime") as mock_datetime:
-        with flask_app.app.app_context():
-            mocker.patch.object(event_producer, "write_event")
-            _now = now()
-            mock_datetime.now.return_value = _now
-
-            # Create a host with multiple reporters, including culled_timestamp
-            _ = db_create_host(
-                extra_data={
-                    "reporter": "puptoo",  # Primary reporter
-                    "per_reporter_staleness": {
-                        # Fresh puptoo reporter (not culled)
-                        "puptoo": {
-                            "last_check_in": _now.isoformat(),
-                            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                            "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
-                            "check_in_succeeded": True,
-                        },
-                        # Fresh yupana reporter (not culled)
-                        "yupana": {
-                            "last_check_in": _now.isoformat(),
-                            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                            "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
-                            "check_in_succeeded": True,
-                        },
+    with _setup_staleness_test_context(flask_app, event_producer, mocker) as _now:
+        # Create a host with multiple reporters, including culled_timestamp
+        db_create_host(
+            extra_data={
+                "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": {
+                        "last_check_in": _now.isoformat(),
+                        "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                        "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
+                        "check_in_succeeded": True,
+                    },
+                    "yupana": {
+                        "last_check_in": _now.isoformat(),
+                        "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                        "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
+                        "check_in_succeeded": True,
                     },
                 },
-            )
+            },
+        )
 
-            # Create a host with culled reporters
-            _ = db_create_host(
+        # Create a host with culled reporters
+        db_create_host(
+            extra_data={
+                "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": {
+                        "last_check_in": (_now - timedelta(days=30)).isoformat(),
+                        "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
+                        "culled_timestamp": (_now - timedelta(days=16)).isoformat(),
+                        "check_in_succeeded": True,
+                    }
+                },
+            },
+        )
+
+        # Create a host with no puptoo/yupana (different reporter)
+        db_create_host(
+            extra_data={
+                "reporter": "rhsm-conduit",
+                "per_reporter_staleness": {
+                    "rhsm-conduit": {
+                        "last_check_in": _now.isoformat(),
+                        "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                        "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
+                        "check_in_succeeded": True,
+                    }
+                },
+            },
+        )
+
+        # Test filtering
+        _, puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo"))
+        _, yupana_hosts = api_get(build_hosts_url(query="?registered_with=yupana"))
+        _, not_puptoo_hosts = api_get(build_hosts_url(query="?registered_with=!puptoo"))
+        _, not_yupana_hosts = api_get(build_hosts_url(query="?registered_with=!yupana"))
+
+        assert len(puptoo_hosts["results"]) == 1
+        assert len(not_puptoo_hosts["results"]) == 2
+        assert len(yupana_hosts["results"]) == 1
+        assert len(not_yupana_hosts["results"]) == 2
+        assert len(puptoo_hosts["results"]) + len(not_puptoo_hosts["results"]) == 3
+        assert len(yupana_hosts["results"]) + len(not_yupana_hosts["results"]) == 3
+
+
+@pytest.mark.parametrize("feature_flag_enabled", [False, True])
+def test_registered_with_filter_same_results_with_or_without_feature_flag(
+    db_create_staleness_culling,
+    db_create_host,
+    api_get,
+    flask_app,
+    event_producer,
+    mocker,
+    feature_flag_enabled,
+):
+    """
+    Test that registered_with filter produces identical results with feature flag ON or OFF.
+    """
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+    with _setup_staleness_test_context(flask_app, event_producer, mocker, feature_flag_enabled) as _now:
+        fresh_last_check_in = _now
+        fresh_data = create_reporter_data(fresh_last_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+        db_create_host(
+            extra_data={
+                "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": fresh_data,
+                    "yupana": fresh_data,
+                },
+            },
+        )
+
+        # Create a host with culled reporter
+        culled_last_check_in = _now - timedelta(days=30)
+        culled_data = create_reporter_data(culled_last_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE)
+        db_create_host(
+            extra_data={
+                "reporter": "puptoo",
+                "per_reporter_staleness": {"puptoo": culled_data},
+            },
+        )
+
+        # Create a host with different reporter
+        db_create_host(
+            extra_data={
+                "reporter": "rhsm-conduit",
+                "per_reporter_staleness": {"rhsm-conduit": fresh_data},
+            },
+        )
+
+        # Test filtering with puptoo
+        _, puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo"))
+        _, not_puptoo_hosts = api_get(build_hosts_url(query="?registered_with=!puptoo"))
+
+        assert len(puptoo_hosts["results"]) == 1
+        assert len(not_puptoo_hosts["results"]) == 2
+        assert len(puptoo_hosts["results"]) + len(not_puptoo_hosts["results"]) == 3
+
+
+@pytest.mark.parametrize("feature_flag_enabled", [False, True])
+def test_registered_with_filter_with_only_last_check_in_when_flag_enabled(
+    db_create_staleness_culling,
+    db_create_host,
+    api_get,
+    flask_app,
+    event_producer,
+    mocker,
+    feature_flag_enabled,
+):
+    """
+    Test that when feature flag is ON, filtering works as expected
+    """
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+    with _setup_staleness_test_context(flask_app, event_producer, mocker, feature_flag_enabled) as _now:
+        fresh_last_check_in = _now
+        puptoo_data = create_reporter_data(
+            fresh_last_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=not feature_flag_enabled
+        )
+
+        fresh_host = db_create_host(
+            extra_data={"reporter": "puptoo", "per_reporter_staleness": {"puptoo": puptoo_data}},
+        )
+        fresh_host.last_check_in = fresh_last_check_in
+        fresh_host.per_reporter_staleness["puptoo"]["last_check_in"] = fresh_last_check_in.isoformat()
+        fresh_host_id = str(fresh_host.id)
+        db.session.commit()
+
+        other_host = db_create_host(
+            extra_data={
+                "reporter": "rhsm-conduit",
+                "per_reporter_staleness": {
+                    "rhsm-conduit": create_reporter_data(fresh_last_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE)
+                },
+            },
+        )
+        other_host.last_check_in = fresh_last_check_in
+        other_host_id = str(other_host.id)
+        db.session.commit()
+
+        _, puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo"))
+        _, not_puptoo_hosts = api_get(build_hosts_url(query="?registered_with=!puptoo"))
+
+        assert len(puptoo_hosts["results"]) == 1
+        assert len(not_puptoo_hosts["results"]) == 1
+        assert fresh_host_id in {h["id"] for h in puptoo_hosts["results"]}
+        assert other_host_id in {h["id"] for h in not_puptoo_hosts["results"]}
+
+
+def test_calculated_timestamps_match_stored_timestamps(
+    db_create_staleness_culling,
+    db_create_host,
+    db_get_hosts,
+    flask_app,
+    event_producer,
+    mocker,
+):
+    """Verify calculated timestamps match expected values from last_check_in."""
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+    with _setup_staleness_test_context(flask_app, event_producer, mocker, feature_flag_enabled=True) as _now:
+        # Create a test host - normalize to UTC
+        last_check_in = _now.astimezone(UTC) if _now.tzinfo else _now.replace(tzinfo=UTC)
+        host = db_create_host(
+            extra_data={
+                "reporter": "puptoo",
+                "per_reporter_staleness": {
+                    "puptoo": create_reporter_data(last_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE)
+                },
+            },
+        )
+        host.last_check_in = last_check_in
+        host.per_reporter_staleness["puptoo"]["last_check_in"] = last_check_in.isoformat()
+        db.session.commit()
+
+        # Get host from database and calculate timestamps
+        db_host = db_get_hosts([host.id]).first()
+        staleness = get_sys_default_staleness()
+        staleness_timestamps_obj = staleness_timestamps()
+        calculated = get_reporter_staleness_timestamps(db_host, staleness_timestamps_obj, staleness, "puptoo")
+
+        # Calculate expected timestamps
+        from datetime import datetime as dt
+
+        date_to_use = dt.fromisoformat(db_host.per_reporter_staleness["puptoo"]["last_check_in"])
+        date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
+
+        expected = {
+            "stale_timestamp": staleness_timestamps_obj.stale_timestamp(
+                date_to_use, staleness["conventional_time_to_stale"]
+            ),
+            "stale_warning_timestamp": staleness_timestamps_obj.stale_warning_timestamp(
+                date_to_use, staleness["conventional_time_to_stale_warning"]
+            ),
+            "culled_timestamp": staleness_timestamps_obj.culled_timestamp(
+                date_to_use, staleness["conventional_time_to_delete"]
+            ),
+        }
+
+        # Verify calculated timestamps match expected (within 2 seconds tolerance)
+        for key in ["stale_timestamp", "stale_warning_timestamp", "culled_timestamp"]:
+            calculated_ts = calculated[key]
+            if calculated_ts.tzinfo is None:
+                calculated_ts = calculated_ts.replace(tzinfo=UTC)
+            else:
+                calculated_ts = calculated_ts.astimezone(UTC)
+            diff_seconds = abs((calculated_ts - expected[key]).total_seconds())
+            assert diff_seconds <= 2
+
+
+def test_registered_with_filter_missing_last_check_in_when_flag_enabled(
+    db_create_staleness_culling,
+    db_create_host,
+    api_get,
+    flask_app,
+    event_producer,
+    mocker,
+):
+    """
+    Test that when feature flag is ON, filtering works as expected when last_check_in is missing.
+    Tests both positive (registered_with=puptoo) and negative (registered_with=!puptoo) filters.
+    """
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+    with _setup_staleness_test_context(flask_app, event_producer, mocker, feature_flag_enabled=True) as _now:
+        # Create a host with reporter but missing last_check_in
+        host_without_last_check_in_id = str(
+            db_create_host(
                 extra_data={
                     "reporter": "puptoo",
-                    "per_reporter_staleness": {
-                        # Culled puptoo reporter
-                        "puptoo": {
-                            "last_check_in": (_now - timedelta(days=30)).isoformat(),
-                            "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
-                            "culled_timestamp": (_now - timedelta(days=16)).isoformat(),  # Culled (past)
-                            "check_in_succeeded": True,
-                        }
-                    },
+                    "per_reporter_staleness": {"puptoo": {"check_in_succeeded": True}},
                 },
-            )
+            ).id
+        )
 
-            # Create a host with no puptoo/yupana (different reporter)
-            _ = db_create_host(
+        # Normal host for comparison
+        normal_host_id = str(
+            create_host_with_reporter(
+                db_create_host, "puptoo", _now, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=False
+            ).id
+        )
+
+        # Create a host with a different reporter for negative filter test
+        other_host_id = str(
+            db_create_host(
                 extra_data={
-                    "reporter": "rhsm-conduit",
+                    "reporter": "yupana",
                     "per_reporter_staleness": {
-                        "rhsm-conduit": {
-                            "last_check_in": _now.isoformat(),
-                            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                            "culled_timestamp": (_now + timedelta(days=14)).isoformat(),  # Fresh
-                            "check_in_succeeded": True,
-                        }
+                        "yupana": create_reporter_data(
+                            _now,
+                            CUSTOM_STALENESS_HOST_BECAME_STALE,
+                            include_timestamps=False,
+                        ),
                     },
                 },
-            )
+            ).id
+        )
 
-            total_hosts = 3
+        # Test positive filter: registered_with=puptoo
+        _, puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo"))
+        assert normal_host_id in {h["id"] for h in puptoo_hosts["results"]}
+        assert host_without_last_check_in_id not in {h["id"] for h in puptoo_hosts["results"]}
 
-            # Set up URLs for testing
-            puptoo_url = build_hosts_url(query="?registered_with=puptoo")
-            yupana_url = build_hosts_url(query="?registered_with=yupana")
-            not_puptoo_url = build_hosts_url(query="?registered_with=!puptoo")
-            not_yupana_url = build_hosts_url(query="?registered_with=!yupana")
+        # Test negative filter: registered_with=!puptoo
+        _, data = api_get(build_hosts_url(query="?registered_with=!puptoo"))
+        assert data is not None
+    returned_ids = {h["id"] for h in data["results"]}
+    assert host_without_last_check_in_id not in returned_ids
+    assert other_host_id in returned_ids
 
-            _, puptoo_hosts = api_get(puptoo_url)
-            _, yupana_hosts = api_get(yupana_url)
-            _, not_puptoo_hosts = api_get(not_puptoo_url)
-            _, not_yupana_hosts = api_get(not_yupana_url)
 
-            puptoo_count = len(puptoo_hosts["results"])
-            yupana_count = len(yupana_hosts["results"])
-            not_puptoo_count = len(not_puptoo_hosts["results"])
-            not_yupana_count = len(not_yupana_hosts["results"])
+@pytest.mark.parametrize("feature_flag_enabled", [False, True])
+def test_registered_with_filter_with_gt_lte_time_filters_when_flag_enabled(
+    db_create_staleness_culling,
+    db_create_host,
+    api_get,
+    flask_app,
+    event_producer,
+    mocker,
+    feature_flag_enabled,
+):
+    """
+    Verify that gt and lte time filters work correctly with calculated timestamps when flag is ON,
+    and that behavior is identical when flag is OFF (legacy path).
+    """
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
-            # EXPECTED BEHAVIOR with culled-based filtering:
-            # registered_with=puptoo should return 1 (multi_reporter_host with fresh puptoo)
-            # registered_with=!puptoo should return 2 (culled_reporter_host with culled puptoo +
-            #                                          single_reporter_host without puptoo)
-            # registered_with=yupana should return 1 (multi_reporter_host with fresh yupana)
-            # registered_with=!yupana should return 2 (culled_reporter_host + single_reporter_host,
-            #                                          neither has yupana)
+    with _setup_staleness_test_context(
+        flask_app,
+        event_producer,
+        mocker,
+        feature_flag_enabled,
+    ) as _now:
+        stale_check_in = _now - timedelta(seconds=10)
+        recent_check_in = _now - timedelta(seconds=0.1)
+        very_recent_check_in = _now
 
-            expected_fresh_puptoo = 1
-            expected_not_puptoo = 2
-            expected_fresh_yupana = 1
-            expected_not_yupana = 2
+        stale_host = create_host_with_reporter(
+            db_create_host, "puptoo", stale_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=True
+        )
+        stale_host_id = str(stale_host.id)
 
-            assert puptoo_count == expected_fresh_puptoo
-            assert not_puptoo_count == expected_not_puptoo
-            assert yupana_count == expected_fresh_yupana
-            assert not_yupana_count == expected_not_yupana
+        recent_host = create_host_with_reporter(
+            db_create_host, "puptoo", recent_check_in, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=False
+        )
+        recent_host_id = str(recent_host.id)
 
-            # The equation should hold
-            assert puptoo_count + not_puptoo_count == total_hosts
-            assert yupana_count + not_yupana_count == total_hosts
+        very_recent_host = create_host_with_reporter(
+            db_create_host,
+            "puptoo",
+            very_recent_check_in,
+            CUSTOM_STALENESS_HOST_BECAME_STALE,
+            include_timestamps=False,
+        )
+        very_recent_host_id = str(very_recent_host.id)
+
+    _, all_puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo"))
+
+    assert len(all_puptoo_hosts["results"]) == 3
+    assert {stale_host_id, recent_host_id, very_recent_host_id} == {h["id"] for h in all_puptoo_hosts["results"]}
+
+    _, fresh_puptoo_hosts = api_get(build_hosts_url(query="?registered_with=puptoo&staleness=fresh"))
+
+    fresh_host_ids = {h["id"] for h in fresh_puptoo_hosts["results"]}
+
+    # Regardless of flag state, the behavior should be the same
+    assert recent_host_id in fresh_host_ids
+    assert very_recent_host_id in fresh_host_ids
+    assert len(fresh_puptoo_hosts["results"]) == 2
+    assert stale_host_id not in fresh_host_ids
+
+
+@pytest.mark.parametrize("feature_flag_enabled", [False, True])
+def test_rhsm_only_hosts_get_far_future_timestamp_in_sql_queries(
+    db_create_staleness_culling,
+    db_create_host,
+    api_get,
+    flask_app,
+    event_producer,
+    mocker,
+    feature_flag_enabled,
+):
+    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
+
+    with _setup_staleness_test_context(
+        flask_app,
+        event_producer,
+        mocker,
+        feature_flag_enabled,
+    ) as _now:
+        # Create an RHSM-only host
+        rhsm_only_host_id = str(
+            db_create_host(
+                extra_data={
+                    "reporter": "rhsm-system-profile-bridge",
+                    "per_reporter_staleness": {
+                        "rhsm-system-profile-bridge": create_reporter_data(
+                            _now - timedelta(days=100),  # Very old check-in, but should stay fresh forever
+                            CUSTOM_STALENESS_HOST_BECAME_STALE,
+                            include_timestamps=not feature_flag_enabled,
+                        )
+                    },
+                },
+            ).id
+        )
+
+        # Create a host with RHSM + other reporter
+        rhsm_with_other_id = str(
+            db_create_host(
+                extra_data={
+                    "reporter": "rhsm-system-profile-bridge",
+                    "per_reporter_staleness": {
+                        "rhsm-system-profile-bridge": create_reporter_data(
+                            _now, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=not feature_flag_enabled
+                        ),
+                        "puptoo": create_reporter_data(
+                            _now, CUSTOM_STALENESS_HOST_BECAME_STALE, include_timestamps=not feature_flag_enabled
+                        ),
+                    },
+                },
+            ).id
+        )
+
+        old_check_in = _now - timedelta(days=100)
+        create_host_with_reporter(
+            db_create_host,
+            "puptoo",
+            old_check_in,
+            CUSTOM_STALENESS_HOST_BECAME_STALE,
+            include_timestamps=not feature_flag_enabled,
+        )
+
+    _, fresh_hosts = api_get(build_hosts_url(query="?staleness=fresh"))
+
+    assert rhsm_only_host_id in {h["id"] for h in fresh_hosts["results"]}
+    assert rhsm_with_other_id in {h["id"] for h in fresh_hosts["results"]}
+
+    # RHSM-only host does NOT appear in "stale" or "stale_warning" staleness
+    _, stale_hosts = api_get(build_hosts_url(query="?staleness=stale"))
+    _, stale_warning_hosts = api_get(build_hosts_url(query="?staleness=stale_warning"))
+
+    assert rhsm_only_host_id not in {h["id"] for h in stale_hosts["results"]}
+    assert rhsm_only_host_id not in {h["id"] for h in stale_warning_hosts["results"]}
