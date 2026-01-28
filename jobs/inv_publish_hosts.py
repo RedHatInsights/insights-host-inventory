@@ -15,6 +15,7 @@ from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.models.constants import INVENTORY_SCHEMA
+from jobs.common import excepthook
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 from lib.metrics import hosts_syndication_fail_count
@@ -166,10 +167,6 @@ def _init_db(config):
 
 def _prometheus_job(namespace):
     return f"{PROMETHEUS_JOB}-{namespace}" if namespace else PROMETHEUS_JOB
-
-
-def _excepthook(logger, exc_type, value, traceback):
-    logger.exception("Inventory migration failed", exc_info=(exc_type, value, traceback))
 
 
 def _build_create_publication_sql(publication_name):
@@ -419,6 +416,7 @@ def main(logger):
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    sys.excepthook = partial(_excepthook, logger)
+    job_type = "Inventory host publication"
+    sys.excepthook = partial(excepthook, logger, job_type)
 
     main(logger)
