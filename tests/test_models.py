@@ -2093,6 +2093,7 @@ def test_create_host_app_data_malware(db_create_host):
         last_status="Not affected",
         last_matches=0,
         last_scan=scan_time,
+        total_matches=0,
     )
 
     db.session.add(malware_data)
@@ -2108,6 +2109,7 @@ def test_create_host_app_data_malware(db_create_host):
     assert retrieved.last_matches == 0
     assert retrieved.last_scan == scan_time
     assert retrieved.last_updated == current_time
+    assert retrieved.total_matches == 0
 
 
 def test_create_host_app_data_image_builder(db_create_host):
