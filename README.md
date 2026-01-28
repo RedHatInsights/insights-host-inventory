@@ -144,7 +144,20 @@ If using a different directory, update the `volumes` section in [dev.yml](dev.ym
 
 All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
 This includes the web server, MQ server, database, Kafka, and other infrastructure services.
-Start them with the following command:
+
+**Note:** This repository uses git submodules (e.g., `librdkafka`). If you haven't already, clone the repository with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/RedHatInsights/insights-host-inventory.git
+```
+
+Or, if you've already cloned without submodules, initialize them with:
+
+```bash
+git submodule update --init --recursive
+```
+
+Start the services with the following command:
 
 ```bash
 docker compose -f dev.yml up -d
