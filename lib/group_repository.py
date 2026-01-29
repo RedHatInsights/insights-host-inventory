@@ -29,6 +29,7 @@ from app.models import deleted_by_this_query
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
@@ -78,13 +79,14 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
     for host in host_list:
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
         headers = message_headers(
             EventType.updated,
             str(host.insights_id),
             host.reporter,
-            host.system_profile_facts.get("host_type"),
-            host.system_profile_facts.get("operating_system", {}).get("name"),
-            str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+            host_type,
+            os_name,
+            bootc_booted,
         )
         event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
@@ -93,7 +95,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 def _invalidate_system_cache(host_list: list[Host], identity: Identity):
     for host in host_list:
         insights_id = host.insights_id
-        owner_id = host.system_profile_facts.get("owner_id")
+        owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=str(insights_id), org_id=identity.org_id, owner_id=owner_id)
 

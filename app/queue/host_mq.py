@@ -65,6 +65,7 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.mq_common import common_message_parser
@@ -73,6 +74,7 @@ from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
+from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_app_repository
@@ -486,15 +488,19 @@ class IngressMessageConsumer(HostMessageConsumer):
             # New hosts don't have an id, so create one
             input_host.id = uuid.uuid4() if input_host.id is None else input_host.id
 
-            # basic-auth does not need owner_id
+            # Validate payload's owner_id against identity CN
             if identity.identity_type == IdentityType.SYSTEM:
-                input_host = _set_owner(input_host, identity)
+                _validate_payload_owner_id(input_host, identity)
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
             processed_hosts = [result.row for result in self.processed_rows]
             host_row, add_result = host_repository.add_host(
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
+
+            # Set owner_id on the persisted host
+            if identity.identity_type == IdentityType.SYSTEM:
+                _set_owner(host_row, identity)
 
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
@@ -846,37 +852,39 @@ def _get_identity(host, metadata) -> Identity:
     return identity
 
 
-# When identity_type is System, set owner_id if missing from the host system_profile
-def _set_owner(host: Host, identity: Identity) -> Host:
+# Validate that if the payload includes owner_id, it matches the identity's CN
+def _validate_payload_owner_id(input_host: Host, identity: Identity) -> None:
+    """
+    Validates owner_id from the payload against the identity's CN.
+    Only raises if the payload explicitly includes an owner_id that doesn't match.
+    """
     cn = identity.system.get("cn")
-    if host.system_profile_facts is None:
-        host.system_profile_facts = {}
-        host.system_profile_facts["owner_id"] = cn
-    elif not host.system_profile_facts.get("owner_id"):
-        host.system_profile_facts["owner_id"] = cn
-    else:
-        reporter = host.reporter
-        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.subscription_manager_id)
-        else:
-            if host.system_profile_facts["owner_id"] != cn:
-                raise ValidationException("The owner in host does not match the owner in identity")
 
-    # Also set the owner_id in static_system_profile
+    # Check if the payload included an owner_id (via static_system_profile)
+    if input_host.static_system_profile and input_host.static_system_profile.owner_id:
+        payload_owner_id = str(input_host.static_system_profile.owner_id)
+        if payload_owner_id != cn:
+            raise ValidationException("The owner in host does not match the owner in identity")
+
+
+# Ensure the persisted host has owner_id set
+def _set_owner(host: Host, identity: Identity) -> None:
+    """
+    Sets owner_id on the persisted host based on identity and reporter logic.
+    Called after add_host to ensure the host has an owner_id.
+    """
+    cn = identity.system.get("cn")
+
     if host.static_system_profile is None:
-        # Create static system profile if it doesn't exist
         host.static_system_profile = HostStaticSystemProfile(org_id=host.org_id, host_id=host.id, owner_id=cn)
-    elif not host.static_system_profile.owner_id:
-        host.static_system_profile.owner_id = cn
     else:
+        # Determine the owner_id based on reporter
         reporter = host.reporter
         if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
             host.static_system_profile.owner_id = _formatted_uuid(host.subscription_manager_id)
         else:
-            if str(host.static_system_profile.owner_id) != cn:
-                raise ValidationException("The owner in host does not match the owner in identity")
-
-    return host
+            # Always update to the current identity's CN
+            host.static_system_profile.owner_id = cn
 
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
@@ -967,13 +975,14 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
             headers = message_headers(
                 EventType.delete,
                 str(host.insights_id),
                 message["host"].get("reporter"),
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                host_type,
+                os_name,
+                bootc_booted,
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -988,17 +997,18 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row.static_system_profile)
     headers = message_headers(
         EventType.delete,
         str(result.row.insights_id),
         result.row.reporter,
-        result.row.system_profile_facts.get("host_type"),
-        result.row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
-    insights_id = result.row.insights_id
-    owner_id = result.row.system_profile_facts.get("owner_id")
+    insights_id = serialize_uuid(result.row.insights_id)
+    owner_id = result.row.static_system_profile.owner_id if result.row.static_system_profile else None
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger()
