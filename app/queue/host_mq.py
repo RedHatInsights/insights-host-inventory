@@ -55,7 +55,6 @@ from app.models import LimitedHostSchema
 from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
-from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
@@ -849,17 +848,23 @@ def _get_identity(host, metadata) -> Identity:
 # When identity_type is System, set owner_id if missing from the host system_profile
 def _set_owner(host: Host, identity: Identity) -> Host:
     cn = identity.system.get("cn")
-    if host.system_profile_facts is None:
-        host.system_profile_facts = {}
-        host.system_profile_facts["owner_id"] = cn
-    elif not host.system_profile_facts.get("owner_id"):
-        host.system_profile_facts["owner_id"] = cn
+
+    # Get current owner_id from normalized system profile
+    current_owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
+
+    if current_owner_id is None:
+        # Create or update static system profile with owner_id
+        if not host.static_system_profile:
+            from app.models.system_profile_static import HostStaticSystemProfile
+
+            host.static_system_profile = HostStaticSystemProfile(org_id=host.org_id, host_id=host.id)
+        host.static_system_profile.owner_id = cn
     else:
         reporter = host.reporter
         if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.subscription_manager_id)
+            host.static_system_profile.owner_id = _formatted_uuid(host.subscription_manager_id)
         else:
-            if host.system_profile_facts["owner_id"] != cn:
+            if str(current_owner_id) != cn:
                 raise ValidationException("The owner in host does not match the owner in identity")
 
     # Also set the owner_id in static_system_profile
@@ -967,13 +972,15 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
+            # Extract system profile data directly from message since host doesn't exist in DB
+            system_profile = message["host"].get("system_profile", {})
             headers = message_headers(
                 EventType.delete,
                 str(host.insights_id),
                 message["host"].get("reporter"),
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                system_profile.get("host_type"),
+                system_profile.get("operating_system", {}).get("name"),
+                str(system_profile.get("bootc_status", {}).get("booted") is not None),
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -992,13 +999,19 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         EventType.delete,
         str(result.row.insights_id),
         result.row.reporter,
-        result.row.system_profile_facts.get("host_type"),
-        result.row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        result.row.host_type,
+        result.row.static_system_profile.operating_system.get("name")
+        if result.row.static_system_profile and result.row.static_system_profile.operating_system
+        else None,
+        str(
+            result.row.static_system_profile.bootc_status.get("booted") is not None
+            if result.row.static_system_profile and result.row.static_system_profile.bootc_status
+            else False
+        ),
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
     insights_id = result.row.insights_id
-    owner_id = result.row.system_profile_facts.get("owner_id")
+    owner_id = result.row.static_system_profile.owner_id if result.row.static_system_profile else None
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger()

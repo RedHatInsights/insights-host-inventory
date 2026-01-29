@@ -82,9 +82,15 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
             EventType.updated,
             str(host.insights_id),
             host.reporter,
-            host.system_profile_facts.get("host_type"),
-            host.system_profile_facts.get("operating_system", {}).get("name"),
-            str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+            host.host_type,
+            host.static_system_profile.operating_system.get("name")
+            if host.static_system_profile and host.static_system_profile.operating_system
+            else None,
+            str(
+                host.static_system_profile.bootc_status.get("booted") is not None
+                if host.static_system_profile and host.static_system_profile.bootc_status
+                else False
+            ),
         )
         event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
@@ -93,7 +99,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 def _invalidate_system_cache(host_list: list[Host], identity: Identity):
     for host in host_list:
         insights_id = host.insights_id
-        owner_id = host.system_profile_facts.get("owner_id")
+        owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=str(insights_id), org_id=identity.org_id, owner_id=owner_id)
 

@@ -88,6 +88,93 @@ ADDITIONAL_EXPORT_SERVICE_FIELDS = (
 )
 
 
+def _reconstruct_system_profile_from_normalized_tables(host):
+    """
+    Reconstruct the system profile dictionary from normalized static and dynamic system profile tables.
+
+    Args:
+        host: Host object with static_system_profile and dynamic_system_profile relationships
+
+    Returns:
+        dict: Combined system profile data
+    """
+    system_profile = {}
+
+    # Add static system profile fields
+    if host.static_system_profile:
+        static_profile = host.static_system_profile
+        for field_name in [
+            "arch",
+            "basearch",
+            "bios_release_date",
+            "bios_vendor",
+            "bios_version",
+            "bootc_status",
+            "captured_date",
+            "cloud_provider",
+            "cores_per_socket",
+            "cpu_flags",
+            "cpu_model",
+            "infrastructure_type",
+            "infrastructure_vendor",
+            "insights_client_version",
+            "insights_egg_version",
+            "installed_products",
+            "katello_agent_running",
+            "kernel_modules",
+            "last_boot_time",
+            "number_of_cpus",
+            "number_of_sockets",
+            "operating_system",
+            "os_kernel_version",
+            "os_release",
+            "owner_id",
+            "releasever",
+            "rhc_client_id",
+            "rhc_config_state",
+            "rhsm",
+            "satellite_managed",
+            "selinux_config_file",
+            "selinux_current_mode",
+            "subscription_auto_attach",
+            "subscription_status",
+            "system_memory_bytes",
+            "system_purpose",
+            "systemd",
+            "threads_per_core",
+            "tuned_profile",
+            "virtual",
+            "yum_repos",
+        ]:
+            value = getattr(static_profile, field_name, None)
+            if value is not None:
+                system_profile[field_name] = value
+
+    # Add dynamic system profile fields
+    if host.dynamic_system_profile:
+        dynamic_profile = host.dynamic_system_profile
+        for field_name in [
+            "captured_date",
+            "conversions",
+            "disk_devices",
+            "dnf_modules",
+            "enabled_services",
+            "gpg_pubkeys",
+            "installed_packages",
+            "installed_services",
+            "mssql",
+            "network_interfaces",
+            "running_processes",
+            "sap_sids",
+            "workloads",
+        ]:
+            value = getattr(dynamic_profile, field_name, None)
+            if value is not None:
+                system_profile[field_name] = value
+
+    return system_profile
+
+
 def deserialize_host(
     raw_data: dict, schema: type[HostSchema | LimitedHostSchema] = HostSchema, system_profile_spec: dict | None = None
 ) -> Host | LimitedHost:
@@ -169,7 +256,7 @@ def serialize_host(
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
-        "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
         "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
@@ -178,10 +265,12 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
+        # Reconstruct system profile from normalized tables
+        full_system_profile = _reconstruct_system_profile_from_normalized_tables(host)
         serialized_host["system_profile"] = (
-            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
-            if host.system_profile_facts and system_profile_fields
-            else host.system_profile_facts or {}
+            {k: v for k, v in full_system_profile.items() if k in system_profile_fields}
+            if full_system_profile and system_profile_fields
+            else full_system_profile or {}
         )
 
         # Add backward compatibility for workload fields
@@ -189,10 +278,12 @@ def serialize_host(
             FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
         ):
             # Temporarily add workloads from source for backward compat if needed
-            if "workloads" not in serialized_host["system_profile"] and host.system_profile_facts:
-                workloads_data = host.system_profile_facts.get("workloads")
-                if workloads_data:
-                    serialized_host["system_profile"]["workloads"] = workloads_data
+            if (
+                "workloads" not in serialized_host["system_profile"]
+                and host.dynamic_system_profile
+                and host.dynamic_system_profile.workloads
+            ):
+                serialized_host["system_profile"]["workloads"] = host.dynamic_system_profile.workloads
 
             serialized_host["system_profile"] = _add_workloads_backward_compatibility(
                 serialized_host["system_profile"]
@@ -269,7 +360,7 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
 
 
 def serialize_host_system_profile(host):
-    return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    return {"id": serialize_uuid(host.id), "system_profile": _reconstruct_system_profile_from_normalized_tables(host)}
 
 
 def _recursive_casefold(field_data):

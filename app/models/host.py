@@ -45,7 +45,6 @@ class LimitedHost(db.Model):
     __table_args__ = (
         Index("idxorgid", "org_id"),
         Index("idxdisplay_name", "display_name"),
-        Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
         {"schema": INVENTORY_SCHEMA},
     )
@@ -59,7 +58,6 @@ class LimitedHost(db.Model):
         facts=None,
         tags=None,
         tags_alt=None,
-        system_profile_facts=None,
         groups=None,
         id=None,
         insights_id=None,
@@ -91,8 +89,7 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.tags_alt = tags_alt
-        self.system_profile_facts = system_profile_facts or {}
-        self._add_or_update_normalized_system_profiles(system_profile_facts)
+        self._add_or_update_normalized_system_profiles(None)
         self.groups = groups or []
         self.last_check_in = _time_now()
         # canonical facts
@@ -257,7 +254,6 @@ class LimitedHost(db.Model):
 
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
-    system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
     last_check_in = db.Column(db.DateTime(timezone=True))
 
@@ -286,7 +282,6 @@ class Host(LimitedHost):
         facts=None,
         tags=None,
         tags_alt=None,
-        system_profile_facts=None,
         stale_timestamp=None,  # noqa: ARG002 - to be removed
         reporter=None,
         per_reporter_staleness=None,
@@ -335,7 +330,6 @@ class Host(LimitedHost):
             facts,
             tags,
             tags_alt,
-            system_profile_facts,
             groups,
             id,
             insights_id,
@@ -352,6 +346,8 @@ class Host(LimitedHost):
         self.reporter = reporter
         if display_name:
             self.display_name_reporter = reporter
+
+        # System profile processing is now handled in the schema build_model method
 
         self._update_last_check_in_date()
         self._update_staleness_timestamps()
@@ -389,8 +385,14 @@ class Host(LimitedHost):
 
         self.reporter = input_host.reporter
 
+        # System profile updates now handled through normalized system profile tables
         if update_system_profile:
-            self.update_system_profile(input_host.system_profile_facts)
+            # Reconstruct system profile from input host's normalized tables and update
+            from app.serialization import _reconstruct_system_profile_from_normalized_tables
+
+            input_system_profile = _reconstruct_system_profile_from_normalized_tables(input_host)
+            if input_system_profile:
+                self.update_system_profile(input_system_profile)
 
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
@@ -578,17 +580,6 @@ class Host(LimitedHost):
 
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
-
-        # Update the existing JSONB column (backward compatibility)
-        if not self.system_profile_facts:
-            self.system_profile_facts = input_system_profile
-        else:
-            for key, value in input_system_profile.items():
-                if key in ["rhsm", "workloads"]:
-                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
-                else:
-                    self.system_profile_facts[key] = value
-        orm.attributes.flag_modified(self, "system_profile_facts")
 
         # Update the normalized system profile tables
         try:

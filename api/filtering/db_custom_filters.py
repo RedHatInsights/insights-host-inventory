@@ -22,7 +22,6 @@ from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.models.constants import WORKLOADS_FIELDS
-from app.models.host import Host
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
@@ -76,8 +75,8 @@ def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, d
         if field_name in DYNAMIC_FIELDS:
             return getattr(HostDynamicSystemProfile, field_name), filter_param
         else:
-            # Fall back to legacy JSONB column for workloads fields
-            return Host.system_profile_facts, filter_param
+            # Fall back to workloads JSONB column in dynamic system profile for nested workloads fields
+            return HostDynamicSystemProfile.workloads, filter_param
 
     return getattr(HostDynamicSystemProfile, field_name) if field_name in DYNAMIC_FIELDS else getattr(
         HostStaticSystemProfile, field_name
@@ -106,8 +105,8 @@ def _convert_dict_to_column_jsonb_path_pg_op_value(
 
     jsonb_path, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
     # For normalized table columns, omit the first element (field name) since it's already in the column
-    # For Host.system_profile_facts JSONB column, keep all elements since we need the full path
-    omitted_jsonb_path = jsonb_path if column.key == "system_profile_facts" else jsonb_path[1:] if jsonb_path else ()
+    # For HostDynamicSystemProfile.workloads JSONB column, keep all elements since we need the full path
+    omitted_jsonb_path = jsonb_path if column.key == "workloads" else jsonb_path[1:] if jsonb_path else ()
     return column, omitted_jsonb_path, pg_op, value
 
 

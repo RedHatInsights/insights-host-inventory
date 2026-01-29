@@ -248,7 +248,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, facts, tags, tags_alt=None):
-        return LimitedHost(
+        host = LimitedHost(
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -256,7 +256,6 @@ class LimitedHostSchema(CanonicalFactsSchema):
             facts=facts,
             tags=tags,
             tags_alt=tags_alt if tags_alt else [],
-            system_profile_facts=data.get("system_profile", {}),
             groups=data.get("groups", []),
             insights_id=data.get("insights_id"),
             subscription_manager_id=data.get("subscription_manager_id"),
@@ -269,6 +268,13 @@ class LimitedHostSchema(CanonicalFactsSchema):
             provider_type=data.get("provider_type"),
             openshift_cluster_id=data.get("openshift_cluster_id"),
         )
+
+        # Process system profile data into normalized system profile tables
+        system_profile_data = data.get("system_profile", {})
+        if system_profile_data:
+            host._add_or_update_normalized_system_profiles(system_profile_data)
+
+        return host
 
     # Configuration for workload migration
     WORKLOAD_MIGRATION_CONFIG = {

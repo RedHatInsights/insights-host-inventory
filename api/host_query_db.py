@@ -76,7 +76,7 @@ DEFAULT_COLUMNS = [
     Host.created_on,
     Host.modified_on,
     Host.groups,
-    Host.system_profile_facts["host_type"].label("host_type"),
+    Host.host_type,
     Host.last_check_in,
     Host.openshift_cluster_id,
 ]
@@ -106,7 +106,8 @@ def _get_host_list_using_filters(
         additional_fields: tuple = ("system_profile",)
         system_profile_fields += list(fields.get("system_profile", {}).keys())
         columns = list(columns)
-        columns.append(Host.system_profile_facts)
+        # TODO: Update to use normalized system profile tables instead of removed system_profile_facts JSONB column
+        # columns.append(Host.system_profile_facts)
     else:
         additional_fields = ()
 
@@ -630,6 +631,9 @@ def get_sparse_system_profile(
         and any(field in legacy_workload_fields for field in requested_sp_fields)
     )
 
+    # TODO: Update sparse system profile queries to use normalized system profile tables
+    # This function needs significant refactoring to work with the new normalized schema
+    # instead of the removed system_profile_facts JSONB column
     if fields and fields.get("system_profile"):
         # If backward compatibility is enabled and legacy fields are requested,
         # also fetch workloads field so we can populate legacy fields from it
@@ -639,14 +643,15 @@ def get_sparse_system_profile(
 
         columns = [
             Host.id,
-            func.jsonb_strip_nulls(
-                func.jsonb_build_object(
-                    *[kv for key in fields_to_fetch for kv in (key, Host.system_profile_facts[key].label(key))]
-                ).label("system_profile_facts")
-            ),
+            # FIXME: system_profile_facts column has been removed - need to query normalized tables
+            # func.jsonb_strip_nulls(
+            #     func.jsonb_build_object(
+            #         *[kv for key in fields_to_fetch for kv in (key, Host.system_profile_facts[key].label(key))]
+            #     ).label("system_profile_facts")
+            # ),
         ]
     else:
-        columns = [Host.id, Host.system_profile_facts]
+        columns = [Host.id]  # Removed Host.system_profile_facts
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
 
@@ -755,7 +760,8 @@ def get_hosts_to_export(
         Host.org_id,
         Host.display_name,
         Host.host_type,
-        Host.system_profile_facts,
+        # TODO: Update export to use normalized system profile tables instead of removed system_profile_facts
+        # Host.system_profile_facts,
         Host.modified_on,
         Host.facts,
         Host.reporter,

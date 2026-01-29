@@ -151,9 +151,15 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
         EventType.updated,
         str(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host.host_type,
+        host.static_system_profile.operating_system.get("name")
+        if host.static_system_profile and host.static_system_profile.operating_system
+        else None,
+        str(
+            host.static_system_profile.bootc_status.get("booted") is not None
+            if host.static_system_profile and host.static_system_profile.bootc_status
+            else False
+        ),
     )
     metadata = {"b64_identity": to_auth_header(identity)}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
