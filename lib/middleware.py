@@ -344,29 +344,7 @@ def kessel_verb(perm) -> str:
 def get_kessel_filter(
     kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
-    logger.debug(
-        "get_kessel_filter called",
-        extra={
-            "identity_type": current_identity.identity_type,
-            "org_id": current_identity.org_id,
-            "permission_resource_type": permission.resource_type.name if permission.resource_type else None,
-            "permission_resource_permission": permission.resource_permission,
-            "permission_workspace_permission": permission.workspace_permission,
-            "permission_write_operation": permission.write_operation,
-            "ids_count": len(ids),
-            "ids": ids[:10] if ids else [],  # Log first 10 IDs for debugging
-        },
-    )
-
     if current_identity.identity_type not in CHECKED_TYPES:
-        logger.debug(
-            "get_kessel_filter: identity_type not in CHECKED_TYPES, bypassing check",
-            extra={
-                "identity_type": current_identity.identity_type,
-                "checked_types": [t.value for t in CHECKED_TYPES],
-                "is_host_resource": permission.resource_type == KesselResourceTypes.HOST,
-            },
-        )
         if permission.resource_type == KesselResourceTypes.HOST:
             return True, None
         else:
@@ -375,19 +353,13 @@ def get_kessel_filter(
     if len(ids) > 0:
         if permission.write_operation:
             # Write specific object(s) by id(s)
-            logger.debug("get_kessel_filter: checking write permission for specific IDs via check_for_update")
-            result = kessel_client.check_for_update(current_identity, permission, ids)
-            logger.debug(f"get_kessel_filter: check_for_update result={result}")
-            if result:
+            if kessel_client.check_for_update(current_identity, permission, ids):
                 return True, None
             else:
                 return False, None  # The objects are not authorized - reject the request.
         else:
             # Read specific object(s) by id(s)
-            logger.debug("get_kessel_filter: checking read permission for specific IDs via check")
-            result = kessel_client.check(current_identity, permission, ids)
-            logger.debug(f"get_kessel_filter: check result={result}")
-            if result:
+            if kessel_client.check(current_identity, permission, ids):
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
                 return False, None  # The objects are not authorized - reject the request.
@@ -396,26 +368,10 @@ def get_kessel_filter(
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
-    logger.debug(
-        "get_kessel_filter: no specific IDs, calling ListAllowedWorkspaces",
-        extra={"relation": relation},
-    )
-    workspaces = kessel_client.ListAllowedWorkspaces(current_identity, relation)
-    logger.debug(
-        "get_kessel_filter: ListAllowedWorkspaces result",
-        extra={"workspaces_count": len(workspaces), "workspaces": workspaces[:10] if workspaces else []},
-    )
+    workspaces = kessel_client.list_allowed_workspaces(current_identity, relation)
     # NOTE: this won't work for checks that require a permission to be unfiltered
     # Ex: some org-level permissions OR permissions like add group (which we may not need to handle)
     if len(workspaces) == 0:
-        logger.warning(
-            "get_kessel_filter: no allowed workspaces returned, denying access",
-            extra={
-                "identity_type": current_identity.identity_type,
-                "org_id": current_identity.org_id,
-                "relation": relation,
-            },
-        )
         return False, None
     else:
         return True, {"groups": workspaces}
@@ -543,23 +499,22 @@ def access(permission: KesselPermission, id_param: str = ""):
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
-    if rbac_filter and "groups" in rbac_filter and (disallowed_ids := requested_ids.difference(rbac_filter["groups"])):
-        # id check is only called before writing to groups, permission so far is always the same
-        required_permission = "inventory:groups:write"
-        joined_ids = ", ".join(disallowed_ids)
-        rbac_group_permission_denied(logger, joined_ids, required_permission)
-        abort(
-            HTTPStatus.FORBIDDEN,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        )
+    if rbac_filter and "groups" in rbac_filter:
+        # Find the IDs that are in requested_ids but not rbac_filter
+        disallowed_ids = requested_ids.difference(rbac_filter["groups"])
+        if len(disallowed_ids) > 0:
+            # id check is only called before writing to groups, permission so far is always the same
+            required_permission = "inventory:groups:write"
+            joined_ids = ", ".join(disallowed_ids)
+            rbac_group_permission_denied(logger, joined_ids, required_permission)
+            abort(HTTPStatus.FORBIDDEN, f"You do not have access to the the following groups: {joined_ids}")
 
 
 def post_rbac_workspace(name) -> UUID | None:
     if inventory_config().bypass_kessel:
         return None
 
-    rbac_endpoint = get_rbac_v2_url(endpoint="workspaces/")
+    rbac_endpoint = _get_rbac_workspace_url()
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
     request_data = {"name": name}
 
@@ -630,7 +585,7 @@ def patch_rbac_workspace(workspace_id: str, name: str | None = None) -> None:
 
     request_data = {}
     if name is not None:
-        request_data.update({"name": name})
+        request_data["name"] = name
 
     _execute_rbac_http_request(
         method="PATCH",
@@ -645,7 +600,76 @@ def get_rbac_default_workspace() -> UUID | None:
         return None
 
     response = rbac_get_request_using_endpoint_and_headers(
-        get_rbac_v2_url(endpoint="workspaces/"), _build_rbac_request_headers(), {"limit": 1, "type": "default"}
+        _get_rbac_workspace_url(query_params={"limit": 1, "type": "default"}),
+        _build_rbac_request_headers(),
+        {"limit": 1, "type": "default"},
     )
     data = response["data"] if response else None
     return data[0]["id"] if data and len(data) > 0 else None
+
+
+def get_rbac_workspaces(
+    name: str | None, page: int, per_page: int, rbac_filter: dict | None, group_type: str | None
+) -> tuple[list[dict], int] | None:
+    if inventory_config().bypass_rbac:
+        return None
+
+    # sample RBAC request: console.redhat.com/api/rbac/v2/workspaces/?limit=10&offset=0&type=standard&name=my_group
+
+    query_params = {}
+    if name:
+        query_params["name"] = name
+    if group_type:
+        query_params["type"] = group_type
+    if page and per_page:
+        # Convert page to offset (page is 1-based, offset is 0-based)
+        offset = (page - 1) * per_page
+        query_params["offset"] = str(offset)
+        query_params["limit"] = str(per_page)
+
+    # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
+    request_data = {"name": name}
+
+    response = get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+
+    # Handle missing keys safely with type validation
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return [], 0
+
+    # Extract data with safe key access and type validation
+    data = response.get("data", [])
+    if not isinstance(data, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
+        data = []
+
+    # Apply rbac_filter if provided - filter to only include groups in the allowed set
+    if rbac_filter and "groups" in rbac_filter:
+        allowed_group_ids = rbac_filter["groups"]
+        original_count = len(data)
+        # Filter data to only include workspaces whose ID is in the allowed set
+        # Convert workspace ID to string for comparison since rbac_filter contains string UUIDs
+        data = [workspace for workspace in data if str(workspace.get("id", "")) in allowed_group_ids]
+        filtered_count = len(data)
+        if original_count != filtered_count:
+            logger.debug(f"Filtered workspaces from {original_count} to {filtered_count} based on rbac_filter")
+
+    count = response.get("meta", {}).get("count", 0)
+    # Update count to reflect filtered results if rbac_filter was applied
+    if rbac_filter and "groups" in rbac_filter:
+        count = len(data)
+
+    return data, count
+
+
+def get_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> dict[Any, Any] | None:
+    return _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_params=request_data,  # For GET requests, use request_params instead of request_data
+    )
