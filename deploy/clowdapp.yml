@@ -2082,20 +2082,25 @@ objects:
         chunksize: 10000
         query: >-
           SELECT
-            "org_id",
+            "h"."org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
+              "sps"."bootc_status"->'booted'->>'image_digest' IS NOT NULL
+              AND "sps"."bootc_status"->'booted'->>'image_digest' <> ''
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
-              AND "system_profile_facts"->>'host_type' IS NULL
+              ("sps"."bootc_status" IS NULL OR "sps"."bootc_status"->'booted'->>'image_digest' IS NULL)
+              AND "sps"."host_type" IS NULL
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count"
-          FROM "hbi"."hosts"
-          GROUP BY "org_id";
+              "sps"."host_type" = 'edge'
+            ) AS "edge_count",
+            COUNT(*) FILTER (WHERE
+              "sps"."host_type" = 'cluster'
+            ) AS "cluster_count"
+          FROM "hbi"."hosts" AS "h"
+          LEFT JOIN "hbi"."system_profiles_static" AS "sps"
+            ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
+          GROUP BY "h"."org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
