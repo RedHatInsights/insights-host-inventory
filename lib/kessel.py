@@ -151,17 +151,15 @@ class Kessel:
 
         # Try to get user_id from user identity
         if getattr(current_identity, "user", None):
-            user_id = current_identity.user.get("user_id")
-            if not user_id:
-                user_id = current_identity.user.get("username")
+            user_id = current_identity.user.get("user_id") or current_identity.user.get("username")
             logger.debug(
                 "_build_subject_reference: resolved user_id from user identity",
                 extra={"user_id": user_id, "identity_type": current_identity.identity_type},
             )
 
-        # Fall back to service_account client_id if user_id not found
+        # Fall back to service_account.user_id if user.user_id not found
         if not user_id and getattr(current_identity, "service_account", None):
-            user_id = current_identity.service_account.get("client_id")
+            user_id = current_identity.service_account.get("user_id")
             logger.debug(
                 "_build_subject_reference: resolved user_id from service_account identity",
                 extra={"user_id": user_id, "identity_type": current_identity.identity_type},
@@ -318,7 +316,7 @@ class Kessel:
                 extra={"user_id": user_id},
             )
         elif getattr(current_identity, "service_account", None):
-            user_id = current_identity.service_account.get("client_id")
+            user_id = current_identity.service_account.get("user_id")
             logger.debug(
                 "ListAllowedWorkspaces: resolved user_id from service_account identity",
                 extra={"user_id": user_id, "service_account": current_identity.service_account},
