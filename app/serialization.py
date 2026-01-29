@@ -12,7 +12,6 @@ from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
-from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -102,8 +101,7 @@ def deserialize_host(
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
     tags_alt = validated_data.get("tags_alt", [])
-    main_data = {**validated_data, **canonical_facts}
-    return schema.build_model(main_data, facts, tags, tags_alt)
+    return schema.build_model(validated_data, canonical_facts, facts, tags, tags_alt)
 
 
 def deserialize_canonical_facts(raw_data, all=False):
@@ -184,25 +182,15 @@ def serialize_host(
             else host.system_profile_facts or {}
         )
 
-        # Add backward compatibility for workload fields
-        if serialized_host["system_profile"] and get_flag_value(
-            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
+        # Add backward compatibility for workload fields (only for Kafka events)
+        if (
+            for_mq
+            and serialized_host["system_profile"]
+            and get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
         ):
-            # Temporarily add workloads from source for backward compat if needed
-            if "workloads" not in serialized_host["system_profile"] and host.system_profile_facts:
-                workloads_data = host.system_profile_facts.get("workloads")
-                if workloads_data:
-                    serialized_host["system_profile"]["workloads"] = workloads_data
-
             serialized_host["system_profile"] = _add_workloads_backward_compatibility(
                 serialized_host["system_profile"]
             )
-
-            # Re-filter to only keep requested fields
-            if system_profile_fields:
-                serialized_host["system_profile"] = {
-                    k: v for k, v in serialized_host["system_profile"].items() if k in system_profile_fields
-                }
 
         if (
             system_profile_fields
@@ -264,8 +252,69 @@ def serialize_group_without_host_count(group: Group) -> dict:
     }
 
 
-def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
-    return {**serialize_group_without_host_count(group), "host_count": host_count}
+def serialize_workspace_without_host_count(group: dict, org_id: str) -> dict:
+    """
+    Serialize a workspace/group object to a dictionary format.
+    Args:
+        group: A dictionary (from RBAC v2) with the workspace data
+        org_id: The Organization ID of the group/workspace
+    Returns:
+        Dictionary containing serialized group/workspace data
+    """
+    return {
+        "name": group["name"],
+        "id": serialize_uuid(group["id"]),
+        "parent_id": group.get("parent_id") or None,
+        "org_id": org_id,
+        "description": group.get("description", ""),
+        "type": group.get("type", ""),
+        "created": group.get("created", ""),
+        "updated": group.get("modified", ""),
+    }
+
+
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
+    """
+    Serialize a database Group object with host count.
+    Args:
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": group.ungrouped,
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
+    }
+
+
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize an RBAC v2 workspace dictionary with host count.
+    Args:
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
+    Returns:
+        Dictionary containing serialized workspace data with host_count
+    """
+    return {
+        "name": workspace["name"],
+        "id": serialize_uuid(workspace["id"]),
+        "parent_id": workspace.get("parent_id") or None,
+        "org_id": org_id,
+        "description": workspace.get("description", ""),
+        "type": workspace.get("type", ""),
+        "created": workspace.get("created", ""),
+        "updated": workspace.get("modified", ""),
+        "host_count": host_count,
+    }
 
 
 def serialize_host_system_profile(host):
@@ -295,31 +344,17 @@ def _deserialize_all_canonical_facts(data):
     return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(host: Host | LimitedHost, include_none: bool = True) -> dict[str, Any]:
-    """
-    Serialize canonical facts from a host object to a dictionary.
-
-    Args:
-        host: The host object (Host or LimitedHost) to serialize canonical facts from.
-        include_none: If True (default), includes all canonical fact fields in the output,
-            even when their values are None. If False, only includes fields with non-None values.
-
-    Returns:
-        A dictionary containing the serialized canonical facts. Empty lists for
-        ip_addresses and mac_addresses are converted to None.
-    """
+def serialize_canonical_facts(host: Host | LimitedHost) -> dict[str, Any]:
     canonical_facts = {}
     for field in CANONICAL_FACTS_FIELDS:
         value = getattr(host, field, None)
         if isinstance(value, UUID):
             value = serialize_uuid(value)
-        elif field in {"ip_addresses", "mac_addresses"} and value == []:
+        if field in {"ip_addresses", "mac_addresses"} and value == []:
             value = None
-        elif field == "insights_id" and value is None and include_none:
-            value = DEFAULT_INSIGHTS_ID
-
-        if value is not None or include_none:
-            canonical_facts[field] = value
+        if field == "insights_id" and value is None:
+            value = "00000000-0000-0000-0000-000000000000"
+        canonical_facts[field] = value
     return canonical_facts
 
 
@@ -495,8 +530,7 @@ def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
 
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     """
-    Populate legacy workload fields with data from workloads.* for backward compatibility,
-    and remove None values from workloads.* to comply with OpenAPI spec.
+    Populate legacy workload fields with data from workloads.* for backward compatibility.
 
     This ensures subscribers can transition from legacy root-level fields to the new
     workloads structure for SAP, Ansible, InterSystems, MSSQL, and CrowdStrike.
@@ -565,24 +599,19 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
         if not data:
             continue
 
-        # Remove None values from workloads.* to comply with OpenAPI spec
-        none_keys = [k for k, v in data.items() if v is None]
-        for k in none_keys:
-            del data[k]
-
         # ensure nested path exists
         target = system_profile
         for p in cfg["path"]:
             target = target.setdefault(p, {})
 
-        # copy each mapped field (skip None values to comply with OpenAPI spec)
+        # copy each mapped field
         for new_field, out_key in cfg["fields"].items():
-            if data.get(new_field) is not None:
+            if new_field in data:
                 target[out_key] = data[new_field]
 
         # handle any top‐level “flat” mappings
         for new_field, out_key in cfg.get("flat_fields", {}).items():
-            if data.get(new_field) is not None:
+            if new_field in data:
                 system_profile[out_key] = data[new_field]
 
     return system_profile

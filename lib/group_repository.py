@@ -30,8 +30,9 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group_with_host_count
+from app.serialization import serialize_db_group_with_host_count
 from app.serialization import serialize_host
+from app.serialization import serialize_rbac_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -54,7 +55,8 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
+        for group_id in group_id_list
     ]
 
     # Update groups data on each host record
@@ -80,7 +82,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
         headers = message_headers(
             EventType.updated,
-            str(host.insights_id),
+            host.canonical_facts.get("insights_id"),
             host.reporter,
             host.system_profile_facts.get("host_type"),
             host.system_profile_facts.get("operating_system", {}).get("name"),
@@ -92,10 +94,10 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 
 def _invalidate_system_cache(host_list: list[Host], identity: Identity):
     for host in host_list:
-        insights_id = host.insights_id
+        insights_id = host.canonical_facts.get("insights_id")
         owner_id = host.system_profile_facts.get("owner_id")
         if insights_id and owner_id:
-            delete_cached_system_keys(insights_id=str(insights_id), org_id=identity.org_id, owner_id=owner_id)
+            delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
 
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
@@ -152,8 +154,7 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
 
 
 def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
-    # Validate that the hosts exist and can be added to the group
-    # This must happen BEFORE any database modifications to ensure clean rollback on failure
+    # First, validate that the hosts can even be added to the group
     validate_add_host_list_to_group(host_id_list, group_id, org_id)
 
     # Filter out hosts that are already in the group
@@ -458,8 +459,8 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
 
         # Update host list, if provided
         if new_host_ids is not None:
-            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
             _remove_hosts_from_group(group_id, list(existing_host_ids - new_host_ids), identity.org_id)
+            _add_hosts_to_group(group_id, list(new_host_ids - existing_host_ids), identity.org_id)
             # Add hosts to the "ungrouped" group
             ungrouped_group = get_or_create_ungrouped_hosts_group_for_identity(identity)
             removed_group_id_list = [str(ungrouped_group.id)]
@@ -543,6 +544,23 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(group: Group) -> dict:
-    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
-    return serialize_group_with_host_count(group, host_count)
+def serialize_group(group: Group | dict, org_id: str) -> dict:
+    """
+    Serialize a group with host count.
+    Delegates to the appropriate serializer based on whether the group is from the database or RBAC v2.
+
+    Args:
+        group: Either a Group ORM object (from DB) or a dict (from RBAC v2)
+        org_id: The organization ID
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    host_count = get_non_culled_hosts_count_in_group(group, org_id)
+
+    if isinstance(group, dict):
+        # RBAC v2 workspace (dict from RBAC API)
+        return serialize_rbac_workspace_with_host_count(group, org_id, host_count)
+    else:
+        # Database Group (ORM object)
+        return serialize_db_group_with_host_count(group, host_count)
