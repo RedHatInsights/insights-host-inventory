@@ -588,6 +588,7 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
+# I could do this one as well ####################################
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     for reporter in host.per_reporter_staleness:
         # For hosts that should stay fresh forever, use far-future timestamps

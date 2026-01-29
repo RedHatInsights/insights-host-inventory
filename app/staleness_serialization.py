@@ -49,6 +49,7 @@ def get_staleness_timestamps(host, staleness_timestamps: Timestamps, staleness: 
     }
 
 
+# This might be a good one too ####################################
 def get_reporter_staleness_timestamps(
     host, staleness_timestamps: Timestamps, staleness: AttrDict, reporter: str
 ) -> dict:

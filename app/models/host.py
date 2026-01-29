@@ -454,6 +454,7 @@ class Host(LimitedHost):
             for input_namespace, input_facts in facts_dict.items():
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
+    # This one seems ok to change but may actually be deleted ####################################
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
         for reporter in self.per_reporter_staleness:
             st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)

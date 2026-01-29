@@ -13,9 +13,12 @@ from dateutil import parser
 from flask_sqlalchemy.query import Query
 from sqlalchemy import DateTime
 from sqlalchemy import and_
+from sqlalchemy import case
+from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import JSONB
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
@@ -31,6 +34,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
@@ -38,6 +42,8 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
+from lib.feature_flags import FLAG_INVENTORY_NEW_STALE_TIMESTAMP_PER_REPORTER_FILTER
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "query_filters",
@@ -214,7 +220,134 @@ def stale_timestamp_filter(gt=None, lte=None):
     return and_(*filters)
 
 
-def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
+def _calculate_reporter_timestamps_from_last_check_in(reporter_key: str, staleness_config: dict) -> dict[str, Any]:
+    """
+    Calculate stale_timestamp, stale_warning_timestamp, and culled_timestamp
+    from a reporter's last_check_in using SQLAlchemy expressions.
+
+    This function duplicates the logic from _serialize_per_reporter_staleness
+    but returns SQLAlchemy expressions instead of modifying the host object.
+
+    Args:
+        reporter_key: The key for the reporter in per_reporter_staleness JSONB
+        staleness_config: Dictionary with staleness configuration:
+            - conventional_time_to_stale
+            - conventional_time_to_stale_warning
+            - conventional_time_to_delete
+
+    Returns:
+        Dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', 'culled_timestamp'
+        containing SQLAlchemy expressions that calculate these values from last_check_in.
+    """
+    # Get the last_check_in datetime from the JSONB field
+    last_check_in = Host.per_reporter_staleness[reporter_key]["last_check_in"].astext.cast(DateTime)
+
+    # Check if host should stay fresh forever (only rhsm-system-profile-bridge reporter)
+    # This is equivalent to: per_reporter_staleness has only "rhsm-system-profile-bridge" key
+    is_rhsm_only = and_(
+        func.jsonb_exists(Host.per_reporter_staleness, "rhsm-system-profile-bridge"),
+        Host.per_reporter_staleness.op("-")("rhsm-system-profile-bridge") == cast({}, JSONB),
+    )
+
+    # Use FAR_FUTURE_STALE_TIMESTAMP for rhsm-only hosts, otherwise calculate from last_check_in
+    far_future = cast(FAR_FUTURE_STALE_TIMESTAMP, DateTime)
+
+    stale_timestamp = case(
+        (is_rhsm_only, far_future),
+        else_=last_check_in + func.make_interval(seconds=staleness_config["conventional_time_to_stale"]),
+    )
+
+    stale_warning_timestamp = case(
+        (is_rhsm_only, far_future),
+        else_=last_check_in + func.make_interval(seconds=staleness_config["conventional_time_to_stale_warning"]),
+    )
+
+    culled_timestamp = case(
+        (is_rhsm_only, far_future),
+        else_=last_check_in + func.make_interval(seconds=staleness_config["conventional_time_to_delete"]),
+    )
+
+    return {
+        "stale_timestamp": stale_timestamp,
+        "stale_warning_timestamp": stale_warning_timestamp,
+        "culled_timestamp": culled_timestamp,
+    }
+
+
+def _stale_timestamp_per_reporter_filter_new(gt=None, lte=None, reporter=None, staleness_config=None):
+    """
+    New implementation that calculates timestamps from last_check_in on-the-fly.
+    This duplicates the logic from _stale_timestamp_per_reporter_filter but uses SQLAlchemy expressions.
+    """
+    non_negative_reporter = reporter.replace("!", "")
+    reporter_list = [non_negative_reporter]
+    if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
+        reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
+
+    current_time = datetime.now(UTC)
+
+    if reporter.startswith("!"):
+        # For negation: include hosts that do NOT have ANY fresh reporter from the reporter_list
+        # This means: for ALL reporters in the list, the host either doesn't have them OR they're culled
+        time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
+
+        and_conditions = []  # All conditions must be true (host lacks ALL fresh reporters)
+
+        for rep in reporter_list:
+            # Calculate timestamps from last_check_in
+            timestamps = _calculate_reporter_timestamps_from_last_check_in(rep, staleness_config)
+
+            # For each reporter, the host must either:
+            # 1. Not have this reporter at all, OR
+            # 2. Have this reporter but it's culled (calculated culled_timestamp < now)
+            rep_condition = or_(
+                # Doesn't have this reporter
+                not_(Host.per_reporter_staleness.has_key(rep)),
+                # Has this reporter but it's culled (calculated culled_timestamp < now)
+                and_(
+                    Host.per_reporter_staleness.has_key(rep),
+                    timestamps["culled_timestamp"] < current_time,
+                ),
+            )
+            and_conditions.append(rep_condition)
+
+        return and_(
+            and_(*and_conditions),  # Must satisfy condition for ALL reporters in the list
+            time_filter_,
+        )
+    else:
+        # For positive: include hosts that have the reporter AND are not culled
+        or_filter = []
+        for rep in reporter_list:
+            conditions = [Host.per_reporter_staleness.has_key(rep)]
+
+            # Calculate timestamps from last_check_in
+            timestamps = _calculate_reporter_timestamps_from_last_check_in(rep, staleness_config)
+
+            # Check if not culled (calculated culled_timestamp >= now)
+            conditions.append(timestamps["culled_timestamp"] >= current_time)
+
+            if gt:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt)
+            if lte:
+                conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte)
+            or_filter.append(and_(*conditions))
+
+        return or_(*or_filter)
+
+
+def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, org_id=None):
+    # Check feature flag for new behavior
+    if get_flag_value(FLAG_INVENTORY_NEW_STALE_TIMESTAMP_PER_REPORTER_FILTER):
+        # Get staleness configuration
+        if org_id is None:
+            # Fallback to old behavior if org_id is not provided
+            logger.warning("Feature flag enabled but org_id not provided, falling back to old behavior")
+            # Continue with old behavior below
+        else:
+            staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
+            return _stale_timestamp_per_reporter_filter_new(gt, lte, reporter, staleness_obj)
+
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
     if non_negative_reporter in OLD_TO_NEW_REPORTER_MAP.keys():
@@ -253,6 +386,7 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None):
         # For positive: include hosts that have the reporter AND are not culled (if culled_timestamp exists)
         or_filter = []
         for rep in reporter_list:
+            # I could start here ####################################3
             conditions = [Host.per_reporter_staleness.has_key(rep)]
 
             # Only check culled status if culled_timestamp exists
@@ -280,7 +414,7 @@ def per_reporter_staleness_filter(staleness, reporter, org_id):
         *staleness_to_conditions(
             staleness_obj,
             staleness,
-            partial(_stale_timestamp_per_reporter_filter, reporter=reporter),
+            partial(_stale_timestamp_per_reporter_filter, reporter=reporter, org_id=org_id),
         )
     )
     return [conditions]
