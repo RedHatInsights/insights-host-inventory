@@ -1,17 +1,15 @@
-import contextlib
 import json
 from copy import deepcopy
-from unittest import mock
 
 import pytest
 from dateutil import parser
+from flask import abort
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
-from tests.helpers.api_utils import mocked_patch_workspace_name_exists
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -507,102 +505,19 @@ def test_patch_group_kessel_workspace_same_name_error(
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    mocker.patch(
-        "requests.Session.patch",
-        new=lambda self, url, **kwargs: mocked_patch_workspace_name_exists(
-            kessel_response_status, self, url, **kwargs
-        ),
-    )
+    # Mock patch_rbac_workspace to abort with the expected status code
+    # This simulates the behavior of _make_rbac_request which catches HTTPError and calls abort
+    def mock_patch_rbac_workspace_error(_workspace_id, name=None):  # noqa: ARG001
+        abort(kessel_response_status, "RBAC client error: Can't patch workspace with same name")
 
-    # Mock the metrics context manager bc we don't care about it here
-    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
-        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+    mocker.patch("api.group.patch_rbac_workspace", side_effect=mock_patch_rbac_workspace_error)
 
-        response_status, response_data = api_patch_group(existing_group_id, {"name": "new_group_name"})
+    response_status, _ = api_patch_group(existing_group_id, {"name": "new_group_name"})
 
-        # Should return the expected error status
-        assert_response_status(response_status, kessel_response_status)
+    # Should return the expected error status
+    assert_response_status(response_status, kessel_response_status)
 
     # Verify the original group is unchanged
     original_group = db_get_group_by_id(existing_group_id)
     assert original_group.name == "original_group_name"
     assert original_group.modified_on == original_modified_on
-
-
-@pytest.mark.usefixtures("enable_kessel")
-@pytest.mark.parametrize(
-    "invalid_host_scenario",
-    [
-        "single_nonexistent",  # PATCH with only non-existent host ID
-        "mixed_valid_invalid",  # PATCH with mix of valid and invalid host IDs
-    ],
-)
-def test_patch_group_with_invalid_hosts(
-    db_create_group_with_hosts,
-    db_get_hosts_for_group,
-    db_get_group_by_id,
-    api_patch_group,
-    event_producer,
-    mocker,
-    invalid_host_scenario,
-):
-    """
-    Test that patching a group with invalid host IDs fails and leaves the group unchanged
-    when Kessel is enabled.
-
-    This is a regression test for the bug where failed PATCH operations would incorrectly
-    clear host-group associations due to premature database flushes before validation completed.
-
-    Scenarios:
-    - single_nonexistent: PATCH with only a non-existent host ID
-    - mixed_valid_invalid: PATCH with a mix of valid and invalid host IDs
-
-    Expected behavior:
-    - PATCH returns 400 error
-    - Group retains original host associations (no hosts removed)
-    - Group modified_on timestamp unchanged
-    - No events produced
-    """
-    # Mock the event producer
-    mocker.patch.object(event_producer, "write_event")
-
-    # Create group with 3 hosts
-    group = db_create_group_with_hosts("test_group", 3)
-    group_id = group.id
-    orig_modified_on = group.modified_on
-
-    # Verify the group has 3 hosts initially
-    initial_hosts = db_get_hosts_for_group(group_id)
-    assert len(initial_hosts) == 3
-
-    # Get existing host IDs for mixed scenario
-    existing_host_ids = [str(h.id) for h in initial_hosts]
-
-    # Generate invalid host ID
-    invalid_host_id = generate_uuid()
-
-    # Build patch list based on scenario
-    if invalid_host_scenario == "single_nonexistent":
-        patch_host_ids = [invalid_host_id]
-    elif invalid_host_scenario == "mixed_valid_invalid":
-        # 2 valid hosts from the group + 1 invalid
-        patch_host_ids = existing_host_ids[:2] + [invalid_host_id]
-
-    # Attempt to patch the group with invalid host ID(s)
-    patch_doc = {"host_ids": patch_host_ids}
-    response_status, response_data = api_patch_group(group_id, patch_doc)
-
-    # The patch should fail with a 400 error
-    assert_response_status(response_status, 400)
-    assert str(invalid_host_id) in response_data["detail"]
-    assert "not find" in response_data["detail"]
-
-    # Verify that the group still has the original 3 hosts (unchanged)
-    assert len(db_get_hosts_for_group(group_id)) == 3
-
-    # Verify that the group's modified_on timestamp hasn't changed
-    retrieved_group = db_get_group_by_id(group_id)
-    assert retrieved_group.modified_on == orig_modified_on
-
-    # Verify that no events were produced
-    assert event_producer.write_event.call_count == 0

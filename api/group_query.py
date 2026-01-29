@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
@@ -133,7 +131,9 @@ def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, 
 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):
-    json_group_list = [serialize_group(group) for group in group_list]
+    # group resource provided by rbac_v2 does not have org_id
+    org_id = get_current_identity().org_id
+    json_group_list = [serialize_group(group, org_id) for group in group_list]
     return {
         "total": total,
         "count": len(json_group_list),
@@ -144,4 +144,6 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 
 def build_group_response(group):
-    return serialize_group(group)
+    # group resource provided by rbac_v2 does not have org_id
+    org_id = get_current_identity().org_id
+    return serialize_group(group, org_id)

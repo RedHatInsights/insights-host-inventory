@@ -25,6 +25,7 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from lib.group_repository import serialize_group
 from lib.host_repository import host_query
 from tests.helpers.db_utils import db_group
+from tests.helpers.db_utils import db_host_with_custom_canonical_facts
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -79,7 +80,7 @@ def db_get_hosts(flask_app: FlaskApp) -> Callable[[list[str], str | None], Query
 def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
     def _db_get_host_by_insights_id(insights_id, org_id: str | None = None):
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return host_query(org_id).filter(Host.insights_id == insights_id).one()
+        return host_query(org_id).filter(Host.canonical_facts["insights_id"].astext == insights_id).one()
 
     return _db_get_host_by_insights_id
 
@@ -88,7 +89,7 @@ def db_get_host_by_insights_id(flask_app):  # noqa: ARG001
 def db_get_hosts_by_subman_id(flask_app: FlaskApp) -> Callable[[str], list[Host]]:  # noqa: ARG001
     def _db_get_hosts_by_insights_id(subman_id: str, org_id: str | None = None) -> list[Host]:
         org_id = org_id or SYSTEM_IDENTITY["org_id"]
-        return host_query(org_id).filter(Host.subscription_manager_id == subman_id).all()
+        return host_query(org_id).filter(Host.canonical_facts["subscription_manager_id"].astext == subman_id).all()
 
     return _db_get_hosts_by_insights_id
 
@@ -164,6 +165,24 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 
 
 @pytest.fixture(scope="function")
+def db_create_host_custom_canonical_facts(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
+    def _create_host_custom_canonical_facts(
+        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
+    ) -> Host:
+        identity = identity or SYSTEM_IDENTITY
+        extra_data = extra_data or {}
+        org_id = extra_data.pop("org_id", None) or identity["org_id"]
+        host = host or db_host_with_custom_canonical_facts(
+            org_id=org_id, account=identity["account_number"], **extra_data
+        )
+        db.session.add(host)
+        db.session.commit()
+        return host
+
+    return _create_host_custom_canonical_facts
+
+
+@pytest.fixture(scope="function")
 def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]:  # noqa: ARG001
     def _db_create_multiple_hosts(
         identity: dict[str, Any] | None = None,
@@ -226,7 +245,7 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
             raise ValueError(f"Group with id {group_id} not found")
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=group.org_id)
         db.session.add(host_group)
-        serialized_groups = [serialize_group(group)]
+        serialized_groups = [serialize_group(group, group.org_id)]
         db.session.query(Host).filter(Host.org_id == group.org_id, Host.id == host_id).update(
             {"groups": serialized_groups}
         )

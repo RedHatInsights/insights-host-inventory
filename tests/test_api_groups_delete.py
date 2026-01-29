@@ -275,6 +275,41 @@ def test_delete_hosts_from_different_groups_RBAC_denied(
     assert event_producer.write_event.call_count == 0
 
 
+def test_delete_hosts_no_group(
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    db_create_host_group_assoc,
+    api_remove_hosts_from_diff_groups,
+    event_producer,
+    mocker,
+):
+    mocker.patch.object(event_producer, "write_event")
+
+    group_id = str(db_create_group("test_group1").id)
+    host_id_list = [str(db_create_host().id) for _ in range(2)]
+
+    # Add one host to the group
+    db_create_host_group_assoc(host_id_list[0], group_id)
+
+    # Confirm that the associations exist
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 1
+
+    response_status, _ = api_remove_hosts_from_diff_groups(host_id_list)
+    assert_response_status(response_status, 204)
+
+    # Confirm that the host was removed from the group
+    hosts1_after = db_get_hosts_for_group(group_id)
+    assert len(hosts1_after) == 0
+
+    assert event_producer.write_event.call_count == 1
+    for call_arg in event_producer.write_event.call_args_list:
+        host = json.loads(call_arg[0][0])["host"]
+        assert host["id"] == host_id_list[0]
+        assert host["groups"][0]["ungrouped"] is True
+
+
 @pytest.mark.usefixtures("event_producer")
 def test_delete_non_empty_group(api_delete_groups, db_create_group_with_hosts):
     group = db_create_group_with_hosts("non_empty_group", 3)
@@ -291,7 +326,9 @@ def test_attempt_delete_group_read_only(api_delete_groups, mocker):
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts):
+def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts, mocker):
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
     group = db_create_group_with_hosts("non_empty_group", 3)
 
     response_status, rd = api_delete_groups([group.id])
@@ -299,11 +336,12 @@ def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_g
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group):
-    group_id = str(db_create_group("test_group").id)
+def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group, mocker):
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        group_id = str(db_create_group("test_group").id)
 
-    response_status, _ = api_delete_groups([group_id])
-    assert_response_status(response_status, expected_status=204)
+        response_status, _ = api_delete_groups([group_id])
+        assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.parametrize("num_hosts_to_remove", [1, 2, 3])
@@ -421,11 +459,12 @@ def test_delete_ungrouped_group_post_kessel_migration(
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups):
+def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups, mocker):
     non_empty_group = db_create_group_with_hosts("non_empty_group", 3)
     empty_group = db_create_group("empty_group")
-    response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
-    assert_response_status(response_status, expected_status=204)
+    with mocker.patch("api.group.get_flag_value", return_value=True):
+        response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
+        assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.usefixtures("enable_kessel", "event_producer")
@@ -451,6 +490,9 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
         "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Turn on the Kessel workspace migration flag
+    mocker.patch("api.group.get_flag_value", side_effect=lambda flag: flag == "hbi.api.kessel-workspace-migration")
 
     # Mock the metrics context manager bc we don't care about it here
     with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:

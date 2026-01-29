@@ -19,6 +19,8 @@ from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
 from app.models import ProviderType
 from app.utils import HostWrapper
+from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 
 NS = "testns"
 ID = "whoabuddy"
@@ -447,37 +449,85 @@ def get_sample_static_profile_data():
     }
 
 
-def assert_system_profile_with_workloads_migration(returned_system_profile, expected_system_profile):
+def setup_rbac_mocking(mocker):
     """
-    Assert system profile fields match, accounting for legacy workloads field migration.
-
-    This helper handles two specific migration scenarios:
-    1. Legacy sap_sids field migration to workloads.sap.sids
-    2. workloads field partial matching (may contain additional migrated data)
-
-    All other fields are compared for exact match.
+    Helper function to set up RBAC mocking for tests that need to use the old RBAC system.
+    This function mocks the feature flags to disable Kessel (FLAG_INVENTORY_KESSEL_PHASE_1)
+    and read-only mode (FLAG_INVENTORY_API_READ_ONLY) so that tests can use the legacy
+    RBAC system instead of trying to connect to Kessel.
 
     Args:
-        returned_system_profile: The actual system profile from the database
-        expected_system_profile: The expected system profile (may contain legacy fields)
+        mocker: pytest-mock fixture
+
+    Returns:
+        Mock object for get_rbac_permissions
     """
-    for key, value in expected_system_profile.items():
-        # Skip legacy sap_sids field as it's migrated to workloads.sap.sids
-        if key == "sap_sids":
-            # Verify it was migrated to workloads.sap.sids instead
-            assert "workloads" in returned_system_profile
-            assert "sap" in returned_system_profile["workloads"]
-            assert returned_system_profile["workloads"]["sap"]["sids"] == value
-            continue
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    # Mock the flags to use old RBAC system and disable read-only mode
+    mocker.patch(
+        "lib.middleware.get_flag_value",
+        side_effect=lambda name: name not in [FLAG_INVENTORY_KESSEL_PHASE_1, FLAG_INVENTORY_API_READ_ONLY],
+    )
+    return get_rbac_permissions_mock
 
-        # Special handling for workloads field - it may have additional migrated data
-        if key == "workloads":
-            # Verify all expected workload types are present
-            for workload_type, workload_data in value.items():
-                assert workload_type in returned_system_profile["workloads"]
-                assert returned_system_profile["workloads"][workload_type] == workload_data
-            continue
 
-        # Standard field comparison
-        assert key in returned_system_profile, f"Expected key '{key}' not found in system_profile"
-        assert returned_system_profile[key] == value, f"Mismatch for key '{key}'"
+def setup_kessel_mocking(mocker, allow_all=True):
+    """
+    Helper function to set up Kessel mocking for tests that need to use the new Kessel system.
+    This function mocks the Kessel client to prevent connection errors and control
+    the behavior of Kessel operations in tests.
+
+    Args:
+        mocker: pytest-mock fixture
+        allow_all: If True, mock Kessel to allow all operations. If False, deny all.
+
+    Returns:
+        Tuple of (kessel_instance_mock, get_rbac_permissions_mock)
+    """
+    # Mock the Kessel client
+    kessel_instance = mock_kessel_client(mocker, allow_all)
+
+    # Mock the flags to enable Kessel and disable read-only mode
+    mocker.patch(
+        "lib.middleware.get_flag_value",
+        side_effect=lambda name: name in [FLAG_INVENTORY_KESSEL_PHASE_1]
+        and name not in [FLAG_INVENTORY_API_READ_ONLY],
+    )
+
+    # Also mock get_rbac_permissions for fallback cases
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+
+    return kessel_instance, get_rbac_permissions_mock
+
+
+def mock_kessel_client(mocker, allow_all=True):
+    """
+    Mock the Kessel client to prevent connection errors in tests.
+
+    Args:
+        mocker: pytest-mock fixture
+        allow_all: If True, mock Kessel to allow all operations. If False, deny all.
+
+    Returns:
+        Mock object for the Kessel client
+    """
+    # Mock the get_kessel_client function to return a mock Kessel instance
+    kessel_instance = mocker.MagicMock()
+
+    if allow_all:
+        # Mock Kessel to allow all operations
+        kessel_instance.check.return_value = True
+        kessel_instance.check_for_update.return_value = True
+        kessel_instance.list_allowed_workspaces.return_value = []
+        kessel_instance.list_allowed_resources.return_value = []
+    else:
+        # Mock Kessel to deny all operations
+        kessel_instance.check.return_value = False
+        kessel_instance.check_for_update.return_value = False
+        kessel_instance.list_allowed_workspaces.return_value = []
+        kessel_instance.list_allowed_resources.return_value = []
+
+    # Mock the get_kessel_client function to return our mock instance
+    mocker.patch("lib.kessel.get_kessel_client", return_value=kessel_instance)
+
+    return kessel_instance

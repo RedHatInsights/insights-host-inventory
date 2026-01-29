@@ -20,6 +20,7 @@ from tests.helpers.db_utils import get_expected_facts_after_update
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_staleness_timestamps
+from tests.helpers.test_utils import setup_rbac_mocking
 
 
 @pytest.mark.usefixtures("event_producer_mock")
@@ -145,7 +146,7 @@ def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_pu
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")
 def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    get_rbac_permissions_mock = setup_rbac_mocking(mocker)
 
     for response_file in HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
         mock_rbac_response = create_mock_rbac_response(response_file)
@@ -164,7 +165,7 @@ def test_put_facts_with_RBAC_allowed(subtests, mocker, api_put, db_create_host):
 def test_put_facts_with_RBAC_allowed_specific_groups(
     mocker, api_put, db_create_host, db_create_group, db_create_host_group_assoc
 ):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    get_rbac_permissions_mock = setup_rbac_mocking(mocker)
 
     # Create group and add host to it
     group_id = str(db_create_group("testGroup_facts").id)

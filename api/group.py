@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 from http import HTTPStatus
-from typing import Any
 
 from flask import Response
 from flask import abort
@@ -34,61 +31,27 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import get_group_using_host_id
-from lib.group_repository import get_groups_by_id_list_from_db
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
-from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspaces
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
-
-
-def _validate_patch_group_inputs(group_id: str, body: dict[str, Any], identity: Any) -> tuple[dict[str, Any], Any]:
-    """
-    Validate inputs for group patching:
-    - Group exists
-    - Request body is valid
-
-    Note: Host validation is handled by the repository layer (lib/group_repository.py)
-    to avoid duplication and ensure validation happens at the correct point in the
-    transaction lifecycle.
-
-    Args:
-        group_id: The ID of the group to patch
-        body: The request body containing patch data
-        identity: The current user's identity object
-
-    Returns:
-        tuple: (validated_patch_group_data, group_to_update)
-    """
-
-    # First, get the group
-    found_group = get_group_by_id_from_db(group_id, identity.org_id)
-
-    if not found_group:
-        log_patch_group_failed(logger, group_id)
-        abort(HTTPStatus.NOT_FOUND)
-
-    try:
-        validated_patch_group_data = InputGroupSchema().load(body)
-    except ValidationError as e:
-        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
-        abort(HTTPStatus.BAD_REQUEST, str(e.messages))
-
-    return validated_patch_group_data, found_group
 
 
 @api_operation
@@ -104,9 +67,13 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        group_list, total = get_filtered_group_list_db(
-            name, page, per_page, order_by, order_how, rbac_filter, group_type
-        )
+        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+            # In RBAC_V2, order_by and order_how to be implemented by RHCLOUD-42653
+            group_list, total = get_rbac_workspaces(name, page, per_page, rbac_filter, group_type)
+        else:
+            group_list, total = get_filtered_group_list_db(
+                name, page, per_page, order_by, order_how, rbac_filter, group_type
+            )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -201,16 +168,24 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 @api_operation
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
-    rbac_group_id_check(rbac_filter or {}, {group_id})
+def patch_group_by_id(group_id, body, rbac_filter=None):
+    rbac_group_id_check(rbac_filter, {group_id})
+
+    try:
+        validated_patch_group_data = InputGroupSchema().load(body)
+    except ValidationError as e:
+        logger.exception(f"Input validation error while patching group: {group_id} - {body}")
+        return ({"status": 400, "title": "Bad Request", "detail": str(e.messages), "type": "unknown"}, 400)
 
     identity = get_current_identity()
-
-    # Validate all inputs
-    validated_patch_group_data, group_to_update = _validate_patch_group_inputs(group_id, body, identity)
-
-    # Extract validated data
     new_name = validated_patch_group_data.get("name")
+
+    # First, get the group and update it
+    group_to_update = get_group_by_id_from_db(group_id, identity.org_id)
+
+    if not group_to_update:
+        log_patch_group_failed(logger, group_id)
+        abort(HTTPStatus.NOT_FOUND)
 
     try:
         # never allow renaming ungrouped
@@ -244,10 +219,6 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
-
-    # Abort with 404 if any of the groups do not exist
-    if len(get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(set(group_id_list)):
-        abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
@@ -299,8 +270,6 @@ def get_groups_by_id(
         group_list, total = get_group_list_by_id_list_db(
             group_id_list, page, per_page, order_by, order_how, rbac_filter
         )
-        if total != len(set(group_id_list)):
-            abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -328,9 +297,6 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     requested_group_ids = set(hosts_per_group.keys())
 
     rbac_group_id_check(rbac_filter, requested_group_ids)
-
-    if len(get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()) != len(set(host_id_list)):
-        abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
 
     delete_count = 0
 
