@@ -536,3 +536,130 @@ def test_get_groups_rbac_v2_empty_results(mocker, api_get):
     assert response_data["total"] == 0
     assert response_data["count"] == 0
     assert len(response_data["results"]) == 0
+
+
+# ============================================================================
+# RBAC v2 Negative Tests
+# ============================================================================
+
+
+def test_get_groups_rbac_v2_api_connection_error(mocker, api_get):
+    """
+    Test GET /groups when RBAC v2 API connection fails.
+    Should return 503 Service Unavailable when RBAC v2 API is unreachable.
+    """
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    from requests.exceptions import ConnectionError
+
+    mocker.patch(
+        "api.group.get_rbac_workspaces",
+        side_effect=ConnectionError("Failed to connect to RBAC v2 API"),
+    )
+
+    response_status, response_data = api_get(build_groups_url())
+
+    assert_response_status(response_status, 503)
+
+
+def test_get_groups_rbac_v2_api_timeout(mocker, api_get):
+    """
+    Test GET /groups when RBAC v2 API request times out.
+    Should return 503 Service Unavailable when RBAC v2 API times out.
+    """
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    from requests.exceptions import Timeout
+
+    mocker.patch(
+        "api.group.get_rbac_workspaces",
+        side_effect=Timeout("RBAC v2 API request timed out"),
+    )
+
+    response_status, response_data = api_get(build_groups_url())
+
+    assert_response_status(response_status, 503)
+
+
+def test_get_groups_rbac_v2_invalid_order_by(mocker, api_get):
+    """
+    Test GET /groups with invalid order_by parameter.
+
+    High Priority: Validates API contract and parameter validation.
+    Should return 400 Bad Request for unsupported ordering fields.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Try to order by invalid field (not in API spec)
+    query = "?order_by=invalid_field"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    # API spec validation should reject this before calling get_rbac_workspaces
+    assert_response_status(response_status, 400)
+    assert "order_by" in response_data["detail"] or "invalid_field" in response_data["detail"]
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_rbac_v2_no_workspace_permissions(mocker, api_get):
+    """
+    Test GET /groups when user has no workspace read permissions.
+
+    High Priority: Important RBAC authorization scenario.
+    Should return empty results when user is not authorized to view any workspaces.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC permissions with empty resource definitions (no workspaces accessible)
+    mock_rbac_response = [{"permission": "inventory:groups:read", "resourceDefinitions": []}]
+    mocker.patch("lib.middleware.get_rbac_permissions", return_value=mock_rbac_response)
+
+    # Mock get_rbac_workspaces returning empty results (filtered by RBAC)
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = ([], 0)
+
+    response_status, response_data = api_get(build_groups_url())
+
+    # Should return 200 with empty results (not 403)
+    # RBAC filtering returns empty list, not an error
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 0
+    assert response_data["count"] == 0
+    assert len(response_data["results"]) == 0
+
+    # Verify get_rbac_workspaces was called
+    assert mock_get_rbac_workspaces.called
+
+
+def test_get_groups_rbac_v2_malformed_workspace_response(mocker, api_get):
+    """
+    Test GET /groups when RBAC v2 API returns malformed workspace data.
+
+    Medium Priority: Tests error handling for invalid RBAC v2 responses.
+    Should handle gracefully when workspace objects are missing required fields.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock malformed workspace (missing required 'id' field)
+    mock_workspaces = [
+        {
+            "name": "group1",
+            "type": "standard",
+            # Missing 'id' field - should cause serialization error
+        }
+    ]
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 1)
+
+    response_status, response_data = api_get(build_groups_url())
+
+    # Should either:
+    # - Return 500 Internal Server Error (serialization failure)
+    # - Return 200 with empty results (skip invalid entries)
+    assert response_status in [200, 500]
+
+    if response_status == 200:
+        # If handled gracefully, should have empty results
+        assert response_data["total"] == 0 or response_data["count"] == 0

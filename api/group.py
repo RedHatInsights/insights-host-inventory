@@ -7,6 +7,8 @@ from flask import Response
 from flask import abort
 from flask import current_app
 from marshmallow import ValidationError
+from requests.exceptions import ConnectionError
+from requests.exceptions import Timeout
 from sqlalchemy.exc import IntegrityError
 
 from api import api_operation
@@ -118,6 +120,10 @@ def get_group_list(
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
+    except (ConnectionError, Timeout) as e:
+        # RBAC v2 API connection or timeout errors
+        log_get_group_list_failed(logger)
+        abort(503, f"RBAC service unavailable: {str(e)}")
 
     log_get_group_list_succeeded(logger, group_list)
 
