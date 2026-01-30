@@ -570,20 +570,34 @@ def _set_owner(host: Host, identity: Identity) -> Host:
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
 # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS blow up)
-# This functions looks for such invalid sequences with the intention of marking such messages as invalid
-def _validate_json_object_for_utf8(json_object):
+# Additionally, PostgreSQL does not allow NULL bytes (0x00) in text fields, so we need to sanitize those as well.
+# This function validates and sanitizes JSON objects for database storage
+def _sanitize_json_object_for_postgres(json_object):
     object_type = type(json_object)
     if object_type is str:
+        # Validate UTF-8 encoding (raises UnicodeEncodeError for invalid surrogate pairs)
         json_object.encode()
+        # Strip NULL bytes and log if any were found
+        if "\x00" in json_object:
+            sanitized = json_object.replace("\x00", "")
+            logger.warning(
+                "NULL byte(s) found in string field and removed",
+                extra={
+                    "original_length": len(json_object),
+                    "sanitized_length": len(sanitized),
+                },
+            )
+            return sanitized
+        return json_object
     elif object_type is dict:
-        for key, value in json_object.items():
-            _validate_json_object_for_utf8(key)
-            _validate_json_object_for_utf8(value)
+        return {
+            _sanitize_json_object_for_postgres(key): _sanitize_json_object_for_postgres(value)
+            for key, value in json_object.items()
+        }
     elif object_type is list:
-        for item in json_object:
-            _validate_json_object_for_utf8(item)
+        return [_sanitize_json_object_for_postgres(item) for item in json_object]
     else:
-        pass
+        return json_object
 
 
 @metrics.ingress_message_parsing_time.time()
@@ -591,7 +605,7 @@ def parse_operation_message(message: str | bytes, schema: type[Schema]):
     parsed_message = common_message_parser(message)
 
     try:
-        _validate_json_object_for_utf8(parsed_message)
+        parsed_message = _sanitize_json_object_for_postgres(parsed_message)
     except UnicodeEncodeError:
         logger.exception("Invalid Unicode sequence in message from message queue", extra={"incoming_message": message})
         metrics.ingress_message_parsing_failure.labels("invalid").inc()
@@ -734,9 +748,9 @@ def write_message_batch(
                 logger.exception("Error while producing message", exc_info=exc)
 
 
-def initialize_thread_local_storage(request_id: str | None, org_id: str | None = None, account: str | None = None):
+def initialize_thread_local_storage(
+    request_id: str | None, org_id: str | None = None, account_number: str | None = None
+):
     threadctx.request_id = request_id
-    if org_id:
-        threadctx.org_id = org_id
-    if account:
-        threadctx.account = account
+    threadctx.org_id = org_id
+    threadctx.account_number = account_number
