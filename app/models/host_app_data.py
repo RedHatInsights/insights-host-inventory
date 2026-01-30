@@ -1,5 +1,6 @@
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declared_attr
 
@@ -76,7 +77,7 @@ class HostAppDataRemediations(HostAppDataMixin, db.Model):
 class HostAppDataCompliance(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_compliance"
 
-    policies = db.Column(db.Integer, nullable=True)
+    policies = db.Column(JSONB, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
