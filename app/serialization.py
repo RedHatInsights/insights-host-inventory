@@ -268,6 +268,77 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
+def serialize_workspace_without_host_count(group: dict, org_id: str) -> dict:
+    """
+    Serialize a workspace/group object to a dictionary format.
+
+    Args:
+        group: A dictionary (from RBAC v2) with the workspace data
+        org_id: The Organization ID of the group/workspace
+
+    Returns:
+        Dictionary containing serialized group/workspace data
+    """
+    return {
+        "name": group["name"],
+        "id": serialize_uuid(group["id"]),
+        "parent_id": group.get("parent_id") or None,
+        "org_id": org_id,
+        "description": group.get("description", ""),
+        "type": group.get("type", ""),
+        "created": group.get("created", ""),
+        "updated": group.get("modified", ""),
+    }
+
+
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
+    """
+    Serialize a database Group object with host count.
+
+    Args:
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": group.ungrouped,
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
+    }
+
+
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize an RBAC v2 workspace dictionary with host count.
+
+    Args:
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
+
+    Returns:
+        Dictionary containing serialized workspace data with host_count
+    """
+    return {
+        "name": workspace["name"],
+        "id": serialize_uuid(workspace["id"]),
+        "parent_id": workspace.get("parent_id") or None,
+        "org_id": org_id,
+        "description": workspace.get("description", ""),
+        "type": workspace.get("type", ""),
+        "created": workspace.get("created", ""),
+        "updated": workspace.get("modified", ""),
+        "host_count": host_count,
+    }
+
+
 def serialize_host_system_profile(host):
     return {"id": serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
 

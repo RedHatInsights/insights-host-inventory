@@ -300,3 +300,239 @@ def test_sort_by_host_count_with_pagination(
                 assert res == group_id_list[start:end]  # compare the ids with the group_id_list
                 start = end
                 end = end + per_page
+
+
+# ============================================================================
+# RBAC v2 (Kessel) Integration Tests
+# ============================================================================
+# These tests verify the RBAC v2 code path when FLAG_INVENTORY_KESSEL_PHASE_1
+# feature flag is enabled, ensuring get_rbac_workspaces() is called correctly
+# with proper parameters including ordering support.
+# ============================================================================
+
+
+def _create_mock_workspace(workspace_id=None, name="test_group", workspace_type="standard"):
+    """Helper to create a mock workspace with all required fields."""
+    return {
+        "id": workspace_id or str(generate_uuid()),
+        "name": name,
+        "type": workspace_type,
+        "created": "2024-01-01T00:00:00.000000+00:00",
+        "modified": "2024-01-02T00:00:00.000000+00:00",
+        "description": "Test workspace",
+        "parent_id": None,
+    }
+
+
+@pytest.mark.parametrize("flag_enabled", [True, False])
+def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_enabled):
+    """
+    Test GET /groups with RBAC v2 feature flag enabled/disabled.
+    Verifies correct code path (get_rbac_workspaces vs get_filtered_group_list_db).
+    """
+    # Mock feature flag
+    mocker.patch("api.group.get_flag_value", return_value=flag_enabled)
+
+    if flag_enabled:
+        # RBAC v2 path: Mock get_rbac_workspaces to return sample workspaces
+        mock_workspaces = [
+            _create_mock_workspace(name="group1"),
+            _create_mock_workspace(name="group2"),
+        ]
+        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+        mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
+
+        response_status, response_data = api_get(build_groups_url())
+
+        # Verify response
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+        assert response_data["count"] == 2
+        assert len(response_data["results"]) == 2
+        assert response_data["results"][0]["name"] == "group1"
+        assert response_data["results"][1]["name"] == "group2"
+
+        # Verify get_rbac_workspaces was called
+        assert mock_get_rbac_workspaces.called
+    else:
+        # RBAC v1 path: Create groups in database
+        group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(3)]
+
+        # Mock get_rbac_workspaces (should NOT be called)
+        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+
+        response_status, response_data = api_get(build_groups_url())
+
+        # Verify response uses database data
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 3
+        assert response_data["count"] == 3
+        for group_result in response_data["results"]:
+            assert group_result["id"] in group_id_list
+
+        # Verify get_rbac_workspaces was NOT called (database path used)
+        assert not mock_get_rbac_workspaces.called
+
+
+@pytest.mark.parametrize(
+    "order_by,order_how",
+    [
+        ("name", "ASC"),
+        ("name", "DESC"),
+        ("updated", "ASC"),
+        ("updated", "DESC"),
+        ("host_count", "ASC"),
+        ("host_count", "DESC"),
+    ],
+)
+def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
+    """
+    Test GET /groups with RBAC v2 and ordering parameters.
+    Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
+
+    Note: The GET /groups API spec allows ordering by: name, host_count, updated.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock get_rbac_workspaces
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = ([], 0)
+
+    # Call endpoint with ordering
+    query = f"?order_by={order_by}&order_how={order_how}"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+
+    # Verify get_rbac_workspaces was called with correct parameters
+    assert mock_get_rbac_workspaces.called
+    call_args = mock_get_rbac_workspaces.call_args
+
+    # Check positional arguments (name, page, per_page, rbac_filter, group_type, order_by, order_how)
+    assert call_args[0][5] == order_by  # order_by is 6th positional arg (index 5)
+    assert call_args[0][6] == order_how  # order_how is 7th positional arg (index 6)
+
+
+@pytest.mark.parametrize(
+    "param_name,query_string,expected_arg_index,expected_value",
+    [
+        ("name", "?name=testGroup", 0, "testGroup"),
+        ("group_type_standard", "?group_type=standard", 4, "standard"),
+        ("group_type_ungrouped", "?group_type=ungrouped-hosts", 4, "ungrouped-hosts"),
+        ("pagination", "?page=2&per_page=5", None, None),  # Special case: checks page and per_page
+    ],
+)
+def test_get_groups_rbac_v2_parameter_passing(
+    mocker, api_get, param_name, query_string, expected_arg_index, expected_value
+):
+    """
+    Test GET /groups with RBAC v2 and various query parameters.
+    Verifies that parameters are correctly passed to get_rbac_workspaces().
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock get_rbac_workspaces
+    if param_name == "pagination":
+        mock_workspaces = [_create_mock_workspace(name=f"group{i}") for i in range(5)]
+        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+        mock_get_rbac_workspaces.return_value = (mock_workspaces[:5], 20)  # 5 results, 20 total
+    elif param_name == "name":
+        mock_workspaces = [_create_mock_workspace(name=expected_value)]
+        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+        mock_get_rbac_workspaces.return_value = (mock_workspaces, 1)
+    else:  # group_type
+        mock_workspaces = [_create_mock_workspace(name="testGroup", workspace_type=expected_value)]
+        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+        mock_get_rbac_workspaces.return_value = (mock_workspaces, 1)
+
+    # Call with parameter
+    response_status, response_data = api_get(build_groups_url(query=query_string))
+
+    assert_response_status(response_status, 200)
+
+    # Verify parameter was passed to get_rbac_workspaces
+    assert mock_get_rbac_workspaces.called
+    call_args = mock_get_rbac_workspaces.call_args
+
+    if param_name == "pagination":
+        # Special case: check both page and per_page
+        assert call_args[0][1] == 2  # page is 2nd positional arg (index 1)
+        assert call_args[0][2] == 5  # per_page is 3rd positional arg (index 2)
+        assert response_data["page"] == 2
+        assert response_data["per_page"] == 5
+    else:
+        # Standard parameter check
+        assert call_args[0][expected_arg_index] == expected_value
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_groups_rbac_v2_with_rbac_filter(mocker, api_get):
+    """
+    Test GET /groups with RBAC v2 and RBAC filter applied.
+    Verifies that RBAC filter is passed to get_rbac_workspaces().
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC permissions
+    group_id_1 = str(generate_uuid())
+    group_id_2 = str(generate_uuid())
+    mock_rbac_response = [
+        {
+            "permission": "inventory:groups:read",
+            "resourceDefinitions": [
+                {
+                    "attributeFilter": {
+                        "key": "group.id",
+                        "operation": "in",
+                        "value": [group_id_1, group_id_2],
+                    }
+                }
+            ],
+        }
+    ]
+    mocker.patch("lib.middleware.get_rbac_permissions", return_value=mock_rbac_response)
+
+    # Mock get_rbac_workspaces
+    mock_workspaces = [
+        _create_mock_workspace(workspace_id=group_id_1, name="group1"),
+        _create_mock_workspace(workspace_id=group_id_2, name="group2"),
+    ]
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
+
+    response_status, response_data = api_get(build_groups_url())
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 2
+
+    # Verify get_rbac_workspaces was called with rbac_filter
+    assert mock_get_rbac_workspaces.called
+    call_args = mock_get_rbac_workspaces.call_args
+    rbac_filter = call_args[0][3]  # rbac_filter is 4th positional arg (index 3)
+    assert rbac_filter is not None
+    assert "groups" in rbac_filter
+    assert group_id_1 in rbac_filter["groups"]
+    assert group_id_2 in rbac_filter["groups"]
+
+
+def test_get_groups_rbac_v2_empty_results(mocker, api_get):
+    """
+    Test GET /groups with RBAC v2 when no groups are found.
+    Verifies proper handling of empty results from get_rbac_workspaces().
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock get_rbac_workspaces returning empty results
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = ([], 0)
+
+    response_status, response_data = api_get(build_groups_url(query="?name=nonexistent"))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 0
+    assert response_data["count"] == 0
+    assert len(response_data["results"]) == 0

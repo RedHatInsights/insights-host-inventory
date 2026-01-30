@@ -30,12 +30,14 @@ from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import serialize_group_with_host_count
+from app.serialization import serialize_db_group_with_host_count
 from app.serialization import serialize_host
+from app.serialization import serialize_rbac_workspace_with_host_count
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
+from lib.host_repository import get_non_culled_hosts_count_in_group_by_id
 from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -54,7 +56,8 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
         group_id_list = []
 
     serialized_groups = [
-        serialize_group(get_group_by_id_from_db(group_id, identity.org_id)) for group_id in group_id_list
+        serialize_group(get_group_by_id_from_db(group_id, identity.org_id), identity.org_id)
+        for group_id in group_id_list
     ]
 
     # Update groups data on each host record
@@ -543,6 +546,25 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(group: Group) -> dict:
-    host_count = get_non_culled_hosts_count_in_group(group, group.org_id)
-    return serialize_group_with_host_count(group, host_count)
+def serialize_group(group: Group | dict, org_id: str) -> dict:
+    """
+    Serialize a group with host count.
+    Delegates to the appropriate serializer based on whether the group is from the database or RBAC v2.
+
+    Args:
+        group: Either a Group ORM object (from DB) or a dict (from RBAC v2)
+        org_id: The organization ID
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    if isinstance(group, dict):
+        # RBAC v2 workspace (dict from RBAC API)
+        # Extract group_id from dict and get host count
+        group_id = group["id"]
+        host_count = get_non_culled_hosts_count_in_group_by_id(group_id, org_id)
+        return serialize_rbac_workspace_with_host_count(group, org_id, host_count)
+    else:
+        # Database Group (ORM object)
+        host_count = get_non_culled_hosts_count_in_group(group, org_id)
+        return serialize_db_group_with_host_count(group, host_count)

@@ -88,7 +88,7 @@ def add_host(
         matched_host = find_existing_host(identity, canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [serialize_group(group)]
+    input_host.groups = [serialize_group(group, identity.org_id)]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
@@ -405,6 +405,28 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
         db.session.query(Host)
         .join(HostGroupAssoc)
         .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .group_by(Host.id, Host.org_id)
+    )
+
+    return find_non_culled_hosts(query).count()
+
+
+def get_non_culled_hosts_count_in_group_by_id(group_id: str, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group by group_id.
+    Used when working with RBAC v2 workspaces where we have the group_id but not the Group object.
+
+    Args:
+        group_id: UUID of the group
+        org_id: Organization ID
+
+    Returns:
+        Count of non-culled hosts in the group
+    """
+    query = (
+        db.session.query(Host)
+        .join(HostGroupAssoc)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
 

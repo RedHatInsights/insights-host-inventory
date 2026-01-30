@@ -649,3 +649,104 @@ def get_rbac_default_workspace() -> UUID | None:
     )
     data = response["data"] if response else None
     return data[0]["id"] if data and len(data) > 0 else None
+
+
+def get_rbac_workspaces(
+    name: str | None,
+    page: int,
+    per_page: int,
+    rbac_filter: dict | None,
+    group_type: str | None,
+    order_by: str | None = None,
+    order_how: str | None = None,
+) -> tuple[list[dict], int] | None:
+    """
+    Query workspaces from RBAC v2 API with filtering, pagination, and sorting.
+
+    Args:
+        name: Filter by workspace name (partial match)
+        page: Page number (1-based)
+        per_page: Items per page
+        rbac_filter: RBAC permissions filter
+        group_type: Filter by workspace type (standard, ungrouped-hosts)
+        order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
+        order_how: Sort direction ('ASC' or 'DESC')
+
+    Returns:
+        Tuple of (workspace_list, total_count)
+
+    Note:
+        RHCLOUD-42653 has been resolved. RBAC v2 API now supports ordering
+        by the following fields: id, name, created, modified, type.
+    """
+    if inventory_config().bypass_rbac:
+        # When RBAC is bypassed (e.g., in test environments), return empty results
+        # This allows the feature flag to be enabled without errors in non-production environments
+        return [], 0
+
+    # sample RBAC request: console.redhat.com/api/rbac/v2/workspaces/?limit=10&offset=0&type=standard&name=my_group
+
+    query_params = {}
+    if name:
+        query_params["name"] = name
+    if group_type:
+        query_params["type"] = group_type
+    if page and per_page:
+        # Convert page to offset (page is 1-based, offset is 0-based)
+        offset = (page - 1) * per_page
+        query_params["offset"] = str(offset)
+        query_params["limit"] = str(per_page)
+
+    # Add ordering parameters if provided
+    # Note: RBAC v2 API support for ordering is tracked by RHCLOUD-42653
+    if order_by:
+        query_params["order_by"] = order_by
+    if order_how:
+        query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
+
+    # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
+    request_data = {"name": name}
+
+    response = get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+
+    # Handle missing keys safely with type validation
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return [], 0
+
+    # Extract data with safe key access and type validation
+    data = response.get("data", [])
+    if not isinstance(data, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
+        data = []
+
+    # Apply rbac_filter if provided - filter to only include groups in the allowed set
+    if rbac_filter and "groups" in rbac_filter:
+        allowed_group_ids = rbac_filter["groups"]
+        original_count = len(data)
+        # Filter data to only include workspaces whose ID is in the allowed set
+        # Convert workspace ID to string for comparison since rbac_filter contains string UUIDs
+        data = [workspace for workspace in data if str(workspace.get("id", "")) in allowed_group_ids]
+        filtered_count = len(data)
+        if original_count != filtered_count:
+            logger.debug(f"Filtered workspaces from {original_count} to {filtered_count} based on rbac_filter")
+
+    count = response.get("meta", {}).get("count", 0)
+    # Update count to reflect filtered results if rbac_filter was applied
+    if rbac_filter and "groups" in rbac_filter:
+        count = len(data)
+
+    return data, count
+
+
+def get_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> dict[Any, Any] | None:
+    return _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_params=request_data,  # For GET requests, use request_params instead of request_data
+    )

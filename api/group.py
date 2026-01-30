@@ -34,6 +34,8 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -48,6 +50,7 @@ from lib.group_repository import wait_for_workspace_event
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspaces
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -104,9 +107,14 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        group_list, total = get_filtered_group_list_db(
-            name, page, per_page, order_by, order_how, rbac_filter, group_type
-        )
+        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+            # RBAC v2 path: Query workspaces from RBAC v2 API
+            group_list, total = get_rbac_workspaces(name, page, per_page, rbac_filter, group_type, order_by, order_how)
+        else:
+            # RBAC v1 path: Query groups from database
+            group_list, total = get_filtered_group_list_db(
+                name, page, per_page, order_by, order_how, rbac_filter, group_type
+            )
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
