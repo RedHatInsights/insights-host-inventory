@@ -1,4 +1,6 @@
 import pytest
+from requests.exceptions import ConnectionError
+from requests.exceptions import Timeout
 
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
@@ -550,8 +552,6 @@ def test_get_groups_rbac_v2_api_connection_error(mocker, api_get):
     """
     mocker.patch("api.group.get_flag_value", return_value=True)
 
-    from requests.exceptions import ConnectionError
-
     mocker.patch(
         "api.group.get_rbac_workspaces",
         side_effect=ConnectionError("Failed to connect to RBAC v2 API"),
@@ -568,8 +568,6 @@ def test_get_groups_rbac_v2_api_timeout(mocker, api_get):
     Should return 503 Service Unavailable when RBAC v2 API times out.
     """
     mocker.patch("api.group.get_flag_value", return_value=True)
-
-    from requests.exceptions import Timeout
 
     mocker.patch(
         "api.group.get_rbac_workspaces",
