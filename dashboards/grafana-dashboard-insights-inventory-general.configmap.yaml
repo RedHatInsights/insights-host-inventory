@@ -2888,6 +2888,19 @@ data:
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
+            },
+            {
+              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-views'}) by (topic)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "B",
+              "editorMode": "code",
+              "range": true,
+              "hide": false,
+              "datasource": {
+                "uid": "$datasource_awskafka",
+                "type": "prometheus"
+              }
             }
           ],
           "thresholds": [],
