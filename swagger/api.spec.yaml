@@ -1175,6 +1175,8 @@ components:
           - name
           - host_count
           - updated
+          - created
+          - type
       description: Ordering field name
     hostOrderHowParam:
       in: query

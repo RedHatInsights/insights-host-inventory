@@ -46,10 +46,19 @@ GROUPS_ORDER_BY_MAPPING = {
     "name": Group.name,
     "host_count": func.count(HostGroupAssoc.host_id),
     "updated": Group.modified_on,
+    "created": Group.created_on,  # ADDED for RBAC v2
+    "type": Group.ungrouped,  # ADDED for RBAC v2
 }
 
-GROUPS_ORDER_HOW_MAPPING = {"asc": asc, "desc": desc, "name": asc, "host_count": desc, "updated": desc}
-
+GROUPS_ORDER_HOW_MAPPING = {
+    "asc": asc,
+    "desc": desc,
+    "name": asc,
+    "host_count": desc,
+    "updated": desc,
+    "created": desc,  # ADDED for RBAC v2
+    "type": asc,  # ADDED for RBAC v2
+}
 GROUP_TYPE_MAPPING = {
     "standard": Group.ungrouped.is_(False),
     "ungrouped-hosts": Group.ungrouped.is_(True),
@@ -133,7 +142,9 @@ def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, 
 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):
-    json_group_list = [serialize_group(group) for group in group_list]
+    # group resource provided by rbac_v2 does not have org_id
+    org_id = get_current_identity().org_id
+    json_group_list = [serialize_group(group, org_id) for group in group_list]
     return {
         "total": total,
         "count": len(json_group_list),
@@ -144,4 +155,6 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 
 def build_group_response(group):
-    return serialize_group(group)
+    # group resource provided by RBAC V2 API does not have org_id
+    org_id = get_current_identity().org_id
+    return serialize_group(group, org_id)

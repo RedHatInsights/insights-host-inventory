@@ -5,6 +5,7 @@ from iqe_rbac_v2_api import ApiException as rbac_v2_exception
 from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.tests.rest.groups.test_groups_get_by_id import in_order
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory_api import HostOut
@@ -620,3 +621,145 @@ def test_kessel_delete_parent_with_sub_workspaces(
 
     with raises_apierror(400, "RBAC client error: Unable to delete due to workspace dependencies"):
         host_inventory.apis.groups.delete_groups_raw(parent_workspaces[0].id)
+
+
+@pytest.mark.ephemeral
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_kessel_get_groups_list_ordering(
+    host_inventory: ApplicationHostInventory,
+    setup_groups_for_ordering,
+    order_by,
+    order_how,
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-17393
+
+    metadata:
+      requirements: inv-kessel-groups, inv-groups-get-list
+      assignee: maarif
+      importance: high
+      title: Test RBAC v2 GET /groups with order_by and order_how parameters
+    """
+    response = host_inventory.apis.groups.get_groups_response(
+        order_by=order_by, order_how=order_how
+    )
+    assert response.page == 1
+    assert response.total >= 10
+    assert response.count >= 10
+    assert len(response.results) >= 10
+    assert in_order(response.results, None, ascending=(order_how == "ASC"), sort_field=order_by)
+
+
+@pytest.mark.ephemeral
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_kessel_get_groups_list_ordering_and_pagination(
+    host_inventory: ApplicationHostInventory,
+    setup_groups_for_ordering,
+    order_by,
+    order_how,
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-17393
+
+    metadata:
+      requirements: inv-kessel-groups, inv-groups-get-list
+      assignee: maarif
+      importance: high
+      title: Test RBAC v2 GET /groups with ordering and pagination combined
+    """
+    found_groups = []
+    for i in range(3):
+        response = host_inventory.apis.groups.get_groups_response(
+            per_page=3, page=i + 1, order_how=order_how, order_by=order_by
+        )
+        assert response.page == i + 1
+        assert response.per_page == 3
+        assert response.total >= 10
+        assert response.count == 3
+        assert len(response.results) == 3
+        found_groups += response.results
+
+    assert len({group.id for group in found_groups}) == 9
+    assert in_order(found_groups, None, ascending=(order_how == "ASC"), sort_field=order_by)
+
+
+@pytest.mark.ephemeral
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+def test_kessel_get_groups_list_order_how_default(
+    host_inventory: ApplicationHostInventory,
+    setup_groups_for_ordering,
+    order_by,
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-17393
+
+    metadata:
+      requirements: inv-kessel-groups, inv-groups-get-list
+      assignee: maarif
+      importance: high
+      title: Test RBAC v2 GET /groups order_how defaults correctly
+    """
+    # Default order_how is ASC for 'name', DESC for 'host_count' and 'updated'
+    ascending = order_by == "name"
+
+    response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
+    assert response.page == 1
+    assert response.total >= 10
+    assert response.count >= 10
+    assert len(response.results) >= 10
+    assert in_order(response.results, None, ascending=ascending, sort_field=order_by)
+
+
+@pytest.mark.ephemeral
+def test_kessel_get_groups_list_order_by_default(
+    host_inventory: ApplicationHostInventory,
+    setup_groups_for_ordering,
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-17393
+
+    metadata:
+      requirements: inv-kessel-groups, inv-groups-get-list
+      assignee: maarif
+      importance: high
+      title: Test RBAC v2 GET /groups order_by defaults to 'updated' DESC
+    """
+    response = host_inventory.apis.groups.get_groups_response()
+    assert response.page == 1
+    assert response.total >= 10
+    assert response.count >= 10
+    assert len(response.results) >= 10
+    # Default is order_by=updated, order_how=DESC
+    assert in_order(response.results, None, ascending=False, sort_field="updated")
+
+
+@pytest.mark.ephemeral
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_kessel_get_groups_list_ordering_with_name_filter(
+    host_inventory: ApplicationHostInventory,
+    setup_groups_for_ordering,
+    order_by,
+    order_how,
+):
+    """
+    https://issues.redhat.com/browse/RHINENG-17393
+
+    metadata:
+      requirements: inv-kessel-groups, inv-groups-get-list
+      assignee: maarif
+      importance: medium
+      title: Test RBAC v2 GET /groups ordering with name filter
+    """
+    groups = setup_groups_for_ordering
+
+    # Filter by name prefix used in the fixture
+    response = host_inventory.apis.groups.get_groups_response(
+        name="hbi-ordering-test", order_by=order_by, order_how=order_how
+    )
+    assert response.total == len(groups)
+    assert response.count == len(groups)
+    assert len(response.results) == len(groups)
+    assert in_order(response.results, None, ascending=(order_how == "ASC"), sort_field=order_by)
