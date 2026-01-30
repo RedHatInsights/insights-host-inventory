@@ -127,7 +127,7 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
-def _build_system_profile_from_normalized(host, system_profile_fields=None) -> dict:
+def _build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
     """
     Build system profile dict from static and dynamic tables.
     This replaces host.system_profile_facts.

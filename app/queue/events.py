@@ -11,6 +11,7 @@ from marshmallow import fields
 
 from app.logging import threadctx
 from app.models import FactsSchema
+from app.models import HostStaticSystemProfile
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -84,7 +85,9 @@ class HostDeleteEvent(Schema):
     metadata = fields.Nested(HostEventMetadataSchema())
 
 
-def extract_system_profile_fields_for_headers(static_system_profile):
+def extract_system_profile_fields_for_headers(
+    static_system_profile: HostStaticSystemProfile | None,
+) -> tuple[str | None, str | None, str]:
     """
     Extract system profile fields for event headers from static_system_profile.
     Returns: (host_type, os_name, bootc_booted)

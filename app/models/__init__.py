@@ -49,6 +49,7 @@ from app.models.schemas import YumRepoSchema
 from app.models.staleness import Staleness
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
@@ -112,4 +113,5 @@ __all__ = [
     "deleted_by_this_query",
     "datetime",
     "HostDynamicSystemProfile",
+    "HostStaticSystemProfile",
 ]

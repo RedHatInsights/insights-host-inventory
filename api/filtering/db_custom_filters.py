@@ -5,7 +5,6 @@ from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import and_
-from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -218,11 +217,8 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(os_filter.comparator)
 
         if os_filter.comparator in ["nil", "not_nil"]:
-            # Check for both NULL and empty JSON objects {}
-            if os_filter.comparator == "nil":
-                os_filter_list.append(or_(os_field.is_(None), os_field == cast({}, JSONB)))
-            else:  # not_nil
-                os_filter_list.append(and_(os_field.is_not(None), os_field != cast({}, JSONB)))
+            # Uses the comparator with None, resulting in either is_(None) or is_not(None)
+            os_filter_list.append(os_field.operate(comparator, None))
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [

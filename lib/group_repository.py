@@ -33,6 +33,7 @@ from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
+from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -94,10 +95,10 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 
 def _invalidate_system_cache(host_list: list[Host], identity: Identity):
     for host in host_list:
-        insights_id = host.insights_id
-        owner_id = host.static_system_profile.owner_id if host.static_system_profile else None
+        insights_id = serialize_uuid(host.insights_id)
+        owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
         if insights_id and owner_id:
-            delete_cached_system_keys(insights_id=str(insights_id), org_id=identity.org_id, owner_id=owner_id)
+            delete_cached_system_keys(insights_id=insights_id, org_id=identity.org_id, owner_id=owner_id)
 
 
 def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], group_name: str, org_id: str):
