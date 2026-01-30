@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Legacy workloads field mappings (RHINENG-21482)
 # Maps legacy field names to their corresponding paths in workloads.*
 # Used to verify backward compatibility returns correct values from workloads.*
+# Note: rhel_ai is NOT included because its legacy structure differs from workloads.rhel_ai
 LEGACY_FIELD_TO_WORKLOADS_PATH: dict[str, tuple[str, ...]] = {
     # SAP flat fields (root level) → workloads.sap.*
     "sap_system": ("sap", "sap_system"),
@@ -125,6 +126,11 @@ def endpoint_func(request):
     return request.param
 
 
+# Fields that are not available as top-level sparse fields
+# rhel_ai: Stored only in workloads.rhel_ai with different structure than legacy rhel_ai
+SKIP_SPARSE_FIELDS = {"rhel_ai"}
+
+
 @pytest.mark.ephemeral
 @parametrize_field(SYSTEM_PROFILE)
 def test_get_specific_fields(
@@ -139,6 +145,9 @@ def test_get_specific_fields(
         importance: high
         assignee: rpfannsc
     """
+    if field.name in SKIP_SPARSE_FIELDS:
+        pytest.skip(f"Field '{field.name}' is not available as a top-level sparse field")
+
     returned_host = endpoint_func(host_inventory, host_for_fields_tests, [field])
     returned_sp = {
         k: v for k, v in returned_host.system_profile.to_dict().items() if v is not None
@@ -179,8 +188,13 @@ def test_get_specific_fields_multiple_fields(
         assignee: rpfannsc
         importance: high
     """
-    # Sample 20 random fields including legacy fields
-    wanted_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Sample 20 random fields including legacy fields, but exclude fields not available as sparse
+    available_fields = [
+        f
+        for f in fields_having(SYSTEM_PROFILE, x_indexed=True)
+        if f.name not in SKIP_SPARSE_FIELDS
+    ]
+    wanted_fields = sample(available_fields, min(20, len(available_fields)))
 
     returned_host = endpoint_func(host_inventory, host_for_fields_tests, wanted_fields)
     returned_sp = {
@@ -311,8 +325,13 @@ def test_get_host_list_selected_fields(
         importance: high
         title: Verify that GET /hosts returns only the selected fields
     """
-    # Sample 20 random fields including legacy fields
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Sample 20 random fields including legacy fields, but exclude fields not available as sparse
+    available_fields = [
+        f
+        for f in fields_having(SYSTEM_PROFILE, x_indexed=True)
+        if f.name not in SKIP_SPARSE_FIELDS
+    ]
+    selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
     response_hosts = _call_api(host_inventory, "/hosts", fields=fields)["results"]
@@ -339,8 +358,13 @@ def test_get_host_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
-    # Sample 20 random fields including legacy fields
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Sample 20 random fields including legacy fields, but exclude fields not available as sparse
+    available_fields = [
+        f
+        for f in fields_having(SYSTEM_PROFILE, x_indexed=True)
+        if f.name not in SKIP_SPARSE_FIELDS
+    ]
+    selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
     response_host = _call_api(host_inventory, f"/hosts/{host.id}", fields=fields)["results"][0]
@@ -364,8 +388,13 @@ def test_get_host_system_profile_by_id_selected_fields(
     """
     host = host_for_fields_tests
 
-    # Sample 20 random fields including legacy fields
-    selected_fields = sample(fields_having(SYSTEM_PROFILE, x_indexed=True), 20)
+    # Sample 20 random fields including legacy fields, but exclude fields not available as sparse
+    available_fields = [
+        f
+        for f in fields_having(SYSTEM_PROFILE, x_indexed=True)
+        if f.name not in SKIP_SPARSE_FIELDS
+    ]
+    selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
     response = _call_api(host_inventory, f"/hosts/{host.id}/system_profile", fields=fields)[
