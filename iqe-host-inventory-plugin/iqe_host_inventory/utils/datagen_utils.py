@@ -78,7 +78,7 @@ STATIC_SYSTEM_PROFILE_FIELDS = {
     "releasever",
     "rhc_client_id",
     "rhc_config_state",
-    "rhel_ai",
+    # Note: rhel_ai removed - it's now only valid inside workloads.rhel_ai
     "rhsm",
     "rpm_ostree_deployments",
     "satellite_managed",
@@ -411,25 +411,8 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
         "type": "custom",
         "example": {"failed": 1, "jobs_queued": 4, "state": "running", "failed_services": ["ex1"]},
     },
-    {
-        "name": "rhel_ai",
-        "type": "custom",
-        "example": {
-            "variant": "RHEL AI",
-            "rhel_ai_version_id": "v1.1.3",
-            "nvidia_gpu_models": ["Tesla V100-PCIE-16GB"],
-            "intel_gaudi_hpu_models": [
-                "Habana Labs Ltd. Device 1020",
-                "Habana Labs Ltd. HL-2000 AI Training Accelerator [Gaudi]",
-            ],
-            "amd_gpu_models": [
-                "Advanced Micro Devices",
-                "Inc. [AMD/ATI] Device 0c34",
-                "Advanced Micro Devices",
-                "Inc. [AMD/ATI] Radeon PRO V320",
-            ],
-        },
-    },
+    # Note: rhel_ai is NOT a top-level field anymore - it's only valid inside workloads.rhel_ai
+    # The legacy rhel_ai structure differs from workloads.rhel_ai, so no backward compatibility
     {"name": "operating_system", "type": "custom", "example": get_default_operating_system()},
     {"name": "os_release", "type": "str", "min_len": 0, "max_len": 100},
     {"name": "os_kernel_version", "type": "custom", "example": "3.10.0"},
