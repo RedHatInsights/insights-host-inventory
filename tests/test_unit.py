@@ -245,6 +245,17 @@ def test_invalid_service_account_obj_auth_identity_validate(subtests):
                 Identity(test_identity)
 
 
+def test_service_account_optional_fields_auth_identity_validate():
+    # Test that service_account identity validates without optional fields (user_id, scope)
+    test_identity = deepcopy(SERVICE_ACCOUNT_IDENTITY)
+    test_identity["service_account"] = {
+        "client_id": SERVICE_ACCOUNT_IDENTITY["service_account"]["client_id"],
+        "username": SERVICE_ACCOUNT_IDENTITY["service_account"]["username"],
+    }
+    # Should not raise - user_id and scope are optional
+    Identity(test_identity)
+
+
 def test_invalid_auth_types_auth_identity_validate(subtests):
     test_identities = [deepcopy(USER_IDENTITY), deepcopy(SYSTEM_IDENTITY), deepcopy(SERVICE_ACCOUNT_IDENTITY)]
     auth_types = ["", "foo"]

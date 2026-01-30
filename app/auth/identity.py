@@ -178,6 +178,8 @@ class SystemIdentitySchema(IdentityBaseSchema):
 class ServiceAccountInfoIdentitySchema(IdentityBaseSchema):
     client_id = m.fields.Str(required=True, validate=m.validate.Length(min=1))
     username = m.fields.Str(required=True, validate=m.validate.Length(min=1))
+    user_id = m.fields.Str(required=False)
+    scope = m.fields.Str(required=False)
 
 
 class ServiceAccountIdentitySchema(IdentityBaseSchema):
