@@ -14,6 +14,7 @@ from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
+from iqe_host_inventory.utils import normalize_datetime_to_utc
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import generate_complete_system_profile
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -25,29 +26,51 @@ logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
 
 
-def normalize_system_profile(system_profile: dict) -> dict:
-    normalized = deepcopy(system_profile)
-
-    # Convert timestamp strings to datetime
-    for key, value in normalized.items():
+def _normalize_datetime_fields(data: dict) -> None:
+    """Convert timestamp strings to datetime and normalize to UTC (in-place)."""
+    for key, value in data.items():
         try:
-            value = datetime.fromisoformat(value)
-            normalized[key] = value
+            if isinstance(value, str):
+                value = datetime.fromisoformat(value)
+            if isinstance(value, datetime):
+                data[key] = normalize_datetime_to_utc(value)
         except (TypeError, ValueError):
             pass
 
-    # Add missing fields
+
+def _normalize_workloads(data: dict) -> None:
+    """Add missing workload types as None (in-place)."""
+    if "workloads" not in data or not isinstance(data["workloads"], dict):
+        return
+    workloads_field = get_sp_field_by_name("workloads")
+    if workloads_field.example is None:
+        return
+    for workload_name in workloads_field.example.keys():
+        if workload_name not in data["workloads"]:
+            data["workloads"][workload_name] = None
+
+
+def normalize_system_profile(system_profile: dict) -> dict:
+    normalized = deepcopy(system_profile)
+
+    _normalize_datetime_fields(normalized)
+
+    # Add missing fields as None for consistent comparison.
+    # The API uses jsonb_strip_nulls so the server response omits null values,
+    # but the OpenAPI client's to_dict() adds all schema fields with None defaults.
+    # This normalization ensures both the API response and expected test data have
+    # the same keys, allowing proper dict equality comparison.
     for field in SYSTEM_PROFILE:
         if field.name not in normalized:
             normalized[field.name] = None
 
-    # Normalize workloads field - add missing workload types as None
-    if "workloads" in normalized and isinstance(normalized["workloads"], dict):
-        workloads_field = get_sp_field_by_name("workloads")
-        if workloads_field.example is not None:
-            for workload_name in workloads_field.example.keys():
-                if workload_name not in normalized["workloads"]:
-                    normalized["workloads"][workload_name] = None
+    _normalize_workloads(normalized)
+
+    # Remove top-level rhel_ai - it's not backward compatible because the legacy structure
+    # (nvidia_gpu_models, amd_gpu_models, intel_gaudi_hpu_models as separate string arrays)
+    # differs from workloads.rhel_ai (unified gpu_models array of objects).
+    # Data sent as top-level rhel_ai is migrated to workloads.rhel_ai but NOT extracted back.
+    normalized.pop("rhel_ai", None)
 
     return normalized
 
@@ -87,9 +110,8 @@ def test_mq_operation_args_empty_dict(host_inventory: ApplicationHostInventory):
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data2["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -130,9 +152,8 @@ def test_mq_operation_args_not_provided(host_inventory: ApplicationHostInventory
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data2["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -179,9 +200,8 @@ def test_mq_operation_args_random_string(host_inventory: ApplicationHostInventor
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data2["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -256,9 +276,8 @@ def test_mq_operation_args_defer_to_fresh_reporter(
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data1["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data1["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -312,9 +331,8 @@ def test_mq_operation_args_defer_to_previous_reporter(
     assert response_host.ansible_host == host_data3["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data1["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data1["system_profile"])
 
 
 @iqe_blocker(iqe_blocker.jira("RHINENG-15628", category=iqe_blocker.PRODUCT_ISSUE))
@@ -382,9 +400,8 @@ def test_mq_operation_args_defer_to_stale_reporter(
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data2["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -428,9 +445,8 @@ def test_mq_operation_args_defer_to_not_existing_reporter(
     assert response_host.ansible_host == host_data2["ansible_host"]
 
     response_sp = host_inventory.apis.hosts.get_host_system_profile(updated_host)
-    assert response_sp.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_sp.system_profile.to_dict())
+    assert actual_sp == normalize_system_profile(host_data2["system_profile"])
 
 
 @pytest.mark.ephemeral
@@ -464,6 +480,6 @@ def test_mq_operation_args_defer_to_reporter_create_host(host_inventory: Applica
     assert host2.system_profile == host_data2["system_profile"]
 
     response_host = host_inventory.apis.hosts.get_host_system_profile(host2)
-    assert response_host.system_profile.to_dict() == normalize_system_profile(
-        host_data2["system_profile"]
-    )
+    actual_sp = normalize_system_profile(response_host.system_profile.to_dict())
+    expected_sp = normalize_system_profile(host_data2["system_profile"])
+    assert actual_sp == expected_sp
