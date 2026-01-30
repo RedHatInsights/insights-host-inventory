@@ -320,29 +320,6 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
-def serialize_workspace_without_host_count(group: dict, org_id: str) -> dict:
-    """
-    Serialize a workspace/group object to a dictionary format.
-
-    Args:
-        group: A dictionary (from RBAC v2) with the workspace data
-        org_id: The Organization ID of the group/workspace
-
-    Returns:
-        Dictionary containing serialized group/workspace data
-    """
-    return {
-        "name": group["name"],
-        "id": serialize_uuid(group["id"]),
-        "parent_id": group.get("parent_id") or None,
-        "org_id": org_id,
-        "description": group.get("description", ""),
-        "type": group.get("type", ""),
-        "created": group.get("created", ""),
-        "updated": group.get("modified", ""),
-    }
-
-
 def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
     """
     Serialize a database Group object with host count.

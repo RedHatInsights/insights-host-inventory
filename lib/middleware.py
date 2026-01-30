@@ -700,16 +700,26 @@ def get_rbac_workspaces(
     # Add ordering parameters if provided
     # Note: RBAC v2 API support for ordering is tracked by RHCLOUD-42653
     if order_by:
-        query_params["order_by"] = order_by
+        # Map API field names to RBAC v2 workspace API field names
+        # The API uses "updated" for consistency with existing contracts,
+        # but RBAC v2 workspace API uses "modified" as the field name
+        field_mapping = {
+            "updated": "modified",
+            "created": "created",
+            "name": "name",
+            "host_count": "host_count",
+            "type": "type",
+        }
+        rbac_order_by = field_mapping.get(order_by, order_by)
+        query_params["order_by"] = rbac_order_by
     if order_how:
         query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
 
     # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
-    request_data = {"name": name}
 
-    response = get_rbac_workspace_using_endpoint_and_headers(request_data, rbac_endpoint, request_headers)
+    response = get_rbac_workspace_using_endpoint_and_headers(query_params, rbac_endpoint, request_headers)
 
     # Handle missing keys safely with type validation
     if not response:
