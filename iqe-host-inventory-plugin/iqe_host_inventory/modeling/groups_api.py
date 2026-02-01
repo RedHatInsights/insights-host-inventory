@@ -149,11 +149,11 @@ class GroupsAPIWrapper(BaseEntity):
         :param int page: A page number of the items to return
             Default: 1
         :param str order_by: Ordering field name
-            Valid options: name, host_count
+            Valid options: name, host_count, updated, created, type
             Default: name
         :param str order_how: Direction of the ordering
             Valid options: ASC, DESC
-            Default: ASC for 'name', DESC for 'host_count'
+            Default: ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
         :return GroupQueryOutput: API response
         """
         return self.raw_api.api_group_get_group_list(
@@ -189,11 +189,11 @@ class GroupsAPIWrapper(BaseEntity):
         :param int page: A page number of the items to return
             Default: 1
         :param str order_by: Ordering field name
-            Valid options: name, host_count
+            Valid options: name, host_count, updated, created, type
             Default: name
         :param str order_how: Direction of the ordering
             Valid options: ASC, DESC
-            Default: ASC for 'name', DESC for 'host_count'
+            Default: ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
         :return list[GroupOutWithHostCount]: List of retrieved groups
         """
         return self.get_groups_response(
@@ -227,11 +227,11 @@ class GroupsAPIWrapper(BaseEntity):
         :param int page: A page number of the items to return
             Default: 1
         :param str order_by: Ordering field name
-            Valid options: name, host_count
+            Valid options: name, host_count, updated, created, type
             Default: name
         :param str order_how: Direction of the ordering
             Valid options: ASC, DESC
-            Default: ASC for 'name', DESC for 'host_count'
+            Default: ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
         :return GroupQueryOutput: API response
         """
         group_ids = _ids_from_groups(groups)
@@ -264,11 +264,11 @@ class GroupsAPIWrapper(BaseEntity):
         :param int page: A page number of the items to return
             Default: 1
         :param str order_by: Ordering field name
-            Valid options: name, host_count
+            Valid options: name, host_count, updated, created, type
             Default: name
         :param str order_how: Direction of the ordering
             Valid options: ASC, DESC
-            Default: ASC for 'name', DESC for 'host_count'
+            Default: ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
         :return list[GroupOutWithHostCount]: Retrieved groups
         """
         group_ids = _ids_from_groups(groups)

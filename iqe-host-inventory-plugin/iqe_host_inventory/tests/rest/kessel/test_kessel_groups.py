@@ -624,7 +624,7 @@ def test_kessel_delete_parent_with_sub_workspaces(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_kessel_get_groups_list_ordering(
     host_inventory: ApplicationHostInventory,
@@ -652,7 +652,7 @@ def test_kessel_get_groups_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_kessel_get_groups_list_ordering_and_pagination(
     host_inventory: ApplicationHostInventory,
@@ -686,7 +686,7 @@ def test_kessel_get_groups_list_ordering_and_pagination(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 def test_kessel_get_groups_list_order_how_default(
     host_inventory: ApplicationHostInventory,
     setup_groups_for_ordering,
@@ -701,8 +701,8 @@ def test_kessel_get_groups_list_order_how_default(
       importance: high
       title: Test RBAC v2 GET /groups order_how defaults correctly
     """
-    # Default order_how is ASC for 'name', DESC for 'host_count' and 'updated'
-    ascending = order_by == "name"
+    # Default order_how is ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
+    ascending = order_by in ["name", "type"]
 
     response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
     assert response.page == 1
@@ -736,7 +736,7 @@ def test_kessel_get_groups_list_order_by_default(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_kessel_get_groups_list_ordering_with_name_filter(
     host_inventory: ApplicationHostInventory,
