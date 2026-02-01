@@ -355,6 +355,11 @@ def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_
     Returns:
         Dictionary containing serialized workspace data with host_count
     """
+    # Parse and re-serialize datetime fields to ensure consistent format with DB groups
+    # RBAC v2 returns ISO strings, we normalize them to match DB serialization format
+    created_dt = _deserialize_datetime(workspace.get("created")) if workspace.get("created") else None
+    updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
+
     return {
         "name": workspace["name"],
         "id": serialize_uuid(workspace["id"]),
@@ -362,8 +367,8 @@ def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_
         "org_id": org_id,
         "description": workspace.get("description", ""),
         "type": workspace.get("type", ""),
-        "created": workspace.get("created", ""),
-        "updated": workspace.get("modified", ""),
+        "created": _serialize_datetime(created_dt) if created_dt else "",
+        "updated": _serialize_datetime(updated_dt) if updated_dt else "",
         "host_count": host_count,
     }
 

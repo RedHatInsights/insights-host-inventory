@@ -719,7 +719,8 @@ def get_rbac_workspaces(
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
 
-    response = get_rbac_workspace_using_endpoint_and_headers(query_params, rbac_endpoint, request_headers)
+    # Query params already encoded in rbac_endpoint URL, don't pass them again
+    response = get_rbac_workspace_using_endpoint_and_headers(None, rbac_endpoint, request_headers)
 
     # Handle missing keys safely with type validation
     if not response:

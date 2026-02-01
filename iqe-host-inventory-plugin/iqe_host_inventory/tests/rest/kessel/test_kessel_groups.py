@@ -701,7 +701,8 @@ def test_kessel_get_groups_list_order_how_default(
       importance: high
       title: Test RBAC v2 GET /groups order_how defaults correctly
     """
-    # Default order_how is ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
+    # Default order_how is ASC for 'name' and 'type',
+    # DESC for 'host_count', 'updated', and 'created'
     ascending = order_by in ["name", "type"]
 
     response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
