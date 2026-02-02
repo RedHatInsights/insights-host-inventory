@@ -162,6 +162,7 @@ class HostAppDataMalware(HostAppDataMixin, db.Model):
 
     last_status = db.Column(db.String(50), nullable=True)
     last_matches = db.Column(db.Integer, nullable=True)
+    total_matches = db.Column(db.Integer, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 

@@ -800,6 +800,7 @@ class MalwareDataSchema(MarshmallowSchema):
 
     last_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))
     last_matches = fields.Int(allow_none=True)
+    total_matches = fields.Int(allow_none=True)
     last_scan = fields.DateTime(allow_none=True)
 
 
