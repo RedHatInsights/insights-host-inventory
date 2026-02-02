@@ -655,7 +655,7 @@ When contributing a new field to the [system_profile schema](swagger/system_prof
 4. Validate the field
     - The field should have the strictest possible validation rules applied to it.
 5. Add positive and negative test examples
-    - Add examples of valid/invalid values in `tests/utils/valids` and `tests/utils/invalids` respectively.
+    - Add examples of valid/invalid values in [tests/utils/valids.py](swagger/inventory-schemas/tests/utils/valids.py) and [tests/utils/invalids.py](swagger/inventory-schemas/tests/utils/invalids.py)respectively.
 
 Before committing, make sure these apps are not going to be negatively affected by the changes as they interact with the system profile.
 
