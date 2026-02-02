@@ -16,7 +16,6 @@ class ConsumerApplication(StrEnum):
     REMEDIATIONS = "remediations"
     COMPLIANCE = "compliance"
     MALWARE = "malware"
-    IMAGE_BUILDER = "image_builder"
 
     def __str__(self):
         """Return the string value for logging/metrics."""

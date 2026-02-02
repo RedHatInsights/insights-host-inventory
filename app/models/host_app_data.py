@@ -167,14 +167,6 @@ class HostAppDataMalware(HostAppDataMixin, db.Model):
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
-class HostAppDataImageBuilder(HostAppDataMixin, db.Model):
-    __tablename__ = "hosts_app_data_image_builder"
-    __app_name__ = "image_builder"
-
-    image_name = db.Column(db.String(255), nullable=True)
-    image_status = db.Column(db.String(50), nullable=True)
-
-
 @cache
 def get_app_data_models() -> dict[str, type[HostAppDataMixin]]:
     """Return a mapping of app_name -> model class for all registered app data models."""
