@@ -155,8 +155,21 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
         identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
         org_id = extra_data.pop("org_id", None) or identity["org_id"]
+
+        # Extract system_profile_facts to be set via update_system_profile
+        # so the new normalized tables are populated
+        system_profile_data = extra_data.pop("system_profile_facts", None)
+
         host = host or minimal_db_host(org_id=org_id, account=identity["account_number"], **extra_data)
         db.session.add(host)
+
+        # Flush to ensure host has ID before calling update_system_profile
+        db.session.flush()
+
+        # Populate the new normalized system profile tables
+        if system_profile_data:
+            host.update_system_profile(system_profile_data)
+
         db.session.commit()
         return host
 
@@ -174,6 +187,11 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
         identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
         created_hosts = []
+
+        # Extract system_profile_facts to be set via update_system_profile
+        # so the new normalized tables are populated
+        system_profile_data = extra_data.pop("system_profile_facts", None)
+
         if isinstance(hosts, list):
             for host in hosts:
                 db.session.add(host)
@@ -183,6 +201,14 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
                 host = minimal_db_host(org_id=identity["org_id"], **extra_data)
                 db.session.add(host)
                 created_hosts.append(host)
+
+        # Flush to ensure hosts have IDs before calling update_system_profile
+        db.session.flush()
+
+        # Populate the new normalized system profile tables
+        if system_profile_data:
+            for host in created_hosts:
+                host.update_system_profile(system_profile_data)
 
         db.session.commit()
 
