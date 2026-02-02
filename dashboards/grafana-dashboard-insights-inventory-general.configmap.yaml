@@ -1652,9 +1652,9 @@ data:
           },
           "gridPos": {
             "h": 2,
-            "w": 9,
+            "w": 12,
             "x": 12,
-            "y": 10
+            "y": 6
           },
           "id": 60,
           "links": [],
@@ -1697,8 +1697,8 @@ data:
           "gridPos": {
             "h": 2,
             "w": 3,
-            "x": 21,
-            "y": 10
+            "x": 16,
+            "y": 16
           },
           "id": 69,
           "interval": null,
@@ -1748,7 +1748,7 @@ data:
             }
           ],
           "thresholds": "0.1,1",
-          "title": "parser failures",
+          "title": "Parser Failures (Host Ingress)",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -1765,10 +1765,10 @@ data:
           "type": "stat",
           "title": "Outbox successes",
           "gridPos": {
-            "x": 12,
-            "y": 18,
+            "x": 14,
+            "y": 16,
             "h": 2,
-            "w": 3
+            "w": 2
           },
           "fieldConfig": {
             "defaults": {
@@ -1846,10 +1846,10 @@ data:
           "type": "stat",
           "title": "Outbox failures",
           "gridPos": {
-            "x": 15,
+            "x": 14,
             "y": 18,
             "h": 2,
-            "w": 3
+            "w": 2
           },
           "fieldConfig": {
             "defaults": {
@@ -1948,9 +1948,9 @@ data:
           },
           "gridPos": {
             "h": 2,
-            "w": 3,
+            "w": 2,
             "x": 12,
-            "y": 12
+            "y": 16
           },
           "id": 28,
           "interval": null,
@@ -2035,9 +2035,9 @@ data:
           },
           "gridPos": {
             "h": 2,
-            "w": 3,
-            "x": 15,
-            "y": 12
+            "w": 2,
+            "x": 12,
+            "y": 18
           },
           "id": 7,
           "interval": null,
@@ -2122,9 +2122,9 @@ data:
           },
           "gridPos": {
             "h": 2,
-            "w": 3,
-            "x": 18,
-            "y": 12
+            "w": 2,
+            "x": 22,
+            "y": 16
           },
           "id": 23,
           "interval": null,
@@ -2170,7 +2170,7 @@ data:
             }
           ],
           "thresholds": "1,2",
-          "title": "underreplicated partitions",
+          "title": "Underreplicated Partitions",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -2212,8 +2212,8 @@ data:
           "gridPos": {
             "h": 2,
             "w": 3,
-            "x": 21,
-            "y": 12
+            "x": 16,
+            "y": 18
           },
           "id": 52,
           "interval": null,
@@ -2263,7 +2263,7 @@ data:
             }
           ],
           "thresholds": "0.1",
-          "title": "parser validation errors",
+          "title": "Validation Errors (Host Ingress)",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -2853,7 +2853,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 20
           },
           "hiddenSeries": false,
           "id": 83,
@@ -2888,13 +2888,26 @@ data:
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A"
+            },
+            {
+              "expr": "sum(aws_kafka_sum_offset_lag_sum{consumer_group='inventory-views'}) by (topic)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "B",
+              "editorMode": "code",
+              "range": true,
+              "hide": false,
+              "datasource": {
+                "uid": "$datasource_awskafka",
+                "type": "prometheus"
+              }
             }
           ],
           "thresholds": [],
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "ingress consumer lag (ingress)",
+          "title": "Kafka Consumer Lag",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -2950,7 +2963,7 @@ data:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 27
           },
           "hiddenSeries": false,
           "id": 66,
@@ -2991,7 +3004,7 @@ data:
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "consumed message rate (ingress)",
+          "title": "Consumed Message Rate (Host Ingress)",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -3057,7 +3070,7 @@ data:
             "h": 2,
             "w": 3,
             "x": 12,
-            "y": 32
+            "y": 41
           },
           "id": 90,
           "interval": null,
@@ -3103,7 +3116,7 @@ data:
             }
           ],
           "thresholds": "0.00001,0.1",
-          "title": "produce failure ratio",
+          "title": "Produce Failure Ratio",
           "type": "singlestat",
           "valueFontSize": "80%",
           "valueMaps": [
@@ -3137,7 +3150,7 @@ data:
             "h": 7,
             "w": 9,
             "x": 15,
-            "y": 32
+            "y": 41
           },
           "hiddenSeries": false,
           "id": 91,
@@ -5090,6 +5103,280 @@ data:
           "datasource": {
             "type": "cloudwatch",
             "uid": "PD4288CE6A02EB473"
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none",
+              "hideZeros": false
+            },
+            "legend": {
+              "showLegend": true,
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ]
+            },
+            "alertThreshold": true
+          }
+        },
+        {
+          "id": 102,
+          "type": "stat",
+          "title": "Parser Failures (Inv. Views)",
+          "gridPos": {
+            "x": 19,
+            "y": 16,
+            "h": 2,
+            "w": 3
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "N/A"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "#299c46"
+                  },
+                  {
+                    "value": 0.1,
+                    "color": "rgba(237, 129, 40, 0.89)"
+                  },
+                  {
+                    "value": 1,
+                    "color": "#d44a3a"
+                  }
+                ]
+              },
+              "unit": "locale",
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
+            {
+              "expr": "sum(increase(inventory_host_app_data_parsing_failures_total[$__range]))",
+              "interval": "5m",
+              "refId": "A",
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "range": true
+            }
+          ],
+          "maxDataPoints": 100,
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "textMode": "auto",
+            "wideLayout": true,
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "showPercentChange": false,
+            "percentChangeColorMode": "standard"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+(message:+%22JSONDecodeError%22+OR+message:+%22UnicodeEncodeError%22)'),sort:!('@timestamp',desc))"
+            }
+          ]
+        },
+        {
+          "id": 103,
+          "type": "stat",
+          "title": "Validation Errors (Inv. Views)",
+          "gridPos": {
+            "x": 19,
+            "y": 18,
+            "h": 2,
+            "w": 3
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "special",
+                  "options": {
+                    "match": "null",
+                    "result": {
+                      "text": "N/A"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "#299c46"
+                  },
+                  {
+                    "value": 0.1,
+                    "color": "rgba(237, 129, 40, 0.89)"
+                  },
+                  {
+                    "color": "#d44a3a"
+                  }
+                ]
+              },
+              "unit": "locale",
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
+            {
+              "expr": "sum(increase(inventory_host_app_data_validation_failures_total[$__range]))",
+              "interval": "5m",
+              "refId": "A",
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "range": true
+            }
+          ],
+          "maxDataPoints": 100,
+          "datasource": {
+            "uid": "$datasource"
+          },
+          "options": {
+            "reduceOptions": {
+              "values": false,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": ""
+            },
+            "orientation": "horizontal",
+            "textMode": "auto",
+            "wideLayout": true,
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "showPercentChange": false,
+            "percentChangeColorMode": "standard"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "url": "[[kibana]],query:(language:lucene,query:'@log_stream:+%22host-inventory-mq-*%22+AND+(message:+%22Schema+validation+failed%22+OR+message:+%22Data+validation+error%22+OR+message:+%22Missing+application%22+OR+message:+%22Unknown+application%22)'),sort:!('@timestamp',desc))"
+            }
+          ]
+        },
+        {
+          "id": 101,
+          "type": "timeseries",
+          "title": "Consumed Message Rate (Inventory Views)",
+          "gridPos": {
+            "x": 12,
+            "y": 34,
+            "h": 7,
+            "w": 12
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "spanNulls": false,
+                "insertNulls": false,
+                "showPoints": "never",
+                "pointSize": 5,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "axisPlacement": "auto",
+                "axisLabel": "",
+                "axisColorMode": "text",
+                "axisBorderShow": false,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "axisCenteredZero": false,
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 80,
+                    "color": "red"
+                  }
+                ]
+              },
+              "links": [],
+              "unit": "opm"
+            },
+            "overrides": []
+          },
+          "pluginVersion": "11.6.3",
+          "targets": [
+            {
+              "expr": "sum(rate({__name__=~\"inventory_host_app_data_(processing_successes|parsing_failures|validation_failures|processing_failures)_total\"}[5m])) by (application)",
+              "interval": "1m",
+              "legendFormat": "{{topic}}",
+              "refId": "A",
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "range": true
+            }
+          ],
+          "datasource": {
+            "uid": "$datasource"
           },
           "options": {
             "tooltip": {
