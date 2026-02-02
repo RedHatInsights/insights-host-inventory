@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import sys
+import time
 from datetime import datetime
 from functools import partial
 from logging import Logger
@@ -114,6 +115,9 @@ def _get_prs_that_require_validation(owner: str, repo: str) -> list[str]:
     for pr_number in [pr["number"] for pr in _get_git_response(f"/repos/{owner}/{repo}/pulls?state=open")]:
         if _does_pr_require_validation(owner, repo, pr_number):
             prs_to_validate.append(pr_number)
+
+        # Sleep for 1 second to avoid rate limiting
+        time.sleep(1)
 
     return prs_to_validate
 
