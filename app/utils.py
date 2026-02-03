@@ -7,11 +7,12 @@ from typing import Any
 from app.exceptions import IdsNotFoundError
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models.mixins import HostTypeDeriver
 
 logger = get_logger(__name__)
 
 
-class HostWrapper:
+class HostWrapper(HostTypeDeriver):
     def __init__(self, data=None):
         self.__data = data or {}
 
@@ -223,43 +224,8 @@ class HostWrapper:
     def host_type(self):
         # Derive host_type lazily if not already set
         if "host_type" not in self.__data or self.__data["host_type"] is None:
-            self.__data["host_type"] = self._derive_host_type()
+            self.__data["host_type"] = self.derive_host_type()
         return self.__data.get("host_type")
-
-    def _derive_host_type(self) -> str:
-        """
-        Derive host_type from system profile data.
-
-        Business logic:
-        - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit)
-        - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
-        - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
-
-        Priority order:
-        1. Use explicit host_type from system profile if set ("edge" or "cluster")
-        2. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        3. Default to "conventional" (traditional systems)
-
-        Returns:
-            str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
-        """
-        system_profile = self.system_profile
-        if not system_profile:
-            return "conventional"
-
-        if system_profile.get("host_type") in {"edge", "cluster"}:
-            return system_profile.get("host_type")
-
-        bootc_status = system_profile.get("bootc_status") or {}
-
-        if isinstance(bootc_status, dict):
-            image_digest = bootc_status.get("booted", {}).get("image_digest")
-
-            if image_digest:
-                return "bootc"
-
-        return "conventional"
 
     def _update_derived_host_type(self):
         """
@@ -268,7 +234,7 @@ class HostWrapper:
         This method should be called whenever the system profile is updated
         to keep the host_type in sync with the source data.
         """
-        self.__data["host_type"] = self._derive_host_type()
+        self.__data["host_type"] = self.derive_host_type()
 
     @classmethod
     def from_json(cls, d):

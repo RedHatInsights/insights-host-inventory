@@ -25,6 +25,7 @@ from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
+from app.models.mixins import HostTypeDeriver
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
@@ -42,7 +43,7 @@ DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
 
 
-class LimitedHost(db.Model):
+class LimitedHost(db.Model, HostTypeDeriver):
     __tablename__ = "hosts"
     __table_args__ = ({"schema": INVENTORY_SCHEMA},)
 
@@ -148,44 +149,6 @@ class LimitedHost(db.Model):
             else_=" 000.000",
         )
 
-    def _derive_host_type(self) -> str:
-        """
-        Derive host_type from system profile data.
-
-        Business logic:
-        - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit) OR openshift_cluster_id is not None/empty
-        - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
-        - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
-
-        Priority order:
-        1. If openshift_cluster_id is set, use "cluster"
-        2. Use explicit host_type from static profile if set ("edge" or "cluster")
-        3. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        4. Default to "conventional" (traditional systems)
-
-        Returns:
-            str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
-        """
-        if self.openshift_cluster_id:
-            return "cluster"
-
-        if not (static := self.static_system_profile):
-            return "conventional"
-
-        if static.host_type in {"edge", "cluster"}:
-            return static.host_type
-
-        bootc_status = static.bootc_status or {}
-
-        if isinstance(bootc_status, dict):
-            image_digest = bootc_status.get("booted", {}).get("image_digest")
-
-            if image_digest:
-                return "bootc"
-
-        return "conventional"
-
     def _update_derived_host_type(self):
         """
         Update the denormalized host_type column from system profile.
@@ -193,7 +156,7 @@ class LimitedHost(db.Model):
         This method should be called whenever the system profile is updated
         to keep the host_type column in sync with the source data.
         """
-        derived = self._derive_host_type()
+        derived = self.derive_host_type()
         if derived != self.host_type:
             self.host_type = derived
             orm.attributes.flag_modified(self, "host_type")

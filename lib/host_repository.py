@@ -31,6 +31,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
+from app.serialization import build_system_profile_from_normalized
 from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
@@ -346,7 +347,9 @@ def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_f
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
-    if not input_host.system_profile_facts:
+    system_profile_data = build_system_profile_from_normalized(input_host)
+
+    if not system_profile_data:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
@@ -361,7 +364,7 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         logger.debug("Updating system profile on an existing host")
         logger.debug(f"existing host = {existing_host}")
 
-        existing_host.update_system_profile(input_host.system_profile_facts)
+        existing_host.update_system_profile(system_profile_data)
 
         metrics.update_host_count.inc()
         logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
