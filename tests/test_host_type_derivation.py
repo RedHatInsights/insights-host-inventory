@@ -14,13 +14,20 @@ from app.serialization import _map_host_type_for_backward_compatibility
 class TestHostTypeDerivation:
     """Test host_type derivation from system profile."""
 
-    def test_derive_host_type_cluster(self, db_create_host):
+    def test_derive_host_type_cluster_explicit(self, db_create_host):
         """Test that explicit cluster type takes highest priority."""
         host = db_create_host(extra_data={"system_profile_facts": {"host_type": "cluster"}})
 
         assert host.host_type == "cluster"
         assert host.static_system_profile is not None
         assert host.static_system_profile.host_type == "cluster"
+
+    def test_derive_host_type_cluster_from_openshift_cluster_id(self, db_create_host):
+        """Test that cluster is derived when openshift_cluster_id is set."""
+        host = db_create_host(extra_data={"openshift_cluster_id": "1234567890abcdef"})
+
+        assert host.openshift_cluster_id == "1234567890abcdef"
+        assert host.host_type == "cluster"
 
     def test_derive_host_type_edge_explicit(self, db_create_host):
         """Test that explicit edge type is recognized."""

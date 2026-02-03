@@ -167,8 +167,9 @@ class LimitedHost(db.Model):
 
         Priority order:
         1. Use explicit host_type from static profile if set ("edge" or "cluster")
-        2. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        3. Default to "conventional" (traditional systems)
+        2. If openshift_cluster_id is set, use "cluster"
+        3. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
+        4. Default to "conventional" (traditional systems)
 
         Returns:
             str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
@@ -178,6 +179,9 @@ class LimitedHost(db.Model):
 
         if static.host_type in {"edge", "cluster"}:
             return static.host_type
+
+        if self.openshift_cluster_id:
+            return "cluster"
 
         bootc_status = static.bootc_status or {}
 

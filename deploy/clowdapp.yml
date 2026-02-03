@@ -2095,7 +2095,7 @@ objects:
               "sps"."host_type" = 'edge'
             ) AS "edge_count",
             COUNT(*) FILTER (WHERE
-              "sps"."host_type" = 'cluster'
+              "h"."host_type" = 'cluster'
             ) AS "cluster_count"
           FROM "hbi"."hosts" AS "h"
           LEFT JOIN "hbi"."system_profiles_static" AS "sps"
