@@ -1464,7 +1464,8 @@ components:
           - advisor:incidents
           - vulnerability:total_cves
           - vulnerability:critical_cves
-          - patch:installable_advisories
+          - patch:advisories_rhsa_installable
+          - patch:packages_installable
           - remediations:remediations_plans
           - compliance:policies
           - compliance:last_scan
@@ -1962,70 +1963,129 @@ components:
         recommendations:
           type: integer
           minimum: 0
+          nullable: true
         incidents:
           type: integer
           minimum: 0
+          nullable: true
     VulnerabilityAppData:
       type: object
       properties:
         total_cves:
           type: integer
           minimum: 0
+          nullable: true
         critical_cves:
           type: integer
           minimum: 0
+          nullable: true
         high_severity_cves:
           type: integer
           minimum: 0
+          nullable: true
         cves_with_security_rules:
           type: integer
           minimum: 0
+          nullable: true
         cves_with_known_exploits:
           type: integer
           minimum: 0
+          nullable: true
     PatchAppData:
       type: object
       properties:
-        installable_advisories:
+        advisories_rhsa_applicable:
           type: integer
           minimum: 0
-        template:
+          nullable: true
+        advisories_rhba_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhsa_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhba_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installed:
+          type: integer
+          minimum: 0
+          nullable: true
+        template_name:
           type: string
-        rhsm_locked_version:
+          nullable: true
+        template_uuid:
           type: string
+          format: uuid
+          nullable: true
     RemediationsAppData:
       type: object
       properties:
         remediations_plans:
           type: integer
           minimum: 0
+          nullable: true
     ComplianceAppData:
       type: object
       properties:
         policies:
           type: integer
           minimum: 0
+          nullable: true
         last_scan:
           type: string
           format: date-time
+          nullable: true
     MalwareAppData:
       type: object
       properties:
         last_status:
           type: string
+          nullable: true
         last_matches:
           type: integer
           minimum: 0
+          nullable: true
         last_scan:
           type: string
           format: date-time
+          nullable: true
     ImageBuilderAppData:
       type: object
       properties:
         image_name:
           type: string
+          nullable: true
         image_status:
           type: string
+          nullable: true
     HostViewFieldsObject:
       type: object
       description: >-
@@ -2061,9 +2121,19 @@ components:
           items:
             type: string
             enum:
-              - installable_advisories
-              - template
-              - rhsm_locked_version
+              - advisories_rhsa_applicable
+              - advisories_rhba_applicable
+              - advisories_rhea_applicable
+              - advisories_other_applicable
+              - advisories_rhsa_installable
+              - advisories_rhba_installable
+              - advisories_rhea_installable
+              - advisories_other_installable
+              - packages_applicable
+              - packages_installable
+              - packages_installed
+              - template_name
+              - template_uuid
         remediations:
           type: array
           description: Remediation Planner fields to return; leave empty to include the full object.
@@ -2158,7 +2228,8 @@ components:
         - `vulnerability:critical_cves` - Critical severity CVEs
 
         **Patch**
-        - `patch:installable_advisories` - Number of installable advisories
+        - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
+        - `patch:packages_installable` - Number of installable packages
 
         **Remediations**
         - `remediations:remediations_plans` - Active remediation plans count
@@ -2175,7 +2246,8 @@ components:
         - advisor:incidents
         - vulnerability:total_cves
         - vulnerability:critical_cves
-        - patch:installable_advisories
+        - patch:advisories_rhsa_installable
+        - patch:packages_installable
         - remediations:remediations_plans
         - compliance:policies
         - compliance:last_scan

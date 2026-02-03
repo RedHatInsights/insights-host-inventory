@@ -48,6 +48,8 @@ SERVICE_ACCOUNT_IDENTITY: dict[str, Any] = {
     "service_account": {
         "client_id": "b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
         "username": "service-account-b69eaf9e-e6a6-4f9e-805e-02987daddfbd",
+        "user_id": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6",
+        "scope": "api.console",
     },
     "type": "ServiceAccount",
 }

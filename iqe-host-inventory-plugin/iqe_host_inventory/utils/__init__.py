@@ -4,6 +4,7 @@ import logging
 from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import Sequence
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import chain as _chain
@@ -87,6 +88,16 @@ def rand_start_end(max_page: int, num_iterations: int) -> tuple[int, int]:
         end = max_page
 
     return random_start, end
+
+
+def normalize_datetime_to_utc(dt: datetime) -> datetime:
+    """Convert a datetime to UTC timezone for consistent comparison.
+
+    If the datetime is naive (no tzinfo), assume it's UTC.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def datetimes_equal(

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import sys
+import time
 from datetime import datetime
 from functools import partial
 from logging import Logger
@@ -34,14 +35,90 @@ SP_SPEC_PATH = "swagger/system_profile.spec.yaml"
 GIT_USER = getenv("GIT_USER", "")
 GIT_TOKEN = getenv("GIT_TOKEN", "")
 VALIDATE_DAYS = int(getenv("VALIDATE_DAYS", 3))
+GIT_MAX_RETRIES = int(getenv("GIT_MAX_RETRIES", 3))
 
 logger = get_logger(LOGGER_NAME)
 
 
-def _get_git_response(path: str) -> dict:
-    return json.loads(
-        get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN)).content.decode("utf-8")
-    )
+def _get_rate_limit_wait_time(response: Response) -> int | None:
+    """
+    Calculate wait time based on GitHub rate limit headers.
+    Returns the number of seconds to wait, or None if no wait is needed.
+    """
+    # Check for Retry-After header first (used in some rate limit scenarios)
+    retry_after = response.headers.get("Retry-After")
+    if retry_after:
+        try:
+            return int(retry_after)
+        except ValueError:
+            pass
+
+    # Check X-RateLimit headers
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    reset_time = response.headers.get("X-RateLimit-Reset")
+
+    if remaining is not None and reset_time is not None:
+        try:
+            remaining_count = int(remaining)
+            reset_timestamp = int(reset_time)
+
+            # If we're rate limited (remaining is 0) or about to be
+            if remaining_count == 0:
+                wait_time = reset_timestamp - int(time.time())
+                # Add a small buffer to ensure the reset has occurred
+                return max(wait_time + 1, 1)
+        except ValueError:
+            pass
+
+    return None
+
+
+def _get_git_response(path: str, max_retries: int = GIT_MAX_RETRIES) -> dict:
+    """
+    Make a GET request to GitHub API with rate limit handling and retry logic.
+    """
+    for attempt in range(max_retries + 1):
+        response = get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN))
+
+        # Log rate limit info for debugging
+        remaining = response.headers.get("X-RateLimit-Remaining")
+        limit = response.headers.get("X-RateLimit-Limit")
+        if remaining is not None and limit is not None:
+            logger.debug(f"GitHub API rate limit: {remaining}/{limit} remaining")
+
+        # Check for rate limiting (403 with rate limit message or 429)
+        is_rate_limited = response.status_code == 429 or (
+            response.status_code == 403 and "rate limit" in response.text.lower()
+        )
+
+        if is_rate_limited:
+            wait_time = _get_rate_limit_wait_time(response)
+            if wait_time and attempt < max_retries:
+                logger.warning(
+                    f"GitHub API rate limit hit. Waiting {wait_time} seconds before retry "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(wait_time)
+                continue
+            else:
+                logger.error(f"GitHub API rate limit exceeded after {max_retries} retries")
+                raise RuntimeError(f"GitHub API rate limit exceeded: {response.text}")
+
+        # Handle other errors
+        if response.status_code >= 400:
+            logger.error(f"GitHub API request failed: {response.status_code} - {response.text}")
+            raise RuntimeError(f"GitHub API request failed with status {response.status_code}: {response.text}")
+
+        # Success - but check if we're close to the rate limit for proactive waiting
+        wait_time = _get_rate_limit_wait_time(response)
+        if wait_time and remaining is not None and int(remaining) == 0:
+            logger.info(f"Proactively waiting {wait_time} seconds for rate limit reset")
+            time.sleep(wait_time)
+
+        return json.loads(response.content.decode("utf-8"))
+
+    # Should not reach here, but just in case
+    raise RuntimeError("GitHub API request failed: max retries exceeded")
 
 
 def _post_git_response(path: str, content: str) -> Response:

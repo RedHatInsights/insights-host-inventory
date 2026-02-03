@@ -291,6 +291,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
         "intersystems": {"nested_field": "intersystems"},
         "mssql": {"nested_field": "mssql"},
         "crowdstrike": {"nested_field": "third_party_services.crowdstrike"},
+        "rhel_ai": {"nested_field": "rhel_ai"},
     }
 
     @staticmethod
@@ -787,10 +788,17 @@ class RemediationsDataSchema(MarshmallowSchema):
     remediations_plans = fields.Int(allow_none=True)
 
 
+class ComplianceDataPolicySchema(MarshmallowSchema):
+    """Schema for a compliance policy entry."""
+
+    id = fields.Str(validate=verify_uuid_format, allow_none=False)
+    name = fields.Str(allow_none=False, validate=marshmallow_validate.Length(max=255))
+
+
 class ComplianceDataSchema(MarshmallowSchema):
     """Schema for Compliance application data."""
 
-    policies = fields.Int(allow_none=True)
+    policies = fields.List(fields.Nested(ComplianceDataPolicySchema), allow_none=True)
     last_scan = fields.DateTime(allow_none=True)
 
 
@@ -799,6 +807,7 @@ class MalwareDataSchema(MarshmallowSchema):
 
     last_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))
     last_matches = fields.Int(allow_none=True)
+    total_matches = fields.Int(allow_none=True)
     last_scan = fields.DateTime(allow_none=True)
 
 

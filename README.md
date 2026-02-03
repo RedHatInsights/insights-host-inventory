@@ -30,7 +30,7 @@ please see the
 - [Database migrations](#database-migrations)
 - [Docker builds](#docker-builds)
 - [Metrics](#metrics)
-- [Documentation] (#documentation)
+- [Documentation](#documentation)
 - [Release process](#release-process)
     - [Pull request](#1-pull-request)
     - [Latest image and smoke tests](#2-latest-image-and-smoke-tests)
@@ -144,7 +144,20 @@ If using a different directory, update the `volumes` section in [dev.yml](dev.ym
 
 All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
 This includes the web server, MQ server, database, Kafka, and other infrastructure services.
-Start them with the following command:
+
+**Note:** This repository uses git submodules (e.g., `librdkafka`). If you haven't already, clone the repository with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/RedHatInsights/insights-host-inventory.git
+```
+
+Or, if you've already cloned without submodules, initialize them with:
+
+```bash
+git submodule update --init --recursive
+```
+
+Start the services with the following command:
 
 ```bash
 docker compose -f dev.yml up -d
@@ -467,7 +480,10 @@ Generate new migration scripts with:
 make migrate_db message="Description of your changes"
 ```
 
+### Running Database Migrations
 
+In managed environments, the database migrations are run by the `run-db-migrations` job.
+This job runs once per release, as its name contains the image tag (`run-db-migrations-<IMAGE_TAG>).
 
 ## Docker Builds
 
@@ -628,17 +644,35 @@ or by reverting the MR that triggered the production deployment.
 
 ## Updating the System Profile
 
-In order to add or update a field on the System Profile, first follow the instructions in
-the [inventory-schemas repo](https://github.com/RedHatInsights/inventory-schemas#contributing).
-After an inventory-schemas PR has been accepted and merged, HBI must be updated to keep its own schema in sync.
-To do this, simply run this command:
+When contributing a new field to the [system_profile schema](swagger/system_profile.spec.yaml), please ensure you complete the following steps:
 
-```bash
-make update-schema
-```
+1. Add the new field
+2. Annotate the field
+    - Add an example of the value(s) you expect to receive using the `example` keyword. For string fields, provide at least 2 unique examples.
+    - Add a description of the field. If the field should support `range` or `wildcard` operations when queried against, note that here.
+3. Add filtering flags
+    - If the field should support wildcard operations in filtering, add `x-wildcard: true`. Defaults to `false` otherwise.
+4. Validate the field
+    - The field should have the strictest possible validation rules applied to it.
+5. Add positive and negative test examples
+    - Add examples of valid/invalid values in [tests/utils/valids.py](swagger/inventory-schemas/tests/utils/valids.py) and [tests/utils/invalids.py](swagger/inventory-schemas/tests/utils/invalids.py)respectively.
 
-This will pull the latest version of the System Profile schema from inventory-schemas and update files as necessary.
-Open a PR with these changes, and it will be reviewed and merged as per [the standard process](#release-process).
+Before committing, make sure these apps are not going to be negatively affected by the changes as they interact with the system profile.
+
+- RHSM
+- Yupana
+- Puptoo
+- Satellite
+- Discovery
+- Patch
+- Content
+- Vulnerability
+- Malware
+- Remediations
+- Compliance
+- Image builder
+- Digital roadmap
+- BU
 
 ## Logging System Profile Fields
 

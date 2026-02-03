@@ -644,9 +644,7 @@ objects:
       replicas: ${{REPLICAS_P1}}
       podSpec:
         <<: *mqPodSpec
-        initContainers:
-        - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
-          inheritEnv: true
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -1817,6 +1815,102 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
             memory: ${MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
+    - name: populate-host-type
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/populate_host_type.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${POPULATE_HOST_TYPE_DRY_RUN}
+          - name: SUSPEND_JOB
+            value: ${POPULATE_HOST_TYPE_SUSPEND_JOB}
+          - name: POPULATE_HOST_TYPE_BATCH_SIZE
+            value: ${POPULATE_HOST_TYPE_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_POPULATE_HOST_TYPE_JOB}
+            memory: ${MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
+            memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
+    - name: run-db-migrations
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_LIMIT_DB_MIGRATIONS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1839,6 +1933,18 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_HOST_APP_DATA_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS}}
+# This CJI runs the DB migrations each time we deploy a new image.
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: run-db-migrations-${IMAGE_TAG}
+  spec:
+    appName: host-inventory
+    jobs:
+      - run-db-migrations
+    runOnNotReady: true
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1976,20 +2082,25 @@ objects:
         chunksize: 10000
         query: >-
           SELECT
-            "org_id",
+            "h"."org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
+              "sps"."bootc_status"->'booted'->>'image_digest' IS NOT NULL
+              AND "sps"."bootc_status"->'booted'->>'image_digest' <> ''
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
-              AND "system_profile_facts"->>'host_type' IS NULL
+              ("sps"."bootc_status" IS NULL OR "sps"."bootc_status"->'booted'->>'image_digest' IS NULL)
+              AND "sps"."host_type" IS NULL
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count"
-          FROM "hbi"."hosts"
-          GROUP BY "org_id";
+              "sps"."host_type" = 'edge'
+            ) AS "edge_count",
+            COUNT(*) FILTER (WHERE
+              "sps"."host_type" = 'cluster'
+            ) AS "cluster_count"
+          FROM "hbi"."hosts" AS "h"
+          LEFT JOIN "hbi"."system_profiles_static" AS "sps"
+            ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
+          GROUP BY "h"."org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
@@ -2359,6 +2470,22 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
   value: 512Mi
+- name: CPU_REQUEST_POPULATE_HOST_TYPE_JOB
+  value: 250m
+- name: CPU_LIMIT_POPULATE_HOST_TYPE_JOB
+  value: 500m
+- name: MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
+  value: 512Mi
+- name: CPU_REQUEST_DB_MIGRATIONS_JOB
+  value: 250m
+- name: CPU_LIMIT_DB_MIGRATIONS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DB_MIGRATIONS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DB_MIGRATIONS_JOB
+  value: 512Mi
 
 # =================================================================================
 # III. External Services & Dependencies
@@ -2669,6 +2796,17 @@ parameters:
 - name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN
   description: Whether the backfill-per-reporter-culled-timestamps script should run in dry-run mode
   value: 'true'
+
+# -- Populate host_type Job --
+- name: POPULATE_HOST_TYPE_DRY_RUN
+  description: Whether the populate-host-type script should run in dry-run mode
+  value: 'true'
+- name: POPULATE_HOST_TYPE_SUSPEND_JOB
+  description: Whether the populate-host-type job should be suspended
+  value: 'true'
+- name: POPULATE_HOST_TYPE_BATCH_SIZE
+  description: Number of hosts to process per batch in the populate-host-type job
+  value: '500'
 
 # =================================================================================
 # VI. Floorist Configuration
