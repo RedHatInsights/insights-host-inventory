@@ -9,7 +9,6 @@ from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import orm
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -40,14 +39,14 @@ logger = get_logger(__name__)
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
+# Fields that should be merged (shallow) instead of replaced when updating system profiles.
+SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
+
 
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
     __table_args__ = (
-        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-        Index("idxgincanonicalfacts", "canonical_facts"),
         Index("idxorgid", "org_id"),
-        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
         Index("idxdisplay_name", "display_name"),
         Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
         Index("idxgroups", "groups", postgresql_using="gin"),
@@ -202,37 +201,69 @@ class LimitedHost(db.Model):
             self.host_type = derived
             orm.attributes.flag_modified(self, "host_type")
 
+    @staticmethod
+    def _update_profile_attributes(profile, data: dict, skip_keys: set | None = None):
+        """
+        Update a system profile object's attributes from a dictionary.
+
+        For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
+        For all other fields, replaces the value entirely.
+
+        Args:
+            profile: The system profile object to update (static or dynamic)
+            data: Dictionary of field names and values to apply
+            skip_keys: Set of keys to skip (e.g., {"org_id", "host_id"})
+        """
+        skip_keys = skip_keys or set()
+
+        for key, value in data.items():
+            if key in skip_keys:
+                continue
+
+            if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
+                existing = getattr(profile, key, None) or {}
+                merged = {**existing, **value}
+                setattr(profile, key, merged)
+            else:
+                setattr(profile, key, value)
+
     def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
+        from copy import deepcopy
+
+        from app.models.schemas import LimitedHostSchema
         from app.models.system_profile_transformer import validate_and_transform
 
         if not input_system_profile:
             self._update_derived_host_type()
             return
 
+        # Make a copy and migrate legacy workload fields to workloads.* for the normalized tables
+        # This ensures backward compatibility: legacy fields in input are converted to workloads.*
+        # before being written to the new system_profiles_dynamic.workloads column
+        system_profile_copy = deepcopy(input_system_profile)
+        data_wrapper = {"system_profile": system_profile_copy}
+        LimitedHostSchema._migrate_and_remove_legacy_workloads_fields(data_wrapper)
+        migrated_profile = data_wrapper["system_profile"]
+
         # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), migrated_profile)
+
+        # Keys that are managed automatically and should not be updated from input
+        skip_keys = {"org_id", "host_id"}
 
         # Update or create static system profile
         if static_data:
             if self.static_system_profile:
-                # Update existing record
-                for key, value in static_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.static_system_profile, key, value)
+                self._update_profile_attributes(self.static_system_profile, static_data, skip_keys)
             else:
-                # Create new record
                 self.static_system_profile = HostStaticSystemProfile(**static_data)
 
         # Update or create dynamic system profile
         if dynamic_data:
             if self.dynamic_system_profile:
-                # Update existing record
-                for key, value in dynamic_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.dynamic_system_profile, key, value)
+                self._update_profile_attributes(self.dynamic_system_profile, dynamic_data, skip_keys)
             else:
-                # Create new record
                 self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
 
         self._update_derived_host_type()
@@ -247,7 +278,6 @@ class LimitedHost(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
-    canonical_facts = db.Column(JSONB, default=dict)  # deprecated
 
     # canonical facts
     insights_id = db.Column(UUID(as_uuid=True), nullable=False, default=DEFAULT_INSIGHTS_ID)
@@ -584,22 +614,8 @@ class Host(LimitedHost):
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
 
-        # Update the existing JSONB column (backward compatibility)
-        if not self.system_profile_facts:
-            self.system_profile_facts = input_system_profile
-        else:
-            for key, value in input_system_profile.items():
-                if key in ["rhsm", "workloads"]:
-                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
-                else:
-                    self.system_profile_facts[key] = value
-        orm.attributes.flag_modified(self, "system_profile_facts")
-
-        # Update the normalized system profile tables
         try:
             self._add_or_update_normalized_system_profiles(input_system_profile)
-        except ValidationException as e:
-            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 

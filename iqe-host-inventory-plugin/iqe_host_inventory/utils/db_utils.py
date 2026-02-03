@@ -57,9 +57,6 @@ class Host(Base):
     facts = Column(JSONB)
     tags = Column(JSONB)
     tags_alt = Column(JSONB)
-    canonical_facts = Column(
-        JSONB
-    )  # DEPRECATED: Do not use. Set to {} only to satisfy NOT NULL constraint.
     system_profile_facts = Column(JSONB)
     groups = Column(JSONB)
     last_check_in = Column(DateTime(timezone=True))
@@ -144,11 +141,6 @@ def minimal_db_host(empty_strings: bool = False, **fields: Any) -> dict[str, Any
     # Set insights_id to DEFAULT_INSIGHTS_ID if not provided or None, matching main app behavior
     if result.get("insights_id") is None:
         result["insights_id"] = DEFAULT_INSIGHTS_ID
-    # Set canonical_facts to empty dict to satisfy NOT NULL constraint
-    # (deprecated field, do not use)
-    # Tests should use individual canonical fact columns
-    if "canonical_facts" not in result or result["canonical_facts"] is None:
-        result["canonical_facts"] = {}
     return result
 
 

@@ -55,6 +55,7 @@ class TagsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
@@ -100,6 +101,7 @@ class TagsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] group_id: Filter by group ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
@@ -138,6 +140,7 @@ class TagsApi:
             "last_check_in_start",
             "last_check_in_end",
             "group_name",
+            "group_id",
             "registered_with",
             "system_type",
             "filter",
@@ -207,6 +210,9 @@ class TagsApi:
         if "group_name" in local_var_params and local_var_params["group_name"] is not None:
             query_params.append(("group_name", local_var_params["group_name"]))
             collection_formats["group_name"] = "multi"
+        if "group_id" in local_var_params and local_var_params["group_id"] is not None:
+            query_params.append(("group_id", local_var_params["group_id"]))
+            collection_formats["group_id"] = "multi"
         if (
             "registered_with" in local_var_params
             and local_var_params["registered_with"] is not None

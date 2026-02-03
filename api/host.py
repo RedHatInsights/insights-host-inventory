@@ -25,6 +25,7 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
+from api.validation import check_group_name_and_id
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -47,10 +48,12 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
+from app.serialization import serialize_uuid
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
@@ -84,6 +87,7 @@ def get_host_list(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     tags=None,
     page=1,
     per_page=100,
@@ -100,6 +104,10 @@ def get_host_list(
     host_list = ()
     owner_id = None
     current_identity = get_current_identity()
+
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     has_complex_params = any(
         [
             display_name,
@@ -112,6 +120,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             order_by,
             order_how,
@@ -153,6 +162,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             page,
             per_page,
@@ -197,6 +207,7 @@ def delete_hosts_by_filter(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     registered_with=None,
     system_type=None,
     staleness=None,
@@ -204,6 +215,9 @@ def delete_hosts_by_filter(
     filter=None,
     rbac_filter=None,
 ):
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     if not any(
         [
             display_name,
@@ -218,6 +232,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,
@@ -242,6 +257,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,
@@ -387,13 +403,14 @@ def get_host_system_profile_by_id(
 
 
 def _emit_patch_event(serialized_host, host):
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
     headers = message_headers(
         EventType.updated,
         str(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
@@ -428,8 +445,8 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.insights_id
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -504,8 +521,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.insights_id
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -567,8 +584,9 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = str(existing_host.insights_id)
-        owner_id = existing_host.system_profile_facts.get("owner_id")
+        insights_id = serialize_uuid(existing_host.insights_id)
+        static_sp = existing_host.static_system_profile
+        owner_id = serialize_uuid(static_sp.owner_id) if static_sp else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
         return flask_json_response(serialized_host, 201)

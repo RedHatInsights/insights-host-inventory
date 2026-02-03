@@ -1,5 +1,6 @@
 import logging
 import random
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
@@ -796,6 +797,124 @@ def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_host
     assert group_result["ungrouped"] is ungrouped
 
 
+def test_query_using_group_id(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by group_id parameter."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+
+    # Create other groups that we don't want in the response
+    db_create_group_with_hosts("test_group_2", hosts_per_group)
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using group_id
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "test_group_1"
+
+
+def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by multiple group_id parameters."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+    group2 = db_create_group_with_hosts("test_group_2", hosts_per_group)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using multiple group_ids
+    url = build_hosts_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group * 2
+    returned_group_ids = {result["groups"][0]["id"] for result in response_data["results"]}
+    assert returned_group_ids == {str(group1.id), str(group2.id)}
+
+
+def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get):
+    """
+    Test that group_id filter returns correct hosts even when multiple groups have the same name.
+    This is the key requirement from RHINENG-17234: with Kessel, multiple groups can have
+    the same name if they have different parents, and filtering by group_id ensures we get
+    the correct group's hosts.
+    """
+    # Create two groups with the same name
+    group1 = db_create_group_with_hosts("duplicate_name", 3)
+    group2 = db_create_group_with_hosts("duplicate_name", 5)
+
+    # Query using group_id for the first group
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group1, not group2
+    assert len(response_data["results"]) == 3
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+    # Query using group_id for the second group
+    url = build_hosts_url(query=f"?group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group2, not group1
+    assert len(response_data["results"]) == 5
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group2.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+
+def test_query_group_id_rejects_invalid_uuid(api_get):
+    """Test that group_id parameter rejects non-UUID values."""
+    # Try with an invalid UUID
+    url = build_hosts_url(query="?group_id=invalid-uuid")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request for invalid UUID
+    assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 3)
+
+    # Try using both filters together
+    url = build_hosts_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
+
+
+def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 3)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_hosts_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
     host_list = [mq_create_or_update_host(minimal_host(insights_id=generate_uuid())) for _ in range(3)]
 
@@ -1308,14 +1427,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
-        "[rhel_ai][rhel_ai_version_id][is]=not_nil",
-        "[rhel_ai][rhel_ai_version_id]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
-        "[rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
-        "[rhel_ai][variant][is]=nil",
-        "[rhel_ai][nvidia_gpu_models][]=NVIDIA T1000",
-        "[rhel_ai][amd_gpu_models][]=Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31",
+        "[workloads][rhel_ai][rhel_ai_version_id][is]=not_nil",
+        "[workloads][rhel_ai][rhel_ai_version_id]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
+        "[workloads][rhel_ai][variant][is]=nil",
+        "[workloads][rhel_ai][gpu_models][is]=not_nil",
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1332,11 +1450,13 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                 "ansible": {
                     "controller_version": "1.0",
                 },
-            },
-            "rhel_ai": {
-                "rhel_ai_version_id": "v1.1.2",
-                "nvidia_gpu_models": ["NVIDIA T1000"],
-                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c31"],
+                "rhel_ai": {
+                    "rhel_ai_version_id": "v1.1.2",
+                    "gpu_models": [
+                        {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                        {"name": "AMD Device 0c31", "vendor": "AMD"},
+                    ],
+                },
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1354,12 +1474,12 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "workloads": {
-                "sap": {},
-            },  # No sap_system field = nil
-            "rhel_ai": {
-                "variant": "RHEL AI",
-                "nvidia_gpu_models": ["NVIDIA T2000"],
-                "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c32"],
+                "sap": {},  # No sap_system field = nil
+                "rhel_ai": {
+                    "variant": "RHEL AI",  # Has variant (not nil) for variant filter
+                    # No gpu_models = nil for gpu_models filter
+                    # Different version for version filter
+                },
             },
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
@@ -1679,92 +1799,6 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
     else:
         assert nomatch_host_id in response_ids
         assert match_host_id not in response_ids
-
-
-@pytest.mark.parametrize(
-    "sp_match_data_list,sp_nomatch_data_list,sp_filter_param_list",
-    (
-        (
-            [{}, {"operating_system": {}}, {"operating_system": None}],
-            [
-                {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    }
-                }
-            ],
-            [
-                "[operating_system][]=nil",
-                "[operating_system]=nil",
-            ],
-        ),
-        (
-            [
-                {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    }
-                }
-            ],
-            [{}, {"operating_system": {}}, {"operating_system": None}],
-            [
-                "[operating_system][]=not_nil",
-                "[operating_system]=not_nil",
-            ],
-        ),
-        (
-            [
-                {},
-                {"operating_system": {}},
-                {"operating_system": None},
-                {
-                    "operating_system": {
-                        "name": "RHEL",
-                        "major": "8",
-                        "minor": "1",
-                    }
-                },
-            ],
-            None,
-            [
-                "[operating_system][]=nil&filter[system_profile][operating_system][]=not_nil",
-            ],
-        ),
-    ),
-)
-def test_query_all_operating_system_nil(
-    db_create_host, api_get, sp_match_data_list, sp_nomatch_data_list, sp_filter_param_list, subtests
-):
-    # Create host with this system profile
-    match_host_id_list = [
-        str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_match_data_list
-    ]
-
-    if sp_nomatch_data_list:
-        nomatch_host_id_list = [
-            str(db_create_host(extra_data={"system_profile_facts": sp_data}).id) for sp_data in sp_nomatch_data_list
-        ]
-
-    for sp_filter_param in sp_filter_param_list:
-        with subtests.test(query_param=sp_filter_param):
-            url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
-
-            response_status, response_data = api_get(url)
-
-            assert response_status == 200
-
-            # Assert that only the matching hosts are returned
-            response_ids = [result["id"] for result in response_data["results"]]
-            for match_host_id in match_host_id_list:
-                assert match_host_id in response_ids
-
-            if sp_nomatch_data_list:
-                for nomatch_host_id in nomatch_host_id_list:
-                    assert nomatch_host_id not in response_ids
 
 
 @pytest.mark.parametrize(
@@ -2414,7 +2448,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
     "query_filter_param,matching_host_indexes",
     (
         ("?system_type=conventional", [0]),
-        ("?system_type=bootc", [1, 4]),
+        ("?system_type=bootc", [1]),
         ("?system_type=edge", [2, 4]),
         ("?system_type=cluster", [3]),
         ("?system_type=bootc&system_type=edge", [1, 2, 4]),

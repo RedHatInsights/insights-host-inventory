@@ -14,6 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
+from sqlalchemy.orm import defer
+from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
@@ -37,7 +39,10 @@ from app.models import Host
 from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.system_profile_transformer import DYNAMIC_FIELDS
+from app.models.system_profile_transformer import STATIC_FIELDS
 from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -76,7 +81,7 @@ DEFAULT_COLUMNS = [
     Host.created_on,
     Host.modified_on,
     Host.groups,
-    Host.system_profile_facts["host_type"].label("host_type"),
+    Host.host_type,
     Host.last_check_in,
     Host.openshift_cluster_id,
 ]
@@ -95,60 +100,76 @@ def _get_host_list_using_filters(
     all_filters: list,
     page: int,
     per_page: int,
-    param_order_by: str,
-    param_order_how: str,
-    fields: dict,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
-    columns = DEFAULT_COLUMNS.copy()
+    param_order_by: str | None,
+    param_order_how: str | None,
+    fields: dict | None,
+) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
+    # Check if 'system_profile' is requested to decide between "Full ORM" vs "Light Columns"
+    sp_fields_map = fields.get("system_profile", {}) if fields else {}
+    is_sp_requested = bool(sp_fields_map)
 
-    system_profile_fields = ["host_type"]
-    if fields and fields.get("system_profile"):
-        additional_fields: tuple = ("system_profile",)
-        system_profile_fields += list(fields.get("system_profile", {}).keys())
-        columns = list(columns)
-        columns.append(Host.system_profile_facts)
+    additional_fields = ("system_profile",) if is_sp_requested else ()
+    system_profile_fields = list(sp_fields_map.keys()) if is_sp_requested else []
+
+    if is_sp_requested:
+        # Load full ORM objects (needed for relationships)
+        base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
+
+        # Defer loading of the deprecated JSONB column - we use the new normalized tables
+        base_query = base_query.options(defer(Host.system_profile_facts))
+
+        # Conditionally join related tables based on requested fields
+        requested_keys = set(sp_fields_map.keys())
+
+        if requested_keys & set(STATIC_FIELDS) or param_order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
+            base_query = base_query.options(joinedload(Host.static_system_profile))
+
+        if requested_keys & (set(DYNAMIC_FIELDS) | WORKLOADS_FIELDS):
+            base_query = base_query.options(joinedload(Host.dynamic_system_profile))
     else:
-        additional_fields = ()
+        base_query = _find_hosts_entities_query(
+            query=query_base, columns=DEFAULT_COLUMNS.copy(), order_by=param_order_by
+        )
 
-    base_query = _find_hosts_entities_query(query=query_base, columns=columns, order_by=param_order_by).filter(
-        *all_filters
-    )
-    host_query = base_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    filtered_query = base_query.filter(*all_filters)
 
-    # Count separately because the COUNT done by .paginate() is inefficient
-    count_total = base_query.with_entities(func.count()).scalar()
+    # Optimized count that ignores ordering and columns
+    count_total = filtered_query.with_entities(func.count()).scalar()
 
-    query_results = host_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+    ordered_query = filtered_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    paginated_results = ordered_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
+
     db.session.close()
 
-    return query_results.items, count_total, additional_fields, system_profile_fields
+    return paginated_results.items, count_total, additional_fields, system_profile_fields
 
 
 def get_host_list(
-    display_name: str,
-    fqdn: str,
-    hostname_or_id: str,
-    insights_id: str,
-    subscription_manager_id: str,
-    provider_id: str,
-    provider_type: str,
-    updated_start: str,
-    updated_end: str,
-    last_check_in_start: str,
-    last_check_in_end: str,
-    group_name: list[str],
-    tags: list[str],
+    display_name: str | None,
+    fqdn: str | None,
+    hostname_or_id: str | None,
+    insights_id: str | None,
+    subscription_manager_id: str | None,
+    provider_id: str | None,
+    provider_type: str | None,
+    updated_start: str | None,
+    updated_end: str | None,
+    last_check_in_start: str | None,
+    last_check_in_end: str | None,
+    group_name: list[str] | None,
+    group_id: list[str] | None,
+    tags: list[str] | None,
     page: int,
     per_page: int,
-    param_order_by: str,
-    param_order_how: str,
-    staleness: list[str],
-    registered_with: list[str],
+    param_order_by: str | None,
+    param_order_how: str | None,
+    staleness: list[str] | None,
+    registered_with: list[str] | None,
     system_type: list[str] | None,
-    filter: dict,
-    fields: dict,
-    rbac_filter: dict,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
+    filter: dict | None,
+    fields: dict | None,
+    rbac_filter: dict | None,
+) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     all_filters, query_base = query_filters(
         fqdn,
         display_name,
@@ -162,7 +183,7 @@ def get_host_list(
         last_check_in_start,
         last_check_in_end,
         group_name,
-        None,
+        group_id,
         tags,
         staleness,
         registered_with,
@@ -186,7 +207,7 @@ def get_host_list_by_id_list(
     param_order_how: str,
     fields=None,
     rbac_filter=None,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
+) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     all_filters = host_id_list_filter(host_id_list)
     all_filters += rbac_permissions_filter(rbac_filter)
 
@@ -259,14 +280,12 @@ def _find_hosts_entities_query(
     identity: Any = None,
     order_by: str | None = None,
 ) -> Query:
-    if not identity:
-        identity = get_current_identity()
+    identity = identity or get_current_identity()
 
     if query is None:
-        query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
-        # Add static profile join if needed for ordering
+        query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
         if order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
-            query = query.join(HostStaticSystemProfile, isouter=True)
+            query = query.outerjoin(HostStaticSystemProfile)
         query = query.filter(Host.org_id == identity.org_id)
 
     if columns:
@@ -275,7 +294,7 @@ def _find_hosts_entities_query(
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query = db.session.query(Host).join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+    query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # In this case, return a list of Hosts
     # wih the requested columns.
@@ -347,29 +366,30 @@ def _convert_null_string(input: str | list):
 
 
 def get_tag_list(
-    display_name: str,
-    fqdn: str,
-    hostname_or_id: str,
-    insights_id: str,
-    subscription_manager_id: str,
-    provider_id: str,
-    provider_type: str,
-    updated_start: str,
-    updated_end: str,
-    last_check_in_start: str,
-    last_check_in_end: str,
-    group_name: list[str],
-    tags: list[str],
+    display_name: str | None,
+    fqdn: str | None,
+    hostname_or_id: str | None,
+    insights_id: str | None,
+    subscription_manager_id: str | None,
+    provider_id: str | None,
+    provider_type: str | None,
+    updated_start: str | None,
+    updated_end: str | None,
+    last_check_in_start: str | None,
+    last_check_in_end: str | None,
+    group_name: list[str] | None,
+    group_id: list[str] | None,
+    tags: list[str] | None,
     limit: int,
     offset: int,
-    order_by: str,
-    order_how: str,
-    search: str,
-    staleness: list[str],
-    registered_with: list[str],
+    order_by: str | None,
+    order_how: str | None,
+    search: str | None,
+    staleness: list[str] | None,
+    registered_with: list[str] | None,
     system_type: list[str] | None,
-    filter: dict,
-    rbac_filter: dict,
+    filter: dict | None,
+    rbac_filter: dict | None,
 ) -> tuple[list, int]:
     if order_by not in ["tag", "count"]:
         raise ValueError('Unsupported ordering column: use "tag" or "count".')
@@ -392,7 +412,7 @@ def get_tag_list(
         last_check_in_start,
         last_check_in_end,
         group_name,
-        None,
+        group_id,
         tags,
         staleness,
         registered_with,
@@ -606,6 +626,7 @@ def get_sparse_system_profile(
     rbac_filter: dict,
 ) -> tuple[int, list[dict[str, str | dict]]]:
     # Define legacy workload fields that may need backward compatibility
+    # Note: rhel_ai is NOT included because its legacy structure differs from workloads.rhel_ai
     legacy_workload_fields = {
         "sap",
         "sap_system",
@@ -628,6 +649,9 @@ def get_sparse_system_profile(
         and any(field in legacy_workload_fields for field in requested_sp_fields)
     )
 
+    needs_static_join = False
+    needs_dynamic_join = False
+
     if fields and fields.get("system_profile"):
         # If backward compatibility is enabled and legacy fields are requested,
         # also fetch workloads field so we can populate legacy fields from it
@@ -635,24 +659,53 @@ def get_sparse_system_profile(
         if workloads_needed_for_compat and not workloads_requested:
             fields_to_fetch.append("workloads")
 
+        jsonb_parts = []
+        for key in fields_to_fetch:
+            if key in STATIC_FIELDS:
+                jsonb_parts.extend([key, getattr(HostStaticSystemProfile, key)])
+                needs_static_join = True
+            elif key in DYNAMIC_FIELDS:
+                jsonb_parts.extend([key, getattr(HostDynamicSystemProfile, key)])
+                needs_dynamic_join = True
+
         columns = [
             Host.id,
-            func.jsonb_strip_nulls(
-                func.jsonb_build_object(
-                    *[kv for key in fields_to_fetch for kv in (key, Host.system_profile_facts[key].label(key))]
-                ).label("system_profile_facts")
-            ),
+            func.jsonb_strip_nulls(func.jsonb_build_object(*jsonb_parts))
+            if jsonb_parts
+            else func.jsonb_build_object(),
         ]
     else:
-        columns = [Host.id, Host.system_profile_facts]
+        # Fetch all fields from both normalized tables
+        # Build separate JSONB objects for static and dynamic fields to avoid exceeding
+        # PostgreSQL's 100-argument limit for jsonb_build_object
+        static_parts = [field for f in STATIC_FIELDS for field in (f, getattr(HostStaticSystemProfile, f))]
+        dynamic_parts = [field for f in DYNAMIC_FIELDS for field in (f, getattr(HostDynamicSystemProfile, f))]
+        # Merge the two JSONB objects using || operator
+        static_jsonb = func.jsonb_build_object(*static_parts)
+        dynamic_jsonb = func.jsonb_build_object(*dynamic_parts)
+        merged_jsonb = static_jsonb.op("||")(dynamic_jsonb)
+        columns = [
+            Host.id,
+            func.jsonb_strip_nulls(merged_jsonb),
+        ]
+        # When fetching all fields, we need both joins
+        needs_static_join = True
+        needs_dynamic_join = True
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
 
-    sp_query = (
-        _find_hosts_entities_query(columns=columns, order_by=param_order_by)
-        .filter(*all_filters)
-        .order_by(*params_to_order_by(param_order_by, param_order_how))
+    identity = get_current_identity()
+    query_base = (
+        db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group).filter(Host.org_id == identity.org_id)
     )
+    if needs_static_join:
+        query_base = query_base.outerjoin(HostStaticSystemProfile)
+    if needs_dynamic_join:
+        query_base = query_base.outerjoin(HostDynamicSystemProfile)
+
+    base_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
+
+    sp_query = base_query.filter(*all_filters).order_by(*params_to_order_by(param_order_by, param_order_how))
 
     query_results = sp_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
@@ -682,24 +735,25 @@ def get_sparse_system_profile(
 
 
 def get_host_ids_list(
-    display_name: str,
-    fqdn: str,
-    hostname_or_id: str,
-    insights_id: str,
-    subscription_manager_id: str,
-    provider_id: str,
-    provider_type: str,
-    updated_start: str,
-    updated_end: str,
-    last_check_in_start: str,
-    last_check_in_end: str,
-    group_name: list[str],
-    registered_with: list[str],
+    display_name: str | None,
+    fqdn: str | None,
+    hostname_or_id: str | None,
+    insights_id: str | None,
+    subscription_manager_id: str | None,
+    provider_id: str | None,
+    provider_type: str | None,
+    updated_start: str | None,
+    updated_end: str | None,
+    last_check_in_start: str | None,
+    last_check_in_end: str | None,
+    group_name: list[str] | None,
+    group_id: list[str] | None,
+    registered_with: list[str] | None,
     system_type: list[str] | None,
-    staleness: list[str],
-    tags: list[str],
-    filter: dict,
-    rbac_filter: dict,
+    staleness: list[str] | None,
+    tags: list[str] | None,
+    filter: dict | None,
+    rbac_filter: dict | None,
     identity: Identity,
 ) -> list[str]:
     all_filters, base_query = query_filters(
@@ -715,7 +769,7 @@ def get_host_ids_list(
         last_check_in_start,
         last_check_in_end,
         group_name,
-        None,
+        group_id,
         tags,
         staleness,
         registered_with,
@@ -752,7 +806,6 @@ def get_hosts_to_export(
         Host.org_id,
         Host.display_name,
         Host.host_type,
-        Host.system_profile_facts,
         Host.modified_on,
         Host.facts,
         Host.reporter,
@@ -760,7 +813,11 @@ def get_hosts_to_export(
         Host.groups,
     ]
 
-    export_host_query = _find_hosts_model_query(identity=identity, columns=columns).filter(*q_filters)
+    export_host_query = (
+        _find_hosts_model_query(identity=identity, columns=columns)
+        .options(joinedload(Host.static_system_profile), joinedload(Host.dynamic_system_profile))
+        .filter(*q_filters)
+    )
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
     try:
@@ -793,4 +850,4 @@ def _get_group_name_order_post_kessel(order_how):
         else case((ungrouped_expr == expression.true(), low_prio), else_=high_prio)
     )
 
-    return ungrouped_order, base_ordering
+    return ungrouped_order, base_ordering, Host.modified_on.desc(), Host.id.desc()

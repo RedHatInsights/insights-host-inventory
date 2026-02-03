@@ -54,7 +54,13 @@ Unfortunatelly the IQE dependencies mostly live in a Red Hat private repo.
 To update them manually please run the following command and push the changes to the lockfile as PR.
 
 ```bash
-PIPENV_PIPFILE=Pipfile.iqe pipenv update --dev
+PIPENV_PIPFILE=Pipfile.iqe pipenv lock --dev -v
+```
+
+Then run the setup script to install the updated dependencies.
+```bash
+# From repository root
+./setup-iqe.sh
 ```
 
 ## Running Tests
