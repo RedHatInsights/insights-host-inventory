@@ -37,24 +37,28 @@ class HostTypeDeriver:
 
     def derive_host_type(self) -> str:
         """
-        Derive host_type from system profile data.
+        Derive host_type from host and system profile data.
+
+        This is the single source of truth for host_type derivation, used by both
+        SQLAlchemy models (Host/LimitedHost) and dict-based wrappers (HostWrapper).
 
         Business logic:
+        - CLUSTER: openshift_cluster_id is set, OR host_type == "cluster" (explicit)
         - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit)
-        - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
-        - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
+        - BOOTC: bootc_status["booted"]["image_digest"] is not None/empty
+        - CONVENTIONAL: default fallback
 
         Priority order:
-        1. Use explicit host_type from system profile if set ("edge" or "cluster")
-        2. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        3. Default to "conventional" (traditional systems)
+        1. Check openshift_cluster_id - if present, return "cluster"
+        2. Use explicit host_type from system profile if set ("edge" or "cluster")
+        3. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
+        4. Default to "conventional" (traditional systems)
 
         Returns:
             str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
         """
-
-        if self.openshift_cluster_id:  # type: ignore[attr-defined]
+        # Check openshift_cluster_id first - this takes priority
+        if getattr(self, "openshift_cluster_id", None):
             return "cluster"
 
         system_profile = self._get_system_profile_data()
