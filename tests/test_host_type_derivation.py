@@ -9,6 +9,7 @@ When bootc_status is present, the transformer sets host_type to 'bootc'.
 """
 
 from app.serialization import _map_host_type_for_backward_compatibility
+from tests.helpers.test_utils import generate_uuid
 
 
 class TestHostTypeDerivation:
@@ -24,9 +25,8 @@ class TestHostTypeDerivation:
 
     def test_derive_host_type_cluster_from_openshift_cluster_id(self, db_create_host):
         """Test that cluster is derived when openshift_cluster_id is set."""
-        host = db_create_host(extra_data={"openshift_cluster_id": "1234567890abcdef"})
+        host = db_create_host(extra_data={"openshift_cluster_id": generate_uuid()})
 
-        assert host.openshift_cluster_id == "1234567890abcdef"
         assert host.host_type == "cluster"
 
     def test_derive_host_type_edge_explicit(self, db_create_host):
