@@ -235,7 +235,7 @@ def get_host_list_by_group_id(
     filter: dict | None = None,
     fields: dict | None = None,
     rbac_filter: dict | None = None,
-) -> tuple[list[Host], int, tuple[str], list[str]]:
+) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Get a paginated list of hosts that belong to a specific group.
 
