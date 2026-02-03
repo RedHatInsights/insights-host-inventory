@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-231.el9_7.2
     sourcerpm: glibc-2.34-231.el9_7.2.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.24.1.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.27.1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 3007525
-    checksum: sha256:45e0c38ff72eae65683887a45ffcf11e44444c9f4732c808b13e4e0c2ccd9006
+    size: 3009521
+    checksum: sha256:72c49c292d82d089934b9e52d74173cb463b33f025ea7f3ab09c6848f7f43cdb
     name: kernel-headers
-    evr: 5.14.0-611.24.1.el9_7
-    sourcerpm: kernel-5.14.0-611.24.1.el9_7.src.rpm
+    evr: 5.14.0-611.27.1.el9_7
+    sourcerpm: kernel-5.14.0-611.27.1.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 66082
@@ -200,13 +200,13 @@ arches:
     name: mpdecimal
     evr: 2.5.1-3.el9
     sourcerpm: mpdecimal-2.5.1-3.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/o/openssl-devel-3.5.1-5.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/o/openssl-devel-3.5.1-7.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 5002144
-    checksum: sha256:222304fa50c4cf6d78e6a2c48c06ea3febec2ff34d7df2521b9da3b24012d40a
+    size: 4998056
+    checksum: sha256:85e1a341adc784f4420742219e182f421655a5482aabe2b274445681747e1730
     name: openssl-devel
-    evr: 1:3.5.1-5.el9_7
-    sourcerpm: openssl-3.5.1-5.el9_7.src.rpm
+    evr: 1:3.5.1-7.el9_7
+    sourcerpm: openssl-3.5.1-7.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/pcre2-devel-10.40-6.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 528624
@@ -683,27 +683,27 @@ arches:
     name: postgresql-private-libs
     evr: 16.11-1.module+el9.7.0+23784+0c5a3b34
     sourcerpm: postgresql-16.11-1.module+el9.7.0+23784+0c5a3b34.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.12-1.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.12-4.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 27900
-    checksum: sha256:2b2b8175387d4bb8690767e16b1da311cf77e52b066457e45bd444808e13814b
+    size: 32501
+    checksum: sha256:b8f6891103491d23b53ed7dc01319ce943a426194bddb47383ed8b05da7340c3
     name: python3.12
-    evr: 3.12.12-1.el9_7
-    sourcerpm: python3.12-3.12.12-1.el9_7.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.12-1.el9_7.x86_64.rpm
+    evr: 3.12.12-4.el9_7
+    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.12-4.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 333025
-    checksum: sha256:b453c37808b0c4987746d369ed449aa12520f0268ecfe669073dd409d7a61594
+    size: 338363
+    checksum: sha256:3b278827df7abf18464b8100a19ecd5d94971a71f528803522ff3de43fa17f1e
     name: python3.12-devel
-    evr: 3.12.12-1.el9_7
-    sourcerpm: python3.12-3.12.12-1.el9_7.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.12-1.el9_7.x86_64.rpm
+    evr: 3.12.12-4.el9_7
+    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.12-4.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 10197073
-    checksum: sha256:692d6b8203959ce631359774eb39298e8a89413f0fc318bf568691f326bc3973
+    size: 10201800
+    checksum: sha256:11c7551ca41c44e1e3913a6dfb1107ad6a42cc707371676689584decbcf762e3
     name: python3.12-libs
-    evr: 3.12.12-1.el9_7
-    sourcerpm: python3.12-3.12.12-1.el9_7.src.rpm
+    evr: 3.12.12-4.el9_7
+    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-pip-23.2.1-5.el9.noarch.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 3370313
@@ -991,13 +991,20 @@ arches:
     name: openssh-clients
     evr: 8.7p1-47.el9_7
     sourcerpm: openssh-8.7p1-47.el9_7.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/o/openssl-3.5.1-5.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/o/openssl-3.5.1-7.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
-    size: 1555474
-    checksum: sha256:3bfd7ceb59a554e40cb417e2b5b2d046be671ce49abc058328807049baf1134f
+    size: 1565197
+    checksum: sha256:efc3eb2f303047d5244a0f717a13615820d0de977c62d58bbe6d04ce35df8c6e
     name: openssl
-    evr: 1:3.5.1-5.el9_7
-    sourcerpm: openssl-3.5.1-5.el9_7.src.rpm
+    evr: 1:3.5.1-7.el9_7
+    sourcerpm: openssl-3.5.1-7.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/o/openssl-libs-3.5.1-7.el9_7.x86_64.rpm
+    repoid: rhel-9-for-x86_64-baseos-rpms
+    size: 2422039
+    checksum: sha256:150962b6c8dbde0e36d11f5e7601130a2d4a9e40aa5e35cd5baa606e9d3f18b7
+    name: openssl-libs
+    evr: 1:3.5.1-7.el9_7
+    sourcerpm: openssl-3.5.1-7.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/p/pam-1.5.1-26.el9_6.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
     size: 636788
@@ -1361,12 +1368,12 @@ arches:
     checksum: sha256:e7d0f7d01b9e7b68d472852630b925f9fd978d37cdb071a44ab723adcc70519b
     name: postgresql
     evr: 16.11-1.module+el9.7.0+23784+0c5a3b34
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.12-1.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.12-4.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 20864528
-    checksum: sha256:48104818674d1995817e59868deac400b7f24dac20d9037be36358d4bfe75591
+    size: 20873997
+    checksum: sha256:1f4a8ae3002de2a536e58c42ec410bcd9cf3371c40b3b3d8efb2c58feece28f7
     name: python3.12
-    evr: 3.12.12-1.el9_7
+    evr: 3.12.12-4.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-pip-23.2.1-5.el9.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
     size: 9384965
@@ -1463,12 +1470,12 @@ arches:
     checksum: sha256:a05f582ec42e89258ee5e10af96dee4300bcb2a6a69a76bfb5b46f79e6a6a47b
     name: gzip
     evr: 1.12-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.24.1.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.27.1.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 150891191
-    checksum: sha256:6413c45076dfdb9fbf021b8f8cd757fb9789ab1e5e33c0defd10927486e8d134
+    size: 150896524
+    checksum: sha256:d2c08849d94d59e766ccfc4bc87572fbb392181ba362ae4a63c9b909bda97427
     name: kernel
-    evr: 5.14.0-611.24.1.el9_7
+    evr: 5.14.0-611.27.1.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/keyutils-1.6.3-1.el9.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
     size: 150790
@@ -1595,12 +1602,12 @@ arches:
     checksum: sha256:d05ad155b72ffe35154b872fc96a4afdb55d0f0cbe171022ff421f0a76725382
     name: openssh
     evr: 8.7p1-47.el9_7
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/o/openssl-3.5.1-5.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/o/openssl-3.5.1-7.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 53367097
-    checksum: sha256:281dbaae5d7b8e71144ce6f54bff89d28b9e3f5e7c650148b79ad2944590521a
+    size: 53417882
+    checksum: sha256:6c9d66a1a6fe1b461d6e030f7b1f286555b83bdafcd14f90cd9d77f17f7177eb
     name: openssl
-    evr: 1:3.5.1-5.el9_7
+    evr: 1:3.5.1-7.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/p/pam-1.5.1-26.el9_6.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
     size: 1130406
@@ -1674,7 +1681,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/efc4f383390640fba4de805a8c7523f6faa3a4e1ddff86fec7e28d324dd168c0-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/616b9269d5b609f4fc9749694ace840cfef6a6a670440b81fd3a64adccf08dd8-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 41320
-    checksum: sha256:efc4f383390640fba4de805a8c7523f6faa3a4e1ddff86fec7e28d324dd168c0
+    size: 42323
+    checksum: sha256:616b9269d5b609f4fc9749694ace840cfef6a6a670440b81fd3a64adccf08dd8
