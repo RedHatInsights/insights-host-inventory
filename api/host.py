@@ -401,7 +401,7 @@ def get_host_system_profile_by_id(
 
 
 def _emit_patch_event(serialized_host, host):
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
     headers = message_headers(
         EventType.updated,
         str(host.insights_id),

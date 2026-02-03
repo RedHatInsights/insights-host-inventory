@@ -65,7 +65,7 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
 
             serialized_host = serialize_host(host, Timestamps.from_config(config), staleness=staleness)
             event = build_event(EventType.updated, serialized_host)
-            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
             headers = message_headers(
                 EventType.updated,
                 str(host.insights_id),
