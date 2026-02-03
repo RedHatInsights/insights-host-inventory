@@ -12,6 +12,7 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
@@ -144,7 +145,9 @@ def run(
         stale_host_timestamp = _query_or_create_stale_host(session)
         filter_stale_hosts = _find_stale_hosts(logger, session, stale_host_timestamp, job_start_time)
 
-        query = session.query(Host).filter(or_(False, *filter_stale_hosts))
+        query = (
+            session.query(Host).options(joinedload(Host.static_system_profile)).filter(or_(False, *filter_stale_hosts))
+        )
 
         stale_host_count = query.count()
         if stale_host_count == 0:
@@ -158,7 +161,7 @@ def run(
             try:
                 identity = create_mock_identity_with_org_id(host.org_id)
                 result = _create_host_operation_result(host, identity, logger)
-                send_notification(notification_event_producer, NotificationType.system_became_stale, vars(result.row))
+                send_notification(notification_event_producer, NotificationType.system_became_stale, vars(host))
 
                 stale_host_notification_success_count.inc()
                 result.success_logger()
