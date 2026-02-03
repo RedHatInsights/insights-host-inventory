@@ -306,6 +306,9 @@ class GroupsAPIWrapper(BaseEntity):
     ) -> list[HostOut]:
         """Get hosts associated with a group
 
+        NOTE: This uses the legacy GET /hosts?group_name=... endpoint.
+        For the new GET /groups/{group_id}/hosts endpoint, use get_hosts_from_group().
+
         :param GROUP_OR_ID group: A single group
             A group can be represented either by its ID (str) or a group object
         :param str group_name: Group name
@@ -321,6 +324,69 @@ class GroupsAPIWrapper(BaseEntity):
             group_name = self.get_group_by_id(group).name
         assert group_name is not None  # This can't happen, but we need to make mypy happy
         return self._host_inventory.apis.hosts.get_hosts(group_name=[group_name])
+
+    def get_hosts_from_group(
+        self,
+        group: GROUP_OR_ID,
+        *,
+        display_name: str | None = None,
+        fqdn: str | None = None,
+        hostname_or_id: str | None = None,
+        insights_id: str | None = None,
+        page: int = 1,
+        per_page: int = 100,
+        order_by: str | None = None,
+        order_how: str | None = None,
+        staleness: list[str] | None = None,
+        tags: list[str] | None = None,
+        registered_with: list[str] | None = None,
+        filter: dict[str, Any] | None = None,
+    ) -> list[HostOut]:
+        """Get hosts from a group using the new GET /groups/{group_id}/hosts endpoint
+
+        This is the new dedicated endpoint for retrieving hosts from a specific group.
+        It supports all standard host filtering, ordering, and pagination parameters.
+
+        NOTE: The IQE API client must be regenerated to include this endpoint.
+        Run: iqe apigen generate-api host_inventory api
+
+        :param GROUP_OR_ID group: (required) A single group
+            A group can be represented either by its ID (str) or a group object
+        :param str display_name: Filter by display name (wildcard matching)
+        :param str fqdn: Filter by FQDN (exact matching)
+        :param str hostname_or_id: Filter by hostname or ID (wildcard matching)
+        :param str insights_id: Filter by insights_id
+        :param int page: Page number (1-indexed)
+        :param int per_page: Number of results per page
+        :param str order_by: Column to order by (e.g., 'updated', 'display_name')
+        :param str order_how: Order direction ('ASC' or 'DESC')
+        :param list[str] staleness: List of staleness states to include
+        :param list[str] tags: List of tags to filter by
+        :param list[str] registered_with: Filter by registered_with values
+        :param dict filter: System profile filters
+        :return list[HostOut]: Hosts in the group
+        """
+        group_id = _id_from_group(group)
+
+        # Call the generated API client method
+        # NOTE: This requires the API client to be regenerated with the new endpoint
+        response = self.raw_api.api_host_group_get_host_list_by_group(
+            group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            page=page,
+            per_page=per_page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+        )
+
+        return response.results
 
     def get_group_host_ids(
         self, *, group: GROUP_OR_ID | None = None, group_name: str | None = None
