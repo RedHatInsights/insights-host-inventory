@@ -84,7 +84,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
     for host in host_list:
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
-        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
+        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
         headers = message_headers(
             EventType.updated,
             str(host.insights_id),
