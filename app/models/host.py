@@ -87,9 +87,9 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.tags_alt = tags_alt
-        self.system_profile_facts = system_profile_facts or {}
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
+
         self.last_check_in = _time_now()
         # canonical facts
         self.insights_id = insights_id
@@ -289,7 +289,6 @@ class LimitedHost(db.Model):
 
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
-    system_profile_facts = db.Column(JSONB)
     groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [], nullable=False)
     last_check_in = db.Column(db.DateTime(timezone=True))
 
@@ -422,7 +421,12 @@ class Host(LimitedHost):
         self.reporter = input_host.reporter
 
         if update_system_profile:
-            self.update_system_profile(input_host.system_profile_facts)
+            # Get system profile data from the serialized representation
+            from app.serialization import build_system_profile_from_normalized
+
+            system_profile = build_system_profile_from_normalized(input_host)
+            if system_profile:
+                self.update_system_profile(system_profile)
 
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)

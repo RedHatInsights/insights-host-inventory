@@ -127,10 +127,10 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
-def _build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
+def build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
     """
     Build system profile dict from static and dynamic tables.
-    This replaces host.system_profile_facts.
+    Used for serialization since system_profile_facts column was removed.
     """
     system_profile = {}
 
@@ -240,7 +240,7 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = _build_system_profile_from_normalized(host, system_profile_fields)
+        serialized_host["system_profile"] = build_system_profile_from_normalized(host, system_profile_fields)
 
         # Add backward compatibility for workload fields
         if serialized_host["system_profile"] and get_flag_value(
@@ -373,7 +373,7 @@ def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_
 
 
 def serialize_host_system_profile(host):
-    system_profile = _build_system_profile_from_normalized(host)
+    system_profile = build_system_profile_from_normalized(host)
     return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 

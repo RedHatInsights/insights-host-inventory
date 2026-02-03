@@ -15,7 +15,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
-from sqlalchemy.orm import defer
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
@@ -134,9 +133,6 @@ def _get_host_list_using_filters(
     if is_sp_requested:
         # Load full ORM objects (needed for relationships)
         base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
-
-        # Defer loading of the deprecated JSONB column - we use the new normalized tables
-        base_query = base_query.options(defer(Host.system_profile_facts))
 
         # Conditionally join related tables based on requested fields
         requested_keys = set(sp_fields_map.keys())
