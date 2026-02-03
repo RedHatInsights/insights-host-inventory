@@ -2060,12 +2060,16 @@ def test_create_host_app_data_compliance(db_create_host):
     host = db_create_host()
     current_time = now()
     scan_time = now() - timedelta(days=1)
+    policies = [
+        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"},
+        {"id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff", "name": "Policy 2"},
+    ]
 
     compliance_data = HostAppDataCompliance(
         org_id=host.org_id,
         host_id=host.id,
         last_updated=current_time,
-        policies=4,
+        policies=policies,
         last_scan=scan_time,
     )
 
@@ -2078,9 +2082,12 @@ def test_create_host_app_data_compliance(db_create_host):
     assert retrieved is not None
     assert retrieved.org_id == host.org_id
     assert retrieved.host_id == host.id
-    assert retrieved.policies == 4
     assert retrieved.last_scan == scan_time
     assert retrieved.last_updated == current_time
+    assert retrieved.policies[0]["id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert retrieved.policies[0]["name"] == "Policy 1"
+    assert retrieved.policies[1]["id"] == "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+    assert retrieved.policies[1]["name"] == "Policy 2"
 
 
 def test_create_host_app_data_malware(db_create_host):
@@ -2236,7 +2243,9 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
     remediation_data = HostAppDataRemediations(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, remediations_plans=3
     )
-    compliance_data = HostAppDataCompliance(org_id=host.org_id, host_id=host.id, last_updated=current_time, policies=4)
+    compliance_data = HostAppDataCompliance(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, last_scan=current_time
+    )
     malware_data = HostAppDataMalware(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, last_status="Clean"
     )
