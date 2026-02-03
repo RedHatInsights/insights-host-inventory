@@ -347,7 +347,7 @@ def test_update_host_with_no_tags(db_create_host):
 
 
 def test_host_model_assigned_values(db_create_host, db_get_host):
-    values = {
+    values_input = {
         "account": USER_IDENTITY["account_number"],
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "display_name",
@@ -360,12 +360,22 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "openshift_cluster_id": uuid.uuid4(),
     }
 
-    inserted_host = Host(**values)
+    expected_values = {**values_input, "static_system_profile": {"number_of_cpus": 1}}
+    expected_values.pop("system_profile_facts")
+    inserted_host = Host(**values_input)
     db_create_host(host=inserted_host)
 
+    def assert_values_recursively(host, expected_values):
+        for key, value in expected_values.items():
+            if key == "static_system_profile":
+                assert_values_recursively(host.static_system_profile, value)
+            elif key == "dynamic_system_profile":
+                assert_values_recursively(host.dynamic_system_profile, value)
+            else:
+                assert getattr(host, key) == value
+
     selected_host = db_get_host(inserted_host.id)
-    for key, value in values.items():
-        assert getattr(selected_host, key) == value
+    assert_values_recursively(selected_host, expected_values)
 
 
 def test_host_model_invalid_openshift_cluster_id(db_create_host):
