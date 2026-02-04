@@ -6,6 +6,7 @@ from functools import cache
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import inspect
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import DateTime
@@ -152,7 +153,7 @@ class HostAppDataCompliance(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_compliance"
     __app_name__ = "compliance"
 
-    policies = db.Column(db.Integer, nullable=True)
+    policies = db.Column(JSONB, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
@@ -162,6 +163,7 @@ class HostAppDataMalware(HostAppDataMixin, db.Model):
 
     last_status = db.Column(db.String(50), nullable=True)
     last_matches = db.Column(db.Integer, nullable=True)
+    total_matches = db.Column(db.Integer, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 

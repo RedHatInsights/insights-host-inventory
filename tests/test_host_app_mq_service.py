@@ -71,15 +71,18 @@ APPLICATION_TEST_DATA = [
     pytest.param(
         ConsumerApplication.COMPLIANCE,
         HostAppDataCompliance,
-        {"policies": 3, "last_scan": datetime.now(UTC).isoformat()},
-        {"policies": 3},
+        {
+            "policies": [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}],
+            "last_scan": datetime.now(UTC).isoformat(),
+        },
+        {"policies": [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}]},
         id="compliance",
     ),
     pytest.param(
         ConsumerApplication.MALWARE,
         HostAppDataMalware,
-        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat()},
-        {"last_status": "clean", "last_matches": 0},
+        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat(), "total_matches": 0},
+        {"last_status": "clean", "last_matches": 0, "total_matches": 0},
         id="malware",
     ),
     pytest.param(
@@ -485,7 +488,10 @@ class TestHostAppDataValidation:
         org_id = host.org_id
         host_id = str(host.id)
 
-        compliance_data = {"policies": 3, "last_scan": "2025-01-10T12:00:00Z"}
+        compliance_data = {
+            "policies": [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}],
+            "last_scan": "2025-01-10T12:00:00Z",
+        }
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=compliance_data)
 
         headers = [("application", b"compliance"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -493,7 +499,8 @@ class TestHostAppDataValidation:
 
         app_data = db.session.query(HostAppDataCompliance).filter_by(org_id=org_id, host_id=host.id).first()
         assert app_data is not None
-        assert app_data.policies == 3
+        assert app_data.policies[0]["id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        assert app_data.policies[0]["name"] == "Policy 1"
         assert app_data.last_scan is not None
 
     def test_multiple_hosts_partial_validation_failure(self, host_app_consumer, db_create_host):

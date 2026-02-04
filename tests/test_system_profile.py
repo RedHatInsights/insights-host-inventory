@@ -1,9 +1,13 @@
+from unittest.mock import MagicMock
+
 import pytest
 from yaml.parser import ParserError
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
+from jobs.system_profile_validator import _get_git_response
+from jobs.system_profile_validator import _get_rate_limit_wait_time
 from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -561,3 +565,175 @@ def test_create_empty_update_failing_system_profile(
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host_minimal)  # This should raise a ValidationException
+
+
+class TestGitHubRateLimiting:
+    """Tests for GitHub API rate limit handling."""
+
+    def test_get_rate_limit_wait_time_with_retry_after(self):
+        """Test that Retry-After header is respected."""
+        mock_response = MagicMock()
+        mock_response.headers = {"Retry-After": "60"}
+
+        wait_time = _get_rate_limit_wait_time(mock_response)
+
+        assert wait_time == 60
+
+    def test_get_rate_limit_wait_time_with_remaining_zero(self, mocker):
+        """Test wait time calculation when rate limit remaining is zero."""
+        mock_time = mocker.patch("jobs.system_profile_validator.time")
+        mock_time.time.return_value = 1000
+
+        mock_response = MagicMock()
+        mock_response.headers = {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "1060",
+        }
+
+        wait_time = _get_rate_limit_wait_time(mock_response)
+
+        # 1060 - 1000 + 1 (buffer) = 61
+        assert wait_time == 61
+
+    def test_get_rate_limit_wait_time_with_remaining_positive(self):
+        """Test that no wait time is returned when requests remain."""
+        mock_response = MagicMock()
+        mock_response.headers = {
+            "X-RateLimit-Remaining": "100",
+            "X-RateLimit-Reset": "1060",
+        }
+
+        wait_time = _get_rate_limit_wait_time(mock_response)
+
+        assert wait_time is None
+
+    def test_get_rate_limit_wait_time_no_headers(self):
+        """Test that no wait time is returned when headers are missing."""
+        mock_response = MagicMock()
+        mock_response.headers = {}
+
+        wait_time = _get_rate_limit_wait_time(mock_response)
+
+        assert wait_time is None
+
+    def test_get_rate_limit_wait_time_invalid_retry_after(self):
+        """Test handling of invalid Retry-After header value."""
+        mock_response = MagicMock()
+        mock_response.headers = {"Retry-After": "not-a-number"}
+
+        wait_time = _get_rate_limit_wait_time(mock_response)
+
+        assert wait_time is None
+
+    def test_get_git_response_success(self, mocker):
+        """Test successful GitHub API response."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"X-RateLimit-Remaining": "100", "X-RateLimit-Limit": "5000"}
+        mock_response.content = b'{"key": "value"}'
+        mock_get.return_value = mock_response
+
+        result = _get_git_response("/test/path")
+
+        assert result == {"key": "value"}
+        mock_get.assert_called_once()
+
+    def test_get_git_response_rate_limit_retry(self, mocker):
+        """Test retry behavior when rate limited."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+        mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
+
+        # First call: rate limited, second call: success
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.headers = {"Retry-After": "1"}
+        rate_limited_response.text = "Rate limit exceeded"
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.headers = {"X-RateLimit-Remaining": "100", "X-RateLimit-Limit": "5000"}
+        success_response.content = b'{"success": true}'
+
+        mock_get.side_effect = [rate_limited_response, success_response]
+
+        result = _get_git_response("/test/path")
+
+        assert result == {"success": True}
+        assert mock_get.call_count == 2
+        mock_sleep.assert_called_once_with(1)
+
+    def test_get_git_response_rate_limit_403(self, mocker):
+        """Test retry behavior on 403 with rate limit message."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+        mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
+
+        # First call: 403 rate limit, second call: success
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 403
+        rate_limited_response.headers = {"Retry-After": "2"}
+        rate_limited_response.text = "API rate limit exceeded for user"
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+        success_response.headers = {"X-RateLimit-Remaining": "100", "X-RateLimit-Limit": "5000"}
+        success_response.content = b'{"success": true}'
+
+        mock_get.side_effect = [rate_limited_response, success_response]
+
+        result = _get_git_response("/test/path")
+
+        assert result == {"success": True}
+        assert mock_get.call_count == 2
+        mock_sleep.assert_called_once_with(2)
+
+    def test_get_git_response_rate_limit_max_retries_exceeded(self, mocker):
+        """Test that RuntimeError is raised after max retries."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+        mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
+
+        rate_limited_response = MagicMock()
+        rate_limited_response.status_code = 429
+        rate_limited_response.headers = {"Retry-After": "1"}
+        rate_limited_response.text = "Rate limit exceeded"
+
+        mock_get.return_value = rate_limited_response
+
+        with pytest.raises(RuntimeError, match="rate limit exceeded"):
+            _get_git_response("/test/path", max_retries=2)
+
+        # Initial call + 2 retries = 3 calls
+        assert mock_get.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    def test_get_git_response_non_rate_limit_error(self, mocker):
+        """Test that non-rate-limit errors are raised immediately."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+
+        error_response = MagicMock()
+        error_response.status_code = 404
+        error_response.headers = {}
+        error_response.text = "Not Found"
+
+        mock_get.return_value = error_response
+
+        with pytest.raises(RuntimeError, match="status 404"):
+            _get_git_response("/test/path")
+
+        mock_get.assert_called_once()
+
+    def test_get_git_response_403_without_rate_limit(self, mocker):
+        """Test that 403 without rate limit message is not retried."""
+        mock_get = mocker.patch("jobs.system_profile_validator.get")
+
+        error_response = MagicMock()
+        error_response.status_code = 403
+        error_response.headers = {}
+        error_response.text = "Forbidden - insufficient permissions"
+
+        mock_get.return_value = error_response
+
+        with pytest.raises(RuntimeError, match="status 403"):
+            _get_git_response("/test/path")
+
+        mock_get.assert_called_once()
