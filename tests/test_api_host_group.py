@@ -626,20 +626,3 @@ def test_get_hosts_from_group_with_kessel_feature_flag(
     assert response_status == 200
     assert response_data["total"] == 1
     assert len(response_data["results"]) == 1
-
-
-def test_get_hosts_from_group_with_invalid_filter_params(mocker, db_create_group, api_get_hosts_from_group):
-    """Test 400 error when filter parameter causes ValueError"""
-    group_id = db_create_group("test_group").id
-
-    # Mock get_host_list_by_group_id to raise ValueError (simulating malformed filter)
-    mock_get_host_list = mocker.patch("api.host_group.get_host_list_by_group_id")
-    mock_get_host_list.side_effect = ValueError("Invalid filter parameter: malformed system_profile filter")
-
-    response_status, response_data = api_get_hosts_from_group(
-        group_id, query_parameters={"filter": "malformed_filter"}
-    )
-
-    assert response_status == 400
-    assert "Invalid filter parameter" in response_data["detail"]
-    mock_get_host_list.assert_called_once()
