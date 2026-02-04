@@ -25,7 +25,7 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-FILTER_OS_DISPLAY_NAME = "rhiqe-filter-os-display_name"
+FILTER_OS_DISPLAY_NAME = "hbiqe-filter-os-display_name"
 
 
 # TODO: use datetime post python 3.6, 3.7 adds iso parsing

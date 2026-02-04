@@ -297,13 +297,13 @@ class ExportsAPIWrapper(BaseEntity):
         example (with most fields omitted for brevity):
 
           [
-            {'display_name': 'rhiqe.66ff9718-d106-4b0f-951e-b37a5ea9a678',
+            {'display_name': 'hbiqe.66ff9718-d106-4b0f-951e-b37a5ea9a678',
              'id': '25378dd8-e927-4583-87cb-e92a6248dca3',
              'os_release': '8.7',
              'tags': [
                {'key': 'PjMdDvT', 'namespace': 'sdSdqDTz', 'value': 'xxnmd'}],
              'updated': '2024-07-30T17:36:15.012744+00:00'},
-            {'display_name': 'rhiqe.47b8d11a-e9a6-460c-bb50-4a17659482d3',
+            {'display_name': 'hbiqe.47b8d11a-e9a6-460c-bb50-4a17659482d3',
              'id': 'ddeea4e3-93f9-46e1-9f67-c066c28acf51',
              'os_release': '8.7',
              'tags': [
@@ -318,12 +318,12 @@ class ExportsAPIWrapper(BaseEntity):
           [
             ('id', 'display_name', 'os_release', 'updated', 'tags'),
             ('07181e43-98c6-4da4-9f3e-a2ec2b987685',
-             'rhiqe.f12f34e6-ec04-4a7e-8fe6-f8dd1f729326',
+             'hbiqe.f12f34e6-ec04-4a7e-8fe6-f8dd1f729326',
              '8.7',
              '2024-07-30T17:55:14.304127+00:00',
              'RXTyiQ/bGcZMmS:EuUtb;eZYhCVf/ZJQNkXQ:ItdPXlAN;LthMYoVN/WnGtwG:XATGfWyG;pVysyWGAV/RmFEMZgH:TgpaaDQOE;pKbPNYJUyi/VUEfLf:VWrORnEjfu'),
             ('9a8e7da5-cd5d-4377-a833-b72a24768eb2',
-             'rhiqe.a30f174d-942b-49d4-9ec8-a463e87e52c5',
+             'hbiqe.a30f174d-942b-49d4-9ec8-a463e87e52c5',
              '8.7',
              '2024-07-30T17:55:12.311791+00:00',
              'XcBBPR/nJFvGiCOqe:CPrBQy;ijEqGzEb/tbYIMc:AyrIG;SmpMOMEwN/OEGsjS:UpzCgLYw;imMAwgEpv/gSkJukQW:hOiLkkedUS;qXTVIPbOg/GyZQjOz:GIUUwpC')
