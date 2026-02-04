@@ -11,7 +11,7 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.host_query import staleness_timestamps
-from api.host_query_db import get_host_list as get_host_list_from_db
+from api.host_query_db import get_host_list_for_views
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
@@ -166,12 +166,16 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     - fields[advisor]=true → only advisor data (all fields)
     - fields[advisor]=recommendations,incidents → specific fields only
     - fields[advisor]= (empty) → no fields for that app (per JSON:API spec)
+
+    Supports sorting by app data fields using the format "app:field"
+    (e.g., "vulnerability:critical_cves", "advisor:recommendations").
     """
     total = 0
     host_list = ()
 
     try:
-        host_list, total, additional_fields, system_profile_fields = get_host_list_from_db(
+        # Unified function handles both standard and app field sorting
+        host_list, total = get_host_list_for_views(
             display_name=display_name,
             fqdn=fqdn,
             hostname_or_id=hostname_or_id,
@@ -194,7 +198,6 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             registered_with=registered_with,
             system_type=system_type,
             filter=None,
-            fields=None,
             rbac_filter=rbac_filter,
         )
     except ValueError as e:

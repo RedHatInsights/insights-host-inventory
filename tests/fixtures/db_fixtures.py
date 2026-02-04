@@ -24,6 +24,7 @@ from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from lib.group_repository import serialize_group
 from lib.host_repository import host_query
+from tests.helpers.db_utils import db_create_host_app_data as _db_create_host_app_data_helper
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
@@ -174,6 +175,11 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
         return host
 
     return _db_create_host
+
+
+@pytest.fixture(scope="function")
+def db_create_host_app_data(flask_app: FlaskApp) -> Callable:  # noqa: ARG001
+    return _db_create_host_app_data_helper
 
 
 @pytest.fixture(scope="function")

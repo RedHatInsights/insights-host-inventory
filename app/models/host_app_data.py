@@ -20,12 +20,16 @@ class HostAppDataMixin:
 
     Subclasses should define:
         __app_name__: str - The application name used in API responses (e.g., "advisor")
+        __sortable_fields__: tuple[str, ...] - Fields that can be used for sorting (optional)
 
     DateTime fields are automatically converted to ISO format strings during serialization.
     """
 
     # Required: subclasses must define this
     __app_name__: str = ""
+
+    # Optional: fields that can be used for sorting in the hosts-view endpoint
+    __sortable_fields__: tuple[str, ...] = ()
 
     # Fields from the mixin that should never be serialized
     _MIXIN_FIELDS = frozenset({"org_id", "host_id", "last_updated"})
@@ -100,6 +104,7 @@ class HostAppDataMixin:
 class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_advisor"
     __app_name__ = "advisor"
+    __sortable_fields__ = ("recommendations", "incidents")
 
     recommendations = db.Column(db.Integer, nullable=True)
     incidents = db.Column(db.Integer, nullable=True)
@@ -108,6 +113,13 @@ class HostAppDataAdvisor(HostAppDataMixin, db.Model):
 class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_vulnerability"
     __app_name__ = "vulnerability"
+    __sortable_fields__ = (
+        "total_cves",
+        "critical_cves",
+        "high_severity_cves",
+        "cves_with_security_rules",
+        "cves_with_known_exploits",
+    )
 
     total_cves = db.Column(db.Integer, nullable=True)
     critical_cves = db.Column(db.Integer, nullable=True)
@@ -119,6 +131,19 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
 class HostAppDataPatch(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_patch"
     __app_name__ = "patch"
+    __sortable_fields__ = (
+        "advisories_rhsa_installable",
+        "advisories_rhba_installable",
+        "advisories_rhea_installable",
+        "advisories_other_installable",
+        "advisories_rhsa_applicable",
+        "advisories_rhba_applicable",
+        "advisories_rhea_applicable",
+        "advisories_other_applicable",
+        "packages_installable",
+        "packages_applicable",
+        "packages_installed",
+    )
 
     # Advisory counts by type (applicable)
     advisories_rhsa_applicable = db.Column(db.Integer, nullable=True)
@@ -137,7 +162,7 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
     packages_installable = db.Column(db.Integer, nullable=True)
     packages_installed = db.Column(db.Integer, nullable=True)
 
-    # Template info
+    # Template info (not sortable - string/UUID fields)
     template_name = db.Column(db.String(255), nullable=True)
     template_uuid = db.Column(UUID(as_uuid=True), nullable=True)
 
@@ -145,6 +170,7 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
 class HostAppDataRemediations(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_remediations"
     __app_name__ = "remediations"
+    __sortable_fields__ = ("remediations_plans",)
 
     remediations_plans = db.Column(db.Integer, nullable=True)
 
@@ -152,6 +178,7 @@ class HostAppDataRemediations(HostAppDataMixin, db.Model):
 class HostAppDataCompliance(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_compliance"
     __app_name__ = "compliance"
+    __sortable_fields__ = ("last_scan",)
 
     policies = db.Column(JSONB, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -160,8 +187,9 @@ class HostAppDataCompliance(HostAppDataMixin, db.Model):
 class HostAppDataMalware(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_malware"
     __app_name__ = "malware"
+    __sortable_fields__ = ("last_matches", "total_matches", "last_scan")
 
-    last_status = db.Column(db.String(50), nullable=True)
+    last_status = db.Column(db.String(50), nullable=True)  # Not sortable - string field
     last_matches = db.Column(db.Integer, nullable=True)
     total_matches = db.Column(db.Integer, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
