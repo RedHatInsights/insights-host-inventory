@@ -2084,22 +2084,18 @@ objects:
           SELECT
             "h"."org_id",
             COUNT(*) FILTER (WHERE
-              "sps"."bootc_status"->'booted'->>'image_digest' IS NOT NULL
-              AND "sps"."bootc_status"->'booted'->>'image_digest' <> ''
+              "h"."host_type" = 'bootc'
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              ("sps"."bootc_status" IS NULL OR "sps"."bootc_status"->'booted'->>'image_digest' IS NULL)
-              AND "sps"."host_type" IS NULL
+              "h"."host_type" = 'conventional'
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
-              "sps"."host_type" = 'edge'
+              "h"."host_type" = 'edge'
             ) AS "edge_count",
             COUNT(*) FILTER (WHERE
               "h"."host_type" = 'cluster'
             ) AS "cluster_count"
           FROM "hbi"."hosts" AS "h"
-          LEFT JOIN "hbi"."system_profiles_static" AS "sps"
-            ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
           GROUP BY "h"."org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000

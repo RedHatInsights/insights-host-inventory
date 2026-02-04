@@ -161,7 +161,7 @@ class LimitedHost(db.Model):
 
         Business logic:
         - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit)
+        - CLUSTER: host_type == "cluster" (explicit) OR openshift_cluster_id is not None/empty
         - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
         - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
 
