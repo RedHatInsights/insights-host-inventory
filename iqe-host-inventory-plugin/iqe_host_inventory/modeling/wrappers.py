@@ -131,6 +131,38 @@ class HostWrapper:
     last_check_in = TimestampDataAlias()
     openshift_cluster_id = DataAlias[str]()
 
+    @property
+    def host_type(self) -> str:
+        """
+        Derive host_type from system profile data.
+
+        This replicates the logic from Host._derive_host_type() in the main app
+        for use in test assertions.
+
+        Priority order:
+        1. Use explicit host_type from system_profile if set ("edge" or "cluster")
+        2. Check bootc_status for bootc systems
+        3. Default to "conventional"
+
+        Returns:
+            str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
+        """
+        system_profile = self._data.get("system_profile", {})
+
+        # Check for explicit host_type in system_profile
+        sp_host_type = system_profile.get("host_type")
+        if sp_host_type in {"edge", "cluster"}:
+            return sp_host_type
+
+        # Check for bootc systems
+        bootc_status = system_profile.get("bootc_status", {})
+        if isinstance(bootc_status, dict):
+            image_digest = bootc_status.get("booted", {}).get("image_digest")
+            if image_digest:
+                return "bootc"
+
+        return "conventional"
+
 
 @dataclass(eq=False, order=False)
 class HostMessageWrapper:
