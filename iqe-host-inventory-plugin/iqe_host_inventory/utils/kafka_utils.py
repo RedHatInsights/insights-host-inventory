@@ -201,7 +201,7 @@ def _check_event_headers(
         "name", ""
     )
     assert message.headers["reporter"] == host.reporter
-    assert message.headers["host_type"] == host.system_profile.get("host_type", "")
+    assert message.headers["host_type"] == host.host_type
     is_bootc = str(host.system_profile.get("bootc_status", {}).get("booted") is not None)
     assert message.headers["is_bootc"] == is_bootc
 
