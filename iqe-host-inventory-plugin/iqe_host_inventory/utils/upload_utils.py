@@ -122,7 +122,7 @@ def build_host_archive(
 ) -> InsightsArchiveInMemory:
     omit_data = omit_data or []
     display_name = (
-        display_name or generate_display_name(name_prefix or "rhiqe")
+        display_name or generate_display_name(name_prefix or "hbiqe")
         if "display_name" not in omit_data
         else None
     )

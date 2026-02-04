@@ -86,7 +86,7 @@ class HBIKafkaDatagen(BaseEntity):
         account_number: str | None = None,
         host_type: str | None = None,
         include_sp: bool = True,
-        name_prefix: str = "rhiqe",
+        name_prefix: str = "hbiqe",
         **extra_data: Any,
     ) -> dict[str, Any]:
         """Create a host data that will match the supported 'data' structure from here:
@@ -114,7 +114,7 @@ class HBIKafkaDatagen(BaseEntity):
         account_number: str | None = None,
         host_type: str | None = None,
         include_sp: bool = True,
-        name_prefix: str = "rhiqe",
+        name_prefix: str = "hbiqe",
         **extra_data: Any,
     ) -> list[dict[str, Any]]:
         return [
@@ -136,7 +136,7 @@ class HBIKafkaDatagen(BaseEntity):
         account_number: str | None = None,
         host_type: str | None = None,
         include_sp: bool = True,
-        name_prefix: str = "rhiqe",
+        name_prefix: str = "hbiqe",
         tags: list[TagDict] | None = None,
         **extra_data: Any,
     ) -> dict[str, Any]:
@@ -165,7 +165,7 @@ class HBIKafkaDatagen(BaseEntity):
         account_number: str | None = None,
         host_type: str | None = None,
         include_sp: bool = True,
-        name_prefix: str = "rhiqe",
+        name_prefix: str = "hbiqe",
         tags: list[TagDict] | None = None,
         **extra_data: Any,
     ) -> list[dict[str, Any]]:
@@ -210,7 +210,7 @@ class HBIKafkaDatagen(BaseEntity):
         *,
         org_id: str | None = None,
         account_number: str | None = None,
-        display_name_prefix: str = "rhiqe",
+        display_name_prefix: str = "hbiqe",
         include_sp: bool = True,
         is_virtual: bool = True,
         is_sap_system: bool = False,
@@ -245,7 +245,7 @@ class HBIKafkaDatagen(BaseEntity):
         *,
         org_id: str | None = None,
         account_number: str | None = None,
-        display_name_prefix: str = "rhiqe",
+        display_name_prefix: str = "hbiqe",
         include_sp: bool = True,
         is_virtual: bool = True,
         is_sap_system: bool = False,
