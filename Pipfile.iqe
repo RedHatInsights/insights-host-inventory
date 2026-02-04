@@ -8,6 +8,7 @@ click = "*"
 faker = "*"
 iqe-core = {version = ">=24.11.29.1", index = "rhnexus"}
 iqe-export-service-plugin = "*"
+iqe-goatee-plugin = "*"
 iqe-ingress-plugin = "*"
 iqe-kessel-sync-plugin = "*"
 iqe-turnpike-plugin = "*"
