@@ -1,37 +1,80 @@
-bin/
-*/__pycache__/*
-*__pycache__*
-pip-selfcheck.json
-pyvenv.cfg
-.python-version
-tags
-.coverage
-.pytest_cache/
-/.scannerwork/
-.env
-.prometheus_dir/
-tmp/
-*.zip
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
 
-swagger/inventory-schemas/
+# C extensions
+*.so
+
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
 coverage.xml
 
-sonarqube/
-.hermetic_builds/ubi.repo
+# Sphinx documentation
+iqe_host_inventory/iqe_host_inventory_api/docs/_build/
 
-.claude/
+.ipynb_checkpoints
+*.log
+iqe/conf
+.pytest_cache
+.env/
 
-.vscode/
+.idea/
+.eggs/
+
+
 .hypothesis/
 
-tools/simple-test/output.json
+# virtual environment
+venv/
+venv
 
-# IQE test suite
-iqe-host-inventory-plugin/venv/
-iqe-host-inventory-plugin/.venv/
-iqe-host-inventory-plugin/__pycache__/
-iqe-host-inventory-plugin/**/__pycache__/
-iqe-host-inventory-plugin/*.egg-info/
-iqe-host-inventory-plugin/.pytest_cache/
-iqe-host-inventory-plugin/htmlcov/
-iqe-host-inventory-plugin/.coverage
+# prevent accidental push of local settings
+# (override with `git add -f <file>`)
+iqe_host_inventory/conf/settings.local.yaml
+
+# For now, ignore package lock
+package-lock.json
+
+# Files produced by polarion plugin
+input.xml
+duplicates.log
+tests_data.json
+
+# openapi generator
+.openapi-generator*
+
+# SonarQube
+.scannerwork/
+junit.xml
+
+# Ibutsu
+.last-ibutsu-run-id
+.last-ibutsu-run-url
+/.pod-state/cache/lastfailed
+/.pod-state/cache/nodeids
+/.pod-state/cache/stepwise
+
+# VSCode
+.vscode/
