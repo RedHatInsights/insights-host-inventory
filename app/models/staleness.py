@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import Index
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -16,6 +17,7 @@ class Staleness(db.Model):
     __tablename__ = "staleness"
     __table_args__ = (
         Index("idxaccstaleorgid", "org_id"),
+        UniqueConstraint("org_id", name="staleness_org_id_key"),
         {"schema": INVENTORY_SCHEMA},
     )
 
