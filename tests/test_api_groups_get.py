@@ -385,6 +385,10 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         ("updated", "DESC"),
         ("host_count", "ASC"),
         ("host_count", "DESC"),
+        ("created", "ASC"),
+        ("created", "DESC"),
+        ("type", "ASC"),
+        ("type", "DESC"),
     ],
 )
 def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
@@ -392,7 +396,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     Test GET /groups with RBAC v2 and ordering parameters.
     Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
 
-    Note: The GET /groups API spec allows ordering by: name, host_count, updated.
+    Note: The GET /groups API spec allows ordering by: name, host_count, updated, created, type.
     """
     # Mock feature flag enabled
     mocker.patch("api.group.get_flag_value", return_value=True)
