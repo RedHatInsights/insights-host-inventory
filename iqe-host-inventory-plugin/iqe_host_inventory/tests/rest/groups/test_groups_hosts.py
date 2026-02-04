@@ -440,3 +440,72 @@ def test_get_hosts_from_group_multiple_filters(host_inventory: ApplicationHostIn
     assert display_names == sorted(display_names)
     for host in response_hosts:
         assert "web-server" in host.display_name
+
+
+@pytest.mark.ephemeral
+def test_get_hosts_from_group_with_hostname_or_id_filter(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21605
+
+    metadata:
+      requirements: inv-groups-get-hosts, inv-hosts-filter-by-hostname-or-id
+      assignee: maarif
+      importance: high
+      title: Hostname or ID filter works for GET /groups/{group_id}/hosts
+    """
+    # Create hosts with specific display names
+    host1_data = host_inventory.datagen.create_host_data(display_name="app-server-prod")
+    host2_data = host_inventory.datagen.create_host_data(display_name="db-server-prod")
+    host3_data = host_inventory.datagen.create_host_data(display_name="web-server-dev")
+
+    hosts = host_inventory.kafka.create_hosts(hosts_data=[host1_data, host2_data, host3_data])
+
+    # Create a group with all hosts
+    group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
+
+    # Filter by hostname_or_id (partial match on display_name "app-server")
+    response_hosts = host_inventory.apis.groups.get_hosts_from_group(
+        group, hostname_or_id="app-server"
+    )
+
+    # Verify only matching host returned
+    assert len(response_hosts) == 1
+    assert "app-server" in response_hosts[0].display_name
+
+    # Filter by hostname_or_id using actual host ID
+    response_hosts = host_inventory.apis.groups.get_hosts_from_group(
+        group, hostname_or_id=hosts[1].id
+    )
+
+    # Verify correct host returned when filtering by ID
+    assert len(response_hosts) == 1
+    assert response_hosts[0].id == hosts[1].id
+
+
+@pytest.mark.ephemeral
+def test_get_hosts_from_group_with_insights_id_filter(host_inventory: ApplicationHostInventory):
+    """
+    https://issues.redhat.com/browse/RHINENG-21605
+
+    metadata:
+      requirements: inv-groups-get-hosts, inv-hosts-filter-by-insights-id
+      assignee: maarif
+      importance: high
+      title: Insights ID filter works for GET /groups/{group_id}/hosts
+    """
+    # Create 3 hosts (they'll have unique insights_id values)
+    hosts = host_inventory.kafka.create_random_hosts(3)
+
+    # Create a group with all hosts
+    group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
+
+    # Filter by insights_id of the second host
+    target_insights_id = hosts[1].insights_id
+    response_hosts = host_inventory.apis.groups.get_hosts_from_group(
+        group, insights_id=target_insights_id
+    )
+
+    # Verify only the matching host is returned
+    assert len(response_hosts) == 1
+    assert response_hosts[0].insights_id == target_insights_id
+    assert response_hosts[0].id == hosts[1].id
