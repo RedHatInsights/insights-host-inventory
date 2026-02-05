@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ConsumerApplication(str, Enum):
+class ConsumerApplication(StrEnum):
     """Supported applications that send host data to Inventory.
 
     Inheriting from str makes these enums JSON-serializable and
