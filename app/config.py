@@ -4,7 +4,6 @@ import json
 import os
 import tempfile
 from datetime import timedelta
-from enum import StrEnum
 
 from app_common_python import DependencyEndpoints
 
@@ -41,12 +40,6 @@ COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
 IMMUTABLE_ID_FACTS = ("provider_id",)
 
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
-
-
-class HostType(StrEnum):
-    EDGE = "edge"
-    CLUSTER = "cluster"
-    NONE = None
 
 
 class Config:
