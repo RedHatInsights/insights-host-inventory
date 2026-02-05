@@ -584,10 +584,10 @@ $defs:
         type: boolean
       host_type:
         type: string
-        enum: [edge, cluster]
+        enum: [edge, cluster, conventional]
         maxLength: 12
         description: Indicates the type of host.
-        example: 'edge, cluster'
+        example: 'edge, cluster, conventional'
       greenboot_status:
         type: string
         enum: [red, green]
