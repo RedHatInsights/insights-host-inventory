@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class InventoryException(Exception):
     def __init__(
@@ -42,3 +44,19 @@ class OutboxSaveException(InventoryException):
 class ResourceNotFoundException(InventoryException):
     def __init__(self, detail: str):
         InventoryException.__init__(self, title="RBAC Resource Not Found", detail=detail)
+
+
+class IdsNotFoundError(InventoryException):
+    """Exception raised when requested IDs are not found."""
+
+    def __init__(self, resource_name: str, not_found_ids: list[str] | None = None):
+        self.resource_name = resource_name
+        self.not_found_ids = not_found_ids
+        detail = f"One or more {resource_name}s not found."
+        InventoryException.__init__(self, status=404, title="Not Found", detail=detail)
+
+    def to_json(self) -> dict[str, Any]:
+        result: dict[str, Any] = super().to_json()
+        if self.not_found_ids:
+            result["not_found_ids"] = self.not_found_ids
+        return result

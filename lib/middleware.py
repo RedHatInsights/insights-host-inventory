@@ -29,6 +29,7 @@ from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
+from app.exceptions import IdsNotFoundError
 from app.exceptions import ResourceNotFoundException
 from app.instrumentation import rbac_failure
 from app.instrumentation import rbac_group_permission_denied
@@ -550,16 +551,10 @@ def access(permission: KesselPermission, id_param: str = ""):
                 # When permission is denied and we have an id_param, check if the resource exists
                 # If it doesn't exist, return 404 instead of 403
                 if id_param and ids and not _check_resource_exists(permission.resource_type, ids):
-                    # Include unauthorized IDs in the error message if available
+                    # Include unauthorized IDs in the JSON response if available
                     unauthorized_ids = rbac_filter.get("unauthorized_ids", []) if rbac_filter else []
                     resource_name = permission.resource_type.name
-                    if unauthorized_ids:
-                        abort(
-                            HTTPStatus.NOT_FOUND,
-                            f"One or more {resource_name}s not found: {', '.join(unauthorized_ids)}",
-                        )
-                    else:
-                        abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found.")
+                    raise IdsNotFoundError(resource_name, unauthorized_ids if unauthorized_ids else None)
                 abort(HTTPStatus.FORBIDDEN)
 
         return modified_func

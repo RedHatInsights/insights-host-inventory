@@ -2,6 +2,7 @@ import json
 import re
 import urllib
 
+from app.exceptions import IdsNotFoundError
 from app.exceptions import ValidationException
 from app.logging import get_logger
 
@@ -452,7 +453,7 @@ def check_all_ids_found(
     total: int | None = None,
 ) -> None:
     """
-    Check that all requested IDs were found, and abort with 404 if any are missing.
+    Check that all requested IDs were found, and abort with 404 JSON response if any are missing.
 
     Args:
         requested_ids: List of IDs that were requested
@@ -461,16 +462,12 @@ def check_all_ids_found(
         id_attr: The attribute/key name to use for getting the ID (default: "id")
         total: Optional total count (for paginated results where found_objects is just one page).
                If provided, this is compared against len(requested_ids) instead of len(found_objects).
-               Note: When total is provided, the error message won't include specific missing IDs
+               Note: When total is provided, the response won't include specific missing IDs
                since found_objects only contains the current page.
 
     Raises:
-        Aborts with HTTP 404 if any requested IDs were not found
+        IdsNotFoundError: If any requested IDs were not found
     """
-    from http import HTTPStatus
-
-    from flask import abort
-
     # Convert to list if needed to get length (handles generators/queries)
     if not isinstance(found_objects, (list, tuple)):
         found_objects = list(found_objects)
@@ -482,8 +479,8 @@ def check_all_ids_found(
         if total is not None:
             # For paginated results, we can't accurately determine which IDs are missing
             # since found_objects only contains the current page
-            abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found.")
+            raise IdsNotFoundError(resource_name)
         else:
             # For non-paginated results, we can list the specific missing IDs
             missing_ids = find_missing_ids(requested_ids, found_objects, id_attr)
-            abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found: {', '.join(missing_ids)}")
+            raise IdsNotFoundError(resource_name, missing_ids)
