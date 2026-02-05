@@ -344,6 +344,14 @@ def kessel_verb(perm) -> str:
 def get_kessel_filter(
     kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
+    """
+    Check Kessel permissions and return filter information.
+
+    Returns:
+        tuple[bool, dict | None]: (allowed, filter_data)
+        - filter_data may contain "groups" for workspace filtering
+        - filter_data may contain "unauthorized_ids" when permission is denied for specific IDs
+    """
     logger.debug(
         "get_kessel_filter called",
         extra={
@@ -376,23 +384,31 @@ def get_kessel_filter(
         if permission.write_operation:
             # Write specific object(s) by id(s)
             logger.debug("get_kessel_filter: checking write permission for specific IDs via check_for_update")
-            result = kessel_client.check_for_update(current_identity, permission, ids)
-            logger.debug(f"get_kessel_filter: check_for_update result={result}")
+            result, unauthorized_ids = kessel_client.check_for_update(current_identity, permission, ids)
+            logger.debug(
+                f"get_kessel_filter: check_for_update result={result}",
+                extra={"unauthorized_ids": unauthorized_ids},
+            )
             if result:
                 return True, None
             else:
-                return False, None  # The objects are not authorized - reject the request.
+                # Return unauthorized IDs so the caller can include them in the error response
+                return False, {"unauthorized_ids": unauthorized_ids}
         else:
             # Read specific object(s) by id(s)
             logger.debug("get_kessel_filter: checking read permission for specific IDs via check")
-            result = kessel_client.check(current_identity, permission, ids)
-            logger.debug(f"get_kessel_filter: check result={result}")
+            result, unauthorized_ids = kessel_client.check(current_identity, permission, ids)
+            logger.debug(
+                f"get_kessel_filter: check result={result}",
+                extra={"unauthorized_ids": unauthorized_ids},
+            )
             if result:
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
-                return False, None  # The objects are not authorized - reject the request.
+                # Return unauthorized IDs so the caller can include them in the error response
                 # Note: this is a potential departure from current behavior where an attempt to
                 # request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
+                return False, {"unauthorized_ids": unauthorized_ids}
 
     # No ids passed, operate on many objects not by ids
     relation = permission.workspace_permission
@@ -534,7 +550,16 @@ def access(permission: KesselPermission, id_param: str = ""):
                 # When permission is denied and we have an id_param, check if the resource exists
                 # If it doesn't exist, return 404 instead of 403
                 if id_param and ids and not _check_resource_exists(permission.resource_type, ids):
-                    abort(HTTPStatus.NOT_FOUND)
+                    # Include unauthorized IDs in the error message if available
+                    unauthorized_ids = rbac_filter.get("unauthorized_ids", []) if rbac_filter else []
+                    resource_name = permission.resource_type.name
+                    if unauthorized_ids:
+                        abort(
+                            HTTPStatus.NOT_FOUND,
+                            f"One or more {resource_name}s not found: {', '.join(unauthorized_ids)}",
+                        )
+                    else:
+                        abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found.")
                 abort(HTTPStatus.FORBIDDEN)
 
         return modified_func

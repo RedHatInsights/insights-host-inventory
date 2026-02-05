@@ -418,3 +418,72 @@ class Tag:
             return []
 
         return [{"namespace": tag.namespace, "key": tag.key, "value": tag.value} for tag in structured_tags]
+
+
+def find_missing_ids(requested_ids: list[str], found_objects, id_attr: str = "id") -> list[str]:
+    """
+    Find which IDs from the request were not found in the results.
+
+    Args:
+        requested_ids: List of IDs that were requested
+        found_objects: Iterable of objects/dicts that were found
+        id_attr: The attribute/key name to use for getting the ID (default: "id")
+
+    Returns:
+        List of IDs that were requested but not found
+    """
+
+    def get_id(obj):
+        # Support both object attributes and dict keys
+        if isinstance(obj, dict):
+            return str(obj[id_attr])
+        return str(getattr(obj, id_attr))
+
+    found_ids = {get_id(obj) for obj in found_objects}
+    requested_set = {str(id) for id in requested_ids}
+    return list(requested_set - found_ids)
+
+
+def check_all_ids_found(
+    requested_ids: list[str],
+    found_objects,
+    resource_name: str,
+    id_attr: str = "id",
+    total: int | None = None,
+) -> None:
+    """
+    Check that all requested IDs were found, and abort with 404 if any are missing.
+
+    Args:
+        requested_ids: List of IDs that were requested
+        found_objects: Iterable of objects/dicts that were found
+        resource_name: Name of the resource type for error message (e.g., "host", "group")
+        id_attr: The attribute/key name to use for getting the ID (default: "id")
+        total: Optional total count (for paginated results where found_objects is just one page).
+               If provided, this is compared against len(requested_ids) instead of len(found_objects).
+               Note: When total is provided, the error message won't include specific missing IDs
+               since found_objects only contains the current page.
+
+    Raises:
+        Aborts with HTTP 404 if any requested IDs were not found
+    """
+    from http import HTTPStatus
+
+    from flask import abort
+
+    # Convert to list if needed to get length (handles generators/queries)
+    if not isinstance(found_objects, (list, tuple)):
+        found_objects = list(found_objects)
+
+    # Use total if provided (for paginated results), otherwise use len(found_objects)
+    found_count = total if total is not None else len(found_objects)
+
+    if found_count != len(set(requested_ids)):
+        if total is not None:
+            # For paginated results, we can't accurately determine which IDs are missing
+            # since found_objects only contains the current page
+            abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found.")
+        else:
+            # For non-paginated results, we can list the specific missing IDs
+            missing_ids = find_missing_ids(requested_ids, found_objects, id_attr)
+            abort(HTTPStatus.NOT_FOUND, f"One or more {resource_name}s not found: {', '.join(missing_ids)}")
