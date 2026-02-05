@@ -3,7 +3,6 @@ from contextlib import suppress
 
 from dateutil.parser import isoparse
 from flask import current_app
-from sqlalchemy import Index
 from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import cast
@@ -45,13 +44,7 @@ SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
 
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
-    __table_args__ = (
-        Index("idxorgid", "org_id"),
-        Index("idxdisplay_name", "display_name"),
-        Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
-        Index("idxgroups", "groups", postgresql_using="gin"),
-        {"schema": INVENTORY_SCHEMA},
-    )
+    __table_args__ = ({"schema": INVENTORY_SCHEMA},)
 
     def __init__(
         self,
@@ -161,18 +154,22 @@ class LimitedHost(db.Model):
 
         Business logic:
         - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit)
+        - CLUSTER: host_type == "cluster" (explicit) OR openshift_cluster_id is not None/empty
         - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
         - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
 
         Priority order:
-        1. Use explicit host_type from static profile if set ("edge" or "cluster")
-        2. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        3. Default to "conventional" (traditional systems)
+        1. If openshift_cluster_id is set, use "cluster"
+        2. Use explicit host_type from static profile if set ("edge" or "cluster")
+        3. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
+        4. Default to "conventional" (traditional systems)
 
         Returns:
             str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
         """
+        if self.openshift_cluster_id:
+            return "cluster"
+
         if not (static := self.static_system_profile):
             return "conventional"
 
@@ -293,7 +290,7 @@ class LimitedHost(db.Model):
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
     system_profile_facts = db.Column(JSONB)
-    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
+    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [], nullable=False)
     last_check_in = db.Column(db.DateTime(timezone=True))
 
     static_system_profile = relationship(
@@ -305,11 +302,11 @@ class LimitedHost(db.Model):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True))
+    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
-    reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB)
+    reporter = db.Column(db.String(255), nullable=False)
+    per_reporter_staleness = db.Column(JSONB, nullable=False)
     display_name_reporter = db.Column(db.String(255))
 
     def __init__(
