@@ -203,7 +203,7 @@ def test_create_host_without_system_profile(db_create_host):
     # Test the situation where the db/sqlalchemy sets the
     # system_profile_facts to None
     created_host = db_create_host()
-    assert created_host.system_profile_facts == {}
+    assert created_host.static_system_profile is None
 
 
 def test_create_host_with_system_profile(db_create_host):
@@ -211,7 +211,9 @@ def test_create_host_with_system_profile(db_create_host):
 
     created_host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": system_profile_facts})
 
-    assert created_host.system_profile_facts == system_profile_facts
+    # Verify data is stored in normalized tables
+    assert created_host.static_system_profile.number_of_cpus == system_profile_facts["number_of_cpus"]
+    assert str(created_host.static_system_profile.owner_id) == system_profile_facts["owner_id"]
 
 
 @pytest.mark.parametrize(
@@ -1663,21 +1665,23 @@ def test_update_dynamic_profile(db_create_host):
     assert retrieved.insights_egg_version == "2.1.4"
 
 
-def test_dynamic_profile_incorrect_type(db_create_host):
+def test_dynamic_profile_incorrect_type(flask_app):  # noqa: ARG001
     """
-    Tests that creating a HostDynamicSystemProfile with incorrect data types raises an exception.
+    Tests that validating HostDynamicSystemProfile with incorrect data types raises an exception.
     """
+    from app.models.system_profile_transformer import validate_and_transform
+
     static_profile_data, dynamic_profile_data = get_sample_profile_data()
     system_profile_data = {**static_profile_data, **dynamic_profile_data}
     system_profile_data["number_of_cpus"] = "not-a-number"
     with pytest.raises(MarshmallowValidationError):
-        db_create_host(extra_data={"system_profile_facts": system_profile_data})
+        validate_and_transform("test-org-id", "test-host-id", system_profile_data)
 
 
 def test_host_system_profile_normalization_integration(db_create_host):
     """
     Integration test for the complete system profile normalization flow.
-    Tests that updating a host's system profile correctly updates both JSONB and normalized tables.
+    Tests that updating a host's system profile correctly updates normalized tables.
     """
     # Create a host
     host = db_create_host()
@@ -1686,7 +1690,6 @@ def test_host_system_profile_normalization_integration(db_create_host):
     # Verify initial state
     assert host.static_system_profile is None
     assert host.dynamic_system_profile is None
-    assert host.system_profile_facts == {}
 
     # Update system profile with static and dynamic data
     static_profile_data, dynamic_profile_data = get_sample_profile_data()
@@ -1698,19 +1701,19 @@ def test_host_system_profile_normalization_integration(db_create_host):
     assert host.static_system_profile is not None
     assert host.dynamic_system_profile is not None
 
-    # Verify static system profile data matches JSONB system profile data
+    # Verify static system profile data matches input data
     assert host.static_system_profile.org_id == host.org_id
     assert host.static_system_profile.host_id == host.id
-    assert host.static_system_profile.arch == host.system_profile_facts["arch"]
-    assert host.static_system_profile.bios_vendor == host.system_profile_facts["bios_vendor"]
-    assert host.static_system_profile.cores_per_socket == host.system_profile_facts["cores_per_socket"]
+    assert host.static_system_profile.arch == static_profile_data["arch"]
+    assert host.static_system_profile.bios_vendor == static_profile_data["bios_vendor"]
+    assert host.static_system_profile.cores_per_socket == static_profile_data["cores_per_socket"]
 
-    # Verify dynamic system profile data matches JSONB system profile data
+    # Verify dynamic system profile data matches input data
     assert host.dynamic_system_profile.org_id == host.org_id
     assert host.dynamic_system_profile.host_id == host.id
-    assert host.dynamic_system_profile.running_processes == host.system_profile_facts["running_processes"]
-    assert host.dynamic_system_profile.network_interfaces == host.system_profile_facts["network_interfaces"]
-    assert host.dynamic_system_profile.installed_packages == host.system_profile_facts["installed_packages"]
+    assert host.dynamic_system_profile.running_processes == dynamic_profile_data["running_processes"]
+    assert host.dynamic_system_profile.network_interfaces == dynamic_profile_data["network_interfaces"]
+    assert host.dynamic_system_profile.installed_packages == dynamic_profile_data["installed_packages"]
 
     # Test updating existing system profile
     updated_data = {
@@ -1721,9 +1724,7 @@ def test_host_system_profile_normalization_integration(db_create_host):
     host.update_system_profile(updated_data)
     db.session.commit()
 
-    # Verify updates
-    assert host.system_profile_facts["arch"] == "aarch64"
-    assert host.system_profile_facts["running_processes"] == ["systemd", "nginx"]
+    # Verify updates in normalized tables
     assert host.static_system_profile.arch == "aarch64"
     assert host.dynamic_system_profile.running_processes == ["systemd", "nginx"]
 
@@ -1771,7 +1772,9 @@ def test_create_host_with_workloads_in_top_level(db_create_host):
     static_profile_data, dynamic_profile_data = get_sample_profile_data()
     system_profile_data = {**static_profile_data, **dynamic_profile_data, **workloads_data}
     host = db_create_host(extra_data={"system_profile_facts": system_profile_data})
-    assert host.system_profile_facts["ansible"]["controller_version"] == "4.5.6"
+    # After migration, workloads fields are stored under dynamic_system_profile.workloads
+    assert host.dynamic_system_profile.workloads["ansible"]["controller_version"] == "4.5.6"
+    assert host.dynamic_system_profile.workloads["rhel_ai"]["variant"] == "RHEL AI"
 
 
 def test_update_canonical_facts_columns_uuid_comparison(db_create_host):
@@ -2057,12 +2060,16 @@ def test_create_host_app_data_compliance(db_create_host):
     host = db_create_host()
     current_time = now()
     scan_time = now() - timedelta(days=1)
+    policies = [
+        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"},
+        {"id": "bbbbbbbb-cccc-dddd-eeee-ffffffffffff", "name": "Policy 2"},
+    ]
 
     compliance_data = HostAppDataCompliance(
         org_id=host.org_id,
         host_id=host.id,
         last_updated=current_time,
-        policies=4,
+        policies=policies,
         last_scan=scan_time,
     )
 
@@ -2075,9 +2082,12 @@ def test_create_host_app_data_compliance(db_create_host):
     assert retrieved is not None
     assert retrieved.org_id == host.org_id
     assert retrieved.host_id == host.id
-    assert retrieved.policies == 4
     assert retrieved.last_scan == scan_time
     assert retrieved.last_updated == current_time
+    assert retrieved.policies[0]["id"] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert retrieved.policies[0]["name"] == "Policy 1"
+    assert retrieved.policies[1]["id"] == "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+    assert retrieved.policies[1]["name"] == "Policy 2"
 
 
 def test_create_host_app_data_malware(db_create_host):
@@ -2093,6 +2103,7 @@ def test_create_host_app_data_malware(db_create_host):
         last_status="Not affected",
         last_matches=0,
         last_scan=scan_time,
+        total_matches=0,
     )
 
     db.session.add(malware_data)
@@ -2108,6 +2119,7 @@ def test_create_host_app_data_malware(db_create_host):
     assert retrieved.last_matches == 0
     assert retrieved.last_scan == scan_time
     assert retrieved.last_updated == current_time
+    assert retrieved.total_matches == 0
 
 
 def test_create_host_app_data_image_builder(db_create_host):
@@ -2231,7 +2243,9 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
     remediation_data = HostAppDataRemediations(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, remediations_plans=3
     )
-    compliance_data = HostAppDataCompliance(org_id=host.org_id, host_id=host.id, last_updated=current_time, policies=4)
+    compliance_data = HostAppDataCompliance(
+        org_id=host.org_id, host_id=host.id, last_updated=current_time, last_scan=current_time
+    )
     malware_data = HostAppDataMalware(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, last_status="Clean"
     )
