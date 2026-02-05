@@ -47,6 +47,7 @@ from lib.group_repository import get_groups_by_id_list_from_db
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
+from lib.group_repository import serialize_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
 from lib.host_repository import get_host_list_by_id_list_from_db
@@ -111,7 +112,63 @@ def get_group_list(
     try:
         if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
             # RBAC v2 path: Query workspaces from RBAC v2 API
-            group_list, total = get_rbac_workspaces(name, page, per_page, rbac_filter, group_type, order_by, order_how)
+            # Special handling for host_count ordering: RBAC v2 doesn't have host count data,
+            # so we need to fetch workspaces, add host counts from DB, then sort in Python
+            if order_by == "host_count":
+                # Fetch all workspaces (or a large page) without ordering
+                # RBAC v2 API can return up to 3000 groups, so we set this as our limit
+                # for host_count sorting to align with RBAC v2 capabilities
+                MAX_GROUPS_FOR_HOST_COUNT_SORTING = 3000
+                group_list, total = get_rbac_workspaces(
+                    name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, rbac_filter, group_type, None, None
+                )
+
+                # Validate that we can sort all groups
+                # If there are more groups than we can fetch, we can't guarantee correct ordering
+                if total > MAX_GROUPS_FOR_HOST_COUNT_SORTING:
+                    log_get_group_list_failed(logger)
+                    abort(
+                        400,
+                        f"Cannot sort by host_count: organization has {total} groups, which exceeds "
+                        f"the maximum of {MAX_GROUPS_FOR_HOST_COUNT_SORTING} groups that can be sorted. "
+                        f"Please use filters (name, group_type) to narrow your results, or use a different "
+                        f"ordering field (name, updated, created, type).",
+                    )
+
+                # Serialize groups to add host_count from database
+                org_id = get_current_identity().org_id
+                serialized_groups = [serialize_group(group, org_id) for group in group_list]
+
+                # Sort by host_count with secondary sort by name for stable ordering
+                # Python's sort is stable, so we sort by name first, then by host_count
+                # This ensures groups with equal host_count are alphabetically ordered
+                serialized_groups.sort(key=lambda g: g.get("name", ""))  # Secondary: name (ASC)
+                reverse = order_how == "DESC" if order_how else True  # Default DESC for host_count
+                serialized_groups.sort(key=lambda g: g.get("host_count", 0), reverse=reverse)  # Primary: host_count
+
+                # Apply pagination to sorted results
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                paginated_groups = serialized_groups[start_idx:end_idx]
+
+                # Build response with pre-serialized groups
+                log_get_group_list_succeeded(logger, paginated_groups)
+                # Note: paginated_groups are already serialized, so we build response directly
+                # instead of calling build_paginated_group_list_response() which would serialize again
+                return flask_json_response(
+                    {
+                        "total": total,
+                        "count": len(paginated_groups),
+                        "page": page,
+                        "per_page": per_page,
+                        "results": paginated_groups,
+                    }
+                )
+            else:
+                # Normal RBAC v2 path: RBAC v2 API can handle ordering
+                group_list, total = get_rbac_workspaces(
+                    name, page, per_page, rbac_filter, group_type, order_by, order_how
+                )
         else:
             # RBAC v1 path: Query groups from database
             group_list, total = get_filtered_group_list_db(

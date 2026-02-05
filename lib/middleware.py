@@ -699,7 +699,10 @@ def get_rbac_workspaces(
 
     # Add ordering parameters if provided
     # Note: RBAC v2 API support for ordering is tracked by RHCLOUD-42653
-    if order_by:
+    # Special case: host_count ordering cannot be done by RBAC v2 API
+    # because RBAC v2 doesn't have host count data. Sorting by host_count
+    # will be done in Python after adding host counts from database.
+    if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
         # The API uses "updated" for consistency with existing contracts,
         # but RBAC v2 workspace API uses "modified" as the field name
@@ -707,13 +710,13 @@ def get_rbac_workspaces(
             "updated": "modified",
             "created": "created",
             "name": "name",
-            "host_count": "host_count",
             "type": "type",
         }
         rbac_order_by = field_mapping.get(order_by, order_by)
         query_params["order_by"] = rbac_order_by
-    if order_how:
-        query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
+
+        if order_how:
+            query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
 
     # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)

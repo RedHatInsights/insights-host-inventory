@@ -1,6 +1,7 @@
 import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
+from sqlalchemy.exc import OperationalError
 
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
@@ -383,8 +384,6 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         ("name", "DESC"),
         ("updated", "ASC"),
         ("updated", "DESC"),
-        ("host_count", "ASC"),
-        ("host_count", "DESC"),
         ("created", "ASC"),
         ("created", "DESC"),
         ("type", "ASC"),
@@ -397,6 +396,8 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
 
     Note: The GET /groups API spec allows ordering by: name, host_count, updated, created, type.
+    However, host_count uses a special code path (client-side sorting) and is tested separately
+    in test_get_groups_rbac_v2_ordering_by_host_count() and related tests.
     """
     # Mock feature flag enabled
     mocker.patch("api.group.get_flag_value", return_value=True)
@@ -418,6 +419,267 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     # Check positional arguments (name, page, per_page, rbac_filter, group_type, order_by, order_how)
     assert call_args[0][5] == order_by  # order_by is 6th positional arg (index 5)
     assert call_args[0][6] == order_how  # order_how is 7th positional arg (index 6)
+
+
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
+    """
+    Test GET /groups with RBAC v2 and order_by=host_count.
+
+    CRITICAL TEST: Verifies that ordering by host_count works correctly with RBAC v2.
+
+    The challenge: RBAC v2 API doesn't know about host counts (they're in host-inventory DB).
+    Expected behavior: Backend should fetch workspaces from RBAC v2, add host counts from
+    DB, then sort in Python by host_count before returning results.
+
+    This test will FAIL if the code incorrectly relies on RBAC v2 API to sort by host_count.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Create mock workspaces in a specific order (by name)
+    # RBAC v2 API would return these in this order
+    mock_workspaces = [
+        _create_mock_workspace(name="group_a", workspace_id=str(generate_uuid())),  # Will have 10 hosts
+        _create_mock_workspace(name="group_b", workspace_id=str(generate_uuid())),  # Will have 5 hosts
+        _create_mock_workspace(name="group_c", workspace_id=str(generate_uuid())),  # Will have 15 hosts
+    ]
+
+    # Mock get_rbac_workspaces to return workspaces in name order
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
+
+    # Mock host counts - different from name order!
+    # group_a: 10 hosts, group_b: 5 hosts, group_c: 15 hosts
+    host_counts = {
+        mock_workspaces[0]["id"]: 10,  # group_a
+        mock_workspaces[1]["id"]: 5,  # group_b
+        mock_workspaces[2]["id"]: 15,  # group_c
+    }
+
+    mocker.patch(
+        "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
+        side_effect=lambda group_id, org_id: host_counts.get(group_id, 0),
+    )
+
+    # Execute test
+    query = f"?order_by=host_count&order_how={order_how}"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 3
+    assert response_data["count"] == 3
+
+    # Verify results are ordered correctly
+    results = response_data["results"]
+
+    if order_how == "ASC":
+        # Expected order (ASC): group_b (5), group_a (10), group_c (15)
+        assert results[0]["name"] == "group_b" and results[0]["host_count"] == 5
+        assert results[1]["name"] == "group_a" and results[1]["host_count"] == 10
+        assert results[2]["name"] == "group_c" and results[2]["host_count"] == 15
+    else:  # DESC
+        # Expected order (DESC): group_c (15), group_a (10), group_b (5)
+        assert results[0]["name"] == "group_c" and results[0]["host_count"] == 15
+        assert results[1]["name"] == "group_a" and results[1]["host_count"] == 10
+        assert results[2]["name"] == "group_b" and results[2]["host_count"] == 5
+
+
+@pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, order_how):
+    """
+    Test ordering by host_count when multiple groups have the same host_count.
+
+    EDGE CASE: Verifies secondary sort by name (alphabetical) when host_counts are equal.
+    Groups with same host_count should be ordered alphabetically by name.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Create mock workspaces - some with same host counts
+    mock_workspaces = [
+        _create_mock_workspace(name="zebra_group", workspace_id=str(generate_uuid())),  # 10 hosts
+        _create_mock_workspace(name="alpha_group", workspace_id=str(generate_uuid())),  # 10 hosts (tie!)
+        _create_mock_workspace(name="beta_group", workspace_id=str(generate_uuid())),  # 5 hosts
+        _create_mock_workspace(name="gamma_group", workspace_id=str(generate_uuid())),  # 10 hosts (tie!)
+    ]
+
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 4)
+
+    # Mock host counts: Three groups with 10 hosts, one with 5
+    host_counts = {
+        mock_workspaces[0]["id"]: 10,  # zebra
+        mock_workspaces[1]["id"]: 10,  # alpha (same as zebra)
+        mock_workspaces[2]["id"]: 5,  # beta
+        mock_workspaces[3]["id"]: 10,  # gamma (same as zebra and alpha)
+    }
+
+    mocker.patch(
+        "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
+        side_effect=lambda group_id, org_id: host_counts.get(group_id, 0),
+    )
+
+    # Execute test
+    query = f"?order_by=host_count&order_how={order_how}"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+    results = response_data["results"]
+
+    if order_how == "ASC":
+        # Expected order (ASC):
+        # 1. beta (5 hosts)
+        # 2-4. alpha, gamma, zebra (10 hosts each, alphabetically ordered)
+        assert results[0]["name"] == "beta_group" and results[0]["host_count"] == 5
+        assert results[1]["name"] == "alpha_group" and results[1]["host_count"] == 10
+        assert results[2]["name"] == "gamma_group" and results[2]["host_count"] == 10
+        assert results[3]["name"] == "zebra_group" and results[3]["host_count"] == 10
+    else:  # DESC
+        # Expected order (DESC):
+        # 1-3. alpha, gamma, zebra (10 hosts each, alphabetically ordered)
+        # 4. beta (5 hosts)
+        assert results[0]["name"] == "alpha_group" and results[0]["host_count"] == 10
+        assert results[1]["name"] == "gamma_group" and results[1]["host_count"] == 10
+        assert results[2]["name"] == "zebra_group" and results[2]["host_count"] == 10
+        assert results[3]["name"] == "beta_group" and results[3]["host_count"] == 5
+
+
+def test_get_groups_rbac_v2_ordering_by_host_count_too_many_groups(mocker, api_get):
+    """
+    Test GET /groups with RBAC v2, order_by=host_count when org has >3000 groups.
+
+    NEGATIVE TEST: Verifies that ordering by host_count returns 400 error when
+    there are too many groups to sort efficiently.
+
+    Rationale: RBAC v2 can return max 3000 groups. We can't sort by host_count
+    without fetching ALL groups and adding host counts from DB. With >3000 groups,
+    we can't guarantee correct ordering. Better to return clear error asking user
+    to use filters to narrow results.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 returning 3500 total groups (exceeds MAX_GROUPS_FOR_HOST_COUNT_SORTING of 3000)
+    # RBAC v2 returns first 3000 groups, but total=3500
+    mock_workspaces = [
+        _create_mock_workspace(name=f"group_{i}", workspace_id=str(generate_uuid()))
+        for i in range(3000)  # Returns 3000 groups
+    ]
+
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 3500)  # total=3500 (>3000)
+
+    # Request order_by=host_count with too many groups
+    query = "?order_by=host_count"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    # Should return 400 error with helpful message
+    assert_response_status(response_status, 400)
+    assert "3500" in response_data["detail"]  # Mentions actual total
+    assert "3000" in response_data["detail"]  # Mentions the limit
+    assert "filter" in response_data["detail"].lower()  # Suggests using filters
+    assert "host_count" in response_data["detail"].lower()  # Mentions the problematic ordering field
+
+
+def test_get_groups_rbac_v2_ordering_by_host_count_timeout(mocker, api_get):
+    """
+    Test 503 error when RBAC v2 times out during host_count sorting.
+
+    NEGATIVE TEST: Verifies that RBAC v2 timeouts are handled gracefully
+    even when using the special host_count sorting code path.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock get_rbac_workspaces to raise Timeout exception
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.side_effect = Timeout("RBAC v2 API timed out")
+
+    # Request order_by=host_count which triggers special code path
+    query = "?order_by=host_count"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    # Should return 503 (service unavailable)
+    assert_response_status(response_status, 503)
+    assert "RBAC service unavailable" in response_data["detail"] or "timed out" in response_data["detail"].lower()
+
+
+def test_get_groups_rbac_v2_ordering_by_host_count_db_error(mocker, api_get):
+    """
+    Test error handling when database fails during host count fetching.
+
+    NEGATIVE TEST: Verifies that database errors during serialize_group()
+    (which fetches host counts) are handled properly.
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 returning valid workspaces
+    mock_workspaces = [
+        _create_mock_workspace(name="group_a", workspace_id=str(generate_uuid())),
+        _create_mock_workspace(name="group_b", workspace_id=str(generate_uuid())),
+    ]
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
+
+    # Mock serialize_group to raise database error when fetching host counts
+    mock_serialize_group = mocker.patch("api.group.serialize_group")
+    mock_serialize_group.side_effect = OperationalError("Database connection failed", None, None)
+
+    # Request order_by=host_count
+    query = "?order_by=host_count"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    # Should return 500 (internal server error) - database errors aren't caught in this path
+    # This is expected behavior - database failures should bubble up
+    assert_response_status(response_status, 500)
+
+
+def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_get):
+    """
+    Test ordering by host_count when all groups have 0 hosts.
+
+    EDGE CASE: Verifies that sorting still works when all host_counts are equal (0).
+    Python's sort should provide stable ordering (preserves original order for equal values).
+    """
+    # Mock feature flag enabled
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 returning 3 workspaces in specific order
+    mock_workspaces = [
+        _create_mock_workspace(name="zebra_group", workspace_id=str(generate_uuid())),
+        _create_mock_workspace(name="alpha_group", workspace_id=str(generate_uuid())),
+        _create_mock_workspace(name="beta_group", workspace_id=str(generate_uuid())),
+    ]
+
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
+
+    # Mock all groups having 0 hosts
+    def mock_get_host_count(group_id, org_id):
+        return 0  # All groups empty
+
+    mocker.patch("lib.group_repository.get_non_culled_hosts_count_in_group_by_id", side_effect=mock_get_host_count)
+
+    # Request order_by=host_count&order_how=ASC
+    query = "?order_by=host_count&order_how=ASC"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    # Should return 200 with all groups
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 3
+    assert response_data["count"] == 3
+
+    # All groups should have host_count=0
+    results = response_data["results"]
+    assert len(results) == 3
+    assert all(group["host_count"] == 0 for group in results)
+
+    # When host_counts are equal, groups should be ordered alphabetically by name (secondary sort)
+    assert results[0]["name"] == "alpha_group"  # Alphabetically first
+    assert results[1]["name"] == "beta_group"  # Alphabetically second
+    assert results[2]["name"] == "zebra_group"  # Alphabetically third
 
 
 @pytest.mark.parametrize(
