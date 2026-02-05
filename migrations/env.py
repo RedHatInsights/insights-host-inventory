@@ -36,6 +36,37 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 schema_name = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
+def include_object(object, name, type_, reflected, compare_to):  # noqa: ARG001, required by alembic
+    """Filter Alembic autogenerate to only include objects in the target schema.
+
+    This prevents Alembic from:
+    - Trying to create/drop tables in other schemas (e.g., public)
+    - Trying to drop partition tables (e.g., hosts_p0, hosts_p1)
+    - Trying to drop backup/old tables (e.g., hosts_old)
+    - Trying to drop tables not defined in models (e.g., debezium_signal)
+    - Trying to drop columns, indexes, or constraints that exist in DB but not in models
+
+    The key insight is that `reflected=True` and `compare_to=None` means the object
+    exists in the database but NOT in the models. We don't want to generate DROP
+    statements for such objects, as they may be intentionally present (e.g., for
+    production performance, partition management, etc.).
+    """
+    if type_ == "table":
+        # For tables, only include those in the target schema (hbi)
+        table_schema = getattr(object, "schema", None)
+        if table_schema != schema_name:
+            return False
+
+        # If this is a reflected table (from DB) not in our models, exclude it
+        # This handles partition tables (_p0, _p1), old tables (_old), and
+        # other tables like debezium_signal that exist in DB but not in models
+        return not (reflected and compare_to is None)
+
+    # For columns, indexes, unique_constraints, foreign_keys, etc.:
+    # If the object exists in DB but not in models, don't try to drop it
+    return not (reflected and compare_to is None)
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -49,7 +80,13 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, version_table_schema=schema_name)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        include_schemas=True,
+        include_object=include_object,
+        version_table_schema=schema_name,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -83,6 +120,8 @@ def run_migrations_online():
             connection=conn,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
+            include_schemas=True,
+            include_object=include_object,
             **current_app.extensions["migrate"].configure_args,
             version_table_schema=schema,
         )

@@ -19,5 +19,5 @@ class HostInventoryMetadata(db.Model):
     name = db.Column(db.String(32), primary_key=True)
     type = db.Column(db.String(32), primary_key=True)
     last_succeeded = db.Column(
-        db.DateTime(timezone=True), default=_time_now() - timedelta(hours=1), onupdate=_time_now
+        db.DateTime(timezone=True), default=_time_now() - timedelta(hours=1), onupdate=_time_now, nullable=False
     )
