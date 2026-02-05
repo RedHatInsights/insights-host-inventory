@@ -1,7 +1,7 @@
 import os
 from datetime import UTC
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from marshmallow import validate as marshmallow_validate
 
@@ -40,7 +40,7 @@ ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     ALIBABA = "alibaba"
     AWS = "aws"
     AZURE = "azure"
@@ -49,7 +49,7 @@ class ProviderType(str, Enum):
     IBM = "ibm"
 
 
-class SystemType(str, Enum):
+class SystemType(StrEnum):
     CONVENTIONAL = "conventional"
     BOOTC = "bootc"
     EDGE = "edge"
