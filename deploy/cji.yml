@@ -103,6 +103,16 @@ objects:
     appName: host-inventory
     jobs:
       - populate-host-type
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: remove-null-values-in-workloads-fields-data-${REMOVE_NULL_VALUES_IN_WORKLOADS_FIELDS_DATA_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - remove-null-values-in-workloads-fields-data
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -123,4 +133,6 @@ parameters:
 - name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_RUN_NUMBER
   value: '1'
 - name: POPULATE_HOST_TYPE_RUN_NUMBER
+  value: '1'
+- name: REMOVE_NULL_VALUES_IN_WORKLOADS_FIELDS_DATA_RUN_NUMBER
   value: '1'
