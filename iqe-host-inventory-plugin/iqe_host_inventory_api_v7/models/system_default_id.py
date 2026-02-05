@@ -12,11 +12,11 @@ Do not edit the class manually.
 from __future__ import annotations
 
 import json
-from enum import Enum
+from enum import StrEnum
 from typing import Self
 
 
-class SystemDefaultId(str, Enum):
+class SystemDefaultId(StrEnum):
     """
     SystemDefaultId
     """

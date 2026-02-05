@@ -6,7 +6,7 @@ import types
 from base64 import b64encode
 from collections.abc import Callable
 from datetime import timedelta
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
@@ -603,7 +603,7 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-class RBACFilterOperation(str, Enum):
+class RBACFilterOperation(StrEnum):
     EQUAL = "equal"
     IN = "in"
 
