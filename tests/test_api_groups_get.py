@@ -459,7 +459,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
 
     mocker.patch(
         "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
-        side_effect=lambda group_id, org_id: host_counts.get(group_id, 0),
+        side_effect=lambda group_id, _org_id: host_counts.get(group_id, 0),
     )
 
     # Execute test
@@ -517,7 +517,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
 
     mocker.patch(
         "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
-        side_effect=lambda group_id, org_id: host_counts.get(group_id, 0),
+        side_effect=lambda group_id, _org_id: host_counts.get(group_id, 0),
     )
 
     # Execute test
@@ -657,7 +657,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
 
     # Mock all groups having 0 hosts
-    def mock_get_host_count(group_id, org_id):
+    def mock_get_host_count(_group_id, _org_id):
         return 0  # All groups empty
 
     mocker.patch("lib.group_repository.get_non_culled_hosts_count_in_group_by_id", side_effect=mock_get_host_count)
