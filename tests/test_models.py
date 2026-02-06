@@ -17,7 +17,6 @@ from app.models import CanonicalFactsSchema
 from app.models import Host
 from app.models import HostAppDataAdvisor
 from app.models import HostAppDataCompliance
-from app.models import HostAppDataImageBuilder
 from app.models import HostAppDataMalware
 from app.models import HostAppDataPatch
 from app.models import HostAppDataRemediations
@@ -2122,33 +2121,6 @@ def test_create_host_app_data_malware(db_create_host):
     assert retrieved.total_matches == 0
 
 
-def test_create_host_app_data_image_builder(db_create_host):
-    """Test creating a HostAppDataImageBuilder record."""
-    host = db_create_host()
-    current_time = now()
-
-    image_builder_data = HostAppDataImageBuilder(
-        org_id=host.org_id,
-        host_id=host.id,
-        last_updated=current_time,
-        image_name="rhel-9-base-image",
-        image_status="Ready",
-    )
-
-    db.session.add(image_builder_data)
-    db.session.commit()
-
-    # Retrieve and verify
-    retrieved = db.session.query(HostAppDataImageBuilder).filter_by(org_id=host.org_id, host_id=host.id).first()
-
-    assert retrieved is not None
-    assert retrieved.org_id == host.org_id
-    assert retrieved.host_id == host.id
-    assert retrieved.image_name == "rhel-9-base-image"
-    assert retrieved.image_status == "Ready"
-    assert retrieved.last_updated == current_time
-
-
 def test_update_host_app_data_advisor(db_create_host):
     """Test updating a HostAppDataAdvisor record."""
     host = db_create_host()
@@ -2249,9 +2221,6 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
     malware_data = HostAppDataMalware(
         org_id=host.org_id, host_id=host.id, last_updated=current_time, last_status="Clean"
     )
-    image_builder_data = HostAppDataImageBuilder(
-        org_id=host.org_id, host_id=host.id, last_updated=current_time, image_name="test-image"
-    )
 
     db.session.add_all(
         [
@@ -2261,7 +2230,6 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
             remediation_data,
             compliance_data,
             malware_data,
-            image_builder_data,
         ]
     )
     db.session.commit()
@@ -2277,7 +2245,6 @@ def test_delete_all_app_data_types_on_host_delete(db_create_host):
     assert db.session.query(HostAppDataRemediations).filter_by(org_id=host.org_id, host_id=host.id).first() is None
     assert db.session.query(HostAppDataCompliance).filter_by(org_id=host.org_id, host_id=host.id).first() is None
     assert db.session.query(HostAppDataMalware).filter_by(org_id=host.org_id, host_id=host.id).first() is None
-    assert db.session.query(HostAppDataImageBuilder).filter_by(org_id=host.org_id, host_id=host.id).first() is None
 
 
 def test_host_schema_removes_legacy_sap_flat_fields():

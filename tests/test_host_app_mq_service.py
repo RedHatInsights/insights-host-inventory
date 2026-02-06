@@ -12,7 +12,6 @@ from app.exceptions import ValidationException
 from app.models import db
 from app.models.host_app_data import HostAppDataAdvisor
 from app.models.host_app_data import HostAppDataCompliance
-from app.models.host_app_data import HostAppDataImageBuilder
 from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataRemediations
@@ -84,13 +83,6 @@ APPLICATION_TEST_DATA = [
         {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat(), "total_matches": 0},
         {"last_status": "clean", "last_matches": 0, "total_matches": 0},
         id="malware",
-    ),
-    pytest.param(
-        ConsumerApplication.IMAGE_BUILDER,
-        HostAppDataImageBuilder,
-        {"image_name": "rhel-9-base", "image_status": "active"},
-        {"image_name": "rhel-9-base", "image_status": "active"},
-        id="image_builder",
     ),
 ]
 
