@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
+import statistics
+import time
+from collections import defaultdict
+from collections.abc import Generator
+from contextlib import contextmanager
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -60,8 +65,152 @@ HBI_API_WRAPPER = (
 logger = logging.getLogger(__name__)
 
 
+def _parse_endpoint_key(key: str) -> tuple[str, int | None]:
+    """Parse an endpoint key like 'GET /hosts/<host_ids>; 5' into ('GET /hosts/<host_ids>', 5).
+
+    Returns (base_endpoint, item_count). item_count is None for endpoints without a count.
+    """
+    if "; " in key:
+        base, count_str = key.rsplit("; ", 1)
+        return base, int(count_str)
+    return key, None
+
+
+def _compute_stats(times: list[float]) -> dict[str, float | int]:
+    """Compute basic statistics (count, avg, median, p95, min, max) for a list of times."""
+    if not times:
+        return {}
+    return {
+        "count": len(times),
+        "avg": statistics.mean(times),
+        "median": statistics.median(times),
+        "p95": sorted(times)[int(0.95 * (len(times) - 1))],
+        "min": min(times),
+        "max": max(times),
+    }
+
+
+def _format_stats(stats: dict[str, float | int]) -> str:
+    """Format a stats dict into a human-readable string."""
+    if not stats:
+        return "(no data)"
+    return (
+        f"samples={stats['count']:<4}  "
+        f"avg={stats['avg']:.4f}s  "
+        f"median={stats['median']:.4f}s  "
+        f"p95={stats['p95']:.4f}s  "
+        f"min={stats['min']:.4f}s  "
+        f"max={stats['max']:.4f}s"
+    )
+
+
+def _group_by_endpoint(
+    request_times: dict[str, list[float]],
+) -> dict[str, list[tuple[float, int | None]]]:
+    """Group raw request times by base endpoint.
+
+    Parses keys like 'GET /hosts/<host_ids>; 5' into base endpoint and item count,
+    then groups all (time, count) pairs under the base endpoint.
+    """
+    grouped: dict[str, list[tuple[float, int | None]]] = defaultdict(list)
+    for key, times in request_times.items():
+        base, count = _parse_endpoint_key(key)
+        for t in times:
+            grouped[base].append((t, count))
+    return grouped
+
+
+def _format_endpoint_stats(endpoint: str, entries: list[tuple[float, int | None]]) -> list[str]:
+    """Produce formatted log lines for a single endpoint's statistics.
+
+    For simple endpoints (no item count), returns one line of stats.
+    For endpoints with item counts, returns lines for: all requests, single item (N=1),
+    multi items (N>1) with avg time per item, and per-count breakdown.
+    """
+    all_times = [t for t, _ in entries]
+    has_counts = any(c is not None for _, c in entries)
+
+    lines = [f"\n  {endpoint}", f"  {'-' * len(endpoint)}"]
+
+    if not has_counts:
+        lines.append(f"    {_format_stats(_compute_stats(all_times))}")
+        return lines
+
+    # Endpoint with item counts — show detailed breakdowns
+    lines.append(f"    All requests:      {_format_stats(_compute_stats(all_times))}")
+
+    single_times = [t for t, c in entries if c == 1]
+    if single_times:
+        lines.append(f"    Single item (N=1): {_format_stats(_compute_stats(single_times))}")
+
+    multi_entries = [(t, c) for t, c in entries if c is not None and c > 1]
+    if multi_entries:
+        multi_times = [t for t, _ in multi_entries]
+        lines.append(f"    Multi items (N>1): {_format_stats(_compute_stats(multi_times))}")
+        per_item_times = [t / c for t, c in multi_entries]
+        lines.append(f"      avg time per item: {statistics.mean(per_item_times):.4f}s")
+
+    count_groups: dict[int, list[float]] = defaultdict(list)
+    for t, c in entries:
+        if c is not None:
+            count_groups[c].append(t)
+
+    if count_groups:
+        lines.append("    Per item count:")
+        for count in sorted(count_groups):
+            lines.append(
+                f"      N={count:<4} {_format_stats(_compute_stats(count_groups[count]))}"
+            )
+
+    return lines
+
+
 @attr.s(hash=False, order=False)
 class HBIApis(BaseEntity):
+    request_times: defaultdict[str, list[float]] = attr.ib(factory=lambda: defaultdict(list))
+
+    def add_request_time(self, endpoint: str, elapsed: float) -> None:
+        self.request_times[endpoint].append(elapsed)
+
+    @contextmanager
+    def measure_time(
+        self, endpoint: str, *, count: int | None = None
+    ) -> Generator[None, None, None]:
+        label = endpoint if count is None else f"{endpoint}; {count}"
+        start = time.monotonic()
+        try:
+            yield
+        finally:
+            elapsed = time.monotonic() - start
+            self.add_request_time(label, elapsed)
+
+    def log_request_statistics(self) -> str:
+        """Compute and log API request performance statistics.
+
+        For simple endpoints (no item count), logs: samples, avg, median, p95, min, max.
+        For endpoints with item counts (e.g. GET /hosts/<host_ids>; N), additionally logs:
+          - Stats for single-item requests (N=1)
+          - Stats for multi-item requests (N>1) plus avg time per item
+          - Breakdown by each distinct item count N
+        Returns the full report as a string.
+        """
+        if not self.request_times:
+            msg = "No API request times recorded."
+            logger.info(msg)
+            return msg
+
+        grouped = _group_by_endpoint(self.request_times)
+
+        separator = "=" * 100
+        lines = [separator, "API Request Performance Statistics", separator]
+        for endpoint in sorted(grouped):
+            lines.extend(_format_endpoint_stats(endpoint, grouped[endpoint]))
+        lines.append(f"\n{separator}")
+
+        report = "\n".join(lines)
+        logger.info(report)
+        return report
+
     @cached_property
     def rest_identity(self) -> dict:
         return self.application.user.identity.to_dict()

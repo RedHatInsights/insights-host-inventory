@@ -160,7 +160,8 @@ class TagsAPIWrapper(BaseEntity):
         if query:
             path += "?" + query
 
-        return self.api_client.call_api(path, "GET", response_type=ActiveTags)[0]
+        with self._host_inventory.apis.measure_time("GET /tags"):
+            return self.api_client.call_api(path, "GET", response_type=ActiveTags)[0]
 
     def get_tags(
         self,
