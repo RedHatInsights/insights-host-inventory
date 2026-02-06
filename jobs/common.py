@@ -33,8 +33,8 @@ def prometheus_job(namespace, prometheus_job):
     return f"{prometheus_job}-{namespace}" if namespace else prometheus_job
 
 
-def excepthook(logger, job_type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("%s failed", job_type, exc_info=value)
+def excepthook(logger, job_type, exc_type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
+    logger.exception("%s failed", job_type, exc_info=(exc_type, value, traceback))
 
 
 def job_setup(collected_metrics: tuple, prometheus_job_name: str):

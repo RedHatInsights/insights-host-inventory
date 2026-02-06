@@ -1944,6 +1944,7 @@ objects:
     appName: host-inventory
     jobs:
       - run-db-migrations
+    runOnNotReady: true
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -2081,20 +2082,21 @@ objects:
         chunksize: 10000
         query: >-
           SELECT
-            "org_id",
+            "h"."org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' <> ''
+              "h"."host_type" = 'bootc'
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->'booted'->>'image_digest' IS NULL
-              AND "system_profile_facts"->>'host_type' IS NULL
+              "h"."host_type" = 'conventional'
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count"
-          FROM "hbi"."hosts"
-          GROUP BY "org_id";
+              "h"."host_type" = 'edge'
+            ) AS "edge_count",
+            COUNT(*) FILTER (WHERE
+              "h"."host_type" = 'cluster'
+            ) AS "cluster_count"
+          FROM "hbi"."hosts" AS "h"
+          GROUP BY "h"."org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
