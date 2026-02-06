@@ -57,7 +57,6 @@ class Host(Base):
     facts = Column(JSONB)
     tags = Column(JSONB)
     tags_alt = Column(JSONB)
-    system_profile_facts = Column(JSONB)
     groups = Column(JSONB)
     last_check_in = Column(DateTime(timezone=True))
     stale_timestamp = Column(DateTime(timezone=True))
