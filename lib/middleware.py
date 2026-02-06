@@ -652,3 +652,33 @@ def get_rbac_default_workspace() -> UUID | None:
     )
     data = response["data"] if response else None
     return data[0]["id"] if data and len(data) > 0 else None
+
+
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
+    """
+    Fetch a single workspace from RBAC v2 API by ID.
+
+    Args:
+        workspace_id: UUID of the workspace to fetch
+
+    Returns:
+        dict: Workspace object from RBAC v2 API, or None if bypass_kessel is enabled
+
+    Raises:
+        ResourceNotFoundException: If workspace not found (404)
+        HTTPException: For other RBAC v2 API errors (5xx, etc.)
+    """
+    if inventory_config().bypass_kessel:
+        return None
+
+    rbac_endpoint = _get_rbac_workspace_url(workspace_id)
+    request_headers = _build_rbac_request_headers()
+
+    # Use skip_not_found=True so 404 errors raise ResourceNotFoundException
+    # This allows graceful handling of missing workspaces
+    return _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        skip_not_found=True,
+    )

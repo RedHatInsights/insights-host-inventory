@@ -350,3 +350,279 @@ def test_add_host_list_with_duplicate_host_ids(db_create_group, api_add_hosts_to
     response_status, response_data = api_add_hosts_to_group(group_id, host_ids)
     assert response_status == 400
     assert "Host IDs must be unique." in response_data["detail"]
+
+
+#
+# Tests for GET /groups/{group_id}/hosts endpoint
+#
+
+
+def test_get_hosts_from_group_basic(
+    db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group
+):
+    """Test basic functionality of getting hosts from a group"""
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    host_id_list = [db_create_host().id for _ in range(3)]
+
+    # Add 2 hosts to the group
+    db_create_host_group_assoc(host_id_list[0], group_id)
+    db_create_host_group_assoc(host_id_list[1], group_id)
+
+    # Get hosts from the group
+    response_status, response_data = api_get_hosts_from_group(group_id)
+    assert response_status == 200
+    assert response_data["total"] == 2
+    assert response_data["count"] == 2
+    assert len(response_data["results"]) == 2
+
+    # Verify the correct hosts are returned
+    returned_host_ids = {host["id"] for host in response_data["results"]}
+    assert str(host_id_list[0]) in returned_host_ids
+    assert str(host_id_list[1]) in returned_host_ids
+    assert str(host_id_list[2]) not in returned_host_ids
+
+
+def test_get_hosts_from_empty_group(db_create_group, api_get_hosts_from_group):
+    """Test getting hosts from a group that has no hosts"""
+    group_id = db_create_group("empty_group").id
+
+    response_status, response_data = api_get_hosts_from_group(group_id)
+    assert response_status == 200
+    assert response_data["total"] == 0
+    assert response_data["count"] == 0
+    assert len(response_data["results"]) == 0
+
+
+@pytest.mark.parametrize(
+    "bypass_kessel,flag_enabled,expect_rbac_call,expect_db_call",
+    [
+        (True, False, False, True),  # Kessel bypassed, should use DB
+        (False, True, True, False),  # Kessel enabled, should call RBAC API
+        (False, False, False, True),  # Kessel disabled, should use DB
+    ],
+    ids=["bypass_kessel", "kessel_enabled", "kessel_disabled"],
+)
+def test_get_hosts_from_missing_group(
+    mocker, api_get_hosts_from_group, bypass_kessel, flag_enabled, expect_rbac_call, expect_db_call
+):
+    """Test 404 error for nonexistent group across different feature flag states"""
+    missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
+
+    # Always mock configuration to make test deterministic
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = bypass_kessel
+    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+
+    # Mock RBAC workspace API for Kessel-enabled path
+    if expect_rbac_call:
+        from app.exceptions import ResourceNotFoundException
+
+        mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
+        mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
+
+    # Mock database call for non-Kessel paths
+    if expect_db_call:
+        mock_get_group_db = mocker.patch("api.host_group.get_group_by_id_from_db")
+        mock_get_group_db.return_value = None  # Group not found
+
+    response_status, response_data = api_get_hosts_from_group(missing_group_id)
+    assert response_status == 404
+
+    # Verify correct code path was taken
+    if expect_rbac_call:
+        mock_get_workspace.assert_called_once_with(missing_group_id)
+        # DB should NOT be called when RBAC v2 is used
+        if "mock_get_group_db" in locals():
+            mock_get_group_db.assert_not_called()
+
+    if expect_db_call:
+        mock_get_group_db.assert_called_once_with(missing_group_id, mocker.ANY)
+        # RBAC API should NOT be called when DB is used
+        if "mock_get_workspace" in locals():
+            mock_get_workspace.assert_not_called()
+
+
+def test_get_hosts_from_group_with_pagination(
+    db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group
+):
+    """Test pagination parameters work correctly"""
+    # Create a group and 5 hosts
+    group_id = db_create_group("test_group").id
+    host_id_list = [db_create_host().id for _ in range(5)]
+
+    # Add all 5 hosts to the group
+    for host_id in host_id_list:
+        db_create_host_group_assoc(host_id, group_id)
+
+    # Get first page (2 hosts per page)
+    response_status, response_data = api_get_hosts_from_group(group_id, query_parameters={"per_page": 2, "page": 1})
+    assert response_status == 200
+    assert response_data["total"] == 5
+    assert response_data["count"] == 2
+    assert response_data["page"] == 1
+    assert response_data["per_page"] == 2
+    assert len(response_data["results"]) == 2
+
+    # Get second page
+    response_status, response_data = api_get_hosts_from_group(group_id, query_parameters={"per_page": 2, "page": 2})
+    assert response_status == 200
+    assert response_data["total"] == 5
+    assert response_data["count"] == 2
+    assert response_data["page"] == 2
+    assert len(response_data["results"]) == 2
+
+    # Get third page (only 1 host)
+    response_status, response_data = api_get_hosts_from_group(group_id, query_parameters={"per_page": 2, "page": 3})
+    assert response_status == 200
+    assert response_data["total"] == 5
+    assert response_data["count"] == 1
+    assert response_data["page"] == 3
+    assert len(response_data["results"]) == 1
+
+
+def test_get_hosts_from_group_with_display_name_filter(
+    db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group
+):
+    """Test filtering by display_name within a group"""
+    # Create a group and 3 hosts with different display names
+    group_id = db_create_group("test_group").id
+    host1 = db_create_host(extra_data={"display_name": "server-prod-01"})
+    host2 = db_create_host(extra_data={"display_name": "server-prod-02"})
+    host3 = db_create_host(extra_data={"display_name": "db-dev-01"})
+
+    # Add all to the group
+    db_create_host_group_assoc(host1.id, group_id)
+    db_create_host_group_assoc(host2.id, group_id)
+    db_create_host_group_assoc(host3.id, group_id)
+
+    # Filter by display_name containing "prod"
+    response_status, response_data = api_get_hosts_from_group(
+        group_id, query_parameters={"display_name": "server-prod"}
+    )
+    assert response_status == 200
+    assert response_data["total"] == 2
+    returned_names = {host["display_name"] for host in response_data["results"]}
+    assert "server-prod-01" in returned_names
+    assert "server-prod-02" in returned_names
+    assert "db-dev-01" not in returned_names
+
+
+@pytest.mark.parametrize(
+    "order_how,expected_order",
+    [
+        ("ASC", ["host-a", "host-b", "host-c"]),
+        ("DESC", ["host-c", "host-b", "host-a"]),
+    ],
+    ids=["ascending", "descending"],
+)
+def test_get_hosts_from_group_with_ordering(
+    db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group, order_how, expected_order
+):
+    """Test ordering hosts by display_name (ASC and DESC)"""
+    # Create a group and 3 hosts
+    group_id = db_create_group("test_group").id
+    host_a = db_create_host(extra_data={"display_name": "host-a"})
+    host_b = db_create_host(extra_data={"display_name": "host-b"})
+    host_c = db_create_host(extra_data={"display_name": "host-c"})
+
+    # Add in reverse order to test ordering works regardless of insertion order
+    db_create_host_group_assoc(host_c.id, group_id)
+    db_create_host_group_assoc(host_b.id, group_id)
+    db_create_host_group_assoc(host_a.id, group_id)
+
+    # Get hosts with specified ordering
+    response_status, response_data = api_get_hosts_from_group(
+        group_id, query_parameters={"order_by": "display_name", "order_how": order_how}
+    )
+
+    # Verify correct ordering
+    assert response_status == 200
+    assert len(response_data["results"]) == 3
+    for idx, expected_name in enumerate(expected_order):
+        assert response_data["results"][idx]["display_name"] == expected_name
+
+
+@pytest.mark.parametrize(
+    "order_param,param_value,expected_error_text",
+    [
+        ("order_by", "invalid_field", "invalid_field"),
+        ("order_how", "SIDEWAYS", "sideways"),
+    ],
+    ids=["invalid_order_by", "invalid_order_how"],
+)
+def test_get_hosts_from_group_invalid_ordering(
+    db_create_group,
+    db_create_host,
+    db_create_host_group_assoc,
+    api_get_hosts_from_group,
+    order_param,
+    param_value,
+    expected_error_text,
+):
+    """Test 400 error for invalid ordering parameters"""
+    group_id = db_create_group("test_group").id
+    host_id = db_create_host().id
+    db_create_host_group_assoc(host_id, group_id)
+
+    # Build query parameters with one invalid value
+    query_params = {"order_by": "display_name", "order_how": "ASC"}
+    query_params[order_param] = param_value
+
+    response_status, response_data = api_get_hosts_from_group(group_id, query_parameters=query_params)
+    assert response_status == 400
+    assert expected_error_text in response_data["detail"].lower()
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_hosts_from_group_RBAC_denied(subtests, mocker, db_create_group, api_get_hosts_from_group):
+    """Test that RBAC denies access when user lacks read permissions"""
+    from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
+
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group("test_group").id)
+
+    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, _ = api_get_hosts_from_group(group_id)
+            assert_response_status(response_status, 403)
+
+
+@pytest.mark.parametrize(
+    "flag_enabled",
+    [True, False],
+    ids=["kessel_enabled", "kessel_disabled"],
+)
+def test_get_hosts_from_group_with_kessel_feature_flag(
+    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get_hosts_from_group, flag_enabled
+):
+    """Test successful host retrieval with different Kessel feature flag states"""
+    # Create a group and host
+    group_id = db_create_group("test_group").id
+    host = db_create_host()
+    db_create_host_group_assoc(host.id, group_id)
+
+    # Mock bypass_kessel=False and flag=flag_enabled
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+
+    if flag_enabled:
+        # Mock the RBAC workspace API to return a valid workspace
+        mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
+        mock_get_workspace.return_value = {"id": str(group_id), "name": "test_group"}
+
+    # Call the endpoint
+    response_status, response_data = api_get_hosts_from_group(group_id)
+
+    # Verify RBAC v2 workspace validation was called if enabled
+    if flag_enabled:
+        mock_get_workspace.assert_called_once_with(str(group_id))
+
+    # Verify response
+    assert response_status == 200
+    assert response_data["total"] == 1
+    assert len(response_data["results"]) == 1
