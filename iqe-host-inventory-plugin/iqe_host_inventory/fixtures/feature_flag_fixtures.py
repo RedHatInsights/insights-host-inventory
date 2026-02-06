@@ -166,3 +166,68 @@ def is_kessel_phase_1_enabled(unleash: UnleashBackend | ConsoleDotProxyBackend):
 @pytest.fixture(scope="session")
 def is_kessel_phase_1_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
     return unleash.is_enabled("hbi.api.kessel-phase-1")
+
+
+# Kessel Groups (RBAC v2 workspace support)
+
+
+@pytest.fixture(scope="session")
+def kessel_groups_flag(unleash: UnleashBackend | ConsoleDotProxyBackend) -> str:
+    feature_flag = "hbi.api.kessel-groups"
+
+    if isinstance(unleash, UnleashBackend) and not unleash.has_flag(feature_flag):
+        flag_request = UnleashFlagRequest(
+            name=feature_flag,
+            description="RBAC v2 workspace support for groups endpoints",
+            type=_RequestType.RELEASE,
+            impressionData=False,
+        )
+        unleash.admin.create_flag(flag_request=flag_request)
+
+    return feature_flag
+
+
+@pytest.fixture
+def enable_kessel_groups(
+    unleash: UnleashBackend | ConsoleDotProxyBackend,
+    kessel_groups_flag: str,
+) -> Generator[None, None, None]:
+    toggle_feature_flag(unleash, kessel_groups_flag)
+
+    yield
+
+    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+
+
+@pytest.fixture(scope="module")
+def enable_kessel_groups_module(
+    unleash: UnleashBackend | ConsoleDotProxyBackend,
+    kessel_groups_flag: str,
+) -> Generator[None, None, None]:
+    toggle_feature_flag(unleash, kessel_groups_flag)
+
+    yield
+
+    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+
+
+@pytest.fixture(scope="session")
+def enable_kessel_groups_session(
+    unleash: UnleashBackend | ConsoleDotProxyBackend,
+    kessel_groups_flag: str,
+) -> Generator[None, None, None]:
+    toggle_feature_flag(unleash, kessel_groups_flag)
+
+    yield
+
+    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+
+
+@pytest.fixture()
+def is_kessel_groups_enabled(unleash: UnleashBackend | ConsoleDotProxyBackend):
+    return unleash.is_enabled("hbi.api.kessel-groups")
+
+
+@pytest.fixture(scope="session")
+def is_kessel_groups_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
+    return unleash.is_enabled("hbi.api.kessel-groups")
