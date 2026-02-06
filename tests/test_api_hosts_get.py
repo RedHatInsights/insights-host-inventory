@@ -12,6 +12,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from app.exceptions import IdsNotFoundError
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -66,6 +67,26 @@ def test_query_non_existent_host_response_includes_missing_ids(api_get):
     assert response_data["detail"] == "One or more hosts not found."
 
 
+def test_ids_not_found_error_to_json_includes_ids():
+    missing_ids = [generate_uuid(), generate_uuid()]
+
+    error = IdsNotFoundError("host", missing_ids)
+    error_json = error.to_json()
+
+    assert error_json["status"] == 404
+    assert error_json["detail"] == "One or more hosts not found."
+    assert error_json["not_found_ids"] == missing_ids
+
+
+def test_ids_not_found_error_to_json_omits_ids_when_none():
+    error = IdsNotFoundError("host")
+    error_json = error.to_json()
+
+    assert error_json["status"] == 404
+    assert error_json["detail"] == "One or more hosts not found."
+    assert "not_found_ids" not in error_json
+
+
 def test_query_mixed_valid_and_missing_hosts_response_includes_only_missing_ids(db_create_host, api_get):
     # Verify 404 response only includes the missing IDs, not the valid ones
     valid_host_id = str(db_create_host().id)
@@ -78,6 +99,34 @@ def test_query_mixed_valid_and_missing_hosts_response_includes_only_missing_ids(
     assert "not_found_ids" in response_data
     assert response_data["not_found_ids"] == [missing_host_id]
     assert valid_host_id not in response_data["not_found_ids"]
+    assert response_data["detail"] == "One or more hosts not found."
+
+
+def test_query_missing_hosts_with_pagination_omits_not_found_ids(db_create_host, api_get):
+    """
+    When requesting more IDs than can fit in a single page, the backend uses `total`
+    to detect missing IDs but cannot reliably compute `not_found_ids`. In this
+    paginated case, the 404 error body must NOT include `not_found_ids`.
+    """
+    # Create multiple valid hosts and a missing ID so that with per_page=1,
+    # only some results are returned (total > len(found_objects))
+    valid_host_1 = str(db_create_host().id)
+    valid_host_2 = str(db_create_host().id)
+    missing_host_id = str(generate_uuid())
+
+    combined_ids = ",".join([valid_host_1, valid_host_2, missing_host_id])
+
+    url = build_hosts_url(
+        host_list_or_id=combined_ids,
+        query="?per_page=1",
+    )
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 404
+    # In paginated scenarios where `have_all_results` is False, the API should *not*
+    # include `not_found_ids` because it cannot be accurately computed.
+    assert "not_found_ids" not in response_data
 
 
 def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests):
