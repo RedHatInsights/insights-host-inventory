@@ -52,7 +52,6 @@ __all__ = (
     "get_all_hosts",
     "get_host_list",
     "get_host_list_by_id_list",
-    "get_host_list_by_group_id",
     "get_host_id_by_insights_id",
     "get_host_tags_list_by_id_list",
     "params_to_order_by",
@@ -217,77 +216,6 @@ def get_host_list_by_id_list(
     )
 
     return items, total, additional_fields, system_profile_fields
-
-
-def get_host_list_by_group_id(
-    group_id: str,
-    display_name: str | None = None,
-    fqdn: str | None = None,
-    hostname_or_id: str | None = None,
-    insights_id: str | None = None,
-    tags: list[str] | None = None,
-    page: int = 1,
-    per_page: int = 100,
-    order_by: str | None = None,
-    order_how: str | None = None,
-    staleness: list[str] | None = None,
-    registered_with: list[str] | None = None,
-    filter: dict | None = None,
-    fields: dict | None = None,
-    rbac_filter: dict | None = None,
-) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
-    """
-    Get a paginated list of hosts that belong to a specific group.
-
-    This is a convenience wrapper around get_host_list() that accepts
-    a single group_id string instead of a list.
-
-    Args:
-        group_id: UUID of the group to filter by
-        display_name: Filter by display name (wildcard matching)
-        fqdn: Filter by FQDN (exact matching)
-        hostname_or_id: Filter by hostname or ID (wildcard matching)
-        insights_id: Filter by insights_id
-        tags: List of tags to filter by
-        page: Page number (1-indexed)
-        per_page: Number of results per page
-        order_by: Column to order by (updated, display_name, group_name, etc.)
-        order_how: Order direction (ASC or DESC)
-        staleness: List of staleness states to include
-        registered_with: Filter by registered_with values
-        filter: System profile filters
-        fields: Additional fields to include in response
-        rbac_filter: RBAC permission filters
-
-    Returns:
-        Tuple of (host_list, total_count, additional_fields, system_profile_fields)
-    """
-    return get_host_list(
-        display_name=display_name,
-        fqdn=fqdn,
-        hostname_or_id=hostname_or_id,
-        insights_id=insights_id,
-        subscription_manager_id=None,
-        provider_id=None,
-        provider_type=None,
-        updated_start=None,
-        updated_end=None,
-        last_check_in_start=None,
-        last_check_in_end=None,
-        group_name=None,
-        group_id=[group_id],  # Convert single ID to list
-        tags=tags,
-        page=page,
-        per_page=per_page,
-        param_order_by=order_by,
-        param_order_how=order_how,
-        staleness=staleness,
-        registered_with=registered_with,
-        system_type=None,
-        filter=filter,
-        fields=fields,
-        rbac_filter=rbac_filter,
-    )
 
 
 def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None:
