@@ -24,6 +24,10 @@ from iqe_host_inventory_api_v7.api_response import ApiResponse
 from iqe_host_inventory_api_v7.models.group_in import GroupIn
 from iqe_host_inventory_api_v7.models.group_out_with_host_count import GroupOutWithHostCount
 from iqe_host_inventory_api_v7.models.group_query_output import GroupQueryOutput
+from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
+from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
+    SystemProfileNestedObjectValue,
+)
 from iqe_host_inventory_api_v7.rest import RESTResponseType
 
 
@@ -2177,6 +2181,563 @@ class GroupsApi:
         return self.api_client.param_serialize(
             method="DELETE",
             resource_path="/groups/{group_id}/hosts/{host_id_list}",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def api_host_group_get_host_list_by_group(
+        self,
+        group_id: Annotated[str, Field(strict=True, description="Group ID.")],
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="filters out hosts not tagged by the given tags"),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true" <br /><br /> To get "edge" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"'
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"'
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> HostQueryOutput:
+        """Read the list of hosts in a group
+
+        Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
+
+        :param group_id: Group ID. (required)
+        :type group_id: str
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field name
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: filters out hosts not tagged by the given tags
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
+        :type filter: Dict[str, SystemProfileNestedObjectValue]
+        :param fields: Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"
+        :type fields: Dict[str, SystemProfileNestedObjectValue]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_group_get_host_list_by_group_serialize(
+            group_id=group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostQueryOutput",
+            "404": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def api_host_group_get_host_list_by_group_with_http_info(
+        self,
+        group_id: Annotated[str, Field(strict=True, description="Group ID.")],
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="filters out hosts not tagged by the given tags"),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true" <br /><br /> To get "edge" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"'
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"'
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[HostQueryOutput]:
+        """Read the list of hosts in a group
+
+        Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
+
+        :param group_id: Group ID. (required)
+        :type group_id: str
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field name
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: filters out hosts not tagged by the given tags
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
+        :type filter: Dict[str, SystemProfileNestedObjectValue]
+        :param fields: Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"
+        :type fields: Dict[str, SystemProfileNestedObjectValue]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_group_get_host_list_by_group_serialize(
+            group_id=group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostQueryOutput",
+            "404": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def api_host_group_get_host_list_by_group_without_preload_content(
+        self,
+        group_id: Annotated[str, Field(strict=True, description="Group ID.")],
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="filters out hosts not tagged by the given tags"),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true" <br /><br /> To get "edge" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"'
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
+            Field(
+                description='Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"'
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Read the list of hosts in a group
+
+        Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
+
+        :param group_id: Group ID. (required)
+        :type group_id: str
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field name
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: filters out hosts not tagged by the given tags
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
+        :type filter: Dict[str, SystemProfileNestedObjectValue]
+        :param fields: Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"
+        :type fields: Dict[str, SystemProfileNestedObjectValue]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_group_get_host_list_by_group_serialize(
+            group_id=group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostQueryOutput",
+            "404": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        return response_data.response
+
+    def _api_host_group_get_host_list_by_group_serialize(
+        self,
+        group_id,
+        display_name,
+        fqdn,
+        hostname_or_id,
+        insights_id,
+        per_page,
+        page,
+        order_by,
+        order_how,
+        staleness,
+        tags,
+        registered_with,
+        filter,
+        fields,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: dict[str, str] = {
+            "staleness": "multi",
+            "tags": "multi",
+            "registered_with": "multi",
+        }
+
+        _path_params: dict[str, str] = {}
+        _query_params: list[tuple[str, str]] = []
+        _header_params: dict[str, str | None] = _headers or {}
+        _form_params: list[tuple[str, str]] = []
+        _files: dict[str, str | bytes] = {}
+        _body_params: bytes | None = None
+
+        # process the path parameters
+        if group_id is not None:
+            _path_params["group_id"] = group_id
+        # process the query parameters
+        if display_name is not None:
+            _query_params.append(("display_name", display_name))
+
+        if fqdn is not None:
+            _query_params.append(("fqdn", fqdn))
+
+        if hostname_or_id is not None:
+            _query_params.append(("hostname_or_id", hostname_or_id))
+
+        if insights_id is not None:
+            _query_params.append(("insights_id", insights_id))
+
+        if per_page is not None:
+            _query_params.append(("per_page", per_page))
+
+        if page is not None:
+            _query_params.append(("page", page))
+
+        if order_by is not None:
+            _query_params.append(("order_by", order_by))
+
+        if order_how is not None:
+            _query_params.append(("order_how", order_how))
+
+        if staleness is not None:
+            _query_params.append(("staleness", staleness))
+
+        if tags is not None:
+            _query_params.append(("tags", tags))
+
+        if registered_with is not None:
+            _query_params.append(("registered_with", registered_with))
+
+        if filter is not None:
+            _query_params.append(("filter", filter))
+
+        if fields is not None:
+            _query_params.append(("fields", fields))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        _header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
+        # authentication setting
+        _auth_settings: list[str] = ["ApiKeyAuth"]
+
+        return self.api_client.param_serialize(
+            method="GET",
+            resource_path="/groups/{group_id}/hosts",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
