@@ -64,14 +64,15 @@ class SystemProfileAPIWrapper(BaseEntity):
             Default: 1
         :return SystemProfileOperatingSystemOut: Response from GET /system_profile/operating_system
         """
-        return self.raw_api.api_system_profile_get_operating_system(
-            tags=tags,
-            staleness=staleness,
-            registered_with=registered_with,
-            per_page=per_page,
-            page=page,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time("GET /system_profile/operating_system"):
+            return self.raw_api.api_system_profile_get_operating_system(
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                per_page=per_page,
+                page=page,
+                **api_kwargs,
+            )
 
     def get_operating_systems(
         self,
@@ -142,15 +143,16 @@ class SystemProfileAPIWrapper(BaseEntity):
             Default: 1
         :return SystemProfileSapSystemOut: Response from GET /system_profile/sap_sids
         """
-        return self.raw_api.api_system_profile_get_sap_sids(
-            search=search,
-            tags=tags,
-            staleness=staleness,
-            registered_with=registered_with,
-            per_page=per_page,
-            page=page,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time("GET /system_profile/sap_sids"):
+            return self.raw_api.api_system_profile_get_sap_sids(
+                search=search,
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                per_page=per_page,
+                page=page,
+                **api_kwargs,
+            )
 
     def get_sap_sids(
         self,
@@ -224,14 +226,15 @@ class SystemProfileAPIWrapper(BaseEntity):
             Default: 1
         :return: SystemProfileSapSystemOut: Response from GET /system_profile/sap_system
         """
-        return self.raw_api.api_system_profile_get_sap_system(
-            tags=tags,
-            staleness=staleness,
-            registered_with=registered_with,
-            per_page=per_page,
-            page=page,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time("GET /system_profile/sap_system"):
+            return self.raw_api.api_system_profile_get_sap_system(
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                per_page=per_page,
+                page=page,
+                **api_kwargs,
+            )
 
     def get_sap_systems(
         self,

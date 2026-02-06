@@ -19,7 +19,6 @@ from app.models import Group
 from app.models import Host
 from app.models import HostAppDataAdvisor
 from app.models import HostAppDataCompliance
-from app.models import HostAppDataImageBuilder
 from app.models import HostAppDataMalware
 from app.models import HostAppDataPatch
 from app.models import HostAppDataRemediations
@@ -368,7 +367,6 @@ APP_DATA_MODELS = {
     "remediations": HostAppDataRemediations,
     "compliance": HostAppDataCompliance,
     "malware": HostAppDataMalware,
-    "image_builder": HostAppDataImageBuilder,
 }
 
 

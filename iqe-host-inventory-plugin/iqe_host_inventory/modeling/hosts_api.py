@@ -272,9 +272,10 @@ class HostsAPIWrapper(BaseEntity):
         if query:
             path += "?" + query
 
-        return self.api_client.call_api(
-            path, "GET", response_type=HostQueryOutput, _return_http_data_only=True
-        )
+        with self._host_inventory.apis.measure_time("GET /hosts"):
+            return self.api_client.call_api(
+                path, "GET", response_type=HostQueryOutput, _return_http_data_only=True
+            )
 
     def get_hosts(
         self,
@@ -445,7 +446,8 @@ class HostsAPIWrapper(BaseEntity):
             Default: ASC for display_name and group_name, DESC for update and operating_system
         :return HostQueryOutput: Response from GET /hosts/<host_ids>
         """
-        path = "/hosts/" + ",".join(_ids_from_hosts(hosts))
+        host_ids = _ids_from_hosts(hosts)
+        path = "/hosts/" + ",".join(host_ids)
         query = build_query_string(
             fields=fields,
             per_page=per_page,
@@ -458,9 +460,10 @@ class HostsAPIWrapper(BaseEntity):
         if query:
             path += "?" + query
 
-        return self.api_client.call_api(
-            path, "GET", response_type=HostQueryOutput, _return_http_data_only=True
-        )
+        with self._host_inventory.apis.measure_time("GET /hosts/<host_ids>", count=len(host_ids)):
+            return self.api_client.call_api(
+                path, "GET", response_type=HostQueryOutput, _return_http_data_only=True
+            )
 
     def get_hosts_by_id(
         self,
@@ -569,7 +572,8 @@ class HostsAPIWrapper(BaseEntity):
             Default: ASC for display_name and group_name, DESC for update and operating_system
         :return SystemProfileByHostOut: Response from GET /hosts/<host_ids>/system_profile
         """
-        path = "/hosts/" + ",".join(_ids_from_hosts(hosts)) + "/system_profile"
+        host_ids = _ids_from_hosts(hosts)
+        path = "/hosts/" + ",".join(host_ids) + "/system_profile"
         query = build_query_string(
             per_page=per_page,
             page=page,
@@ -581,9 +585,12 @@ class HostsAPIWrapper(BaseEntity):
         if query:
             path += "?" + query
 
-        return self.api_client.call_api(
-            path, "GET", response_type=SystemProfileByHostOut, _return_http_data_only=True
-        )
+        with self._host_inventory.apis.measure_time(
+            "GET /hosts/<host_ids>/system_profile", count=len(host_ids)
+        ):
+            return self.api_client.call_api(
+                path, "GET", response_type=SystemProfileByHostOut, _return_http_data_only=True
+            )
 
     def get_hosts_system_profile(
         self,
@@ -694,12 +701,14 @@ class HostsAPIWrapper(BaseEntity):
 
     @check_org_id
     def get_host_exists(self, insights_id: str) -> HostIdOut:
-        """Check if a host exists.  If so, return its host id.
+        """Check if a host exists via GET /host_exists endpoint.
+        If so, return its host_id.
 
-        :param str insights_id: the host's insights id
+        :param str insights_id: the host's insights_id
         :return HostIdOut: Object with host ID
         """
-        return self.raw_api.api_host_get_host_exists(insights_id=insights_id)
+        with self._host_inventory.apis.measure_time("GET /host_exists"):
+            return self.raw_api.api_host_get_host_exists(insights_id=insights_id)
 
     @check_org_id
     def get_host_tags_response(
@@ -732,15 +741,18 @@ class HostsAPIWrapper(BaseEntity):
         :return TagsOut: Response from GET /hosts/<host_ids>/tags
         """
         host_ids = _ids_from_hosts(hosts)
-        return self.raw_api.api_host_get_host_tags(
-            host_ids,
-            search=search,
-            per_page=per_page,
-            page=page,
-            order_by=order_by,
-            order_how=order_how,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time(
+            "GET /hosts/<host_ids>/tags", count=len(host_ids)
+        ):
+            return self.raw_api.api_host_get_host_tags(
+                host_ids,
+                search=search,
+                per_page=per_page,
+                page=page,
+                order_by=order_by,
+                order_how=order_how,
+                **api_kwargs,
+            )
 
     def get_host_tags(
         self,
@@ -819,14 +831,17 @@ class HostsAPIWrapper(BaseEntity):
         :return TagCountOut: Response from GET /hosts/<host_ids>/tags/count
         """
         host_ids = _ids_from_hosts(hosts)
-        return self.raw_api.api_host_get_host_tag_count(
-            host_ids,
-            per_page=per_page,
-            page=page,
-            order_by=order_by,
-            order_how=order_how,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time(
+            "GET /hosts/<host_ids>/tags/count", count=len(host_ids)
+        ):
+            return self.raw_api.api_host_get_host_tag_count(
+                host_ids,
+                per_page=per_page,
+                page=page,
+                order_by=order_by,
+                order_how=order_how,
+                **api_kwargs,
+            )
 
     def get_host_tags_count(
         self,
@@ -1206,7 +1221,10 @@ class HostsAPIWrapper(BaseEntity):
         if ansible_host is not None:
             data["ansible_host"] = ansible_host
 
-        response = self.raw_api.api_host_patch_host_by_id(host_ids, data, **api_kwargs)
+        with self._host_inventory.apis.measure_time(
+            "PATCH /hosts/<host_ids>", count=len(host_ids)
+        ):
+            response = self.raw_api.api_host_patch_host_by_id(host_ids, data, **api_kwargs)
 
         if wait_for_updated:
             for host_id in host_ids:
@@ -1312,9 +1330,12 @@ class HostsAPIWrapper(BaseEntity):
         :return None
         """
         host_ids = _ids_from_hosts(hosts)
-        response = self.raw_api.api_host_merge_facts(
-            host_ids, namespace=namespace, body=facts, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time(
+            "PATCH /hosts/<host_ids>/facts/<namespace>", count=len(host_ids)
+        ):
+            response = self.raw_api.api_host_merge_facts(
+                host_ids, namespace=namespace, body=facts, **api_kwargs
+            )
 
         if wait_for_updated:
             self.wait_for_facts_merged(host_ids, namespace, facts)
@@ -1384,9 +1405,12 @@ class HostsAPIWrapper(BaseEntity):
         :return None
         """
         host_ids = _ids_from_hosts(hosts)
-        response = self.raw_api.api_host_replace_facts(
-            host_ids, namespace=namespace, body=facts, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time(
+            "PUT /hosts/<host_ids>/facts/<namespace>", count=len(host_ids)
+        ):
+            response = self.raw_api.api_host_replace_facts(
+                host_ids, namespace=namespace, body=facts, **api_kwargs
+            )
 
         if wait_for_updated:
             self.wait_for_facts_replaced(host_ids, namespace, facts)
@@ -1441,7 +1465,10 @@ class HostsAPIWrapper(BaseEntity):
         :return None
         """
         host_ids = _ids_from_hosts(hosts)
-        return self.raw_api.api_host_delete_host_by_id(host_id_list=host_ids, **api_kwargs)
+        with self._host_inventory.apis.measure_time(
+            "DELETE /hosts/<host_ids>", count=len(host_ids)
+        ):
+            return self.raw_api.api_host_delete_host_by_id(host_id_list=host_ids, **api_kwargs)
 
     def delete_by_id(
         self,
@@ -1652,7 +1679,8 @@ class HostsAPIWrapper(BaseEntity):
         if query:
             path += "?" + query
 
-        response = self.api_client.call_api(path, "DELETE", _return_http_data_only=True)
+        with self._host_inventory.apis.measure_time("DELETE /hosts"):
+            response = self.api_client.call_api(path, "DELETE", _return_http_data_only=True)
 
         if wait_for_deleted:
             self.wait_for_deleted_filtered(
@@ -1798,9 +1826,10 @@ class HostsAPIWrapper(BaseEntity):
             value is allowed for negative testing
         :return None
         """
-        return self.raw_api.api_host_delete_all_hosts(
-            confirm_delete_all=confirm_delete_all, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time("DELETE /hosts/all"):
+            return self.raw_api.api_host_delete_all_hosts(
+                confirm_delete_all=confirm_delete_all, **api_kwargs
+            )
 
     def confirm_delete_all(self, *, wait_for_deleted: bool = True) -> None:
         """Delete all hosts on the account
