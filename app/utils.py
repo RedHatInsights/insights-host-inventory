@@ -468,22 +468,22 @@ def check_all_ids_found(
     Raises:
         IdsNotFoundError: If any requested IDs were not found
     """
-    # Convert to list if needed to get length (handles generators/queries)
+    # Normalize types once
+    requested_ids_set = {str(i) for i in requested_ids}
+
     if not isinstance(found_objects, (list, tuple)):
         found_objects = list(found_objects)
 
-    # Use total if provided (for paginated results), otherwise use len(found_objects)
-    found_count = total if total is not None else len(found_objects)
+    # Decide if we have a complete result set (non‑paginated or fully fetched)
+    have_all_results = total is None or total == len(found_objects)
 
-    if found_count != len(set(requested_ids)):
-        # We can only determine missing IDs if we have all results (not paginated across pages)
-        # This is true when total is not provided, or when total equals the found_objects length
-        have_all_results = total is None or total == len(found_objects)
-        if have_all_results:
-            # We have all results, so we can list the specific missing IDs
-            missing_ids = find_missing_ids(requested_ids, found_objects, id_attr)
-            raise IdsNotFoundError(resource_name, missing_ids)
-        else:
-            # For paginated results spanning multiple pages, we cannot accurately determine
-            # which IDs are missing since found_objects only contains the current page
-            raise IdsNotFoundError(resource_name)
+    # Decide which count to compare against
+    effective_found_count = len(found_objects) if have_all_results else total
+
+    # If counts match, nothing to do
+    if effective_found_count == len(requested_ids_set):
+        return
+
+    raise IdsNotFoundError(
+        resource_name, find_missing_ids(requested_ids, found_objects, id_attr) if have_all_results else None
+    )

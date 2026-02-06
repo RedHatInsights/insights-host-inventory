@@ -31,6 +31,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
+from app.exceptions import IdsNotFoundError
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -603,11 +604,8 @@ def get_host_exists(insights_id, rbac_filter=None):
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
         )
         if not allowed:
-            unauthorized_ids = kessel_data.get("unauthorized_ids", []) if kessel_data else []
-            if unauthorized_ids:
-                flask.abort(HTTPStatus.NOT_FOUND, f"Host not found: {', '.join(unauthorized_ids)}")
-            else:
-                flask.abort(HTTPStatus.NOT_FOUND)
+            unauthorized_ids = kessel_data.get("unauthorized_ids") if kessel_data else None
+            raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})

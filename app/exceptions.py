@@ -52,7 +52,7 @@ class IdsNotFoundError(InventoryException):
     def __init__(self, resource_name: str, not_found_ids: list[str] | None = None):
         self.resource_name = resource_name
         self.not_found_ids = not_found_ids
-        detail = f"One or more {resource_name}s not found."
+        detail = f"One or more {str.lower(resource_name)}s not found."
         InventoryException.__init__(self, status=404, title="Not Found", detail=detail)
 
     def to_json(self) -> dict[str, Any]:
