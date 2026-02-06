@@ -1044,3 +1044,201 @@ class GroupsApi:
             _request_timeout=local_var_params.get("_request_timeout"),
             collection_formats=collection_formats,
         )
+
+    def api_host_group_get_host_list_by_group(self, group_id, **kwargs):
+        """Read the list of hosts in a group  # noqa: E501
+
+        Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.api_host_group_get_host_list_by_group(group_id, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool: execute request asynchronously
+        :param str group_id: Group ID. (required)
+        :param str display_name: Filter by display_name (case-insensitive)
+        :param str fqdn: Filter by FQDN (case-insensitive)
+        :param str hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :param str insights_id: Filter by insights_id
+        :param int per_page: A number of items to return per page.
+        :param int page: A page number of the items to return.
+        :param str order_by: Ordering field name
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] registered_with: Filters out any host not registered by the specified reporters
+        :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
+        :param dict(str, object) fields: Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"
+        :param _preload_content: if False, the urllib3.HTTPResponse object will
+                                 be returned without reading/decoding response
+                                 data. Default is True.
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :return: HostQueryOutput
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs["_return_http_data_only"] = True
+        return self.api_host_group_get_host_list_by_group_with_http_info(group_id, **kwargs)
+
+    def api_host_group_get_host_list_by_group_with_http_info(self, group_id, **kwargs):
+        """Read the list of hosts in a group  # noqa: E501
+
+        Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.api_host_group_get_host_list_by_group_with_http_info(group_id, async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool: execute request asynchronously
+        :param str group_id: Group ID. (required)
+        :param str display_name: Filter by display_name (case-insensitive)
+        :param str fqdn: Filter by FQDN (case-insensitive)
+        :param str hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :param str insights_id: Filter by insights_id
+        :param int per_page: A number of items to return per page.
+        :param int page: A page number of the items to return.
+        :param str order_by: Ordering field name
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] registered_with: Filters out any host not registered by the specified reporters
+        :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
+        :param dict(str, object) fields: Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\"
+        :param _return_http_data_only: response data without head status code
+                                       and headers
+        :param _preload_content: if False, the urllib3.HTTPResponse object will
+                                 be returned without reading/decoding response
+                                 data. Default is True.
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :return: tuple(HostQueryOutput, status_code(int), headers(HTTPHeaderDict))
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        local_var_params = locals()
+
+        all_params = [
+            "group_id",
+            "display_name",
+            "fqdn",
+            "hostname_or_id",
+            "insights_id",
+            "per_page",
+            "page",
+            "order_by",
+            "order_how",
+            "staleness",
+            "tags",
+            "registered_with",
+            "filter",
+            "fields",
+        ]
+        all_params.extend([
+            "async_req",
+            "_return_http_data_only",
+            "_preload_content",
+            "_request_timeout",
+        ])
+
+        for key, val in local_var_params["kwargs"].items():
+            if key not in all_params:
+                raise ApiTypeError(
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_group_get_host_list_by_group"
+                )
+            local_var_params[key] = val
+        del local_var_params["kwargs"]
+        # verify the required parameter 'group_id' is set
+        if self.api_client.client_side_validation and (
+            "group_id" not in local_var_params or local_var_params["group_id"] is None
+        ):
+            raise ApiValueError(
+                "Missing the required parameter `group_id` when calling `api_host_group_get_host_list_by_group`"
+            )
+
+        if (
+            self.api_client.client_side_validation
+            and "group_id" in local_var_params
+            and not re.search(
+                r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$",
+                local_var_params["group_id"],
+            )
+        ):
+            raise ApiValueError(
+                r"Invalid value for parameter `group_id` when calling `api_host_group_get_host_list_by_group`, must conform to the pattern `/^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$/`"
+            )
+        collection_formats = {}
+
+        path_params = {}
+        if "group_id" in local_var_params:
+            path_params["group_id"] = local_var_params["group_id"]
+
+        query_params = []
+        if "display_name" in local_var_params and local_var_params["display_name"] is not None:
+            query_params.append(("display_name", local_var_params["display_name"]))
+        if "fqdn" in local_var_params and local_var_params["fqdn"] is not None:
+            query_params.append(("fqdn", local_var_params["fqdn"]))
+        if "hostname_or_id" in local_var_params and local_var_params["hostname_or_id"] is not None:
+            query_params.append(("hostname_or_id", local_var_params["hostname_or_id"]))
+        if "insights_id" in local_var_params and local_var_params["insights_id"] is not None:
+            query_params.append(("insights_id", local_var_params["insights_id"]))
+        if "per_page" in local_var_params and local_var_params["per_page"] is not None:
+            query_params.append(("per_page", local_var_params["per_page"]))
+        if "page" in local_var_params and local_var_params["page"] is not None:
+            query_params.append(("page", local_var_params["page"]))
+        if "order_by" in local_var_params and local_var_params["order_by"] is not None:
+            query_params.append(("order_by", local_var_params["order_by"]))
+        if "order_how" in local_var_params and local_var_params["order_how"] is not None:
+            query_params.append(("order_how", local_var_params["order_how"]))
+        if "staleness" in local_var_params and local_var_params["staleness"] is not None:
+            query_params.append(("staleness", local_var_params["staleness"]))
+            collection_formats["staleness"] = "multi"
+        if "tags" in local_var_params and local_var_params["tags"] is not None:
+            query_params.append(("tags", local_var_params["tags"]))
+            collection_formats["tags"] = "multi"
+        if (
+            "registered_with" in local_var_params
+            and local_var_params["registered_with"] is not None
+        ):
+            query_params.append(("registered_with", local_var_params["registered_with"]))
+            collection_formats["registered_with"] = "multi"
+        if "filter" in local_var_params and local_var_params["filter"] is not None:
+            query_params.append(("filter", local_var_params["filter"]))
+        if "fields" in local_var_params and local_var_params["fields"] is not None:
+            query_params.append(("fields", local_var_params["fields"]))
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
+        # Authentication setting
+        auth_settings = ["ApiKeyAuth"]
+
+        return self.api_client.call_api(
+            "/groups/{group_id}/hosts",
+            "GET",
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type="HostQueryOutput",
+            auth_settings=auth_settings,
+            async_req=local_var_params.get("async_req"),
+            _return_http_data_only=local_var_params.get("_return_http_data_only"),
+            _preload_content=local_var_params.get("_preload_content", True),
+            _request_timeout=local_var_params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )

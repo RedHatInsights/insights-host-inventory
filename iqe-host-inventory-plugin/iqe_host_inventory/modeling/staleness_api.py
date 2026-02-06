@@ -48,7 +48,8 @@ class AccountStalenessAPIWrapper(BaseEntity):
 
         :return StalenessOutput: Default staleness (response from GET /account/staleness/defaults)
         """
-        return self.raw_api.api_staleness_get_default_staleness(**api_kwargs)
+        with self._host_inventory.apis.measure_time("GET /account/staleness/defaults"):
+            return self.raw_api.api_staleness_get_default_staleness(**api_kwargs)
 
     def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
         """Retrieve the default staleness settings and extract staleness fields from the response.
@@ -63,7 +64,8 @@ class AccountStalenessAPIWrapper(BaseEntity):
 
         :return StalenessOutput: Current staleness (response from GET /account/staleness)
         """
-        return self.raw_api.api_staleness_get_staleness(**api_kwargs)
+        with self._host_inventory.apis.measure_time("GET /account/staleness"):
+            return self.raw_api.api_staleness_get_staleness(**api_kwargs)
 
     def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
         """Retrieve the current staleness settings and extract staleness fields from the response.
@@ -111,8 +113,10 @@ class AccountStalenessAPIWrapper(BaseEntity):
         )
         if wait_for_host_events:
             with self.wait_for_host_events():
-                return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
-        return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
+                with self._host_inventory.apis.measure_time("POST /account/staleness"):
+                    return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
+        with self._host_inventory.apis.measure_time("POST /account/staleness"):
+            return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
 
     @check_org_id
     def update_staleness(
@@ -154,8 +158,10 @@ class AccountStalenessAPIWrapper(BaseEntity):
 
         if wait_for_host_events:
             with self.wait_for_host_events():
-                return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
-        return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
+                with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
+                    return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
+        with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
+            return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
 
     @check_org_id
     def delete_staleness(self, wait_for_host_events: bool = True, **api_kwargs: Any) -> None:
@@ -171,8 +177,10 @@ class AccountStalenessAPIWrapper(BaseEntity):
         """
         if wait_for_host_events:
             with self.wait_for_host_events():
-                return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
-        return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
+                with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
+                    return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
+        with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
+            return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
 
     @contextmanager
     def cleanup_before_and_after(self) -> Generator[None]:

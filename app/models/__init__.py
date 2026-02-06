@@ -23,7 +23,6 @@ from app.models.host import Host
 from app.models.host import LimitedHost
 from app.models.host_app_data import HostAppDataAdvisor
 from app.models.host_app_data import HostAppDataCompliance
-from app.models.host_app_data import HostAppDataImageBuilder
 from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataRemediations
@@ -86,7 +85,6 @@ __all__ = [
     "HostInventoryMetadata",
     "HostAppDataAdvisor",
     "HostAppDataCompliance",
-    "HostAppDataImageBuilder",
     "HostAppDataMalware",
     "HostAppDataPatch",
     "HostAppDataRemediations",

@@ -91,6 +91,7 @@ Class | Method | HTTP request | Description
 *GroupsApi* | [**api_group_patch_group_by_id**](iqe_host_inventory_api_v7/docs/GroupsApi.md#api_group_patch_group_by_id) | **PATCH** /groups/{group_id} | Update group information
 *GroupsApi* | [**api_host_group_add_host_list_to_group**](iqe_host_inventory_api_v7/docs/GroupsApi.md#api_host_group_add_host_list_to_group) | **POST** /groups/{group_id}/hosts | Add host IDs to the provided group
 *GroupsApi* | [**api_host_group_delete_hosts_from_group**](iqe_host_inventory_api_v7/docs/GroupsApi.md#api_host_group_delete_hosts_from_group) | **DELETE** /groups/{group_id}/hosts/{host_id_list} | Delete one or more hosts from a group
+*GroupsApi* | [**api_host_group_get_host_list_by_group**](iqe_host_inventory_api_v7/docs/GroupsApi.md#api_host_group_get_host_list_by_group) | **GET** /groups/{group_id}/hosts | Read the list of hosts in a group
 *HostsApi* | [**api_host_delete_all_hosts**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_delete_all_hosts) | **DELETE** /hosts/all | Delete all hosts on the account
 *HostsApi* | [**api_host_delete_host_by_id**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_delete_host_by_id) | **DELETE** /hosts/{host_id_list} | Delete hosts by IDs
 *HostsApi* | [**api_host_delete_hosts_by_filter**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_delete_hosts_by_filter) | **DELETE** /hosts | Delete the entire list of hosts filtered by the given parameters
