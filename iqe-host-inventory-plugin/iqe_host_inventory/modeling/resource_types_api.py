@@ -56,9 +56,10 @@ class ResourceTypesAPIWrapper(BaseEntity):
             Max: 100
         :return ResourceTypesQueryOutput: Resource types OpenAPI client response
         """
-        return self.raw_api.api_resource_type_get_resource_type_list(
-            page=page, per_page=per_page, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time("GET /resource-types"):
+            return self.raw_api.api_resource_type_get_resource_type_list(
+                page=page, per_page=per_page, **api_kwargs
+            )
 
     def get_resource_types_links(
         self,
@@ -115,9 +116,10 @@ class ResourceTypesAPIWrapper(BaseEntity):
             Max: 100
         :return ResourceTypesGroupsQueryOutput: Groups OpenAPI client response
         """
-        return self.raw_api.api_resource_type_get_resource_type_groups_list(
-            name=name, page=page, per_page=per_page, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time("GET /resource-types/inventory-groups"):
+            return self.raw_api.api_resource_type_get_resource_type_groups_list(
+                name=name, page=page, per_page=per_page, **api_kwargs
+            )
 
     def get_groups_links(
         self,
