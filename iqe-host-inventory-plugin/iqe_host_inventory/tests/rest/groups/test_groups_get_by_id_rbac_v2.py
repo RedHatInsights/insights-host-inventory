@@ -27,9 +27,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.usefixtures("enable_kessel_groups")
 @pytest.mark.parametrize("n_groups", [1, 3, 5])
-def test_get_groups_by_id_rbac_v2_success(
-    host_inventory: ApplicationHostInventory, n_groups: int
-):
+def test_get_groups_by_id_rbac_v2_success(host_inventory: ApplicationHostInventory, n_groups: int):
     """
     https://issues.redhat.com/browse/RHINENG-17397
 
