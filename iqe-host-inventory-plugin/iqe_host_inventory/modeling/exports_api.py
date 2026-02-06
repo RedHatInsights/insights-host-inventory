@@ -454,11 +454,20 @@ class ExportsAPIWrapper(BaseEntity):
             )
             assert export_entry[HBI_EXPORT_FIELD_MAP["updated"]] == host.updated.isoformat()
 
-            if not sp.system_profile.host_type:
-                assert export_entry[HBI_EXPORT_FIELD_MAP["host_type"]] == "conventional"
-            else:
+            if host.openshift_cluster_id:
+                assert export_entry[HBI_EXPORT_FIELD_MAP["host_type"]] == "cluster", (
+                    f"{export_entry[HBI_EXPORT_FIELD_MAP['host_type']]} != cluster"
+                )
+            elif sp.system_profile.host_type:
                 assert (
                     export_entry[HBI_EXPORT_FIELD_MAP["host_type"]] == sp.system_profile.host_type
+                ), (
+                    f"{export_entry[HBI_EXPORT_FIELD_MAP['host_type']]} != "
+                    f"{sp.system_profile.host_type}"
+                )
+            else:
+                assert export_entry[HBI_EXPORT_FIELD_MAP["host_type"]] == "conventional", (
+                    f"{export_entry[HBI_EXPORT_FIELD_MAP['host_type']]} != conventional"
                 )
 
             assert export_entry[HBI_EXPORT_FIELD_MAP["os_release"]] == sp.system_profile.os_release
