@@ -584,10 +584,6 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         ),
         ConsumerApplication.COMPLIANCE: (host_app_data.HostAppDataCompliance, model_schemas.ComplianceDataSchema),
         ConsumerApplication.MALWARE: (host_app_data.HostAppDataMalware, model_schemas.MalwareDataSchema),
-        ConsumerApplication.IMAGE_BUILDER: (
-            host_app_data.HostAppDataImageBuilder,
-            model_schemas.ImageBuilderDataSchema,
-        ),
     }
 
     @metrics.host_app_message_handler_time.time()
