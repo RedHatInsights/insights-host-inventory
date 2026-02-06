@@ -809,10 +809,3 @@ class MalwareDataSchema(MarshmallowSchema):
     last_matches = fields.Int(allow_none=True)
     total_matches = fields.Int(allow_none=True)
     last_scan = fields.DateTime(allow_none=True)
-
-
-class ImageBuilderDataSchema(MarshmallowSchema):
-    """Schema for Image Builder application data."""
-
-    image_name = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=255))
-    image_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))

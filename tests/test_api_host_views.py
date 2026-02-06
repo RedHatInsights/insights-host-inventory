@@ -395,19 +395,3 @@ class TestHostViewAppDataEdgeCases:
         result = response_data["results"][0]
         assert "remediations" in result["app_data"]
         assert result["app_data"]["remediations"]["remediations_plans"] == 7
-
-    def test_image_builder_data(self, api_get, db_create_host, db_create_host_app_data):
-        """Image Builder data should include image_name and image_status."""
-        host = db_create_host()
-        host_id = str(host.id)
-        host_org_id = host.org_id
-        db_create_host_app_data(host_id, host_org_id, "image_builder", image_name="rhel-9-base", image_status="ready")
-
-        url = build_host_view_url()
-        response_status, response_data = api_get(url)
-
-        assert_response_status(response_status, 200)
-        result = response_data["results"][0]
-        assert "image_builder" in result["app_data"]
-        assert result["app_data"]["image_builder"]["image_name"] == "rhel-9-base"
-        assert result["app_data"]["image_builder"]["image_status"] == "ready"
