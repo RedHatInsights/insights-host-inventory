@@ -17,7 +17,7 @@ class Staleness(db.Model):
     __tablename__ = "staleness"
     __table_args__ = (
         Index("idxaccstaleorgid", "org_id"),
-        UniqueConstraint("org_id", name="staleness_unique_org_id"),
+        UniqueConstraint("org_id", name="staleness_org_id_key"),
         {"schema": INVENTORY_SCHEMA},
     )
 
@@ -51,5 +51,5 @@ class Staleness(db.Model):
         db.Integer, default=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS, nullable=False
     )
     conventional_time_to_delete = db.Column(db.Integer, default=CONVENTIONAL_TIME_TO_DELETE_SECONDS, nullable=False)
-    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
-    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now, nullable=False)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now, nullable=False)

@@ -225,14 +225,6 @@ def db_create_multiple_hosts(flask_app: FlaskApp) -> Callable[..., list[Host]]: 
 
 
 @pytest.fixture(scope="function")
-def db_create_host_in_unknown_state(db_create_host):
-    host = minimal_db_host()
-    host.stale_timestamp = None
-    host.reporter = None
-    return db_create_host(host=host)
-
-
-@pytest.fixture(scope="function")
 def models_datetime_mock(mocker):
     mock = mocker.patch("app.models.utils.datetime", **{"now.return_value": now()})
     return mock.now.return_value

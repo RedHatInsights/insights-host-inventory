@@ -61,7 +61,7 @@ class RBACAPIWrapper(BaseEntity):
         hbi_groups_ids = _hbi_groups_to_ids(hbi_groups)
         permission_v = permission.value
 
-        name = f"iqe-hbi-group_{permission_v}_{generate_uuid()}" if name is None else name
+        name = f"iqe-hbi-group_{generate_uuid()}" if name is None else name
         description = (
             f"Inventory group for {permission_v} permission tests with groups: {hbi_groups_ids}"
             if description is None
@@ -84,7 +84,7 @@ class RBACAPIWrapper(BaseEntity):
         permission_v = permission.value
         application = permission_v.split(":")[0]
 
-        name = f"iqe-hbi-role_{permission_v}_{generate_uuid()}" if name is None else name
+        name = f"iqe-hbi-role_{generate_uuid()}" if name is None else name
         description = (
             f"Inventory role for {permission_v} permission tests with groups: {hbi_group_ids}"
             if description is None

@@ -8,19 +8,38 @@ Note: The system profile schema only allows 'edge' or 'cluster' as host_type val
 When bootc_status is present, the transformer sets host_type to 'bootc'.
 """
 
+import pytest
+
 from app.serialization import _map_host_type_for_backward_compatibility
+from tests.helpers.test_utils import generate_uuid
 
 
 class TestHostTypeDerivation:
     """Test host_type derivation from system profile."""
 
-    def test_derive_host_type_cluster(self, db_create_host):
+    def test_derive_host_type_cluster_explicit(self, db_create_host):
         """Test that explicit cluster type takes highest priority."""
         host = db_create_host(extra_data={"system_profile_facts": {"host_type": "cluster"}})
 
         assert host.host_type == "cluster"
         assert host.static_system_profile is not None
         assert host.static_system_profile.host_type == "cluster"
+
+    def test_derive_host_type_cluster_from_openshift_cluster_id(self, db_create_host):
+        """Test that cluster is derived when openshift_cluster_id is set."""
+        host = db_create_host(extra_data={"openshift_cluster_id": generate_uuid()})
+
+        assert host.host_type == "cluster"
+
+    @pytest.mark.parametrize("host_type", ["edge", "cluster", "conventional"])
+    def test_derive_host_type_cluster_from_openshift_cluster_id_and_explicit_host_type(
+        self, db_create_host, host_type
+    ):
+        """Test that cluster is derived when openshift_cluster_id is set and explicit cluster type is present."""
+        host = db_create_host(
+            extra_data={"openshift_cluster_id": generate_uuid(), "system_profile_facts": {"host_type": host_type}}
+        )
+        assert host.host_type == "cluster"
 
     def test_derive_host_type_edge_explicit(self, db_create_host):
         """Test that explicit edge type is recognized."""
