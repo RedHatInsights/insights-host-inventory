@@ -1064,3 +1064,9 @@ def hbi_recreate_data_on_secondary_account_after_delete(
     yield
 
     create_data_on_secondary_account(hbi_maybe_application_secondary.host_inventory)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def hbi_log_api_request_statistics(host_inventory: ApplicationHostInventory) -> Generator[None]:
+    yield
+    host_inventory.apis.log_request_statistics()

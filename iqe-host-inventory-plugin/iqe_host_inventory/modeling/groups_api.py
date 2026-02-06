@@ -156,15 +156,16 @@ class GroupsAPIWrapper(BaseEntity):
             Default: ASC for 'name' and 'type', DESC for 'host_count', 'updated', and 'created'
         :return GroupQueryOutput: API response
         """
-        return self.raw_api.api_group_get_group_list(
-            name=name,
-            group_type=group_type,
-            per_page=per_page,
-            page=page,
-            order_by=order_by,
-            order_how=order_how,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time("GET /groups"):
+            return self.raw_api.api_group_get_group_list(
+                name=name,
+                group_type=group_type,
+                per_page=per_page,
+                page=page,
+                order_by=order_by,
+                order_how=order_how,
+                **api_kwargs,
+            )
 
     def get_groups(
         self,
@@ -235,14 +236,17 @@ class GroupsAPIWrapper(BaseEntity):
         :return GroupQueryOutput: API response
         """
         group_ids = _ids_from_groups(groups)
-        return self.raw_api.api_group_get_groups_by_id(
-            group_ids,
-            per_page=per_page,
-            page=page,
-            order_by=order_by,
-            order_how=order_how,
-            **api_kwargs,
-        )
+        with self._host_inventory.apis.measure_time(
+            "GET /groups/<group_ids>", count=len(group_ids)
+        ):
+            return self.raw_api.api_group_get_groups_by_id(
+                group_ids,
+                per_page=per_page,
+                page=page,
+                order_by=order_by,
+                order_how=order_how,
+                **api_kwargs,
+            )
 
     def get_groups_by_id(
         self,
@@ -372,7 +376,8 @@ class GroupsAPIWrapper(BaseEntity):
             host_ids: list[str] = _ids_from_hosts(hosts)
             group_data["host_ids"] = host_ids
 
-        created_group = self.raw_api.api_group_create_group(group_data, **api_kwargs)
+        with self._host_inventory.apis.measure_time("POST /groups"):
+            created_group = self.raw_api.api_group_create_group(group_data, **api_kwargs)
 
         if wait_for_created:
             self.wait_for_created(created_group)
@@ -541,7 +546,10 @@ class GroupsAPIWrapper(BaseEntity):
         :return None
         """
         group_ids = _ids_from_groups(groups)
-        return self.raw_api.api_group_delete_groups(group_ids, **api_kwargs)
+        with self._host_inventory.apis.measure_time(
+            "DELETE /groups/<group_ids>", count=len(group_ids)
+        ):
+            return self.raw_api.api_group_delete_groups(group_ids, **api_kwargs)
 
     def delete_groups(
         self,
@@ -705,9 +713,10 @@ class GroupsAPIWrapper(BaseEntity):
             assert not isinstance(hosts, set)
             data["host_ids"] = _ids_from_hosts(hosts)
 
-        updated_group: GroupOutWithHostCount = self.raw_api.api_group_patch_group_by_id(
-            group_id, data, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time("PATCH /groups/<group_id>"):
+            updated_group: GroupOutWithHostCount = self.raw_api.api_group_patch_group_by_id(
+                group_id, data, **api_kwargs
+            )
 
         if wait_for_updated:
             self.wait_for_updated(group, name=name, hosts=hosts)
@@ -885,9 +894,12 @@ class GroupsAPIWrapper(BaseEntity):
         host_id_list = _ids_from_hosts(hosts)
 
         logger.info(f"Removing hosts {host_id_list} from group {group_id}.")
-        response = self.raw_api.api_host_group_delete_hosts_from_group(
-            group_id=group_id, host_id_list=host_id_list, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time(
+            "DELETE /groups/<group_id>/hosts/<host_ids>", count=len(host_id_list)
+        ):
+            response = self.raw_api.api_host_group_delete_hosts_from_group(
+                group_id=group_id, host_id_list=host_id_list, **api_kwargs
+            )
 
         if wait_for_removed:
             self.wait_for_hosts_removed(hosts)
@@ -915,9 +927,12 @@ class GroupsAPIWrapper(BaseEntity):
         host_id_list = _ids_from_hosts(hosts)
 
         logger.info(f"Removing hosts {host_id_list} from their groups.")
-        response = self.raw_api.api_group_delete_hosts_from_different_groups(
-            host_id_list, **api_kwargs
-        )
+        with self._host_inventory.apis.measure_time(
+            "DELETE /groups/hosts/<host_ids>", count=len(host_id_list)
+        ):
+            response = self.raw_api.api_group_delete_hosts_from_different_groups(
+                host_id_list, **api_kwargs
+            )
 
         if wait_for_removed:
             self.wait_for_hosts_removed(hosts)
@@ -995,9 +1010,12 @@ class GroupsAPIWrapper(BaseEntity):
         """
         group_id = _id_from_group(group)
         host_ids = _ids_from_hosts(hosts)
-        updated_group: GroupOutWithHostCount = self.raw_api.api_host_group_add_host_list_to_group(
-            group_id, host_ids
-        )
+        with self._host_inventory.apis.measure_time(
+            "POST /groups/<group_id>/hosts", count=len(host_ids)
+        ):
+            updated_group: GroupOutWithHostCount = (
+                self.raw_api.api_host_group_add_host_list_to_group(group_id, host_ids)
+            )
 
         if wait_for_added:
             self.wait_for_hosts_added(group, hosts)
