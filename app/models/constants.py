@@ -1,7 +1,7 @@
 import os
 from datetime import UTC
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from marshmallow import validate as marshmallow_validate
 
@@ -25,8 +25,11 @@ WORKLOADS_FIELDS = {
     "oracle_db",
     "rhel_ai",
     "sap",
+    "sap_instance_number",
     "sap_sids",
     "sap_system",
+    "sap_version",
+    "third_party_services",
 }
 
 MIN_CANONICAL_FACTS_VERSION = 0
@@ -37,7 +40,7 @@ ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     ALIBABA = "alibaba"
     AWS = "aws"
     AZURE = "azure"
@@ -46,7 +49,7 @@ class ProviderType(str, Enum):
     IBM = "ibm"
 
 
-class SystemType(str, Enum):
+class SystemType(StrEnum):
     CONVENTIONAL = "conventional"
     BOOTC = "bootc"
     EDGE = "edge"

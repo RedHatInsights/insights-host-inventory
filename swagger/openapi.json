@@ -2199,7 +2199,8 @@
             "advisor:incidents",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
-            "patch:installable_advisories",
+            "patch:advisories_rhsa_installable",
+            "patch:packages_installable",
             "remediations:remediations_plans",
             "compliance:policies",
             "compliance:last_scan",
@@ -2903,11 +2904,13 @@
         "properties": {
           "recommendations": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "incidents": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           }
         }
       },
@@ -2916,38 +2919,97 @@
         "properties": {
           "total_cves": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "critical_cves": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "high_severity_cves": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "cves_with_security_rules": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "cves_with_known_exploits": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           }
         }
       },
       "PatchAppData": {
         "type": "object",
         "properties": {
-          "installable_advisories": {
+          "advisories_rhsa_applicable": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
-          "template": {
-            "type": "string"
+          "advisories_rhba_applicable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
           },
-          "rhsm_locked_version": {
-            "type": "string"
+          "advisories_rhea_applicable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "advisories_other_applicable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "advisories_rhsa_installable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "advisories_rhba_installable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "advisories_rhea_installable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "advisories_other_installable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "packages_applicable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "packages_installable": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "packages_installed": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "template_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "template_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -2956,7 +3018,8 @@
         "properties": {
           "remediations_plans": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           }
         }
       },
@@ -2965,11 +3028,13 @@
         "properties": {
           "policies": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "last_scan": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -2977,15 +3042,18 @@
         "type": "object",
         "properties": {
           "last_status": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "last_matches": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "nullable": true
           },
           "last_scan": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -2993,10 +3061,12 @@
         "type": "object",
         "properties": {
           "image_name": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "image_status": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -3040,9 +3110,19 @@
             "items": {
               "type": "string",
               "enum": [
-                "installable_advisories",
-                "template",
-                "rhsm_locked_version"
+                "advisories_rhsa_applicable",
+                "advisories_rhba_applicable",
+                "advisories_rhea_applicable",
+                "advisories_other_applicable",
+                "advisories_rhsa_installable",
+                "advisories_rhba_installable",
+                "advisories_rhea_installable",
+                "advisories_other_installable",
+                "packages_applicable",
+                "packages_installable",
+                "packages_installed",
+                "template_name",
+                "template_uuid"
               ]
             }
           },
@@ -3140,13 +3220,14 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:installable_advisories` - Number of installable advisories\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:policies` - Number of compliance policies\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:policies` - Number of compliance policies\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
-          "patch:installable_advisories",
+          "patch:advisories_rhsa_installable",
+          "patch:packages_installable",
           "remediations:remediations_plans",
           "compliance:policies",
           "compliance:last_scan",

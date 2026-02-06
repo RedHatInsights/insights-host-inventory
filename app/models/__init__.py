@@ -23,7 +23,6 @@ from app.models.host import Host
 from app.models.host import LimitedHost
 from app.models.host_app_data import HostAppDataAdvisor
 from app.models.host_app_data import HostAppDataCompliance
-from app.models.host_app_data import HostAppDataImageBuilder
 from app.models.host_app_data import HostAppDataMalware
 from app.models.host_app_data import HostAppDataPatch
 from app.models.host_app_data import HostAppDataRemediations
@@ -49,6 +48,7 @@ from app.models.schemas import YumRepoSchema
 from app.models.staleness import Staleness
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
+from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
@@ -85,7 +85,6 @@ __all__ = [
     "HostInventoryMetadata",
     "HostAppDataAdvisor",
     "HostAppDataCompliance",
-    "HostAppDataImageBuilder",
     "HostAppDataMalware",
     "HostAppDataPatch",
     "HostAppDataRemediations",
@@ -112,4 +111,5 @@ __all__ = [
     "deleted_by_this_query",
     "datetime",
     "HostDynamicSystemProfile",
+    "HostStaticSystemProfile",
 ]

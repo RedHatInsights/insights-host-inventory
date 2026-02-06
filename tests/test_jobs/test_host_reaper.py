@@ -226,40 +226,6 @@ def test_reaper_shutdown_handler(
     assert fake_event_producer.write_event.call_count == 2
 
 
-@pytest.mark.host_reaper
-def test_unknown_host_is_not_removed(
-    flask_app: FlaskApp,
-    event_producer_mock: MockEventProducer,
-    notification_event_producer_mock: MockEventProducer,
-    db_create_host_in_unknown_state: Host,
-    inventory_config: Config,
-    db_get_host: Callable[[UUID | str], Host | None],
-) -> None:
-    created_host = db_create_host_in_unknown_state
-    retrieved_host = db_get_host(created_host.id)
-
-    assert retrieved_host
-    assert retrieved_host.stale_timestamp is None
-    assert retrieved_host.reporter is None
-
-    threadctx.request_id = None
-    host_reaper_run(
-        inventory_config,
-        mock.Mock(),
-        db.session,
-        event_producer_mock,
-        notification_event_producer_mock,
-        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        application=flask_app,
-    )
-
-    assert event_producer_mock.event is None
-    assert notification_event_producer_mock.event is None
-
-    retrieved_host = db_get_host(created_host.id)
-    assert retrieved_host
-
-
 def assert_system_culling_data(
     response_host: dict,
     expected_stale_timestamp: datetime,

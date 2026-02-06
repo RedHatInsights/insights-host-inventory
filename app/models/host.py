@@ -3,7 +3,6 @@ from contextlib import suppress
 
 from dateutil.parser import isoparse
 from flask import current_app
-from sqlalchemy import Index
 from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import cast
@@ -39,16 +38,13 @@ logger = get_logger(__name__)
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
+# Fields that should be merged (shallow) instead of replaced when updating system profiles.
+SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
+
 
 class LimitedHost(db.Model):
     __tablename__ = "hosts"
-    __table_args__ = (
-        Index("idxorgid", "org_id"),
-        Index("idxdisplay_name", "display_name"),
-        Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
-        Index("idxgroups", "groups", postgresql_using="gin"),
-        {"schema": INVENTORY_SCHEMA},
-    )
+    __table_args__ = ({"schema": INVENTORY_SCHEMA},)
 
     def __init__(
         self,
@@ -158,18 +154,22 @@ class LimitedHost(db.Model):
 
         Business logic:
         - EDGE: host_type == "edge" (explicit)
-        - CLUSTER: host_type == "cluster" (explicit)
+        - CLUSTER: host_type == "cluster" (explicit) OR openshift_cluster_id is not None/empty
         - BOOTC: bootc_status exists AND bootc_status["booted"]["image_digest"] is not None/empty
         - CONVENTIONAL: default (bootc_status is None/empty OR image_digest is None/empty, AND host_type is None/empty)
 
         Priority order:
-        1. Use explicit host_type from static profile if set ("edge" or "cluster")
-        2. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
-        3. Default to "conventional" (traditional systems)
+        1. If openshift_cluster_id is set, use "cluster"
+        2. Use explicit host_type from static profile if set ("edge" or "cluster")
+        3. Check bootc_status for bootc systems (bootc_status["booted"]["image_digest"] is not None/empty)
+        4. Default to "conventional" (traditional systems)
 
         Returns:
             str: The derived host type ('cluster', 'edge', 'bootc', or 'conventional')
         """
+        if self.openshift_cluster_id:
+            return "cluster"
+
         if not (static := self.static_system_profile):
             return "conventional"
 
@@ -198,37 +198,69 @@ class LimitedHost(db.Model):
             self.host_type = derived
             orm.attributes.flag_modified(self, "host_type")
 
+    @staticmethod
+    def _update_profile_attributes(profile, data: dict, skip_keys: set | None = None):
+        """
+        Update a system profile object's attributes from a dictionary.
+
+        For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
+        For all other fields, replaces the value entirely.
+
+        Args:
+            profile: The system profile object to update (static or dynamic)
+            data: Dictionary of field names and values to apply
+            skip_keys: Set of keys to skip (e.g., {"org_id", "host_id"})
+        """
+        skip_keys = skip_keys or set()
+
+        for key, value in data.items():
+            if key in skip_keys:
+                continue
+
+            if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
+                existing = getattr(profile, key, None) or {}
+                merged = {**existing, **value}
+                setattr(profile, key, merged)
+            else:
+                setattr(profile, key, value)
+
     def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
+        from copy import deepcopy
+
+        from app.models.schemas import LimitedHostSchema
         from app.models.system_profile_transformer import validate_and_transform
 
         if not input_system_profile:
             self._update_derived_host_type()
             return
 
+        # Make a copy and migrate legacy workload fields to workloads.* for the normalized tables
+        # This ensures backward compatibility: legacy fields in input are converted to workloads.*
+        # before being written to the new system_profiles_dynamic.workloads column
+        system_profile_copy = deepcopy(input_system_profile)
+        data_wrapper = {"system_profile": system_profile_copy}
+        LimitedHostSchema._migrate_and_remove_legacy_workloads_fields(data_wrapper)
+        migrated_profile = data_wrapper["system_profile"]
+
         # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), migrated_profile)
+
+        # Keys that are managed automatically and should not be updated from input
+        skip_keys = {"org_id", "host_id"}
 
         # Update or create static system profile
         if static_data:
             if self.static_system_profile:
-                # Update existing record
-                for key, value in static_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.static_system_profile, key, value)
+                self._update_profile_attributes(self.static_system_profile, static_data, skip_keys)
             else:
-                # Create new record
                 self.static_system_profile = HostStaticSystemProfile(**static_data)
 
         # Update or create dynamic system profile
         if dynamic_data:
             if self.dynamic_system_profile:
-                # Update existing record
-                for key, value in dynamic_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.dynamic_system_profile, key, value)
+                self._update_profile_attributes(self.dynamic_system_profile, dynamic_data, skip_keys)
             else:
-                # Create new record
                 self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
 
         self._update_derived_host_type()
@@ -258,7 +290,7 @@ class LimitedHost(db.Model):
     openshift_cluster_id = db.Column(UUID(as_uuid=True))
     host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
     system_profile_facts = db.Column(JSONB)
-    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
+    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [], nullable=False)
     last_check_in = db.Column(db.DateTime(timezone=True))
 
     static_system_profile = relationship(
@@ -270,11 +302,11 @@ class LimitedHost(db.Model):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True))
+    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
-    reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB)
+    reporter = db.Column(db.String(255), nullable=False)
+    per_reporter_staleness = db.Column(JSONB, nullable=False)
     display_name_reporter = db.Column(db.String(255))
 
     def __init__(
@@ -579,22 +611,8 @@ class Host(LimitedHost):
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
 
-        # Update the existing JSONB column (backward compatibility)
-        if not self.system_profile_facts:
-            self.system_profile_facts = input_system_profile
-        else:
-            for key, value in input_system_profile.items():
-                if key in ["rhsm", "workloads"]:
-                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
-                else:
-                    self.system_profile_facts[key] = value
-        orm.attributes.flag_modified(self, "system_profile_facts")
-
-        # Update the normalized system profile tables
         try:
             self._add_or_update_normalized_system_profiles(input_system_profile)
-        except ValidationException as e:
-            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 

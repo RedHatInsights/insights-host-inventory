@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from base64 import b64decode
 from base64 import b64encode
-from enum import Enum
+from enum import StrEnum
 from json import dumps
 from json import loads
 from typing import Any
@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 SHARED_SECRET_ENV_VAR = "INVENTORY_SHARED_SECRET"
 
 
-class AuthType(str, Enum):
+class AuthType(StrEnum):
     BASIC = "basic-auth"
     CERT = "cert-auth"
     JWT = "jwt-auth"
@@ -29,7 +29,7 @@ class AuthType(str, Enum):
     X509 = "x509"
 
 
-class CertType(str, Enum):
+class CertType(StrEnum):
     HYPERVISOR = "hypervisor"
     RHUI = "rhui"
     SAM = "sam"
@@ -37,7 +37,7 @@ class CertType(str, Enum):
     SYSTEM = "system"
 
 
-class IdentityType(str, Enum):
+class IdentityType(StrEnum):
     SYSTEM = "System"
     USER = "User"
     SERVICE_ACCOUNT = "ServiceAccount"
@@ -178,6 +178,8 @@ class SystemIdentitySchema(IdentityBaseSchema):
 class ServiceAccountInfoIdentitySchema(IdentityBaseSchema):
     client_id = m.fields.Str(required=True, validate=m.validate.Length(min=1))
     username = m.fields.Str(required=True, validate=m.validate.Length(min=1))
+    user_id = m.fields.Str(required=False)
+    scope = m.fields.Str(required=False)
 
 
 class ServiceAccountIdentitySchema(IdentityBaseSchema):
