@@ -9,10 +9,10 @@ name = "iqe-host-inventory-plugin"
 version = "25.99.1.dev1"
 readme = "README.md"
 maintainers = [
+  { name = "Adarsh Dubey", email = "addubey@redhat.com" },
   { name = "Frantisek Stavela", email = "fstavela@redhat.com" },
   { name = "Mike Sager", email = "msager@redhat.com" },
   { name = "Zhamilya Abikenova", email = "zabikeno@redhat.com" },
-  { name = "Adarsh Dubey", email = "addubey@redhat.com" },
 ]
 requires-python = ">=3.12"
 classifiers = [
@@ -49,21 +49,21 @@ entry-points.pytest11.iqe_host_inventory_plugin = "iqe_host_inventory.pytest_plu
 [tool.hatch.build]
 packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
 
+[tool.hatch.build.targets.sdist]
+include = [ "/iqe_host_inventory", "/iqe_host_inventory_api", "/iqe_host_inventory_api_v7" ]
+
+[tool.hatch.build.targets.wheel]
+packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
+
+[tool.hatch.envs.default]
+python = "3.9"
+
 [tool.hatch.envs.default.env-vars]
 PIP_INDEX = "https://nexus.corp.redhat.com/repository/cqt-pypi/pypi"
 PIP_INDEX_URL = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
 
 # enable comms with nexus and stage CRC
 REQUESTS_CA_BUNDLE = "/etc/pki/tls/certs/ca-bundle.crt"
-
-[tool.hatch.envs.default]
-python = "3.9"
-
-[tool.hatch.build.targets.sdist]
-include = [ "/iqe_host_inventory", "/iqe_host_inventory_api", "/iqe_host_inventory_api_v7" ]
-
-[tool.hatch.build.targets.wheel]
-packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
 
 [tool.ruff]
 line-length = 99

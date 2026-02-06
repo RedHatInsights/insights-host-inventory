@@ -931,6 +931,78 @@
       }
     },
     "/groups/{group_id}/hosts": {
+      "get": {
+        "operationId": "api.host_group.get_host_list_by_group",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Read the list of hosts in a group",
+        "description": "Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/groupId"
+          },
+          {
+            "$ref": "#/components/parameters/displayName"
+          },
+          {
+            "$ref": "#/components/parameters/fqdn"
+          },
+          {
+            "$ref": "#/components/parameters/hostnameOrId"
+          },
+          {
+            "$ref": "#/components/parameters/insightsId"
+          },
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostOrderByParam"
+          },
+          {
+            "$ref": "#/components/parameters/hostOrderHowParam"
+          },
+          {
+            "$ref": "#/components/parameters/stalenessParam"
+          },
+          {
+            "$ref": "#/components/parameters/tagsParam"
+          },
+          {
+            "$ref": "#/components/parameters/registered_with"
+          },
+          {
+            "$ref": "#/components/parameters/filter_param"
+          },
+          {
+            "$ref": "#/components/parameters/fields_param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the hosts in the group.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostQueryOutput"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found."
+          }
+        }
+      },
       "post": {
         "operationId": "api.host_group.add_host_list_to_group",
         "tags": [
