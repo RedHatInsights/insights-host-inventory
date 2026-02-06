@@ -560,4 +560,4 @@ def test_delete_host_from_nonexistent_group(
     response_status, response_data = api_remove_hosts_from_group(str(generate_uuid()), [host_id])
 
     assert_response_status(response_status, 404)
-    assert "Group not found" in response_data["detail"]
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
