@@ -18,7 +18,7 @@ class Group(db.Model):
     __tablename__ = "groups"
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
-        Index("idx_groups_org_id_name_ignorecase", "org_id", text("lower(name)"), unique=False),
+        Index("idx_groups_org_id_name_ignorecase", text("lower(name)"), "org_id", unique=False),
         Index("idxorgidungrouped", "org_id", "ungrouped"),
         {"schema": INVENTORY_SCHEMA},
     )
@@ -68,5 +68,5 @@ class Group(db.Model):
     org_id = db.Column(db.String(36), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     ungrouped = db.Column(db.Boolean, default=False, nullable=False)
-    created_on = db.Column(db.DateTime(timezone=True), default=_time_now)
-    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now)
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now, nullable=False)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now, nullable=False)

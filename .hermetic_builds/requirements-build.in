@@ -1,5 +1,5 @@
 pipenv==2025.0.4
-wheel==0.45.1
+wheel==0.46.2
 flit_core<4,>=3.8
 virtualenv>=20.24.2
 hatch-vcs==0.4.0

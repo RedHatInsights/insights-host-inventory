@@ -537,20 +537,23 @@ INVALID_SYSTEM_PROFILES = (
         }
     },
     {
-        "rhel_ai": {  # Must be a string, not a number
-            "variant": "RHEL AI",
-            "rhel_ai_version_id": 1.1,
-            "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34"],
-            "intel_gaudi_hpu_models": ["Habana Labs Ltd. Device 1020"],
-            "nvidia_gpu_models": ["NVIDIA T1000", "Tesla V100-PCIE-16GB"],
+        "workloads": {
+            "rhel_ai": {  # Must be a string, not a number
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": 1.1,
+                "gpu_models": [
+                    {"name": "NVIDIA T1000", "vendor": "Nvidia", "memory": "16GB", "count": 2},
+                ],
+            }
         }
     },
     {
-        "rhel_ai": {  # Must be a string as array elements, not a boolean
-            "variant": "RHEL AI",
-            "rhel_ai_version_id": "v1.1.3",
-            "amd_gpu_models": ["Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34"],
-            "nvidia_gpu_models": [True, "Tesla V100-PCIE-16GB"],
+        "workloads": {
+            "rhel_ai": {  # Must be a string as array elements, not a boolean
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "ai_models": [True, "granite-7b-starter"],  # Invalid: True is not a string
+            }
         }
     },
     {
@@ -1049,18 +1052,17 @@ VALID_SYSTEM_PROFILES = (
     {"system_update_method": "yum"},
     {"conversions": {"activity": True}},
     {
-        "rhel_ai": {
-            "variant": "RHEL AI",
-            "rhel_ai_version_id": "v1.1.3",
-            "amd_gpu_models": [
-                "Advanced Micro Devices, Inc. [AMD/ATI] Device 0c34",
-                "Advanced Micro Devices, Inc. [AMD/ATI] Radeon PRO V320",
-            ],
-            "intel_gaudi_hpu_models": [
-                "Habana Labs Ltd. Device 1020",
-                "Habana Labs Ltd. HL-2000 AI Training Accelerator [Gaudi]",
-            ],
-            "nvidia_gpu_models": ["NVIDIA T1000", "Tesla V100-PCIE-16GB"],
+        "workloads": {
+            "rhel_ai": {
+                "variant": "RHEL AI",
+                "rhel_ai_version_id": "v1.1.3",
+                "gpu_models": [
+                    {"name": "NVIDIA T1000", "vendor": "Nvidia", "memory": "16GB", "count": 2},
+                    {"name": "AMD Device 0c34", "vendor": "AMD", "memory": "8GB", "count": 1},
+                ],
+                "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
+                "free_disk_storage": "698GB",
+            }
         }
     },
     {

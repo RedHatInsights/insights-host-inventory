@@ -33,6 +33,7 @@ from app.models import Staleness
 from app.models import StalenessSchema
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import serialize_host
 from app.serialization import serialize_staleness_response
@@ -147,13 +148,14 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
 
 
 def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
     headers = message_headers(
         EventType.updated,
         str(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     metadata = {"b64_identity": to_auth_header(identity)}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)

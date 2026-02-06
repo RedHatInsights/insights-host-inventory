@@ -15,11 +15,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app import create_app
 from app.environment import RuntimeEnvironment
-from app.logging import configure_logging
 from app.logging import get_logger
 from app.logging import threadctx
 from app.queue.event_producer import EventProducer
 from app.queue.host_mq import sync_event_message
+from jobs.common import excepthook
 from lib.db import session_guard
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
@@ -30,10 +30,6 @@ from lib.handlers import register_shutdown
 __all__ = "main"
 
 LOGGER_NAME = "inventory_events_rebuilder"
-
-
-def _excepthook(logger, type, value, traceback):  # noqa: ARG001, needed by sys.excepthook
-    logger.exception("Events topic rebuilder failed", exc_info=value)
 
 
 def _init_db(config):
@@ -133,10 +129,9 @@ def main(logger):
 
 
 if __name__ == "__main__":
-    configure_logging()
-
     logger = get_logger(LOGGER_NAME)
-    sys.excepthook = partial(_excepthook, logger)
+    job_type = "Events topic rebuilder"
+    sys.excepthook = partial(excepthook, logger, job_type)
 
     threadctx.request_id = None
     main(logger)

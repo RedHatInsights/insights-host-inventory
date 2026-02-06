@@ -6,7 +6,7 @@ import types
 from base64 import b64encode
 from collections.abc import Callable
 from datetime import timedelta
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
@@ -33,6 +33,7 @@ BASE_URL = "/api/inventory/v1"
 LEGACY_BASE_URL = "/r/insights/platform/inventory/v1"
 HOST_URL = f"{BASE_URL}/hosts"
 HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
+HOST_VIEW_URL = f"{BASE_URL}/beta/hosts-view"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
@@ -503,6 +504,10 @@ def build_host_exists_url(insights_id):
     return _build_url(base_url=HOST_EXISTS_URL, query=f"?insights_id={insights_id}")
 
 
+def build_host_view_url(query: str | None = None) -> str:
+    return _build_url(base_url=HOST_VIEW_URL, query=query)
+
+
 def build_host_checkin_url():
     return build_hosts_url(path="/checkin")
 
@@ -598,7 +603,7 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-class RBACFilterOperation(str, Enum):
+class RBACFilterOperation(StrEnum):
     EQUAL = "equal"
     IN = "in"
 
