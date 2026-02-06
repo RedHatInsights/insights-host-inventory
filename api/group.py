@@ -37,6 +37,7 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from app.serialization import serialize_rbac_workspace_with_host_count
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
@@ -48,7 +49,6 @@ from lib.group_repository import get_groups_by_id_list_from_db
 from lib.group_repository import get_ungrouped_group
 from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
-from lib.group_repository import serialize_rbac_workspace_with_host_count
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
 from lib.host_repository import get_group_ids_ordered_by_host_count
