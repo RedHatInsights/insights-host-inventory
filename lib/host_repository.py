@@ -401,14 +401,19 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
 
 def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    query = (
-        db.session.query(Host)
-        .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
-        .group_by(Host.id, Host.org_id)
-    )
+    """
+    Get count of non-culled hosts in a group.
 
-    return find_non_culled_hosts(query).count()
+    This function delegates to get_non_culled_hosts_count_in_group_by_id() to avoid code duplication.
+
+    Args:
+        group: Group ORM object
+        org_id: Organization ID
+
+    Returns:
+        Count of non-culled hosts in the group
+    """
+    return get_non_culled_hosts_count_in_group_by_id(str(group.id), org_id)
 
 
 def get_non_culled_hosts_count_in_group_by_id(group_id: str, org_id: str) -> int:
@@ -431,6 +436,115 @@ def get_non_culled_hosts_count_in_group_by_id(group_id: str, org_id: str) -> int
     )
 
     return find_non_culled_hosts(query).count()
+
+
+def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
+    """
+    Get host counts for multiple groups in a single efficient batch query.
+
+    This eliminates the N+1 query problem when serializing multiple groups.
+    Instead of making one query per group, this makes a single aggregated query.
+
+    Args:
+        org_id: Organization ID
+        group_ids: List of group UUIDs to get host counts for
+
+    Returns:
+        Dictionary mapping group_id -> host_count
+        Groups with no hosts will have count of 0
+
+    Example:
+        counts = get_host_counts_batch('org123', ['uuid1', 'uuid2', 'uuid3'])
+        # Returns: {'uuid1': 150, 'uuid2': 0, 'uuid3': 45}
+    """
+    from sqlalchemy import func
+
+    if not group_ids:
+        return {}
+
+    # Single aggregated query to get all host counts at once
+    query = (
+        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
+        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
+        .group_by(HostGroupAssoc.group_id)
+    )
+
+    # Apply non-culled host filter
+    query = find_non_culled_hosts(query)
+
+    # Execute query
+    results = query.all()
+
+    # Create map with explicit 0 counts for groups not in results
+    count_map = {str(gid): 0 for gid in group_ids}
+    count_map.update({str(gid): count for gid, count in results})
+
+    return count_map
+
+
+def get_group_ids_ordered_by_host_count(
+    org_id: str,
+    per_page: int,
+    page: int,
+    order_how: str | None = None,
+) -> tuple[list[str], int]:
+    """
+    Get group IDs ordered by host count with pagination (for RBAC v2 workspaces).
+
+    This is optimized for the scenario where you want to order groups by host_count
+    without any filters. The database does the ordering and pagination efficiently.
+
+    Args:
+        org_id: Organization ID
+        per_page: Number of results per page
+        page: Page number (1-based)
+        order_how: Sort direction ('ASC' or 'DESC'), defaults to 'DESC'
+
+    Returns:
+        Tuple of:
+        - List of group_ids for the requested page, ordered by host_count
+        - Total count of all groups in the organization
+
+    Example:
+        group_ids, total = get_group_ids_ordered_by_host_count('org123', 100, 1, 'DESC')
+        # group_ids: ['uuid5', 'uuid2', ...] (100 IDs with highest counts)
+        # total: 5000
+    """
+    from sqlalchemy import desc
+    from sqlalchemy import func
+
+    # Get total count of groups (distinct group_ids in hosts_groups table)
+    total_query = db.session.query(func.count(func.distinct(HostGroupAssoc.group_id))).filter(
+        HostGroupAssoc.org_id == org_id
+    )
+    total = total_query.scalar() or 0
+
+    # Query to get group_ids ordered by host count
+    query = (
+        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
+        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(HostGroupAssoc.org_id == org_id)
+        .group_by(HostGroupAssoc.group_id)
+    )
+
+    # Apply non-culled host filter
+    query = find_non_culled_hosts(query)
+
+    # Order by host count (default DESC for host_count ordering)
+    query = query.order_by("host_count") if order_how == "ASC" else query.order_by(desc("host_count"))
+
+    # Apply pagination
+    offset = (page - 1) * per_page
+    query = query.limit(per_page).offset(offset)
+
+    # Execute query
+    results = query.all()
+
+    # Extract just the group_ids
+    group_ids = [str(gid) for gid, count in results]
+
+    return group_ids, total
 
 
 # Ensures that the query is filtered by org_id

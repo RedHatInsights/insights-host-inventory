@@ -457,9 +457,10 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
         mock_workspaces[2]["id"]: 15,  # group_c
     }
 
+    # Mock the batch host count function instead of individual calls
     mocker.patch(
-        "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
-        side_effect=lambda group_id, _org_id: host_counts.get(group_id, 0),
+        "api.group.get_host_counts_batch",
+        return_value=host_counts,
     )
 
     # Execute test
@@ -515,9 +516,10 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
         mock_workspaces[3]["id"]: 10,  # gamma (same as zebra and alpha)
     }
 
+    # Mock the batch host count function instead of individual calls
     mocker.patch(
-        "lib.group_repository.get_non_culled_hosts_count_in_group_by_id",
-        side_effect=lambda group_id, _org_id: host_counts.get(group_id, 0),
+        "api.group.get_host_counts_batch",
+        return_value=host_counts,
     )
 
     # Execute test
@@ -623,9 +625,9 @@ def test_get_groups_rbac_v2_ordering_by_host_count_db_error(mocker, api_get):
     mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
 
-    # Mock serialize_group to raise database error when fetching host counts
-    mock_serialize_group = mocker.patch("api.group.serialize_group")
-    mock_serialize_group.side_effect = OperationalError("Database connection failed", None, None)
+    # Mock get_host_counts_batch to raise database error when fetching host counts
+    mock_get_host_counts = mocker.patch("api.group.get_host_counts_batch")
+    mock_get_host_counts.side_effect = OperationalError("Database connection failed", None, None)
 
     # Request order_by=host_count
     query = "?order_by=host_count"

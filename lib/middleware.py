@@ -755,6 +755,64 @@ def get_rbac_workspaces(
     return data, count
 
 
+def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
+    """
+    Fetch multiple workspaces from RBAC v2 API by ID list.
+
+    This function makes a batch API call to fetch multiple workspaces in a single request,
+    which is much more efficient than fetching them one at a time.
+
+    Args:
+        workspace_ids: List of workspace UUIDs to fetch
+
+    Returns:
+        list[dict]: List of workspace objects from RBAC v2 API
+
+    Raises:
+        ResourceNotFoundException: If one or more workspaces not found
+        HTTPException: For other RBAC v2 API errors (5xx, etc.)
+
+    Example:
+        workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
+        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}, {"id": "uuid3", ...}]
+    """
+    if inventory_config().bypass_rbac:
+        return []
+
+    if not workspace_ids:
+        return []
+
+    # Build query parameter string with multiple IDs
+    # Format: ?id=uuid1,uuid2,uuid3
+    ids_param = ",".join(str(wid) for wid in workspace_ids)
+    query_params = {"id": ids_param}
+
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
+
+    response = get_rbac_workspace_using_endpoint_and_headers(None, rbac_endpoint, request_headers)
+
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return []
+
+    # Extract workspaces from response
+    workspaces = response.get("data", [])
+    if not isinstance(workspaces, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(workspaces)}. Returning empty list.")
+        return []
+
+    # Verify all requested workspaces were found
+    found_ids = {str(ws["id"]) for ws in workspaces}
+    requested_ids = set(str(wid) for wid in workspace_ids)
+
+    if found_ids != requested_ids:
+        missing_ids = requested_ids - found_ids
+        raise ResourceNotFoundException(f"Workspaces not found: {', '.join(missing_ids)}")
+
+    return workspaces
+
+
 def get_rbac_workspace_using_endpoint_and_headers(
     request_data: dict | None, rbac_endpoint: str, request_headers: dict
 ) -> dict[Any, Any] | None:
