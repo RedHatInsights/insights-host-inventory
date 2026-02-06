@@ -25,40 +25,71 @@ from lib.middleware import access
 logger = get_logger(__name__)
 
 
-def _fetch_app_data_for_hosts(host_ids: list, org_id: str) -> dict:
+def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
     """
-    Fetch application data for a list of hosts from all app data tables.
-
-    Args:
-        host_ids: List of host UUIDs to fetch data for
-        org_id: Organization ID to filter by
-
-    Returns:
-        Dictionary mapping host_id (str) to their app_data dict
+    Parse sparse fields parameter into {app_name: [fields] or None for all}.
+    Returns all apps if fields is omitted or contains only invalid apps.
     """
+    available_apps = get_app_data_models()
+
+    if not fields:
+        return {app_name: None for app_name in available_apps.keys()}
+
+    result: dict[str, list[str] | None] = {}
+
+    for app_name, value in fields.items():
+        if app_name not in available_apps:
+            continue
+        # value is a dict like {"field1": True, "field2": True} from custom_fields_parser
+        # Empty string key means all fields requested (e.g., fields[advisor]=)
+        if isinstance(value, dict):
+            field_names = [k for k in value.keys() if k]
+            result[app_name] = field_names if field_names else None
+        elif value is True:
+            result[app_name] = None
+
+    return result if result else {app_name: None for app_name in available_apps.keys()}
+
+
+def _filter_app_data_fields(app_data: dict, requested_fields: list[str] | None) -> dict:
+    """Filter app data to only include requested fields (None means all)."""
+    if requested_fields is None:
+        return app_data
+    return {k: v for k, v in app_data.items() if k in requested_fields}
+
+
+def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None = None) -> dict:
+    """Fetch app data for hosts. Returns all apps by default if fields is omitted."""
     if not host_ids:
         return {}
 
-    # Initialize result with empty dict for each host
     result: dict[str, dict] = {str(host_id): {} for host_id in host_ids}
+    parsed_fields = _parse_sparse_fields(fields)
+    all_models = get_app_data_models()
 
-    # Fetch data from each app data table and populate result directly
-    for app_name, model in get_app_data_models().items():
+    for app_name, requested_app_fields in parsed_fields.items():
+        if app_name not in all_models:
+            continue
+
+        model = all_models[app_name]
         rows = db.session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
+
         for row in rows:
-            result[str(row.host_id)][app_name] = row.serialize()
+            serialized = row.serialize()
+            filtered_data = _filter_app_data_fields(serialized, requested_app_fields)
+            result[str(row.host_id)][app_name] = filtered_data
 
     return result
 
 
-def _build_host_view_response(total, page, per_page, host_list):
+def _build_host_view_response(total, page, per_page, host_list, fields=None):
     """Build the response for the hosts-view endpoint."""
     timestamps = staleness_timestamps()
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
 
     host_ids = [host.id for host in host_list]
-    app_data_map = _fetch_app_data_for_hosts(host_ids, identity.org_id)
+    app_data_map = _fetch_app_data_for_hosts(host_ids, identity.org_id, fields)
 
     results = []
     for host in host_list:
@@ -101,7 +132,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     registered_with=None,
     system_type=None,
     filter=None,  # noqa: ARG001
-    fields=None,  # noqa: ARG001
+    fields=None,
     rbac_filter=None,
 ):
     """
@@ -115,6 +146,11 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     - Compliance (policies, last scan)
     - Malware (detection status)
     - Image Builder (image info)
+
+    The `fields` parameter controls which application data is included:
+    - No fields parameter → all applications included (default)
+    - fields[advisor]= → only advisor data (all fields)
+    - fields[advisor]=recommendations,incidents → specific fields only
     """
     total = 0
     host_list = ()
@@ -150,6 +186,6 @@ def get_host_views(  # noqa: PLR0913, PLR0917
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = _build_host_view_response(total, page, per_page, host_list)
+    json_data = _build_host_view_response(total, page, per_page, host_list, fields)
 
     return flask_json_response(json_data)
