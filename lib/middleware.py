@@ -654,7 +654,7 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
