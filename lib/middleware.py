@@ -534,7 +534,10 @@ def access(permission: KesselPermission, id_param: str = ""):
                 # When permission is denied and we have an id_param, check if the resource exists
                 # If it doesn't exist, return 404 instead of 403
                 if id_param and ids and not _check_resource_exists(permission.resource_type, ids):
-                    abort(HTTPStatus.NOT_FOUND)
+                    if permission.resource_type == KesselResourceTypes.WORKSPACE:
+                        abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+                    else:
+                        abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
                 abort(HTTPStatus.FORBIDDEN)
 
         return modified_func
@@ -671,6 +674,8 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
     rbac_endpoint = _get_rbac_workspace_url(workspace_id)
     request_headers = _build_rbac_request_headers()
 
+    # Use skip_not_found=True so 404 errors raise ResourceNotFoundException
+    # This allows graceful handling of missing workspaces
     return _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
