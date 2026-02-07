@@ -194,7 +194,8 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
         if not workspace:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
-        # Check if workspace is ungrouped type
+        # Check if workspace is ungrouped type (workspace is guaranteed to be dict here after None check)
+        assert workspace is not None  # Help mypy understand workspace is not None after abort check
         if workspace.get("type") == "ungrouped-hosts":
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
     else:
