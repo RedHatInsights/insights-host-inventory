@@ -48,8 +48,8 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
+from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.host_repository import get_non_culled_hosts_count_by_group_id
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_workspaces_by_ids
@@ -308,12 +308,13 @@ def get_groups_by_id(
 
             # Serialize workspaces to group format (already serialized as dicts)
             identity = get_current_identity()
+
+            # Fetch all host counts in ONE batch query (eliminates N+1 problem)
+            host_counts = get_host_counts_batch(identity.org_id, [ws["id"] for ws in workspaces])
+
+            # Serialize with pre-fetched host counts
             group_list = [
-                serialize_workspace_with_host_count(
-                    workspace,
-                    identity.org_id,
-                    get_non_culled_hosts_count_by_group_id(workspace["id"], identity.org_id),
-                )
+                serialize_workspace_with_host_count(workspace, identity.org_id, host_counts.get(workspace["id"], 0))
                 for workspace in workspaces
             ]
 
