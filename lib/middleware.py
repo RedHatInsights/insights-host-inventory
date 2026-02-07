@@ -654,7 +654,7 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
@@ -667,6 +667,10 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
     Raises:
         ResourceNotFoundException: If workspace not found (404)
         HTTPException: For other RBAC v2 API errors (5xx, etc.)
+
+    Example:
+        workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
+        # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
     if inventory_config().bypass_kessel:
         return None
