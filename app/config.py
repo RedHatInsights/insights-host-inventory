@@ -41,6 +41,12 @@ IMMUTABLE_ID_FACTS = ("provider_id",)
 
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
+# Maximum number of groups that can be sorted by host_count when using RBAC v2
+# This limit exists because RBAC v2 doesn't store host counts, requiring us to
+# fetch all groups, add counts from DB, and sort in Python. The limit aligns
+# with RBAC v2 API's maximum response size of 3000 workspaces.
+MAX_GROUPS_FOR_HOST_COUNT_SORTING = int(os.environ.get("MAX_GROUPS_FOR_HOST_COUNT_SORTING", "3000"))
+
 
 class Config:
     SSL_VERIFY_FULL = "verify-full"

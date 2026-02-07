@@ -654,6 +654,168 @@ def get_rbac_default_workspace() -> UUID | None:
     return data[0]["id"] if data and len(data) > 0 else None
 
 
+def get_rbac_workspaces(
+    name: str | None,
+    page: int,
+    per_page: int,
+    rbac_filter: dict | None,
+    group_type: str | None,
+    order_by: str | None = None,
+    order_how: str | None = None,
+) -> tuple[list[dict], int] | None:
+    """
+    Query workspaces from RBAC v2 API with filtering, pagination, and sorting.
+
+    Args:
+        name: Filter by workspace name (partial match)
+        page: Page number (1-based)
+        per_page: Items per page
+        rbac_filter: RBAC permissions filter
+        group_type: Filter by workspace type (standard, ungrouped-hosts)
+        order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
+        order_how: Sort direction ('ASC' or 'DESC')
+
+    Returns:
+        Tuple of (workspace_list, total_count)
+
+    Note:
+        RHCLOUD-42653 has been resolved. RBAC v2 API now supports ordering
+        by the following fields: id, name, created, modified, type.
+    """
+    if inventory_config().bypass_rbac:
+        # When RBAC is bypassed (e.g., in test environments), return empty results
+        # This allows the feature flag to be enabled without errors in non-production environments
+        return [], 0
+
+    # sample RBAC request: console.redhat.com/api/rbac/v2/workspaces/?limit=10&offset=0&type=standard&name=my_group
+
+    query_params = {}
+    if name:
+        query_params["name"] = name
+    if group_type:
+        query_params["type"] = group_type
+    if page and per_page:
+        # Convert page to offset (page is 1-based, offset is 0-based)
+        offset = (page - 1) * per_page
+        query_params["offset"] = str(offset)
+        query_params["limit"] = str(per_page)
+
+    # Add ordering parameters if provided
+    # Note: RBAC v2 API support for ordering is tracked by RHCLOUD-42653
+    # Special case: host_count ordering cannot be done by RBAC v2 API
+    # because RBAC v2 doesn't have host count data. Sorting by host_count
+    # will be done in Python after adding host counts from database.
+    if order_by and order_by != "host_count":
+        # Map API field names to RBAC v2 workspace API field names
+        # The API uses "updated" for consistency with existing contracts,
+        # but RBAC v2 workspace API uses "modified" as the field name
+        field_mapping = {
+            "updated": "modified",
+            "created": "created",
+            "name": "name",
+            "type": "type",
+        }
+        rbac_order_by = field_mapping.get(order_by, order_by)
+        query_params["order_by"] = rbac_order_by
+
+        if order_how:
+            query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
+
+    # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
+
+    # Query params already encoded in rbac_endpoint URL, don't pass them again
+    response = get_rbac_workspace_using_endpoint_and_headers(None, rbac_endpoint, request_headers)
+
+    # Handle missing keys safely with type validation
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return [], 0
+
+    # Extract data with safe key access and type validation
+    data = response.get("data", [])
+    if not isinstance(data, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
+        data = []
+
+    # Apply rbac_filter if provided - filter to only include groups in the allowed set
+    if rbac_filter and "groups" in rbac_filter:
+        allowed_group_ids = rbac_filter["groups"]
+        original_count = len(data)
+        # Filter data to only include workspaces whose ID is in the allowed set
+        # Convert workspace ID to string for comparison since rbac_filter contains string UUIDs
+        data = [workspace for workspace in data if str(workspace.get("id", "")) in allowed_group_ids]
+        filtered_count = len(data)
+        if original_count != filtered_count:
+            logger.debug(f"Filtered workspaces from {original_count} to {filtered_count} based on rbac_filter")
+
+    count = response.get("meta", {}).get("count", 0)
+    # Update count to reflect filtered results if rbac_filter was applied
+    if rbac_filter and "groups" in rbac_filter:
+        count = len(data)
+
+    return data, count
+
+
+def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
+    """
+    Fetch multiple workspaces from RBAC v2 API by ID list.
+
+    This function makes a batch API call to fetch multiple workspaces in a single request,
+    which is much more efficient than fetching them one at a time.
+
+    Args:
+        workspace_ids: List of workspace UUIDs to fetch
+
+    Returns:
+        list[dict]: List of workspace objects from RBAC v2 API
+
+    Raises:
+        ResourceNotFoundException: If one or more workspaces not found
+        HTTPException: For other RBAC v2 API errors (5xx, etc.)
+
+    Example:
+        workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
+        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}, {"id": "uuid3", ...}]
+    """
+    if inventory_config().bypass_rbac:
+        return []
+
+    if not workspace_ids:
+        return []
+
+    # Build query parameter string with multiple IDs
+    # Format: ?id=uuid1,uuid2,uuid3
+    ids_param = ",".join(str(wid) for wid in workspace_ids)
+    query_params = {"id": ids_param}
+
+    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
+    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
+
+    response = get_rbac_workspace_using_endpoint_and_headers(None, rbac_endpoint, request_headers)
+
+    if not response:
+        logger.warning("Empty response received from RBAC workspace endpoint")
+        return []
+
+    # Extract workspaces from response
+    workspaces = response.get("data", [])
+    if not isinstance(workspaces, list):
+        logger.warning(f"Expected 'data' to be a list, got {type(workspaces)}. Returning empty list.")
+        return []
+
+    # Verify all requested workspaces were found
+    found_ids = {str(ws["id"]) for ws in workspaces}
+    requested_ids = set(str(wid) for wid in workspace_ids)
+
+    if found_ids != requested_ids:
+        missing_ids = requested_ids - found_ids
+        raise ResourceNotFoundException(f"Workspaces not found: {', '.join(missing_ids)}")
+
+    return workspaces
+
+
 def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
     """
     Fetch a single workspace from RBAC v2 API by ID.
@@ -681,4 +843,15 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
         skip_not_found=True,
+    )
+
+
+def get_rbac_workspace_using_endpoint_and_headers(
+    request_data: dict | None, rbac_endpoint: str, request_headers: dict
+) -> dict[Any, Any] | None:
+    return _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        request_params=request_data,  # For GET requests, use request_params instead of request_data
     )
