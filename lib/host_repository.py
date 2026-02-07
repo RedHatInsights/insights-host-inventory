@@ -400,15 +400,87 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+def get_non_culled_hosts_count_by_group_id(group_id: str, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group by group ID.
+
+    This is a convenience function for when you have a group_id string
+    (e.g., from RBAC v2 workspace) and don't want to fetch the Group object.
+
+    Args:
+        group_id: UUID of the group/workspace as string
+        org_id: Organization ID
+
+    Returns:
+        int: Count of non-culled hosts in the group
+    """
     query = (
         db.session.query(Host)
         .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
+        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
         .group_by(Host.id, Host.org_id)
     )
 
     return find_non_culled_hosts(query).count()
+
+
+def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group.
+
+    Args:
+        group: Group object
+        org_id: Organization ID
+
+    Returns:
+        int: Count of non-culled hosts in the group
+    """
+    return get_non_culled_hosts_count_by_group_id(str(group.id), org_id)
+
+
+def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
+    """
+    Get host counts for multiple groups in a single efficient batch query.
+
+    This eliminates the N+1 query problem when serializing multiple groups.
+    Instead of making one query per group, this makes a single aggregated query.
+
+    Args:
+        org_id: Organization ID
+        group_ids: List of group UUIDs to get host counts for
+
+    Returns:
+        Dictionary mapping group_id -> host_count
+        Groups with no hosts will have count of 0
+
+    Example:
+        counts = get_host_counts_batch('org123', ['uuid1', 'uuid2', 'uuid3'])
+        # Returns: {'uuid1': 150, 'uuid2': 0, 'uuid3': 45}
+    """
+    from sqlalchemy import func
+
+    if not group_ids:
+        return {}
+
+    # Single aggregated query to get all host counts at once
+    query = (
+        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
+        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
+        .group_by(HostGroupAssoc.group_id)
+    )
+
+    # Apply non-culled host filter
+    query = find_non_culled_hosts(query)
+
+    # Execute query
+    results = query.all()
+
+    # Create map with explicit 0 counts for groups not in results
+    count_map = {str(gid): 0 for gid in group_ids}
+    count_map.update({str(gid): count for gid, count in results})
+
+    return count_map
 
 
 # Ensures that the query is filtered by org_id
