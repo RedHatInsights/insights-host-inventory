@@ -24,6 +24,33 @@ def test_delete_non_existent_group(api_delete_groups):
     assert_response_status(response_status, expected_status=404)
 
 
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_response_includes_missing_ids(api_delete_groups):
+    # Verify that 404 response includes the not_found_ids field
+    group_id = generate_uuid()
+
+    response_status, response_data = api_delete_groups([group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [group_id]
+    assert response_data["detail"] == "One or more groups not found."
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_with_missing_group_id_response_includes_only_missing_ids(db_create_group, api_delete_groups):
+    # Verify 404 response only includes the missing ID, not the valid one
+    valid_group_id = str(db_create_group("test_group").id)
+    missing_group_id = generate_uuid()
+
+    response_status, response_data = api_delete_groups([valid_group_id, missing_group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [missing_group_id]
+    assert valid_group_id not in response_data["not_found_ids"]
+
+
 def test_delete_with_invalid_group_id(api_delete_groups):
     group_id = "notauuid"
 

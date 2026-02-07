@@ -59,10 +59,15 @@ class Kessel:
 
         return False  # Fail closed by default
 
-    def check(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
+    def check(
+        self, current_identity: Identity, permission: KesselPermission, ids: list[str]
+    ) -> tuple[bool, list[str]]:
         """
         Check if the current user has permission to access the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
+
+        Returns:
+            tuple[bool, list[str]]: (all_allowed, list_of_unauthorized_resource_ids)
         """
         logger.debug(
             "Kessel.check called",
@@ -83,27 +88,36 @@ class Kessel:
                 # Single resource check
                 result = self._check_single_resource(subject_ref, permission, str(ids[0]))
                 logger.debug(f"Kessel.check: single resource check result={result}", extra={"resource_id": ids[0]})
-                return result
+                unauthorized_ids = [] if result else [str(ids[0])]
+                return result, unauthorized_ids
             elif len(ids) > 1:
                 # Bulk check - all resources must be accessible
-                result = self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
-                logger.debug(f"Kessel.check: bulk resource check result={result}", extra={"ids_count": len(ids)})
-                return result
+                result, unauthorized_ids = self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
+                logger.debug(
+                    f"Kessel.check: bulk resource check result={result}",
+                    extra={"ids_count": len(ids), "unauthorized_ids": unauthorized_ids},
+                )
+                return result, unauthorized_ids
             else:
                 # No specific IDs - this shouldn't happen in normal Check flow
                 logger.warning("Kessel.check called with empty ID list")
-                return False
+                return False, []
 
         except grpc.RpcError as e:
-            return self._handle_grpc_error(e, "Check")
+            return self._handle_grpc_error(e, "Check"), [str(id) for id in ids]
         except Exception as e:
             logger.error(f"Kessel Check failed: {str(e)}", exc_info=True)
-            return False
+            return False, [str(id) for id in ids]
 
-    def check_for_update(self, current_identity: Identity, permission: KesselPermission, ids: list[str]) -> bool:
+    def check_for_update(
+        self, current_identity: Identity, permission: KesselPermission, ids: list[str]
+    ) -> tuple[bool, list[str]]:
         """
         Check if the current user has permission to update the specified resources.
         Automatically handles single or bulk checks based on the number of IDs provided.
+
+        Returns:
+            tuple[bool, list[str]]: (all_allowed, list_of_unauthorized_resource_ids)
         """
         logger.debug(
             "Kessel.check_for_update called",
@@ -126,24 +140,26 @@ class Kessel:
                 logger.debug(
                     f"Kessel.check_for_update: single resource check result={result}", extra={"resource_id": ids[0]}
                 )
-                return result
+                unauthorized_ids = [] if result else [str(ids[0])]
+                return result, unauthorized_ids
             elif len(ids) > 1:
                 # Bulk update check - all resources must be updatable
-                result = self._check_bulk_resources_for_update(subject_ref, permission, ids)
+                result, unauthorized_ids = self._check_bulk_resources_for_update(subject_ref, permission, ids)
                 logger.debug(
-                    f"Kessel.check_for_update: bulk resource check result={result}", extra={"ids_count": len(ids)}
+                    f"Kessel.check_for_update: bulk resource check result={result}",
+                    extra={"ids_count": len(ids), "unauthorized_ids": unauthorized_ids},
                 )
-                return result
+                return result, unauthorized_ids
             else:
                 # No specific IDs - this shouldn't happen in normal check_for_update flow
                 logger.warning("Kessel.check_for_update called with empty ID list")
-                return False
+                return False, []
 
         except grpc.RpcError as e:
-            return self._handle_grpc_error(e, "check_for_update")
+            return self._handle_grpc_error(e, "check_for_update"), [str(id) for id in ids]
         except Exception as e:
             logger.error(f"Kessel check_for_update failed: {str(e)}", exc_info=True)
-            return False
+            return False, [str(id) for id in ids]
 
     def _build_subject_reference(self, current_identity: Identity) -> subject_reference_pb2.SubjectReference:
         """Build a subject reference for the current user or service account."""
@@ -220,8 +236,12 @@ class Kessel:
         subject_ref: subject_reference_pb2.SubjectReference,
         permission: KesselPermission,
         resource_ids: list[str],
-    ) -> bool:
-        """Check permissions for multiple resources. All must be accessible."""
+    ) -> tuple[bool, list[str]]:
+        """Check permissions for multiple resources. All must be accessible.
+
+        Returns:
+            tuple[bool, list[str]]: (all_allowed, list_of_unauthorized_resource_ids)
+        """
         if not resource_ids:
             raise ValueError("resource_ids can't be empty")
 
@@ -248,18 +268,20 @@ class Kessel:
                 f"Expected resource IDs: {resource_ids}\n"
                 f"Response resource IDs: {[pair.request.object.resource_id for pair in response.pairs]}"
             )
-            return False
+            # Return all requested IDs as unauthorized since we can't verify them
+            return False, resource_ids
 
-        # Check that all resources are allowed
+        # Check that all resources are allowed and collect unauthorized IDs
+        unauthorized_ids = []
         for pair in response.pairs:
             # If there's an error for this item, treat as denied
             if pair.HasField("error"):
                 logger.warning(f"Kessel CheckBulk error for resource: {pair.error.message}")
-                return False
-            if pair.item.allowed != allowed_pb2.Allowed.ALLOWED_TRUE:
-                return False
+                unauthorized_ids.append(pair.request.object.resource_id)
+            elif pair.item.allowed != allowed_pb2.Allowed.ALLOWED_TRUE:
+                unauthorized_ids.append(pair.request.object.resource_id)
 
-        return True
+        return len(unauthorized_ids) == 0, unauthorized_ids
 
     def _check_single_resource_for_update(
         self, subject_ref: subject_reference_pb2.SubjectReference, permission: KesselPermission, resource_id: str
@@ -283,16 +305,22 @@ class Kessel:
         subject_ref: subject_reference_pb2.SubjectReference,
         permission: KesselPermission,
         resource_ids: list[str],
-    ) -> bool:
-        """Check update permissions for multiple resources. All must be updatable."""
+    ) -> tuple[bool, list[str]]:
+        """Check update permissions for multiple resources. All must be updatable.
+
+        Returns:
+            tuple[bool, list[str]]: (all_allowed, list_of_unauthorized_resource_ids)
+        """
         if not resource_ids:
             raise ValueError("resource_ids can't be empty")
 
         # CheckBulk doesn't support CheckForUpdate, so we iterate over single resource checks
+        unauthorized_ids = []
         for resource_id in resource_ids:
             if not self._check_single_resource_for_update(subject_ref, permission, resource_id):
-                return False
-        return True
+                unauthorized_ids.append(resource_id)
+
+        return len(unauthorized_ids) == 0, unauthorized_ids
 
     def ListAllowedWorkspaces(self, current_identity: Identity, relation) -> list[str]:
         logger.debug(
