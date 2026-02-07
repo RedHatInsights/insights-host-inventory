@@ -368,13 +368,13 @@ __Function:__ `get_groups_by_id()`<br/>
 1. Check `FLAG_INVENTORY_KESSEL_GROUPS`:<br/>
    - If enabled → validate workspace via `get_rbac_workspace_by_id()`<br/>
    - If disabled → validate group via database<br/>
-2. Call `get_host_list_by_group_id()` repository function<br/>
+2. Call `get_host_list()` repository function with `group_id=[group_id]`<br/>
 3. Return paginated results<br/>
 
 #### Phase 3: Repository Function
 
-**Function:** `get_host_list_by_group_id()`<br/>
-- **Location:** `lib/host_repository.py` (new function)<br/>
+**Function:** `get_host_list()`<br/>
+- **Location:** `api/host_query_db.py` (existing function)<br/>
 - **Input:**<br/>
   - `group_id` (UUID)<br/>
   - `org_id` (string)<br/>
