@@ -1,5 +1,6 @@
 # mypy: disallow-untyped-defs
 
+import json
 import logging
 import uuid
 from os import getenv
@@ -13,6 +14,7 @@ from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KesselOutboxWrapper
 from iqe_host_inventory.tests.db.test_host_reaper import execute_reaper
+from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.staleness_utils import set_staleness
@@ -641,3 +643,58 @@ def test_kessel_repl_delete_host_reaper(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_deleted(host, retries=60)
+
+
+def test_kessel_get_single_non_existent_host(host_inventory: ApplicationHostInventory) -> None:
+    """
+    metadata:
+      requirements: inv-kessel-hosts
+      assignee: aprice
+      importance: medium
+      negative: true
+      title: Verify that getting a single non-existent host returns 404 with not_found_ids
+    """
+    non_existent_host_id = generate_uuid()
+
+    with raises_apierror(404, match_message="One or more hosts not found.") as exc:
+        host_inventory.apis.hosts.get_hosts_by_id_response(non_existent_host_id)
+
+    # Verify that the response body includes the not_found_ids field
+    response_body = json.loads(exc.value.body)
+    assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
+    assert non_existent_host_id in response_body["not_found_ids"], (
+        f"Expected '{non_existent_host_id}' in not_found_ids, got {response_body['not_found_ids']}"
+    )
+
+
+def test_kessel_get_mixed_existent_and_non_existent_hosts(
+    host_inventory: ApplicationHostInventory,
+) -> None:
+    """
+    metadata:
+      requirements: inv-kessel-hosts
+      assignee: aprice
+      importance: medium
+      negative: true
+      title: Verify that getting a mix of existent and non-existent hosts returns 404
+             with only the non-existent ID in not_found_ids
+    """
+    # Create a real host
+    existing_host = host_inventory.upload.create_hosts(1)[0]
+    non_existent_host_id = generate_uuid()
+
+    with raises_apierror(404, match_message="One or more hosts not found.") as exc:
+        host_inventory.apis.hosts.get_hosts_by_id_response([
+            existing_host.id,
+            non_existent_host_id,
+        ])
+
+    # Verify that the response body includes only the non-existent ID in not_found_ids
+    response_body = json.loads(exc.value.body)
+    assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
+    assert non_existent_host_id in response_body["not_found_ids"], (
+        f"Expected '{non_existent_host_id}' in not_found_ids, got {response_body['not_found_ids']}"
+    )
+    assert existing_host.id not in response_body["not_found_ids"], (
+        f"Existing host ID '{existing_host.id}' should not be in not_found_ids"
+    )
