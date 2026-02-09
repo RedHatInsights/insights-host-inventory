@@ -43,6 +43,11 @@ please see the
 - [Running ad hoc jobs using a different image](#running-ad-hoc-jobs-using-a-different-image)
 - [Debugging local code with services deployed into Kubernetes namespaces](#debugging-local-code-with-services-deployed-into-kubernetes-namespaces)
 - [Contributing](#contributing)
+- [Claude Code Integration](#claude-code-integration)
+    - [Quick Start with Claude Code](#quick-start-with-claude-code)
+    - [Hooks](#hooks)
+    - [Slash Commands](#slash-commands)
+    - [HBI Make Targets](#hbi-make-targets)
 
 ## Getting started
 
@@ -709,6 +714,98 @@ pre-commit install
 
 If inside the Red Hat network, also ensure `rh-pre-commit` is installed as per
 instructions [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).
+
+## Claude Code Integration
+
+This project includes [Claude Code](https://claude.ai/code) hooks, slash commands, and make targets that follow the [install-and-maintain](https://github.com/disler/install-and-maintain) pattern for AI-assisted development.
+
+### Quick Start with Claude Code
+
+```bash
+# Deterministic setup (hooks run automatically)
+make hbi-cldi
+
+# Agentic setup (interactive, runs /install slash command)
+make hbi-cldii
+
+# Agentic maintenance (runs /maintenance slash command)
+make hbi-cldmm
+```
+
+Or start Claude Code directly in the repo — the `SessionStart` hook will automatically load your `.env` variables into the session.
+
+### Hooks
+
+Hooks are defined in `.claude/settings.json` and run automatically at specific lifecycle points.
+
+| Hook | Trigger | Script | Purpose |
+|------|---------|--------|---------|
+| **SessionStart** | Every Claude Code session | `.claude/hooks/session_start.py` | Loads `.env` variables into the Claude session via `CLAUDE_ENV_FILE` |
+| **Setup (init)** | `claude --init` | `.claude/hooks/setup_init.py` | Full deterministic setup: prereqs, dirs, deps, Podman, DB migrations, health check |
+| **Setup (maintenance)** | `claude --maintenance` | `.claude/hooks/setup_maintenance.py` | Update deps, pull images, restart services, run migrations and style checks |
+
+All hooks output structured JSON using the `hookSpecificOutput` format:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "Setup",
+    "additionalContext": "Summary of what happened..."
+  }
+}
+```
+
+Hook logs are written to `.claude/hooks/` (e.g., `setup.init.log`, `setup.maintenance.log`, `session_start.log`).
+
+### Slash Commands
+
+Slash commands are markdown files in `.claude/commands/` that instruct Claude Code to perform multi-step tasks.
+
+| Command | File | Purpose |
+|---------|------|---------|
+| `/install` | `.claude/commands/install.md` | Runs `/prime` for orientation, then the setup init script, reports results |
+| `/install-hil` | `.claude/commands/install-hil.md` | Interactive setup — asks preferences for database, deps, and Podman services |
+| `/maintenance` | `.claude/commands/maintenance.md` | Runs `/prime` for orientation, then the maintenance script, reports results |
+| `/doctor` | `.claude/commands/doctor.md` | Health checks all services: Podman, PostgreSQL, Kafka, HBI web, DB migrations, Python env |
+| `/prime` | `.claude/commands/prime.md` | Quick orientation: reads key files (`CLAUDE.md`, `README.md`, `mk/private.mk`, `dev.yml`), reports project summary |
+| `/api-hosts` | `.claude/commands/api-hosts.md` | Query and manage hosts (list, get by ID, filter, system profile, tags, update, delete) |
+| `/api-groups` | `.claude/commands/api-groups.md` | Query and manage groups (list, create, get hosts in group, add/remove hosts, delete) |
+| `/api-tags` | `.claude/commands/api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
+| `/api-system-profile` | `.claude/commands/api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
+| `/api-staleness` | `.claude/commands/api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
+
+### HBI Make Targets
+
+Custom make targets for development workflows and Claude Code invocations are defined in `mk/private.mk`. List them with:
+
+```bash
+make hbi-help
+```
+
+**Development workflows:**
+
+| Target | Description |
+|--------|-------------|
+| `make hbi-up` | Start all Podman Compose services |
+| `make hbi-down` | Stop all Podman Compose services |
+| `make hbi-logs SERVICE=<name>` | View service logs (optionally for a specific service) |
+| `make hbi-migrate` | Run database migrations |
+| `make hbi-test ARGS="<extra args>"` | Run tests with coverage |
+| `make hbi-style` | Run code style checks |
+| `make hbi-deps` | Install Python dependencies |
+| `make hbi-health` | Health check the web service |
+| `make hbi-ps` | Check Podman container status |
+| `make hbi-reset` | Reset development environment (stop services, remove db data) |
+
+**Claude Code invocations:**
+
+| Target | Description |
+|--------|-------------|
+| `make hbi-cldi` | Deterministic codebase setup (`claude --init`) |
+| `make hbi-cldm` | Deterministic codebase maintenance (`claude --maintenance`) |
+| `make hbi-cldii` | Agentic setup via `/install` slash command |
+| `make hbi-cldit` | Agentic interactive setup via `/install-hil` |
+| `make hbi-cldmm` | Agentic maintenance via `/maintenance` slash command |
 
 ## GABI Query Tool (interactive and non-interactive)
 
