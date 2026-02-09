@@ -477,7 +477,7 @@ def check_all_ids_found(
         found_objects = list(found_objects)
 
     # Decide if we have a complete result set (non‑paginated or fully fetched)
-    have_all_results = total is None or total == len(found_objects)
+    have_all_results = (total is None) or (total == len(found_objects))
 
     # Decide which count to compare against
     effective_found_count = len(found_objects) if have_all_results else total
