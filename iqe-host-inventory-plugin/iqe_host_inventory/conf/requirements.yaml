@@ -616,6 +616,11 @@ inv-groups-get-list:
   description: I should be able to filter groups by their name
   priority: high
 
+inv-groups-get-hosts:
+  summary: Get a list of hosts assigned to a group via GET /groups/<group_id>/hosts endpoint
+  description: I should be able to filter hosts with the same filters as on GET /hosts endpoint
+  priority: medium
+
 inv-mq-operation-args:
   summary: I can provide operation_args in MQ create/update message
   priority: high
