@@ -3,7 +3,7 @@ name: Konflux Rebase
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   rebase-konflux-prs:
@@ -35,8 +35,8 @@ jobs:
           # Find all open PRs from Konflux
           gh pr list --repo "$REPO" --author "app/red-hat-konflux" --state open --json number,headRefName,headRefOid --jq '.[] | "\(.number) \(.headRefName) \(.headRefOid)"' | while read -r pr_number branch_name head_sha; do
             if [ -n "$pr_number" ]; then
-              # Check if the PR branch is behind main
-              behind_count=$(gh api "repos/$REPO/compare/main...$head_sha" --jq '.behind_by' 2>/dev/null || echo "0")
+              # Check if the PR branch is behind master
+              behind_count=$(gh api "repos/$REPO/compare/master...$head_sha" --jq '.behind_by' 2>/dev/null || echo "0")
 
               if [ "$behind_count" -gt 0 ]; then
                 echo "PR #$pr_number ($branch_name) is $behind_count commits behind, rebasing..."
@@ -45,8 +45,8 @@ jobs:
                 git fetch origin "$branch_name"
                 git checkout "$branch_name"
 
-                # Rebase onto main
-                if git rebase origin/main; then
+                # Rebase onto master
+                if git rebase origin/master; then
                   # Force push the rebased branch
                   git push --force-with-lease origin "$branch_name"
                   echo "Successfully rebased PR #$pr_number"
@@ -55,8 +55,8 @@ jobs:
                   git rebase --abort
                 fi
 
-                # Return to main for next iteration
-                git checkout main
+                # Return to master for next iteration
+                git checkout master
               else
                 echo "PR #$pr_number is up to date"
               fi
