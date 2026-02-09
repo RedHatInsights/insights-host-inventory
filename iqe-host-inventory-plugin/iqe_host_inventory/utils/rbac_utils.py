@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import logging
 from enum import Enum
+from time import sleep
 
 from iqe.base.application import Application
 from iqe.base.application.implementations.rest import ViaREST
 from iqe_rbac.entities.group import Group
+
+from iqe_host_inventory import ApplicationHostInventory
+
+logger = logging.getLogger(__name__)
 
 
 class RBACInventoryPermission(Enum):
@@ -42,3 +48,12 @@ def update_group_with_roles(app: Application, group: Group, roles: list[str]) ->
         group.update(
             roles=[app.rbac.collections.roles.instantiate(role) for role in roles],
         )
+
+
+def wait_for_kessel_sync(host_inventory: ApplicationHostInventory, wait_seconds: int = 21) -> None:
+    """
+    Wait for RBAC -> Kessel synchronization if the Kessel Phase 1 feature flag is enabled.
+    """
+    if host_inventory.unleash.is_kessel_phase_1_enabled():
+        logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
+        sleep(wait_seconds)

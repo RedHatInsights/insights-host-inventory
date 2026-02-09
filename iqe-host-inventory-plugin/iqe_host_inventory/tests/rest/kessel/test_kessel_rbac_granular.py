@@ -38,7 +38,6 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -60,14 +59,14 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
-        correct_hosts_ids if is_kessel_phase_1_enabled else hosts
+        correct_hosts_ids if host_inventory.unleash.is_kessel_phase_1_enabled() else hosts
     )
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if is_kessel_phase_1_enabled:
+    if host_inventory.unleash.is_kessel_phase_1_enabled():
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
@@ -139,7 +138,6 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     hbi_non_org_admin_user_rbac_setup,
     host_inventory_non_org_admin: ApplicationHostInventory,
     host_inventory: ApplicationHostInventory,
-    is_kessel_phase_1_enabled: bool,
 ):
     """
     metadata:
@@ -166,14 +164,14 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
-        correct_hosts_ids if is_kessel_phase_1_enabled else hosts
+        correct_hosts_ids if host_inventory.unleash.is_kessel_phase_1_enabled() else hosts
     )
     response_hosts_ids = {host.id for host in response.results}
     assert response.count == len(correct_hosts_ids)
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if is_kessel_phase_1_enabled:
+    if host_inventory.unleash.is_kessel_phase_1_enabled():
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
