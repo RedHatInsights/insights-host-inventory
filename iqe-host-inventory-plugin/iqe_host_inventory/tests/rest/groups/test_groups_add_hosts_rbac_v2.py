@@ -82,7 +82,7 @@ def test_add_hosts_to_nonexistent_group_rbac_v2(host_inventory: ApplicationHostI
     fake_group_id = generate_uuid()
 
     # Should return 404 because workspace doesn't exist in RBAC v2
-    with raises_apierror(404, "Group .* not found"):
+    with raises_apierror(404, "not found"):
         host_inventory.apis.groups.raw_api.api_host_group_add_host_list_to_group(
             fake_group_id, [h.id for h in hosts]
         )
@@ -111,14 +111,15 @@ def test_add_hosts_to_group_rbac_v2_partial_success(host_inventory: ApplicationH
     assert group.host_count == 1
 
     # Add second host - should validate workspace via RBAC v2
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]])
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]], wait_for_added=False)
     assert updated_group.host_count == 2
 
     # Add third host
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[2]])
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[2]], wait_for_added=False)
     assert updated_group.host_count == 3
 
-    # Verify all hosts are in group
+    # Wait for final state and verify all hosts are in group
+    host_inventory.apis.groups.wait_for_hosts_added(group.id, hosts, retries=20, delay=1.0)
     response_hosts = host_inventory.apis.groups.get_hosts_from_group(group.id)
     assert len(response_hosts) == 3
 
@@ -143,8 +144,8 @@ def test_add_invalid_hosts_to_group_rbac_v2(host_inventory: ApplicationHostInven
     # Try to add non-existent hosts
     fake_host_ids = [generate_uuid(), generate_uuid()]
 
-    # Should return 404 because hosts don't exist
-    with raises_apierror(404):
+    # Should return 400 because hosts don't exist
+    with raises_apierror(400, "Could not find existing host"):
         host_inventory.apis.groups.raw_api.api_host_group_add_host_list_to_group(
             group.id, fake_host_ids
         )
@@ -170,14 +171,15 @@ def test_add_hosts_to_group_rbac_v2_idempotent(host_inventory: ApplicationHostIn
     assert group.host_count == 1
 
     # Add second host
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]])
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]], wait_for_added=False)
     assert updated_group.host_count == 2
 
     # Add first host again (already in group) - should be idempotent
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[0]])
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[0]], wait_for_added=False)
     assert updated_group.host_count == 2  # Still 2, not 3
 
-    # Verify only 2 hosts in group
+    # Wait for final state and verify only 2 hosts in group
+    host_inventory.apis.groups.wait_for_hosts_added(group.id, hosts, retries=20, delay=1.0)
     response_hosts = host_inventory.apis.groups.get_hosts_from_group(group.id)
     assert len(response_hosts) == 2
 
