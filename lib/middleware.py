@@ -662,15 +662,19 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace_id: UUID of the workspace to fetch
 
     Returns:
-        dict: Workspace object from RBAC v2 API, or None if bypass_kessel is enabled
+        dict: Workspace object from RBAC v2 API
+        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
-        HTTPException: For other RBAC v2 API errors (5xx, etc.)
+        HTTPException: For other RBAC v2 API errors (4xx/5xx, excluding 404)
 
     Example:
-        workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
-        # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
+        try:
+            workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
+            # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
+        except ResourceNotFoundException:
+            # Workspace not found (404)
     """
     if inventory_config().bypass_kessel:
         return None

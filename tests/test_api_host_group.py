@@ -417,8 +417,12 @@ def test_add_hosts_to_group_rbac_v2_workspace_not_found(
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
-    # Mock RBAC v2 workspace fetch to return None (not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    # Mock RBAC v2 workspace fetch to raise ResourceNotFoundException (not found)
+    from app.exceptions import ResourceNotFoundException
+
+    mocker.patch(
+        "api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Workspace not found")
+    )
 
     # Call endpoint
     response_status, response_data = api_add_hosts_to_group(group_id, [str(host1.id), str(host2.id)])
@@ -439,6 +443,9 @@ def test_add_hosts_to_group_feature_flag_disabled(
     """
     # Mock event producer to avoid errors
     mocker.patch.object(event_producer, "write_event")
+
+    # Mock RBAC v2 workspace helper - should NOT be called when flag is disabled
+    workspace_mock = mocker.patch("api.host_group.get_rbac_workspace_by_id")
 
     # Create group and hosts in database
     group = db_create_group("test_group")
@@ -463,6 +470,9 @@ def test_add_hosts_to_group_feature_flag_disabled(
     assert response_data["id"] == str(group_id)
     assert response_data["name"] == "test_group"
 
+    # Verify RBAC v2 helper was never called when feature flag is disabled
+    workspace_mock.assert_not_called()
+
 
 def test_add_hosts_to_group_rbac_v2_bypass_kessel_enabled(
     mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
@@ -475,6 +485,9 @@ def test_add_hosts_to_group_rbac_v2_bypass_kessel_enabled(
     """
     # Mock event producer to avoid errors
     mocker.patch.object(event_producer, "write_event")
+
+    # Mock RBAC v2 workspace helper - should NOT be called when bypass_kessel is enabled
+    workspace_mock = mocker.patch("api.host_group.get_rbac_workspace_by_id")
 
     # Create group and hosts
     group = db_create_group("test_group")
@@ -498,6 +511,9 @@ def test_add_hosts_to_group_rbac_v2_bypass_kessel_enabled(
     assert response_status == 200
     assert response_data["id"] == str(group_id)
     assert response_data["name"] == "test_group"
+
+    # Verify RBAC v2 helper was never called when bypass_kessel is enabled
+    workspace_mock.assert_not_called()
 
 
 #

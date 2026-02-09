@@ -152,8 +152,9 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Feature flag check for RBAC v2 workspace validation
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if not workspace:
+        try:
+            get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
             log_patch_group_failed(logger, str(group_id))
             return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
