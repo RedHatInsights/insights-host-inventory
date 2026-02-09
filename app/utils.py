@@ -1,6 +1,8 @@
 import json
 import re
 import urllib
+from collections.abc import Iterable
+from typing import Any
 
 from app.exceptions import IdsNotFoundError
 from app.exceptions import ValidationException
@@ -421,7 +423,7 @@ class Tag:
         return [{"namespace": tag.namespace, "key": tag.key, "value": tag.value} for tag in structured_tags]
 
 
-def find_missing_ids(requested_ids: list[str], found_objects, id_attr: str = "id") -> list[str]:
+def find_missing_ids(requested_ids: Iterable[str], found_objects: Iterable[Any], id_attr: str = "id") -> list[str]:
     """
     Find which IDs from the request were not found in the results.
 
@@ -446,8 +448,8 @@ def find_missing_ids(requested_ids: list[str], found_objects, id_attr: str = "id
 
 
 def check_all_ids_found(
-    requested_ids: list[str],
-    found_objects,
+    requested_ids: Iterable[str],
+    found_objects: Iterable[Any],
     resource_name: str,
     id_attr: str = "id",
     total: int | None = None,
