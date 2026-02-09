@@ -18,7 +18,6 @@ pytest_plugins = [
     "iqe_host_inventory.fixtures.staleness_fixtures",
     "iqe_host_inventory.fixtures.upload_fixtures",
     "iqe_host_inventory.fixtures.user_fixtures",
-    "iqe_host_inventory.fixtures.ui_fixtures",
     "iqe_host_inventory.fixtures.feature_flag_fixtures",
 ]
 
@@ -85,15 +84,6 @@ def host_inventory_secondary(hbi_application_secondary: Application) -> Applicat
 @pytest.fixture(scope="session")
 def host_inventory_frontend(hbi_application_frontend: Application) -> ApplicationHostInventory:
     return hbi_application_frontend.host_inventory
-
-
-@pytest.fixture(scope="session")
-def host_inventory_frontend_non_org_admin(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-) -> ApplicationHostInventory:
-    if hbi_maybe_application_frontend_non_org_admin is None:
-        pytest.fail("'frontend non org admin' user is not properly defined in the config")
-    return hbi_maybe_application_frontend_non_org_admin.host_inventory
 
 
 @pytest.fixture(scope="session")
