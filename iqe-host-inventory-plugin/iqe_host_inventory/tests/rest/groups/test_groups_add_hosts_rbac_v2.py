@@ -111,11 +111,15 @@ def test_add_hosts_to_group_rbac_v2_partial_success(host_inventory: ApplicationH
     assert group.host_count == 1
 
     # Add second host - should validate workspace via RBAC v2
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]], wait_for_added=False)
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(
+        group.id, [hosts[1]], wait_for_added=False
+    )
     assert updated_group.host_count == 2
 
     # Add third host
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[2]], wait_for_added=False)
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(
+        group.id, [hosts[2]], wait_for_added=False
+    )
     assert updated_group.host_count == 3
 
     # Wait for final state and verify all hosts are in group
@@ -171,11 +175,15 @@ def test_add_hosts_to_group_rbac_v2_idempotent(host_inventory: ApplicationHostIn
     assert group.host_count == 1
 
     # Add second host
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[1]], wait_for_added=False)
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(
+        group.id, [hosts[1]], wait_for_added=False
+    )
     assert updated_group.host_count == 2
 
     # Add first host again (already in group) - should be idempotent
-    updated_group = host_inventory.apis.groups.add_hosts_to_group(group.id, [hosts[0]], wait_for_added=False)
+    updated_group = host_inventory.apis.groups.add_hosts_to_group(
+        group.id, [hosts[0]], wait_for_added=False
+    )
     assert updated_group.host_count == 2  # Still 2, not 3
 
     # Wait for final state and verify only 2 hosts in group
