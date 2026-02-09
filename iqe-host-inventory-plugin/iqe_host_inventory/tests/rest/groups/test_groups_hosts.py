@@ -245,7 +245,7 @@ def test_get_hosts_from_group_with_ordering(
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-ordering
+      requirements: inv-groups-get-hosts, inv-hosts-sorting
       assignee: maarif
       importance: high
       title: Ordering works correctly for GET /groups/{group_id}/hosts
@@ -287,7 +287,7 @@ def test_get_hosts_from_group_with_display_name_filter(host_inventory: Applicati
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-filter-by-display-name
+      requirements: inv-groups-get-hosts
       assignee: maarif
       importance: high
       title: Display name filter works for GET /groups/{group_id}/hosts
