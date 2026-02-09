@@ -21,6 +21,7 @@ from iqe_host_inventory.modeling.groups_api import _ids_from_groups
 from iqe_host_inventory.schemas import RBACRestClient
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
 logger = logging.getLogger(__name__)
 
@@ -208,10 +209,7 @@ class RBACAPIWrapper(BaseEntity):
 
         self.add_roles_to_a_group(roles, group.uuid)
 
-        # TODO: Uncomment when Kessel Phase 1 is enabled
-        # https://issues.redhat.com/browse/RHCLOUD-43684
-        # logger.info("Waiting 21 seconds for RBAC -> Kessel sync...")
-        # sleep(21)
+        wait_for_kessel_sync(self.application.host_inventory)
 
         return group, roles
 
