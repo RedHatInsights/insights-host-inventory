@@ -245,7 +245,7 @@ def test_get_hosts_from_group_with_ordering(
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-ordering
+      requirements: inv-groups-get-hosts, inv-hosts-sorting
       assignee: maarif
       importance: high
       title: Ordering works correctly for GET /groups/{group_id}/hosts
@@ -287,7 +287,7 @@ def test_get_hosts_from_group_with_display_name_filter(host_inventory: Applicati
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-filter-by-display-name
+      requirements: inv-groups-get-hosts
       assignee: maarif
       importance: high
       title: Display name filter works for GET /groups/{group_id}/hosts
@@ -412,7 +412,7 @@ def test_get_hosts_from_group_multiple_filters(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-filter-combination
+      requirements: inv-groups-get-hosts
       assignee: maarif
       importance: high
       title: Multiple filters work together for GET /groups/{group_id}/hosts
@@ -448,7 +448,7 @@ def test_get_hosts_from_group_with_hostname_or_id_filter(host_inventory: Applica
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-filter-by-hostname-or-id
+      requirements: inv-groups-get-hosts
       assignee: maarif
       importance: high
       title: Hostname or ID filter works for GET /groups/{group_id}/hosts
@@ -488,7 +488,7 @@ def test_get_hosts_from_group_with_insights_id_filter(host_inventory: Applicatio
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-      requirements: inv-groups-get-hosts, inv-hosts-filter-by-insights-id
+      requirements: inv-groups-get-hosts
       assignee: maarif
       importance: high
       title: Insights ID filter works for GET /groups/{group_id}/hosts
