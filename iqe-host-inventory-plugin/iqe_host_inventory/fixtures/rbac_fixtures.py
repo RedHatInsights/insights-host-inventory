@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator
-from time import sleep
 from typing import NamedTuple
 
 import pytest
@@ -19,6 +18,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
 from iqe_host_inventory.utils.rbac_utils import RBACRoles
 from iqe_host_inventory.utils.rbac_utils import update_group_with_roles
+from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
 
@@ -100,7 +100,6 @@ def rbac_non_org_admin_rbac_admin_setup_class(
     host_inventory: ApplicationHostInventory,
     host_inventory_non_org_admin: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
-    is_kessel_phase_1_enabled_session: bool,
 ) -> Generator[ApplicationHostInventory]:
     """
     Fixture to create a Group, Role for giving an 'rbac:*:*' permission to a user
@@ -112,7 +111,7 @@ def rbac_non_org_admin_rbac_admin_setup_class(
     role = host_inventory.apis.rbac.get_rbac_admin_role()
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
 
-    wait_for_kessel_sync(is_kessel_phase_1_enabled_session)
+    wait_for_kessel_sync(host_inventory)
 
     yield host_inventory_non_org_admin
 
@@ -163,10 +162,9 @@ def rbac_inventory_admin_user_setup(hbi_non_org_admin_user_rbac_setup):
 def rbac_inventory_user_without_permissions_setup(
     host_inventory: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
-    is_kessel_phase_1_enabled: bool,
 ):
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
-    wait_for_kessel_sync(is_kessel_phase_1_enabled)
+    wait_for_kessel_sync(host_inventory)
 
 
 @pytest.fixture(scope="function")
@@ -379,10 +377,9 @@ def rbac_inventory_admin_granular_user_setup_class(
 def rbac_inventory_user_without_permissions_setup_class(
     host_inventory: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
-    is_kessel_phase_1_enabled_session: bool,
 ):
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
-    wait_for_kessel_sync(is_kessel_phase_1_enabled_session)
+    wait_for_kessel_sync(host_inventory)
 
 
 @pytest.fixture(scope="class")
@@ -616,49 +613,37 @@ def rbac_setup_group_with_member(
         group.delete_if_exists()
 
 
-def wait_for_kessel_sync(
-    is_kessel_phase_1_enabled: bool,
-    wait_seconds: int = 21,
-) -> None:
-    """
-    Wait for RBAC -> Kessel synchronization if the Kessel Phase 1 feature flag is enabled.
-    """
-    if is_kessel_phase_1_enabled:
-        logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
-        sleep(wait_seconds)
-
-
 @pytest.fixture
 def rbac_setup_user_with_rhel_admin_role(
-    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
 ) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_ADMIN])
 
-    wait_for_kessel_sync(is_kessel_phase_1_enabled)
+    wait_for_kessel_sync(host_inventory)
 
     return RBACRoles.RHEL_ADMIN
 
 
 @pytest.fixture
 def rbac_setup_user_with_rhel_operator_role(
-    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
 ) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_OPERATOR])
 
-    wait_for_kessel_sync(is_kessel_phase_1_enabled)
+    wait_for_kessel_sync(host_inventory)
 
     return RBACRoles.RHEL_OPERATOR
 
 
 @pytest.fixture
 def rbac_setup_user_with_rhel_viewer_role(
-    rbac_setup_group_with_member, is_kessel_phase_1_enabled: bool
+    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
 ) -> str:
     group, app = rbac_setup_group_with_member
     update_group_with_roles(app, group, [RBACRoles.RHEL_VIEWER])
 
-    wait_for_kessel_sync(is_kessel_phase_1_enabled)
+    wait_for_kessel_sync(host_inventory)
 
     return RBACRoles.RHEL_VIEWER
