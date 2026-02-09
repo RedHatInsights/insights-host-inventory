@@ -85,6 +85,12 @@ services:
         - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
         - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      healthcheck:
+        test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --topic platform.inventory.host-ingress --create --if-not-exists && kafka-broker-api-versions --bootstrap-server localhost:29092"]
+        interval: 5s
+        timeout: 10s
+        retries: 10
+        start_period: 15s
 
     unleash:
       container_name: unleash
@@ -178,7 +184,7 @@ services:
         db:
           condition: service_healthy
         kafka:
-          condition: service_started
+          condition: service_healthy
       volumes:
         - .:/opt/app-root/src
       command: python3 dev_server.py
@@ -202,7 +208,7 @@ services:
         db:
           condition: service_healthy
         kafka:
-          condition: service_started
+          condition: service_healthy
       volumes:
         - .:/opt/app-root/src
       command: python3 inv_mq_service.py
