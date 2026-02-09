@@ -13,14 +13,11 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.nodes import Item
 from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
-from iqe.base.feature_flags.consoledot_proxy import ConsoleDotProxyBackend
-from iqe.base.feature_flags.unleash import UnleashBackend
 from iqe.users.user_provider import UserProvider
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
 from iqe_host_inventory.fixtures.feature_flag_fixtures import _ensure_ungrouped_group_exists
-from iqe_host_inventory.fixtures.feature_flag_fixtures import toggle_feature_flag
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -79,12 +76,12 @@ def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None, No
 @pytest.fixture(scope="session", autouse=True)
 def enable_kessel_backend_flags(
     request: FixtureRequest,
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-    kessel_phase_1_flag: str,
     host_inventory: ApplicationHostInventory,
 ) -> None:
     if request.config.getoption("--kessel"):
-        toggle_feature_flag(unleash, kessel_phase_1_flag)
+        host_inventory.unleash.toggle_feature_flag(
+            host_inventory.unleash.kessel_phase_1_flag, enable=True
+        )
         _ensure_ungrouped_group_exists(host_inventory)
 
     return
