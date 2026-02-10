@@ -1,0 +1,12 @@
+---
+name: SC Environment Check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  call-reusable-workflow:
+    uses: RedHatInsights/shared-workflows/.github/workflows/sc-environment-impact-check.yml@master
