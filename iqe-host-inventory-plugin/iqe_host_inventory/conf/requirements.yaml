@@ -796,3 +796,12 @@ inv-rhsm-display_name:
   links:
     - https://issues.redhat.com/browse/RHINENG-19514
     - https://issues.redhat.com/browse/RHINENG-20429
+
+inv-canonical-facts-columns:
+  summary: Canonical facts are stored as individual database columns
+  priority: high
+  description: >
+    Canonical facts (insights_id, subscription_manager_id, satellite_id, fqdn, bios_uuid,
+    ip_addresses, mac_addresses, provider_id, provider_type) are stored as individual columns
+    in the hosts table rather than in a JSONB column. The API should correctly return these
+    values and they should be preserved during host updates.
