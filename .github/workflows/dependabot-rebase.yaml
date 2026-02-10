@@ -1,0 +1,33 @@
+name: Dependabot Rebase
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  rebase-dependabot-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.AUTOMERGE_APP_ID }}
+          private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
+
+      - name: Rebase Dependabot PRs that are behind
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Find all open PRs from dependabot and rebase any that are behind
+          gh pr list --repo "$REPO" --author "app/dependabot" --state open --json number,headRefOid --jq '.[] | "\(.number) \(.headRefOid)"' | while read -r pr_number head_sha; do
+            if [ -n "$pr_number" ]; then
+              behind_count=$(gh api "repos/$REPO/compare/master...$head_sha" --jq '.behind_by' 2>/dev/null || echo "0")
+              if [ "$behind_count" -gt 0 ]; then
+                echo "PR #$pr_number is $behind_count commits behind, requesting rebase"
+                gh pr comment "$pr_number" --repo "$REPO" --body "@dependabot rebase"
+              fi
+            fi
+          done
