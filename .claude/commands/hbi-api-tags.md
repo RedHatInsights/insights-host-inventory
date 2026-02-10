@@ -1,4 +1,4 @@
-# /api-tags - Query HBI tags via the local REST API
+# /hbi-api-tags - Query HBI tags via the local REST API
 
 Interact with the HBI tags API running at `http://localhost:8080`.
 

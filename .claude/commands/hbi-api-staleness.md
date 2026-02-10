@@ -1,4 +1,4 @@
-# /api-staleness - Query and manage HBI staleness configuration via the local REST API
+# /hbi-api-staleness - Query and manage HBI staleness configuration via the local REST API
 
 Interact with the HBI staleness API running at `http://localhost:8080`.
 

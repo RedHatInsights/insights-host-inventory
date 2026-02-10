@@ -725,10 +725,10 @@ This project includes [Claude Code](https://claude.ai/code) hooks, slash command
 # Deterministic setup (hooks run automatically)
 make hbi-cldi
 
-# Agentic setup (interactive, runs /install slash command)
+# Agentic setup (interactive, runs /hbi-install slash command)
 make hbi-cldii
 
-# Agentic maintenance (runs /maintenance slash command)
+# Agentic maintenance (runs /hbi-maintenance slash command)
 make hbi-cldmm
 ```
 
@@ -763,16 +763,16 @@ Slash commands are markdown files in `.claude/commands/` that instruct Claude Co
 
 | Command | File | Purpose |
 |---------|------|---------|
-| `/install` | `.claude/commands/install.md` | Runs `/prime` for orientation, then the setup init script, reports results |
-| `/install-hil` | `.claude/commands/install-hil.md` | Interactive setup — asks preferences for database, deps, and Podman services |
-| `/maintenance` | `.claude/commands/maintenance.md` | Runs `/prime` for orientation, then the maintenance script, reports results |
-| `/doctor` | `.claude/commands/doctor.md` | Health checks all services: Podman, PostgreSQL, Kafka, HBI web, DB migrations, Python env |
-| `/prime` | `.claude/commands/prime.md` | Quick orientation: reads key files (`CLAUDE.md`, `README.md`, `mk/private.mk`, `dev.yml`), reports project summary |
-| `/api-hosts` | `.claude/commands/api-hosts.md` | Query and manage hosts (list, get by ID, filter, system profile, tags, update, delete) |
-| `/api-groups` | `.claude/commands/api-groups.md` | Query and manage groups (list, create, get hosts in group, add/remove hosts, delete) |
-| `/api-tags` | `.claude/commands/api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
-| `/api-system-profile` | `.claude/commands/api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
-| `/api-staleness` | `.claude/commands/api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
+| `/hbi-install` | `.claude/commands/hbi-install.md` | Runs `/hbi-prime` for orientation, then the setup init script, reports results |
+| `/hbi-install-hil` | `.claude/commands/hbi-install-hil.md` | Interactive setup — asks preferences for database, deps, and Podman services |
+| `/hbi-maintenance` | `.claude/commands/hbi-maintenance.md` | Runs `/hbi-prime` for orientation, then the maintenance script, reports results |
+| `/hbi-doctor` | `.claude/commands/hbi-doctor.md` | Health checks all services: Podman, PostgreSQL, Kafka, HBI web, DB migrations, Python env |
+| `/hbi-prime` | `.claude/commands/hbi-prime.md` | Quick orientation: reads key files (`CLAUDE.md`, `README.md`, `mk/private.mk`, `dev.yml`), reports project summary |
+| `/hbi-api-hosts` | `.claude/commands/hbi-api-hosts.md` | Query and manage hosts (list, get by ID, filter, system profile, tags, update, delete) |
+| `/hbi-api-groups` | `.claude/commands/hbi-api-groups.md` | Query and manage groups (list, create, get hosts in group, add/remove hosts, delete) |
+| `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
+| `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
+| `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
 
 ### HBI Make Targets
 
@@ -803,9 +803,9 @@ make hbi-help
 |--------|-------------|
 | `make hbi-cldi` | Deterministic codebase setup (`claude --init`) |
 | `make hbi-cldm` | Deterministic codebase maintenance (`claude --maintenance`) |
-| `make hbi-cldii` | Agentic setup via `/install` slash command |
-| `make hbi-cldit` | Agentic interactive setup via `/install-hil` |
-| `make hbi-cldmm` | Agentic maintenance via `/maintenance` slash command |
+| `make hbi-cldii` | Agentic setup via `/hbi-install` slash command |
+| `make hbi-cldit` | Agentic interactive setup via `/hbi-install-hil` |
+| `make hbi-cldmm` | Agentic maintenance via `/hbi-maintenance` slash command |
 
 ## GABI Query Tool (interactive and non-interactive)
 

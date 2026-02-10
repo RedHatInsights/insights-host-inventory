@@ -63,13 +63,13 @@ hbi-cldm: ## Deterministic codebase maintenance (via Claude Code --maintenance)
 	claude --model claude-opus-4-6 --dangerously-skip-permissions --maintenance
 
 .PHONY: hbi-cldii
-hbi-cldii: ## Agentic codebase setup (runs /install slash command)
-	claude --model claude-opus-4-6 --dangerously-skip-permissions --init "/install"
+hbi-cldii: ## Agentic codebase setup (runs /hbi-install slash command)
+	claude --model claude-opus-4-6 --dangerously-skip-permissions --init "/hbi-install"
 
 .PHONY: hbi-cldit
-hbi-cldit: ## Agentic interactive setup (runs /install-hil slash command)
-	claude --model claude-opus-4-6 --dangerously-skip-permissions --init "/install true"
+hbi-cldit: ## Agentic interactive setup (runs /hbi-install-hil slash command)
+	claude --model claude-opus-4-6 --dangerously-skip-permissions --init "/hbi-install true"
 
 .PHONY: hbi-cldmm
-hbi-cldmm: ## Agentic maintenance (runs /maintenance slash command)
-	claude --model claude-opus-4-6 --dangerously-skip-permissions --maintenance "/maintenance"
+hbi-cldmm: ## Agentic maintenance (runs /hbi-maintenance slash command)
+	claude --model claude-opus-4-6 --dangerously-skip-permissions --maintenance "/hbi-maintenance"

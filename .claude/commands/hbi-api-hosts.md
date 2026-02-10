@@ -1,4 +1,4 @@
-# /api-hosts - Query and manage HBI hosts via the local REST API
+# /hbi-api-hosts - Query and manage HBI hosts via the local REST API
 
 Interact with the HBI hosts API running at `http://localhost:8080`.
 

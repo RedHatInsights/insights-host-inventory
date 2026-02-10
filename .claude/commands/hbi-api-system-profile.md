@@ -1,4 +1,4 @@
-# /api-system-profile - Query HBI system profile data via the local REST API
+# /hbi-api-system-profile - Query HBI system profile data via the local REST API
 
 Interact with the HBI system profile API running at `http://localhost:8080`.
 

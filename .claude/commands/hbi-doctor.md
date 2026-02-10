@@ -1,4 +1,4 @@
-# /doctor - HBI Development Environment Health Check
+# /hbi-doctor - HBI Development Environment Health Check
 
 Diagnose the health of all HBI development services and dependencies.
 
@@ -32,12 +32,19 @@ Run each of the following checks and report results in a summary table:
 - Check `pipenv --version`
 - Check if virtual environment exists: `unset PIPENV_PIPFILE && pipenv --venv`
 
-### 7. Git Submodules
+### 7. Git Branch Status
+- Run `git fetch --quiet` to update remote refs
+- Run `git rev-list --left-right --count HEAD...@{u}` to check ahead/behind counts
+- Report if the local branch is behind remote (suggest `git pull`)
+- Report if the local branch is ahead of remote (unpushed commits)
+- If no upstream tracking branch, report as WARN
+
+### 8. Git Submodules
 - Run `git submodule status` to check submodule state
 - Report if submodules are initialized (e.g., `librdkafka`)
 - If a submodule shows a `-` prefix, it is not initialized — suggest `git submodule update --init --recursive`
 
-### 8. Hosts File
+### 9. Hosts File
 - Check if `kafka` entry exists in `/etc/hosts`
 
 ### Summary
@@ -51,6 +58,7 @@ Present results as a table:
 | HBI Web Service | OK/FAIL | version or error |
 | DB Migrations | OK/WARN | current head or error |
 | Python Environment | OK/FAIL | version info |
+| Git Branch | OK/WARN | up to date / N commits behind remote |
 | Git Submodules | OK/WARN | initialized / not initialized |
 | Hosts File | OK/WARN | kafka entry present/missing |
 

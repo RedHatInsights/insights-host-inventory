@@ -1,4 +1,4 @@
-# /install-hil - Interactive Human-in-the-Loop HBI Setup
+# /hbi-install-hil - Interactive Human-in-the-Loop HBI Setup
 
 Interactive setup that asks the user preferences before configuring the environment.
 

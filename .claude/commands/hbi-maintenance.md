@@ -1,12 +1,12 @@
-# /maintenance - HBI Development Environment Maintenance
+# /hbi-maintenance - HBI Development Environment Maintenance
 
 Run the deterministic maintenance script to update dependencies, images, and verify health.
 
 ## Instructions
 
-1. First, orient yourself by running the `/prime` command:
+1. First, orient yourself by running the `/hbi-prime` command:
    ```
-   Skill(/prime)
+   Skill(/hbi-prime)
    ```
 
 2. Run the maintenance script:
@@ -18,7 +18,7 @@ Run the deterministic maintenance script to update dependencies, images, and ver
 
 4. Analyze the JSON output and report to the user:
    - Whether Python dependencies were updated
-   - Whether Docker images were pulled
+   - Whether Podman images were pulled
    - Whether services restarted successfully
    - Whether database migrations ran
    - Whether style checks passed
@@ -29,7 +29,7 @@ Run the deterministic maintenance script to update dependencies, images, and ver
 
 6. If any steps failed, provide actionable remediation steps:
    - Dependency issues: suggest `make hbi-deps` to reinstall
-   - Docker issues: suggest `make hbi-up` or `make hbi-reset` if services are in a bad state
+   - Podman issues: suggest `make hbi-up` or `make hbi-reset` if services are in a bad state
    - Style issues: suggest `make hbi-style` to re-run checks
 
 7. End with a summary table showing each step's status.

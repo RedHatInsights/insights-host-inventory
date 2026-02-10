@@ -1,4 +1,4 @@
-# /prime - Orient Agent to HBI Codebase
+# /hbi-prime - Orient Agent to HBI Codebase
 
 Quick-start orientation to understand the HBI project structure and configuration.
 
