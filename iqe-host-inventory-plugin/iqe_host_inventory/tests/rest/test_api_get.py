@@ -1,3 +1,4 @@
+import json
 import logging
 from collections.abc import Callable
 from copy import deepcopy
@@ -178,8 +179,15 @@ class TestGetHosts:
         """
         fake_id = generate_uuid()
 
-        with raises_apierror(404):
+        with raises_apierror(404) as exc:
             host_inventory.apis.hosts.get_hosts_by_id_response(fake_id)
+
+        # Verify that the response body includes the not_found_ids field
+        response_body = json.loads(exc.value.body)
+        assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
+        assert response_body["not_found_ids"] == [fake_id], (
+            f"Expected 'not_found_ids' to be '[{fake_id}]', got '{response_body['not_found_ids']}'"
+        )
 
     def test_branch_id_parameter(
         self, host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_class: HostOut

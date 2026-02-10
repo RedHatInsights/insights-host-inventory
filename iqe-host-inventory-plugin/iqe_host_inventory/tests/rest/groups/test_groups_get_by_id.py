@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from datetime import datetime
@@ -707,8 +708,16 @@ class TestGetGroupByIDEmptyGroups:
           title: Get groups by IDs - not existing group
         """
         groups_ids = [generate_uuid() for _ in range(how_many)]
-        with raises_apierror(404):
+        with raises_apierror(404) as exc:
             host_inventory.apis.groups.get_groups_by_id_response(groups_ids)
+
+        # Verify that the response body includes the not_found_ids field
+        response_body = json.loads(exc.value.body)
+        assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
+        assert set(groups_ids) == set(response_body["not_found_ids"]), (
+            f"Expected '{set(groups_ids)}' in not_found_ids, "
+            f"got '{response_body['not_found_ids']}'"
+        )
 
     def test_groups_get_by_id_good_and_non_existing(
         self, setup_empty_groups_primary, host_inventory
@@ -723,14 +732,23 @@ class TestGetGroupByIDEmptyGroups:
           title: Get groups by IDs - existing and not existing group
         """
         groups = setup_empty_groups_primary[:2]
+        not_found_id = generate_uuid()
 
         # Make sure we get 404 when trying to get a group that doesn't exist
-        with raises_apierror(404):
+        with raises_apierror(404) as exc:
             host_inventory.apis.groups.get_groups_by_id_response([
                 groups[0].id,
-                generate_uuid(),
+                not_found_id,
                 groups[1].id,
             ])
+
+        # Verify that the response body includes the not_found_ids field
+        response_body = json.loads(exc.value.body)
+        assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
+        assert response_body["not_found_ids"] == [not_found_id], (
+            f"Expected 'not_found_ids' to be '[{not_found_id}]', "
+            f"got '{response_body['not_found_ids']}'"
+        )
 
         response = host_inventory.apis.groups.get_groups_by_id_response([
             groups[0].id,

@@ -230,6 +230,54 @@ def test_group_id_list_filter_not_found(db_create_group, api_get):
     assert response_status == 404
 
 
+def test_group_id_not_found_response_includes_missing_ids(api_get):
+    # Verify that 404 response includes the not_found_ids field
+    group_id = generate_uuid()
+
+    response_status, response_data = api_get(f"{GROUP_URL}/{group_id}")
+
+    assert response_status == 404
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [group_id]
+    assert response_data["detail"] == "One or more groups not found."
+
+
+def test_group_ids_not_found_omits_missing_ids_when_results_incomplete(api_get, db_create_group):
+    """
+    For list-by-ID, when the underlying query reports multiple pages (via total)
+    and not all results are available, verify that we return a 404 with only a
+    generic detail message and without not_found_ids.
+    """
+    # Create enough groups so that the underlying search has multiple pages
+    group_id_1 = str(db_create_group("group1").id)
+    group_id_2 = str(db_create_group("group2").id)
+
+    # Include at least one missing ID in the list
+    missing_group_id = str(generate_uuid())
+    requested_ids = ",".join([group_id_1, group_id_2, missing_group_id])
+
+    # Use a small page size to ensure total > len(results on this page)
+    response_status, response_data = api_get(f"{GROUP_URL}/{requested_ids}?per_page=1")
+
+    assert response_status == 404
+    # When results are incomplete, check_all_ids_found should *not* include not_found_ids
+    assert "not_found_ids" not in response_data
+    assert response_data["detail"] == "One or more groups not found."
+
+
+def test_mixed_valid_and_missing_group_ids_response_includes_only_missing_ids(db_create_group, api_get):
+    # Verify 404 response only includes the missing IDs, not the valid ones
+    valid_group_id = str(db_create_group("test_group").id)
+    missing_group_id = generate_uuid()
+
+    response_status, response_data = api_get(f"{GROUP_URL}/{valid_group_id},{missing_group_id}")
+
+    assert response_status == 404
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [missing_group_id]
+    assert valid_group_id not in response_data["not_found_ids"]
+
+
 def test_group_query_pagination(subtests, db_create_group, api_get):
     num_groups = 40
     for idx in range(num_groups):

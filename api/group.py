@@ -38,6 +38,7 @@ from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
 from app.serialization import serialize_rbac_workspace_with_host_count
+from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
@@ -384,8 +385,8 @@ def delete_groups(group_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Abort with 404 if any of the groups do not exist
-    if len(get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)) != len(set(group_id_list)):
-        abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+    found_groups = get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)
+    check_all_ids_found(group_id_list, found_groups, "group")
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
@@ -437,8 +438,7 @@ def get_groups_by_id(
         group_list, total = get_group_list_by_id_list_db(
             group_id_list, page, per_page, order_by, order_how, rbac_filter
         )
-        if total != len(set(group_id_list)):
-            abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
+        check_all_ids_found(group_id_list, group_list, "group", total=total)
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -467,8 +467,8 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     rbac_group_id_check(rbac_filter, requested_group_ids)
 
-    if len(get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()) != len(set(host_id_list)):
-        abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
 
     delete_count = 0
 
