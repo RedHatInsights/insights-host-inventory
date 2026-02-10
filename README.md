@@ -773,6 +773,7 @@ Slash commands are markdown files in `.claude/commands/` that instruct Claude Co
 | `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
 | `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
 | `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
+| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref Pipfile.lock/Dockerfile, produce Jira-formatted output |
 
 ### HBI Make Targets
 
