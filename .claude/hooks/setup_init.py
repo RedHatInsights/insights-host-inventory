@@ -54,10 +54,12 @@ def run_cmd(cmd, cwd=None, timeout=60, env=None, check=True):
 
     cmd must be a list of strings (no shell interpretation).
     """
+    if not isinstance(cmd, list) or not all(isinstance(c, str) for c in cmd):
+        raise TypeError(f"cmd must be a list of strings, got: {type(cmd)}")
     merged_env = {**os.environ, **(env or {})}
     merged_env.pop("PIPENV_PIPFILE", None)  # Ensure pipenv uses the project root Pipfile
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # noqa: S603
             cmd,
             shell=False,
             cwd=cwd or PROJECT_DIR,

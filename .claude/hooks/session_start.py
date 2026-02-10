@@ -11,6 +11,7 @@ Logs output to .claude/hooks/session_start.log
 import json
 import logging
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -83,6 +84,66 @@ def write_claude_env(env_vars):
         return False
 
 
+def check_branch_status():
+    """Check if the local branch is up to date with its remote tracking branch.
+
+    Returns a list of warnings (empty if everything is up to date).
+    """
+    warnings = []
+    try:
+        # Fetch latest remote refs silently
+        subprocess.run(  # noqa: S603
+            ["git", "fetch", "--quiet"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            timeout=15,
+        )
+
+        # Get current branch name
+        result = subprocess.run(  # noqa: S603
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return warnings
+        branch = result.stdout.strip()
+
+        # Get ahead/behind counts relative to upstream
+        result = subprocess.run(  # noqa: S603
+            ["git", "rev-list", "--left-right", "--count", f"{branch}...@{{u}}"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            # No upstream tracking branch
+            log.info("  Branch '%s' has no upstream tracking branch", branch)
+            return warnings
+
+        ahead, behind = result.stdout.strip().split()
+        ahead, behind = int(ahead), int(behind)
+
+        if behind > 0:
+            msg = f"Branch '{branch}' is {behind} commit(s) behind remote"
+            if ahead > 0:
+                msg += f" and {ahead} commit(s) ahead"
+            msg += ". Consider pulling latest changes."
+            warnings.append(msg)
+            log.warning("  %s", msg)
+        elif ahead > 0:
+            log.info("  Branch '%s' is %d commit(s) ahead of remote", branch, ahead)
+        else:
+            log.info("  Branch '%s' is up to date with remote", branch)
+
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        log.info("  Could not check branch status: %s", e)
+    return warnings
+
+
 def main():
     log.info("=== HBI Session Start ===")
 
@@ -94,14 +155,21 @@ def main():
         log.info("No .env variables to load")
         written = False
 
+    branch_warnings = check_branch_status()
+
+    # Build context message
+    context_parts = []
+    if env_vars:
+        context_parts.append(f"Loaded {len(env_vars)} environment variables from .env.")
+    else:
+        context_parts.append("No .env file found or file is empty.")
+    for warning in branch_warnings:
+        context_parts.append(f"WARNING: {warning}")
+
     summary = {
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
-            "additionalContext": (
-                f"Loaded {len(env_vars)} environment variables from .env."
-                if env_vars
-                else "No .env file found or file is empty."
-            ),
+            "additionalContext": " ".join(context_parts),
         }
     }
 

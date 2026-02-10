@@ -1,4 +1,4 @@
-# /api-groups - Query and manage HBI groups via the local REST API
+# /hbi-api-groups - Query and manage HBI groups via the local REST API
 
 Interact with the HBI groups API running at `http://localhost:8080`.
 

@@ -3,7 +3,7 @@ description: Run setup_init hook and report installation results
 argument-hint: [hil]
 ---
 
-# /install - Automated HBI Development Setup
+# /hbi-install - Automated HBI Development Setup
 
 Run the deterministic setup script to initialize the HBI development environment.
 
@@ -13,12 +13,12 @@ MODE: $1 (optional - if "true", run interactive mode)
 
 ## Instructions
 
-1. First, orient yourself to the codebase by running the `/prime` command:
+1. First, orient yourself to the codebase by running the `/hbi-prime` command:
    ```
-   Skill(/prime)
+   Skill(/hbi-prime)
    ```
 
-2. Check for interactive mode: if MODE is "true", run `Skill(/install-hil)` and ignore the remainder of this prompt
+2. Check for interactive mode: if MODE is "true", run `Skill(/hbi-install-hil)` and ignore the remainder of this prompt
 3. Run the setup init script:
    ```
    python3 .claude/hooks/setup_init.py
