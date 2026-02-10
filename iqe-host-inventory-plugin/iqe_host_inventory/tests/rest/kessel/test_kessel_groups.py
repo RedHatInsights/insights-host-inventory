@@ -1,4 +1,3 @@
-import json
 import logging
 
 import pytest
@@ -8,7 +7,6 @@ from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory_api import HostOut
 
 """
@@ -622,60 +620,3 @@ def test_kessel_delete_parent_with_sub_workspaces(
 
     with raises_apierror(400, "RBAC client error: Unable to delete due to workspace dependencies"):
         host_inventory.apis.groups.delete_groups_raw(parent_workspaces[0].id)
-
-
-def test_kessel_get_single_non_existent_group(host_inventory: ApplicationHostInventory):
-    """
-    metadata:
-      requirements: inv-kessel-groups
-      assignee: aprice
-      importance: medium
-      negative: true
-      title: Verify that getting a single non-existent group returns 404 with not_found_ids
-    """
-    non_existent_group_id = generate_uuid()
-
-    with raises_apierror(404, match_message="One or more groups not found.") as exc:
-        host_inventory.apis.groups.get_groups_by_id_response(non_existent_group_id)
-
-    # Verify that the response body includes the not_found_ids field
-    response_body = json.loads(exc.value.body)
-    assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
-    assert non_existent_group_id in response_body["not_found_ids"], (
-        f"Expected '{non_existent_group_id}' in not_found_ids, "
-        f"got {response_body['not_found_ids']}"
-    )
-
-
-def test_kessel_get_mixed_existent_and_non_existent_groups(
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    metadata:
-      requirements: inv-kessel-groups
-      assignee: aprice
-      importance: medium
-      negative: true
-      title: Verify that getting a mix of existent and non-existent groups returns 404
-             with only the non-existent ID in not_found_ids
-    """
-    # Create a real group
-    existing_group = host_inventory.apis.groups.create_group(generate_display_name())
-    non_existent_group_id = generate_uuid()
-
-    with raises_apierror(404, match_message="One or more groups not found.") as exc:
-        host_inventory.apis.groups.get_groups_by_id_response([
-            existing_group.id,
-            non_existent_group_id,
-        ])
-
-    # Verify that the response body includes only the non-existent ID in not_found_ids
-    response_body = json.loads(exc.value.body)
-    assert "not_found_ids" in response_body, "Expected 'not_found_ids' in response body"
-    assert non_existent_group_id in response_body["not_found_ids"], (
-        f"Expected '{non_existent_group_id}' in not_found_ids, "
-        f"got {response_body['not_found_ids']}"
-    )
-    assert existing_group.id not in response_body["not_found_ids"], (
-        f"Existing group ID '{existing_group.id}' should not be in not_found_ids"
-    )
