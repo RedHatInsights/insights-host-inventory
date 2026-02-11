@@ -410,13 +410,9 @@ def test_get_hosts_from_group_with_tags_filter(host_inventory: ApplicationHostIn
     # Filter by tags
     response_hosts = host_inventory.apis.groups.get_hosts_from_group(group, tags=["app/env=prod"])
 
-    # Verify only production hosts returned
+    # Verify only production hosts returned (host1 and host3 have app/env=prod tag)
     assert len(response_hosts) == 2
-    for host in response_hosts:
-        assert any(
-            tag.namespace == "app" and tag.key == "env" and tag.value == "prod"
-            for tag in host.tags
-        )
+    assert {host.id for host in response_hosts} == {hosts[0].id, hosts[2].id}
 
 
 @pytest.mark.ephemeral
