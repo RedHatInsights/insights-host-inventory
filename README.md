@@ -28,7 +28,7 @@ please see the
     - [Identity enforcement](#identity-enforcement)
 - [Payload Tracker integration](#payload-tracker-integration)
 - [Database migrations](#database-migrations)
-- [Docker builds](#docker-builds)
+- [Container builds](#container-builds)
 - [Metrics](#metrics)
 - [Documentation](#documentation)
 - [Release process](#release-process)
@@ -55,7 +55,7 @@ please see the
 
 Before starting, ensure you have the following installed on your system:
 
-- **Docker**: For running containers and services.
+- **Podman**: For running containers and services.
 - **Python 3.12.x**: The recommended version for this project.
 - **pipenv**: For managing Python dependencies.
 
@@ -147,7 +147,7 @@ If using a different directory, update the `volumes` section in [dev.yml](dev.ym
 
 ### Start dependent services
 
-All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
+All dependent services are managed by Podmam Compose and are listed in the [dev.yml](dev.yml) file.
 This includes the web server, MQ server, database, Kafka, and other infrastructure services.
 
 **Note:** This repository uses git submodules (e.g., `librdkafka`). If you haven't already, clone the repository with submodules:
@@ -165,7 +165,7 @@ git submodule update --init --recursive
 Start the services with the following command:
 
 ```bash
-docker compose -f dev.yml up -d
+podman compose -f dev.yml up -d
 ```
 
 The web and MQ servers will automatically start when this command is run.
@@ -174,7 +174,7 @@ starts of the container.
 If you want to destroy that data do the following:
 
 ```bash
-docker compose -f dev.yml down
+podman compose -f dev.yml down
 rm -r ~/.pg_data # or a another directory you defined in volumes
 ```
 
@@ -322,7 +322,7 @@ You can run the web server directly using this command:
 python3 run_gunicorn.py
 ```
 
-Note: If you started services with `docker compose -f dev.yml up -d`, the web server is already running in the `hbi-web` container.
+Note: If you started services with `podman compose -f dev.yml up -d`, the web server is already running in the `hbi-web` container.
 
 ## Legacy support
 
@@ -398,7 +398,7 @@ echo -n '{"identity": {"org_id": "0000001", "type": "System"}}' | base64 -w0
 The Swagger UI provides an interactive interface for testing the API endpoints locally.
 
 **Prerequisites:**
-- Ensure the web service is running (via `docker compose -f dev.yml up -d`)
+- Ensure the web service is running (via `podman compose -f dev.yml up -d`)
 - The service should be accessible at `http://localhost:8080/api/inventory/v1/ui/`
 
 **Access Swagger UI:**
@@ -490,12 +490,12 @@ make migrate_db message="Description of your changes"
 In managed environments, the database migrations are run by the `run-db-migrations` job.
 This job runs once per release, as its name contains the image tag (`run-db-migrations-<IMAGE_TAG>).
 
-## Docker Builds
+## Container Builds
 
 Build local development containers with:
 
 ```bash
-docker build . -f dev.dockerfile -t inventory:dev
+podman build . -f dev.dockerfile -t inventory:dev
 ```
 
 * **Note**: Some packages require a subscription. Ensure your host has access to valid RHEL content.
