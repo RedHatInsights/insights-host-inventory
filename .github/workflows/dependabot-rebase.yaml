@@ -8,6 +8,9 @@ on:
 jobs:
   rebase-dependabot-prs:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
       - name: Generate token
         id: app-token
