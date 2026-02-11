@@ -7,10 +7,11 @@ on:
   pull_request:
     branches: [ master ]
 
-
 jobs:
   call-reusable-workflow:
     permissions:
       pull-requests: write
       contents: read
     uses: RedHatInsights/shared-workflows/.github/workflows/sc-environment-impact-check.yml@master
+    secrets:
+      SC_ASSESSOR_SLACK_URL: ${{ secrets.SC_ASSESSOR_SLACK_URL }}
