@@ -41,6 +41,7 @@ from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
+from app.utils import check_all_ids_found
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list

@@ -136,15 +136,46 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
                         processed_hosts += len(batch_hosts)
                         logger.debug(f"Updated staleness asynchronously for {processed_hosts}/{num_hosts} hosts")
 
-                    # After a successful commit to the db
-                    # call all the events in the list
+                    # After a successful commit to the db, verify which hosts still
+                    # exist before producing events. This prevents producing "updated"
+                    # events for hosts that were deleted between our DB commit and the
+                    # event production, which would cause downstream consumers to see
+                    # an update after a delete (ghost host race condition).
+                    existing_host_ids = _get_existing_host_ids(
+                        identity.org_id, [host_id for _, _, host_id in list_of_events_params]
+                    )
+
                     for event, headers, host_id in list_of_events_params:
-                        app.event_producer.write_event(event, host_id, headers, wait=True)
+                        if host_id in existing_host_ids:
+                            app.event_producer.write_event(event, host_id, headers, wait=True)
+                        else:
+                            logger.warning(
+                                "Skipping staleness update event for host %s: "
+                                "host no longer exists (likely deleted concurrently)",
+                                host_id,
+                            )
 
                 delete_cached_system_keys(org_id=identity.org_id, spawn=True)
             logger.debug("Leaving host staleness update thread")
         except Exception as e:
             raise e
+
+
+def _get_existing_host_ids(org_id, host_ids):
+    """
+    Query the database to determine which hosts from a batch still exist.
+
+    This is used after committing staleness updates to prevent producing
+    "updated" Kafka events for hosts that were concurrently deleted by
+    another pod or thread. Without this check, downstream consumers could
+    see an "updated" event after a "delete" event, causing ghost hosts.
+
+    Returns a set of host ID strings that are still present in the database.
+    """
+    if not host_ids:
+        return set()
+    existing = Host.query.filter(Host.org_id == org_id, Host.id.in_(host_ids)).with_entities(Host.id).all()
+    return {str(row[0]) for row in existing}
 
 
 def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
