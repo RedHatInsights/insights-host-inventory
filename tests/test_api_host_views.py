@@ -4,6 +4,8 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
+import pytest
+
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_view_url
 from tests.helpers.db_utils import db_create_host_app_data
@@ -634,6 +636,181 @@ class TestHostViewSparseFieldsets:
         result = response_data["results"][0]
         # Only valid field returned
         assert result["app_data"]["advisor"] == {"recommendations": 5}
+
+
+class TestHostViewSystemProfileFilters:
+    """Test system_profile filtering on the /beta/hosts-view endpoint."""
+
+    @pytest.mark.parametrize(
+        "operator,filter_value,match_a,match_b",
+        [
+            ("eq", "5", True, False),
+            ("ne", "5", False, True),
+            ("gt", "5", False, True),
+            ("gte", "5", True, True),
+            ("lt", "10", True, False),
+            ("lte", "5", True, False),
+        ],
+    )
+    def test_filter_integer_operators(self, api_get, db_create_host, operator, filter_value, match_a, match_b):
+        """Validate all comparison operators on an integer system_profile field."""
+        host_a = db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 5}})
+        host_a_id = str(host_a.id)
+        host_b = db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 10}})
+        host_b_id = str(host_b.id)
+
+        url = build_host_view_url(query=f"?filter[system_profile][number_of_cpus][{operator}]={filter_value}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert (host_a_id in response_ids) == match_a
+        assert (host_b_id in response_ids) == match_b
+
+    def test_filter_nil_operator(self, api_get, db_create_host):
+        """Filter by nil returns hosts where the field is null."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"host_type": "edge"}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_not_nil_operator(self, api_get, db_create_host):
+        """Filter by not_nil returns hosts where the field is set."""
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {}})
+        nomatch_host_id = str(nomatch_host.id)
+        match_host = db_create_host(extra_data={"system_profile_facts": {"host_type": "edge"}})
+        match_host_id = str(match_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=not_nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_string_field(self, api_get, db_create_host):
+        """Filter by system_profile string field (arch eq)."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"arch": "s390x"}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_boolean_field(self, api_get, db_create_host):
+        """Filter by system_profile boolean field (is_marketplace)."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {"is_marketplace": True}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"is_marketplace": False}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][is_marketplace][eq]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_jsonb_field(self, api_get, db_create_host):
+        """Filter JSONB column (system_purpose) by nil/not_nil."""
+        host_with_sp = db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "system_purpose": {"role": "server", "usage": "Production"},
+                }
+            }
+        )
+        host_with_sp_id = str(host_with_sp.id)
+        host_without_sp = db_create_host(extra_data={"system_profile_facts": {}})
+        host_without_sp_id = str(host_without_sp.id)
+
+        # not_nil should return only the host with system_purpose set
+        url = build_host_view_url(query="?filter[system_profile][system_purpose][eq]=not_nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert host_with_sp_id in response_ids
+        assert host_without_sp_id not in response_ids
+
+        # nil should return only the host without system_purpose
+        url = build_host_view_url(query="?filter[system_profile][system_purpose][eq]=nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert host_without_sp_id in response_ids
+        assert host_with_sp_id not in response_ids
+
+    def test_filter_combined_with_display_name(self, api_get, db_create_host):
+        """System profile filter combined with display_name filter."""
+        match_host = db_create_host(
+            extra_data={
+                "display_name": "target-host.example.com",
+                "system_profile_facts": {"arch": "x86_64"},
+            }
+        )
+        match_host_id = str(match_host.id)
+        db_create_host(
+            extra_data={
+                "display_name": "other-host.example.com",
+                "system_profile_facts": {"arch": "x86_64"},
+            }
+        )
+        db_create_host(
+            extra_data={
+                "display_name": "target-host-2.example.com",
+                "system_profile_facts": {"arch": "s390x"},
+            }
+        )
+
+        url = build_host_view_url(query="?display_name=target-host&filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+
+    def test_filter_returns_app_data(self, api_get, db_create_host, db_create_host_app_data):
+        """Filtered results should still include app_data."""
+        host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        url = build_host_view_url(query="?filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        result = response_data["results"][0]
+        assert "app_data" in result
+        assert result["app_data"]["advisor"]["recommendations"] == 5
+        assert result["app_data"]["advisor"]["incidents"] == 2
+
+    def test_filter_invalid_key_returns_400(self, api_get, db_create_host):
+        """Invalid filter key should return 400."""
+        db_create_host()
+
+        url = build_host_view_url(query="?filter[invalid_key][field]=value")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 400)
 
 
 class TestHostViewAppDataSorting:
