@@ -19,11 +19,11 @@ from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
+from api.group_query import get_workspaces_from_rbac_v2
 from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
-from app.config import MAX_GROUPS_FOR_HOST_COUNT_SORTING
 from app.exceptions import InventoryException
 from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_create_group_failed
@@ -37,7 +37,6 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
@@ -52,13 +51,10 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
-from lib.host_repository import get_group_ids_ordered_by_host_count
-from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_workspaces
-from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -120,102 +116,9 @@ def get_group_list(
             # Special handling for host_count ordering: RBAC v2 doesn't have host count data
             if order_by == "host_count":
                 org_id = get_current_identity().org_id
-
-                # Scenario 1: No filters - Most efficient approach
-                # Let the database do ordering and pagination, then fetch only the workspaces we need
-                if not name and not group_type:
-                    # Step 1: Get group_ids ordered by host_count from DB (paginated)
-                    group_ids_page, total = get_group_ids_ordered_by_host_count(org_id, per_page, page, order_how)
-
-                    if not group_ids_page:
-                        # No groups found
-                        log_get_group_list_succeeded(logger, [])
-                        return flask_json_response(build_paginated_group_list_response(total, page, per_page, []))
-
-                    # Step 2: Fetch workspace details for only this page of groups
-                    workspaces = get_rbac_workspaces_by_ids(group_ids_page)
-
-                    # Step 3: Get host counts for these groups in one batch query
-                    host_counts = get_host_counts_batch(org_id, group_ids_page)
-
-                    # Step 4: Serialize workspaces with pre-fetched host counts
-                    serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, org_id, host_counts.get(ws["id"], 0))
-                        for ws in workspaces
-                    ]
-
-                    # Step 5: Maintain the DB ordering (workspaces may be in different order)
-                    # Create a map for O(1) lookup
-                    group_map = {g["id"]: g for g in serialized_groups}
-                    ordered_groups = [group_map[gid] for gid in group_ids_page if gid in group_map]
-
-                    log_get_group_list_succeeded(logger, ordered_groups)
-                    return flask_json_response(
-                        {
-                            "total": total,
-                            "count": len(ordered_groups),
-                            "page": page,
-                            "per_page": per_page,
-                            "results": ordered_groups,
-                        }
-                    )
-
-                # Scenario 2: With filters - RBAC v2 must filter, then DB orders by host_count
-                else:
-                    # Step 1: Fetch all filtered workspaces from RBAC v2
-                    # Limit is configurable via MAX_GROUPS_FOR_HOST_COUNT_SORTING env variable
-                    group_list, total = get_rbac_workspaces(
-                        name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, group_type, None, None
-                    )
-
-                    # Validate that we can sort all groups
-                    if total > MAX_GROUPS_FOR_HOST_COUNT_SORTING:
-                        log_get_group_list_failed(logger)
-                        abort(
-                            400,
-                            f"Cannot sort by host_count: organization has {total} groups, which exceeds "
-                            f"the maximum of {MAX_GROUPS_FOR_HOST_COUNT_SORTING} groups that can be sorted. "
-                            f"Please use filters (name, group_type) to narrow your results, or use a different "
-                            f"ordering field (name, updated, created, type).",
-                        )
-
-                    if not group_list:
-                        # No groups found
-                        log_get_group_list_succeeded(logger, [])
-                        return flask_json_response(build_paginated_group_list_response(total, page, per_page, []))
-
-                    # Step 2: Extract group_ids
-                    group_ids = [ws["id"] for ws in group_list]
-
-                    # Step 3: Fetch ALL host counts in ONE batch query (not N queries!)
-                    host_counts = get_host_counts_batch(org_id, group_ids)
-
-                    # Step 4: Attach host_counts to workspaces (no DB queries!)
-                    serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, org_id, host_counts.get(ws["id"], 0))
-                        for ws in group_list
-                    ]
-
-                    # Step 5: Sort by host_count with secondary sort by name for stable ordering
-                    serialized_groups.sort(key=lambda g: g.get("name", ""))  # Secondary: name (ASC)
-                    reverse = order_how == "DESC" if order_how else True  # Default DESC for host_count
-                    serialized_groups.sort(key=lambda g: g.get("host_count", 0), reverse=reverse)
-
-                    # Step 6: Apply pagination to sorted results
-                    start_idx = (page - 1) * per_page
-                    end_idx = start_idx + per_page
-                    paginated_groups = serialized_groups[start_idx:end_idx]
-
-                    log_get_group_list_succeeded(logger, paginated_groups)
-                    return flask_json_response(
-                        {
-                            "total": total,
-                            "count": len(paginated_groups),
-                            "page": page,
-                            "per_page": per_page,
-                            "results": paginated_groups,
-                        }
-                    )
+                response_data = get_workspaces_from_rbac_v2(org_id, name, group_type, page, per_page, order_how)
+                log_get_group_list_succeeded(logger, response_data.get("results", []))
+                return flask_json_response(response_data)
             else:
                 # Normal RBAC v2 path: RBAC v2 API can handle ordering
                 group_list, total = get_rbac_workspaces(name, page, per_page, group_type, order_by, order_how)
