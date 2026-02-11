@@ -41,7 +41,6 @@ from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
-from app.utils import check_all_ids_found
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -131,15 +130,7 @@ def get_group_list(
                     if not group_ids_page:
                         # No groups found
                         log_get_group_list_succeeded(logger, [])
-                        return flask_json_response(
-                            {
-                                "total": total,
-                                "count": 0,
-                                "page": page,
-                                "per_page": per_page,
-                                "results": [],
-                            }
-                        )
+                        return flask_json_response(build_paginated_group_list_response(total, page, per_page, []))
 
                     # Step 2: Fetch workspace details for only this page of groups
                     workspaces = get_rbac_workspaces_by_ids(group_ids_page)
@@ -174,7 +165,7 @@ def get_group_list(
                     # Step 1: Fetch all filtered workspaces from RBAC v2
                     # Limit is configurable via MAX_GROUPS_FOR_HOST_COUNT_SORTING env variable
                     group_list, total = get_rbac_workspaces(
-                        name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, rbac_filter, group_type, None, None
+                        name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, group_type, None, None
                     )
 
                     # Validate that we can sort all groups
@@ -191,15 +182,7 @@ def get_group_list(
                     if not group_list:
                         # No groups found
                         log_get_group_list_succeeded(logger, [])
-                        return flask_json_response(
-                            {
-                                "total": total,
-                                "count": 0,
-                                "page": page,
-                                "per_page": per_page,
-                                "results": [],
-                            }
-                        )
+                        return flask_json_response(build_paginated_group_list_response(total, page, per_page, []))
 
                     # Step 2: Extract group_ids
                     group_ids = [ws["id"] for ws in group_list]
@@ -235,9 +218,7 @@ def get_group_list(
                     )
             else:
                 # Normal RBAC v2 path: RBAC v2 API can handle ordering
-                group_list, total = get_rbac_workspaces(
-                    name, page, per_page, rbac_filter, group_type, order_by, order_how
-                )
+                group_list, total = get_rbac_workspaces(name, page, per_page, group_type, order_by, order_how)
         else:
             # RBAC v1 path: Query groups from database
             group_list, total = get_filtered_group_list_db(
@@ -246,6 +227,10 @@ def get_group_list(
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
+    except ResourceNotFoundException as e:
+        # One or more workspaces not found in RBAC v2
+        log_get_group_list_failed(logger)
+        abort(404, str(e))
     except (ConnectionError, Timeout) as e:
         # RBAC v2 API connection or timeout errors
         log_get_group_list_failed(logger)

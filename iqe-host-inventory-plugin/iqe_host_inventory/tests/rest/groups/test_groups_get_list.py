@@ -177,7 +177,7 @@ def test_groups_get_list_pagination_only_my_groups(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering(
     host_inventory,
@@ -205,7 +205,7 @@ def test_groups_get_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
@@ -239,7 +239,7 @@ def test_groups_get_list_ordering_and_pagination(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 def test_groups_get_list_order_how_default(
     host_inventory,
     setup_groups_for_ordering,
@@ -254,7 +254,9 @@ def test_groups_get_list_order_how_default(
       importance: high
       title: Get groups list - default values for order_how parameter
     """
-    ascending = order_by == "name"
+    # Default order_how is ASC for 'name' and 'type',
+    # DESC for 'host_count', 'updated', and 'created'
+    ascending = order_by in ["name", "type"]
 
     response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
     assert response.page == 1
@@ -351,7 +353,7 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_by_name_ordering_and_pagination(
     host_inventory,

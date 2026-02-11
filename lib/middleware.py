@@ -675,7 +675,6 @@ def get_rbac_workspaces(
     name: str | None,
     page: int,
     per_page: int,
-    rbac_filter: dict | None,
     group_type: str | None,
     order_by: str | None = None,
     order_how: str | None = None,
@@ -685,9 +684,8 @@ def get_rbac_workspaces(
 
     Args:
         name: Filter by workspace name (partial match)
-        page: Page number (1-based)
+        page: int,
         per_page: Items per page
-        rbac_filter: RBAC permissions filter
         group_type: Filter by workspace type (standard, ungrouped-hosts)
         order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
         order_how: Sort direction ('ASC' or 'DESC')
@@ -695,9 +693,16 @@ def get_rbac_workspaces(
     Returns:
         Tuple of (workspace_list, total_count)
 
+    Raises:
+        HTTPException: HTTP 503 if RBAC service returns malformed response
+
     Note:
         RHCLOUD-42653 has been resolved. RBAC v2 API now supports ordering
         by the following fields: id, name, created, modified, type.
+
+        RBAC v2 filtering: This function queries the RBAC v2 workspace API using the
+        user's identity header. The RBAC v2 service automatically filters results based
+        on the user's permissions, so no additional client-side filtering is needed.
     """
     if inventory_config().bypass_rbac:
         # When RBAC is bypassed (e.g., in test environments), return empty results
@@ -717,11 +722,6 @@ def get_rbac_workspaces(
         query_params["offset"] = str(offset)
         query_params["limit"] = str(per_page)
 
-    # Add ordering parameters if provided
-    # Note: RBAC v2 API support for ordering is tracked by RHCLOUD-42653
-    # Special case: host_count ordering cannot be done by RBAC v2 API
-    # because RBAC v2 doesn't have host count data. Sorting by host_count
-    # will be done in Python after adding host counts from database.
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
         # The API uses "updated" for consistency with existing contracts,
@@ -738,7 +738,6 @@ def get_rbac_workspaces(
         if order_how:
             query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
 
-    # rbac_endpoint = _get_rbac_workspace_url(query_params={"type": group_type})
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
 
@@ -753,24 +752,16 @@ def get_rbac_workspaces(
     # Extract data with safe key access and type validation
     data = response.get("data", [])
     if not isinstance(data, list):
-        logger.warning(f"Expected 'data' to be a list, got {type(data)}. Returning empty list.")
-        data = []
+        error_msg = f"RBAC service returned malformed response: expected 'data' to be a list, got {type(data)}"
+        logger.error(error_msg)
+        abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
-    # Apply rbac_filter if provided - filter to only include groups in the allowed set
-    if rbac_filter and "groups" in rbac_filter:
-        allowed_group_ids = rbac_filter["groups"]
-        original_count = len(data)
-        # Filter data to only include workspaces whose ID is in the allowed set
-        # Convert workspace ID to string for comparison since rbac_filter contains string UUIDs
-        data = [workspace for workspace in data if str(workspace.get("id", "")) in allowed_group_ids]
-        filtered_count = len(data)
-        if original_count != filtered_count:
-            logger.debug(f"Filtered workspaces from {original_count} to {filtered_count} based on rbac_filter")
+    # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
+    # already filters results based on the user's identity header. The user only receives
+    # workspaces they have permission to access. Applying an additional RBAC v1 filter
+    # would be redundant and could cause inconsistencies during the RBAC v1 to v2 migration.
 
     count = response.get("meta", {}).get("count", 0)
-    # Update count to reflect filtered results if rbac_filter was applied
-    if rbac_filter and "groups" in rbac_filter:
-        count = len(data)
 
     return data, count
 
@@ -819,8 +810,9 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     # Extract workspaces from response
     workspaces = response.get("data", [])
     if not isinstance(workspaces, list):
-        logger.warning(f"Expected 'data' to be a list, got {type(workspaces)}. Returning empty list.")
-        return []
+        error_msg = f"RBAC service returned malformed response: expected 'data' to be a list, got {type(workspaces)}"
+        logger.error(error_msg)
+        abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
     # Verify all requested workspaces were found
     found_ids = {str(ws["id"]) for ws in workspaces}

@@ -404,7 +404,7 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     """
     Get count of non-culled hosts in a group.
 
-    This function delegates to get_non_culled_hosts_count_in_group_by_id() to avoid code duplication.
+    This function delegates to get_host_counts_batch() to avoid code duplication.
 
     Args:
         group: Group ORM object
@@ -413,29 +413,7 @@ def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
     Returns:
         Count of non-culled hosts in the group
     """
-    return get_non_culled_hosts_count_in_group_by_id(str(group.id), org_id)
-
-
-def get_non_culled_hosts_count_in_group_by_id(group_id: str, org_id: str) -> int:
-    """
-    Get count of non-culled hosts in a group by group_id.
-    Used when working with RBAC v2 workspaces where we have the group_id but not the Group object.
-
-    Args:
-        group_id: UUID of the group
-        org_id: Organization ID
-
-    Returns:
-        Count of non-culled hosts in the group
-    """
-    query = (
-        db.session.query(Host)
-        .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
-        .group_by(Host.id, Host.org_id)
-    )
-
-    return find_non_culled_hosts(query).count()
+    return get_host_counts_batch(org_id, [str(group.id)])[str(group.id)]
 
 
 def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:

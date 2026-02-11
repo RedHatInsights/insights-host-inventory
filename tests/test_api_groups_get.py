@@ -710,7 +710,10 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
     def mock_get_host_count(_group_id, _org_id):
         return 0  # All groups empty
 
-    mocker.patch("lib.group_repository.get_non_culled_hosts_count_in_group_by_id", side_effect=mock_get_host_count)
+    mocker.patch(
+        "lib.group_repository.get_host_counts_batch",
+        side_effect=lambda org_id, group_ids: {gid: mock_get_host_count(gid, org_id) for gid in group_ids},
+    )
 
     # Request order_by=host_count&order_how=ASC
     query = "?order_by=host_count&order_how=ASC"
@@ -786,15 +789,19 @@ def test_get_groups_rbac_v2_parameter_passing(
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_groups_rbac_v2_with_rbac_filter(mocker, api_get):
+def test_get_groups_rbac_v2_with_rbac_permissions(mocker, api_get):
     """
-    Test GET /groups with RBAC v2 and RBAC filter applied.
-    Verifies that RBAC filter is passed to get_rbac_workspaces().
+    Test GET /groups with RBAC v2 permissions.
+    Verifies that RBAC v2 API returns only authorized workspaces based on identity header.
+
+    Note: With RBAC v2, the workspace API filters results server-side using the
+    identity header. Client-side RBAC v1 filtering is NOT applied because it would
+    be redundant - RBAC v2 already knows what the user can access.
     """
     # Mock feature flag enabled
     mocker.patch("api.group.get_flag_value", return_value=True)
 
-    # Mock RBAC permissions
+    # Mock RBAC permissions (RBAC v1 still runs for backward compatibility during migration)
     group_id_1 = str(generate_uuid())
     group_id_2 = str(generate_uuid())
     mock_rbac_response = [
@@ -813,7 +820,8 @@ def test_get_groups_rbac_v2_with_rbac_filter(mocker, api_get):
     ]
     mocker.patch("lib.middleware.get_rbac_permissions", return_value=mock_rbac_response)
 
-    # Mock get_rbac_workspaces
+    # Mock get_rbac_workspaces - RBAC v2 API returns only authorized workspaces
+    # (filtered server-side based on identity header)
     mock_workspaces = [
         _create_mock_workspace(workspace_id=group_id_1, name="group1"),
         _create_mock_workspace(workspace_id=group_id_2, name="group2"),
@@ -826,14 +834,12 @@ def test_get_groups_rbac_v2_with_rbac_filter(mocker, api_get):
     assert_response_status(response_status, 200)
     assert response_data["total"] == 2
 
-    # Verify get_rbac_workspaces was called with rbac_filter
+    # Verify get_rbac_workspaces was called (without rbac_filter - RBAC v2 handles filtering)
     assert mock_get_rbac_workspaces.called
     call_args = mock_get_rbac_workspaces.call_args
-    rbac_filter = call_args[0][3]  # rbac_filter is 4th positional arg (index 3)
-    assert rbac_filter is not None
-    assert "groups" in rbac_filter
-    assert group_id_1 in rbac_filter["groups"]
-    assert group_id_2 in rbac_filter["groups"]
+    # Verify rbac_filter is NOT passed (RBAC v2 filters server-side)
+    # Parameters: name, page, per_page, group_type, order_by, order_how
+    assert len(call_args[0]) == 6  # 6 positional args, no rbac_filter
 
 
 def test_get_groups_rbac_v2_empty_results(mocker, api_get):
