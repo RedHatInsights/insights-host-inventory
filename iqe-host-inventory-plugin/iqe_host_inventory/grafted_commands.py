@@ -221,7 +221,7 @@ def _app_with_maybe_user(
     default="insights_qa",
 )
 @click.option(
-    "--display-name-prefix", help="Display name prefix for hosts", default="rhiqe.example"
+    "--display-name-prefix", help="Display name prefix for hosts", default="hbiqe.example"
 )
 @click.option(
     "--store",
@@ -269,7 +269,7 @@ def create_hosts(obj, number, user, display_name_prefix, store, base_archive, ar
     default="primary_user",
 )
 @click.option(
-    "--display-name-prefix", help="Display name prefix for hosts", default="rhiqe.example"
+    "--display-name-prefix", help="Display name prefix for hosts", default="hbiqe.example"
 )
 @click.option(
     "--reporter", help="Simulate host messages from this reporter", default="iqe-hbi-plugin"
