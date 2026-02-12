@@ -164,7 +164,7 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
@@ -172,7 +172,7 @@ void (empty response body)
 |-------------|-------------|------------------|
 **200** | Successfully deleted hosts. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Host not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -378,7 +378,7 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Successfully searched for hosts. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Host not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -680,7 +680,7 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Successfully searched for hosts. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Host not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -1104,7 +1104,7 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: application/json
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
@@ -1112,7 +1112,7 @@ void (empty response body)
 |-------------|-------------|------------------|
 **200** | Successfully updated the hosts. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Host not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -333,7 +333,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -400,7 +400,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -467,7 +467,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
@@ -505,6 +505,9 @@ class HostsApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+
+        # set the HTTP header `Accept`
+        _header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
 
         # authentication setting
         _auth_settings: list[str] = ["ApiKeyAuth"]
@@ -1282,7 +1285,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "HostQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1385,7 +1388,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "HostQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1488,7 +1491,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "HostQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
@@ -2714,7 +2717,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "SystemProfileByHostOut",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -2817,7 +2820,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "SystemProfileByHostOut",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -2920,7 +2923,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "SystemProfileByHostOut",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
@@ -4294,7 +4297,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -4367,7 +4370,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -4440,7 +4443,7 @@ class HostsApi:
         _response_types_map: dict[str, str | None] = {
             "200": None,
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
@@ -4481,6 +4484,9 @@ class HostsApi:
         # process the body parameter
         if patch_host_in is not None:
             _body_params = patch_host_in
+
+        # set the HTTP header `Accept`
+        _header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
 
         # set the HTTP header `Content-Type`
         if _content_type:

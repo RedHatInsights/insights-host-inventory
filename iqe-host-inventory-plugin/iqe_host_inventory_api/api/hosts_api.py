@@ -229,6 +229,9 @@ class HostsApi:
         local_var_files = {}
 
         body_params = None
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
         # Authentication setting
         auth_settings = ["ApiKeyAuth"]
 
@@ -1738,6 +1741,9 @@ class HostsApi:
         body_params = None
         if "patch_host_in" in local_var_params:
             body_params = local_var_params["patch_host_in"]
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
         # HTTP header `Content-Type`
         header_params["Content-Type"] = self.api_client.select_header_content_type([
             "application/json"
