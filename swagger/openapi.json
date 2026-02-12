@@ -5206,7 +5206,7 @@
           "detail": {
             "description": "A human-readable description of the error.",
             "type": "string",
-            "example": "One or more hosts not found."
+            "example": "One or more requested resources were not found."
           },
           "not_found_ids": {
             "description": "A list of IDs that were requested but not found. This field is included when specific IDs can be identified as missing.",
