@@ -337,7 +337,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully deleted hosts."
+            "description": "Successfully deleted hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request."
@@ -380,7 +387,14 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully updated the hosts."
+            "description": "Successfully updated the hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request."

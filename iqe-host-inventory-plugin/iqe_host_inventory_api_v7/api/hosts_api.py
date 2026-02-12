@@ -290,7 +290,7 @@ class HostsApi:
         _content_type: StrictStr | None = None,
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> None:
+    ) -> object:
         """Delete hosts by IDs
 
         Delete hosts by IDs <br /><br /> Required permissions: inventory:hosts:write
@@ -331,7 +331,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }
@@ -357,7 +357,7 @@ class HostsApi:
         _content_type: StrictStr | None = None,
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[None]:
+    ) -> ApiResponse[object]:
         """Delete hosts by IDs
 
         Delete hosts by IDs <br /><br /> Required permissions: inventory:hosts:write
@@ -398,7 +398,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }
@@ -465,7 +465,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }
@@ -4251,7 +4251,7 @@ class HostsApi:
         _content_type: StrictStr | None = None,
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> None:
+    ) -> object:
         """Update hosts
 
         Update hosts <br /><br /> Required permissions: inventory:hosts:write
@@ -4295,7 +4295,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }
@@ -4324,7 +4324,7 @@ class HostsApi:
         _content_type: StrictStr | None = None,
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[None]:
+    ) -> ApiResponse[object]:
         """Update hosts
 
         Update hosts <br /><br /> Required permissions: inventory:hosts:write
@@ -4368,7 +4368,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }
@@ -4441,7 +4441,7 @@ class HostsApi:
         )
 
         _response_types_map: dict[str, str | None] = {
-            "200": None,
+            "200": "object",
             "400": None,
             "404": "NotFoundErrorResponse",
         }

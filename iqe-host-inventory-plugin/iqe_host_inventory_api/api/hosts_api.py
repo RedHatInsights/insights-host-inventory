@@ -153,7 +153,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: object
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -181,7 +181,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: tuple(object, status_code(int), headers(HTTPHeaderDict))
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -244,7 +244,7 @@ class HostsApi:
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type=None,
+            response_type="object",
             auth_settings=auth_settings,
             async_req=local_var_params.get("async_req"),
             _return_http_data_only=local_var_params.get("_return_http_data_only"),
@@ -1655,7 +1655,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: object
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -1684,7 +1684,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: tuple(object, status_code(int), headers(HTTPHeaderDict))
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -1761,7 +1761,7 @@ class HostsApi:
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type=None,
+            response_type="object",
             auth_settings=auth_settings,
             async_req=local_var_params.get("async_req"),
             _return_http_data_only=local_var_params.get("_return_http_data_only"),

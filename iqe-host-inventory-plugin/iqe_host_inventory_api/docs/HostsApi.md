@@ -97,7 +97,7 @@ void (empty response body)
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_delete_host_by_id**
-> api_host_delete_host_by_id(host_id_list, branch_id=branch_id)
+> object api_host_delete_host_by_id(host_id_list, branch_id=branch_id)
 
 Delete hosts by IDs
 
@@ -142,7 +142,8 @@ branch_id = 'branch_id_example' # str | Filter by branch_id (optional)
 
     try:
         # Delete hosts by IDs
-        api_instance.api_host_delete_host_by_id(host_id_list, branch_id=branch_id)
+        api_response = api_instance.api_host_delete_host_by_id(host_id_list, branch_id=branch_id)
+        pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_delete_host_by_id: %s\n" % e)
 ```
@@ -156,7 +157,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-void (empty response body)
+**object**
 
 ### Authorization
 
@@ -1061,7 +1062,7 @@ void (empty response body)
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_patch_host_by_id**
-> api_host_patch_host_by_id(host_id_list, patch_host_in, branch_id=branch_id)
+> object api_host_patch_host_by_id(host_id_list, patch_host_in, branch_id=branch_id)
 
 Update hosts
 
@@ -1107,7 +1108,8 @@ branch_id = 'branch_id_example' # str | Filter by branch_id (optional)
 
     try:
         # Update hosts
-        api_instance.api_host_patch_host_by_id(host_id_list, patch_host_in, branch_id=branch_id)
+        api_response = api_instance.api_host_patch_host_by_id(host_id_list, patch_host_in, branch_id=branch_id)
+        pprint(api_response)
     except ApiException as e:
         print("Exception when calling HostsApi->api_host_patch_host_by_id: %s\n" % e)
 ```
@@ -1122,7 +1124,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-void (empty response body)
+**object**
 
 ### Authorization
 
