@@ -3,6 +3,8 @@ on:
   pull_request_target:
     paths:
       - 'Dockerfile'
+      - '.pre-commit-config.yaml'
+      - 'iqe-host-inventory-plugin/.pre-commit-config.yaml'
 
 jobs:
   konflux-automerge:
