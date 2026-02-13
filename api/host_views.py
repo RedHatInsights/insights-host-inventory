@@ -145,7 +145,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     tags=None,
     registered_with=None,
     system_type=None,
-    filter=None,  # noqa: ARG001
+    filter=None,
     fields=None,
     rbac_filter=None,
 ):
@@ -198,6 +198,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
+            fields=None,
             rbac_filter=rbac_filter,
         )
     except ValueError as e:
