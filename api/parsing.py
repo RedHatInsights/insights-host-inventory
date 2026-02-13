@@ -7,6 +7,18 @@ from connexion.exceptions import BadRequestProblem
 from connexion.uri_parsing import OpenAPIURIParser
 from connexion.utils import coerce_type
 
+_BOOL_STRINGS = {"true": True, "false": False}
+
+
+def _coerce_query_value(value):
+    """Coerce string query parameter values to native Python types.
+
+    Query parameters are always strings, but deep object schemas may
+    expect booleans.  Convert "true"/"false" so that jsonschema
+    validation against ``type: boolean`` properties succeeds.
+    """
+    return _BOOL_STRINGS.get(value.lower(), value) if isinstance(value, str) else value
+
 
 def custom_fields_parser(root_key, key_path, val):
     """
@@ -189,6 +201,10 @@ class customURIParser(OpenAPIURIParser):
                     f"notation for nested fields (e.g., {full_param_path}[field]=value)."
                 )
 
-            prev[k] = parsed if parsed is not None else leaf_value
+            prev[k] = (
+                _coerce_query_value(leaf_value)
+                if k in ("nil", "not_nil")
+                else (parsed if parsed is not None else leaf_value)
+            )
 
         return (root_key, [root], True)
