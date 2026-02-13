@@ -421,7 +421,7 @@
             "description": "Invalid request."
           },
           "404": {
-            "description": "Host not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       },
@@ -447,13 +447,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Successfully deleted hosts."
+            "description": "Successfully deleted hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request."
           },
           "404": {
-            "description": "Host not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       },
@@ -490,13 +497,20 @@
         },
         "responses": {
           "200": {
-            "description": "Successfully updated the hosts."
+            "description": "Successfully updated the hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request."
           },
           "404": {
-            "description": "Host not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       }
@@ -646,7 +660,7 @@
             "description": "Invalid request."
           },
           "404": {
-            "description": "Host not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       }
@@ -928,7 +942,7 @@
             "description": "Invalid request."
           },
           "404": {
-            "description": "Group not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       }
@@ -978,7 +992,7 @@
             "description": "Invalid request."
           },
           "404": {
-            "description": "Groups not found."
+            "$ref": "#/components/responses/NotFoundError"
           }
         }
       },
@@ -5189,11 +5203,64 @@
             }
           }
         }
+      },
+      "NotFoundErrorResponse": {
+        "title": "Not Found Error Response",
+        "description": "Error response returned when one or more requested resources are not found.",
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "The HTTP status code.",
+            "type": "integer",
+            "example": 404
+          },
+          "title": {
+            "description": "A short summary of the error.",
+            "type": "string",
+            "example": "Not Found"
+          },
+          "detail": {
+            "description": "A human-readable description of the error.",
+            "type": "string",
+            "example": "One or more requested resources were not found."
+          },
+          "not_found_ids": {
+            "description": "A list of IDs that were requested but not found. This field is included when specific IDs can be identified as missing.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": [
+              "22cd8e39-13bb-4d02-8316-84b850dc5136"
+            ]
+          },
+          "type": {
+            "description": "The type of the error.",
+            "type": "string",
+            "example": "about:blank"
+          }
+        },
+        "required": [
+          "status",
+          "title",
+          "detail"
+        ]
       }
     },
     "responses": {
       "PageOutOfBounds": {
         "description": "Requested page is outside of the range of available pages"
+      },
+      "NotFoundError": {
+        "description": "One or more requested resources were not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/NotFoundErrorResponse"
+            }
+          }
+        }
       }
     }
   }
