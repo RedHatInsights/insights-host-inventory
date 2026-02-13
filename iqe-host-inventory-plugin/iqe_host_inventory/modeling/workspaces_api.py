@@ -60,6 +60,50 @@ def _ids_from_workspaces(workspaces: WORKSPACE_OR_WORKSPACES) -> list[str]:
     return [_id_from_workspace(workspaces)]
 
 
+def _sort_workspaces_for_deletion(
+    workspace_details: dict[str, WorkspacesWorkspace], workspace_ids: set[str]
+) -> list[str]:
+    """Sort workspaces so children are deleted before parents.
+
+    This uses topological sorting based on parent_id relationships.
+    Workspaces whose details couldn't be fetched are placed at the end.
+
+    :param workspace_details: Mapping of workspace_id -> WorkspacesWorkspace object
+    :param workspace_ids: Set of all workspace IDs we want to delete
+    :return: List of workspace IDs in deletion order (children first, parents last)
+    """
+    # Count how many children (in our delete set) each workspace has
+    # A workspace cannot be deleted until all its children are deleted
+    in_degree: dict[str, int] = dict.fromkeys(workspace_ids, 0)
+
+    for ws_id in workspace_ids:
+        if ws_id in workspace_details:
+            parent_id = workspace_details[ws_id].parent_id
+            if parent_id in workspace_ids:
+                # ws_id is a child of parent_id, so parent_id has one more child to wait for
+                in_degree[parent_id] += 1
+
+    # Start with workspaces that have no children in our delete set (in_degree = 0)
+    result: list[str] = []
+    queue = [ws_id for ws_id in workspace_ids if in_degree[ws_id] == 0]
+
+    while queue:
+        ws_id = queue.pop(0)
+        result.append(ws_id)
+
+        # When we delete ws_id, its parent (if in delete set) has one less child to wait for
+        if ws_id in workspace_details:
+            parent_id = workspace_details[ws_id].parent_id
+            if parent_id in workspace_ids:
+                in_degree[parent_id] -= 1
+                if in_degree[parent_id] == 0:
+                    queue.append(parent_id)
+
+    # Any remaining workspaces (cycles or not in workspace_details) - add at end
+    remaining = [ws_id for ws_id in workspace_ids if ws_id not in set(result)]
+    return result + remaining
+
+
 @attr.s
 class WorkspacesAPIWrapper(BaseEntity):
     @cached_property
@@ -400,21 +444,42 @@ class WorkspacesAPIWrapper(BaseEntity):
             self.raw_api.workspaces_delete(workspace_id)
 
     def delete_workspaces(self, workspaces: WORKSPACE_OR_WORKSPACES) -> None:
-        """Delete workspaces with exception handling
+        """Delete workspaces with exception handling.
+
+        Workspaces are sorted by hierarchy so that children are deleted before parents.
+        This prevents "Unable to delete due to workspace dependencies" errors.
 
         :param WORKSPACE_OR_WORKSPACES workspaces: (required) Either a single workspace
             or a list of workspaces
             A workspace can be represented either by its ID (str) or a workspace object
         :return None
         """
-        workspace_ids = _ids_from_workspaces(workspaces)
+        workspace_ids = set(_ids_from_workspaces(workspaces))
+
+        if not workspace_ids:
+            return
+
+        # Fetch workspace details to determine parent-child relationships
+        workspace_details: dict[str, WorkspacesWorkspace] = {}
+        for workspace_id in workspace_ids:
+            try:
+                workspace = self.get_workspace_by_id(workspace_id)
+                workspace_details[workspace_id] = workspace
+            except ApiException as err:
+                if err.status == 404:
+                    logger.info(f"Workspace {workspace_id} not found, skipping fetch")
+                else:
+                    raise err
+
+        # Sort workspaces so children are deleted before parents
+        sorted_ids = _sort_workspaces_for_deletion(workspace_details, workspace_ids)
 
         try:
-            self.delete_workspaces_raw(workspace_ids)
+            self.delete_workspaces_raw(sorted_ids)
         except ApiException as err:
             if err.status == 404:
                 logger.info(
-                    f"Couldn't delete workspaces {workspace_ids} because they were not found."
+                    f"Couldn't delete workspaces {sorted_ids} because they were not found."
                 )
             else:
                 raise err
