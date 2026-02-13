@@ -603,37 +603,6 @@ clowder_smoke:
   secondary_user: secondary_user
   users: *smoke-users
 
-ephemeral:
-  frontend_user: inventory_ui_account
-  value_getters:
-    env_parser:
-      enabled: true
-  ephemeral: true
-  users:
-    inventory_ui_account:
-      attributes:
-        type: User
-        account_number: "0369234"
-        email: "inventory_ui_account@acme.com"
-        first_name: "John"
-        last_name: "Doe"
-        is_active: true
-        is_org_admin: true
-        is_internal: false
-        locale: "en_US"
-      identity:
-        org_id: "3340851"
-        account_number: "0369234"
-      auth:
-        jwt_grant_type: password
-        username: "ephemeral-user"
-        password: "redhat"
-        idp_username: "ephemeral-user"
-        idp_password: "redhat"
-      entitlements:
-        insights:
-          is_entitled: true
-
 stage_post_deploy:
   DEFAULT_USER: insights-qa
   kafka:
