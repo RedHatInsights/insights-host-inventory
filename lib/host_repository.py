@@ -473,6 +473,9 @@ def get_group_ids_ordered_by_host_count(
     This is optimized for the scenario where you want to order groups by host_count
     without any filters. The database does the ordering and pagination efficiently.
 
+    NOTE: This function includes groups with 0 hosts (empty groups) to maintain
+    parity with RBAC v1 behavior.
+
     Args:
         org_id: Organization ID
         per_page: Number of results per page
@@ -482,34 +485,41 @@ def get_group_ids_ordered_by_host_count(
     Returns:
         Tuple of:
         - List of group_ids for the requested page, ordered by host_count
-        - Total count of all groups in the organization
+        - Total count of all groups in the organization (including empty groups)
 
     Example:
         group_ids, total = get_group_ids_ordered_by_host_count('org123', 100, 1, 'DESC')
-        # group_ids: ['uuid5', 'uuid2', ...] (100 IDs with highest counts)
-        # total: 5000
+        # group_ids: ['uuid5', 'uuid2', ...] (100 IDs with highest counts, including empty groups)
+        # total: 5000 (all groups, including empty ones)
     """
     from sqlalchemy import desc
     from sqlalchemy import func
 
-    # Get total count of groups (distinct group_ids in hosts_groups table)
-    total_query = db.session.query(func.count(func.distinct(HostGroupAssoc.group_id))).filter(
-        HostGroupAssoc.org_id == org_id
-    )
-    total = total_query.scalar() or 0
+    # Get total count of ALL groups (including those with 0 hosts)
+    # Query from Group table, not HostGroupAssoc, to include empty groups
+    total = db.session.query(func.count(Group.id)).filter(Group.org_id == org_id).scalar() or 0
 
     # Query to get group_ids ordered by host count
+    # Start from Group table with LEFT OUTER JOINs to include groups with 0 hosts
+    # Build staleness filter that includes NULL hosts (groups with no hosts)
+    host_staleness_states_filters = HostStalenessStatesDbFilters()
+
     query = (
-        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
-        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
-        .filter(HostGroupAssoc.org_id == org_id)
-        .group_by(HostGroupAssoc.group_id)
+        db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))
+        .outerjoin(
+            HostGroupAssoc,
+            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
+        )
+        .outerjoin(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(Group.org_id == org_id)
+        # Include groups with no hosts (Host.id IS NULL) OR groups with non-culled hosts
+        # This ensures empty groups still appear in results with host_count = 0
+        .filter(or_(Host.id.is_(None), not_(host_staleness_states_filters.culled())))
+        .group_by(Group.id)
     )
 
-    # Apply non-culled host filter
-    query = find_non_culled_hosts(query)
-
     # Order by host count (default DESC for host_count ordering)
+    # Groups with 0 hosts will have host_count = 0
     query = query.order_by("host_count") if order_how == "ASC" else query.order_by(desc("host_count"))
 
     # Apply pagination
