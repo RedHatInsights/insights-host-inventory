@@ -134,6 +134,7 @@ Class | Method | HTTP request | Description
  - [HostOut](iqe_host_inventory_api_v7/docs/HostOut.md)
  - [HostQueryOutput](iqe_host_inventory_api_v7/docs/HostQueryOutput.md)
  - [HostSystemProfileOut](iqe_host_inventory_api_v7/docs/HostSystemProfileOut.md)
+ - [NotFoundErrorResponse](iqe_host_inventory_api_v7/docs/NotFoundErrorResponse.md)
  - [PaginationOut](iqe_host_inventory_api_v7/docs/PaginationOut.md)
  - [PatchHostIn](iqe_host_inventory_api_v7/docs/PatchHostIn.md)
  - [PerReporterStaleness](iqe_host_inventory_api_v7/docs/PerReporterStaleness.md)
