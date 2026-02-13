@@ -61,47 +61,39 @@ def _ids_from_workspaces(workspaces: WORKSPACE_OR_WORKSPACES) -> list[str]:
 
 
 def _sort_workspaces_for_deletion(
-    workspace_details: dict[str, WorkspacesWorkspace], workspace_ids: set[str]
+    workspace_details: dict[str, WorkspacesWorkspace],
+    workspace_ids: list[str],
 ) -> list[str]:
-    """Sort workspaces so children are deleted before parents.
+    """Sort workspaces so children are deleted before parents (children first)."""
 
-    This uses topological sorting based on parent_id relationships.
-    Workspaces whose details couldn't be fetched are placed at the end.
+    depth_cache: dict[str, int] = {}
 
-    :param workspace_details: Mapping of workspace_id -> WorkspacesWorkspace object
-    :param workspace_ids: Set of all workspace IDs we want to delete
-    :return: List of workspace IDs in deletion order (children first, parents last)
-    """
-    # Count how many children (in our delete set) each workspace has
-    # A workspace cannot be deleted until all its children are deleted
-    in_degree: dict[str, int] = dict.fromkeys(workspace_ids, 0)
+    def get_depth(ws_id: str, seen: set[str] | None = None) -> int:
+        # Unresolved or missing details: treat as root-level
+        if ws_id not in workspace_details:
+            return 0
 
-    for ws_id in workspace_ids:
-        if ws_id in workspace_details:
-            parent_id = workspace_details[ws_id].parent_id
-            if parent_id in workspace_ids:
-                # ws_id is a child of parent_id, so parent_id has one more child to wait for
-                in_degree[parent_id] += 1
+        if ws_id in depth_cache:
+            return depth_cache[ws_id]
 
-    # Start with workspaces that have no children in our delete set (in_degree = 0)
-    result: list[str] = []
-    queue = [ws_id for ws_id in workspace_ids if in_degree[ws_id] == 0]
+        if seen is None:
+            seen = set()
+        # Basic cycle guard: put cycles at depth 0
+        if ws_id in seen:
+            return 0
+        seen.add(ws_id)
 
-    while queue:
-        ws_id = queue.pop(0)
-        result.append(ws_id)
+        parent_id = workspace_details[ws_id].parent_id
+        if not parent_id or parent_id not in workspace_details:
+            depth = 0
+        else:
+            depth = 1 + get_depth(parent_id, seen)
 
-        # When we delete ws_id, its parent (if in delete set) has one less child to wait for
-        if ws_id in workspace_details:
-            parent_id = workspace_details[ws_id].parent_id
-            if parent_id in workspace_ids:
-                in_degree[parent_id] -= 1
-                if in_degree[parent_id] == 0:
-                    queue.append(parent_id)
+        depth_cache[ws_id] = depth
+        return depth
 
-    # Any remaining workspaces (cycles or not in workspace_details) - add at end
-    remaining = [ws_id for ws_id in workspace_ids if ws_id not in set(result)]
-    return result + remaining
+    # Higher depth first: children before parents
+    return sorted(workspace_ids, key=get_depth, reverse=True)
 
 
 @attr.s
@@ -454,12 +446,10 @@ class WorkspacesAPIWrapper(BaseEntity):
             A workspace can be represented either by its ID (str) or a workspace object
         :return None
         """
-        workspace_ids = set(_ids_from_workspaces(workspaces))
-
+        workspace_ids = _ids_from_workspaces(workspaces)
         if not workspace_ids:
             return
 
-        # Fetch workspace details to determine parent-child relationships
         workspace_details: dict[str, WorkspacesWorkspace] = {}
         for workspace_id in workspace_ids:
             try:
@@ -471,7 +461,6 @@ class WorkspacesAPIWrapper(BaseEntity):
                 else:
                     raise err
 
-        # Sort workspaces so children are deleted before parents
         sorted_ids = _sort_workspaces_for_deletion(workspace_details, workspace_ids)
 
         try:
