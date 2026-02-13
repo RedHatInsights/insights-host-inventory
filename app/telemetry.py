@@ -1,0 +1,178 @@
+"""OpenTelemetry initialization for HBI services.
+
+Provides centralized tracing setup for all HBI entry points (web API, MQ service,
+export service). Controlled by the OTEL_ENABLED environment variable.
+
+Usage:
+    from app.telemetry import init_otel, instrument_flask_app, instrument_sqlalchemy, instrument_outbound_http
+
+    # In gunicorn.conf.py post_fork or service main():
+    init_otel(service_name="host-inventory")
+
+    # After Flask app creation:
+    instrument_flask_app(flask_app)
+
+    # After db.init_app():
+    instrument_sqlalchemy(db.engine)
+
+    # For outbound HTTP (e.g., RBAC calls):
+    instrument_outbound_http()
+"""
+
+import contextlib
+import os
+
+from app.logging import get_logger
+
+logger = get_logger(__name__)
+
+OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+
+# Re-usable no-op tracer for when OTel is disabled
+_NOOP_TRACER = None
+
+
+def get_tracer(name: str):
+    """Get an OpenTelemetry tracer for creating custom spans.
+
+    Returns a real tracer if OTel is enabled, otherwise returns a no-op tracer
+    that creates no-op spans (zero overhead when disabled).
+    """
+    from opentelemetry import trace
+
+    return trace.get_tracer(name)
+
+
+def init_otel(service_name: str, service_version: str = "unknown"):
+    """Initialize OpenTelemetry tracing. Call once per process.
+
+    For Gunicorn workers, call this from the post_fork hook (BatchSpanProcessor is not fork-safe).
+    For MQ/export services, call this from main().
+    """
+    if not OTEL_ENABLED:
+        logger.info("OpenTelemetry is disabled (OTEL_ENABLED != 'true')")
+        return
+
+    from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.resources import SERVICE_NAME
+    from opentelemetry.sdk.resources import SERVICE_VERSION
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    resource = Resource.create(
+        attributes={
+            SERVICE_NAME: service_name,
+            SERVICE_VERSION: service_version,
+            "deployment.environment": os.getenv("NAMESPACE", "development"),
+        }
+    )
+
+    provider = TracerProvider(resource=resource)
+
+    # OTLP exporter — endpoint configured via OTEL_EXPORTER_OTLP_TRACES_ENDPOINT env var
+    exporter = OTLPSpanExporter()
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+
+    trace.set_tracer_provider(provider)
+    logger.info("OpenTelemetry initialized for service=%s version=%s", service_name, service_version)
+
+
+def instrument_flask_app(flask_app):
+    """Instrument a Flask app with OpenTelemetry request tracing.
+
+    Each HTTP request becomes a span with method, path, status code,
+    plus HBI-specific attributes (org_id, request_id).
+    """
+    if not OTEL_ENABLED:
+        return
+
+    from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+    FlaskInstrumentor().instrument_app(
+        flask_app,
+        excluded_urls="health,metrics,version",
+        request_hook=_request_hook,
+        response_hook=_response_hook,
+    )
+    logger.info("Flask instrumented with OpenTelemetry")
+
+
+def instrument_sqlalchemy(engine):
+    """Instrument a SQLAlchemy engine with OpenTelemetry query tracing.
+
+    Every SQL query becomes a child span of the request that triggered it,
+    with the query text and duration. SQLCommenter adds traceparent to SQL
+    comments so queries are visible in pg_stat_activity.
+    """
+    if not OTEL_ENABLED:
+        return
+
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+    SQLAlchemyInstrumentor().instrument(
+        engine=engine,
+        enable_commenter=True,
+        commenter_options={
+            "db_framework": True,
+            "db_driver": True,
+        },
+    )
+    logger.info("SQLAlchemy engine instrumented with OpenTelemetry")
+
+
+def instrument_outbound_http():
+    """Instrument outbound HTTP calls (e.g., RBAC) with OpenTelemetry.
+
+    Automatically creates spans for all requests made via the `requests` library,
+    including trace context propagation to downstream services.
+    """
+    if not OTEL_ENABLED:
+        return
+
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
+    RequestsInstrumentor().instrument()
+    logger.info("Outbound HTTP (requests library) instrumented with OpenTelemetry")
+
+
+def _request_hook(span, environ):  # noqa: ARG001
+    """Add HBI-specific attributes to every request span.
+
+    Adds org_id and request_id so traces can be filtered in Grafana/Tempo:
+        - hbi.org_id = "12345"         → all traces for an org
+        - hbi.request_id = "abc-..."   → find a specific request
+    """
+    if not span or not span.is_recording():
+        return
+
+    from flask import request
+
+    # Add request_id from the x-rh-insights-request-id header
+    request_id = request.headers.get("x-rh-insights-request-id", "")
+    if request_id:
+        span.set_attribute("hbi.request_id", request_id)
+
+    # Add org_id from the decoded identity header
+    try:
+        from app.auth.identity import from_auth_header
+
+        encoded_id = request.headers.get("x-rh-identity", "")
+        if encoded_id:
+            identity = from_auth_header(encoded_id)
+            if identity and hasattr(identity, "org_id"):
+                span.set_attribute("hbi.org_id", identity.org_id or "")
+    except Exception:
+        pass  # Don't break requests if identity extraction fails
+
+
+def _response_hook(span, status, response_headers):  # noqa: ARG001
+    """Add response-level attributes to request spans."""
+    if span and span.is_recording():
+        if isinstance(status, str):
+            # status can be "200 OK" — extract the code
+            with contextlib.suppress(ValueError, IndexError):
+                span.set_attribute("http.status_code", int(status.split()[0]))
+        elif isinstance(status, int):
+            span.set_attribute("http.status_code", status)
