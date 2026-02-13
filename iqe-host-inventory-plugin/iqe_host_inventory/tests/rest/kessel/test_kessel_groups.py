@@ -173,10 +173,14 @@ def test_kessel_delete_group(host_inventory: ApplicationHostInventory):
 
     host_inventory.apis.groups.delete_groups(group)
 
+    # After deleting a group, the corresponding workspace is also deleted.
+    # Kessel's RBAC v2 API returns 403 Forbidden (not 404 Not Found) when querying
+    # a deleted workspace because the user's relationship to the workspace is removed.
+    # Kessel checks authorization before existence, so it returns 403 for security.
     with pytest.raises(rbac_v2_exception) as err:
         host_inventory.apis.workspaces.get_workspace_by_id(workspace.id)
-    assert err.value.status == 404
-    assert "No Workspace matches the given query" in err.value.body
+    assert err.value.status == 403
+    assert "You do not have permission" in err.value.body or "Forbidden" in err.value.body
 
 
 def test_kessel_add_hosts_to_group(

@@ -661,6 +661,9 @@ class GroupsAPIWrapper(BaseEntity):
         WARNING: Use this method only in ephemeral or local envs, or with separate account.
         It will delete all groups on the account, which can affect tests from other plugins.
 
+        NOTE: This method automatically skips the "Ungrouped Hosts" workspace, which cannot
+        be deleted as it's a system-managed workspace.
+
         :param bool wait_for_deleted: If True, this method will wait until the groups are not
             retrievable by API (they should be deleted instantly)
             Default: True
@@ -671,7 +674,14 @@ class GroupsAPIWrapper(BaseEntity):
 
         groups = self.get_groups(per_page=100)
         while groups:
-            self.delete_groups(groups, wait_for_deleted=wait_for_deleted, **api_kwargs)
+            # Filter out ungrouped workspace - it cannot be deleted
+            deletable_groups = [g for g in groups if not getattr(g, "ungrouped", False)]
+
+            if deletable_groups:
+                self.delete_groups(
+                    deletable_groups, wait_for_deleted=wait_for_deleted, **api_kwargs
+                )
+
             groups = self.get_groups(per_page=100)
 
     def wait_for_deleted(
