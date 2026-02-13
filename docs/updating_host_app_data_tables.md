@@ -17,6 +17,9 @@ To ensure end-to-end consistency, you must update the following files:
 | `swagger/host_app_events.spec.yaml` | Event schema specification |
 | `tests/test_host_app_mq_service.py` | MQ service integration tests |
 | `tests/test_models.py` | Database model unit tests |
+| `api/filtering/app_data_sorting.py` | Sorting logic for hosts-view endpoint |
+| `tests/test_api_host_views.py` | Hosts-view API tests (including sorting) |
+| `tests/test_filtering_app_data_sorting.py` | Sorting utility unit tests |
 
 ## Step-by-Step Guide
 
@@ -42,7 +45,57 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
 
     # NEW: Add your new field here
     my_new_field = db.Column(db.String(255), nullable=True)
+
+    # NEW: If the field should be sortable in hosts-view, add it to __sortable_fields__
+    __sortable_fields__ = (
+        "advisories_rhsa_applicable",
+        "advisories_rhba_applicable",
+        # ... existing sortable fields ...
+        "my_new_field",  # Add your new field here
+    )
 ```
+
+#### Enabling Sorting via `__sortable_fields__`
+
+The `HostAppDataMixin` base class defines an optional `__sortable_fields__` class attribute. Fields listed in this tuple can be used for sorting in the `/beta/hosts-view` endpoint via the `order_by` query parameter using the `app_name:field_name` format.
+
+**Default:** `__sortable_fields__` defaults to an empty tuple `()`, meaning no fields are sortable unless explicitly declared.
+
+**Example:** To allow sorting by `my_new_field` in the Patch app:
+
+```python
+class HostAppDataPatch(HostAppDataMixin, db.Model):
+    __tablename__ = "hosts_app_data_patch"
+    __app_name__ = "patch"
+    __sortable_fields__ = (
+        "advisories_rhsa_installable",
+        # ... other fields ...
+        "my_new_field",  # Enables: ?order_by=patch:my_new_field
+    )
+
+    my_new_field = db.Column(db.Integer, nullable=True)
+```
+
+The sort field map in `api/filtering/app_data_sorting.py` is built dynamically from all models' `__sortable_fields__` declarations, so no additional registration is needed.
+
+**Currently supported sortable fields by application:**
+
+| Application | Sortable Fields |
+|-------------|----------------|
+| `advisor` | `recommendations`, `incidents` |
+| `vulnerability` | `total_cves`, `critical_cves`, `high_severity_cves`, `cves_with_security_rules`, `cves_with_known_exploits` |
+| `patch` | `advisories_rhsa_installable`, `advisories_rhba_installable`, `advisories_rhea_installable`, `advisories_other_installable`, `advisories_rhsa_applicable`, `advisories_rhba_applicable`, `advisories_rhea_applicable`, `advisories_other_applicable`, `packages_installable`, `packages_applicable`, `packages_installed` |
+| `remediations` | `remediations_plans` |
+| `compliance` | `last_scan` |
+| `malware` | `last_matches`, `total_matches`, `last_scan` |
+
+**Usage in the API:**
+
+```
+GET /api/inventory/v1/beta/hosts-view?order_by=patch:my_new_field&order_how=DESC
+```
+
+> **Note:** Hosts without app data for the sorted field will appear at the end of the results regardless of sort direction (`NULLS LAST` behavior). Only `db.Integer` and `db.DateTime` columns are recommended for sorting. String and JSONB columns are typically not suitable sort candidates.
 
 **Supported Column Types:**
 - `db.Integer` - For numeric counts
@@ -190,6 +243,48 @@ def test_create_host_app_data_patch(db_create_host):
     assert retrieved.my_new_field == "test_value"  # NEW: Verify your field
 ```
 
+#### C. Update Sorting Tests (if `__sortable_fields__` was modified)
+
+If you added or changed `__sortable_fields__`, update the sorting tests.
+
+**File:** `tests/test_api_host_views.py`
+
+**Action:** Add test cases to verify sorting behavior for the new fields in the hosts-view endpoint.
+
+**Example:**
+
+```python
+def test_sort_by_my_new_app_field(
+    api_get,
+    db_create_host,
+    db_create_host_app_data,
+):
+    """Verify sorting by my_app:field_one in the hosts-view endpoint."""
+    host_a = db_create_host()
+    host_b = db_create_host()
+
+    db_create_host_app_data(host_a, "my_app", {"field_one": 100})
+    db_create_host_app_data(host_b, "my_app", {"field_one": 5})
+
+    # Ascending sort
+    response = api_get(
+        HOST_VIEWS_URL,
+        query_string={"order_by": "my_app:field_one", "order_how": "ASC"},
+    )
+    assert response["results"][0]["id"] == str(host_b.id)
+    assert response["results"][1]["id"] == str(host_a.id)
+```
+
+**File:** `tests/test_filtering_app_data_sorting.py`
+
+**Action:** Verify that the new field appears in the sort field map.
+
+```python
+def test_my_app_field_in_sort_map():
+    sort_map = get_app_sort_field_map()
+    assert "my_app:field_one" in sort_map
+```
+
 ### 6. Apply and Verify
 
 Apply the migration locally and run the test suite to verify your changes.
@@ -215,6 +310,7 @@ If you're adding an entirely new downstream application (not just modifying an e
 class HostAppDataMyApp(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_my_app"
     __app_name__ = "my_app"
+    __sortable_fields__ = ("field_one",)  # Optional: enable sorting on numeric/datetime fields
 
     field_one = db.Column(db.Integer, nullable=True)
     field_two = db.Column(db.String(255), nullable=True)
@@ -234,7 +330,7 @@ class HostAppDataMyApp(HostAppDataMixin, db.Model):
 
 ### Tests fail with missing field errors
 
-Ensure you've updated **all** relevant test files. The parametrized tests in `test_host_app_mq_service.py` cover all applications automatically.
+Ensure you've updated **all** relevant test files. The parameterized tests in `test_host_app_mq_service.py` cover all applications automatically.
 
 ### Validation errors in MQ service
 
