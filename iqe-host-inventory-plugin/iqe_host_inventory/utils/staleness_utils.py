@@ -13,7 +13,6 @@ from random import sample
 from time import sleep
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import TypeVar
 
 from iqe_host_inventory.modeling.wrappers import DataAlias
 from iqe_host_inventory.utils import assert_datetimes_equal
@@ -68,10 +67,7 @@ def get_staleness_fields() -> tuple[str, ...]:
     return (*STALENESS_DEFAULTS,)
 
 
-T = TypeVar("T")
-
-
-def pairwise(iterable: Iterator[T] | Iterable[T]) -> Iterator[tuple[T, T]]:
+def pairwise[T](iterable: Iterator[T] | Iterable[T]) -> Iterator[tuple[T, T]]:
     """
     # todo: remove after python3.10
     >>> pairwise('ABCDEFG')
