@@ -17,7 +17,7 @@ generate-hermetic-lockfiles: generate-rpms-lockfile generate-requirements-txt ge
 # Example: make generate-rpms-lockfile CONTAINERFILE=Containerfile BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
 #          make generate-rpms-lockfile (uses default CONTAINERFILE=Dockerfile and BASE_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest)
 .PHONY: generate-rpms-lockfile
-generate-rpms-lockfile: $(hermetic_builds_dir)/rpms.lock.yaml
+generate-rpms-lockfile: rpms.lock.yaml
 
 $(hermetic_builds_dir)/ubi.repo:
 	@if ! grep -q "Red Hat Enterprise Linux release 9" /etc/redhat-release 2>/dev/null; then \
@@ -59,7 +59,7 @@ $(hermetic_builds_dir)/ubi.repo:
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo;
 
 
-$(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi.repo
+rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi.repo
 	@if ! command -v $(AWK) >/dev/null 2>&1; then \
 		echo "Error: AWK command not found"; \
 		exit 1; \
@@ -89,10 +89,10 @@ $(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi
 	fi
 
 # Generate rpms.lock.yaml using rpm-lockfile-prototype
-# Usage: make .hermetic_builds/rpms.lock.yaml [BASE_IMAGE=<image>]
-# Example: make .hermetic_builds/rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
-#          make .hermetic_builds/rpms.lock.yaml (uses default BASE_IMAGE)
-$(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
+# Usage: make rpms.lock.yaml [BASE_IMAGE=<image>]
+# Example: make rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
+#          make rpms.lock.yaml (uses default BASE_IMAGE)
+rpms.lock.yaml: rpms.in.yaml
 	@if ! command -v rpm-lockfile-prototype >/dev/null 2>&1; then \
 		echo "Error: Command rpm-lockfile-prototype not found"; \
 		echo "Please install it using 'python3 -m pip install --user https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip'"; \
@@ -100,7 +100,7 @@ $(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
 		exit 1; \
 	fi;
 	@rpm-lockfile-prototype --outfile=$@ $<
-	@if [ ! -f $(hermetic_builds_dir)/rpms.lock.yaml ]; then \
+	@if [ ! -f rpms.lock.yaml ]; then \
 		echo "Error: rpms.lock.yaml was not generated"; \
 		exit 1; \
 	fi

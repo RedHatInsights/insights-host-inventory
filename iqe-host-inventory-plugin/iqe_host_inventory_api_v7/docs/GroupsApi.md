@@ -433,7 +433,7 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Successfully searched for groups. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Groups not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -517,7 +517,7 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Group information successfully updated. |  -  |
 **400** | Invalid request. |  -  |
-**404** | Group not found. |  -  |
+**404** | One or more requested resources were not found. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

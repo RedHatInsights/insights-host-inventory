@@ -153,7 +153,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: object
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -181,7 +181,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: tuple(object, status_code(int), headers(HTTPHeaderDict))
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -229,6 +229,9 @@ class HostsApi:
         local_var_files = {}
 
         body_params = None
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
         # Authentication setting
         auth_settings = ["ApiKeyAuth"]
 
@@ -241,7 +244,7 @@ class HostsApi:
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type=None,
+            response_type="object",
             auth_settings=auth_settings,
             async_req=local_var_params.get("async_req"),
             _return_http_data_only=local_var_params.get("_return_http_data_only"),
@@ -1652,7 +1655,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: object
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -1681,7 +1684,7 @@ class HostsApi:
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
                                  (connection, read) timeouts.
-        :return: None
+        :return: tuple(object, status_code(int), headers(HTTPHeaderDict))
                  If the method is called asynchronously,
                  returns the request thread.
         """
@@ -1738,6 +1741,9 @@ class HostsApi:
         body_params = None
         if "patch_host_in" in local_var_params:
             body_params = local_var_params["patch_host_in"]
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
         # HTTP header `Content-Type`
         header_params["Content-Type"] = self.api_client.select_header_content_type([
             "application/json"
@@ -1755,7 +1761,7 @@ class HostsApi:
             body=body_params,
             post_params=form_params,
             files=local_var_files,
-            response_type=None,
+            response_type="object",
             auth_settings=auth_settings,
             async_req=local_var_params.get("async_req"),
             _return_http_data_only=local_var_params.get("_return_http_data_only"),

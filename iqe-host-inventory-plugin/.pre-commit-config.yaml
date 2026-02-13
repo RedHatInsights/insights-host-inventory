@@ -7,7 +7,7 @@ repos:
   - id: check-yaml
   - id: debug-statements
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.15.1
+  rev: v2.16.0
   hooks:
   - id: pyproject-fmt
 - repo: https://github.com/pre-commit/mirrors-mypy

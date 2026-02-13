@@ -357,7 +357,7 @@ def delete_host_by_id(host_id_list, rbac_filter=None):
     if not delete_count:
         flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
 
-    return flask.Response(None, HTTPStatus.OK)
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
@@ -449,7 +449,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
     log_patch_host_success(logger, host_id_list)
-    return 200
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
