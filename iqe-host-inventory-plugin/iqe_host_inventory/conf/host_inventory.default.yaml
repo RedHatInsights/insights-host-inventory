@@ -37,7 +37,6 @@ prod:
   non_org_admin_user: insights_inventory_qe_2
   secondary_user: insights_qa
   frontend_user: inventory_ui_account
-  frontend_non_org_admin_user: inventory_ui_account_2
   users:
     insights_inventory_qe:
       auth:
@@ -145,24 +144,7 @@ prod:
         org_id:
           vault_path: secrets/qe/prod/users/qe-ui-inventory
           vault_key: org_id
-    inventory_ui_account_2:
-      auth:
-        username:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: username
-        password:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: password
-        refresh_token:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: org_id
+
 
 
 itl_int:
@@ -171,7 +153,6 @@ itl_int:
   secondary_user: insights_inventory_qe_2
   non_org_admin_user: insights_inventory_qe_2
   frontend_user: inventory_ui_account
-  frontend_non_org_admin_user: inventory_ui_account_2
   users:
     insights_inventory_qe:
       auth:
@@ -224,18 +205,7 @@ itl_int:
         org_id:
           vault_path: secrets/qe/int/users/qe-ui-inventory
           vault_key: org_id
-    inventory_ui_account_2:
-      auth:
-        jwt_grant_type: authorization_code
-        username:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: username
-        password:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: password
-        refresh_token:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: refresh_token
+
 
 itl_stage:
   legacy_hostname: "api.access.stage.redhat.com"
@@ -243,7 +213,6 @@ itl_stage:
   secondary_user: insights_inventory_qe_2
   non_org_admin_user: insights_inventory_qe_2
   frontend_user: inventory_ui_account
-  frontend_non_org_admin_user: inventory_ui_account_2
   users:
     insights_inventory_qe:
       auth:
@@ -296,18 +265,6 @@ itl_stage:
         org_id:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
           vault_key: org_id
-    inventory_ui_account_2:
-      auth:
-        jwt_grant_type: authorization_code
-        username:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: username
-        password:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: password
-        refresh_token:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory-1
-          vault_key: refresh_token
 
 stage: &stage
   legacy_hostname: "api.access.stage.redhat.com"
@@ -316,7 +273,6 @@ stage: &stage
   non_org_admin_user: insights_inventory_qe_2
   secondary_user: insights_qa
   frontend_user: inventory_ui_account
-  frontend_non_org_admin_user: inventory_ui_account_2
   users:
     insights_inventory_qe:
       auth:
@@ -646,37 +602,6 @@ clowder_smoke:
   non_org_admin_user: insights_inventory_qe_2
   secondary_user: secondary_user
   users: *smoke-users
-
-ephemeral:
-  frontend_user: inventory_ui_account
-  value_getters:
-    env_parser:
-      enabled: true
-  ephemeral: true
-  users:
-    inventory_ui_account:
-      attributes:
-        type: User
-        account_number: "0369234"
-        email: "inventory_ui_account@acme.com"
-        first_name: "John"
-        last_name: "Doe"
-        is_active: true
-        is_org_admin: true
-        is_internal: false
-        locale: "en_US"
-      identity:
-        org_id: "3340851"
-        account_number: "0369234"
-      auth:
-        jwt_grant_type: password
-        username: "ephemeral-user"
-        password: "redhat"
-        idp_username: "ephemeral-user"
-        idp_password: "redhat"
-      entitlements:
-        insights:
-          is_entitled: true
 
 stage_post_deploy:
   DEFAULT_USER: insights-qa

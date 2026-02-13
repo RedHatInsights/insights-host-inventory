@@ -5,13 +5,12 @@
 ## Overview
 
 The contents of this repository provide a plugin for the iqe framework. This specific plugin's goal
-is to provide both UI and REST service tests specific to Insight's inventory capabilities.
+is to provide REST service tests specific to Insight's inventory capabilities.
 
 ## Contents
 
 * [Getting Started](#getting-started)
 * [Running REST Service Tests](#running-rest-service-tests)
-* [Running Frontend Tests (WIP)](#running-frontend-tests-wip)
 * [Running tests in ephemeral environment](#running-tests-in-ephemeral-environment)
 * [Running tests with local changes in ephemeral environment](#running-tests-with-local-changes-in-ephemeral-environment)
 * [Markers](#markers)
@@ -258,45 +257,6 @@ To learn more about IQE Tests configuration, please click
 [here](https://insights-qe.pages.redhat.com/iqe-core-docs/configuration.html#)
 
 
-## Running Frontend Tests (WIP)
-
-IQE supplies a container to run Selenium which enables UI tests to work. The container contains the following:
-* Selenium Server
-* VNC server
-* browsers (Firefox or Chrome)
-
-First, pull the latest selenium image and start the selenium container:
-```bash
-$ podman pull quay.io/redhatqe/selenium-standalone
-$ podman run -it --shm-size=2g -p 4444:4444 -p 5999:5999 quay.io/redhatqe/selenium-standalone
-```
-
-If you want to watch what the UI tests are doing, you can run a VNC viewer.
-Install the TigerVNC, if you don't have it already:
-```bash
-$ sudo dnf install tigervnc
-```
-
-Now launch the VNC viewer and connect it to the VNC server:
-```bash
-$ vncviewer 127.0.0.1:5999
-```
-
-For more information about the selenium container follow the IQE documentation:
-[Running a basic UI test](https://insights-qe.pages.redhat.com/iqe-core-docs/tutorial/part2.html#running-a-basic-ui-test).
-
-
-Assuming you have the environment set up correctly and selenium container is started, you should now able to run UI tests. All frontend tests are marked with `ui` pytest marker.
-
-```bash
-# run all UI tests
-$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'ui'
-
-# run all UI RBAC tests
-$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'ui and rbac_dependent'
-```
-
-
 ## Running tests in ephemeral environment
 
 First, you need to go through a quick
@@ -307,12 +267,8 @@ Then follow these steps:
 
 * Reserve a namespace with:
 `NAMESPACE=$(bonfire namespace reserve -d <hours_to_reserve (at least 2)>)`
-* Deploy HBI to that namespace:
-    * backend:`bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE`
-    * frontend: `bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE --frontends=true`
-* Run the tests:
-    * backend:`POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
-    * frontend: `POD=$(bonfire deploy-iqe-cji host-inventory --env ephemeral --selenium -m "ui and smoke" -n $NAMESPACE)`
+* Deploy HBI to that namespace: `bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE`
+* Run the tests: `POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
 * To see the live results: `oc logs -n $NAMESPACE $POD -f`
 * Run graceful shutdown tests:
 `POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and resilience" -n $NAMESPACE)`
@@ -438,29 +394,6 @@ option when you start the tests to skip the secondary account hosts and groups s
 iqe tests plugin host_inventory --skip-data-setup -k "test_create_single_host"
 ```
 
-### Frontend tests
-
-
-1. Reserve a namespace with:
-`NAMESPACE=$(bonfire namespace reserve -d <hours_to_reserve (at least 2)>)`
-2. Deploy HBI and frontend components along with their dependencies (`--frontends=true`) to that namespace:
-`bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE --frontends=true`
-3. Deploy the pod:
-
-To run frontend tests in ephemeral, the -`-env ephemeral` and `--selenium` options are required:
-`POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory --env ephemeral --selenium -m "ui and smoke" -n $NAMESPACE)`
-
-Once pod is deployed, in pod's logs you can see one of the containers is selenium container.
-Optional step: if you want to see what browser is doing you can connect VNC server (port as an example):
-```
-oc port-forward $POD 5999:5999 -n $NAMESPACE
-```
-Then open VNC: `vncviewer 127.0.0.1:5999`
-
-4. To initiate a shell session in the pod and run frontend tests, follow steps 4-8 from backend tests above.
-
-
-
 ## Markers
 
 We have all the markers. You might say we have the _best_ markers. As you review the code you
@@ -471,7 +404,6 @@ If you are unfamiliar with pytest markers, you may wish to review the pytest pro
 documentation on the subject.
 
 * `backend` - All tests related to backend
-* `ui` - All tests related to frontend
 * `outage` - Tests intended to be used as an evaluation of whether the production environment is in
 a "working" state.
 * `core` - Tests for <prod/stage>-test-suite pipeline
@@ -486,8 +418,6 @@ requirements)
 * `rbac_dependent` - Tests that require RBAC to be running
 * `service_account` - Tests that require service accounts
 * `extended` - Tests that might run for an extended time
-
-Make sure you specify `backend` or `ui` markers when you [run required tests](#running-rest-service-tests).
 
 ## Updating Rest service
 
@@ -977,8 +907,7 @@ which means the emails will be sent to `insights-qe@redhat.com` too.
 ## Promoting deployments to Prod
 
 The latest version of HBI (`master` branch in
-[HBI backend](https://github.com/RedHatInsights/insights-host-inventory) and
-[HBI frontend](https://github.com/RedHatInsights/insights-inventory-frontend)) is automatically
+[HBI backend](https://github.com/RedHatInsights/insights-host-inventory) is automatically
 deployed to Stage.
 
 Before we make any changes in Production, like change a config value, change a feature flag value,
@@ -990,17 +919,13 @@ environments first. Here is what we need to do:
 [feature flags](https://insights-stage.unleash.devshift.net/projects), code image tags, etc.)
 2. [Run tests in ephemeral environment](#running-tests-in-ephemeral-environment)
 3. Run [HBI backend Stage pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/-stage-basic/)
-(for backend release) or [HBI frontend Stage pipelines](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/frontend/)
-(for frontend release)
+(for backend release)
 
 When everything passes, we can update Prod deploy config. For code releases, we need to update
 these refs to match the tested version from Stage for backend:
 - [HBI Backend](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/host-inventory/deploy-clowder.yml#L191)
 - [cyndi-operator](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/xjoin/deploy-cyndi.yml#L76)
 - [xjoin-kafka-connect](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/xjoin/deploy.yml#L82)
-
-And this ref for frontend:
-- [HBI Frontend](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/host-inventory/deploy-clowder.yml#L72)
 
 The ref represents a commit hash of the latest commit we want to deploy to Production, so you can
 look for the commit hash of the latest commit in master branches. Also, update all desired config
@@ -1054,16 +979,14 @@ for monitoring the deployment.
 ## Jenkins Jobs
 
 1. [Stage and Prod HBI backend testing pipelines](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/)
-2. [Stage and Prod HBI frontend testing pipelines](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/frontend/)
-3. [HBI backend outage check](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/outage-check/)
-4. [HBI frontend outage check](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/frontend/job/ui_outage-prod/)
-5. [HBI RapiDAST pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/rapidast/job/Host-Inventory-rapidast-job/)
-6. [IQE Stage Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/stage-test-suite/)
-7. [IQE Prod Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/prod-test-suite/)
-8. [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/)
-9. [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/)
-10. [host-inventory pr-checker full test run](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-all-tests/)
-11. [host-inventory pr-checker rbac integration tests](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-rbac-tests/)
+2. [HBI backend outage check](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/outage-check/)
+3. [HBI RapiDAST pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/rapidast/job/Host-Inventory-rapidast-job/)
+4. [IQE Stage Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/stage-test-suite/)
+5. [IQE Prod Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/prod-test-suite/)
+6. [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/)
+7. [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/)
+8. [host-inventory pr-checker full test run](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-all-tests/)
+9. [host-inventory pr-checker rbac integration tests](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-rbac-tests/)
 
 ## Further Reading
 

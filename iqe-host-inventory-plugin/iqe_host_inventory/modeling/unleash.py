@@ -49,21 +49,6 @@ class HBIUnleash(BaseEntity):
                 )
 
     @cached_property
-    def kessel_workspace_ui_flag(self) -> str:
-        feature_flag = "hbi.kessel-migration"
-
-        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
-            flag_request = UnleashFlagRequest(
-                name=feature_flag,
-                description="UI kessel_workspace_migration flag",
-                type=_RequestType.RELEASE,
-                impressionData=False,
-            )
-            self._unleash.admin.create_flag(flag_request=flag_request)
-
-        return feature_flag
-
-    @cached_property
     def kessel_phase_1_flag(self) -> str:
         feature_flag = "hbi.api.kessel-phase-1"
 

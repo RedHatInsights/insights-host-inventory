@@ -4,14 +4,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import attr
-from iqe.base.application.implementations.web_ui import IQENavigateStep
-from iqe.base.application.implementations.web_ui import ViaWebUI
 from iqe.base.application.plugins import ApplicationPlugin
 from iqe.base.application.plugins import ApplicationPluginException
 from iqe.base.application.plugins.service_objects import RESTPluginService
-from taretto.navigate import NavigateToAttribute
-
-from iqe_host_inventory.views.custom_staleness import StalenessAndDeletionPage
 
 if TYPE_CHECKING:
     from . import modeling
@@ -79,16 +74,3 @@ class ApplicationHostInventory(ApplicationPlugin):
         from .modeling import unleash
 
         return unleash.HBIUnleash(self)
-
-
-@ViaWebUI.register_destination_for(ApplicationHostInventory, "CustomStaleness")
-class StalenessAndDeletion(IQENavigateStep):
-    """Staleness and Deletion step"""
-
-    VIEW = StalenessAndDeletionPage
-    prerequisite = NavigateToAttribute("application.platform_ui", "Insights")
-
-    def step(self, *args, **kwargs):
-        self.prerequisite_view.navigation.select(
-            "Inventory", "System Configuration", "Staleness and Deletion", force=True
-        )
