@@ -18,7 +18,9 @@ from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.serialization import _deserialize_tags
+from app.serialization import build_system_profile_from_normalized
 from app.serialization import serialize_facts
 from app.serialization import serialize_uuid
 from app.utils import Tag
@@ -26,6 +28,9 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+
+# Removed _get_os_name_from_normalized - using extract_system_profile_fields_for_headers instead
+
 
 MockFutureCallback = namedtuple("MockFutureCallback", ("method", "args", "kwargs", "extra_arg"))
 
@@ -202,13 +207,9 @@ def assert_delete_event_is_valid(
         assert event["subscription_manager_id"] is not None
 
     assert event_producer.key == str(host.id)
+    _, os_name, _ = extract_system_profile_fields_for_headers(host)
     assert event_producer.headers == expected_headers(
-        "delete",
-        event["request_id"],
-        serialize_uuid(host.insights_id),
-        host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
+        "delete", event["request_id"], serialize_uuid(host.insights_id), host.reporter, host.host_type, os_name
     )
 
     if identity:
@@ -432,7 +433,7 @@ def assert_patch_event_is_valid(
             "facts": serialize_facts(host.facts),
             "satellite_id": host.satellite_id,
             "subscription_manager_id": host.subscription_manager_id,
-            "system_profile": host.system_profile_facts,
+            "system_profile": build_system_profile_from_normalized(host),
             "per_reporter_staleness": host.per_reporter_staleness,
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
             "reporter": reporter,
@@ -455,13 +456,14 @@ def assert_patch_event_is_valid(
 
     assert event == expected_event
     assert event_producer.key == str(host.id)
+    host_type, os_name, _ = extract_system_profile_fields_for_headers(host)
     assert event_producer.headers == expected_headers(
         "updated",
         expected_request_id,
         serialize_uuid(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
+        host_type,
+        os_name,
     )
 
 
@@ -560,13 +562,14 @@ def assert_synchronize_event_is_valid(
         assert event["host"]["groups"][0]["name"] == groups[0].name
         assert event["host"]["groups"][0]["ungrouped"] == groups[0].ungrouped
 
+    host_type, os_name, _ = extract_system_profile_fields_for_headers(host)
     assert event_producer.headers == expected_headers(
         "updated",
         event["metadata"]["request_id"],
         serialize_uuid(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
+        host_type,
+        os_name,
     )
 
     if expected_request_id:
