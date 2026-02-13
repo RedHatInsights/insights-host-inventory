@@ -56,6 +56,10 @@ def in_order(
     def _get_field(group: GroupOutWithHostCount, field_name: str):
         if field_name == "host_count":
             return group.host_count
+        elif field_name == "type":
+            # type field is only in RBAC v2 workspaces, not in OpenAPI model
+            # Derive it from the ungrouped field which IS in the model
+            return "ungrouped-hosts" if group.ungrouped else "standard"
         return getattr(group, field_name)
 
     expected_compare_result = -1 if ascending else 1
@@ -63,12 +67,15 @@ def in_order(
         "name": compare_names,
         "host_count": compare_hosts_counts,
         "updated": compare_dates,
+        "created": compare_dates,
+        "type": compare_names,
     }
     try:
         comparator_func = sort_funcs[sort_field]
     except LookupError as e:
+        valid_fields = "name, host_count, updated, created, type"
         raise ValueError(
-            f"Valid options for sort_field: [name, host_count, updated]. Provided: {sort_field}"
+            f"Valid options for sort_field: [{valid_fields}]. Provided: {sort_field}"
         ) from e
 
     if last_result is not None:
@@ -652,8 +659,8 @@ class TestGetGroupByIDEmptyGroups:
             400,
             (
                 f"{order_by}",
-                "is not one of ['name', 'host_count', 'updated']",
-                "{'type': 'string', 'enum': ['name', 'host_count', 'updated']}",
+                "is not one of ['name', 'host_count', 'updated', 'created', 'type']",
+                "'enum': ['name', 'host_count', 'updated', 'created', 'type']",
             ),
         ):
             host_inventory.apis.groups.get_groups_by_id_response(groups, order_by=order_by)
