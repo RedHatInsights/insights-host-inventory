@@ -2637,6 +2637,10 @@ components:
             format: uuid
           example:
             - 22cd8e39-13bb-4d02-8316-84b850dc5136
+        type:
+          description: The type of the error.
+          type: string
+          example: about:blank
       required:
         - status
         - title

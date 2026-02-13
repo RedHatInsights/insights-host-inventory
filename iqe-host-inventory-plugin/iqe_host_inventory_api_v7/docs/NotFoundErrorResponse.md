@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **title** | **str** | A short summary of the error. |
 **detail** | **str** | A human-readable description of the error. |
 **not_found_ids** | **List[str]** | A list of IDs that were requested but not found. This field is included when specific IDs can be identified as missing. | [optional]
+**type** | **str** | The type of the error. | [optional]
 
 ## Example
 

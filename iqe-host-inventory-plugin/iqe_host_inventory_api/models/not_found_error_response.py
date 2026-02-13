@@ -32,6 +32,7 @@ class NotFoundErrorResponse:
         "title": "str",
         "detail": "str",
         "not_found_ids": "list[str]",
+        "type": "str",
     }
 
     attribute_map = {
@@ -39,6 +40,7 @@ class NotFoundErrorResponse:
         "title": "title",
         "detail": "detail",
         "not_found_ids": "not_found_ids",
+        "type": "type",
     }
 
     def __init__(
@@ -47,6 +49,7 @@ class NotFoundErrorResponse:
         title=None,
         detail=None,
         not_found_ids=None,
+        type=None,
         local_vars_configuration=None,
     ):
         """NotFoundErrorResponse - a model defined in OpenAPI"""
@@ -58,6 +61,7 @@ class NotFoundErrorResponse:
         self._title = None
         self._detail = None
         self._not_found_ids = None
+        self._type = None
         self.discriminator = None
 
         self.status = status
@@ -65,6 +69,8 @@ class NotFoundErrorResponse:
         self.detail = detail
         if not_found_ids is not None:
             self.not_found_ids = not_found_ids
+        if type is not None:
+            self.type = type
 
     @property
     def status(self):
@@ -163,6 +169,29 @@ class NotFoundErrorResponse:
         """
 
         self._not_found_ids = not_found_ids
+
+    @property
+    def type(self):
+        """Gets the type of this NotFoundErrorResponse.  # noqa: E501
+
+        The type of the error.  # noqa: E501
+
+        :return: The type of this NotFoundErrorResponse.  # noqa: E501
+        :rtype: str
+        """
+        return self._type
+
+    @type.setter
+    def type(self, type):
+        """Sets the type of this NotFoundErrorResponse.
+
+        The type of the error.  # noqa: E501
+
+        :param type: The type of this NotFoundErrorResponse.  # noqa: E501
+        :type: str
+        """
+
+        self._type = type
 
     def to_dict(self):
         """Returns the model properties as a dict"""

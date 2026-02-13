@@ -37,8 +37,9 @@ class NotFoundErrorResponse(BaseModel):
         default=None,
         description="A list of IDs that were requested but not found. This field is included when specific IDs can be identified as missing.",
     )
+    type: StrictStr | None = Field(default=None, description="The type of the error.")
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["status", "title", "detail", "not_found_ids"]
+    __properties: ClassVar[list[str]] = ["status", "title", "detail", "not_found_ids", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -101,6 +102,7 @@ class NotFoundErrorResponse(BaseModel):
             "title": obj.get("title"),
             "detail": obj.get("detail"),
             "not_found_ids": obj.get("not_found_ids"),
+            "type": obj.get("type"),
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
