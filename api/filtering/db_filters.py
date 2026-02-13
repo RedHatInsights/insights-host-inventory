@@ -17,6 +17,7 @@ from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import ColumnElement
 
+from api.filtering.db_app_data_filters import build_app_data_filters
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
@@ -33,6 +34,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
@@ -387,17 +389,25 @@ def _registered_with_filter(registered_with: list[str], org_id: str, staleness: 
     return [or_(*_query_filter)]
 
 
-def _system_profile_filter(filter: dict) -> list:
+def _build_filter(filter: dict) -> tuple[list, set]:
     query_filters: list = []
+    app_models_to_join: set = set()
 
     if filter:
+        app_data_models = get_app_data_models()
+        app_filter_dict = {}
         for key in filter:
             if key == "system_profile":
                 query_filters += build_system_profile_filter(filter["system_profile"])
+            elif key in app_data_models:
+                app_filter_dict[key] = filter[key]
             else:
                 raise ValidationException("filter key is invalid")
+        if app_filter_dict:
+            app_filters, app_models_to_join = build_app_data_filters(app_filter_dict)
+            query_filters += app_filters
 
-    return query_filters
+    return query_filters, app_models_to_join
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
@@ -546,6 +556,8 @@ def query_filters(
             "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
         )
 
+    app_data_models_to_join = set[Any]()
+
     filters = []
     if fqdn:
         filters += hosts_field_filter("fqdn", fqdn, True)
@@ -575,8 +587,8 @@ def query_filters(
     if tags:
         filters += _tags_filter(tags)
     if filter:
-        sp_filter = _system_profile_filter(filter)
-        filters += sp_filter
+        filter_exprs, app_data_models_to_join = _build_filter(filter)
+        filters += filter_exprs
     if staleness:
         filters += _staleness_filter(staleness)
     if registered_with:
@@ -604,5 +616,9 @@ def query_filters(
         query_base = query_base.outerjoin(HostStaticSystemProfile)
     if needs_dynamic_join:
         query_base = query_base.outerjoin(HostDynamicSystemProfile)
+
+    # Add app data joins for filtering
+    for model_class in app_data_models_to_join:
+        query_base = query_base.outerjoin(model_class)
 
     return filters, query_base
