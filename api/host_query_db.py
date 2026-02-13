@@ -348,6 +348,7 @@ def get_host_list_for_views(
     registered_with: list[str] | None,
     system_type: list[str] | None,
     filter: dict | None,
+    fields: dict | None,  # noqa: ARG001
     rbac_filter: dict | None,
 ) -> tuple[list[Host], int]:
     """
