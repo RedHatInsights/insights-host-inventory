@@ -142,7 +142,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             staleness=staleness,
             registered_with=registered_with,
             system_type=system_type,
-            filter=None,
+            filter=filter,
             fields=None,
             rbac_filter=rbac_filter,
         )

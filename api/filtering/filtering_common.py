@@ -15,6 +15,7 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "gt": ColumnOperators.__gt__,
     "gte": ColumnOperators.__ge__,
     "eq": ColumnOperators.__eq__,
+    "ne": ColumnOperators.__ne__,
     "neq": ColumnOperators.__ne__,
     "is": ColumnOperators.is_,
     "contains": "contains",
