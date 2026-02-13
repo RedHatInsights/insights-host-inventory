@@ -229,6 +229,7 @@ class Kessel:
         )
 
         response: CheckResponse = self.inventory_svc.Check(request, timeout=self.timeout)
+        logger.debug(f"Kessel.check: single resource check response={response}", extra={"resource_id": resource_id})
         return response.allowed == allowed_pb2.Allowed.ALLOWED_TRUE
 
     def _check_bulk_resources(
@@ -257,6 +258,7 @@ class Kessel:
 
         bulk_request = check_bulk_request_pb2.CheckBulkRequest(items=items)
         response: CheckBulkResponse = self.inventory_svc.CheckBulk(bulk_request, timeout=self.timeout)
+        logger.debug(f"Kessel.check: bulk resource check response={response}", extra={"resource_ids": resource_ids})
 
         # Check that all resources are present in the response
         if len(response.pairs) != len(resource_ids):
@@ -279,6 +281,10 @@ class Kessel:
                 logger.warning(f"Kessel CheckBulk error for resource: {pair.error.message}")
                 unauthorized_ids.append(pair.request.object.resource_id)
             elif pair.item.allowed != allowed_pb2.Allowed.ALLOWED_TRUE:
+                logger.debug(
+                    f"Kessel.check: bulk resource check unauthorized={pair.request.object.resource_id}",
+                    extra={"resource_id": pair.request.object.resource_id},
+                )
                 unauthorized_ids.append(pair.request.object.resource_id)
 
         return len(unauthorized_ids) == 0, unauthorized_ids

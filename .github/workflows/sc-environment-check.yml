@@ -2,11 +2,8 @@
 name: SC Environment Check
 
 on:
-  push:
+  pull_request_target:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
 
 jobs:
   call-reusable-workflow:
@@ -14,3 +11,5 @@ jobs:
       pull-requests: write
       contents: read
     uses: RedHatInsights/shared-workflows/.github/workflows/sc-environment-impact-check.yml@master
+    secrets:
+      SC_ASSESSOR_SLACK_URL: ${{ secrets.SC_ASSESSOR_SLACK_URL }}
