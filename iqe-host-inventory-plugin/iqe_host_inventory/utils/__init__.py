@@ -10,7 +10,6 @@ from datetime import timedelta
 from itertools import chain as _chain
 from random import randint
 from typing import TYPE_CHECKING
-from typing import TypeVar
 
 from box import BoxKeyError
 from dynaconf.utils.boxing import DynaBox
@@ -30,10 +29,8 @@ class InvalidConfigurationParameterError(Exception):
 GLOBAL_ACCOUNTS = ("insights-qa", "insights-qe", "qa@redhat.com")
 PRIVATE_ENV_IDENTIFIERS = ("smoke", "ephemeral", "local")
 
-T = TypeVar("T")
 
-
-def flatten(input: Sequence[Sequence[T]] | Iterator[Sequence[T]]) -> list[T]:
+def flatten[T](input: Sequence[Sequence[T]] | Iterator[Sequence[T]]) -> list[T]:
     return [*_chain.from_iterable(input)]
 
 
