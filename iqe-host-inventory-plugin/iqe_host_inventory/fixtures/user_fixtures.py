@@ -230,13 +230,6 @@ def hbi_maybe_application_frontend(
 
 
 @pytest.fixture(scope="session")
-def hbi_application_frontend(hbi_maybe_application_frontend: Application | None) -> Application:
-    if hbi_maybe_application_frontend is None:
-        pytest.fail("frontend user is not properly defined in the config")
-    return hbi_maybe_application_frontend
-
-
-@pytest.fixture(scope="session")
 def hbi_maybe_application_service_account_1(
     application: Application, hbi_maybe_service_account_1_data: DynaBox | None
 ) -> Generator[Application | None, None, None]:

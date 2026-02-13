@@ -82,11 +82,6 @@ def host_inventory_secondary(hbi_application_secondary: Application) -> Applicat
 
 
 @pytest.fixture(scope="session")
-def host_inventory_frontend(hbi_application_frontend: Application) -> ApplicationHostInventory:
-    return hbi_application_frontend.host_inventory
-
-
-@pytest.fixture(scope="session")
 def host_inventory_sa_1(
     hbi_maybe_application_service_account_1: Application | None,
 ) -> ApplicationHostInventory:

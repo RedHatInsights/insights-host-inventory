@@ -1005,7 +1005,7 @@ def hbi_log_api_request_statistics(host_inventory: ApplicationHostInventory) -> 
 @pytest.fixture(scope="session", autouse=True)
 def setup_ui_hosts_for_catchpoint(
     application: Application,
-    host_inventory_frontend: ApplicationHostInventory,
+    hbi_maybe_application_frontend: Application | None,
 ) -> None:
     """Catchpoint tests (outage tests for Frontend integrated with Status page)
     run via Catchpoint monitoring tool:
@@ -1022,6 +1022,11 @@ def setup_ui_hosts_for_catchpoint(
             "skipping hosts update/upload."
         )
         return
+
+    if hbi_maybe_application_frontend is None:
+        pytest.fail("frontend user is not properly defined in the config")
+    else:
+        host_inventory_frontend = hbi_maybe_application_frontend.host_inventory
 
     catchpoint_rhel_archive = "rhel-82-vuln-patch-advisor.tar.gz"
     unique_id = "_catchpoint"
