@@ -1,0 +1,31 @@
+default:
+  hbi_api_base_path: /api/inventory/v1
+  ingress_api_base_path: /api/ingress/v1
+  default_auth_type: basic_auth
+
+stage:
+  base_url: https://console.stage.redhat.com
+  proxy: http://squid.corp.redhat.com:3128
+  default_user: insights_inventory_qe
+  users:
+    insights_inventory_qe:
+      basic_auth:
+        username: vault:secrets/qe/stage/users/insights_inventory_qe#username
+        password: vault:secrets/qe/stage/users/insights_inventory_qe#password
+
+prod:
+  base_url: https://console.redhat.com
+  default_user: insights_inventory_qe
+  users:
+    insights_inventory_qe:
+      basic_auth:
+        username: vault:secrets/qe/prod/users/insights_inventory_qe#username
+        password: vault:secrets/qe/prod/users/insights_inventory_qe#password
+
+ephemeral:
+  default_user: insights_inventory_qe
+  users:
+    insights_inventory_qe:
+      basic_auth:
+        username: insights_inventory_qe
+        password: some_password
