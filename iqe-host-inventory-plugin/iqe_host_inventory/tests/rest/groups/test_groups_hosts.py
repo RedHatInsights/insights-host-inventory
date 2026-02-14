@@ -8,6 +8,7 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.tests.rest.groups.test_groups_mq_events import group_to_mq_dict
 from iqe_host_inventory.utils.api_utils import is_ungrouped_host
+from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory_api import GroupOut
 from iqe_host_inventory_api import GroupOutWithHostCount
@@ -383,13 +384,22 @@ def test_get_hosts_from_group_with_tags_filter(host_inventory: ApplicationHostIn
     """
     # Create hosts with specific tags
     host1_data = host_inventory.datagen.create_host_data_with_tags(
-        tags={"env": ["prod"], "region": ["us-east"]}
+        tags=[
+            gen_tag(namespace="app", key="env", value="prod"),
+            gen_tag(namespace="location", key="region", value="us-east"),
+        ]
     )
     host2_data = host_inventory.datagen.create_host_data_with_tags(
-        tags={"env": ["dev"], "region": ["us-west"]}
+        tags=[
+            gen_tag(namespace="app", key="env", value="dev"),
+            gen_tag(namespace="location", key="region", value="us-west"),
+        ]
     )
     host3_data = host_inventory.datagen.create_host_data_with_tags(
-        tags={"env": ["prod"], "region": ["us-west"]}
+        tags=[
+            gen_tag(namespace="app", key="env", value="prod"),
+            gen_tag(namespace="location", key="region", value="us-west"),
+        ]
     )
 
     hosts = host_inventory.kafka.create_hosts(hosts_data=[host1_data, host2_data, host3_data])
@@ -398,12 +408,11 @@ def test_get_hosts_from_group_with_tags_filter(host_inventory: ApplicationHostIn
     group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts)
 
     # Filter by tags
-    response_hosts = host_inventory.apis.groups.get_hosts_from_group(group, tags=["env=prod"])
+    response_hosts = host_inventory.apis.groups.get_hosts_from_group(group, tags=["app/env=prod"])
 
-    # Verify only production hosts returned
+    # Verify only production hosts returned (host1 and host3 have app/env=prod tag)
     assert len(response_hosts) == 2
-    for host in response_hosts:
-        assert any(tag.namespace == "env" and tag.value == "prod" for tag in host.tags)
+    assert {host.id for host in response_hosts} == {hosts[0].id, hosts[2].id}
 
 
 @pytest.mark.ephemeral

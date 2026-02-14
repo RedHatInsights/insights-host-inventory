@@ -16,6 +16,7 @@ from iqe_host_inventory.views.custom_staleness import StalenessAndDeletionPage
 if TYPE_CHECKING:
     from . import modeling
     from .modeling import kafka_interaction
+    from .modeling import unleash
     from .modeling import uploads
 
 
@@ -72,6 +73,12 @@ class ApplicationHostInventory(ApplicationPlugin):
         from . import modeling
 
         return modeling.HBICleanUp(self)
+
+    @cached_property
+    def unleash(self) -> unleash.HBIUnleash:
+        from .modeling import unleash
+
+        return unleash.HBIUnleash(self)
 
 
 @ViaWebUI.register_destination_for(ApplicationHostInventory, "CustomStaleness")

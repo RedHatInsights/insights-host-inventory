@@ -31,6 +31,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
+from app.exceptions import IdsNotFoundError
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -55,6 +56,7 @@ from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
 from app.serialization import serialize_uuid
 from app.utils import Tag
+from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -347,17 +349,15 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @access(KesselResourceTypes.HOST.delete, id_param="host_id_list")
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
-    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
-        set(host_id_list)
-    ):
-        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
 
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
         flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
 
-    return flask.Response(None, HTTPStatus.OK)
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
@@ -368,8 +368,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
-        if total != len(set(host_id_list)):
-            flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+        check_all_ids_found(host_id_list, host_list, "host", total=total)
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -392,8 +391,7 @@ def get_host_system_profile_by_id(
         total, host_list = get_sparse_system_profile(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
-        if total != len(set(host_id_list)):
-            flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+        check_all_ids_found(host_id_list, host_list, "host", total=total)
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -433,7 +431,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
 
     if len(hosts_to_update) != len(set(host_id_list)):
         log_patch_host_failed(logger, host_id_list)
-        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+        check_all_ids_found(host_id_list, hosts_to_update, "host")
 
     staleness = get_staleness_obj(current_identity.org_id)
 
@@ -451,7 +449,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
     log_patch_host_success(logger, host_id_list)
-    return 200
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
@@ -536,10 +534,8 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
-    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
-        set(host_id_list)
-    ):
-        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
 
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
@@ -552,10 +548,8 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
-    if len(get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()) != len(
-        set(host_id_list)
-    ):
-        flask.abort(HTTPStatus.NOT_FOUND, "One or more hosts not found.")
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
 
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
@@ -606,11 +600,12 @@ def get_host_exists(insights_id, rbac_filter=None):
     # Duplicated - I wonder if this could be factored back into middleware.py
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         kessel_client = get_kessel_client(current_app)
-        allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
+        allowed, kessel_data = get_kessel_filter(
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
         )
         if not allowed:
-            flask.abort(HTTPStatus.NOT_FOUND)
+            unauthorized_ids = kessel_data.get("unauthorized_ids") if kessel_data else None
+            raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})
