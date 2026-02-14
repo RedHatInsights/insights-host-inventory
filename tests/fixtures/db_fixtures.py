@@ -250,7 +250,7 @@ def db_create_host_group_assoc(flask_app, db_get_group_by_id):  # noqa: ARG001
             raise ValueError(f"Group with id {group_id} not found")
         host_group = HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=group.org_id)
         db.session.add(host_group)
-        serialized_groups = [serialize_group(group)]
+        serialized_groups = [serialize_group(group, group.org_id)]
         db.session.query(Host).filter(Host.org_id == group.org_id, Host.id == host_id).update(
             {"groups": serialized_groups}
         )
