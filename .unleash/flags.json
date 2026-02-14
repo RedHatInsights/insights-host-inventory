@@ -112,6 +112,22 @@
             ],
             "variants": [],
             "createdAt": "2025-10-14T08:30:19.146Z"
+        },
+        {
+            "name": "hbi.flat-stale-timestamp-per-reporter-filter",
+            "description": "When turned ON, HBI will use only last_check_in to calculate the stale timestamp per reporter filter (RHINENG-21707).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2026-02-11T16:29:19.146Z"
         }
     ],
     "strategies": [
