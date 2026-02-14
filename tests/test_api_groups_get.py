@@ -494,7 +494,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     ]
 
     # Mock get_rbac_workspaces to return workspaces in name order
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
 
     # Mock host counts - different from name order!
@@ -507,7 +507,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
 
     # Mock the batch host count function instead of individual calls
     mocker.patch(
-        "api.group_query.get_host_counts_batch",
+        "api.group.get_host_counts_batch",
         return_value=host_counts,
     )
 
@@ -553,7 +553,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
         _create_mock_workspace(name="gamma_group", workspace_id=str(generate_uuid())),  # 10 hosts (tie!)
     ]
 
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 4)
 
     # Mock host counts: Three groups with 10 hosts, one with 5
@@ -566,7 +566,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
 
     # Mock the batch host count function instead of individual calls
     mocker.patch(
-        "api.group_query.get_host_counts_batch",
+        "api.group.get_host_counts_batch",
         return_value=host_counts,
     )
 
@@ -617,7 +617,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_too_many_groups(mocker, api_g
         for i in range(3000)  # Returns 3000 groups
     ]
 
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 3500)  # total=3500 (>3000)
 
     # Request order_by=host_count with too many groups
@@ -643,7 +643,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_timeout(mocker, api_get):
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock get_rbac_workspaces to raise Timeout exception
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.side_effect = Timeout("RBAC v2 API timed out")
 
     # Request order_by=host_count which triggers special code path
@@ -670,11 +670,11 @@ def test_get_groups_rbac_v2_ordering_by_host_count_db_error(mocker, api_get):
         _create_mock_workspace(name="group_a", workspace_id=str(generate_uuid())),
         _create_mock_workspace(name="group_b", workspace_id=str(generate_uuid())),
     ]
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
 
     # Mock get_host_counts_batch to raise database error when fetching host counts
-    mock_get_host_counts = mocker.patch("api.group_query.get_host_counts_batch")
+    mock_get_host_counts = mocker.patch("api.group.get_host_counts_batch")
     mock_get_host_counts.side_effect = OperationalError("Database connection failed", None, None)
 
     # Request order_by=host_count
@@ -703,7 +703,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
         _create_mock_workspace(name="beta_group", workspace_id=str(generate_uuid())),
     ]
 
-    mock_get_rbac_workspaces = mocker.patch("api.group_query.get_rbac_workspaces")
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
     mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
 
     # Mock all groups having 0 hosts
@@ -711,7 +711,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
         return 0  # All groups empty
 
     mocker.patch(
-        "api.group_query.get_host_counts_batch",
+        "api.group.get_host_counts_batch",
         side_effect=lambda org_id, group_ids: {gid: mock_get_host_count(gid, org_id) for gid in group_ids},
     )
 
