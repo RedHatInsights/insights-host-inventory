@@ -4,7 +4,7 @@ ARG PLUGIN_NAME
 
 USER 0
 
-RUN iqe plugin install --debug ${PLUGIN_NAME} ${PLUGIN_NAME}-frontend && \
+RUN iqe plugin install --debug ${PLUGIN_NAME} && \
     rm -rf ${IQE_VENV}/.cache/pip && \
     chmod -R g+rwX ${IQE_VENV}
 

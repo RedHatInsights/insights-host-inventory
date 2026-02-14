@@ -60,6 +60,42 @@ def _ids_from_workspaces(workspaces: WORKSPACE_OR_WORKSPACES) -> list[str]:
     return [_id_from_workspace(workspaces)]
 
 
+def _sort_workspaces_for_deletion(
+    workspace_details: dict[str, WorkspacesWorkspace],
+    workspace_ids: list[str],
+) -> list[str]:
+    """Sort workspaces so children are deleted before parents (children first)."""
+
+    depth_cache: dict[str, int] = {}
+
+    def get_depth(ws_id: str, seen: set[str] | None = None) -> int:
+        # Unresolved or missing details: treat as root-level
+        if ws_id not in workspace_details:
+            return 0
+
+        if ws_id in depth_cache:
+            return depth_cache[ws_id]
+
+        if seen is None:
+            seen = set()
+        # Basic cycle guard: put cycles at depth 0
+        if ws_id in seen:
+            return 0
+        seen.add(ws_id)
+
+        parent_id = workspace_details[ws_id].parent_id
+        if not parent_id or parent_id not in workspace_details:
+            depth = 0
+        else:
+            depth = 1 + get_depth(parent_id, seen)
+
+        depth_cache[ws_id] = depth
+        return depth
+
+    # Higher depth first: children before parents
+    return sorted(workspace_ids, key=get_depth, reverse=True)
+
+
 @attr.s
 class WorkspacesAPIWrapper(BaseEntity):
     @cached_property
@@ -400,7 +436,10 @@ class WorkspacesAPIWrapper(BaseEntity):
             self.raw_api.workspaces_delete(workspace_id)
 
     def delete_workspaces(self, workspaces: WORKSPACE_OR_WORKSPACES) -> None:
-        """Delete workspaces with exception handling
+        """Delete workspaces with exception handling.
+
+        Workspaces are sorted by hierarchy so that children are deleted before parents.
+        This prevents "Unable to delete due to workspace dependencies" errors.
 
         :param WORKSPACE_OR_WORKSPACES workspaces: (required) Either a single workspace
             or a list of workspaces
@@ -408,13 +447,28 @@ class WorkspacesAPIWrapper(BaseEntity):
         :return None
         """
         workspace_ids = _ids_from_workspaces(workspaces)
+        if not workspace_ids:
+            return
+
+        workspace_details: dict[str, WorkspacesWorkspace] = {}
+        for workspace_id in workspace_ids:
+            try:
+                workspace = self.get_workspace_by_id(workspace_id)
+                workspace_details[workspace_id] = workspace
+            except ApiException as err:
+                if err.status == 404:
+                    logger.info(f"Workspace {workspace_id} not found, skipping fetch")
+                else:
+                    raise err
+
+        sorted_ids = _sort_workspaces_for_deletion(workspace_details, workspace_ids)
 
         try:
-            self.delete_workspaces_raw(workspace_ids)
+            self.delete_workspaces_raw(sorted_ids)
         except ApiException as err:
             if err.status == 404:
                 logger.info(
-                    f"Couldn't delete workspaces {workspace_ids} because they were not found."
+                    f"Couldn't delete workspaces {sorted_ids} because they were not found."
                 )
             else:
                 raise err
