@@ -8,8 +8,9 @@ RBAC v2 workspace validation when the 'hbi.api.kessel-groups' feature flag is en
 The RBAC v2 path validates that the workspace exists via the Kessel RBAC v2 API
 instead of querying the database directly. This is part of the broader Kessel migration.
 
-REVISIT: These tests require Kessel setup in the ephemeral environment.
-To run in the EE, use the --kessel option: pytest --kessel
+NOTE: These tests require Kessel to be enabled (BYPASS_KESSEL=false).
+To run in ephemeral environments, use: pytest --kessel
+In Stage/Prod, these tests run automatically.
 """
 
 from __future__ import annotations
@@ -27,7 +28,6 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_group_rbac_v2_success(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -63,7 +63,6 @@ def test_add_hosts_to_group_rbac_v2_success(host_inventory: ApplicationHostInven
     assert all(h.id in host_ids for h in hosts)
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_nonexistent_group_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -88,7 +87,6 @@ def test_add_hosts_to_nonexistent_group_rbac_v2(host_inventory: ApplicationHostI
         )
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_group_rbac_v2_partial_success(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -128,7 +126,6 @@ def test_add_hosts_to_group_rbac_v2_partial_success(host_inventory: ApplicationH
     assert len(response_hosts) == 3
 
 
-@pytest.mark.ephemeral
 def test_add_invalid_hosts_to_group_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -138,7 +135,7 @@ def test_add_invalid_hosts_to_group_rbac_v2(host_inventory: ApplicationHostInven
         assignee: maarif
         importance: medium
         negative: true
-        title: Verify 404 when adding non-existent hosts to group (RBAC v2)
+        title: Verify 400 when adding non-existent hosts to group (RBAC v2)
     """
     # Create group and wait for workspace
     group_name = generate_display_name()
@@ -148,14 +145,13 @@ def test_add_invalid_hosts_to_group_rbac_v2(host_inventory: ApplicationHostInven
     # Try to add non-existent hosts
     fake_host_ids = [generate_uuid(), generate_uuid()]
 
-    # Should return 400 because hosts don't exist
+    # Should return 400 because hosts don't exist (validation failure)
     with raises_apierror(400, "Could not find existing host"):
         host_inventory.apis.groups.raw_api.api_host_group_add_host_list_to_group(
             group.id, fake_host_ids
         )
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_group_rbac_v2_idempotent(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -192,7 +188,6 @@ def test_add_hosts_to_group_rbac_v2_idempotent(host_inventory: ApplicationHostIn
     assert len(response_hosts) == 2
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_group_rbac_v2_different_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
@@ -223,7 +218,6 @@ def test_add_hosts_to_group_rbac_v2_different_account(
         )
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_ungrouped_workspace_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399
@@ -255,7 +249,6 @@ def test_add_hosts_to_ungrouped_workspace_rbac_v2(host_inventory: ApplicationHos
     assert all(h.id in response_host_ids for h in hosts)
 
 
-@pytest.mark.ephemeral
 def test_add_hosts_to_group_rbac_v2_empty_list(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17399

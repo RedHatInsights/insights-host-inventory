@@ -55,6 +55,7 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
         "test_kessel_host_replication.py",
         "test_kessel_rbac_granular.py",
         "test_kessel_ungrouped.py",
+        "test_groups_add_hosts_rbac_v2.py",
     )
     for item in items:
         if item.parent is not None and item.parent.name in SKIPPED_MODULES:
