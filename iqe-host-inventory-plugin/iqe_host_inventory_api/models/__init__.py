@@ -32,6 +32,7 @@ from iqe_host_inventory_api.models.host_out_all_of import HostOutAllOf
 from iqe_host_inventory_api.models.host_query_output import HostQueryOutput
 from iqe_host_inventory_api.models.host_query_output_all_of import HostQueryOutputAllOf
 from iqe_host_inventory_api.models.host_system_profile_out import HostSystemProfileOut
+from iqe_host_inventory_api.models.not_found_error_response import NotFoundErrorResponse
 from iqe_host_inventory_api.models.pagination_out import PaginationOut
 from iqe_host_inventory_api.models.patch_host_in import PatchHostIn
 from iqe_host_inventory_api.models.per_reporter_staleness import PerReporterStaleness

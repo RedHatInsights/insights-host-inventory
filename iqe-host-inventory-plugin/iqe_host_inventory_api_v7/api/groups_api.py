@@ -1170,7 +1170,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1260,7 +1260,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1350,7 +1350,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupQueryOutput",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
@@ -1482,7 +1482,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupOutWithHostCount",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1551,7 +1551,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupOutWithHostCount",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         response_data.read()
@@ -1620,7 +1620,7 @@ class GroupsApi:
         _response_types_map: dict[str, str | None] = {
             "200": "GroupOutWithHostCount",
             "400": None,
-            "404": None,
+            "404": "NotFoundErrorResponse",
         }
         response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
         return response_data.response
