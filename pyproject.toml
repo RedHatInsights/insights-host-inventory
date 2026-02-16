@@ -107,7 +107,6 @@ module = [
     "iqe_host_inventory.utils.notifications_utils",
     "iqe_host_inventory.modeling.*",
     "iqe_host_inventory.fixtures.*",
-    "iqe_host_inventory.tests.ui.*",
     "iqe_host_inventory.tests.rest.*",
 ]
 ignore_errors = true

@@ -3,16 +3,13 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import TypeVar
 
 _DEFAULT_ACCEPT_ERROR = Exception("no valid result obtained")
-
-T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
 
-def accept_when(
+def accept_when[T](
     func: Callable[[], T],
     is_valid: Callable[[T], bool],
     delay: float | None = None,

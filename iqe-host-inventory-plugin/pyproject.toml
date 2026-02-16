@@ -30,7 +30,6 @@ dependencies = [
   "iqe-kessel-sync-plugin",
   "iqe-mq-plugin>=24.11.29",
   "iqe-notifications-plugin",
-  "iqe-platform-ui-plugin",
   "iqe-rbac-plugin",
   "ocdeployer",
   "psycopg2-binary",
@@ -40,8 +39,6 @@ dependencies = [
   "requests",
   "sqlalchemy",
 ]
-entry-points."iqe.application_collections".systems = "iqe_host_inventory.entities.systems:SystemCollection"
-entry-points."iqe.application_collections".workspaces = "iqe_host_inventory.entities.workspaces:WorkspaceCollection"
 entry-points."iqe.application_plugins".host_inventory = "iqe_host_inventory:ApplicationHostInventory"
 entry-points."iqe.click_commands".host_inventory = "iqe_host_inventory.grafted_commands:host_inventory_group"
 entry-points.pytest11.iqe_host_inventory_plugin = "iqe_host_inventory.pytest_plugin"
