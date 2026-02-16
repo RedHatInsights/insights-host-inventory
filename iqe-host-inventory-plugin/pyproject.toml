@@ -43,28 +43,18 @@ entry-points."iqe.application_plugins".host_inventory = "iqe_host_inventory:Appl
 entry-points."iqe.click_commands".host_inventory = "iqe_host_inventory.grafted_commands:host_inventory_group"
 entry-points.pytest11.iqe_host_inventory_plugin = "iqe_host_inventory.pytest_plugin"
 
-[tool.hatch.build]
-packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
-
-[tool.hatch.build.targets.sdist]
-include = [ "/iqe_host_inventory", "/iqe_host_inventory_api", "/iqe_host_inventory_api_v7" ]
-
-[tool.hatch.build.targets.wheel]
-packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
-
-[tool.hatch.envs.default]
-python = "3.9"
-
-[tool.hatch.envs.default.env-vars]
-PIP_INDEX = "https://nexus.corp.redhat.com/repository/cqt-pypi/pypi"
-PIP_INDEX_URL = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
-
+[tool.hatch]
+build.packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
+build.targets.sdist.include = [ "/iqe_host_inventory", "/iqe_host_inventory_api", "/iqe_host_inventory_api_v7" ]
+build.targets.wheel.packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
+envs.default.python = "3.9"
+envs.default.env-vars.PIP_INDEX = "https://nexus.corp.redhat.com/repository/cqt-pypi/pypi"
+envs.default.env-vars.PIP_INDEX_URL = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
 # enable comms with nexus and stage CRC
-REQUESTS_CA_BUNDLE = "/etc/pki/tls/certs/ca-bundle.crt"
+envs.default.env-vars.REQUESTS_CA_BUNDLE = "/etc/pki/tls/certs/ca-bundle.crt"
 
 [tool.ruff]
 line-length = 99
-
 preview = true
 lint.extend-select = [
   "B",
@@ -113,7 +103,6 @@ lint.extend-safe-fixes = [
   "C409",
   "C417",
   "C419",
-
   "SIM103",
   # note - on regen with the old openap apis,
   # its sometimes necesary to delete some noqa comments for the rules to work propperly
