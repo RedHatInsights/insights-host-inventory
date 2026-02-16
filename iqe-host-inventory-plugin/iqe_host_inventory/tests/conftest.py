@@ -18,6 +18,7 @@ from iqe.users.user_provider import UserProvider
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
 from iqe_host_inventory.fixtures.feature_flag_fixtures import _ensure_ungrouped_group_exists
+from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -481,74 +482,6 @@ def hbi_cleanup_frontend_user_function(
     """
     if hbi_maybe_application_frontend is not None:
         hbi_cleanup_function(hbi_maybe_application_frontend.host_inventory)
-
-
-# FRONTEND NON ORG ADMIN USER
-
-
-@pytest.fixture(scope="session", autouse=True)
-def hbi_cleanup_frontend_non_org_admin_user_session(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-    hbi_cleanup_session: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend non org admin user which are registered for cleanup
-    at the end of the test session
-    """
-    if hbi_maybe_application_frontend_non_org_admin is not None:
-        hbi_cleanup_session(hbi_maybe_application_frontend_non_org_admin.host_inventory)
-
-
-@pytest.fixture(scope="package", autouse=True)
-def hbi_cleanup_frontend_non_org_admin_user_package(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-    hbi_cleanup_package: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend non org admin user which are registered for cleanup
-    at the end of the test package
-    """
-    if hbi_maybe_application_frontend_non_org_admin is not None:
-        hbi_cleanup_package(hbi_maybe_application_frontend_non_org_admin.host_inventory)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def hbi_cleanup_frontend_non_org_admin_user_module(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-    hbi_cleanup_module: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend non org admin user which are registered for cleanup
-    at the end of the test module
-    """
-    if hbi_maybe_application_frontend_non_org_admin is not None:
-        hbi_cleanup_module(hbi_maybe_application_frontend_non_org_admin.host_inventory)
-
-
-@pytest.fixture(scope="class", autouse=True)
-def hbi_cleanup_frontend_non_org_admin_user_class(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-    hbi_cleanup_class: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend non org admin user which are registered for cleanup
-    at the end of the test class
-    """
-    if hbi_maybe_application_frontend_non_org_admin is not None:
-        hbi_cleanup_class(hbi_maybe_application_frontend_non_org_admin.host_inventory)
-
-
-@pytest.fixture(scope="function", autouse=True)
-def hbi_cleanup_frontend_non_org_admin_user_function(
-    hbi_maybe_application_frontend_non_org_admin: Application | None,
-    hbi_cleanup_function: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend non org admin user which are registered for cleanup
-    at the end of the test function
-    """
-    if hbi_maybe_application_frontend_non_org_admin is not None:
-        hbi_cleanup_function(hbi_maybe_application_frontend_non_org_admin.host_inventory)
 
 
 # SERVICE ACCOUNT 1
@@ -1068,3 +1001,57 @@ def hbi_recreate_data_on_secondary_account_after_delete(
 def hbi_log_api_request_statistics(host_inventory: ApplicationHostInventory) -> Generator[None]:
     yield
     host_inventory.apis.log_request_statistics()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_ui_hosts_for_catchpoint(
+    application: Application,
+    hbi_maybe_application_frontend: Application | None,
+) -> None:
+    """Catchpoint tests (outage tests for Frontend integrated with Status page)
+    run via Catchpoint monitoring tool:
+    - if account without required hosts - this fixture uploads them with
+    'register_for_cleanup=False' param to keep them in the account
+    - if account has required hosts - it updates them to keep their staleness "fresh"
+    to avoid deletion.
+
+    https://issues.redhat.com/browse/RHINENG-16391
+    """
+    if application.config.current_env != "prod":
+        logger.info(
+            "Hosts for Catchpoint required only for prod environment, "
+            "skipping hosts update/upload."
+        )
+        return
+
+    if hbi_maybe_application_frontend is None:
+        pytest.fail("frontend user is not properly defined in the config")
+    else:
+        host_inventory_frontend = hbi_maybe_application_frontend.host_inventory
+
+    catchpoint_rhel_archive = "rhel-82-vuln-patch-advisor.tar.gz"
+    unique_id = "_catchpoint"
+    hosts_data: list = []
+    hosts = host_inventory_frontend.apis.hosts.get_hosts(display_name=unique_id)
+    if len(hosts) != 0:
+        for host in hosts:
+            hosts_data.append(
+                HostData(
+                    display_name=host.display_name,
+                    subscription_manager_id=host.subscription_manager_id,
+                    tags=[],
+                    base_archive=catchpoint_rhel_archive,
+                )
+            )
+    else:
+        # if no Catchpoint hosts in the account - create new host_data to upload
+        for _ in range(3):
+            hosts_data.append(
+                HostData(
+                    display_name=generate_uuid() + unique_id,
+                    tags=[],
+                    base_archive=catchpoint_rhel_archive,
+                )
+            )
+
+    host_inventory_frontend.upload.create_hosts(hosts_data=hosts_data, register_for_cleanup=False)
