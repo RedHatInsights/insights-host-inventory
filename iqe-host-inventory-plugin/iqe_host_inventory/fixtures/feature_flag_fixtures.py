@@ -2,6 +2,10 @@ import logging
 from collections.abc import Generator
 
 import pytest
+from iqe.base.feature_flags.consoledot_proxy import ConsoleDotProxyBackend
+from iqe.base.feature_flags.unleash import UnleashBackend
+from iqe.base.feature_flags.unleash import UnleashFlagRequest
+from iqe.base.feature_flags.unleash import _RequestType
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -96,38 +100,35 @@ def kessel_groups_flag(unleash: UnleashBackend | ConsoleDotProxyBackend) -> str:
 
 @pytest.fixture
 def enable_kessel_groups(
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-    kessel_groups_flag: str,
+    host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
-    toggle_feature_flag(unleash, kessel_groups_flag)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=True)
 
     yield
 
-    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=False)
 
 
 @pytest.fixture(scope="module")
 def enable_kessel_groups_module(
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-    kessel_groups_flag: str,
+    host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
-    toggle_feature_flag(unleash, kessel_groups_flag)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=True)
 
     yield
 
-    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=False)
 
 
 @pytest.fixture(scope="session")
 def enable_kessel_groups_session(
-    unleash: UnleashBackend | ConsoleDotProxyBackend,
-    kessel_groups_flag: str,
+    host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
-    toggle_feature_flag(unleash, kessel_groups_flag)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=True)
 
     yield
 
-    toggle_feature_flag(unleash, kessel_groups_flag, enable=False)
+    host_inventory.unleash.toggle_feature_flag("hbi.api.kessel-groups", enable=False)
 
 
 @pytest.fixture()
@@ -138,5 +139,3 @@ def is_kessel_groups_enabled(unleash: UnleashBackend | ConsoleDotProxyBackend):
 @pytest.fixture(scope="session")
 def is_kessel_groups_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
     return unleash.is_enabled("hbi.api.kessel-groups")
-def is_kessel_phase_1_enabled_session(host_inventory: ApplicationHostInventory):
-    return host_inventory.unleash.is_kessel_phase_1_enabled()

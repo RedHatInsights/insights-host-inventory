@@ -34,7 +34,10 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
+from app.serialization import serialize_workspace_with_host_count
 from app.utils import check_all_ids_found
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
