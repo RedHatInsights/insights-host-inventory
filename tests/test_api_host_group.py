@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 from dateutil.parser import parse
 
+from app.exceptions import ResourceNotFoundException
 from app.models import Host
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -439,8 +440,10 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
-    # Mock workspace fetch to return None (workspace not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    # Mock RBAC v2 workspace fetch to raise ResourceNotFoundException (not found)
+    mocker.patch(
+        "api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Workspace not found")
+    )
 
     # Try to remove hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
@@ -606,8 +609,10 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
-    # Mock workspace fetch to return None (workspace not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    # Mock RBAC v2 workspace fetch to raise ResourceNotFoundException (not found)
+    mocker.patch(
+        "api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Workspace not found")
+    )
 
     # Try to remove valid hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
@@ -681,8 +686,6 @@ def test_get_hosts_from_missing_group(
 
     # Mock RBAC workspace API for Kessel-enabled path
     if expect_rbac_call:
-        from app.exceptions import ResourceNotFoundException
-
         mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
         mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
 

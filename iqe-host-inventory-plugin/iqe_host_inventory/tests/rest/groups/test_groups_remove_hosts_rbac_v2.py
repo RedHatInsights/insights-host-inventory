@@ -8,8 +8,9 @@ RBAC v2 workspace validation when the 'hbi.api.kessel-groups' feature flag is en
 The RBAC v2 path validates that the workspace exists via the Kessel RBAC v2 API
 instead of querying the database directly. This is part of the broader Kessel migration.
 
-REVISIT: These tests require Kessel setup in the ephemeral environment.
-To run in the EE, use the --kessel option: pytest --kessel
+NOTE: These tests require Kessel to be enabled (BYPASS_KESSEL=false).
+To run in ephemeral environments, use: pytest --kessel
+In Stage/Prod, these tests run automatically.
 """
 
 from __future__ import annotations
@@ -27,7 +28,6 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_success(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -62,7 +62,6 @@ def test_remove_hosts_from_group_rbac_v2_success(host_inventory: ApplicationHost
     assert response_hosts[0].id == hosts[2].id
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_partial(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -100,7 +99,6 @@ def test_remove_hosts_from_group_rbac_v2_partial(host_inventory: ApplicationHost
     assert response_hosts[0].id == hosts[2].id
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_all_hosts(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -133,7 +131,6 @@ def test_remove_hosts_from_group_rbac_v2_all_hosts(host_inventory: ApplicationHo
     assert len(response_hosts) == 0
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_idempotent(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -170,7 +167,6 @@ def test_remove_hosts_from_group_rbac_v2_idempotent(host_inventory: ApplicationH
     assert response_hosts[0].id == hosts[1].id
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_nonexistent_group_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -195,7 +191,6 @@ def test_remove_hosts_from_nonexistent_group_rbac_v2(host_inventory: Application
         )
 
 
-@pytest.mark.ephemeral
 def test_remove_invalid_hosts_from_group_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -222,7 +217,6 @@ def test_remove_invalid_hosts_from_group_rbac_v2(host_inventory: ApplicationHost
         )
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_ungrouped_workspace_rbac_v2(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400
@@ -249,7 +243,6 @@ def test_remove_hosts_from_ungrouped_workspace_rbac_v2(host_inventory: Applicati
         )
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_different_account(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
@@ -278,7 +271,6 @@ def test_remove_hosts_from_group_rbac_v2_different_account(
         )
 
 
-@pytest.mark.ephemeral
 def test_remove_hosts_from_group_rbac_v2_empty_list(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-17400

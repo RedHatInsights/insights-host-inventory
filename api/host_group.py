@@ -190,12 +190,17 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Feature flag check for RBAC v2 workspace validation
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if not workspace:
+        try:
+            workspace = get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
-        # Check if workspace is ungrouped type (workspace is guaranteed to be dict here after None check)
-        assert workspace is not None  # Help mypy understand workspace is not None after abort check
+        # workspace is guaranteed to be a dict here (not None) because:
+        # 1. bypass_kessel=False (checked above), so function won't return None
+        # 2. If workspace not found, ResourceNotFoundException is raised above
+        assert workspace is not None  # Help mypy understand this
+
+        # Check if workspace is ungrouped type
         if workspace.get("type") == "ungrouped-hosts":
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
     else:
