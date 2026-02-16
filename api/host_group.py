@@ -201,6 +201,9 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
         assert workspace is not None  # Help mypy understand this
 
         # Check if workspace is ungrouped type
+        # The "ungrouped-hosts" workspace is special: hosts not in any group must belong to it.
+        # Hosts cannot be explicitly removed from ungrouped-hosts (blocked at workspace level).
+        # They are implicitly removed when added to another group via POST.
         if workspace.get("type") == "ungrouped-hosts":
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
     else:
@@ -208,6 +211,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
         if (group := get_group_by_id_from_db(str(group_id), identity.org_id)) is None:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
+        # Check ungrouped group (added during RBAC v2 migration)
         if group.ungrouped is True:
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
