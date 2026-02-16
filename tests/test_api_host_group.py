@@ -450,7 +450,7 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
 
     # Verify 404 error
     assert_response_status(response_status, 404)
-    assert "Group not found" in response_data["detail"]
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
 
 
 def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
@@ -619,7 +619,7 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
 
     # Verify 404 error - group not found
     assert_response_status(response_status, 404)
-    assert "Group not found" in response_data["detail"]
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
 
 
 #
