@@ -147,46 +147,6 @@ def hbi_frontend_org_id(hbi_frontend_user_data: DynaBox, hbi_frontend_user: str)
 
 
 @pytest.fixture(scope="session")
-def hbi_frontend_non_org_admin_user(application: Application) -> str | None:
-    return application.host_inventory.config.get("frontend_non_org_admin_user")
-
-
-@pytest.fixture(scope="session")
-def hbi_maybe_frontend_non_org_admin_user_data(
-    application: Application, hbi_frontend_non_org_admin_user: str | None
-) -> DynaBox | None:
-    if hbi_frontend_non_org_admin_user is None:
-        return None
-    return get_user(application, hbi_frontend_non_org_admin_user)
-
-
-@pytest.fixture(scope="session")
-def hbi_frontend_non_org_admin_user_data(
-    application: Application, hbi_frontend_non_org_admin_user: str | None
-) -> DynaBox:
-    assert hbi_frontend_non_org_admin_user is not None, (
-        "User 'frontend_non_org_admin_user' doesn't have a defined name in the config"
-    )
-    return require_user(application, hbi_frontend_non_org_admin_user)
-
-
-@pytest.fixture(scope="session")
-def hbi_frontend_non_org_admin_user_username(
-    hbi_frontend_non_org_admin_user_data: DynaBox,
-) -> str:
-    return get_username(hbi_frontend_non_org_admin_user_data)
-
-
-@pytest.fixture(scope="session")
-def hbi_frontend_non_org_admin_user_org_id(
-    hbi_frontend_non_org_admin_user_data: DynaBox, hbi_frontend_non_org_admin_user: str
-) -> str:
-    return _get_identity_field(
-        hbi_frontend_non_org_admin_user_data, hbi_frontend_non_org_admin_user, "org_id"
-    )
-
-
-@pytest.fixture(scope="session")
 def hbi_maybe_service_account_1_data(application: Application) -> DynaBox | None:
     return get_user(application, "inventory_service_account")
 
@@ -266,27 +226,6 @@ def hbi_maybe_application_frontend(
         return
 
     with application.copy_using(user=hbi_maybe_frontend_user_data, verify_ssl=False) as app:
-        yield app
-
-
-@pytest.fixture(scope="session")
-def hbi_application_frontend(hbi_maybe_application_frontend: Application | None) -> Application:
-    if hbi_maybe_application_frontend is None:
-        pytest.fail("frontend user is not properly defined in the config")
-    return hbi_maybe_application_frontend
-
-
-@pytest.fixture(scope="session")
-def hbi_maybe_application_frontend_non_org_admin(
-    application: Application, hbi_maybe_frontend_non_org_admin_user_data: DynaBox | None
-) -> Generator[Application | None, None, None]:
-    if hbi_maybe_frontend_non_org_admin_user_data is None:
-        yield None
-        return
-
-    with application.copy_using(
-        user=hbi_maybe_frontend_non_org_admin_user_data, verify_ssl=False
-    ) as app:
         yield app
 
 
