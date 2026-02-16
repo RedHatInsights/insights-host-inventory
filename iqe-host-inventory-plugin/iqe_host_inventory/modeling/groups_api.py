@@ -669,6 +669,13 @@ class GroupsAPIWrapper(BaseEntity):
         if is_global_account(self.application):
             raise Exception("It's not safe to delete all groups on a global account")
 
+        # If the env is stage or prod, or kessel phase 1 is enabled, delete all workspaces first
+        if (
+            self.application.config.current_env.lower() in ("stage", "prod")
+            or self._host_inventory.unleash.is_kessel_phase_1_enabled()
+        ):
+            self._host_inventory.apis.workspaces.delete_all_workspaces()
+
         groups = self.get_groups(per_page=100)
         while groups:
             self.delete_groups(groups, wait_for_deleted=wait_for_deleted, **api_kwargs)
