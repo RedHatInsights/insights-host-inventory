@@ -2,7 +2,6 @@ import logging
 from collections.abc import Generator
 
 import pytest
-from iqe.base.feature_flags.unleash import UnleashBackend
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -23,28 +22,6 @@ def _ensure_ungrouped_group_exists(host_inventory: ApplicationHostInventory):
         )
 
         host_inventory.apis.hosts.delete_by_id(host)
-
-
-# Kessel UI
-
-
-@pytest.fixture(scope="session")
-def kessel_workspace_ui_flag(host_inventory_frontend: ApplicationHostInventory) -> str:
-    return host_inventory_frontend.unleash.kessel_workspace_ui_flag
-
-
-@pytest.fixture(scope="session")
-def enabled_ui_kessel(
-    kessel_workspace_ui_flag: str, host_inventory_frontend: ApplicationHostInventory
-) -> bool:
-    # condition to not skip test that required disabled kessel flag
-    # in stage/prod environment
-    if isinstance(host_inventory_frontend.unleash._unleash, UnleashBackend):
-        host_inventory_frontend.unleash.toggle_feature_flag(kessel_workspace_ui_flag)
-
-        _ensure_ungrouped_group_exists(host_inventory_frontend)
-
-    return host_inventory_frontend.unleash.is_flag_enabled(kessel_workspace_ui_flag)
 
 
 # Kessel Phase 1

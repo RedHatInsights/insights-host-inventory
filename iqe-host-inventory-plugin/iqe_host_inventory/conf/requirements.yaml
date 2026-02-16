@@ -91,26 +91,23 @@ inv-hosts-filter-by-reporter:
 inv-hosts-filter-by-updated:
   summary: Filter hosts by the time of last updated
   description: >
-    BE: I should be able to filter hosts by their last updated time on GET /hosts endpoint
+    I should be able to filter hosts by their last updated time on GET /hosts endpoint
     via `updated_start` and `updated_end`  parameters.
     Provided parameter value has to be in valid timestamp format.
-    UI: I should be able filter hosts by 'Last seen' filter
   priority: high
 
 inv-hosts-filter-by-last_check_in:
   summary: Filter hosts by the time of last check-in
   description: >
-    BE: I should be able to filter hosts by their last check-in time on GET /hosts endpoint
+    I should be able to filter hosts by their last check-in time on GET /hosts endpoint
     via `last_check_in_start` and `last_check_in_end` parameters.
     Provided parameter value has to be in valid timestamp format.
-    UI: I should be able filter hosts by 'Last seen' filter
   priority: high
 
 inv-hosts-filter-by-group_name:
   summary: Filter hosts by the name of the group it is associated with
   description: >
-    BE: Filter hosts by the name of the group it is associated with.
-    FE: I should be able to filter hosts by "Workspace" filter.
+    Filter hosts by the name of the group it is associated with.
   priority: critical
 
 inv-hosts-filter-by-group_id:
@@ -649,9 +646,7 @@ inv-staleness-post:
 inv-staleness-get-defaults:
   summary: Get custom staleness default settings by sending a GET request
   description: >
-    BE: Get custom staleness default settings by sending a GET request
-    UI: A user must be able to reset system's staleness setting to default
-    settings
+    Get custom staleness default settings by sending a GET request
   priority: high
 
 inv-staleness-get:
@@ -661,8 +656,7 @@ inv-staleness-get:
 inv-staleness-patch:
   summary: Update custom staleness settings by sending a PATCH request
   description: >
-    BE: Update custom staleness settings by sending a PATCH request
-    FE: A user must be able to update system's staleness setting
+    Update custom staleness settings by sending a PATCH request
   priority: high
 
 inv-staleness-delete:
@@ -763,16 +757,6 @@ inv-kessel-hosts:
   description: >
     All updates to HBI hosts (small subset of fields) should be reflected in Kessel.
   priority: high
-
-inv_ui-navigation:
-  summary: Navigation works for all Inventory pages
-  priority: critical
-
-inv_ui-dashboard:
-  summary: Navigation to the Inventory UI via Dashboard links
-  priority: critical
-  description: >
-    A user must be able to reach the Inventory Systems page via Dashboard links.
 
 inv-post-tags-endpoints:
   summary: "POST /tags endpoint can be used to add new tags to a host in Insights on Premise"
