@@ -190,7 +190,7 @@ def create_rhsm_only_host(
     return host
 
 
-def db_create_host_app_data(host_id, org_id, app_name: str, **data):
+def db_create_host_app_data(host_id: str, org_id: str, app_name: str, **data):
     if app_name not in APP_DATA_MODELS:
         raise ValueError(f"Unknown app_name: {app_name}. Valid options: {list(APP_DATA_MODELS.keys())}")
 
