@@ -95,10 +95,8 @@ paths:
       operationId: api.host_views.get_host_views
       tags:
         - hosts
-      summary: "[WIP] Read aggregated host and application data"
+      summary: "Read aggregated host and application data"
       description: >-
-        **[Work In Progress]** This endpoint is under active development and currently
-        returns HTTP 501 (Not Implemented).<br /><br />
         Read a combined view of hosts with optional application data such as Advisor,
         Vulnerability, Compliance, Patch, and others. Application joins are opt-in and
         controlled through the fields parameter.<br /><br />
@@ -138,8 +136,6 @@ paths:
                 $ref: '#/components/schemas/HostViewQueryOutput'
         '400':
           description: Invalid request.
-        '501':
-          description: Not Implemented - endpoint under development.
   /hosts/all:
     delete:
       operationId: api.host.delete_all_hosts
@@ -2061,9 +2057,10 @@ components:
       type: object
       properties:
         policies:
-          type: integer
-          minimum: 0
+          type: array
           nullable: true
+          items:
+            type: object
         last_scan:
           type: string
           format: date-time
@@ -2075,6 +2072,10 @@ components:
           type: string
           nullable: true
         last_matches:
+          type: integer
+          minimum: 0
+          nullable: true
+        total_matches:
           type: integer
           minimum: 0
           nullable: true

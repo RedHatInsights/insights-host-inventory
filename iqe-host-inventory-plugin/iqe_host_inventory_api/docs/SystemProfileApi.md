@@ -51,7 +51,7 @@ configuration = iqe_host_inventory_api.Configuration(
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.SystemProfileApi(api_client)
-    tags = ['tags_example'] # list[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # list[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
 per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
 page = 1 # int | A page number of the items to return. (optional) (default to 1)
 staleness = ["fresh","stale","stale_warning"] # list[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
@@ -70,7 +70,7 @@ filter = {'key': {}} # dict(str, object) | Filters hosts based on system_profile
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **tags** | [**list[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**list[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **staleness** | [**list[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
@@ -141,7 +141,7 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.SystemProfileApi(api_client)
     search = 'search_example' # str | Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching. (optional)
-tags = ['tags_example'] # list[str] | filters out hosts not tagged by the given tags (optional)
+tags = ['tags_example'] # list[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
 per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
 page = 1 # int | A page number of the items to return. (optional) (default to 1)
 staleness = ["fresh","stale","stale_warning"] # list[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
@@ -161,7 +161,7 @@ filter = {'key': {}} # dict(str, object) | Filters hosts based on system_profile
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **search** | **str**| Used for searching tags and sap_sids that match the given search string. For searching tags, a tag&#39;s namespace, key, and/or value is used for matching. | [optional]
- **tags** | [**list[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**list[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **staleness** | [**list[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
@@ -231,7 +231,7 @@ configuration = iqe_host_inventory_api.Configuration(
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.SystemProfileApi(api_client)
-    tags = ['tags_example'] # list[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # list[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
 per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
 page = 1 # int | A page number of the items to return. (optional) (default to 1)
 staleness = ["fresh","stale","stale_warning"] # list[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
@@ -250,7 +250,7 @@ filter = {'key': {}} # dict(str, object) | Filters hosts based on system_profile
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **tags** | [**list[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**list[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **staleness** | [**list[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
