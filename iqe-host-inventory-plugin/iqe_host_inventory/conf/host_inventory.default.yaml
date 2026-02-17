@@ -11,6 +11,7 @@ default:
     system_profile_topic: platform.inventory.system-profile
     notifications_topic: platform.notifications.ingress
     kessel_outbox_topic: outbox.event.kessel.resources
+    host_apps_topic: platform.inventory.host-apps
     events_timeout: 10
   service_objects:
     api:
@@ -616,6 +617,7 @@ clowder_smoke:
     events_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.events') }}"
     system_profile_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.system-profile') }}"
     notifications_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.notifications.ingress') }}"
+    host_apps_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.host-apps') }}"
     events_timeout: 10
   service_objects:
     api:
@@ -646,6 +648,7 @@ stage_post_deploy:
     events_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.events') }}"
     system_profile_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.system-profile') }}"
     notifications_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.notifications.ingress') }}"
+    host_apps_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.host-apps') }}"
     events_timeout: 10
   service_objects:
     api:
