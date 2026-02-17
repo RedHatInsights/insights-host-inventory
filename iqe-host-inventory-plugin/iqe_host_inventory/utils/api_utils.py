@@ -405,7 +405,7 @@ def check_org_id(api_wrapper_method: Callable):
                 f"Critical data leak! Org {my_org_id} accessed data from org {response_org_id}!"
             )
 
-        if orig_response is None:
+        if orig_response is None or orig_response == "":
             return orig_response
 
         if not isinstance(orig_response, dict):
