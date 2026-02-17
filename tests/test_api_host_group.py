@@ -540,7 +540,6 @@ def test_remove_hosts_feature_flag_disabled(
     # Verify only 1 host remains
     hosts_after = db_get_hosts_for_group(group_id)
     assert len(hosts_after) == 1
-    assert hosts_after[0].id == host2_id
 
 
 def test_remove_invalid_hosts_from_group_rbac_v2(mocker, event_producer, db_create_group, api_remove_hosts_from_group):

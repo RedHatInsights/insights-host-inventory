@@ -198,13 +198,14 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
         # workspace is guaranteed to be a dict here (not None) because:
         # 1. bypass_kessel=False (checked above), so function won't return None
         # 2. If workspace not found, ResourceNotFoundException is raised above
-        assert workspace is not None  # Help mypy understand this
+        if workspace is None:
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
         # Check if workspace is ungrouped type
         # The "ungrouped-hosts" workspace is special: hosts not in any group must belong to it.
         # Hosts cannot be explicitly removed from ungrouped-hosts (blocked at workspace level).
         # They are implicitly removed when added to another group via POST.
-        if workspace.get("type") == "ungrouped-hosts":
+        if workspace.get("type") == "ungrouped-hosts":  # type: ignore[union-attr]
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
     else:
         # RBAC v1 path: Validate group via database
