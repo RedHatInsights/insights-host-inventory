@@ -5,6 +5,12 @@ from app.utils import HostWrapper
 
 # Make test helpers available to be imported
 sys.path.append(os.path.join(os.path.dirname(__file__), "helpers"))
+# Make IQE plugin utilities importable so unit tests can share data (e.g. datagen_utils).
+# We target the utils directory directly to avoid pulling in iqe_host_inventory.__init__
+# which depends on iqe-core (not available in the main venv).
+sys.path.append(
+    os.path.join(os.path.dirname(__file__), os.pardir, "iqe-host-inventory-plugin", "iqe_host_inventory", "utils")
+)
 
 # Make fixtures available
 pytest_plugins = [
