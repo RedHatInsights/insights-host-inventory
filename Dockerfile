@@ -19,7 +19,7 @@ RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgre
     microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make git && \
     microdnf update -y gnupg2 glib2 && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
+    microdnf install --setopt=tsflags=nodocs --setopt=install_weak_deps=0 -y glibc-langpack-en libpq-devel python3.12-devel gcc libatomic cargo rust krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
     rpm -qa | sort > packages-after-devel-install.txt && \
     ln -s /usr/bin/python3.12 /usr/bin/python && \
     ln -s /usr/bin/python3.12 /usr/bin/python3
