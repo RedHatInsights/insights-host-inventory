@@ -5,6 +5,7 @@ from datetime import datetime
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_view_url
+from tests.helpers.db_utils import db_create_host_app_data
 
 
 class TestHostViewBasicResponse:
@@ -64,7 +65,7 @@ class TestHostViewBasicResponse:
 class TestHostViewWithAppData:
     """Test hosts-view endpoint with app_data populated."""
 
-    def test_host_with_advisor_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_host_with_advisor_data(self, api_get, db_create_host):
         """Host with advisor data should return advisor in app_data."""
         host = db_create_host()
         db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
@@ -78,7 +79,7 @@ class TestHostViewWithAppData:
         assert result["app_data"]["advisor"]["recommendations"] == 5
         assert result["app_data"]["advisor"]["incidents"] == 2
 
-    def test_host_with_vulnerability_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_host_with_vulnerability_data(self, api_get, db_create_host):
         """Host with vulnerability data should return vulnerability in app_data."""
         host = db_create_host()
         db_create_host_app_data(
@@ -101,7 +102,7 @@ class TestHostViewWithAppData:
         assert result["app_data"]["vulnerability"]["total_cves"] == 10
         assert result["app_data"]["vulnerability"]["critical_cves"] == 2
 
-    def test_host_with_patch_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_host_with_patch_data(self, api_get, db_create_host):
         """Host with patch data should return patch in app_data."""
         host = db_create_host()
         db_create_host_app_data(
@@ -128,7 +129,7 @@ class TestHostViewWithAppData:
         assert result["app_data"]["patch"]["advisories_other_installable"] == 1
         assert result["app_data"]["patch"]["template_name"] == "test-template"
 
-    def test_host_with_multiple_app_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_host_with_multiple_app_data(self, api_get, db_create_host):
         """Host with multiple app_data types should return all in app_data."""
         host = db_create_host()
         db_create_host_app_data(
@@ -165,7 +166,7 @@ class TestHostViewWithAppData:
 class TestHostViewWithMultipleHosts:
     """Test hosts-view endpoint with multiple hosts."""
 
-    def test_multiple_hosts_with_different_app_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_multiple_hosts_with_different_app_data(self, api_get, db_create_host):
         """Multiple hosts should each have their own app_data."""
         host1 = db_create_host()
         host1_id = str(host1.id)
@@ -211,7 +212,7 @@ class TestHostViewWithMultipleHosts:
         assert "vulnerability" in results_by_id[host2_id]["app_data"]
         assert "patch" not in results_by_id[host2_id]["app_data"]
 
-    def test_mixed_hosts_some_with_app_data_some_without(self, api_get, db_create_host, db_create_host_app_data):
+    def test_mixed_hosts_some_with_app_data_some_without(self, api_get, db_create_host):
         """Some hosts with app_data, some without."""
         host_with_data = db_create_host()
         host_with_data_id = str(host_with_data.id)
@@ -244,7 +245,7 @@ class TestHostViewWithMultipleHosts:
 class TestHostViewFilters:
     """Test hosts-view endpoint filters."""
 
-    def test_filter_by_display_name(self, api_get, db_create_host, db_create_host_app_data):
+    def test_filter_by_display_name(self, api_get, db_create_host):
         """Filter by display_name should work."""
         host1 = db_create_host(extra_data={"display_name": "unique-host-name.example.com"})
         db_create_host(extra_data={"display_name": "other-host.example.com"})  # Second host for filtering
@@ -298,7 +299,7 @@ class TestHostViewFilters:
 class TestHostViewAppDataEdgeCases:
     """Test edge cases for app_data in hosts-view endpoint."""
 
-    def test_patch_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_patch_data(self, api_get, db_create_host):
         """Patch data should include all advisory and package fields."""
         host = db_create_host()
         host_id = str(host.id)
@@ -344,7 +345,7 @@ class TestHostViewAppDataEdgeCases:
         # template_uuid is not set, so it should not be in the response
         assert "template_uuid" not in patch_data
 
-    def test_compliance_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_compliance_data(self, api_get, db_create_host):
         """Compliance data should include policies and last_scan."""
         host = db_create_host()
         host_id = str(host.id)
@@ -361,7 +362,7 @@ class TestHostViewAppDataEdgeCases:
         assert result["app_data"]["compliance"]["policies"] == 5
         assert result["app_data"]["compliance"]["last_scan"] is not None
 
-    def test_malware_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_malware_data(self, api_get, db_create_host):
         """Malware data should include status, matches, and last_scan."""
         host = db_create_host()
         host_id = str(host.id)
@@ -381,7 +382,7 @@ class TestHostViewAppDataEdgeCases:
         assert result["app_data"]["malware"]["last_matches"] == 0
         assert result["app_data"]["malware"]["last_scan"] is not None
 
-    def test_remediations_data(self, api_get, db_create_host, db_create_host_app_data):
+    def test_remediations_data(self, api_get, db_create_host):
         """Remediations data should include remediations_plans."""
         host = db_create_host()
         host_id = str(host.id)
