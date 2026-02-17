@@ -37,7 +37,7 @@ class TagsApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param str order_by: Ordering field name
         :param str order_how: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
         :param int per_page: A number of items to return per page.
@@ -83,7 +83,7 @@ class TagsApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param str order_by: Ordering field name
         :param str order_how: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
         :param int per_page: A number of items to return per page.
