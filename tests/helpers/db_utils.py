@@ -9,6 +9,12 @@ from sqlalchemy.exc import InvalidRequestError
 from app.auth.identity import Identity
 from app.models import Group
 from app.models import Host
+from app.models import HostAppDataAdvisor
+from app.models import HostAppDataCompliance
+from app.models import HostAppDataMalware
+from app.models import HostAppDataPatch
+from app.models import HostAppDataRemediations
+from app.models import HostAppDataVulnerability
 from app.models import Staleness
 from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
@@ -21,7 +27,14 @@ from tests.helpers.test_utils import now
 DB_FACTS_NAMESPACE = "ns1"
 DB_FACTS = {DB_FACTS_NAMESPACE: {"key1": "value1"}}
 DB_NEW_FACTS = {"newfact1": "newvalue1", "newfact2": "newvalue2"}
-
+APP_DATA_MODELS = {
+    "advisor": HostAppDataAdvisor,
+    "vulnerability": HostAppDataVulnerability,
+    "patch": HostAppDataPatch,
+    "remediations": HostAppDataRemediations,
+    "compliance": HostAppDataCompliance,
+    "malware": HostAppDataMalware,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -175,3 +188,19 @@ def create_rhsm_only_host(
     host.stale_warning_timestamp = stale_warning_ts
     host.deletion_timestamp = deletion_ts
     return host
+
+
+def db_create_host_app_data(host_id, org_id, app_name: str, **data):
+    if app_name not in APP_DATA_MODELS:
+        raise ValueError(f"Unknown app_name: {app_name}. Valid options: {list(APP_DATA_MODELS.keys())}")
+
+    model_class = APP_DATA_MODELS[app_name]
+    app_data = model_class(
+        host_id=host_id,
+        org_id=org_id,
+        last_updated=now(),
+        **data,
+    )
+    db.session.add(app_data)
+    db.session.commit()
+    return app_data
