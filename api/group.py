@@ -17,6 +17,7 @@ from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
+from api.group_query import get_group_list_by_id_list_rbac_v2
 from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -34,7 +35,6 @@ from app.instrumentation import log_patch_group_success
 from app.logging import get_logger
 from app.models import InputGroupSchema
 from app.queue.events import EventType
-from app.serialization import serialize_workspace_with_host_count
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import get_flag_value
@@ -49,11 +49,9 @@ from lib.group_repository import patch_group
 from lib.group_repository import remove_hosts_from_group
 from lib.group_repository import validate_add_host_list_to_group_for_group_create
 from lib.group_repository import wait_for_workspace_event
-from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import delete_rbac_workspace
-from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -303,27 +301,10 @@ def get_groups_by_id(
 
     # Feature flag check for RBAC v2 integration
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
-        # RBAC v2 path: Fetch workspaces from RBAC v2 API
+        # RBAC v2 path: Use RBAC v2 API queries
         try:
-            workspaces = get_rbac_workspaces_by_ids(group_id_list)
-
-            # Serialize workspaces to group format (already serialized as dicts)
-            identity = get_current_identity()
-
-            # Fetch all host counts in ONE batch query (eliminates N+1 problem)
-            host_counts = get_host_counts_batch(identity.org_id, [ws["id"] for ws in workspaces])
-
-            # Serialize with pre-fetched host counts
-            group_list = [
-                serialize_workspace_with_host_count(workspace, identity.org_id, host_counts.get(workspace["id"], 0))
-                for workspace in workspaces
-            ]
-
-            total = len(group_list)
-
-            if total != len(set(group_id_list)):
-                abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
-
+            group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
+            check_all_ids_found(group_id_list, group_list, "group", total=total)
         except ResourceNotFoundException:
             log_get_group_list_failed(logger)
             abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
@@ -337,7 +318,7 @@ def get_groups_by_id(
             {"total": total, "count": len(group_list), "page": page, "per_page": per_page, "results": group_list}
         )
     else:
-        # RBAC v1 path: Use database queries (existing implementation)
+        # RBAC v1 path: Use database queries
         try:
             group_list, total = get_group_list_by_id_list_db(
                 group_id_list, page, per_page, order_by, order_how, rbac_filter

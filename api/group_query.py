@@ -9,7 +9,10 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import HostGroupAssoc
 from app.models import db
+from app.serialization import serialize_workspace_with_host_count
 from lib.group_repository import serialize_group
+from lib.host_repository import get_host_counts_batch
+from lib.middleware import get_rbac_workspaces_by_ids
 
 logger = get_logger(__name__)
 
@@ -59,6 +62,7 @@ __all__ = (
     "build_paginated_group_list_response",
     "build_group_response",
     "get_group_list_by_id_list_db",
+    "get_group_list_by_id_list_rbac_v2",
     "get_filtered_group_list_db",
     "get_group_list_from_db",
 )
@@ -105,6 +109,89 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
         Group.id.in_(group_id_list),
     )
     return get_group_list_from_db(filters, page, per_page, order_by, order_how, rbac_filter)
+
+
+def get_group_list_by_id_list_rbac_v2(
+    group_id_list,
+    page,
+    per_page,
+    order_by,
+    order_how,
+):
+    """
+    Fetch group list from RBAC v2 API by ID list with ordering and pagination.
+
+    This is the RBAC v2 equivalent of get_group_list_by_id_list_db().
+    Fetches workspaces from RBAC v2 API, enriches with host counts from database,
+    applies ordering and pagination, and returns serialized results.
+
+    Args:
+        group_id_list: List of group UUIDs to fetch
+        page: Page number (1-indexed)
+        per_page: Number of results per page
+        order_by: Field to order by ("name", "host_count", "updated")
+        order_how: Sort direction ("asc" or "desc")
+
+    Note:
+        Unlike get_group_list_by_id_list_db(), this function does not take an rbac_filter
+        parameter. RBAC filtering is already enforced by rbac_group_id_check() before this
+        function is called (see api/group.py line 300), which validates that all requested
+        group_id_list entries are in the allowed rbac_filter["groups"] set. Additional
+        filtering here would be redundant.
+
+    Returns:
+        tuple: (group_list, total) where:
+            - group_list: List of serialized group dicts (already paginated)
+            - total: Total number of groups (before pagination)
+    """
+    identity = get_current_identity()
+
+    # Fetch workspaces from RBAC v2 API
+    workspaces = get_rbac_workspaces_by_ids(group_id_list)
+
+    # Fetch all host counts in ONE batch query (eliminates N+1 problem)
+    host_counts = get_host_counts_batch(identity.org_id, [ws["id"] for ws in workspaces])
+
+    # Serialize with pre-fetched host counts
+    group_list = [
+        serialize_workspace_with_host_count(workspace, identity, host_counts.get(workspace["id"], 0))
+        for workspace in workspaces
+    ]
+
+    total = len(group_list)
+
+    # Apply ordering (same logic as RBAC v1 database path)
+    order_by_field = order_by or "name"
+
+    # Determine sort direction
+    # Explicit order_how parameter takes precedence, otherwise use default from GROUPS_ORDER_HOW_MAPPING
+    # name: asc (default), host_count: desc, updated: desc
+    reverse = order_how.lower() == "desc" if order_how else GROUPS_ORDER_HOW_MAPPING.get(order_by_field) == desc
+
+    # Sort by the requested field
+    if order_by_field == "name":
+        group_list.sort(key=lambda g: g["name"].lower() if g.get("name") else "", reverse=reverse)
+    elif order_by_field == "host_count":
+        group_list.sort(key=lambda g: g.get("host_count", 0), reverse=reverse)
+    elif order_by_field == "updated":
+        group_list.sort(key=lambda g: g.get("updated", ""), reverse=reverse)
+
+    # Secondary sort by id for stable ordering (matches database ORDER BY Group.id)
+    # Note: Python's sort is stable, so we sort by id first, then by the primary field
+    group_list.sort(key=lambda g: g["id"])
+    if order_by_field == "name":
+        group_list.sort(key=lambda g: g["name"].lower() if g.get("name") else "", reverse=reverse)
+    elif order_by_field == "host_count":
+        group_list.sort(key=lambda g: g.get("host_count", 0), reverse=reverse)
+    elif order_by_field == "updated":
+        group_list.sort(key=lambda g: g.get("updated", ""), reverse=reverse)
+
+    # Apply pagination
+    start_index = (page - 1) * per_page
+    end_index = start_index + per_page
+    paginated_group_list = group_list[start_index:end_index]
+
+    return paginated_group_list, total
 
 
 def does_group_with_name_exist(group_name: str, org_id: str):

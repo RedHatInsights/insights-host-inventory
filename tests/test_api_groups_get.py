@@ -387,7 +387,7 @@ def test_get_groups_by_id_rbac_v2_success(
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock RBAC v2 workspace fetch
-    mocker.patch("api.group.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+    mocker.patch("api.group_query.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
 
     # Call endpoint
     response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
@@ -426,7 +426,7 @@ def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
     from app.exceptions import ResourceNotFoundException
 
     mocker.patch(
-        "api.group.get_rbac_workspaces_by_ids",
+        "api.group_query.get_rbac_workspaces_by_ids",
         side_effect=ResourceNotFoundException("Workspaces not found: " + group_id_list[1]),
     )
 
@@ -457,7 +457,7 @@ def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api
     from app.exceptions import ResourceNotFoundException
 
     mocker.patch(
-        "api.group.get_rbac_workspaces_by_ids",
+        "api.group_query.get_rbac_workspaces_by_ids",
         side_effect=ResourceNotFoundException(f"Workspaces not found: {group_id_list[2]}"),
     )
 

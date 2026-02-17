@@ -320,7 +320,7 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
-def serialize_workspace_without_host_count(workspace: dict, org_id: str) -> dict:
+def serialize_workspace_without_host_count(workspace: dict, identity) -> dict:
     """
     Serialize a workspace object from RBAC v2 API to group format.
 
@@ -341,19 +341,15 @@ def serialize_workspace_without_host_count(workspace: dict, org_id: str) -> dict
 
     Args:
         workspace: Workspace dict from RBAC v2 API
-        org_id: Organization ID from current identity
+        identity: Current identity object (provides org_id and account_number)
 
     Returns:
         dict: Serialized workspace in group format
     """
-    from app.auth import get_current_identity
-
-    identity = get_current_identity()
-
     serialized = {
         "id": workspace["id"],
         "name": workspace["name"],
-        "org_id": org_id,
+        "org_id": identity.org_id,
         "account": identity.account_number,
         "ungrouped": workspace.get("type") == "ungrouped-hosts",
         "created": workspace["created"],
@@ -371,19 +367,19 @@ def serialize_workspace_without_host_count(workspace: dict, org_id: str) -> dict
     return serialized
 
 
-def serialize_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+def serialize_workspace_with_host_count(workspace: dict, identity, host_count: int) -> dict:
     """
     Serialize a workspace object with host count.
 
     Args:
         workspace: Workspace dict from RBAC v2 API
-        org_id: Organization ID from current identity
+        identity: Current identity object (provides org_id and account_number)
         host_count: Number of non-culled hosts in this workspace
 
     Returns:
         dict: Serialized workspace with host_count field
     """
-    return {**serialize_workspace_without_host_count(workspace, org_id), "host_count": host_count}
+    return {**serialize_workspace_without_host_count(workspace, identity), "host_count": host_count}
 
 
 def serialize_host_system_profile(host):

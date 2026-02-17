@@ -7,6 +7,7 @@ from typing import Any
 from flask import current_app
 from flask_sqlalchemy.query import Query
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
@@ -457,7 +458,6 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
         counts = get_host_counts_batch('org123', ['uuid1', 'uuid2', 'uuid3'])
         # Returns: {'uuid1': 150, 'uuid2': 0, 'uuid3': 45}
     """
-    from sqlalchemy import func
 
     if not group_ids:
         return {}
