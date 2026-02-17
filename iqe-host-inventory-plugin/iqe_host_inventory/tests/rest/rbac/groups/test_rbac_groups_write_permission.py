@@ -307,9 +307,7 @@ class TestRBACGroupsNoWritePermission:
                 "You don't have the permission to access the requested resource. "
                 "It is either read-protected or not readable by the server.",
             ):
-                host_inventory_non_org_admin.apis.groups.delete_groups(
-                    group, wait_for_deleted=False
-                )
+                host_inventory_non_org_admin.apis.groups.delete_groups_raw(group)
 
             host_inventory.apis.groups.verify_not_deleted(group)
 

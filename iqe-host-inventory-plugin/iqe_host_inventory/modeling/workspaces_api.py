@@ -456,7 +456,7 @@ class WorkspacesAPIWrapper(BaseEntity):
                 workspace = self.get_workspace_by_id(workspace_id)
                 workspace_details[workspace_id] = workspace
             except ApiException as err:
-                if err.status == 404:
+                if err.status in (403, 404):
                     logger.info(f"Workspace {workspace_id} not found, skipping fetch")
                 else:
                     raise err
@@ -466,7 +466,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         try:
             self.delete_workspaces_raw(sorted_ids)
         except ApiException as err:
-            if err.status == 404:
+            if err.status in (403, 404):
                 logger.info(
                     f"Couldn't delete workspaces {sorted_ids} because they were not found."
                 )

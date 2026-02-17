@@ -646,7 +646,7 @@ class GroupsAPIWrapper(BaseEntity):
                 if wait_for_deleted:
                     self.wait_for_deleted(group_ids[:100], delay=delay, retries=retries)
             except ApiException as err:
-                if err.status == 404:
+                if err.status in (403, 404):
                     logger.info(
                         f"Couldn't delete groups {group_ids}, because they were not found."
                     )
