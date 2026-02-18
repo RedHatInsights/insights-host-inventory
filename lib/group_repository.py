@@ -331,7 +331,7 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
             with db.session.begin_nested():  # Savepoint
                 _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
             break  # Success
-        except IntegrityError:
+        except (IntegrityError, InventoryException):
             if attempt == max_retries - 1:
                 raise  # Re-raise on final attempt
             logger.warning(
