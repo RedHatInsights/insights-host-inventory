@@ -242,11 +242,16 @@ def _stale_timestamp_per_reporter_filter(
                 Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval < current_time,
             )
 
-            # For nested format: reporter is culled if has culled_timestamp and it's past
+            # For nested format: reporter is culled if culled_timestamp is in the past
+            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
+            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
             nested_format_culled = and_(
                 func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
-                Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
+                func.coalesce(
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
+                )
+                < current_time,
             )
 
             rep_condition = or_(
@@ -269,13 +274,16 @@ def _stale_timestamp_per_reporter_filter(
                 Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval >= current_time,
             )
 
-            # For nested format: not culled if no culled_timestamp OR culled_timestamp >= now
+            # For nested format: not culled if culled_timestamp >= now
+            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
+            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
             nested_format_not_culled = and_(
                 func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                or_(
-                    not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
-                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
-                ),
+                func.coalesce(
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
+                )
+                >= current_time,
             )
 
             # Either format is acceptable as long as not culled
@@ -569,13 +577,10 @@ def query_filters(
     if filter:
         sp_filter = _system_profile_filter(filter)
         filters += sp_filter
-    if registered_with:
-        # When registered_with is used, pass staleness to check per-reporter staleness
-        # If staleness is also provided, it will be checked per-reporter, not top-level
-        filters += _registered_with_filter(registered_with, identity.org_id, staleness)
-    elif staleness:
-        # Only apply top-level staleness filter if registered_with is not used
+    if staleness:
         filters += _staleness_filter(staleness)
+    if registered_with:
+        filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 

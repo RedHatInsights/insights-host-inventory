@@ -1,13 +1,18 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from datetime import UTC
 from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.orm import Query
 
 from api.host_query import staleness_timestamps
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.models import Host
 from app.models import db
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
@@ -248,36 +253,46 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
     db_create_staleness_culling,
     db_create_host,
     api_get,
+    flask_app,
+    event_producer,
+    mocker,
 ):
     """Test registered_with filter behavior when a host has multiple reporters.
 
     This test creates hosts with multiple reporters, makes some culled via timestamp manipulation,
     and verifies that the registered_with filter correctly handles culled vs fresh reporters.
     """
+
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
-    _now = now()
+    with patch("app.models.utils.datetime") as mock_datetime:
+        with flask_app.app.app_context():
+            mocker.patch.object(event_producer, "write_event")
+            _now = now()
+            mock_datetime.now.return_value = _now
 
-    # Create a host with multiple reporters, including culled_timestamp
-    db_create_host(
-        extra_data={
-            "reporter": "puptoo",
-            "per_reporter_staleness": {
-                "puptoo": {
-                    "last_check_in": _now.isoformat(),
-                    "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                    "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
-                    "check_in_succeeded": True,
+            # Create a host with multiple reporters, including culled_timestamp
+            _ = db_create_host(
+                extra_data={
+                    "reporter": "puptoo",  # Primary reporter
+                    "per_reporter_staleness": {
+                        # Fresh puptoo reporter (not culled)
+                        "puptoo": {
+                            "last_check_in": _now.isoformat(),
+                            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                            "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
+                            "check_in_succeeded": True,
+                        },
+                        # Fresh yupana reporter (not culled)
+                        "yupana": {
+                            "last_check_in": _now.isoformat(),
+                            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                            "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
+                            "check_in_succeeded": True,
+                        },
+                    },
                 },
-                "yupana": {
-                    "last_check_in": _now.isoformat(),
-                    "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                    "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
-                    "check_in_succeeded": True,
-                },
-            },
-        },
-    )
+            )
 
     # Create a host with culled reporters
     db_create_host(
@@ -324,10 +339,10 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
 
 
 def test_registered_with_filter_with_only_last_check_in(
-    db_create_staleness_culling,
-    db_create_host,
-    api_get,
-):
+    db_create_staleness_culling: Callable[..., object],
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
     """
     Test that filtering works as expected
     """
@@ -367,10 +382,10 @@ def test_registered_with_filter_with_only_last_check_in(
 
 
 def test_calculated_timestamps_match_stored_timestamps(
-    db_create_staleness_culling,
-    db_create_host,
-    db_get_hosts,
-):
+    db_create_staleness_culling: Callable[..., object],
+    db_create_host: Callable[..., Host],
+    db_get_hosts: Callable[..., Query],
+) -> None:
     """Verify calculated timestamps match expected values from last_check_in."""
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
@@ -390,7 +405,7 @@ def test_calculated_timestamps_match_stored_timestamps(
     db.session.commit()
 
     # Get host from database and calculate timestamps
-    db_host = db_get_hosts([host.id]).first()
+    db_host = db_get_hosts([str(host.id)]).first()
     staleness = get_sys_default_staleness()
     staleness_timestamps_obj = staleness_timestamps()
     calculated = get_reporter_staleness_timestamps(db_host, staleness_timestamps_obj, staleness, "puptoo")
@@ -425,10 +440,10 @@ def test_calculated_timestamps_match_stored_timestamps(
 
 
 def test_registered_with_filter_missing_last_check_in(
-    db_create_staleness_culling,
-    db_create_host,
-    api_get,
-):
+    db_create_staleness_culling: Callable[..., object],
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
     """
     Test that filtering works as expected when last_check_in is missing.
     Tests both positive (registered_with=puptoo) and negative (registered_with=!puptoo) filters.
@@ -483,10 +498,10 @@ def test_registered_with_filter_missing_last_check_in(
 
 
 def test_rhsm_only_hosts_get_far_future_timestamp_in_sql_queries(
-    db_create_staleness_culling,
-    db_create_host,
-    api_get,
-):
+    db_create_staleness_culling: Callable[..., object],
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
 
     _now = now()

@@ -5,6 +5,7 @@ import math
 import types
 from base64 import b64encode
 from collections.abc import Callable
+from datetime import datetime
 from datetime import timedelta
 from enum import StrEnum
 from http import HTTPStatus
@@ -728,7 +729,7 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     return response
 
 
-def calculate_staleness_deltas(staleness_config):
+def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
     """Helper to calculate staleness deltas from config."""
     return {
         "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
@@ -737,7 +738,9 @@ def calculate_staleness_deltas(staleness_config):
     }
 
 
-def create_reporter_data(last_check_in, staleness_config, include_timestamps=True):
+def create_reporter_data(
+    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
+) -> dict[str, object]:
     """Helper to create per_reporter_staleness data for a reporter."""
     deltas = calculate_staleness_deltas(staleness_config)
     data = {
@@ -756,13 +759,13 @@ def create_reporter_data(last_check_in, staleness_config, include_timestamps=Tru
 
 
 def create_host_with_reporter(
-    db_create_host,
-    reporter,
-    last_check_in,
-    staleness_config,
-    include_timestamps=True,
-    stale_timestamp=None,
-):
+    db_create_host: Callable[..., Host],
+    reporter: str,
+    last_check_in: datetime,
+    staleness_config: dict[str, int],
+    include_timestamps: bool = True,
+    stale_timestamp: datetime | None = None,
+) -> Host:
     """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
     host = db_create_host(
         extra_data={
