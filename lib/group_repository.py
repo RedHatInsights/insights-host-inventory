@@ -3,6 +3,7 @@ from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
@@ -314,9 +315,31 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
         row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
     ]
     _remove_hosts_from_group(group.id, host_ids, identity.org_id)
-    # If Kessel flag is on, assign hosts to "ungrouped" group
+
+    # Assign hosts to "ungrouped" group.
+    # Filter to only hosts that still exist to avoid race condition where a host
+    # was deleted between when we queried for group members and now.
+    # Use savepoint + retry as a safety net in case a host is deleted after filtering.
     ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
-    _add_hosts_to_group(ungrouped_id, [str(host_id) for host_id in host_ids], identity.org_id)
+    max_retries = 3
+    for attempt in range(max_retries):
+        existing_host_ids = [
+            str(row[0])
+            for row in db.session.query(Host.id).filter(Host.org_id == identity.org_id, Host.id.in_(host_ids)).all()
+        ]
+        try:
+            with db.session.begin_nested():  # Savepoint
+                _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
+            break  # Success
+        except (IntegrityError, InventoryException):
+            if attempt == max_retries - 1:
+                raise  # Re-raise on final attempt
+            logger.warning(
+                f"Race condition detected while moving hosts from group {group.id} to ungrouped "
+                f"group {ungrouped_id} (attempt {attempt + 1}/{max_retries}), "
+                "retrying with fresh host list",
+                exc_info=True,
+            )
 
 
 def _delete_host_group_assoc(session, assoc):
