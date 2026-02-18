@@ -39,7 +39,6 @@ from app.staleness_serialization import AttrDict
 from lib.db import session_guard
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.host_repository import get_non_culled_hosts_count_in_group
 from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -569,5 +568,6 @@ def serialize_group(group: Group | dict, org_id: str) -> dict:
         return serialize_rbac_workspace_with_host_count(group, org_id, host_count)
     else:
         # Database Group (ORM object)
-        host_count = get_non_culled_hosts_count_in_group(group, org_id)
+        group_id = str(group.id)
+        host_count = get_host_counts_batch(org_id, [group_id])[group_id]
         return serialize_db_group_with_host_count(group, host_count)

@@ -957,7 +957,7 @@ def test_get_groups_rbac_v2_malformed_workspace_response(mocker, api_get):
     Test GET /groups when RBAC v2 API returns malformed workspace data.
 
     Medium Priority: Tests error handling for invalid RBAC v2 responses.
-    Should handle gracefully when workspace objects are missing required fields.
+    Should return HTTP 503 when workspace objects are missing required fields.
     """
     # Mock feature flag enabled
     mocker.patch("api.group.get_flag_value", return_value=True)
@@ -975,11 +975,8 @@ def test_get_groups_rbac_v2_malformed_workspace_response(mocker, api_get):
 
     response_status, response_data = api_get(build_groups_url())
 
-    # Should either:
-    # - Return 500 Internal Server Error (serialization failure)
-    # - Return 200 with empty results (skip invalid entries)
-    assert response_status in [200, 500]
-
-    if response_status == 200:
-        # If handled gracefully, should have empty results
-        assert response_data["total"] == 0 or response_data["count"] == 0
+    # Should return 503 Service Unavailable (RBAC returned malformed data)
+    assert_response_status(response_status, 503)
+    assert "RBAC service returned malformed workspace data" in response_data["detail"]
+    assert "missing required field" in response_data["detail"]
+    assert "upstream service issue" in response_data["detail"]

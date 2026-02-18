@@ -231,6 +231,33 @@ def get_group_list(
             group_list, total = get_filtered_group_list_db(
                 name, page, per_page, order_by, order_how, rbac_filter, group_type
             )
+
+        # Serialize groups with batch host count query (avoid N+1 queries)
+        org_id = get_current_identity().org_id
+
+        if group_list:
+            # Extract group_ids from either dicts (RBAC v2) or ORM objects (RBAC v1)
+            group_ids = [g["id"] if isinstance(g, dict) else str(g.id) for g in group_list]
+
+            # Fetch ALL host counts in ONE batch query
+            host_counts = get_host_counts_batch(org_id, group_ids)
+
+            # Serialize each group with pre-fetched host count
+            serialized_groups = []
+            for group in group_list:
+                if isinstance(group, dict):
+                    # RBAC v2 workspace (dict)
+                    group_id = group["id"]
+                    serialized_groups.append(
+                        serialize_rbac_workspace_with_host_count(group, org_id, host_counts.get(group_id, 0))
+                    )
+                else:
+                    # RBAC v1 Group (ORM object)
+                    group_id = str(group.id)
+                    serialized_groups.append(serialize_group_with_host_count(group, host_counts.get(group_id, 0)))
+        else:
+            serialized_groups = []
+
     except ValueError as e:
         log_get_group_list_failed(logger)
         abort(400, str(e))
@@ -238,36 +265,18 @@ def get_group_list(
         # One or more workspaces not found in RBAC v2
         log_get_group_list_failed(logger)
         abort(404, str(e))
+    except KeyError as e:
+        # RBAC v2 API returned malformed workspace data (missing required fields)
+        log_get_group_list_failed(logger)
+        abort(
+            503,
+            f"RBAC service returned malformed workspace data: missing required field {str(e)}. "
+            "This is an upstream service issue.",
+        )
     except (ConnectionError, Timeout) as e:
         # RBAC v2 API connection or timeout errors
         log_get_group_list_failed(logger)
         abort(503, f"RBAC service unavailable: {str(e)}")
-
-    # Serialize groups with batch host count query (avoid N+1 queries)
-    org_id = get_current_identity().org_id
-
-    if group_list:
-        # Extract group_ids from either dicts (RBAC v2) or ORM objects (RBAC v1)
-        group_ids = [g["id"] if isinstance(g, dict) else str(g.id) for g in group_list]
-
-        # Fetch ALL host counts in ONE batch query
-        host_counts = get_host_counts_batch(org_id, group_ids)
-
-        # Serialize each group with pre-fetched host count
-        serialized_groups = []
-        for group in group_list:
-            if isinstance(group, dict):
-                # RBAC v2 workspace (dict)
-                group_id = group["id"]
-                serialized_groups.append(
-                    serialize_rbac_workspace_with_host_count(group, org_id, host_counts.get(group_id, 0))
-                )
-            else:
-                # RBAC v1 Group (ORM object)
-                group_id = str(group.id)
-                serialized_groups.append(serialize_group_with_host_count(group, host_counts.get(group_id, 0)))
-    else:
-        serialized_groups = []
 
     log_get_group_list_succeeded(logger, serialized_groups)
 

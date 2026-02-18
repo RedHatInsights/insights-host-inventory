@@ -400,22 +400,6 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    """
-    Get count of non-culled hosts in a group.
-
-    This function delegates to get_host_counts_batch() to avoid code duplication.
-
-    Args:
-        group: Group ORM object
-        org_id: Organization ID
-
-    Returns:
-        Count of non-culled hosts in the group
-    """
-    return get_host_counts_batch(org_id, [str(group.id)])[str(group.id)]
-
-
 def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     """
     Get host counts for multiple groups in a single efficient batch query.
