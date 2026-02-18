@@ -267,13 +267,14 @@ def delete_groups(group_id_list, rbac_filter=None):
             try:
                 delete_rbac_workspace(group_id)
                 delete_count += 1
+                group_ids_to_delete.append(group_id)
             except ResourceNotFoundException:
                 # For workspaces that are missing from RBAC,
                 # we'll attempt to delete the groups on our side
                 group_ids_to_delete.append(group_id)
 
-        # Attempt to delete the "not found" groups on our side
-        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
+        # Delete the groups from HBI DB
+        delete_count = delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
     else:
         delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
 
