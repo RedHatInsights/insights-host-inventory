@@ -396,3 +396,240 @@ class TestHostViewAppDataEdgeCases:
         result = response_data["results"][0]
         assert "remediations" in result["app_data"]
         assert result["app_data"]["remediations"]["remediations_plans"] == 7
+
+
+class TestHostViewSparseFieldsets:
+    """Test sparse fieldsets functionality for hosts-view endpoint."""
+
+    def test_request_single_app_all_fields(self, api_get, db_create_host):
+        """Request a single app with all its fields."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request only advisor data (all fields)
+        url = build_host_view_url(query="?fields[advisor]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only advisor should be present
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" not in result["app_data"]
+        # All advisor fields should be present
+        assert result["app_data"]["advisor"]["recommendations"] == 5
+        assert result["app_data"]["advisor"]["incidents"] == 2
+
+    def test_request_single_app_specific_fields(self, api_get, db_create_host):
+        """Request specific fields from a single app."""
+        host = db_create_host()
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request only critical_cves from vulnerability
+        url = build_host_view_url(query="?fields[vulnerability]=critical_cves")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert "vulnerability" in result["app_data"]
+        # Only requested fields should be present
+        assert result["app_data"]["vulnerability"] == {"critical_cves": 2}
+        assert "total_cves" not in result["app_data"]["vulnerability"]
+
+    def test_request_multiple_apps(self, api_get, db_create_host):
+        """Request multiple apps at once."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "patch",
+            advisories_rhsa_installable=8,
+            advisories_rhba_installable=4,
+            template_name="test-template",
+        )
+
+        # Request advisor and vulnerability (all fields), but not patch
+        url = build_host_view_url(query="?fields[advisor]=true&fields[vulnerability]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" in result["app_data"]
+        assert "patch" not in result["app_data"]
+
+    def test_request_multiple_specific_fields(self, api_get, db_create_host):
+        """Request multiple specific fields from multiple apps."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request specific fields from both apps
+        url = build_host_view_url(
+            query="?fields[advisor]=recommendations&fields[vulnerability]=critical_cves,total_cves"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only requested fields should be present
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
+        assert set(result["app_data"]["vulnerability"].keys()) == {"critical_cves", "total_cves"}
+        assert result["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert result["app_data"]["vulnerability"]["total_cves"] == 10
+
+    def test_request_app_with_no_data_in_db(self, api_get, db_create_host):
+        """Request an app that has no data in DB should return empty for that app."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request vulnerability (all fields) which has no data
+        url = build_host_view_url(query="?fields[vulnerability]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # vulnerability was requested but no data exists
+        assert "vulnerability" not in result["app_data"]
+        # advisor was not requested
+        assert "advisor" not in result["app_data"]
+
+    def test_empty_fields_returns_no_fields(self, api_get, db_create_host):
+        """Per JSON:API spec, empty fields value means no fields should be returned."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Empty value means no fields (per JSON:API spec)
+        url = build_host_view_url(query="?fields[advisor]=")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # advisor key should be present but with empty object
+        assert result["app_data"]["advisor"] == {}
+
+    def test_app_data_true_returns_all_apps(self, api_get, db_create_host):
+        """fields[app_data]=true should return all available app data."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+        db_create_host_app_data(host.id, host.org_id, "remediations", remediations_plans=3)
+
+        url = build_host_view_url(query="?fields[app_data]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # All apps with data should be present
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" in result["app_data"]
+        assert "remediations" in result["app_data"]
+
+    def test_sparse_fields_with_filtering(self, api_get, db_create_host):
+        """Sparse fields should work together with host filtering."""
+        host1 = db_create_host(extra_data={"display_name": "filtered-host.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "other-host.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(host2.id, host2.org_id, "advisor", recommendations=10, incidents=5)
+
+        # Filter by display_name and request specific fields
+        url = build_host_view_url(query="?display_name=filtered-host&fields[advisor]=recommendations")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        result = response_data["results"][0]
+        assert result["display_name"] == "filtered-host.example.com"
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
+
+    def test_invalid_app_name_ignored(self, api_get, db_create_host):
+        """Invalid app name in fields parameter should be gracefully ignored."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request an invalid app name
+        url = build_host_view_url(query="?fields[invalid_app]=something")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Invalid app ignored, returns all apps by default (per design doc)
+        assert "advisor" in result["app_data"]
+        assert "invalid_app" not in result["app_data"]
+
+    def test_invalid_field_returns_empty_for_app(self, api_get, db_create_host):
+        """Valid app with invalid field should return empty object for that app."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request valid app with invalid field
+        url = build_host_view_url(query="?fields[advisor]=nonexistent_field")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # App key is present but empty (no valid fields matched)
+        assert "advisor" in result["app_data"]
+        assert result["app_data"]["advisor"] == {}
+
+    def test_mix_valid_and_invalid_fields(self, api_get, db_create_host):
+        """Mix of valid and invalid fields should return only valid fields."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request mix of valid and invalid fields
+        url = build_host_view_url(query="?fields[advisor]=recommendations,invalid_field")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only valid field returned
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
