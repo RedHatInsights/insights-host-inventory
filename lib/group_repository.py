@@ -337,7 +337,8 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
             logger.warning(
                 f"Race condition detected while moving hosts from group {group.id} to ungrouped "
                 f"group {ungrouped_id} (attempt {attempt + 1}/{max_retries}), "
-                "retrying with fresh host list"
+                "retrying with fresh host list",
+                exc_info=True,
             )
 
 
