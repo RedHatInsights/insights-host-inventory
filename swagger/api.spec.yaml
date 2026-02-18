@@ -1475,7 +1475,6 @@ components:
           - patch:advisories_rhsa_installable
           - patch:packages_installable
           - remediations:remediations_plans
-          - compliance:policies
           - compliance:last_scan
           - malware:last_matches
           - malware:last_scan
@@ -2177,7 +2176,6 @@ components:
         - `remediations:remediations_plans` - Active remediation plans count
 
         **Compliance**
-        - `compliance:policies` - Number of compliance policies
         - `compliance:last_scan` - Last compliance scan timestamp
 
         **Malware**
@@ -2191,7 +2189,6 @@ components:
         - patch:advisories_rhsa_installable
         - patch:packages_installable
         - remediations:remediations_plans
-        - compliance:policies
         - compliance:last_scan
         - malware:last_matches
         - malware:last_scan
