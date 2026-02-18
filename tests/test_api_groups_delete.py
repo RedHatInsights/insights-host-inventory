@@ -333,6 +333,33 @@ def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group
     assert_response_status(response_status, expected_status=204)
 
 
+@pytest.mark.usefixtures("event_producer")
+def test_delete_group_rbac_success_deletes_from_hbi_db(api_delete_groups, db_create_group, db_get_group_by_id):
+    """Verify that when RBAC workspace deletion succeeds, the group is also deleted from HBI DB."""
+    group_id = str(db_create_group("test_group").id)
+
+    # api_delete_groups mocks delete_rbac_workspace to return True (RBAC success)
+    response_status, _ = api_delete_groups([group_id])
+    assert_response_status(response_status, expected_status=204)
+
+    # The group must be gone from HBI DB, not just from RBAC
+    assert not db_get_group_by_id(group_id)
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_multiple_groups_rbac_success_deletes_all_from_hbi_db(
+    api_delete_groups, db_create_group, db_get_group_by_id
+):
+    """Verify that all groups are deleted from HBI DB when RBAC returns success for each."""
+    group_id_list = [str(db_create_group(f"test_group{i}").id) for i in range(3)]
+
+    response_status, _ = api_delete_groups(group_id_list)
+    assert_response_status(response_status, expected_status=204)
+
+    for group_id in group_id_list:
+        assert not db_get_group_by_id(group_id)
+
+
 @pytest.mark.parametrize("num_hosts_to_remove", [1, 2, 3])
 def test_remove_hosts_from_existing_group(
     num_hosts_to_remove,
