@@ -335,8 +335,8 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
             if attempt == max_retries - 1:
                 raise  # Re-raise on final attempt
             logger.warning(
-                "Race condition detected while moving hosts to ungrouped "
-                f"group {group.id} (attempt {attempt + 1}/{max_retries}), "
+                f"Race condition detected while moving hosts from group {group.id} to ungrouped "
+                f"group {ungrouped_id} (attempt {attempt + 1}/{max_retries}), "
                 "retrying with fresh host list"
             )
 
