@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import Boolean
 from sqlalchemy import Integer
+from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import func
 from sqlalchemy import select
@@ -20,6 +21,7 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 
+from api.filtering.app_data_sorting import resolve_app_sort
 from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
@@ -52,6 +54,7 @@ __all__ = (
     "get_all_hosts",
     "get_host_list",
     "get_host_list_by_id_list",
+    "get_host_list_for_views",
     "get_host_id_by_insights_id",
     "get_host_tags_list_by_id_list",
     "params_to_order_by",
@@ -103,7 +106,24 @@ def _get_host_list_using_filters(
     param_order_by: str | None,
     param_order_how: str | None,
     fields: dict | None,
+    allow_app_fields: bool = False,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
+    """
+    Internal function to get filtered, ordered, and paginated host list.
+
+    Args:
+        query_base: Base SQLAlchemy query
+        all_filters: List of filter conditions to apply
+        page: Page number for pagination
+        per_page: Number of results per page
+        param_order_by: Field to order by
+        param_order_how: Order direction ("ASC" or "DESC")
+        fields: Requested fields dict (for system_profile handling)
+        allow_app_fields: If True, supports app:field sorting (e.g., "vulnerability:critical_cves")
+
+    Returns:
+        Tuple of (items, count, additional_fields, system_profile_fields)
+    """
     # Check if 'system_profile' is requested to decide between "Full ORM" vs "Light Columns"
     sp_fields_map = fields.get("system_profile", {}) if fields else {}
     is_sp_requested = bool(sp_fields_map)
@@ -133,10 +153,12 @@ def _get_host_list_using_filters(
 
     filtered_query = base_query.filter(*all_filters)
 
-    # Optimized count that ignores ordering and columns
-    count_total = filtered_query.with_entities(func.count()).scalar()
+    # Count distinct host IDs to avoid overcountiung when JOINs are involved
+    count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
 
-    ordered_query = filtered_query.order_by(*params_to_order_by(param_order_by, param_order_how))
+    ordered_query = filtered_query.order_by(
+        *params_to_order_by(param_order_by, param_order_how, allow_app_fields=allow_app_fields)
+    )
     paginated_results = ordered_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
 
     db.session.close()
@@ -234,9 +256,38 @@ def get_host_id_by_insights_id(insights_id: str, rbac_filter=None) -> str | None
     return str(found_id) if found_id else None
 
 
-def params_to_order_by(order_by: str | None = None, order_how: str | None = None) -> tuple:
+def params_to_order_by(
+    order_by: str | None = None, order_how: str | None = None, allow_app_fields: bool = False
+) -> tuple:
+    """
+    Build ORDER BY clause for host queries.
+
+    Args:
+        order_by: Field name or app:field format (if allow_app_fields=True)
+        order_how: Sort direction ("ASC" or "DESC")
+        allow_app_fields: If True, supports app:field format (e.g., "vulnerability:critical_cves")
+
+    Returns:
+        Tuple of SQLAlchemy order expressions
+    """
     modified_on_ordering = (Host.modified_on.desc(),)
     ordering: tuple = ()
+
+    # Check for app sort fields (only when explicitly enabled)
+    if allow_app_fields:
+        resolved = resolve_app_sort(order_by)
+        if resolved:
+            _, column = resolved
+
+            # Validate order_how consistently with standard fields
+            if order_how is not None and order_how not in ("ASC", "DESC"):
+                raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
+
+            # Apply ordering with NULLS LAST (default to ASC if not specified)
+            order_expr = column.desc().nullslast() if order_how == "DESC" else column.asc().nullslast()
+
+            # Always add secondary sort for pagination stability
+            return (order_expr,) + modified_on_ordering + (Host.id.desc(),)
 
     if order_by == "updated":
         if order_how:
@@ -272,6 +323,80 @@ def _order_how(column, order_how: str):
         return column.desc()
     else:
         raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
+
+
+def get_host_list_for_views(
+    display_name: str | None,
+    fqdn: str | None,
+    hostname_or_id: str | None,
+    insights_id: str | None,
+    subscription_manager_id: str | None,
+    provider_id: str | None,
+    provider_type: str | None,
+    updated_start: str | None,
+    updated_end: str | None,
+    last_check_in_start: str | None,
+    last_check_in_end: str | None,
+    group_name: list[str] | None,
+    group_id: list[str] | None,
+    tags: list[str] | None,
+    page: int,
+    per_page: int,
+    param_order_by: str | None,
+    param_order_how: str | None,
+    staleness: list[str] | None,
+    registered_with: list[str] | None,
+    system_type: list[str] | None,
+    filter: dict | None,
+    rbac_filter: dict | None,
+) -> tuple[list[Host], int]:
+    """
+    Get host list for views endpoint with unified sorting support.
+
+    Supports both standard host fields and application data sorting.
+    Automatically detects app:field format (e.g., "vulnerability:critical_cves")
+    and adds the required JOIN when needed.
+
+    Returns:
+        Tuple of (host_list, total_count)
+    """
+    all_filters, query_base = query_filters(
+        fqdn,
+        display_name,
+        hostname_or_id,
+        insights_id,
+        subscription_manager_id,
+        provider_id,
+        provider_type,
+        updated_start,
+        updated_end,
+        last_check_in_start,
+        last_check_in_end,
+        group_name,
+        group_id,
+        tags,
+        staleness,
+        registered_with,
+        system_type,
+        filter,
+        rbac_filter,
+        param_order_by,
+        get_current_identity(),
+    )
+
+    # Automatically add LEFT JOIN for app data table if sorting by app field
+    resolved = resolve_app_sort(param_order_by)
+    if resolved:
+        app_sort_model, _ = resolved
+        query_base = query_base.outerjoin(
+            app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
+        )
+
+    # Reuse _get_host_list_using_filters with app fields enabled, no system_profile support
+    items, count, _, _ = _get_host_list_using_filters(
+        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields=None, allow_app_fields=True
+    )
+    return items, count
 
 
 def _find_hosts_entities_query(
