@@ -52,6 +52,30 @@ hbi-reset: ## Reset development environment (stop services, remove db data)
 	rm -rf .claude/hooks/*.log
 	mkdir -p ~/.pg_data
 
+.PHONY: hbi-nuke
+hbi-nuke: ## Full nuclear reset (containers, images, venv, db, caches — start from scratch)
+	@echo "=== Stopping and removing all containers, volumes, and images ==="
+	podman compose -f dev.yml down -v --rmi all || true
+	@echo "=== Removing PostgreSQL data ==="
+	rm -rf ~/.pg_data
+	mkdir -p ~/.pg_data
+	@echo "=== Removing pipenv virtual environment ==="
+	pipenv --rm || true
+	@echo "=== Removing MinIO data ==="
+	rm -rf tmp/minio
+	@echo "=== Removing Python caches ==="
+	find . -type d -name __pycache__ -not -path './librdkafka/*' -exec rm -rf {} + 2>/dev/null || true
+	rm -rf .pytest_cache .coverage htmlcov
+	@echo "=== Removing Unleash cache ==="
+	rm -rf .unleash/__pycache__ .unleash/.cache
+	@echo "=== Removing hook logs ==="
+	rm -rf .claude/hooks/*.log
+	@echo ""
+	@echo "=== Nuke complete. To rebuild, run: ==="
+	@echo "  make hbi-deps     # reinstall Python dependencies"
+	@echo "  make hbi-up       # start all services"
+	@echo "  make hbi-migrate  # run database migrations"
+
 ##@ Claude Code
 
 .PHONY: hbi-cldi
@@ -73,3 +97,12 @@ hbi-cldit: ## Agentic interactive setup (runs /hbi-install-hil slash command)
 .PHONY: hbi-cldmm
 hbi-cldmm: ## Agentic maintenance (runs /hbi-maintenance slash command)
 	claude --model claude-opus-4-6 --dangerously-skip-permissions --maintenance "/hbi-maintenance"
+
+.PHONY: hbi-cldiq
+hbi-cldiq: ## Agentic IQE test environment setup (runs /hbi-iqe-setup slash command)
+	claude --model claude-opus-4-6 --dangerously-skip-permissions "/hbi-iqe-setup"
+
+.PHONY: hbi-cldss
+hbi-cldss: ## Agentic API spec-sync check (runs /hbi-spec-sync slash command)
+	claude --model claude-opus-4-6 --dangerously-skip-permissions "/hbi-spec-sync"
+
