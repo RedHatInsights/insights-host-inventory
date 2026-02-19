@@ -29,6 +29,8 @@ MODE: $1 (optional - if "true", run interactive mode)
 5. Analyze the JSON output from the script. Report to the user:
    - Which prerequisites were found (python3, pipenv, podman, podman compose)
    - Whether directories were created
+   - Whether the `.env` file was bootstrapped or validated (critical variables: UNLEASH_TOKEN, INVENTORY_DB_USER, INVENTORY_DB_PASS)
+   - Whether any port conflicts were detected before starting services
    - Whether Podman services started successfully
    - Whether PostgreSQL became ready
    - Whether database migrations ran
@@ -37,6 +39,8 @@ MODE: $1 (optional - if "true", run interactive mode)
 
 6. If any steps failed, provide actionable guidance on how to fix them:
    - Missing prerequisites: suggest installation commands (or `make hbi-deps` for Python deps)
+   - `.env` issues: suggest checking the generated `.env` for correct values (especially UNLEASH_TOKEN)
+   - Port conflicts: list the conflicting ports and suggest `lsof -i :<port>` to identify the process, or `make hbi-down` if stale containers are the cause
    - Podman issues: suggest checking Podman is running (or `make hbi-up` to start services)
    - Database issues: suggest checking `~/.pg_data` permissions
    - Service health: suggest `make hbi-logs SERVICE=<service>` to check container logs

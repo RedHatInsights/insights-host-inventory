@@ -24,7 +24,7 @@ Interactive setup that asks the user preferences before configuring the environm
    **Question 3 - Podman services**:
    - "Which Podman services should be started?"
    - Options:
-     - "All services" (description: "Start all services defined in dev.yml (db, kafka, unleash, minio, hbi-web, hbi-mq, etc.)")
+     - "All services" (description: "Start all services defined in dev.yml (db, kafka, unleash, minio, hbi-web, hbi-mq, hbi-mq-apps, etc.)")
      - "Minimal" (description: "Start only db and kafka containers")
      - "Skip" (description: "Do not start any Podman services")
 
@@ -42,6 +42,7 @@ Interactive setup that asks the user preferences before configuring the environm
 
    **Always (before any other setup):**
    - Initialize git submodules: `git submodule update --init --recursive`
+   - Bootstrap `.env` file: if `.env` does not exist, create it with the defaults from `setup_init.py`'s `bootstrap_env_file()`. If it exists, verify `UNLEASH_TOKEN`, `INVENTORY_DB_USER`, and `INVENTORY_DB_PASS` are set (non-empty, non-commented). Append any missing variables with defaults. This is required because `dev.yml` uses `${UNLEASH_TOKEN:?}` which fails if the variable is unset.
 
    **If database = Fresh start:**
    - Warn the user this will delete existing data
@@ -53,13 +54,16 @@ Interactive setup that asks the user preferences before configuring the environm
    **If dependencies = Full install:**
    - Run `unset PIPENV_PIPFILE && pipenv install --dev`
 
+   **If Podman services != Skip (before starting):**
+   - Check for port conflicts: parse `dev.yml` to find all host port mappings, then use `python3 -c "import socket; s=socket.socket(); s.settimeout(1); print(s.connect_ex(('127.0.0.1', PORT)))"` for each port. If Podman services are already running (`podman compose -f dev.yml ps -q` returns output), skip the check. Report any conflicts and warn the user to stop conflicting processes.
+
    **If Podman services = All services:**
    - Run `podman compose -f dev.yml up -d`
 
    **If Podman services = Minimal:**
    - Run `podman compose -f dev.yml up -d db kafka zookeeper`
 
-   **If Podman services != Skip:**
+   **If Podman services != Skip (after starting):**
    - Wait for PostgreSQL: poll `podman compose -f dev.yml exec -T db pg_isready -h db`
    - Run migrations: `unset PIPENV_PIPFILE && INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights pipenv run make upgrade_db`
    - Health check: `curl -sf http://localhost:8080/health`
