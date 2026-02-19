@@ -79,6 +79,7 @@ from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
+from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
@@ -793,11 +794,17 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
 
 def _pg_notify_workspace(operation: str, id: str):
-    conn = db.session.connection().connection
-    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cursor = conn.cursor()
-    cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
-    logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
+    # Use a separate psycopg2 connection (not from the SQLAlchemy pool) so we don't
+    # contaminate the session's connection with ISOLATION_LEVEL_AUTOCOMMIT.
+    raw_conn = raw_db_connection()
+    try:
+        raw_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = raw_conn.cursor()
+        cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+        logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
+        cursor.close()
+    finally:
+        raw_conn.close()
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
