@@ -317,29 +317,29 @@ def create_group_from_payload(group_data: dict, event_producer: EventProducer, g
 
 
 def _remove_all_hosts_from_group(group: Group, identity: Identity):
-    # Assign hosts to "ungrouped" group.
+    # Move hosts from the original group to the "ungrouped" group.
     # Filter to only hosts that still exist to avoid race condition where a host
     # was deleted between when we queried for group members and now.
     # Use savepoint + retry as a safety net in case a host is deleted after filtering.
     ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
+
+    host_ids = [
+        row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+    ]
+    if not host_ids:
+        return
+
     max_retries = 3
     for attempt in range(max_retries):
-        host_ids = [
-            row[0]
-            for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
-        ]
-        if not host_ids:
-            return
-
-        _remove_hosts_from_group(group.id, host_ids, identity.org_id)
-
-        # Re-query the hosts to ensure they still exist
         existing_host_ids = [
             str(row[0])
             for row in db.session.query(Host.id).filter(Host.org_id == identity.org_id, Host.id.in_(host_ids)).all()
         ]
         try:
             with db.session.begin_nested():  # Savepoint
+                # Both operations are in the savepoint for atomicity: if adding to ungrouped fails,
+                # the removal is rolled back and hosts stay in their original group.
+                _remove_hosts_from_group(group.id, existing_host_ids, identity.org_id)
                 _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
             break  # Success
         except (IntegrityError, InventoryException):
