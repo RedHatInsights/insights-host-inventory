@@ -300,10 +300,8 @@ def mock_pg_listen_connection(mocker: MockerFixture) -> MagicMock:
     mock_conn.cursor.return_value = mock_cursor
     mock_conn.notifies = []
 
-    # Mock db.session.connection().connection to return our mock connection
-    mock_sa_conn = mocker.MagicMock()
-    mock_sa_conn.connection = mock_conn
-    mocker.patch("lib.group_repository.db.session.connection", return_value=mock_sa_conn)
+    # Mock raw_db_connection as imported in lib.group_repository
+    mocker.patch("lib.group_repository.raw_db_connection", return_value=mock_conn)
 
     return mock_conn
 

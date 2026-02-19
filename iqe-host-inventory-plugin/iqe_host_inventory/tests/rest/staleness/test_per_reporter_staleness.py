@@ -425,7 +425,7 @@ def test_per_reporter_registered_with(
     """Test per reporter registered_with filter with custom staleness
 
     metadata:
-        requirements: inv-staleness-hosts
+        requirements: inv-staleness-hosts, inv-hosts-filter-by-registered_with
         assignee: msager
         importance: high
         title: Test per reporter staleness
@@ -455,6 +455,13 @@ def test_per_reporter_registered_with(
         f"stale = {deltas[0]} second, stale_warning = {deltas[1]} seconds, culled = {deltas[2]} seconds"  # noqa
     )
     set_staleness(host_inventory, deltas)
+
+    # Create an RHSM-only host (should stay fresh forever)
+    rhsm_host_data = host_inventory.datagen.create_host_data(
+        host_type=host_type,
+        reporter="rhsm-system-profile-bridge",
+    )
+    rhsm_host = host_inventory.kafka.create_host(rhsm_host_data)
 
     host_data.update(
         reporter="yupana",
@@ -509,6 +516,13 @@ def test_per_reporter_registered_with(
         hostname_or_id=host.id, registered_with=["yupana"]
     )
     assert len(response) == 0
+
+    # RHSM-only host should still be found (stays fresh forever)
+    response = host_inventory.apis.hosts.get_hosts(
+        hostname_or_id=rhsm_host.id, staleness=["fresh"]
+    )
+    assert len(response) == 1
+    assert response[0].id == rhsm_host.id
 
 
 def create_hosts_reporter_state(

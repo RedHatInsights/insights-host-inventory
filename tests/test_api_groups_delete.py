@@ -561,3 +561,58 @@ def test_delete_host_from_nonexistent_group(
 
     assert_response_status(response_status, 404)
     assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_post_workspace_not_found)
+def test_delete_group_with_hosts_not_in_rbac_after_workspace_event(
+    api_delete_groups_kessel, db_create_group, db_create_group_with_hosts, mocker
+):
+    """Regression test: deleting a group with hosts that exists in HBI but not in RBAC.
+
+    Before the fix, wait_for_workspace_event contaminated the SQLAlchemy connection
+    pool by setting ISOLATION_LEVEL_AUTOCOMMIT on the session's underlying psycopg2
+    connection. When a subsequent request tried to delete a group (with hosts) that
+    didn't exist in RBAC, db.session.begin_nested() in _remove_all_hosts_from_group
+    would fail with 'SAVEPOINT can only be used in transaction blocks'.
+    """
+    from app.queue.events import EventType
+    from lib.group_repository import wait_for_workspace_event
+
+    # Step 1: Create a "seed" group so wait_for_workspace_event can find it
+    # in the DB and return early (without needing actual LISTEN/NOTIFY).
+    seed_group = db_create_group("seed_group")
+
+    # Step 2: Call wait_for_workspace_event. With the old code
+    # (db.session.connection().connection), this would set ISOLATION_LEVEL_AUTOCOMMIT
+    # on the session's underlying connection, contaminating it permanently.
+    # With the fix (psycopg2.connect()), a separate connection is used.
+    wait_for_workspace_event(str(seed_group.id), EventType.created, org_id=seed_group.org_id)
+
+    # Step 3: Create a group WITH hosts. The begin_nested() SAVEPOINT issue only
+    # manifests in _remove_all_hosts_from_group when moving hosts to ungrouped.
+    group_with_hosts = db_create_group_with_hosts("group_to_delete", num_hosts=2)
+
+    # Step 4: Mock RBAC permissions to allow the request.
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Mock ungrouped workspace creation (RBAC API call).
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    # Mock the metrics context manager.
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        # Step 5: Delete the group. RBAC returns 404 (workspace not found), so HBI
+        # should delete it from its own DB, moving hosts to the ungrouped group.
+        response_status, _ = api_delete_groups_kessel([group_with_hosts.id])
+
+        # Before the fix, this would fail with HTTP 500:
+        # InternalError('SAVEPOINT can only be used in transaction blocks')
+        assert_response_status(response_status, expected_status=204)
