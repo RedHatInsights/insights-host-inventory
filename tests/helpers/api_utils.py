@@ -5,6 +5,7 @@ import math
 import types
 from base64 import b64encode
 from collections.abc import Callable
+from datetime import datetime
 from datetime import timedelta
 from enum import StrEnum
 from http import HTTPStatus
@@ -26,6 +27,7 @@ from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
+from app.models import db
 from app.utils import HostWrapper
 from tests.helpers.test_utils import now
 
@@ -725,3 +727,59 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     # already raises HTTPError for non-2xx status codes, which is what we want
 
     return response
+
+
+def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
+    """Helper to calculate staleness deltas from config."""
+    return {
+        "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
+        "stale_warning": timedelta(seconds=staleness_config["conventional_time_to_stale_warning"]),
+        "culled": timedelta(seconds=staleness_config["conventional_time_to_delete"]),
+    }
+
+
+def create_reporter_data(
+    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
+) -> dict[str, object]:
+    """Helper to create per_reporter_staleness data for a reporter."""
+    deltas = calculate_staleness_deltas(staleness_config)
+    data = {
+        "last_check_in": last_check_in.isoformat(),
+        "check_in_succeeded": True,
+    }
+    if include_timestamps:
+        data.update(
+            {
+                "stale_timestamp": (last_check_in + deltas["stale"]).isoformat(),
+                "stale_warning_timestamp": (last_check_in + deltas["stale_warning"]).isoformat(),
+                "culled_timestamp": (last_check_in + deltas["culled"]).isoformat(),
+            }
+        )
+    return data
+
+
+def create_host_with_reporter(
+    db_create_host: Callable[..., Host],
+    reporter: str,
+    last_check_in: datetime,
+    staleness_config: dict[str, int],
+    include_timestamps: bool = True,
+    stale_timestamp: datetime | None = None,
+) -> Host:
+    """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
+    host = db_create_host(
+        extra_data={
+            "reporter": reporter,
+            "per_reporter_staleness": {
+                reporter: create_reporter_data(last_check_in, staleness_config, include_timestamps),
+            },
+        },
+    )
+    host.last_check_in = last_check_in
+    if stale_timestamp is not None:
+        host.stale_timestamp = stale_timestamp
+    else:
+        deltas = calculate_staleness_deltas(staleness_config)
+        host.stale_timestamp = last_check_in + deltas["stale"]
+    db.session.commit()
+    return host
