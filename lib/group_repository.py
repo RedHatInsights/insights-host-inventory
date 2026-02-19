@@ -36,6 +36,7 @@ from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_host
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import get_non_culled_hosts_count_in_group
@@ -184,34 +185,39 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
 
 
 def wait_for_workspace_event(workspace_id: str, event_type: EventType, org_id: str, *, timeout: int = 5):
-    conn = db.session.connection().connection
-    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cursor = conn.cursor()
-    cursor.execute(f"LISTEN workspace_{event_type.name};")
-    timeout_start = time.time()
+    # Use a separate psycopg2 connection (not from the SQLAlchemy pool) so we don't
+    # contaminate the session's connection with ISOLATION_LEVEL_AUTOCOMMIT.
+    raw_conn = raw_db_connection()
     try:
-        # It's possible that the MQ message may have already been processed,
-        # so we check if the group already exists first.
-        logger.debug(f"Checking if workspace {workspace_id} exists in org {org_id}")
-        if get_group_by_id_from_db(workspace_id, org_id) is not None:
-            logger.debug(f"Workspace {workspace_id} found in org {org_id}")
-            return
+        raw_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = raw_conn.cursor()
+        cursor.execute(f"LISTEN workspace_{event_type.name};")
+        timeout_start = time.time()
+        try:
+            # It's possible that the MQ message may have already been processed,
+            # so we check if the group already exists first.
+            logger.debug(f"Checking if workspace {workspace_id} exists in org {org_id}")
+            if get_group_by_id_from_db(workspace_id, org_id) is not None:
+                logger.debug(f"Workspace {workspace_id} found in org {org_id}")
+                return
 
-        logger.debug(f"Waiting for workspace {workspace_id} to be created via MQ event")
-        while time.time() < timeout_start + timeout:
-            conn.poll()
-            for notify in conn.notifies:
-                logger.debug(f"Notify received for workspace {notify.payload}")
-                if str(notify.payload) == str(workspace_id):
-                    return
+            logger.debug(f"Waiting for workspace {workspace_id} to be created via MQ event")
+            while time.time() < timeout_start + timeout:
+                raw_conn.poll()
+                for notify in raw_conn.notifies:
+                    logger.debug(f"Notify received for workspace {notify.payload}")
+                    if str(notify.payload) == str(workspace_id):
+                        return
 
-            conn.notifies.clear()
-            time.sleep(0.1)
+                raw_conn.notifies.clear()
+                time.sleep(0.1)
+        finally:
+            cursor.execute(f"UNLISTEN workspace_{event_type.name};")
+            cursor.close()
+
+        raise TimeoutError("No workspace creation message consumed in time.")
     finally:
-        cursor.execute(f"UNLISTEN workspace_{event_type.name};")
-        cursor.close()
-
-    raise TimeoutError("No workspace creation message consumed in time.")
+        raw_conn.close()
 
 
 def _process_host_changes(
@@ -314,6 +320,9 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     host_ids = [
         row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
     ]
+    if not host_ids:
+        return
+
     _remove_hosts_from_group(group.id, host_ids, identity.org_id)
 
     # Assign hosts to "ungrouped" group.
