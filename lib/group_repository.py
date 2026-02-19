@@ -320,6 +320,9 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     host_ids = [
         row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
     ]
+    if not host_ids:
+        return
+
     _remove_hosts_from_group(group.id, host_ids, identity.org_id)
 
     # Assign hosts to "ungrouped" group.

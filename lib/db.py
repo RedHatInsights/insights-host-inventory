@@ -38,8 +38,8 @@ def multi_session_guard(session_list):
 def raw_db_connection():
     """Create a raw psycopg2 connection outside the SQLAlchemy pool.
 
-    Use this instead of db.engine.raw_connection() when you need to change
-    connection-level settings (e.g. ISOLATION_LEVEL_AUTOCOMMIT for LISTEN/NOTIFY)
+    Use this when you need to change connection-level settings
+    (e.g. ISOLATION_LEVEL_AUTOCOMMIT for LISTEN/NOTIFY)
     without contaminating pooled connections.
     """
     url = db.engine.url
