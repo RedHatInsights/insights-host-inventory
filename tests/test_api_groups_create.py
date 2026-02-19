@@ -300,8 +300,8 @@ def mock_pg_listen_connection(mocker: MockerFixture) -> MagicMock:
     mock_conn.cursor.return_value = mock_cursor
     mock_conn.notifies = []
 
-    # Mock psycopg2.connect as imported in lib.group_repository
-    mocker.patch("lib.group_repository.psycopg2.connect", return_value=mock_conn)
+    # Mock raw_db_connection as imported in lib.group_repository
+    mocker.patch("lib.group_repository.raw_db_connection", return_value=mock_conn)
 
     return mock_conn
 
