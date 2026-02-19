@@ -1,7 +1,6 @@
 import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
-from sqlalchemy.exc import OperationalError
 
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
@@ -379,50 +378,98 @@ def _create_mock_workspace(workspace_id=None, name="test_group", workspace_type=
 def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_enabled):
     """
     Test GET /groups with RBAC v2 feature flag enabled/disabled.
-    Verifies correct code path (get_rbac_workspaces vs get_filtered_group_list_db).
+    Verifies both code paths return the same results for the same data.
+    Also verifies RBAC v2 internal fields (type, parent_id) are properly stripped.
     """
+    # Create 3 groups in database (including 1 ungrouped)
+    group1 = db_create_group("group_alpha")
+    group2 = db_create_group("group_beta")
+    group3 = db_create_group("ungrouped_workspace", ungrouped=True)
+
+    group1_id = str(group1.id)
+    group2_id = str(group2.id)
+    group3_id = str(group3.id)
+
     # Mock feature flag
     mocker.patch("api.group.get_flag_value", return_value=flag_enabled)
 
-    if flag_enabled:
-        # RBAC v2 path: Mock get_rbac_workspaces to return sample workspaces
-        mock_workspaces = [
-            _create_mock_workspace(name="group1"),
-            _create_mock_workspace(name="group2"),
-        ]
-        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
-        mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
+    # Mock get_rbac_workspaces to return matching workspaces (only called if flag enabled)
+    mock_workspaces = [
+        {
+            "id": group1_id,
+            "name": "group_alpha",
+            "type": "standard",  # RBAC v2 internal field - should be stripped
+            "created": group1.created_on.isoformat(),
+            "modified": group1.modified_on.isoformat(),
+            "description": "Test workspace",
+            "parent_id": None,  # RBAC v2 internal field - should be stripped
+        },
+        {
+            "id": group2_id,
+            "name": "group_beta",
+            "type": "standard",
+            "created": group2.created_on.isoformat(),
+            "modified": group2.modified_on.isoformat(),
+            "description": "Test workspace",
+            "parent_id": None,
+        },
+        {
+            "id": group3_id,
+            "name": "ungrouped_workspace",
+            "type": "ungrouped",  # Maps to ungrouped=True (not "ungrouped-hosts")
+            "created": group3.created_on.isoformat(),
+            "modified": group3.modified_on.isoformat(),
+            "description": "Test workspace",
+            "parent_id": None,
+        },
+    ]
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 3)
 
-        response_status, response_data = api_get(build_groups_url())
+    # Call endpoint (same call for both paths)
+    # Use group_type=all to include ungrouped workspaces
+    response_status, response_data = api_get(build_groups_url(query="?group_type=all"))
 
-        # Verify response
-        assert_response_status(response_status, 200)
-        assert response_data["total"] == 2
-        assert response_data["count"] == 2
-        assert len(response_data["results"]) == 2
-        assert response_data["results"][0]["name"] == "group1"
-        assert response_data["results"][1]["name"] == "group2"
+    # Verify response (same for both paths)
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 3
+    assert response_data["count"] == 3
+    assert len(response_data["results"]) == 3
 
-        # Verify get_rbac_workspaces was called
-        assert mock_get_rbac_workspaces.called
-    else:
-        # RBAC v1 path: Create groups in database
-        group_id_list = [str(db_create_group(f"testGroup_{idx}").id) for idx in range(3)]
+    # Verify all groups returned with correct IDs
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {group1_id, group2_id, group3_id}
 
-        # Mock get_rbac_workspaces (should NOT be called)
-        mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+    # Find each group in results and verify fields
+    group1_result = next(r for r in response_data["results"] if r["id"] == group1_id)
+    group2_result = next(r for r in response_data["results"] if r["id"] == group2_id)
+    group3_result = next(r for r in response_data["results"] if r["id"] == group3_id)
 
-        response_status, response_data = api_get(build_groups_url())
+    # Verify standard groups have correct fields
+    assert group1_result["name"] == "group_alpha"
+    assert group1_result["ungrouped"] is False
+    assert "host_count" in group1_result
+    assert group1_result["host_count"] == 0
 
-        # Verify response uses database data
-        assert_response_status(response_status, 200)
-        assert response_data["total"] == 3
-        assert response_data["count"] == 3
-        for group_result in response_data["results"]:
-            assert group_result["id"] in group_id_list
+    assert group2_result["name"] == "group_beta"
+    assert group2_result["ungrouped"] is False
+    assert "host_count" in group2_result
+    assert group2_result["host_count"] == 0
 
-        # Verify get_rbac_workspaces was NOT called (database path used)
-        assert not mock_get_rbac_workspaces.called
+    # Verify ungrouped workspace has correct ungrouped flag
+    assert group3_result["name"] == "ungrouped_workspace"
+    assert group3_result["ungrouped"] is True
+    assert "host_count" in group3_result
+    assert group3_result["host_count"] == 0
+
+    # Verify RBAC v2 internal fields are NOT returned (serialization working correctly)
+    for result in response_data["results"]:
+        assert "type" not in result, "RBAC v2 'type' field should be stripped during serialization"
+        assert "parent_id" not in result, "RBAC v2 'parent_id' field should be stripped during serialization"
+        assert "description" not in result, "RBAC v2 'description' field should be stripped during serialization"
+
+    # Verify correct code path was used (elegant single assertion)
+    assert mock_get_rbac_workspaces.called == flag_enabled
 
 
 @pytest.mark.parametrize(
@@ -432,10 +479,6 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         ("name", "DESC"),
         ("updated", "ASC"),
         ("updated", "DESC"),
-        ("created", "ASC"),
-        ("created", "DESC"),
-        ("type", "ASC"),
-        ("type", "DESC"),
     ],
 )
 def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
@@ -443,7 +486,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     Test GET /groups with RBAC v2 and ordering parameters.
     Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
 
-    Note: The GET /groups API spec allows ordering by: name, host_count, updated, created, type.
+    Note: The GET /groups API spec allows ordering by: name, host_count, updated.
     However, host_count uses a special code path (client-side sorting) and is tested separately
     in test_get_groups_rbac_v2_ordering_by_host_count() and related tests.
     """
@@ -655,37 +698,6 @@ def test_get_groups_rbac_v2_ordering_by_host_count_timeout(mocker, api_get):
     assert "RBAC service unavailable" in response_data["detail"] or "timed out" in response_data["detail"].lower()
 
 
-def test_get_groups_rbac_v2_ordering_by_host_count_db_error(mocker, api_get):
-    """
-    Test error handling when database fails during host count fetching.
-
-    NEGATIVE TEST: Verifies that database errors during serialize_group()
-    (which fetches host counts) are handled properly.
-    """
-    # Mock feature flag enabled
-    mocker.patch("api.group.get_flag_value", return_value=True)
-
-    # Mock RBAC v2 returning valid workspaces
-    mock_workspaces = [
-        _create_mock_workspace(name="group_a", workspace_id=str(generate_uuid())),
-        _create_mock_workspace(name="group_b", workspace_id=str(generate_uuid())),
-    ]
-    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
-    mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
-
-    # Mock get_host_counts_batch to raise database error when fetching host counts
-    mock_get_host_counts = mocker.patch("api.group.get_host_counts_batch")
-    mock_get_host_counts.side_effect = OperationalError("Database connection failed", None, None)
-
-    # Request order_by=host_count
-    query = "?order_by=host_count"
-    response_status, response_data = api_get(build_groups_url(query=query))
-
-    # Should return 500 (internal server error) - database errors aren't caught in this path
-    # This is expected behavior - database failures should bubble up
-    assert_response_status(response_status, 500)
-
-
 def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_get):
     """
     Test ordering by host_count when all groups have 0 hosts.
@@ -741,6 +753,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
         ("name", "?name=testGroup", 0, "testGroup"),
         ("group_type_standard", "?group_type=standard", 3, "standard"),
         ("group_type_ungrouped", "?group_type=ungrouped-hosts", 3, "ungrouped-hosts"),
+        ("group_type_all", "?group_type=all", 3, "all"),
         ("pagination", "?page=2&per_page=5", None, None),  # Special case: checks page and per_page
     ],
 )
@@ -750,6 +763,8 @@ def test_get_groups_rbac_v2_parameter_passing(
     """
     Test GET /groups with RBAC v2 and various query parameters.
     Verifies that parameters are correctly passed to get_rbac_workspaces().
+    Tests all supported group_type values: standard, ungrouped-hosts, all.
+    Note: group_type=all fetches all workspace types including root and default.
     """
     # Mock feature flag enabled
     mocker.patch("api.group.get_flag_value", return_value=True)

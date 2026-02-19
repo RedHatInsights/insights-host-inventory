@@ -361,11 +361,10 @@ def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_
     updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
 
     return {
-        "name": workspace["name"],
         "id": serialize_uuid(workspace["id"]),
-        "parent_id": workspace.get("parent_id") or None,
         "org_id": org_id,
-        "description": workspace.get("description", ""),
+        "account": workspace.get("account") or None,
+        "name": workspace.get("name"),
         "ungrouped": workspace.get("type") == "ungrouped",
         "created": _serialize_datetime(created_dt) if created_dt else "",
         "updated": _serialize_datetime(updated_dt) if updated_dt else "",

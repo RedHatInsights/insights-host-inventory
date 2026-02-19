@@ -686,7 +686,10 @@ def get_rbac_workspaces(
         name: Filter by workspace name (partial match)
         page: int,
         per_page: Items per page
-        group_type: Filter by workspace type (standard, ungrouped-hosts)
+        group_type: Filter by workspace type
+            - standard: User-created groups (default)
+            - ungrouped-hosts: Ungrouped hosts workspace
+            - all: All workspace types (includes standard, ungrouped-hosts, root, default)
         order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
         order_how: Sort direction ('ASC' or 'DESC')
 
@@ -785,7 +788,6 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     Example:
         workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
-        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}, {"id": "uuid3", ...}]
     """
     if inventory_config().bypass_rbac:
         return []
@@ -816,7 +818,7 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     # Verify all requested workspaces were found
     found_ids = {str(ws["id"]) for ws in workspaces}
-    requested_ids = set(str(wid) for wid in workspace_ids)
+    requested_ids = {str(wid) for wid in workspace_ids}
 
     if found_ids != requested_ids:
         missing_ids = requested_ids - found_ids

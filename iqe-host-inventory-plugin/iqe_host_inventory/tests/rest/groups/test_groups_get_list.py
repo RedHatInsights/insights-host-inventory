@@ -177,7 +177,7 @@ def test_groups_get_list_pagination_only_my_groups(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering(
     host_inventory,
@@ -214,7 +214,7 @@ def test_groups_get_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
@@ -257,7 +257,7 @@ def test_groups_get_list_ordering_and_pagination(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
 def test_groups_get_list_order_how_default(
     host_inventory,
     setup_groups_for_ordering,
@@ -282,7 +282,7 @@ def test_groups_get_list_order_how_default(
         )
 
     # Default order_how is ASC for 'name',
-    # DESC for 'host_count', 'updated', and 'created'
+    # DESC for 'host_count' and 'updated'
     ascending = order_by == "name"
 
     response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
@@ -291,115 +291,6 @@ def test_groups_get_list_order_how_default(
     assert response.count >= 10
     assert len(response.results) >= 10
     assert in_order(response.results, None, ascending=ascending, sort_field=order_by)
-
-
-# RBAC v2-only tests for 'type' ordering (workspaces feature)
-# NOTE: RBAC v2 does not support order_how (ASC/DESC), only order_by (field)
-@pytest.mark.ephemeral
-def test_groups_get_list_ordering_by_type_rbac_v2(
-    host_inventory,
-    setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-3829
-
-    metadata:
-      requirements: inv-groups-get-list
-      assignee: fstavela
-      importance: high
-      title: Get groups list - test ordering by type (RBAC v2 workspaces only)
-
-    NOTE: type ordering is only supported in RBAC v2 (workspaces).
-    RBAC v1 groups will be deprecated and do not have a type field.
-    RBAC v2 does not support order_how (ASC/DESC) - tests default ordering only.
-    """
-    if not is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "type ordering requires RBAC v2 (workspaces). RBAC v1 groups will be deprecated."
-        )
-
-    response = host_inventory.apis.groups.get_groups_response(order_by="type")
-    assert response.page == 1
-    assert response.total >= 10
-    assert response.count >= 10
-    assert len(response.results) >= 10
-    # RBAC v2 returns results in default order (assumed ASC for type, like name)
-    assert in_order(response.results, None, ascending=True, sort_field="type")
-
-
-@pytest.mark.ephemeral
-def test_groups_get_list_ordering_and_pagination_by_type_rbac_v2(
-    host_inventory,
-    setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-3829
-
-    metadata:
-      requirements: inv-groups-get-list
-      assignee: fstavela
-      importance: high
-      title: Get groups list - paginate through type-ordered results (RBAC v2 workspaces only)
-
-    NOTE: type ordering is only supported in RBAC v2 (workspaces).
-    RBAC v1 groups will be deprecated and do not have a type field.
-    RBAC v2 does not support order_how (ASC/DESC) - tests default ordering only.
-    """
-    if not is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "type ordering requires RBAC v2 (workspaces). RBAC v1 groups will be deprecated."
-        )
-
-    found_groups = []
-    for i in range(3):
-        response = host_inventory.apis.groups.get_groups_response(
-            per_page=3, page=i + 1, order_by="type"
-        )
-        assert response.page == i + 1
-        assert response.per_page == 3
-        assert response.total >= 10
-        assert response.count == 3
-        assert len(response.results) == 3
-        found_groups += response.results
-
-    assert len({group.id for group in found_groups}) == 9
-    # RBAC v2 returns results in default order (assumed ASC for type, like name)
-    assert in_order(found_groups, None, ascending=True, sort_field="type")
-
-
-@pytest.mark.ephemeral
-def test_groups_get_list_order_how_default_for_type_rbac_v2(
-    host_inventory,
-    setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-3829
-
-    metadata:
-      requirements: inv-groups-get-list
-      assignee: fstavela
-      importance: high
-      title: Get groups list - default ordering for type (RBAC v2 workspaces only)
-
-    NOTE: type ordering is only supported in RBAC v2 (workspaces).
-    RBAC v1 groups will be deprecated and do not have a type field.
-    RBAC v2 does not support order_how (ASC/DESC) - tests default ordering only.
-    """
-    if not is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "type ordering requires RBAC v2 (workspaces). RBAC v1 groups will be deprecated."
-        )
-
-    # RBAC v2 returns results in default order (assumed ASC for type, like name)
-    response = host_inventory.apis.groups.get_groups_response(order_by="type")
-    assert response.page == 1
-    assert response.total >= 10
-    assert response.count >= 10
-    assert len(response.results) >= 10
-    assert in_order(response.results, None, ascending=True, sort_field="type")
 
 
 @pytest.mark.ephemeral
@@ -489,7 +380,7 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated", "created", "type"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_by_name_ordering_and_pagination(
     host_inventory,

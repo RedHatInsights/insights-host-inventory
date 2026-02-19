@@ -1898,9 +1898,7 @@
           "enum": [
             "name",
             "host_count",
-            "updated",
-            "created",
-            "type"
+            "updated"
           ]
         },
         "description": "Ordering field name"
