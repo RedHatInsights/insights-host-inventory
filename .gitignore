@@ -20,6 +20,7 @@ sonarqube/
 .hermetic_builds/ubi.repo
 
 .claude/hooks/*.log
+.claude/settings.local.json
 
 .vscode/
 .hypothesis/

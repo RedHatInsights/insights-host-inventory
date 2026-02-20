@@ -1,0 +1,23 @@
+{
+  "_comment": "For more permission options and advanced features, see: https://docs.anthropic.com/en/docs/build-with-claude/claude-for-sheets",
+  "permissions": {
+    "allow": [
+      "_comment_block1": "=== UNIVERSAL: Core development commands (recommended for all team members) ===",
+      "Bash(make style:*)",
+      "Bash(pytest:*)",
+      "Bash(pipenv run pytest:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(python -m py_compile:*)",
+
+      "_comment_block2": "=== RECOMMENDED: Personal workflow optimizations ===",
+      "_comment_venv": "Using PIPENV_CUSTOM_VENV_NAME keeps virtualenvs consistent across sessions (see CLAUDE.local.md Session 17)",
+      "Bash(PIPENV_CUSTOM_VENV_NAME=insights-host-inventory-main pipenv run mypy:*)",
+      "Bash(PIPENV_PIPFILE=Pipfile.iqe PIPENV_CUSTOM_VENV_NAME=insights-host-inventory-iqe pipenv run:*)",
+      "Bash(grep:*)",
+      "Bash(git config:*)",
+      "Bash(echo:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(oc get:*)"
+    ]
+  }
+}
