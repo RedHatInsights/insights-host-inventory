@@ -71,7 +71,7 @@ def in_order(
     try:
         comparator_func = sort_funcs[sort_field]
     except LookupError as e:
-        valid_fields = "name, host_count, updated, created, type"
+        valid_fields = "name, host_count"
         raise ValueError(
             f"Valid options for sort_field: [{valid_fields}]. Provided: {sort_field}"
         ) from e
