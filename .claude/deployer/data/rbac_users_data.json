@@ -1,0 +1,261 @@
+[
+  {
+    "username": "sara",
+    "firstName": "Sara",
+    "lastName": "Support",
+    "email": "sara@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "12346",
+      "account_id": "1234567890",
+      "account_number": "1234567890",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Sara",
+      "is_active": true,
+      "is_internal": true,
+      "is_org_admin": false,
+      "last_name": "Support",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "12345",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+  {
+    "username": "alice",
+    "firstName": "Alice",
+    "lastName": "Team-A",
+    "email": "alice@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "12347",
+      "account_id": "1234567891",
+      "account_number": "1234567890",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Alice",
+      "is_active": true,
+      "is_internal": true,
+      "is_org_admin": false,
+      "last_name": "TeamA",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "12345",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+  {
+    "username": "bob",
+    "firstName": "Bob",
+    "lastName": "TeamB",
+    "email": "bob@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "12348",
+      "account_id": "1234567891",
+      "account_number": "1234567890",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Bob",
+      "is_active": true,
+      "is_internal": true,
+      "is_org_admin": false,
+      "last_name": "TeamB",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "12345",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+    {
+    "username": "insights_inventory_qe",
+    "firstName": "Insights",
+    "lastName": "Inventory",
+    "email": "insights_inventory_qe@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "23233",
+      "account_id": "0369233",
+      "account_number": "0369233",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Insights",
+      "is_active": true,
+      "is_internal": false,
+      "is_org_admin": true,
+      "last_name": "Inventory",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "3340851",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+  {
+    "username": "insights_inventory_qe_2",
+    "firstName": "Insights",
+    "lastName": "Inventory 2",
+    "email": "insights_inventory_qe_2@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "98999",
+      "account_id": "0369233",
+      "account_number": "0369233",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Insights",
+      "is_active": true,
+      "is_internal": false,
+      "is_org_admin": false,
+      "last_name": "Inventory 2",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "3340851",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+  {
+    "username": "insights-qa",
+    "firstName": "Insights",
+    "lastName": "QA",
+    "email": "test@redhat.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "some_password",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "54555",
+      "account_id": "6212377",
+      "account_number": "6212377",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "Insights",
+      "is_active": true,
+      "is_internal": false,
+      "is_org_admin": true,
+      "last_name": "QA",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "12383032",
+      "permissions": [
+        ""
+      ]
+    }
+  },
+  {
+    "username": "ephemeral-user",
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "inventory_ui_account@acme.com",
+    "enabled": true,
+    "emailVerified": true,
+    "totp": false,
+    "credentials": [
+      {
+        "type": "password",
+        "value": "redhat",
+        "temporary": false
+      }
+    ],
+    "attributes": {
+      "user_id": "12349",
+      "account_id": "0369233",
+      "account_number": "0369233",
+      "entitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "first_name": "John",
+      "is_active": true,
+      "is_internal": false,
+      "is_org_admin": true,
+      "last_name": "Doe",
+      "locale": "en_US",
+      "newEntitlements": [
+        "\"insights\":{\"is_entitled\":true,\"is_trial\":false}"
+      ],
+      "org_id": "3340851",
+      "permissions": [
+        ""
+      ]
+    }
+  }
+]
