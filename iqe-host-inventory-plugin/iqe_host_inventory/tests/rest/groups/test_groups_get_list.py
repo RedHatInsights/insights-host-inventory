@@ -774,8 +774,8 @@ class TestGetGroupListEmptyGroups:
             400,
             (
                 f"{order_by}",
-                "is not one of ['name', 'host_count']",
-                "'enum': ['name', 'host_count']}",
+                "is not one of ['name', 'host_count', 'updated']",
+                "'enum': ['name', 'host_count', 'updated']}",
             ),
         ):
             host_inventory.apis.groups.get_groups_response(order_by=order_by)
