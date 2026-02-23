@@ -11,14 +11,24 @@ def custom_fields_parser(root_key, key_path, val):
     """
     Parse fields[app]=field1,field2 into {app: {field1: True, field2: True}}.
 
+    Also accepts JSON array syntax: fields[app]=["field1","field2"].
+
     Examples:
         fields[advisor]=recommendations,incidents → {"advisor": {"recommendations": True, "incidents": True}}
         fields[system_profile]=arch,os_kernel_version → {"system_profile": {"arch": True, "os_kernel_version": True}}
+        fields[system_profile]=["arch","os_kernel_version"]
+            → {"system_profile": {"arch": True, "os_kernel_version": True}}
     """
     root = {key_path[0]: {}}
     for v in val:
-        for fields in v.split(","):
-            root[key_path[0]][fields] = True
+        v = v.strip()
+        if v.startswith("[") and v.endswith("]"):
+            v = v[1:-1]
+            v = ",".join(item.strip().strip('"').strip("'") for item in v.split(","))
+        for field in v.split(","):
+            field = field.strip()
+            if field:
+                root[key_path[0]][field] = True
     return (root_key, [root], True)
 
 
