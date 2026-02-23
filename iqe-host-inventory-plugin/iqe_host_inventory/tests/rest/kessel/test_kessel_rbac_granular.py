@@ -126,7 +126,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404):
+    with raises_apierror(403):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
@@ -243,7 +243,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group_
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror(404):
+    with raises_apierror(403):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
