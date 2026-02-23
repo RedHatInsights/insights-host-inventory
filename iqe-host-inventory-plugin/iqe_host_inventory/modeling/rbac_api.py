@@ -203,9 +203,7 @@ class RBACAPIWrapper(BaseEntity):
 
         group = self.create_group(permissions[0], hbi_groups=hbi_groups)
         self.add_user_to_a_group(username, group.uuid)
-        roles = []
-        for perm in permissions:
-            roles.append(self.create_role(perm, hbi_groups=hbi_groups))
+        roles = [self.create_role(perm, hbi_groups=hbi_groups) for perm in permissions]
 
         self.add_roles_to_a_group(roles, group.uuid)
 

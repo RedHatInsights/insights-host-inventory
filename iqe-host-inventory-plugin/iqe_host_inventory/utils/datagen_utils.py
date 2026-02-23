@@ -818,26 +818,17 @@ def generate_display_name(panic_prevention: str = "rhiqe") -> str:
 
 def generate_ips(num_ips: int = 2) -> list[str]:
     """Generate a list of ipv4 IPs."""
-    result = []
-    for _ in range(0, num_ips):
-        result.append(fake.ipv4_private())
-    return result
+    return [fake.ipv4_private() for _ in range(num_ips)]
 
 
 def generate_ipv6s(num_ips: int = 2) -> list[str]:
     """Generate a list of ipv6 IPs."""
-    result = []
-    for _ in range(0, num_ips):
-        result.append(fake.ipv6())
-    return result
+    return [fake.ipv6() for _ in range(num_ips)]
 
 
 def generate_macs(num_macs=2):
     """Generate a list of mac addresses."""
-    result = []
-    for _ in range(0, num_macs):
-        result.append(fake.mac_address())
-    return result
+    return [fake.mac_address() for _ in range(num_macs)]
 
 
 class FactNamespace(TypedDict):
@@ -848,7 +839,7 @@ class FactNamespace(TypedDict):
 def generate_facts(num_facts: int = 2) -> list[FactNamespace]:
     """Generate some facts."""
     facts = {}
-    for _ in range(0, num_facts):
+    for _ in range(num_facts):
         facts[fake.domain_word()] = fake.domain_word()
 
     result = FactNamespace(namespace=fake.domain_word(), facts=facts)
@@ -857,10 +848,7 @@ def generate_facts(num_facts: int = 2) -> list[FactNamespace]:
 
 def generate_tags(num_tags: int = 2) -> list[TagDict]:
     """Generate some tags"""
-    result: list[TagDict] = []
-    for _ in range(num_tags):
-        result.append(gen_tag())
-    return result
+    return [gen_tag() for _ in range(num_tags)]
 
 
 def generate_random_mac_address(size: int) -> str:
@@ -1215,9 +1203,7 @@ def generate_complete_system_profile(
         system_profile.pop("bootc_status")
 
     # Ensure workloads field values match individual field values
-    system_profile = sync_workloads_with_individual_fields(system_profile)
-
-    return system_profile
+    return sync_workloads_with_individual_fields(system_profile)
 
 
 def generate_complete_random_host(
@@ -1301,9 +1287,8 @@ def create_host_data(
     data["mac_addresses"] = generate_macs()
 
     data["facts"] = generate_facts()
-    data = {**data, **extra_data}
 
-    return data
+    return {**data, **extra_data}
 
 
 _EXAMPLE_SYSTEM_PROFILE_FACTS = {

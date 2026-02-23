@@ -282,13 +282,13 @@ def in_order(last_result, current_results, sort_field="updated", ascending=True)
     elif sort_field == "group_name":
         comparator_func = compare_groups
     else:
-        raise
+        raise ValueError(f"Unsupported sort_field: {sort_field}")
 
     if last_result is not None:
         lr = _get_field(last_result, sort_field)
         cr = _get_field(current_results[0], sort_field)
         comparison_result = comparator_func(lr, cr)
-        if comparison_result != comparator_value and comparison_result != 0:
+        if comparison_result not in (comparator_value, 0):
             out_of_order(order_description, lr, cr, current_results)
             return False
 
@@ -298,7 +298,7 @@ def in_order(last_result, current_results, sort_field="updated", ascending=True)
             pr = _get_field(prev_result, sort_field)
             cr = _get_field(cur_result, sort_field)
             comparison_result = comparator_func(pr, cr)
-            if comparison_result != comparator_value and comparison_result != 0:
+            if comparison_result not in (comparator_value, 0):
                 out_of_order(order_description, pr, cr, current_results)
                 return False
         prev_result = cur_result

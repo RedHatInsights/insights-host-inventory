@@ -17,12 +17,6 @@ from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.models import Group
 from app.models import Host
-from app.models import HostAppDataAdvisor
-from app.models import HostAppDataCompliance
-from app.models import HostAppDataMalware
-from app.models import HostAppDataPatch
-from app.models import HostAppDataRemediations
-from app.models import HostAppDataVulnerability
 from app.models import HostGroupAssoc
 from app.models import Staleness
 from app.models import db
@@ -30,6 +24,7 @@ from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from lib.group_repository import serialize_group
 from lib.host_repository import host_query
+from tests.helpers.db_utils import db_create_host_app_data as _db_create_host_app_data_helper
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
@@ -180,6 +175,11 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
         return host
 
     return _db_create_host
+
+
+@pytest.fixture(scope="function")
+def db_create_host_app_data(flask_app: FlaskApp) -> Callable:  # noqa: ARG001
+    return _db_create_host_app_data_helper
 
 
 @pytest.fixture(scope="function")
@@ -358,33 +358,3 @@ def db_get_dynamic_system_profile(flask_app):  # noqa: ARG001
         ).first()
 
     return _get_dynamic_system_profile
-
-
-APP_DATA_MODELS = {
-    "advisor": HostAppDataAdvisor,
-    "vulnerability": HostAppDataVulnerability,
-    "patch": HostAppDataPatch,
-    "remediations": HostAppDataRemediations,
-    "compliance": HostAppDataCompliance,
-    "malware": HostAppDataMalware,
-}
-
-
-@pytest.fixture(scope="function")
-def db_create_host_app_data(flask_app):  # noqa: ARG001
-    def _db_create_host_app_data(host_id, org_id, app_name: str, **data):
-        if app_name not in APP_DATA_MODELS:
-            raise ValueError(f"Unknown app_name: {app_name}. Valid options: {list(APP_DATA_MODELS.keys())}")
-
-        model_class = APP_DATA_MODELS[app_name]
-        app_data = model_class(
-            host_id=host_id,
-            org_id=org_id,
-            last_updated=now(),
-            **data,
-        )
-        db.session.add(app_data)
-        db.session.commit()
-        return app_data
-
-    return _db_create_host_app_data

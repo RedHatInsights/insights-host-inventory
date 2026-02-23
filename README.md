@@ -28,7 +28,7 @@ please see the
     - [Identity enforcement](#identity-enforcement)
 - [Payload Tracker integration](#payload-tracker-integration)
 - [Database migrations](#database-migrations)
-- [Docker builds](#docker-builds)
+- [Container builds](#container-builds)
 - [Metrics](#metrics)
 - [Documentation](#documentation)
 - [Release process](#release-process)
@@ -43,6 +43,11 @@ please see the
 - [Running ad hoc jobs using a different image](#running-ad-hoc-jobs-using-a-different-image)
 - [Debugging local code with services deployed into Kubernetes namespaces](#debugging-local-code-with-services-deployed-into-kubernetes-namespaces)
 - [Contributing](#contributing)
+- [Claude Code Integration](#claude-code-integration)
+    - [Quick Start with Claude Code](#quick-start-with-claude-code)
+    - [Hooks](#hooks)
+    - [Slash Commands](#slash-commands)
+    - [HBI Make Targets](#hbi-make-targets)
 
 ## Getting started
 
@@ -50,7 +55,7 @@ please see the
 
 Before starting, ensure you have the following installed on your system:
 
-- **Docker**: For running containers and services.
+- **Podman**: For running containers and services.
 - **Python 3.12.x**: The recommended version for this project.
 - **pipenv**: For managing Python dependencies.
 
@@ -142,7 +147,7 @@ If using a different directory, update the `volumes` section in [dev.yml](dev.ym
 
 ### Start dependent services
 
-All dependent services are managed by Docker Compose and are listed in the [dev.yml](dev.yml) file.
+All dependent services are managed by Podmam Compose and are listed in the [dev.yml](dev.yml) file.
 This includes the web server, MQ server, database, Kafka, and other infrastructure services.
 
 **Note:** This repository uses git submodules (e.g., `librdkafka`). If you haven't already, clone the repository with submodules:
@@ -160,7 +165,7 @@ git submodule update --init --recursive
 Start the services with the following command:
 
 ```bash
-docker compose -f dev.yml up -d
+podman compose -f dev.yml up -d
 ```
 
 The web and MQ servers will automatically start when this command is run.
@@ -169,7 +174,7 @@ starts of the container.
 If you want to destroy that data do the following:
 
 ```bash
-docker compose -f dev.yml down
+podman compose -f dev.yml down
 rm -r ~/.pg_data # or a another directory you defined in volumes
 ```
 
@@ -317,7 +322,7 @@ You can run the web server directly using this command:
 python3 run_gunicorn.py
 ```
 
-Note: If you started services with `docker compose -f dev.yml up -d`, the web server is already running in the `hbi-web` container.
+Note: If you started services with `podman compose -f dev.yml up -d`, the web server is already running in the `hbi-web` container.
 
 ## Legacy support
 
@@ -393,7 +398,7 @@ echo -n '{"identity": {"org_id": "0000001", "type": "System"}}' | base64 -w0
 The Swagger UI provides an interactive interface for testing the API endpoints locally.
 
 **Prerequisites:**
-- Ensure the web service is running (via `docker compose -f dev.yml up -d`)
+- Ensure the web service is running (via `podman compose -f dev.yml up -d`)
 - The service should be accessible at `http://localhost:8080/api/inventory/v1/ui/`
 
 **Access Swagger UI:**
@@ -485,12 +490,12 @@ make migrate_db message="Description of your changes"
 In managed environments, the database migrations are run by the `run-db-migrations` job.
 This job runs once per release, as its name contains the image tag (`run-db-migrations-<IMAGE_TAG>).
 
-## Docker Builds
+## Container Builds
 
 Build local development containers with:
 
 ```bash
-docker build . -f dev.dockerfile -t inventory:dev
+podman build . -f dev.dockerfile -t inventory:dev
 ```
 
 * **Note**: Some packages require a subscription. Ensure your host has access to valid RHEL content.
@@ -709,6 +714,99 @@ pre-commit install
 
 If inside the Red Hat network, also ensure `rh-pre-commit` is installed as per
 instructions [here](https://url.corp.redhat.com/rh-pre-commit#quickstart-install).
+
+## Claude Code Integration
+
+This project includes [Claude Code](https://claude.ai/code) hooks, slash commands, and make targets that follow the [install-and-maintain](https://github.com/disler/install-and-maintain) pattern for AI-assisted development.
+
+### Quick Start with Claude Code
+
+```bash
+# Deterministic setup (hooks run automatically)
+make hbi-cldi
+
+# Agentic setup (interactive, runs /hbi-install slash command)
+make hbi-cldii
+
+# Agentic maintenance (runs /hbi-maintenance slash command)
+make hbi-cldmm
+```
+
+Or start Claude Code directly in the repo — the `SessionStart` hook will automatically load your `.env` variables into the session.
+
+### Hooks
+
+Hooks are defined in `.claude/settings.json` and run automatically at specific lifecycle points.
+
+| Hook | Trigger | Script | Purpose |
+|------|---------|--------|---------|
+| **SessionStart** | Every Claude Code session | `.claude/hooks/session_start.py` | Loads `.env` variables into the Claude session via `CLAUDE_ENV_FILE` |
+| **Setup (init)** | `claude --init` | `.claude/hooks/setup_init.py` | Full deterministic setup: prereqs, dirs, deps, Podman, DB migrations, health check |
+| **Setup (maintenance)** | `claude --maintenance` | `.claude/hooks/setup_maintenance.py` | Update deps, pull images, restart services, run migrations and style checks |
+
+All hooks output structured JSON using the `hookSpecificOutput` format:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "Setup",
+    "additionalContext": "Summary of what happened..."
+  }
+}
+```
+
+Hook logs are written to `.claude/hooks/` (e.g., `setup.init.log`, `setup.maintenance.log`, `session_start.log`).
+
+### Slash Commands
+
+Slash commands are markdown files in `.claude/commands/` that instruct Claude Code to perform multi-step tasks.
+
+| Command | File | Purpose |
+|---------|------|---------|
+| `/hbi-install` | `.claude/commands/hbi-install.md` | Runs `/hbi-prime` for orientation, then the setup init script, reports results |
+| `/hbi-install-hil` | `.claude/commands/hbi-install-hil.md` | Interactive setup — asks preferences for database, deps, and Podman services |
+| `/hbi-maintenance` | `.claude/commands/hbi-maintenance.md` | Runs `/hbi-prime` for orientation, then the maintenance script, reports results |
+| `/hbi-doctor` | `.claude/commands/hbi-doctor.md` | Health checks all services: Podman, PostgreSQL, Kafka, HBI web, DB migrations, Python env |
+| `/hbi-prime` | `.claude/commands/hbi-prime.md` | Quick orientation: reads key files (`CLAUDE.md`, `README.md`, `mk/private.mk`, `dev.yml`), reports project summary |
+| `/hbi-api-hosts` | `.claude/commands/hbi-api-hosts.md` | Query and manage hosts (list, get by ID, filter, system profile, tags, update, delete) |
+| `/hbi-api-groups` | `.claude/commands/hbi-api-groups.md` | Query and manage groups (list, create, get hosts in group, add/remove hosts, delete) |
+| `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
+| `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
+| `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
+| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref Pipfile.lock/Dockerfile, produce Jira-formatted output |
+
+### HBI Make Targets
+
+Custom make targets for development workflows and Claude Code invocations are defined in `mk/private.mk`. List them with:
+
+```bash
+make hbi-help
+```
+
+**Development workflows:**
+
+| Target | Description |
+|--------|-------------|
+| `make hbi-up` | Start all Podman Compose services |
+| `make hbi-down` | Stop all Podman Compose services |
+| `make hbi-logs SERVICE=<name>` | View service logs (optionally for a specific service) |
+| `make hbi-migrate` | Run database migrations |
+| `make hbi-test ARGS="<extra args>"` | Run tests with coverage |
+| `make hbi-style` | Run code style checks |
+| `make hbi-deps` | Install Python dependencies |
+| `make hbi-health` | Health check the web service |
+| `make hbi-ps` | Check Podman container status |
+| `make hbi-reset` | Reset development environment (stop services, remove db data) |
+
+**Claude Code invocations:**
+
+| Target | Description |
+|--------|-------------|
+| `make hbi-cldi` | Deterministic codebase setup (`claude --init`) |
+| `make hbi-cldm` | Deterministic codebase maintenance (`claude --maintenance`) |
+| `make hbi-cldii` | Agentic setup via `/hbi-install` slash command |
+| `make hbi-cldit` | Agentic interactive setup via `/hbi-install-hil` |
+| `make hbi-cldmm` | Agentic maintenance via `/hbi-maintenance` slash command |
 
 ## GABI Query Tool (interactive and non-interactive)
 

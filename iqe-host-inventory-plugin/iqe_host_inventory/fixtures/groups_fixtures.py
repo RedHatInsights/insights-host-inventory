@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Generator
-from typing import Any
+from typing import Self
 
 import attrs
 import pytest
@@ -21,10 +21,10 @@ class HBIGroupCleanupRegistry:
     _scope: str
     _applications: list[ApplicationHostInventory] = attrs.field(factory=list)
 
-    def __enter__(self) -> HBIGroupCleanupRegistry:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         for host_inventory_app in self._applications:
             host_inventory_app.cleanup.clean_groups(self._scope)
 
@@ -71,9 +71,7 @@ def setup_groups_for_ordering(
     groups_data = []
     for i in range(5):
         for _ in range(2):
-            group_hosts = []
-            for _ in range(i):
-                group_hosts.append(hosts.pop())
+            group_hosts = [hosts.pop() for _ in range(i)]
             groups_data.append(
                 GroupData(name=generate_display_name("hbi-ordering-test"), hosts=group_hosts)
             )
