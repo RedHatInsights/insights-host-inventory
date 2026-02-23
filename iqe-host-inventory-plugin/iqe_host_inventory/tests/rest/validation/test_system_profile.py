@@ -247,7 +247,7 @@ def generate_incorrect_enum_values(correct_value):
 
 CORRECT_DATETIMES = (
     pytest.param(generate_timestamp(datetime.now(UTC) - timedelta(days=7)), id="7 days ago"),
-    pytest.param(generate_timestamp(datetime.now()), id="now"),
+    pytest.param(generate_timestamp(datetime.now(tz=UTC)), id="now"),
     pytest.param(generate_timestamp(), id="random time"),
     "2021-09-02T16:45:08.951Z",
     "2021-09-02T16:45:08.951",

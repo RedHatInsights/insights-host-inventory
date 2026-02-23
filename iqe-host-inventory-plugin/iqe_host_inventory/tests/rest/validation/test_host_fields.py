@@ -59,9 +59,7 @@ def validate_correct_value(host_inventory: ApplicationHostInventory):
         if isinstance(field_value, datetime):
             assert field_value.isoformat() == value
         elif field.name == "facts":
-            converted_facts = []
-            for fact in field_value:
-                converted_facts.append(fact.to_dict())
+            converted_facts = [fact.to_dict() for fact in field_value]
             assert sorted(value) == sorted(converted_facts)
         elif value == []:
             assert field_value is None

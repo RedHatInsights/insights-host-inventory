@@ -83,11 +83,7 @@ def _sort_hosts_by_insights_ids(insights_ids: list[str], hosts: list[HostOut]) -
             f"{len(insights_ids)} != {len(hosts)}"
         )
 
-    sorted_hosts = []
-    for insights_id in insights_ids:
-        sorted_hosts.append(_find_host_by_insights_id(hosts, insights_id))
-
-    return sorted_hosts
+    return [_find_host_by_insights_id(hosts, insights_id) for insights_id in insights_ids]
 
 
 @attr.s

@@ -157,10 +157,10 @@ def _format_endpoint_stats(endpoint: str, entries: list[tuple[float, int | None]
 
     if count_groups:
         lines.append("    Per item count:")
-        for count in sorted(count_groups):
-            lines.append(
-                f"      N={count:<4} {_format_stats(_compute_stats(count_groups[count]))}"
-            )
+        lines.extend(
+            f"      N={count:<4} {_format_stats(_compute_stats(count_groups[count]))}"
+            for count in sorted(count_groups)
+        )
 
     return lines
 

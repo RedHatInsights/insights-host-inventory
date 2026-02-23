@@ -651,7 +651,7 @@ class GroupsAPIWrapper(BaseEntity):
                         f"Couldn't delete groups {group_ids}, because they were not found."
                     )
                 else:
-                    raise err
+                    raise
             finally:
                 group_ids = group_ids[100:]
 
@@ -667,7 +667,7 @@ class GroupsAPIWrapper(BaseEntity):
         :return None
         """
         if is_global_account(self.application):
-            raise Exception("It's not safe to delete all groups on a global account")
+            raise RuntimeError("It's not safe to delete all groups on a global account")
 
         # If the env is stage or prod, or kessel phase 1 is enabled, delete all workspaces first
         if (

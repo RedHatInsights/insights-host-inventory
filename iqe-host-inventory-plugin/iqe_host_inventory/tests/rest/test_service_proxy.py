@@ -29,8 +29,7 @@ def service_proxy_url(application):
     split_hostname[0] = SERVICE_PROXY_HOST
     service_proxy_hostname = ".".join(split_hostname)
     base = f"{inventory_conf.get('scheme')}://{service_proxy_hostname}:{SERVICE_PROXY_PORT}"
-    url = urljoin(base, inventory_conf.get("path"))
-    return url
+    return urljoin(base, inventory_conf.get("path"))
 
 
 @pytest.mark.ephemeral
