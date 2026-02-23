@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import contextlib
@@ -6,6 +5,7 @@ import datetime as dt
 import gzip
 import io
 import logging
+import sys
 import time
 from collections.abc import Generator
 from datetime import datetime
@@ -45,7 +45,7 @@ def get_older_hosts(  # NOQA: C901
     page_info = host_inventory.apis.hosts.get_host_pagination_info(per_page=100)
 
     for page in page_info.pages:
-        for i in range(0, retries):
+        for i in range(retries):
             try:
                 hosts = host_inventory.apis.hosts.get_hosts_response(per_page=100, page=page)
                 break  # 200 response
@@ -185,7 +185,7 @@ def cleanup(obj, yes, dry_run, unit, interval, retries, verbose, exclude, user):
 
         if len(old_hosts) == 0:
             LOGGER.error("No old hosts found")
-            exit(0)
+            sys.exit(0)
 
         old_hosts_to_delete = f"\nOld hosts to delete: {''.join(h for h in old_hosts.values())}"
         if log_level == logging.ERROR:
@@ -195,7 +195,7 @@ def cleanup(obj, yes, dry_run, unit, interval, retries, verbose, exclude, user):
 
         if not yes and not dry_run and not click.confirm("Delete these hosts?"):
             LOGGER.error("Not proceeding.")
-            exit(0)
+            sys.exit(0)
 
         LOGGER.info("Deleting..." if not dry_run else "These hosts would have been deleted.")
         delete_hosts(host_inventory, old_hosts, dry_run=dry_run)

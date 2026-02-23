@@ -71,7 +71,7 @@ def test_export_hosts_add_hosts_during_export(
     export_id = host_inventory_secondary.apis.exports.create_export(wait_for_completion=False)
 
     status = host_inventory_secondary.apis.exports.get_export_status(export_id).status
-    assert status == "pending" or status == "running"
+    assert status in ("pending", "running")
 
     # With a large enough inventory, we encounter timing issues.  It seems HBI's
     # retrieval of data from the db is still in-progress while the adds occur
@@ -107,7 +107,7 @@ def test_export_hosts_delete_hosts_during_export(
     export_id = host_inventory_secondary.apis.exports.create_export(wait_for_completion=False)
 
     status = host_inventory_secondary.apis.exports.get_export_status(export_id).status
-    assert status == "pending" or status == "running"
+    assert status in ("pending", "running")
 
     # With a large enough inventory, we encounter timing issues.  It seems HBI's
     # retrieval of data from the db is still in-progress while the deletes occur

@@ -373,9 +373,7 @@ def test_search_tags_with_staleness_filter(
     }
 
     logger.info("Creating three hosts in different states (fresh, stale and stale_warning)")
-    hosts_data = []
-    for tag in tags.values():
-        hosts_data.append(host_inventory.datagen.create_host_data(tags=[tag]))
+    hosts_data = [host_inventory.datagen.create_host_data(tags=[tag]) for tag in tags.values()]
 
     create_hosts_fresh_stale_stalewarning(
         host_inventory,

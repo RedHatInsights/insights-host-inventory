@@ -154,7 +154,6 @@ def test_graceful_shutdown_api(
             refused_count += 1
             logger.info(f"Request refused for {host_id}, total refused: {refused_count}")
             # Ignore hosts that have requests refused due to inventory api being down
-            pass
 
     logger.info(f"Number of hosts that should have been {request_type}d: {len(affected_host_ids)}")
 

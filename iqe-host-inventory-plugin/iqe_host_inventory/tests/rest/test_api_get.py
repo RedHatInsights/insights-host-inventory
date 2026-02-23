@@ -2,6 +2,7 @@ import json
 import logging
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
@@ -934,7 +935,7 @@ def test_get_hosts_by_updated_start(
       title: Filter hosts by updated_start
     """
     host1 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host2 = host_inventory.kafka.create_host()
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.updated if timestamp == "exact" else time_filter
@@ -968,7 +969,7 @@ def test_get_hosts_by_updated_end(
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.updated if timestamp == "exact" else time_filter
     time_filter_s = time_filter.strftime(time_format)
@@ -993,9 +994,9 @@ def test_get_hosts_by_updated(host_inventory: ApplicationHostInventory, timestam
       title: Filter hosts by combined updated_start and updated_end
     """
     host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_after = host_inventory.kafka.create_host()
 
     time_start = hosts[0].updated if timestamp == "exact" else time_start
@@ -1078,10 +1079,10 @@ def test_get_hosts_by_updated_not_created(host_inventory: ApplicationHostInvento
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     host_inventory.apis.hosts.patch_hosts(host2, display_name=f"{host2.display_name}-updated")
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_inventory.apis.hosts.patch_hosts(host3, display_name=f"{host3.display_name}-updated")
 
     response_hosts = host_inventory.apis.hosts.get_hosts(
@@ -1157,7 +1158,7 @@ def test_get_hosts_by_last_check_in_start(
       title: Filter hosts by last_check_in_start
     """
     host1 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host2 = host_inventory.kafka.create_host()
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.last_check_in if timestamp == "exact" else time_filter
@@ -1191,7 +1192,7 @@ def test_get_hosts_by_last_check_in_end(
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.last_check_in if timestamp == "exact" else time_filter
     time_filter_str = time_filter.strftime(time_format)
@@ -1216,9 +1217,9 @@ def test_get_hosts_by_last_check_in(host_inventory: ApplicationHostInventory, ti
       title: Filter hosts by combined last_check_in_start and last_check_in_end
     """
     host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_after = host_inventory.kafka.create_host()
 
     time_start = hosts[0].last_check_in if timestamp == "exact" else time_start
