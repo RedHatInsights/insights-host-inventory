@@ -448,18 +448,15 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
     # Verify standard groups have correct fields
     assert group1_result["name"] == "group_alpha"
     assert group1_result["ungrouped"] is False
-    assert "host_count" in group1_result
     assert group1_result["host_count"] == 0
 
     assert group2_result["name"] == "group_beta"
     assert group2_result["ungrouped"] is False
-    assert "host_count" in group2_result
     assert group2_result["host_count"] == 0
 
     # Verify ungrouped workspace has correct ungrouped flag
     assert group3_result["name"] == "ungrouped_workspace"
     assert group3_result["ungrouped"] is True
-    assert "host_count" in group3_result
     assert group3_result["host_count"] == 0
 
     # Verify RBAC v2 internal fields are NOT returned (serialization working correctly)
