@@ -168,16 +168,9 @@ def get_group_list_by_id_list_rbac_v2(
     # name: asc (default), host_count: desc, updated: desc
     reverse = order_how.lower() == "desc" if order_how else GROUPS_ORDER_HOW_MAPPING.get(order_by_field) == desc
 
-    # Sort by the requested field
-    if order_by_field == "name":
-        group_list.sort(key=lambda g: g["name"].lower() if g.get("name") else "", reverse=reverse)
-    elif order_by_field == "host_count":
-        group_list.sort(key=lambda g: g.get("host_count", 0), reverse=reverse)
-    elif order_by_field == "updated":
-        group_list.sort(key=lambda g: g.get("updated", ""), reverse=reverse)
-
-    # Secondary sort by id for stable ordering (matches database ORDER BY Group.id)
-    # Note: Python's sort is stable, so we sort by id first, then by the primary field
+    # For stable ordering matching database's ORDER BY primary_field, Group.id:
+    # Sort by id first (tiebreaker), then by primary field.
+    # Python's stable sort preserves id ordering for items with equal primary keys.
     group_list.sort(key=lambda g: g["id"])
     if order_by_field == "name":
         group_list.sort(key=lambda g: g["name"].lower() if g.get("name") else "", reverse=reverse)
