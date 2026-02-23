@@ -8,8 +8,12 @@ from connexion.utils import coerce_type
 
 
 def custom_fields_parser(root_key, key_path, val):
-    """consumes values like ("a",["foo"],["baz,hello","world"])
-    returns (a, {"foo": {"baz": True, "hello": True, "world": True}}}, is_deep_object)
+    """
+    Parse fields[app]=field1,field2 into {app: {field1: True, field2: True}}.
+
+    Examples:
+        fields[advisor]=recommendations,incidents → {"advisor": {"recommendations": True, "incidents": True}}
+        fields[system_profile]=arch,os_kernel_version → {"system_profile": {"arch": True, "os_kernel_version": True}}
     """
     root = {key_path[0]: {}}
     for v in val:
@@ -53,7 +57,11 @@ class customURIParser(OpenAPIURIParser):
             else:
                 resolved_param[k] = values[-1]
 
-            resolved_param[k] = coerce_type(param_defn, resolved_param[k], "parameter", k)
+            # Skip coercion for 'fields' parameter - it uses a custom format that
+            # doesn't match the OpenAPI schema structure (custom_fields_parser transforms
+            # it into a dict format for internal use)
+            if k != "fields":
+                resolved_param[k] = coerce_type(param_defn, resolved_param[k], "parameter", k)
 
         return resolved_param
 

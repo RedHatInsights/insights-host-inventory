@@ -114,10 +114,7 @@ def _host_fields_match(
 
 def _find_facts_by_namespace(host: HostOut, namespace: str) -> dict[str, Any]:
     """Returns host facts in the namespace."""
-    found_facts = []
-    for facts in host.facts:
-        if facts.namespace == namespace:
-            found_facts.append(facts.facts)
+    found_facts = [facts.facts for facts in host.facts if facts.namespace == namespace]
 
     assert len(found_facts) == 1
     return found_facts[0]
@@ -1502,7 +1499,7 @@ class HostsAPIWrapper(BaseEntity):
                         f"Couldn't delete host {host_ids[0]}, because it was not found in HBI."
                     )
                 else:
-                    raise err
+                    raise
             finally:
                 host_ids.pop(0)
 
@@ -1843,7 +1840,7 @@ class HostsAPIWrapper(BaseEntity):
         :return None
         """
         if is_global_account(self.application):
-            raise Exception("It's not safe to delete all hosts on a global account")
+            raise RuntimeError("It's not safe to delete all hosts on a global account")
 
         self.delete_all(confirm_delete_all=True)
 

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
+
+import pytest
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_view_url
@@ -396,3 +399,746 @@ class TestHostViewAppDataEdgeCases:
         result = response_data["results"][0]
         assert "remediations" in result["app_data"]
         assert result["app_data"]["remediations"]["remediations_plans"] == 7
+
+
+class TestHostViewSparseFieldsets:
+    """Test sparse fieldsets functionality for hosts-view endpoint."""
+
+    def test_request_single_app_all_fields(self, api_get, db_create_host):
+        """Request a single app with all its fields."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request only advisor data (all fields)
+        url = build_host_view_url(query="?fields[advisor]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only advisor should be present
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" not in result["app_data"]
+        # All advisor fields should be present
+        assert result["app_data"]["advisor"]["recommendations"] == 5
+        assert result["app_data"]["advisor"]["incidents"] == 2
+
+    def test_request_single_app_specific_fields(self, api_get, db_create_host):
+        """Request specific fields from a single app."""
+        host = db_create_host()
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request only critical_cves from vulnerability
+        url = build_host_view_url(query="?fields[vulnerability]=critical_cves")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert "vulnerability" in result["app_data"]
+        # Only requested fields should be present
+        assert result["app_data"]["vulnerability"] == {"critical_cves": 2}
+        assert "total_cves" not in result["app_data"]["vulnerability"]
+
+    def test_request_multiple_apps(self, api_get, db_create_host):
+        """Request multiple apps at once."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "patch",
+            advisories_rhsa_installable=8,
+            advisories_rhba_installable=4,
+            template_name="test-template",
+        )
+
+        # Request advisor and vulnerability (all fields), but not patch
+        url = build_host_view_url(query="?fields[advisor]=true&fields[vulnerability]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" in result["app_data"]
+        assert "patch" not in result["app_data"]
+
+    def test_request_multiple_specific_fields(self, api_get, db_create_host):
+        """Request multiple specific fields from multiple apps."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+
+        # Request specific fields from both apps
+        url = build_host_view_url(
+            query="?fields[advisor]=recommendations&fields[vulnerability]=critical_cves,total_cves"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only requested fields should be present
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
+        assert set(result["app_data"]["vulnerability"].keys()) == {"critical_cves", "total_cves"}
+        assert result["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert result["app_data"]["vulnerability"]["total_cves"] == 10
+
+    def test_request_app_with_no_data_in_db(self, api_get, db_create_host):
+        """Request an app that has no data in DB should return empty for that app."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request vulnerability (all fields) which has no data
+        url = build_host_view_url(query="?fields[vulnerability]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # vulnerability was requested but no data exists
+        assert "vulnerability" not in result["app_data"]
+        # advisor was not requested
+        assert "advisor" not in result["app_data"]
+
+    def test_empty_fields_returns_no_fields(self, api_get, db_create_host):
+        """Per JSON:API spec, empty fields value means no fields should be returned."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Empty value means no fields (per JSON:API spec)
+        url = build_host_view_url(query="?fields[advisor]=")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # advisor key should be present but with empty object
+        assert result["app_data"]["advisor"] == {}
+
+    def test_app_data_true_returns_all_apps(self, api_get, db_create_host):
+        """fields[app_data]=true should return all available app data."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            high_severity_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=1,
+        )
+        db_create_host_app_data(host.id, host.org_id, "remediations", remediations_plans=3)
+
+        url = build_host_view_url(query="?fields[app_data]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # All apps with data should be present
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" in result["app_data"]
+        assert "remediations" in result["app_data"]
+
+    def test_sparse_fields_with_filtering(self, api_get, db_create_host):
+        """Sparse fields should work together with host filtering."""
+        host1 = db_create_host(extra_data={"display_name": "filtered-host.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "other-host.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(host2.id, host2.org_id, "advisor", recommendations=10, incidents=5)
+
+        # Filter by display_name and request specific fields
+        url = build_host_view_url(query="?display_name=filtered-host&fields[advisor]=recommendations")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        result = response_data["results"][0]
+        assert result["display_name"] == "filtered-host.example.com"
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
+
+    def test_invalid_app_name_ignored(self, api_get, db_create_host):
+        """Invalid app name in fields parameter should be gracefully ignored."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request an invalid app name
+        url = build_host_view_url(query="?fields[invalid_app]=something")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Invalid app ignored, returns all apps by default (per design doc)
+        assert "advisor" in result["app_data"]
+        assert "invalid_app" not in result["app_data"]
+
+    def test_invalid_field_returns_empty_for_app(self, api_get, db_create_host):
+        """Valid app with invalid field should return empty object for that app."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request valid app with invalid field
+        url = build_host_view_url(query="?fields[advisor]=nonexistent_field")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # App key is present but empty (no valid fields matched)
+        assert "advisor" in result["app_data"]
+        assert result["app_data"]["advisor"] == {}
+
+    def test_mix_valid_and_invalid_fields(self, api_get, db_create_host):
+        """Mix of valid and invalid fields should return only valid fields."""
+        host = db_create_host()
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        # Request mix of valid and invalid fields
+        url = build_host_view_url(query="?fields[advisor]=recommendations,invalid_field")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        # Only valid field returned
+        assert result["app_data"]["advisor"] == {"recommendations": 5}
+
+
+class TestHostViewSystemProfileFilters:
+    """Test system_profile filtering on the /beta/hosts-view endpoint."""
+
+    @pytest.mark.parametrize(
+        "operator,filter_value,match_a,match_b",
+        [
+            ("eq", "5", True, False),
+            ("ne", "5", False, True),
+            ("gt", "5", False, True),
+            ("gte", "5", True, True),
+            ("lt", "10", True, False),
+            ("lte", "5", True, False),
+        ],
+    )
+    def test_filter_integer_operators(self, api_get, db_create_host, operator, filter_value, match_a, match_b):
+        """Validate all comparison operators on an integer system_profile field."""
+        host_a = db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 5}})
+        host_a_id = str(host_a.id)
+        host_b = db_create_host(extra_data={"system_profile_facts": {"number_of_cpus": 10}})
+        host_b_id = str(host_b.id)
+
+        url = build_host_view_url(query=f"?filter[system_profile][number_of_cpus][{operator}]={filter_value}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert (host_a_id in response_ids) == match_a
+        assert (host_b_id in response_ids) == match_b
+
+    def test_filter_nil_operator(self, api_get, db_create_host):
+        """Filter by nil returns hosts where the field is null."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"host_type": "edge"}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_not_nil_operator(self, api_get, db_create_host):
+        """Filter by not_nil returns hosts where the field is set."""
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {}})
+        nomatch_host_id = str(nomatch_host.id)
+        match_host = db_create_host(extra_data={"system_profile_facts": {"host_type": "edge"}})
+        match_host_id = str(match_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=not_nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_string_field(self, api_get, db_create_host):
+        """Filter by system_profile string field (arch eq)."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"arch": "s390x"}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_boolean_field(self, api_get, db_create_host):
+        """Filter by system_profile boolean field (is_marketplace)."""
+        match_host = db_create_host(extra_data={"system_profile_facts": {"is_marketplace": True}})
+        match_host_id = str(match_host.id)
+        nomatch_host = db_create_host(extra_data={"system_profile_facts": {"is_marketplace": False}})
+        nomatch_host_id = str(nomatch_host.id)
+
+        url = build_host_view_url(query="?filter[system_profile][is_marketplace][eq]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+
+    def test_filter_jsonb_field(self, api_get, db_create_host):
+        """Filter JSONB column (system_purpose) by nil/not_nil."""
+        host_with_sp = db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "system_purpose": {"role": "server", "usage": "Production"},
+                }
+            }
+        )
+        host_with_sp_id = str(host_with_sp.id)
+        host_without_sp = db_create_host(extra_data={"system_profile_facts": {}})
+        host_without_sp_id = str(host_without_sp.id)
+
+        # not_nil should return only the host with system_purpose set
+        url = build_host_view_url(query="?filter[system_profile][system_purpose][eq]=not_nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert host_with_sp_id in response_ids
+        assert host_without_sp_id not in response_ids
+
+        # nil should return only the host without system_purpose
+        url = build_host_view_url(query="?filter[system_profile][system_purpose][eq]=nil")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert host_without_sp_id in response_ids
+        assert host_with_sp_id not in response_ids
+
+    def test_filter_combined_with_display_name(self, api_get, db_create_host):
+        """System profile filter combined with display_name filter."""
+        match_host = db_create_host(
+            extra_data={
+                "display_name": "target-host.example.com",
+                "system_profile_facts": {"arch": "x86_64"},
+            }
+        )
+        match_host_id = str(match_host.id)
+        db_create_host(
+            extra_data={
+                "display_name": "other-host.example.com",
+                "system_profile_facts": {"arch": "x86_64"},
+            }
+        )
+        db_create_host(
+            extra_data={
+                "display_name": "target-host-2.example.com",
+                "system_profile_facts": {"arch": "s390x"},
+            }
+        )
+
+        url = build_host_view_url(query="?display_name=target-host&filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+
+    def test_filter_returns_app_data(self, api_get, db_create_host, db_create_host_app_data):
+        """Filtered results should still include app_data."""
+        host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        url = build_host_view_url(query="?filter[system_profile][arch][eq]=x86_64")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        result = response_data["results"][0]
+        assert "app_data" in result
+        assert result["app_data"]["advisor"]["recommendations"] == 5
+        assert result["app_data"]["advisor"]["incidents"] == 2
+
+    def test_filter_invalid_key_returns_400(self, api_get, db_create_host):
+        """Invalid filter key should return 400."""
+        db_create_host()
+
+        url = build_host_view_url(query="?filter[invalid_key][field]=value")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 400)
+
+
+class TestHostViewAppDataSorting:
+    """Test sorting hosts by application data fields."""
+
+    def test_sort_by_vulnerability_critical_cves_desc(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:critical_cves DESC should order hosts by critical CVE count descending."""
+        # Create hosts with different critical CVE counts
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+        host_mid = db_create_host(extra_data={"display_name": "host-mid.example.com"})
+
+        db_create_host_app_data(host_low.id, host_low.org_id, "vulnerability", critical_cves=2)
+        db_create_host_app_data(host_high.id, host_high.org_id, "vulnerability", critical_cves=10)
+        db_create_host_app_data(host_mid.id, host_mid.org_id, "vulnerability", critical_cves=5)
+
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 3
+
+        # Verify descending order by critical_cves
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 10
+        assert results[1]["app_data"]["vulnerability"]["critical_cves"] == 5
+        assert results[2]["app_data"]["vulnerability"]["critical_cves"] == 2
+
+    def test_sort_by_vulnerability_critical_cves_asc(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:critical_cves ASC should order hosts by critical CVE count ascending."""
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+
+        db_create_host_app_data(host_low.id, host_low.org_id, "vulnerability", critical_cves=2)
+        db_create_host_app_data(host_high.id, host_high.org_id, "vulnerability", critical_cves=10)
+
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert results[1]["app_data"]["vulnerability"]["critical_cves"] == 10
+
+    def test_sort_by_advisor_recommendations_desc(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by advisor:recommendations DESC should order hosts by recommendation count descending."""
+        host_few = db_create_host(extra_data={"display_name": "host-few.example.com"})
+        host_many = db_create_host(extra_data={"display_name": "host-many.example.com"})
+
+        db_create_host_app_data(host_few.id, host_few.org_id, "advisor", recommendations=3)
+        db_create_host_app_data(host_many.id, host_many.org_id, "advisor", recommendations=15)
+
+        url = build_host_view_url(query="?order_by=advisor:recommendations&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["advisor"]["recommendations"] == 15
+        assert results[1]["app_data"]["advisor"]["recommendations"] == 3
+
+    def test_sort_nulls_last_behavior(self, api_get, db_create_host, db_create_host_app_data):
+        """Hosts without app data should appear last when sorting by app fields."""
+        host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
+        db_create_host(extra_data={"display_name": "host-without-data.example.com"})
+
+        # Only create vulnerability data for one host
+        db_create_host_app_data(host_with_data.id, host_with_data.org_id, "vulnerability", critical_cves=5)
+
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        # Host with data should be first, host without data should be last
+        assert results[0]["display_name"] == "host-with-data.example.com"
+        assert results[1]["display_name"] == "host-without-data.example.com"
+        assert "vulnerability" in results[0]["app_data"]
+        # Only check that the sorted field is missing, not that app_data is entirely empty
+        assert "vulnerability" not in results[1]["app_data"]
+
+    def test_sort_nulls_last_asc(self, api_get, db_create_host, db_create_host_app_data):
+        """Hosts without app data should appear last even when sorting ASC."""
+        host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
+        db_create_host(extra_data={"display_name": "host-without-data.example.com"})
+
+        db_create_host_app_data(host_with_data.id, host_with_data.org_id, "vulnerability", critical_cves=5)
+
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        # Host with data should be first (even with ASC), host without data should be last
+        assert results[0]["display_name"] == "host-with-data.example.com"
+        assert results[1]["display_name"] == "host-without-data.example.com"
+
+    def test_sort_nulls_last_with_null_column_value(self, api_get, db_create_host, db_create_host_app_data):
+        """Hosts with an app row but NULL sortable column should sort after non-NULL values (NULLS LAST).
+
+        Distinguishes three cases:
+        1. Host with a non-NULL value in the sorted column
+        2. Host with an app data row but the sorted column is NULL
+        3. Host with no app data row at all
+
+        Both case 2 and 3 should appear after case 1 regardless of sort direction.
+        """
+        host_with_value = db_create_host(extra_data={"display_name": "host-with-value.example.com"})
+        host_null_column = db_create_host(extra_data={"display_name": "host-null-column.example.com"})
+        db_create_host(extra_data={"display_name": "host-no-row.example.com"})
+
+        db_create_host_app_data(host_with_value.id, host_with_value.org_id, "vulnerability", critical_cves=5)
+        # App row exists but critical_cves is not set (defaults to NULL)
+        db_create_host_app_data(host_null_column.id, host_null_column.org_id, "vulnerability")
+
+        # DESC: non-NULL value first, then NULL column and no-row hosts last
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 3
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-with-value.example.com"
+        assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 5
+        # Both NULL-column and no-row hosts should be after the non-NULL host
+        trailing_names = {results[1]["display_name"], results[2]["display_name"]}
+        assert trailing_names == {"host-null-column.example.com", "host-no-row.example.com"}
+
+        # ASC: non-NULL value first, then NULL column and no-row hosts last
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-with-value.example.com"
+        trailing_names = {results[1]["display_name"], results[2]["display_name"]}
+        assert trailing_names == {"host-null-column.example.com", "host-no-row.example.com"}
+
+    def test_sort_by_patch_advisories_rhsa_installable(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by patch:advisories_rhsa_installable should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "patch", advisories_rhsa_installable=20)
+        db_create_host_app_data(host2.id, host2.org_id, "patch", advisories_rhsa_installable=5)
+
+        url = build_host_view_url(query="?order_by=patch:advisories_rhsa_installable&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["patch"]["advisories_rhsa_installable"] == 20
+        assert results[1]["app_data"]["patch"]["advisories_rhsa_installable"] == 5
+
+    def test_sort_by_remediations_plans(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by remediations:remediations_plans should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "remediations", remediations_plans=3)
+        db_create_host_app_data(host2.id, host2.org_id, "remediations", remediations_plans=8)
+
+        url = build_host_view_url(query="?order_by=remediations:remediations_plans&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["remediations"]["remediations_plans"] == 8
+        assert results[1]["app_data"]["remediations"]["remediations_plans"] == 3
+
+    def test_sort_by_compliance_last_scan(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by compliance:last_scan (datetime field) should work correctly."""
+        host_old = db_create_host(extra_data={"display_name": "host-old.example.com"})
+        host_new = db_create_host(extra_data={"display_name": "host-new.example.com"})
+
+        # Create compliance data with different scan times
+        old_scan = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        new_scan = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        db_create_host_app_data(host_old.id, host_old.org_id, "compliance", last_scan=old_scan)
+        db_create_host_app_data(host_new.id, host_new.org_id, "compliance", last_scan=new_scan)
+
+        url = build_host_view_url(query="?order_by=compliance:last_scan&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        # Most recent scan should be first
+        assert results[0]["display_name"] == "host-new.example.com"
+        assert results[1]["display_name"] == "host-old.example.com"
+
+    def test_standard_host_field_sorting_still_works(self, api_get, db_create_host):
+        """Standard host field sorting (display_name) should still work."""
+        db_create_host(extra_data={"display_name": "z-host.example.com"})
+        db_create_host(extra_data={"display_name": "a-host.example.com"})
+
+        url = build_host_view_url(query="?order_by=display_name&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["results"][0]["display_name"] == "a-host.example.com"
+        assert response_data["results"][1]["display_name"] == "z-host.example.com"
+
+    def test_sort_by_malware_last_matches(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by malware:last_matches should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "malware", last_matches=0)
+        db_create_host_app_data(host2.id, host2.org_id, "malware", last_matches=5)
+
+        url = build_host_view_url(query="?order_by=malware:last_matches&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["malware"]["last_matches"] == 5
+        assert results[1]["app_data"]["malware"]["last_matches"] == 0
+
+    def test_sort_default_order_how_is_asc(self, api_get, db_create_host, db_create_host_app_data):
+        """When order_how is not specified, default to ASC for app sort fields."""
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+
+        db_create_host_app_data(host_low.id, host_low.org_id, "vulnerability", critical_cves=2)
+        db_create_host_app_data(host_high.id, host_high.org_id, "vulnerability", critical_cves=10)
+
+        # No order_how specified
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        # Should default to ASC
+        assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert results[1]["app_data"]["vulnerability"]["critical_cves"] == 10
+
+    def test_app_sort_secondary_ordering_for_pagination_stability(
+        self, flask_app, api_get, db_create_host, db_create_host_app_data
+    ):
+        """
+        Hosts with equal app field values should be ordered by modified_on DESC for pagination stability.
+
+        When multiple hosts have the same app data value (e.g., same critical_cves count),
+        the secondary sort by modified_on ensures consistent ordering across paginated requests.
+        """
+        from app.models import Host
+        from app.models.database import db
+
+        base_time = datetime.now(tz=UTC)
+
+        # Create hosts with SAME vulnerability value but different modified_on times
+        host_oldest = db_create_host(extra_data={"display_name": "host-oldest.example.com"})
+        host_middle = db_create_host(extra_data={"display_name": "host-middle.example.com"})
+        host_newest = db_create_host(extra_data={"display_name": "host-newest.example.com"})
+
+        # Update modified_on times directly in the database
+        # Order: oldest modified first, but we want most recently modified first in results
+        with flask_app.app.app_context():
+            db.session.query(Host).filter(Host.id == host_oldest.id).update(
+                {"modified_on": base_time - timedelta(hours=3)}
+            )
+            db.session.query(Host).filter(Host.id == host_middle.id).update(
+                {"modified_on": base_time - timedelta(hours=1)}
+            )
+            db.session.query(Host).filter(Host.id == host_newest.id).update({"modified_on": base_time})
+            db.session.commit()
+
+        # All hosts have the SAME critical_cves count
+        same_cve_count = 5
+        db_create_host_app_data(host_oldest.id, host_oldest.org_id, "vulnerability", critical_cves=same_cve_count)
+        db_create_host_app_data(host_middle.id, host_middle.org_id, "vulnerability", critical_cves=same_cve_count)
+        db_create_host_app_data(host_newest.id, host_newest.org_id, "vulnerability", critical_cves=same_cve_count)
+
+        # Sort by vulnerability:critical_cves - since all values are equal,
+        # secondary sort by modified_on DESC should determine order
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+
+        # All should have same critical_cves value
+        assert all(r["app_data"]["vulnerability"]["critical_cves"] == same_cve_count for r in results)
+
+        # Should be ordered by modified_on DESC (most recent first)
+        assert results[0]["display_name"] == "host-newest.example.com"
+        assert results[1]["display_name"] == "host-middle.example.com"
+        assert results[2]["display_name"] == "host-oldest.example.com"
+
+    def test_app_sort_invalid_order_how_returns_error(self, api_get, db_create_host, db_create_host_app_data):
+        """Invalid order_how value should return 400 error for app field sorting."""
+        host = db_create_host(extra_data={"display_name": "host.example.com"})
+        db_create_host_app_data(host.id, host.org_id, "vulnerability", critical_cves=5)
+
+        # Use invalid order_how value
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves&order_how=down")
+        response_status, _ = api_get(url)
+
+        # Should return 400 error, not silently default to ASC
+        assert_response_status(response_status, 400)
+
+    def test_sort_by_nonexistent_field_returns_error(self, api_get, db_create_host):
+        """Sorting by a non-existent field on a valid app should return 400."""
+        db_create_host(extra_data={"display_name": "host.example.com"})
+
+        # Valid app name, but non-existent field
+        url = build_host_view_url(query="?order_by=vulnerability:nonexistent_field")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 400)
+
+    def test_sort_by_unknown_app_returns_error(self, api_get, db_create_host):
+        """Sorting by an unknown app name should return 400."""
+        db_create_host(extra_data={"display_name": "host.example.com"})
+
+        # Unknown app name
+        url = build_host_view_url(query="?order_by=unknown_app:some_field")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 400)
+
+    def test_sort_by_malformed_app_field_returns_error(self, api_get, db_create_host):
+        """Sorting by a malformed app:field format should return 400."""
+        db_create_host(extra_data={"display_name": "host.example.com"})
+
+        # Malformed format (using hyphen instead of colon)
+        url = build_host_view_url(query="?order_by=vulnerability-critical_cves")
+        response_status, _ = api_get(url)
+
+        # Should fail because it's not a valid app:field format and not a standard host field
+        assert_response_status(response_status, 400)

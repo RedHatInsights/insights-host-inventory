@@ -88,8 +88,6 @@ def enable_kessel_backend_flags(
         )
         _ensure_ungrouped_group_exists(host_inventory)
 
-    return
-
 
 # CLEANUP
 
@@ -1033,27 +1031,26 @@ def setup_ui_hosts_for_catchpoint(
 
     catchpoint_rhel_archive = "rhel-82-vuln-patch-advisor.tar.gz"
     unique_id = "_catchpoint"
-    hosts_data: list = []
     hosts = host_inventory_frontend.apis.hosts.get_hosts(display_name=unique_id)
     if len(hosts) != 0:
-        for host in hosts:
-            hosts_data.append(
-                HostData(
-                    display_name=host.display_name,
-                    subscription_manager_id=host.subscription_manager_id,
-                    tags=[],
-                    base_archive=catchpoint_rhel_archive,
-                )
+        hosts_data = [
+            HostData(
+                display_name=host.display_name,
+                subscription_manager_id=host.subscription_manager_id,
+                tags=[],
+                base_archive=catchpoint_rhel_archive,
             )
+            for host in hosts
+        ]
     else:
         # if no Catchpoint hosts in the account - create new host_data to upload
-        for _ in range(3):
-            hosts_data.append(
-                HostData(
-                    display_name=generate_uuid() + unique_id,
-                    tags=[],
-                    base_archive=catchpoint_rhel_archive,
-                )
+        hosts_data = [
+            HostData(
+                display_name=generate_uuid() + unique_id,
+                tags=[],
+                base_archive=catchpoint_rhel_archive,
             )
+            for _ in range(3)
+        ]
 
     host_inventory_frontend.upload.create_hosts(hosts_data=hosts_data, register_for_cleanup=False)

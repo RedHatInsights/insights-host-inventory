@@ -56,9 +56,8 @@ def filter_tags(host_inventory: ApplicationHostInventory):
 @pytest.fixture
 def setup_string_hosts_for_string_filtering(host_inventory: ApplicationHostInventory):
     def _gen_string(min_l: int, max_l: int) -> str:
-        value = generate_string_of_length(min_l + 10, max_l)
-        value = value.replace("\\", "")  # https://issues.redhat.com/browse/ESSNTL-3918
-        return value
+        # https://issues.redhat.com/browse/ESSNTL-3918
+        return generate_string_of_length(min_l + 10, max_l).replace("\\", "")
 
     def _setup_hosts(field: Field):
         min_len = field.min_len
@@ -210,8 +209,7 @@ def setup_hosts_for_operating_system_filtering(
         hosts_data=hosts_data, cleanup_scope="module"
     )
     tags = host_inventory.apis.hosts.get_host_tags(primary_hosts)
-    for host in primary_hosts:
-        sorted_tags.append(tags[host.id])
+    sorted_tags.extend(tags[host.id] for host in primary_hosts)
 
     # Create hosts in the secondary account
     hosts_data = []
@@ -226,8 +224,7 @@ def setup_hosts_for_operating_system_filtering(
         hosts_data=hosts_data, cleanup_scope="module"
     )
     tags = host_inventory_secondary.apis.hosts.get_host_tags(secondary_hosts)
-    for host in secondary_hosts:
-        sorted_tags.append(tags[host.id])
+    sorted_tags.extend(tags[host.id] for host in secondary_hosts)
 
     return primary_hosts + secondary_hosts, sorted_tags
 
