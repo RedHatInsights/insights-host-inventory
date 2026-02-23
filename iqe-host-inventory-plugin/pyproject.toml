@@ -87,11 +87,15 @@ lint.extend-ignore = [
 ]
 lint.per-file-ignores."iqe_host_inventory_api*/*.py" = [
   "B904",
+  "BLE001",
   "C901",
   "E501",
   "E721",
   "FURB103",
   "FURB171",
+  "PERF102",
+  "PERF401",
+  "PLR1704",
   "RUF001",
   "RUF002",
   "RUF005",
@@ -100,11 +104,17 @@ lint.per-file-ignores."iqe_host_inventory_api*/*.py" = [
   "RUF036",
   "RUF039",
   "RUF052",
+  "S110",
   "SIM101",
   "SIM105",
   "SIM108",
+  "TRY002",
+  "TRY004",
+  "TRY201",
+  "TRY203",
   "UP042",
   "UP046",
+  "YTT202",
 ]
 lint.extend-safe-fixes = [
   "C402",

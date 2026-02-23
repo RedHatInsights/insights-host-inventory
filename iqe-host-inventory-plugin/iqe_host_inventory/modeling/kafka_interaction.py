@@ -313,13 +313,10 @@ def _sort_created_hosts(
         # This should never happen, I need it for mypy to be happy
         raise ValueError("This field doesn't have a name")
 
-    created_hosts = []
-    for host_data in hosts_data:
-        created_hosts.append(
-            _find_host_by_field(host_msgs, field_to_match, host_data[field_to_match.name])
-        )
-
-    return created_hosts
+    return [
+        _find_host_by_field(host_msgs, field_to_match, host_data[field_to_match.name])
+        for host_data in hosts_data
+    ]
 
 
 def _sort_kessel_messages(
@@ -702,8 +699,7 @@ class HBIKafkaActions(BaseEntity):
             messages.append(message)
             if not yet_to_be_found:
                 return messages
-        else:
-            raise KafkaMessageNotFoundError(requested_type, field, yet_to_be_found, found)
+        raise KafkaMessageNotFoundError(requested_type, field, yet_to_be_found, found)
 
     def walk_host_messages(self, *, timeout: int | None = None) -> Iterator[HostMessageWrapper]:
         return self._walk_messages(HostMessageWrapper, timeout=timeout)
@@ -739,8 +735,7 @@ class HBIKafkaActions(BaseEntity):
             messages.append(message)
             if not yet_to_be_found:
                 return _sort_kessel_messages(messages, host_ids)
-        else:
-            raise KafkaMessageNotFoundError(KesselOutboxWrapper, yet_to_be_found, found)
+        raise KafkaMessageNotFoundError(KesselOutboxWrapper, yet_to_be_found, found)
 
     def walk_host_messages_with_value(
         self,

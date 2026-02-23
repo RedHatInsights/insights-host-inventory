@@ -435,9 +435,10 @@ def check_mq_create_or_update_event_host_data(
 def is_uuid(value: str) -> bool:
     try:
         UUID(value)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def encode_identity(identity: dict) -> str:

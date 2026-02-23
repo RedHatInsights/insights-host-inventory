@@ -1,5 +1,6 @@
 import logging
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
@@ -470,7 +471,7 @@ def test_get_tags_by_updated_start(
     """
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host1 = host_inventory.kafka.create_host(host_data=host_data)
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host2 = host_inventory.kafka.create_host(host_data=host_data)
     host_data = host_inventory.datagen.create_host_data_with_tags()
@@ -508,7 +509,7 @@ def test_get_tags_by_updated_end(
     host1 = host_inventory.kafka.create_host(host_data=host_data)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host2 = host_inventory.kafka.create_host(host_data=host_data)
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host3 = host_inventory.kafka.create_host(host_data=host_data)
 
@@ -538,10 +539,10 @@ def test_get_tags_by_updated(
     """
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host_before = host_inventory.kafka.create_host(host_data=host_data)
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(3)
     hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host_after = host_inventory.kafka.create_host(host_data=host_data)
 
@@ -633,12 +634,12 @@ def test_get_tags_by_updated_not_created(host_inventory: ApplicationHostInventor
     host1 = host_inventory.kafka.create_host(host_data)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host2 = host_inventory.kafka.create_host(host_data)
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host3 = host_inventory.kafka.create_host(host_data)
 
     host_inventory.apis.hosts.patch_hosts(host2, display_name=f"{host2.display_name}-updated")
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_inventory.apis.hosts.patch_hosts(host3, display_name=f"{host3.display_name}-updated")
 
     response = host_inventory.apis.tags.get_tags_response(
@@ -716,7 +717,7 @@ def test_get_tags_by_last_check_in_start(
     """
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host1 = host_inventory.kafka.create_host(host_data=host_data)
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host2 = host_inventory.kafka.create_host(host_data=host_data)
     host_data = host_inventory.datagen.create_host_data_with_tags()
@@ -754,7 +755,7 @@ def test_get_tags_by_last_check_in_end(
     host1 = host_inventory.kafka.create_host(host_data=host_data)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host2 = host_inventory.kafka.create_host(host_data=host_data)
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host3 = host_inventory.kafka.create_host(host_data=host_data)
 
@@ -784,10 +785,10 @@ def test_get_tags_by_last_check_in(
     """
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host_before = host_inventory.kafka.create_host(host_data=host_data)
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(3)
     hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_data = host_inventory.datagen.create_host_data_with_tags()
     host_after = host_inventory.kafka.create_host(host_data=host_data)
 
