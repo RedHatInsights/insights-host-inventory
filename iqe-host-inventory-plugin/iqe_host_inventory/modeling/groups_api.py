@@ -572,7 +572,7 @@ class GroupsAPIWrapper(BaseEntity):
             except ApiException as e:
                 if e.status == 404:
                     return []
-                raise e
+                raise
 
         def found_all(response_groups: list[GroupOutWithHostCount]) -> bool:
             found_ids = {group.id for group in response_groups}
