@@ -67,8 +67,6 @@ def in_order(
         "name": compare_names,
         "host_count": compare_hosts_counts,
         "updated": compare_dates,
-        "created": compare_dates,
-        "type": compare_names,
     }
     try:
         comparator_func = sort_funcs[sort_field]
