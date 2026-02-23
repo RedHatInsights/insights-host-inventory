@@ -659,8 +659,8 @@ class TestGetGroupByIDEmptyGroups:
             400,
             (
                 f"{order_by}",
-                "is not one of ['name', 'host_count', 'updated', 'created', 'type']",
-                "'enum': ['name', 'host_count', 'updated', 'created', 'type']",
+                "is not one of ['name', 'host_count', 'updated']",
+                "'enum': ['name', 'host_count', 'updated']",
             ),
         ):
             host_inventory.apis.groups.get_groups_by_id_response(groups, order_by=order_by)
