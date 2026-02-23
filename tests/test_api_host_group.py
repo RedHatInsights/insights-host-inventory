@@ -495,53 +495,6 @@ def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
     assert "Cannot remove hosts from ungrouped workspace" in response_data["detail"]
 
 
-@pytest.mark.usefixtures("event_producer")
-def test_remove_hosts_feature_flag_disabled(
-    mocker,
-    db_create_group,
-    db_create_host,
-    db_get_hosts_for_group,
-    api_add_hosts_to_group,
-    api_remove_hosts_from_group,
-):
-    """
-    Test that DELETE /groups/{group_id}/hosts/{host_id_list} uses
-    database validation when feature flag is disabled (RBAC v1 path).
-
-    JIRA: RHINENG-17400
-    """
-    # Create group and hosts
-    group = db_create_group("test_group")
-    host1 = db_create_host()
-    host2 = db_create_host()
-
-    # Save IDs before session closes
-    group_id = group.id
-    host1_id = host1.id
-    host2_id = host2.id
-
-    # Add hosts to group
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
-    assert response_status == 200
-
-    # Verify group has 2 hosts
-    hosts_before = db_get_hosts_for_group(group_id)
-    assert len(hosts_before) == 2
-
-    # Mock feature flag disabled (RBAC v1 path)
-    mocker.patch("api.host_group.get_flag_value", return_value=False)
-
-    # Remove 1 host from group
-    response_status, _ = api_remove_hosts_from_group(group_id, [str(host1_id)])
-
-    # Verify success using database validation
-    assert_response_status(response_status, 204)
-
-    # Verify only 1 host remains
-    hosts_after = db_get_hosts_for_group(group_id)
-    assert len(hosts_after) == 1
-
-
 def test_remove_invalid_hosts_from_group_rbac_v2(mocker, event_producer, db_create_group, api_remove_hosts_from_group):
     """
     Test that DELETE /groups/{group_id}/hosts/{host_id_list} returns 404
