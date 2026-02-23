@@ -1411,10 +1411,10 @@ components:
       required: false
       description: >-
         Selects which application objects (or sub-fields) should be joined into the host view
-        response. Supply `fields[app_data]` to fetch every supported application object, use
-        `fields[advisor]` to request the entire Advisor object, or specify sub-fields such as
-        `fields[vulnerability][]=critical_cves`. When this parameter is omitted, `app_data`
-        remains empty and no additional joins are performed.
+        response. Use `fields[advisor]=recommendations` to request specific fields, or
+        `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps.
+        When this parameter is omitted, all fields from all applications are returned by default
+        (per JSON:API sparse fieldsets specification).
       style: deepObject
       explode: true
       example:
@@ -1475,7 +1475,6 @@ components:
           - patch:advisories_rhsa_installable
           - patch:packages_installable
           - remediations:remediations_plans
-          - compliance:policies
           - compliance:last_scan
           - malware:last_matches
           - malware:last_scan
@@ -1962,8 +1961,6 @@ components:
           $ref: '#/components/schemas/ComplianceAppData'
         malware:
           $ref: '#/components/schemas/MalwareAppData'
-        image_builder:
-          $ref: '#/components/schemas/ImageBuilderAppData'
       additionalProperties: false
     AdvisorAppData:
       type: object
@@ -2085,95 +2082,31 @@ components:
           type: string
           format: date-time
           nullable: true
-    ImageBuilderAppData:
-      type: object
-      properties:
-        image_name:
-          type: string
-          nullable: true
-        image_status:
-          type: string
-          nullable: true
     HostViewFieldsObject:
       type: object
-      description: >-
-        Sparse fieldset declaration for application joins. Provide top-level keys that match
-        application names; omit the parameter to skip all application data.
-      additionalProperties: false
-      properties:
-        app_data:
+      description: |
+        Sparse fieldset declaration for application data (per JSON:API specification).
+        When omitted, all fields from all applications are returned by default.
+
+        Usage Examples:
+        - No parameter: Returns all app data (default behavior)
+        - fields[advisor]=true: Returns all fields for advisor
+        - fields[advisor]=recommendations: Returns only specified field
+        - fields[advisor]=recommendations&fields[vulnerability]=critical_cves: Multiple apps
+        - fields[advisor]= (empty): Returns no fields for advisor (per JSON:API spec)
+
+        Available Applications and Fields:
+        - advisor: recommendations, incidents
+        - vulnerability: total_cves, critical_cves, high_severity_cves, cves_with_security_rules, cves_with_known_exploits
+        - patch: advisories_rhsa_applicable, advisories_rhba_applicable, advisories_rhea_applicable, advisories_other_applicable, advisories_rhsa_installable, advisories_rhba_installable, advisories_rhea_installable, advisories_other_installable, packages_applicable, packages_installable, packages_installed, template_name, template_uuid
+        - remediations: remediations_plans
+        - compliance: policies, last_scan
+        - malware: last_status, last_matches, total_matches, last_scan
+      additionalProperties:
+        type: object
+        additionalProperties:
           type: boolean
-          description: Include every available application object when true.
-        advisor:
-          type: array
-          description: Advisor fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - recommendations
-              - incidents
-        vulnerability:
-          type: array
-          description: Vulnerability fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - total_cves
-              - critical_cves
-              - high_severity_cves
-              - cves_with_security_rules
-              - cves_with_known_exploits
-        patch:
-          type: array
-          description: Patch fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - advisories_rhsa_applicable
-              - advisories_rhba_applicable
-              - advisories_rhea_applicable
-              - advisories_other_applicable
-              - advisories_rhsa_installable
-              - advisories_rhba_installable
-              - advisories_rhea_installable
-              - advisories_other_installable
-              - packages_applicable
-              - packages_installable
-              - packages_installed
-              - template_name
-              - template_uuid
-        remediations:
-          type: array
-          description: Remediation Planner fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - remediations_plans
-        compliance:
-          type: array
-          description: Compliance fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - policies
-              - last_scan
-        malware:
-          type: array
-          description: Malware Detection fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - last_status
-              - last_matches
-              - last_scan
-        image_builder:
-          type: array
-          description: Image Builder fields to return; leave empty to include the full object.
-          items:
-            type: string
-            enum:
-              - image_name
-              - image_status
+        description: Map of field names to include. Keys are field names, values are always true.
     HostViewApplicationFilter:
       type: object
       description: >-
@@ -2243,7 +2176,6 @@ components:
         - `remediations:remediations_plans` - Active remediation plans count
 
         **Compliance**
-        - `compliance:policies` - Number of compliance policies
         - `compliance:last_scan` - Last compliance scan timestamp
 
         **Malware**
@@ -2257,7 +2189,6 @@ components:
         - patch:advisories_rhsa_installable
         - patch:packages_installable
         - remediations:remediations_plans
-        - compliance:policies
         - compliance:last_scan
         - malware:last_matches
         - malware:last_scan

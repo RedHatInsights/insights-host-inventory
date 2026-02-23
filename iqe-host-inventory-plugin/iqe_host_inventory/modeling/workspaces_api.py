@@ -456,22 +456,22 @@ class WorkspacesAPIWrapper(BaseEntity):
                 workspace = self.get_workspace_by_id(workspace_id)
                 workspace_details[workspace_id] = workspace
             except ApiException as err:
-                if err.status == 404:
+                if err.status in (403, 404):
                     logger.info(f"Workspace {workspace_id} not found, skipping fetch")
                 else:
-                    raise err
+                    raise
 
         sorted_ids = _sort_workspaces_for_deletion(workspace_details, workspace_ids)
 
         try:
             self.delete_workspaces_raw(sorted_ids)
         except ApiException as err:
-            if err.status == 404:
+            if err.status in (403, 404):
                 logger.info(
                     f"Couldn't delete workspaces {sorted_ids} because they were not found."
                 )
             else:
-                raise err
+                raise
 
     def delete_all_workspaces(self) -> None:
         """Delete all workspaces in the account
@@ -483,7 +483,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         :return None
         """
         if is_global_account(self.application):
-            raise Exception("It's not safe to delete all workspaces on a global account")
+            raise RuntimeError("It's not safe to delete all workspaces on a global account")
 
         workspaces = self.get_workspaces()
         self.delete_workspaces(workspaces)
@@ -559,6 +559,5 @@ class WorkspacesAPIWrapper(BaseEntity):
         request = WorkspacesUpdateWorkspaceRequest(
             name=name, description=description, parent_id=parent_id
         )
-        updated_workspace = self.raw_api.workspaces_update(workspace_id, request)
 
-        return updated_workspace
+        return self.raw_api.workspaces_update(workspace_id, request)

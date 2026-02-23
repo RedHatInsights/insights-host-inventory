@@ -29,6 +29,7 @@ from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
+from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
@@ -3009,6 +3010,43 @@ def test_workspace_mq_delete_non_empty(
     # The hosts should now be in the "ungrouped" group
     assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
     assert db_get_groups_for_host(host_id_list[1])[0].ungrouped
+    assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+
+
+def test_workspace_mq_delete_with_host_deleted_mid_process(
+    workspace_message_consumer_mock,
+    db_create_group_with_hosts,
+    db_get_group_by_id,
+    db_get_hosts_for_group,
+    db_get_groups_for_host,
+):
+    """
+    Test that workspace deletion handles the race condition where a host is deleted
+    between when we query for group members and when we try to add them to ungrouped.
+    This simulates the ForeignKeyViolation error in the issue.
+    """
+    workspace_name = "kessel-deletable-workspace-race"
+    group = db_create_group_with_hosts(workspace_name, 3)
+    workspace_id = str(group.id)
+    hosts = db_get_hosts_for_group(workspace_id)
+    host_id_list = [host.id for host in hosts]
+
+    # Delete one of the hosts before the workspace delete processes
+    # This simulates the race condition where the host is deleted mid-process
+    host_to_delete = hosts[1]
+    db.session.delete(host_to_delete)
+    db.session.commit()
+
+    message = generate_kessel_workspace_message("delete", workspace_id, workspace_name)
+    # This should not raise a ForeignKeyViolation error
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+
+    # The group should no longer exist
+    assert not db_get_group_by_id(workspace_id)
+
+    # The remaining hosts should now be in the "ungrouped" group
+    assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
+    # host_id_list[1] was deleted, so skip it
     assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
 
 

@@ -19,7 +19,7 @@ coverage.xml
 sonarqube/
 .hermetic_builds/ubi.repo
 
-.claude/
+.claude/hooks/*.log
 
 .vscode/
 .hypothesis/

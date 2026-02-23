@@ -6,6 +6,7 @@ import time
 from collections.abc import Generator
 from collections.abc import Iterable
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
@@ -1665,7 +1666,7 @@ def test_delete_bulk_updated_start(
       title: Delete hosts by updated_start
     """
     host1 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host2 = host_inventory.kafka.create_host()
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.updated if timestamp == "exact" else time_filter
@@ -1699,7 +1700,7 @@ def test_delete_bulk_updated_end(
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.updated if timestamp == "exact" else time_filter
 
@@ -1725,9 +1726,9 @@ def test_delete_bulk_updated(host_inventory: ApplicationHostInventory, timestamp
       title: Delete hosts by combined updated_start and updated_end
     """
     host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_after = host_inventory.kafka.create_host()
 
     time_start = hosts[0].updated if timestamp == "exact" else time_start
@@ -1815,10 +1816,10 @@ def test_delete_bulk_updated_not_created(host_inventory: ApplicationHostInventor
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     host_inventory.apis.hosts.patch_hosts(host2, display_name=f"{host2.display_name}-updated")
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_inventory.apis.hosts.patch_hosts(host3, display_name=f"{host3.display_name}-updated")
 
     host_inventory.apis.hosts.delete_filtered(updated_start=time_start, updated_end=time_end)
@@ -1903,10 +1904,10 @@ def test_delete_bulk_updated_different_account(
         importance: critical
         title: Test DELETE on /hosts with 'updated' parameters doesn't affect different accounts
     """
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     host_primary = host_inventory.kafka.create_host()
     host_secondary = host_inventory_secondary.kafka.create_host()
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
 
     # Check with existing matching host in secondary account
     with host_inventory.apis.hosts.verify_host_count_not_changed():
@@ -1944,7 +1945,7 @@ def test_delete_bulk_last_check_in_start(
       title: Delete hosts by last_check_in_start
     """
     host1 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host2 = host_inventory.kafka.create_host()
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.last_check_in if timestamp == "exact" else time_filter
@@ -1978,7 +1979,7 @@ def test_delete_bulk_last_check_in_end(
     """
     host1 = host_inventory.kafka.create_host()
     host2 = host_inventory.kafka.create_host()
-    time_filter = datetime.now()
+    time_filter = datetime.now(tz=UTC)
     host3 = host_inventory.kafka.create_host()
     time_filter = host2.last_check_in if timestamp == "exact" else time_filter
 
@@ -2004,9 +2005,9 @@ def test_delete_bulk_last_check_in(host_inventory: ApplicationHostInventory, tim
       title: Delete hosts by combined last_check_in_start and last_check_in_end
     """
     host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
     host_after = host_inventory.kafka.create_host()
 
     time_start = hosts[0].last_check_in if timestamp == "exact" else time_start
@@ -2041,10 +2042,10 @@ def test_delete_bulk_last_check_in_different_account(
         importance: critical
         title: Test DELETE on /hosts with 'last_check_in' params doesn't affect other accounts
     """
-    time_start = datetime.now()
+    time_start = datetime.now(tz=UTC)
     host_primary = host_inventory.kafka.create_host()
     host_secondary = host_inventory_secondary.kafka.create_host()
-    time_end = datetime.now()
+    time_end = datetime.now(tz=UTC)
 
     # Check with existing matching host in secondary account
     with host_inventory.apis.hosts.verify_host_count_not_changed():

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import Any
+from typing import Self
 
 import attrs
 import pytest
@@ -16,10 +16,10 @@ class HBICleanupRegistry:
     _scope: str
     _applications: list[ApplicationHostInventory] = attrs.field(factory=list)
 
-    def __enter__(self) -> HBICleanupRegistry:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         for host_inventory_app in self._applications:
             host_inventory_app.cleanup.clean_all(self._scope)
 

@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-flask = "==3.1.2"
+flask = "==3.1.3"
 jsonify = "==0.5"  # Not semver
 requests = "~=2.32.4"
 flask-sqlalchemy = "~=3.1.1"
@@ -41,7 +41,7 @@ confluent-kafka = "==2.13.0"
 kessel-sdk = {version = "~=2.1.0", extras = ["auth"]}
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
-unleashclient = "==6.5.1"
+unleashclient = "==6.5.2"
 rpds-py = "==0.30.0"
 
 [dev-packages]
