@@ -278,6 +278,20 @@ class TestHostAppMessageConsumerMetrics:
         mock_metrics.host_app_data_processing_success.labels.assert_called_with(application="advisor", org_id=org_id)
 
     @patch("app.queue.host_mq.metrics")
+    def test_unicode_error_increments_failure_metric(self, mock_metrics, host_app_consumer):
+        """Test that a unicode error increments host_app_data_failure"""
+        valid_message = create_host_app_message(org_id="test-org", host_id=generate_uuid(), data={})
+        raw = json.dumps(valid_message)
+        # Inject an invalid surrogate pair that will fail in _sanitize_json_object_for_postgres
+        raw = raw.replace("test-org", "test-org-\ud800")
+
+        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        with pytest.raises(UnicodeEncodeError):
+            host_app_consumer.handle_message(raw, headers=headers)
+
+        mock_metrics.host_app_data_failure.labels.assert_called_with(application="advisor", reason="invalid")
+
+    @patch("app.queue.host_mq.metrics")
     def test_schema_validation_error_increments_failure_metric(self, mock_metrics, host_app_consumer):
         """Test that schema validation errors increment host_app_data_failure"""
         message = {}  # Missing required fields
@@ -287,6 +301,7 @@ class TestHostAppMessageConsumerMetrics:
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
         mock_metrics.host_app_data_failure.labels.assert_called_with(application="advisor", reason="invalid")
+        mock_metrics.host_app_data_failure.labels.return_value.inc.assert_called_once()
 
     @patch("app.queue.host_mq.metrics")
     def test_unknown_application_increments_failure_metric(self, mock_metrics, host_app_consumer):
