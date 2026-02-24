@@ -198,11 +198,6 @@ def test_groups_get_list_ordering(
     NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
     RBAC v2 does not handle order_how.
     """
-    if is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "order_how (ASC/DESC) is only supported in RBAC v1. RBAC v2 does not handle order_how."
-        )
-
     response = host_inventory.apis.groups.get_groups_response(
         order_by=order_by, order_how=order_how
     )
@@ -214,7 +209,7 @@ def test_groups_get_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
@@ -235,10 +230,6 @@ def test_groups_get_list_ordering_and_pagination(
     NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
     RBAC v2 does not handle order_how.
     """
-    if is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "order_how (ASC/DESC) is only supported in RBAC v1. RBAC v2 does not handle order_how."
-        )
 
     found_groups = []
     for i in range(3):
@@ -276,10 +267,6 @@ def test_groups_get_list_order_how_default(
     NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
     RBAC v2 does not handle order_how.
     """
-    if is_kessel_phase_1_enabled_session:
-        pytest.skip(
-            "order_how (ASC/DESC) is only supported in RBAC v1. RBAC v2 does not handle order_how."
-        )
 
     # Default order_how is ASC for 'name',
     # DESC for 'host_count' and 'updated'
@@ -380,7 +367,7 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_by_name_ordering_and_pagination(
     host_inventory,

@@ -71,9 +71,8 @@ def in_order(
     try:
         comparator_func = sort_funcs[sort_field]
     except LookupError as e:
-        valid_fields = "name, host_count"
         raise ValueError(
-            f"Valid options for sort_field: [{valid_fields}]. Provided: {sort_field}"
+            f"Valid options for sort_field: [name, host_count, updated]. Provided: {sort_field}"
         ) from e
 
     if last_result is not None:
