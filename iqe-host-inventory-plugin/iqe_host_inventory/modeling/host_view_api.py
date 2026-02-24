@@ -69,19 +69,15 @@ def _build_host_view_query_string(
 
     for key, val in api_kwargs.items():
         if key in _COLLECTION_PARAMS and isinstance(val, (list, tuple)):
-            for v in val:
-                if v is not None:
-                    query_params.append(f"{quote(key)}={quote(str(v))}")
+            query_params.extend(f"{quote(key)}={quote(str(v))}" for v in val if v is not None)
         elif val is not None:
             query_params.append(f"{quote(key)}={quote(str(val))}")
 
     if fields is not None:
-        for f in fields:
-            query_params.append(f"fields{f}")
+        query_params.extend(f"fields{f}" for f in fields)
 
     if filter is not None:
-        for f in filter:
-            query_params.append(f"filter{f}")
+        query_params.extend(f"filter{f}" for f in filter)
 
     return "&".join(query_params)
 
@@ -369,7 +365,7 @@ class HostViewAPIWrapper(BaseEntity):
                     app_name=app_name,
                     **api_kwargs,
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning("get_host_view_app_data failed: %s: %s", type(exc).__name__, exc)
                 return None
 
