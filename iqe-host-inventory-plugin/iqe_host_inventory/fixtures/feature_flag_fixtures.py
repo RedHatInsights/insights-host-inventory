@@ -2,8 +2,6 @@ import logging
 from collections.abc import Generator
 
 import pytest
-from iqe.base.feature_flags.consoledot_proxy import ConsoleDotProxyBackend
-from iqe.base.feature_flags.unleash import UnleashBackend
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -73,8 +71,8 @@ def enable_kessel_phase_1_session(
 
 
 @pytest.fixture(scope="session")
-def is_kessel_phase_1_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
-    return unleash.is_enabled("hbi.api.kessel-phase-1")
+def is_kessel_phase_1_enabled_session(host_inventory: ApplicationHostInventory):
+    return host_inventory.unleash.is_kessel_phase_1_enabled()
 
 
 # Kessel Groups (RBAC v2 workspace support)
@@ -128,5 +126,5 @@ def enable_kessel_groups_session(
 
 
 @pytest.fixture(scope="session")
-def is_kessel_groups_enabled_session(unleash: UnleashBackend | ConsoleDotProxyBackend):
-    return unleash.is_enabled("hbi.api.kessel-groups")
+def is_kessel_groups_enabled_session(host_inventory: ApplicationHostInventory):
+    return host_inventory.unleash.is_kessel_groups_enabled()
