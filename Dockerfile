@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1770627119 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1771908355 AS kafka_build
 
 USER 0
 ADD librdkafka .
