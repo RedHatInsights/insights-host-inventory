@@ -21,7 +21,6 @@ PROMETHEUS_JOB = "remove_null_values_in_workloads_fields_data"
 LOGGER_NAME = "remove_null_values_in_workloads_fields_data"
 RUNTIME_ENVIRONMENT = RuntimeEnvironment.JOB
 SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
-DEFAULT_BATCH_SIZE = int(os.getenv("REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE", 500))
 
 
 def _count_affected_rows(session: Session) -> int:
@@ -107,7 +106,7 @@ def remove_null_values_spf_workloads_fields(session: Session, logger: Logger, co
         config: Application configuration (provides batch size)
         dry_run: If True, only count affected rows without making changes
     """
-    batch_size = getattr(config, "script_chunk_size", DEFAULT_BATCH_SIZE)
+    batch_size = config.script_chunk_size
 
     logger.info("Starting workloads null fields removal job")
     logger.info(f"Batch size: {batch_size}")

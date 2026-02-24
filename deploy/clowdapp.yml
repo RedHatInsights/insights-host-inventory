@@ -1806,8 +1806,10 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE
+          - name: SCRIPT_CHUNK_SIZE
             value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE}
+          - name: SUSPEND_JOB
+            value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB}
           - name: DRY_RUN
             value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN}
         resources:
@@ -2878,6 +2880,9 @@ parameters:
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE
   description: The batch size to use for the remove-null-values-in-workloads-fields-data script.
   value: '500'
+- name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
+  description: Whether to suspend the remove-null-values-in-workloads-fields-data job
+  value: 'true'
 
 
 # =================================================================================
