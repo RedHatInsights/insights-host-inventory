@@ -56,7 +56,6 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
         "test_kessel_host_replication.py",
         "test_kessel_rbac_granular.py",
         "test_kessel_ungrouped.py",
-        "test_groups_add_hosts_rbac_v2.py",
     )
     for item in items:
         if item.parent is not None and item.parent.name in SKIPPED_MODULES:
@@ -83,6 +82,9 @@ def enable_kessel_backend_flags(
     if request.config.getoption("--kessel"):
         host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.kessel_phase_1_flag, enable=True
+        )
+        host_inventory.unleash.toggle_feature_flag(
+            host_inventory.unleash.kessel_groups_flag, enable=True
         )
         _ensure_ungrouped_group_exists(host_inventory)
 
