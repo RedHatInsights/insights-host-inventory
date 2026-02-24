@@ -85,7 +85,7 @@ def check_instant_email(
     assert f"{base_url}/insights/inventory/{host_id}" in email.body
 
 
-@pytest.mark.extended
+@pytest.mark.longrun
 @pytest.mark.usefixtures("setup_stale_notifications")
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
 def test_notifications_e2e_stale(
@@ -98,7 +98,7 @@ def test_notifications_e2e_stale(
         section in the README.
 
         This test can take up to an hour to run and thus should only run in the
-        'extended' pipeline
+        'longrun' pipeline
 
     https://issues.redhat.com/browse/RHINENG-7916
 
@@ -129,7 +129,7 @@ def test_notifications_e2e_stale(
 
 @pytest.mark.skipif(
     "stage" not in os.getenv("ENV_FOR_DYNACONF", "stage_proxy").lower(),
-    reason="Can't filter Prod emails from global account. This test should be moved to extended.",
+    reason="Can't filter Prod emails from global account. This test should be moved to longrun.",
 )
 @pytest.mark.usefixtures("setup_stale_notifications")
 def test_notifications_e2e_stale_digest(

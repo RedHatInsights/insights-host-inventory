@@ -417,7 +417,7 @@ requirements)
 * `cert_auth` - Tests that require certificates for authorization
 * `rbac_dependent` - Tests that require RBAC to be running
 * `service_account` - Tests that require service accounts
-* `extended` - Tests that might run for an extended time
+* `longrun` - Tests that might run for a long time
 
 ## Updating Rest service
 
