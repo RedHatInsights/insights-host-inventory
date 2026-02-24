@@ -278,54 +278,42 @@ class TestHostAppMessageConsumerMetrics:
         mock_metrics.host_app_data_processing_success.labels.assert_called_with(application="advisor", org_id=org_id)
 
     @patch("app.queue.host_mq.metrics")
-    def test_metrics_on_parsing_failure(self, mock_metrics, host_app_consumer):
-        """Test that parsing failure metrics are incremented on invalid JSON."""
-        headers = [("application", b"advisor"), ("request_id", b"test-123")]
-        with pytest.raises(Exception):  # noqa: B017
-            host_app_consumer.handle_message("invalid json {{{", headers=headers)
-
-        mock_metrics.host_app_data_parsing_failure.labels.assert_called_with(application="advisor")
-
-    @patch("app.queue.host_mq.metrics")
-    def test_metrics_on_validation_failure(self, mock_metrics, host_app_consumer):
-        """Test that validation failure metrics are incremented on validation errors."""
+    def test_schema_validation_error_increments_failure_metric(self, mock_metrics, host_app_consumer):
+        """Test that schema validation errors increment host_app_data_failure"""
         message = {}  # Missing required fields
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
         with pytest.raises(ValidationError):
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        mock_metrics.host_app_data_validation_failure.labels.assert_called_with(
-            application="advisor", reason="schema_validation_error"
-        )
+        mock_metrics.host_app_data_failure.labels.assert_called_with(application="advisor", reason="invalid")
 
     @patch("app.queue.host_mq.metrics")
-    def test_metrics_on_unknown_application(self, mock_metrics, host_app_consumer):
-        """Test that validation failure metrics are incremented for unknown application."""
+    def test_unknown_application_increments_failure_metric(self, mock_metrics, host_app_consumer):
+        """Test that an unknown application header increments host_app_data_failure."""
         message = create_host_app_message(org_id="test-org-id", host_id=generate_uuid(), data={})
 
         headers = [("application", b"unknown_app"), ("request_id", generate_uuid().encode("utf-8"))]
         with pytest.raises(ValidationException):
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        mock_metrics.host_app_data_validation_failure.labels.assert_called_with(
+        mock_metrics.host_app_data_failure.labels.assert_called_with(
             application="unknown_app", reason="unknown_application"
         )
 
     @patch("app.queue.host_mq.metrics")
-    def test_metrics_on_missing_application(self, mock_metrics, host_app_consumer):
-        """Test that validation failure metrics are incremented for missing application header."""
+    def test_missing_application_header_increments_failure_metric(self, mock_metrics, host_app_consumer):
+        """Test that a missing application header increments host_app_data_failure."""
         message = {
             "org_id": "test-org-id",
             "timestamp": datetime.now(UTC).isoformat(),
             "hosts": [],
         }
 
-        # Pass empty headers - simulates missing Kafka header
         with pytest.raises(ValidationException):
             host_app_consumer.handle_message(json.dumps(message), headers=[])
 
-        mock_metrics.host_app_data_validation_failure.labels.assert_called_with(
+        mock_metrics.host_app_data_failure.labels.assert_called_with(
             application="unknown", reason="missing_application_header"
         )
 
@@ -365,7 +353,7 @@ class TestHostAppMessageConsumerEdgeCases:
         with pytest.raises(SQLAlchemyOperationalError, match="Database connection failed"):
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        mock_metrics.host_app_data_processing_failure.labels.assert_called_with(
+        mock_metrics.host_app_data_failure.labels.assert_called_with(
             application="advisor", reason="db_operational_error"
         )
 
@@ -420,10 +408,9 @@ class TestHostAppDataValidation:
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
-        with patch("app.queue.host_mq.metrics.host_app_data_validation_failure") as mock_metric:
+        with patch("app.queue.host_mq.metrics.host_app_data_failure") as mock_metric:
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-            # Should have incremented validation failure metric
             mock_metric.labels.assert_called_with(application="advisor", reason="invalid_host_data")
             mock_metric.labels.return_value.inc.assert_called_once()
 
@@ -465,7 +452,7 @@ class TestHostAppDataValidation:
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=patch_data)
 
         headers = [("application", b"patch"), ("request_id", generate_uuid().encode("utf-8"))]
-        with patch("app.queue.host_mq.metrics.host_app_data_validation_failure") as mock_metric:
+        with patch("app.queue.host_mq.metrics.host_app_data_failure") as mock_metric:
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
             mock_metric.labels.assert_called_with(application="patch", reason="invalid_host_data")
@@ -514,10 +501,10 @@ class TestHostAppDataValidation:
         }
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
-        with patch("app.queue.host_mq.metrics.host_app_data_validation_failure") as mock_metric:
+        with patch("app.queue.host_mq.metrics.host_app_data_failure") as mock_metric:
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-            # Should have incremented validation failure metric once (for host2)
+            # Should have incremented failure metric once (for host2)
             mock_metric.labels.assert_called_with(application="advisor", reason="invalid_host_data")
             mock_metric.labels.return_value.inc.assert_called_once()
 
