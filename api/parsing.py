@@ -1,3 +1,4 @@
+import json
 import re
 from urllib.parse import quote
 from urllib.parse import unquote
@@ -11,14 +12,38 @@ def custom_fields_parser(root_key, key_path, val):
     """
     Parse fields[app]=field1,field2 into {app: {field1: True, field2: True}}.
 
+    Also accepts JSON array syntax: fields[app]=["field1","field2"].
+
     Examples:
-        fields[advisor]=recommendations,incidents → {"advisor": {"recommendations": True, "incidents": True}}
-        fields[system_profile]=arch,os_kernel_version → {"system_profile": {"arch": True, "os_kernel_version": True}}
+        fields[advisor]=recommendations,incidents
+            → {"advisor": {"recommendations": True, "incidents": True}}
+        fields[system_profile]=arch,os_kernel_version
+            → {"system_profile": {"arch": True, "os_kernel_version": True}}
+        fields[system_profile]=["arch","os_kernel_version"]
+            → {"system_profile": {"arch": True, "os_kernel_version": True}}
     """
     root = {key_path[0]: {}}
     for v in val:
-        for fields in v.split(","):
-            root[key_path[0]][fields] = True
+        v = v.strip()
+        fields_iterable = None
+
+        if v.startswith("[") and v.endswith("]"):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    fields_iterable = parsed
+            except ValueError:
+                pass
+
+        if fields_iterable is None:
+            fields_iterable = (field.strip() for field in v.split(","))
+
+        for field in fields_iterable:
+            if not isinstance(field, str):
+                field = str(field)
+            field = field.strip()
+            if field:
+                root[key_path[0]][field] = True
     return (root_key, [root], True)
 
 

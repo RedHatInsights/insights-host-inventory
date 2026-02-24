@@ -452,6 +452,12 @@ def build_query_string(
     return "&".join(query_params)
 
 
+def build_query_string_json_array_fields(fields: list[str]) -> str:
+    """Build a fields query using JSON array syntax: fields[system_profile]=["f1","f2"]"""
+    quoted = ",".join(f'"{f}"' for f in fields)
+    return f"fields[system_profile]=[{quoted}]"
+
+
 def set_per_page(
     per_page: int | None, items: Collection[Any], *, item_name: str = "item"
 ) -> int | None:
