@@ -1808,7 +1808,7 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE
             value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE}
-          - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN
+          - name: DRY_RUN
             value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN}
         resources:
           limits:
