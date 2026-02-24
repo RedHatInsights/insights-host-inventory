@@ -42,8 +42,6 @@ def pytest_configure(config):
         "markers", "cert_auth: Tests that require certificates for authorization"
     )
     config.addinivalue_line("markers", "rbac_dependent: Tests that require RBAC to be running")
-    config.addinivalue_line("markers", "service_account: Tests that require service accounts")
-    config.addinivalue_line("markers", "extended: Tests that might run for an extended time")
 
 
 @pytest.fixture(scope="session")
