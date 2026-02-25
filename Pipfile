@@ -35,7 +35,7 @@ segment-analytics-python = "*"
 flask-caching = "*"
 redis = "*"
 setuptools = "~=82.0.0"
-certifi = "~=2026.1.4"
+certifi = "~=2026.2.25"
 ratelimit = "*"
 confluent-kafka = "==2.13.0"
 kessel-sdk = {version = "~=2.1.0", extras = ["auth"]}
