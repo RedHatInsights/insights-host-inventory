@@ -1,5 +1,6 @@
 # mypy: disallow-untyped-defs
 
+import http.client
 import logging
 from collections.abc import Generator
 from copy import deepcopy
@@ -39,6 +40,12 @@ def pytest_addoption(parser: Parser) -> None:
         default=False,
         help="Enable Kessel feature flags and tests",
     )
+    parser.addoption(
+        "--http-debug",
+        action="store_true",
+        default=False,
+        help="Enable verbose HTTP debug logging for urllib3 and http.client",
+    )
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
@@ -60,6 +67,101 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
     for item in items:
         if item.parent is not None and item.parent.name in SKIPPED_MODULES:
             item.add_marker(skip_kessel)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def enable_http_debug_logging(request: FixtureRequest) -> Generator[None, None, None]:
+    """Enable verbose HTTP logging for debugging connection issues like RemoteDisconnected.
+
+    Usage: pytest --http-debug -s
+
+    This enables DEBUG logging for:
+    - urllib3: Connection pooling, request/response cycles, retries, connection reuse
+    - http.client: Low-level HTTP wire protocol (raw requests/responses)
+    - iqe_host_inventory_api.rest: Response body logging
+    - iqe_host_inventory_api_v7.rest: Response body logging (v7 API client)
+    """
+    if not request.config.getoption("--http-debug", default=False):
+        yield
+        return
+
+    # Create a dedicated handler for HTTP debug output
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+
+    # Enable urllib3 debug logging
+    urllib3_logger = logging.getLogger("urllib3")
+    urllib3_logger.setLevel(logging.DEBUG)
+    urllib3_logger.addHandler(handler)
+
+    # Enable the IQE API client REST module logging (both v1 and v7)
+    rest_logger = logging.getLogger("iqe_host_inventory_api.rest")
+    rest_logger.setLevel(logging.DEBUG)
+    rest_logger.addHandler(handler)
+
+    rest_v7_logger = logging.getLogger("iqe_host_inventory_api_v7.rest")
+    rest_v7_logger.setLevel(logging.DEBUG)
+    rest_v7_logger.addHandler(handler)
+
+    # Enable http.client debug logging (prints directly to stdout)
+    # This shows the raw HTTP wire protocol
+    original_debuglevel = http.client.HTTPConnection.debuglevel
+    http.client.HTTPConnection.debuglevel = 1
+
+    logger.info("HTTP debug logging enabled for urllib3, http.client, and IQE REST clients")
+
+    yield
+
+    # Cleanup
+    urllib3_logger.removeHandler(handler)
+    rest_logger.removeHandler(handler)
+    rest_v7_logger.removeHandler(handler)
+    http.client.HTTPConnection.debuglevel = original_debuglevel
+
+    logger.info("HTTP debug logging disabled")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_robust_http_retries() -> Generator[None, None, None]:
+    """Configure urllib3 with robust retry settings for connection errors.
+
+    This helps mitigate RemoteDisconnected and SSLEOFError issues that occur
+    when the server/load balancer closes idle keep-alive connections.
+
+    The retry configuration:
+    - total=5: Maximum 5 retry attempts
+    - connect=3: Retry up to 3 times on connection errors
+    - read=3: Retry up to 3 times on read errors
+    - backoff_factor=0.5: Exponential backoff (0.5s, 1s, 2s, ...)
+    - raise_on_status=False: Don't raise on HTTP error status codes (let the app handle them)
+    """
+    import urllib3.util.retry
+
+    # Store original default retry
+    original_retry = urllib3.util.retry.Retry.DEFAULT
+
+    # Configure robust retries for connection issues
+    robust_retry = urllib3.util.retry.Retry(
+        total=5,
+        connect=3,
+        read=3,
+        backoff_factor=0.5,
+        raise_on_status=False,
+        # Retry on these HTTP methods (all methods that could have connection issues)
+        allowed_methods=frozenset(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]),
+    )
+
+    # Set as the new default
+    urllib3.util.retry.Retry.DEFAULT = robust_retry
+
+    logger.info("Configured robust HTTP retries: total=5, connect=3, read=3, backoff_factor=0.5")
+
+    yield
+
+    # Restore original default
+    urllib3.util.retry.Retry.DEFAULT = original_retry
 
 
 @pytest.fixture(scope="session", autouse=True)
