@@ -2643,6 +2643,18 @@ def test_custom_fields_parser_query_parameter_parsing():
             ("fields", ["system_profile"], ["os_version,arch,yum_repos"]),
             [{"system_profile": {"os_version": True, "arch": True, "yum_repos": True}}],
         ),
+        (
+            ("fields", ["system_profile"], ['["arch"]']),
+            [{"system_profile": {"arch": True}}],
+        ),
+        (
+            ("fields", ["system_profile"], ['["arch","host_type"]']),
+            [{"system_profile": {"arch": True, "host_type": True}}],
+        ),
+        (
+            ("fields", ["system_profile"], ['["os_version", "arch", "yum_repos"]']),
+            [{"system_profile": {"os_version": True, "arch": True, "yum_repos": True}}],
+        ),
     ):
         root_key, response, is_deep_object = custom_fields_parser(*parser_input)
         assert root_key == parser_input[0]
