@@ -593,9 +593,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         if not application_str:
             logger.error("Missing 'application' in Kafka message headers")
-            metrics.host_app_data_validation_failure.labels(
-                application="unknown", reason="missing_application_header"
-            ).inc()
+            metrics.host_app_data_failure.labels(application="unknown", reason="missing_application_header").inc()
             raise ValidationException("Missing 'application' field in Kafka message headers")
 
         # Convert string to enum with validation
@@ -603,36 +601,18 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             application = ConsumerApplication(application_str)
         except ValueError as e:
             logger.error(f"Unknown application: {application_str}")
-            metrics.host_app_data_validation_failure.labels(
-                application=application_str, reason="unknown_application"
-            ).inc()
+            metrics.host_app_data_failure.labels(application=application_str, reason="unknown_application").inc()
             raise ValidationException(str(e)) from e
 
         initialize_thread_local_storage(request_id)
 
-        try:
-            validated_msg = parse_operation_message(message, HostAppOperationSchema)
-        except (json.JSONDecodeError, UnicodeEncodeError):
-            metrics.host_app_data_parsing_failure.labels(application=application).inc()
-            raise
-        except ValidationError as e:
-            logger.exception(
-                f"Schema validation failed for application {application}",
-                extra={"application": application, "error": str(e)},
-            )
-            metrics.host_app_data_validation_failure.labels(
-                application=application, reason="schema_validation_error"
-            ).inc()
-            raise
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error during validation for application {application}",
-                extra={"application": application, "error": str(e)},
-            )
-            metrics.host_app_data_processing_failure.labels(
-                application=application, reason="unexpected_validation_error"
-            ).inc()
-            raise
+        validated_msg = parse_operation_message(
+            message,
+            HostAppOperationSchema,
+            parsing_time_metric=metrics.host_app_data_message_parsing_time,
+            parsing_failure_metric=metrics.host_app_data_failure,
+            application=application,
+        )
 
         return self.process_message(application, validated_msg)
 
@@ -717,16 +697,14 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                     f"Data validation error for host {host_id} from {application}",
                     extra={"host_id": host_id, "application": application, "errors": e.messages},
                 )
-                metrics.host_app_data_validation_failure.labels(
-                    application=application, reason="invalid_host_data"
-                ).inc()
+                metrics.host_app_data_failure.labels(application=application, reason="invalid_host_data").inc()
                 continue
             except Exception as e:
                 logger.exception(
                     f"Unexpected error validating data for host {host_id} from {application}",
                     extra={"host_id": host_id, "application": application, "error": str(e)},
                 )
-                metrics.host_app_data_validation_failure.labels(
+                metrics.host_app_data_failure.labels(
                     application=application, reason="unexpected_data_validation_error"
                 ).inc()
                 continue
@@ -767,23 +745,21 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 f"Database operational error while upserting host app data for {application}",
                 extra={"application": application, "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(
-                application=application, reason="db_operational_error"
-            ).inc()
+            metrics.host_app_data_failure.labels(application=application, reason="db_operational_error").inc()
             raise
         except IntegrityError as e:
             logger.exception(
                 f"Database integrity error while upserting host app data for {application}",
                 extra={"application": application, "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(application=application, reason="db_integrity_error").inc()
+            metrics.host_app_data_failure.labels(application=application, reason="db_integrity_error").inc()
             raise
         except Exception as e:
             logger.exception(
                 f"Unexpected error while upserting host app data for {application}",
                 extra={"application": application, "org_id": org_id, "error": str(e)},
             )
-            metrics.host_app_data_processing_failure.labels(application=application, reason="unexpected_error").inc()
+            metrics.host_app_data_failure.labels(application=application, reason="unexpected_error").inc()
             raise
 
     def post_process_rows(self) -> None:
@@ -922,11 +898,19 @@ def _sanitize_json_object_for_postgres(json_object):
         return json_object
 
 
+def _inc_parsing_failure(parsing_failure_metric, reason, application=None):
+    if application:
+        parsing_failure_metric.labels(application=application, reason=reason).inc()
+    else:
+        parsing_failure_metric.labels(reason).inc()
+
+
 def parse_operation_message(
     message: str | bytes,
     schema: type[Schema],
     parsing_time_metric=metrics.ingress_message_parsing_time,
     parsing_failure_metric=metrics.ingress_message_parsing_failure,
+    application: str | None = None,
 ):
     """
     Parse and validate an operation message.
@@ -936,6 +920,7 @@ def parse_operation_message(
         schema: The Marshmallow schema to validate against
         parsing_time_metric: Optional Summary metric for timing (default: ingress_message_parsing_time)
         parsing_failure_metric: Optional Counter metric for failures (default: ingress_message_parsing_failure)
+        application: Optional application name to include in failure metric labels
 
     Returns:
         Parsed and validated operation dictionary
@@ -949,7 +934,7 @@ def parse_operation_message(
             logger.exception(
                 "Invalid Unicode sequence in message from message queue", extra={"incoming_message": message}
             )
-            parsing_failure_metric.labels("invalid").inc()
+            _inc_parsing_failure(parsing_failure_metric, "invalid", application)
             raise
 
         try:
@@ -958,11 +943,11 @@ def parse_operation_message(
             logger.error(
                 "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
             )  # logger.error is used to avoid printing out the same traceback twice
-            parsing_failure_metric.labels("invalid").inc()
+            _inc_parsing_failure(parsing_failure_metric, "invalid", application)
             raise
         except Exception:
             logger.exception("Error parsing operation message", extra={"operation": parsed_message})
-            parsing_failure_metric.labels("error").inc()
+            _inc_parsing_failure(parsing_failure_metric, "error", application)
             raise
 
         logger.debug("parsed_message: %s", parsed_operation)
