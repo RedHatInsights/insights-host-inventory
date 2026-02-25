@@ -310,7 +310,7 @@ def serialize_group_without_host_count(group: Group) -> dict:
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "ungrouped": group.ungrouped,
+        "ungrouped": bool(group.ungrouped),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
@@ -318,6 +318,58 @@ def serialize_group_without_host_count(group: Group) -> dict:
 
 def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
+
+
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
+    """
+    Serialize a database Group object with host count.
+
+    Args:
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": bool(group.ungrouped),
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
+    }
+
+
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize an RBAC v2 workspace dictionary with host count.
+
+    Args:
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
+
+    Returns:
+        Dictionary containing serialized workspace data with host_count
+    """
+    # Parse and re-serialize datetime fields to ensure consistent format with DB groups
+    # RBAC v2 returns ISO strings, we normalize them to match DB serialization format
+    created_dt = _deserialize_datetime(workspace.get("created")) if workspace.get("created") else None
+    updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
+
+    return {
+        "id": serialize_uuid(workspace["id"]),
+        "org_id": org_id,
+        "account": workspace.get("account") or None,
+        "name": workspace.get("name"),
+        "ungrouped": workspace.get("type") == "ungrouped",
+        "created": _serialize_datetime(created_dt) if created_dt else "",
+        "updated": _serialize_datetime(updated_dt) if updated_dt else "",
+        "host_count": host_count,
+    }
 
 
 def serialize_host_system_profile(host):
