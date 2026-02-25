@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC
+from datetime import datetime
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -14,6 +15,8 @@ from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
 from app.models import db
+from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
@@ -21,6 +24,8 @@ from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
 from tests.helpers.api_utils import create_reporter_data
 from tests.helpers.outbox_utils import wait_for_all_events
+from tests.helpers.test_utils import USER_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
 
 CUSTOM_STALENESS_DELETE = {
@@ -552,3 +557,109 @@ def test_rhsm_only_hosts_get_far_future_timestamp_in_sql_queries(
 
     assert rhsm_only_host_id not in {h["id"] for h in stale_hosts["results"]}
     assert rhsm_only_host_id not in {h["id"] for h in stale_warning_hosts["results"]}
+
+
+def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
+    """Test that the per-reporter staleness serialization works with the datetime string format."""
+    with flask_app.app.app_context():
+        last_check_in_str = "2024-06-15T10:00:00+00:00"
+        host = Host(
+            subscription_manager_id=generate_uuid(),
+            reporter="puptoo",
+            stale_timestamp=datetime.now(UTC),
+            org_id=USER_IDENTITY["org_id"],
+        )
+        host.per_reporter_staleness = {"puptoo": last_check_in_str}
+        staleness = get_sys_default_staleness()
+        st = staleness_timestamps()
+
+        result = _serialize_per_reporter_staleness(host, staleness, st)
+
+        puptoo = result["puptoo"]
+        assert isinstance(puptoo, dict)
+        assert puptoo["last_check_in"] == last_check_in_str
+        assert "stale_timestamp" in puptoo
+        assert "stale_warning_timestamp" in puptoo
+        assert "culled_timestamp" in puptoo
+
+
+def test_serialize_per_reporter_staleness_stay_fresh_forever_string_format(flask_app):
+    """
+    When should_host_stay_fresh_forever(host) is True and per_reporter_staleness uses string format,
+    the output has far-future timestamps.
+    """
+    with flask_app.app.app_context():
+        last_check_in_str = "2024-06-15T10:00:00+00:00"
+        host = Host(
+            subscription_manager_id=generate_uuid(),
+            reporter="rhsm-system-profile-bridge",
+            stale_timestamp=datetime.now(UTC),
+            org_id=USER_IDENTITY["org_id"],
+        )
+        host.per_reporter_staleness = {"rhsm-system-profile-bridge": last_check_in_str}
+        staleness = get_sys_default_staleness()
+        st = staleness_timestamps()
+
+        result = _serialize_per_reporter_staleness(host, staleness, st)
+
+        bridge = result["rhsm-system-profile-bridge"]
+        assert isinstance(bridge, dict)
+        assert bridge["last_check_in"] == last_check_in_str
+        far_future_str = FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+        assert bridge["stale_timestamp"] == far_future_str
+        assert bridge["stale_warning_timestamp"] == far_future_str
+        assert bridge["culled_timestamp"] == far_future_str
+
+
+def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
+    """Test that per_reporter_staleness with a datetime object (not string) serializes correctly."""
+    with flask_app.app.app_context():
+        last_check_in_dt = datetime(2024, 6, 15, 10, 0, 0, tzinfo=UTC)
+        host = Host(
+            subscription_manager_id=generate_uuid(),
+            reporter="puptoo",
+            stale_timestamp=datetime.now(UTC),
+            org_id=USER_IDENTITY["org_id"],
+        )
+        host.per_reporter_staleness = {"puptoo": last_check_in_dt}
+        staleness = get_sys_default_staleness()
+        st = staleness_timestamps()
+
+        result = _serialize_per_reporter_staleness(host, staleness, st)
+
+        puptoo = result["puptoo"]
+        assert isinstance(puptoo, dict)
+        assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
+        assert "stale_timestamp" in puptoo
+        assert "stale_warning_timestamp" in puptoo
+        assert "culled_timestamp" in puptoo
+
+
+def test_serialize_per_reporter_staleness_mixed_formats(flask_app):
+    """One reporter uses old format (dict), another uses new format (string); both serialize correctly."""
+    with flask_app.app.app_context():
+        host = Host(
+            subscription_manager_id=generate_uuid(),
+            reporter="puptoo",
+            stale_timestamp=datetime.now(UTC),
+            org_id=USER_IDENTITY["org_id"],
+        )
+        host.per_reporter_staleness = {
+            "puptoo": {
+                "last_check_in": "2024-06-15T10:00:00+00:00",
+                "check_in_succeeded": True,
+            },
+            "yupana": "2024-06-16T12:00:00+00:00",
+        }
+        staleness = get_sys_default_staleness()
+        st = staleness_timestamps()
+
+        result = _serialize_per_reporter_staleness(host, staleness, st)
+
+        puptoo = result["puptoo"]
+        assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"
+        assert "stale_timestamp" in puptoo and "culled_timestamp" in puptoo
+
+        yupana = result["yupana"]
+        assert yupana["last_check_in"] == "2024-06-16T12:00:00+00:00"
+        assert "stale_timestamp" in yupana and "culled_timestamp" in yupana

@@ -695,32 +695,79 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    for reporter in host.per_reporter_staleness:
-        # For hosts that should stay fresh forever, use far-future timestamps
-        if should_host_stay_fresh_forever(host):
-            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-        else:
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_delete"],
-            )
+def _normalize_per_reporter_value(value):
+    """
+    Normalize a per-reporter value into a canonical dict.
 
-        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
-        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
-        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
+    Accepts:
+      - Old format: {"last_check_in": <str>, ...}
+      - New format: <dt or str> (the last_check_in itself)
+
+    Returns a dict with:
+      - "last_check_in": datetime
+
+      - plus any extra keys from the old format
+    """
+    if isinstance(value, dict):
+        raw = value.get("last_check_in")
+        dt = _deserialize_datetime(raw) if isinstance(raw, str) else raw
+        return {
+            **value,
+            "last_check_in": dt,
+        }
+    # New format: value is last_check_in
+    dt = _deserialize_datetime(value) if isinstance(value, str) else value
+    return {
+        "last_check_in": dt,
+    }
+
+
+def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever):
+    """Return stale/stale_warning/culled timestamps; use far-future if forever is True."""
+    if forever:
+        return {
+            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+        }
+    return {
+        "stale_timestamp": staleness_timestamps.stale_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale"]
+        ),
+        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale_warning"]
+        ),
+        "culled_timestamp": staleness_timestamps.culled_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_delete"]
+        ),
+    }
+
+
+def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+    """
+    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
+    stale_warning_timestamp, and culled_timestamp.
+
+    Supports two input formats per reporter:
+    - Old format: value is a dict with "last_check_in" (string)
+    - New format: value is the last_check_in string itself
+    """
+    forever = should_host_stay_fresh_forever(host)
+
+    for reporter, value in host.per_reporter_staleness.items():
+        normalized = _normalize_per_reporter_value(value)
+        last_check_in_dt = normalized["last_check_in"]
+
+        ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
+
+        serialized = {
+            **normalized,
+            "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
+            "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
+            "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
+            "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        }
+        host.per_reporter_staleness[reporter] = serialized
 
     return host.per_reporter_staleness
 
