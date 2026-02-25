@@ -145,23 +145,29 @@ def test_patch_group_existing_name_different_org(
 def test_patch_group_hosts_from_different_group(
     db_create_group_with_hosts, api_patch_group, db_get_hosts_for_group, event_producer, mocker
 ):
+    """Patching a group's host_ids to include a host from another group should move that host."""
     mocker.patch.object(event_producer, "write_event")
-    # Create 2 groups
+    # Create 2 groups: existing_group has 3 hosts, new_group has 1 host
     group_id = db_create_group_with_hosts("existing_group", 3).id
     host_to_move_id = str(db_get_hosts_for_group(group_id)[0].id)
     new_id = db_create_group_with_hosts("new_group", 1).id
 
     patch_doc = {"host_ids": [host_to_move_id]}
 
-    response_status, response_body = api_patch_group(new_id, patch_doc)
+    response_status, _ = api_patch_group(new_id, patch_doc)
 
-    # There's already a group with that name, so we should get an HTTP 400.
-    # Make sure the host ID at fault is mentioned in the response.
-    assert_response_status(response_status, 400)
-    assert str(host_to_move_id) in response_body["detail"]
+    # Moving a host between groups is now allowed; expect 200.
+    assert_response_status(response_status, 200)
 
-    # Make sure no events got produced
-    assert event_producer.write_event.call_count == 0
+    # Host should now be in new_group only; existing_group should have the other 2
+    new_group_host_ids = [str(h.id) for h in db_get_hosts_for_group(new_id)]
+    existing_group_host_ids = [str(h.id) for h in db_get_hosts_for_group(group_id)]
+    assert new_group_host_ids == [host_to_move_id]
+    assert host_to_move_id not in existing_group_host_ids
+    assert len(existing_group_host_ids) == 2
+
+    # Events for the host moved into new_group and for the host removed from new_group (to ungrouped)
+    assert event_producer.write_event.call_count == 2
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer")
