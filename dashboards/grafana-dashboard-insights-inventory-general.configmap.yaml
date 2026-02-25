@@ -5171,7 +5171,7 @@ data:
           "pluginVersion": "11.6.3",
           "targets": [
             {
-              "expr": "sum(increase(inventory_host_app_data_parsing_failures_total[$__range]))",
+              "expr": "sum(increase(inventory_host_app_data_failures_total[$__range]))",
               "interval": "5m",
               "refId": "A",
               "datasource": {
@@ -5256,7 +5256,7 @@ data:
           "pluginVersion": "11.6.3",
           "targets": [
             {
-              "expr": "sum(increase(inventory_host_app_data_validation_failures_total[$__range]))",
+              "expr": "sum(increase(inventory_host_app_data_failures_total{reason=~\"invalid_host_data|unexpected_data_validation_error\"}[$__range]))",
               "interval": "5m",
               "refId": "A",
               "datasource": {
@@ -5364,7 +5364,7 @@ data:
           "pluginVersion": "11.6.3",
           "targets": [
             {
-              "expr": "sum(rate({__name__=~\"inventory_host_app_data_(processing_successes|parsing_failures|validation_failures|processing_failures)_total\"}[5m])) by (application)",
+              "expr": "sum(rate({__name__=~\"inventory_host_app_data_(processing_successes|failures)_total\"}[5m])) by (application)",
               "interval": "1m",
               "legendFormat": "{{topic}}",
               "refId": "A",

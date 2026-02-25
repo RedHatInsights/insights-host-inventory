@@ -6,6 +6,7 @@ from api import metrics
 from api.group_query import get_filtered_group_list_db
 from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
+from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.instrumentation import log_get_group_list_failed
@@ -64,6 +65,6 @@ def get_resource_type_groups_list(
         flask.abort(400, str(e))
 
     log_get_group_list_succeeded(logger, group_list)
-    return flask_json_response(
-        build_paginated_resource_list_response(total, page, per_page, [serialize_group(group) for group in group_list])
-    )
+    org_id = get_current_identity().org_id
+    serialized_groups = [serialize_group(group, org_id) for group in group_list]
+    return flask_json_response(build_paginated_resource_list_response(total, page, per_page, serialized_groups))

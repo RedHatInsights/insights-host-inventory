@@ -173,9 +173,7 @@ class HBIApis(BaseEntity):
         self.request_times[endpoint].append(elapsed)
 
     @contextmanager
-    def measure_time(
-        self, endpoint: str, *, count: int | None = None
-    ) -> Generator[None, None, None]:
+    def measure_time(self, endpoint: str, *, count: int | None = None) -> Generator[None]:
         label = endpoint if count is None else f"{endpoint}; {count}"
         start = time.monotonic()
         try:

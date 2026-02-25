@@ -89,7 +89,7 @@ def add_host(
         matched_host = find_existing_host(identity, canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [serialize_group(group)]
+    input_host.groups = [serialize_group(group, identity.org_id)]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
@@ -401,44 +401,6 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_by_group_id(group_id: str, org_id: str) -> int:
-    """
-    Get count of non-culled hosts in a group by group ID.
-
-    This is a convenience function for when you have a group_id string
-    (e.g., from RBAC v2 workspace) and don't want to fetch the Group object.
-
-    Args:
-        group_id: UUID of the group/workspace as string
-        org_id: Organization ID
-
-    Returns:
-        int: Count of non-culled hosts in the group
-    """
-    query = (
-        db.session.query(Host)
-        .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group_id, HostGroupAssoc.org_id == org_id)
-        .group_by(Host.id, Host.org_id)
-    )
-
-    return find_non_culled_hosts(query).count()
-
-
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    """
-    Get count of non-culled hosts in a group.
-
-    Args:
-        group: Group object
-        org_id: Organization ID
-
-    Returns:
-        int: Count of non-culled hosts in the group
-    """
-    return get_non_culled_hosts_count_by_group_id(str(group.id), org_id)
-
-
 def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     """
     Get host counts for multiple groups in a single efficient batch query.
@@ -458,7 +420,6 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
         counts = get_host_counts_batch('org123', ['uuid1', 'uuid2', 'uuid3'])
         # Returns: {'uuid1': 150, 'uuid2': 0, 'uuid3': 45}
     """
-
     if not group_ids:
         return {}
 
@@ -481,6 +442,95 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     count_map.update({str(gid): count for gid, count in results})
 
     return count_map
+
+
+def get_group_ids_ordered_by_host_count(
+    org_id: str,
+    per_page: int,
+    page: int,
+    order_how: str | None = None,
+) -> tuple[list[str], int]:
+    """
+    Get group IDs ordered by host count with pagination (for RBAC v2 workspaces).
+
+    This is optimized for the scenario where you want to order groups by host_count
+    without any filters. The database does the ordering and pagination efficiently.
+
+    NOTE: This function includes groups with 0 hosts (empty groups) to maintain
+    parity with RBAC v1 behavior.
+
+    Args:
+        org_id: Organization ID
+        per_page: Number of results per page
+        page: Page number (1-based)
+        order_how: Sort direction ('ASC' or 'DESC'), defaults to 'DESC'
+
+    Returns:
+        Tuple of:
+        - List of group_ids for the requested page, ordered by host_count
+        - Total count of all groups in the organization (including empty groups)
+
+    Example:
+        group_ids, total = get_group_ids_ordered_by_host_count('org123', 100, 1, 'DESC')
+        # group_ids: ['uuid5', 'uuid2', ...] (100 IDs with highest counts, including empty groups)
+        # total: 5000 (all groups, including empty ones)
+    """
+    from sqlalchemy import desc
+    from sqlalchemy import func
+
+    # Get total count of ALL groups (including those with 0 hosts)
+    # Query from Group table, not HostGroupAssoc, to include empty groups
+    total = db.session.query(func.count(Group.id)).filter(Group.org_id == org_id).scalar() or 0
+
+    # Query to get group_ids ordered by host count
+    # Start from Group table with LEFT OUTER JOINs to include groups with 0 hosts
+    # Build staleness filter that includes NULL hosts (groups with no hosts)
+    host_staleness_states_filters = HostStalenessStatesDbFilters()
+
+    query = (
+        db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))
+        .outerjoin(
+            HostGroupAssoc,
+            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
+        )
+        .outerjoin(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(Group.org_id == org_id)
+        # Include groups with no hosts (Host.id IS NULL) OR groups with non-culled hosts
+        # This ensures empty groups still appear in results with host_count = 0
+        .filter(or_(Host.id.is_(None), not_(host_staleness_states_filters.culled())))
+        .group_by(Group.id)
+    )
+
+    # Order by host count (default DESC for host_count ordering)
+    # Groups with 0 hosts will have host_count = 0
+    query = query.order_by("host_count") if order_how == "ASC" else query.order_by(desc("host_count"))
+
+    # Apply pagination
+    offset = (page - 1) * per_page
+    query = query.limit(per_page).offset(offset)
+
+    # Execute query
+    results = query.all()
+
+    # Extract just the group_ids
+    group_ids = [str(gid) for gid, count in results]
+
+    return group_ids, total
+
+
+def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+    """
+    Get count of non-culled hosts in a group.
+
+    Args:
+        group: Group object
+        org_id: Organization ID
+
+    Returns:
+        int: Count of non-culled hosts in the group
+    """
+    counts = get_host_counts_batch(org_id, [str(group.id)])
+    return counts.get(str(group.id), 0)
 
 
 # Ensures that the query is filtered by org_id

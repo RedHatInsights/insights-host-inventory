@@ -310,7 +310,7 @@ def serialize_group_without_host_count(group: Group) -> dict:
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "ungrouped": group.ungrouped,
+        "ungrouped": bool(group.ungrouped),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
@@ -320,66 +320,56 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
-def serialize_workspace_without_host_count(workspace: dict, identity) -> dict:
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
     """
-    Serialize a workspace object from RBAC v2 API to group format.
-
-    Transforms workspace dict to match the group schema expected by the API,
-    handling field mappings and injecting missing fields.
-
-    Field Mappings:
-    - id: Direct copy (UUID)
-    - name: Direct copy (string)
-    - org_id: Injected from identity (not in workspace response)
-    - account: Injected from identity (not in workspace response)
-    - ungrouped: Derived from workspace "type" field ("ungrouped-hosts" -> True)
-    - created: Direct copy (datetime)
-    - updated: Renamed from workspace "modified" field
-    - parent_id: Included if present (extra field)
-    - description: Included if present (extra field)
-    - type: Included if present (extra field)
+    Serialize a database Group object with host count.
 
     Args:
-        workspace: Workspace dict from RBAC v2 API
-        identity: Current identity object (provides org_id and account_number)
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
 
     Returns:
-        dict: Serialized workspace in group format
+        Dictionary containing serialized group data with host_count
     """
-    serialized = {
-        "id": workspace["id"],
-        "name": workspace["name"],
-        "org_id": identity.org_id,
-        "account": identity.account_number,
-        "ungrouped": workspace.get("type") == "ungrouped-hosts",
-        "created": workspace["created"],
-        "updated": workspace.get("modified", workspace["created"]),  # Rename "modified" -> "updated"
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": bool(group.ungrouped),
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
     }
 
-    # Include extra workspace-specific fields if present
-    if "parent_id" in workspace:
-        serialized["parent_id"] = workspace["parent_id"]
-    if "description" in workspace:
-        serialized["description"] = workspace["description"]
-    if "type" in workspace:
-        serialized["type"] = workspace["type"]
 
-    return serialized
-
-
-def serialize_workspace_with_host_count(workspace: dict, identity, host_count: int) -> dict:
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
     """
-    Serialize a workspace object with host count.
+    Serialize an RBAC v2 workspace dictionary with host count.
 
     Args:
-        workspace: Workspace dict from RBAC v2 API
-        identity: Current identity object (provides org_id and account_number)
-        host_count: Number of non-culled hosts in this workspace
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
 
     Returns:
-        dict: Serialized workspace with host_count field
+        Dictionary containing serialized workspace data with host_count
     """
-    return {**serialize_workspace_without_host_count(workspace, identity), "host_count": host_count}
+    # Parse and re-serialize datetime fields to ensure consistent format with DB groups
+    # RBAC v2 returns ISO strings, we normalize them to match DB serialization format
+    created_dt = _deserialize_datetime(workspace.get("created")) if workspace.get("created") else None
+    updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
+
+    return {
+        "id": serialize_uuid(workspace["id"]),
+        "org_id": org_id,
+        "account": workspace.get("account") or None,
+        "name": workspace.get("name"),
+        "ungrouped": workspace.get("type") == "ungrouped",
+        "created": _serialize_datetime(created_dt) if created_dt else "",
+        "updated": _serialize_datetime(updated_dt) if updated_dt else "",
+        "host_count": host_count,
+    }
 
 
 def serialize_host_system_profile(host):
