@@ -163,7 +163,7 @@ def get_group_list_by_id_list_rbac_v2(
 
     # Serialize with pre-fetched host counts
     group_list = [
-        serialize_rbac_workspace_with_host_count(workspace, host_counts.get(workspace["id"], 0), identity)
+        serialize_rbac_workspace_with_host_count(workspace, identity.org_id, host_counts.get(workspace["id"], 0))
         for workspace in workspaces
     ]
 
