@@ -5,6 +5,7 @@ metadata:
 
 import pytest
 
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
@@ -92,7 +93,7 @@ class TestRBACGroupsCertAuth:
         """
         group = rbac_cert_auth_setup_resources[1][0]
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin_cert_auth.apis.groups.delete_groups(
                 group, wait_for_deleted=False
             )

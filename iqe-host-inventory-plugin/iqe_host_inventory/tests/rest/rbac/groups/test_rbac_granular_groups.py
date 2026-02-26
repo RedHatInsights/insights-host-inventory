@@ -14,6 +14,7 @@ from pytest_lazy_fixtures import lf
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -471,7 +472,7 @@ class TestRBACGranularGroupsWritePermission:
         """
         group = rbac_setup_resources_for_granular_rbac[1][2]
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
 
         host_inventory.apis.groups.verify_not_deleted(group)
@@ -550,7 +551,7 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         """
         group = rbac_setup_resources_for_granular_rbac[1][0]
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
 
         host_inventory.apis.groups.verify_not_deleted(group, retries=1)

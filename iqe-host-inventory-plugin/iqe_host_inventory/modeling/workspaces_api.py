@@ -27,6 +27,7 @@ from iqe_rbac_v2_api import WorkspacesWorkspaceTypesQueryParam
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import is_global_account
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import accept_when
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 
@@ -456,7 +457,7 @@ class WorkspacesAPIWrapper(BaseEntity):
                 workspace = self.get_workspace_by_id(workspace_id)
                 workspace_details[workspace_id] = workspace
             except ApiException as err:
-                if err.status in (403, 404):
+                if err.status in FORBIDDEN_OR_NOT_FOUND:
                     logger.info(f"Workspace {workspace_id} not found, skipping fetch")
                 else:
                     raise
@@ -466,7 +467,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         try:
             self.delete_workspaces_raw(sorted_ids)
         except ApiException as err:
-            if err.status in (403, 404):
+            if err.status in FORBIDDEN_OR_NOT_FOUND:
                 logger.info(
                     f"Couldn't delete workspaces {sorted_ids} because they were not found."
                 )
