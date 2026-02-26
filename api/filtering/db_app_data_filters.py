@@ -36,11 +36,12 @@ def build_app_data_filters(filter_dict: dict) -> tuple[list, set]:
             )
 
         for field_name, operators_dict in fields_dict.items():
-            # Validate field name
-            if field_name not in model_class._get_serializable_fields():
+            # Validate field name against explicit filterable allowlist
+            filterable = getattr(model_class, "__filterable_fields__", ())
+            if field_name not in filterable:
                 raise ValidationException(
                     f"Invalid filter field '{field_name}' for app '{app_name}'. "
-                    f"Valid fields: {', '.join(sorted(model_class._get_serializable_fields()))}"
+                    f"Valid fields: {', '.join(sorted(filterable))}"
                 )
 
             if not isinstance(operators_dict, dict):
