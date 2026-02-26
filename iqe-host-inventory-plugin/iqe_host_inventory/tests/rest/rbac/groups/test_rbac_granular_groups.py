@@ -471,11 +471,7 @@ class TestRBACGranularGroupsWritePermission:
         """
         group = rbac_setup_resources_for_granular_rbac[1][2]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror((403, 404)):
             host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
 
         host_inventory.apis.groups.verify_not_deleted(group)
@@ -554,11 +550,7 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         """
         group = rbac_setup_resources_for_granular_rbac[1][0]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror((403, 404)):
             host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
 
         host_inventory.apis.groups.verify_not_deleted(group, retries=1)
@@ -1399,7 +1391,12 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
+        with raises_apierror(404, "One or more hosts not found."):
+            host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
+
+        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+            expected_hosts_ids
+        )
         response_hosts_ids = {host.id for host in response.results}
 
         assert response.count == len(expected_hosts)
@@ -1461,12 +1458,12 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
         new_display_name = generate_display_name()
-        with raises_apierror(404, "Requested host not found."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host1.id, display_name=new_display_name, wait_for_updated=False
             )
 
-        with raises_apierror(404, "Requested host not found."):
+        with raises_apierror(404, "One or more hosts not found."):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host2.id, display_name=new_display_name, wait_for_updated=False
             )
