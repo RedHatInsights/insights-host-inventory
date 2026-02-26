@@ -1093,10 +1093,11 @@ class TestRBACGranularAllPermissions:
             importance: high
             title: Test that users with granular RBAC all permissions can access correct hosts
         """
-        hosts = flatten(rbac_setup_resources_for_granular_rbac.host_groups)
         correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][0]}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
+        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+            list(correct_hosts_ids)
+        )
         response_hosts_ids = {host.id for host in response.results}
         assert response.count == len(correct_hosts_ids)
         assert response.total == len(correct_hosts_ids)
