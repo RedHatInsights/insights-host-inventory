@@ -22,6 +22,7 @@ from typing import TypedDict
 import attr
 from iqe.base.modeling import BaseEntity
 
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import build_query_string
 from iqe_host_inventory.utils.api_utils import check_org_id
 from iqe_host_inventory_api import ApiClient
@@ -1089,7 +1090,7 @@ class HostsAPIWrapper(BaseEntity):
                     host_ids.append(response.id)
                     break
                 except ApiException as exc:
-                    assert exc.status in (403, 404)
+                    assert exc.status in FORBIDDEN_OR_NOT_FOUND
                     sleep(delay)
                     retries -= 1
 

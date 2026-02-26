@@ -40,6 +40,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Kessel will respond with either 403 or 404 if the user doesn't have access to the resource.
+# It's the same code for both cases. Kessel has changed this recently, so we need to handle both.
+FORBIDDEN_OR_NOT_FOUND = (403, 404)
+
 _COLLECTION_PARAMS = (
     "group_name",
     "group_id",
