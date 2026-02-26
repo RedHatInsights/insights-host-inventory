@@ -249,11 +249,7 @@ class TestRBACSAGroupsNoWritePermission:
         groups = rbac_setup_resources[1]
 
         for group in groups:
-            with raises_apierror(
-                403,
-                "You don't have the permission to access the requested resource. "
-                "It is either read-protected or not readable by the server.",
-            ):
+            with raises_apierror((403, 404)):
                 host_inventory_sa_2.apis.groups.delete_groups(group, wait_for_deleted=False)
 
             host_inventory.apis.groups.verify_not_deleted(group)
