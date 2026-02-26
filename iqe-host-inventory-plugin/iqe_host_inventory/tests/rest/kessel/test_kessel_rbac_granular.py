@@ -5,6 +5,7 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
@@ -58,7 +59,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][3]}
     other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
@@ -127,7 +128,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
@@ -164,7 +165,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     }
     other_hosts_ids = {host.id for host in hosts if host.id not in correct_hosts_ids}
 
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
@@ -246,7 +247,7 @@ def test_kessel_rbac_granular_hosts_write_permission_ungrouped_and_normal_group_
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
