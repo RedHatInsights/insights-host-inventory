@@ -19,6 +19,7 @@ from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
+from api.group_query import get_group_list_by_id_list_rbac_v2
 from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
@@ -40,6 +41,7 @@ from app.queue.events import EventType
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
@@ -462,18 +464,34 @@ def get_groups_by_id(
 ):
     rbac_group_id_check(rbac_filter, set(group_id_list))
 
-    try:
-        group_list, total = get_group_list_by_id_list_db(
-            group_id_list, page, per_page, order_by, order_how, rbac_filter
+    # Feature flag check for RBAC v2 integration
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Use RBAC v2 API queries
+        try:
+            group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
+            check_all_ids_found(group_id_list, group_list, "group", total=total)
+        except ValueError as e:
+            log_get_group_list_failed(logger)
+            abort(400, str(e))
+
+        log_get_group_list_succeeded(logger, group_list)
+        # group_list is already serialized, so build response directly
+        return flask_json_response(
+            {"total": total, "count": len(group_list), "page": page, "per_page": per_page, "results": group_list}
         )
-        check_all_ids_found(group_id_list, group_list, "group", total=total)
-    except ValueError as e:
-        log_get_group_list_failed(logger)
-        abort(400, str(e))
+    else:
+        # RBAC v1 path: Use database queries
+        try:
+            group_list, total = get_group_list_by_id_list_db(
+                group_id_list, page, per_page, order_by, order_how, rbac_filter
+            )
+            check_all_ids_found(group_id_list, group_list, "group", total=total)
+        except ValueError as e:
+            log_get_group_list_failed(logger)
+            abort(400, str(e))
 
-    log_get_group_list_succeeded(logger, group_list)
-
-    return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
+        log_get_group_list_succeeded(logger, group_list)
+        return flask_json_response(build_paginated_group_list_response(total, page, per_page, group_list))
 
 
 @api_operation
