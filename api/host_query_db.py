@@ -23,6 +23,7 @@ from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.app_data_sorting import resolve_app_sort
 from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
+from api.filtering.db_filters import _is_table_already_joined
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
@@ -389,9 +390,10 @@ def get_host_list_for_views(
     resolved = resolve_app_sort(param_order_by)
     if resolved:
         app_sort_model, _ = resolved
-        query_base = query_base.outerjoin(
-            app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
-        )
+        if not _is_table_already_joined(query_base, app_sort_model):
+            query_base = query_base.outerjoin(
+                app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
+            )
 
     # Reuse _get_host_list_using_filters with app fields enabled, no system_profile support
     items, count, _, _ = _get_host_list_using_filters(
