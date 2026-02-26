@@ -518,21 +518,6 @@ def get_group_ids_ordered_by_host_count(
     return group_ids, total
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
-    """
-    Get count of non-culled hosts in a group.
-
-    Args:
-        group: Group object
-        org_id: Organization ID
-
-    Returns:
-        int: Count of non-culled hosts in the group
-    """
-    counts = get_host_counts_batch(org_id, [str(group.id)])
-    return counts.get(str(group.id), 0)
-
-
 # Ensures that the query is filtered by org_id
 def host_query(
     org_id: str,

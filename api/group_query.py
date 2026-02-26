@@ -121,12 +121,12 @@ def get_group_list_by_id_list_db(group_id_list, page, per_page, order_by, order_
 
 
 def get_group_list_by_id_list_rbac_v2(
-    group_id_list,
-    page,
-    per_page,
-    order_by,
-    order_how,
-):
+    group_id_list: list[str],
+    page: int,
+    per_page: int,
+    order_by: str | None,
+    order_how: str | None,
+) -> tuple[list[dict], int]:
     """
     Fetch group list from RBAC v2 API by ID list with ordering and pagination.
 

@@ -802,19 +802,26 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     This function makes a batch API call to fetch multiple workspaces in a single request.
     Previously blocked by RHCLOUD-43362, now implemented with batch workspace fetch support.
 
+    Note:
+        This function does NOT validate that all requested workspaces were found.
+        The caller is responsible for checking the returned list against the requested IDs,
+        typically using check_all_ids_found() which provides detailed error messages
+        with not_found_ids field.
+
     Args:
         workspace_ids: List of workspace UUIDs to fetch
 
     Returns:
-        list[dict]: List of workspace objects from RBAC v2 API
+        list[dict]: List of workspace objects found from RBAC v2 API.
+                    May contain fewer workspaces than requested if some don't exist.
 
     Raises:
-        ResourceNotFoundException: If one or more workspaces not found
-        HTTPException: For other RBAC v2 API errors (5xx, etc.)
+        HTTPException: For RBAC v2 API errors (5xx, etc.)
 
     Example:
         workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
-        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}, {"id": "uuid3", ...}]
+        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
+        # Caller should use check_all_ids_found() to validate all were found
     """
     if inventory_config().bypass_kessel:
         return []
@@ -829,19 +836,11 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
-        skip_not_found=False,  # Don't skip 404s, we want to know if any are missing
+        skip_not_found=False,
     )
 
     # Extract workspaces from response
     workspaces = response.get("data", []) if response else []
-
-    # Verify all requested workspaces were found
-    found_ids = {ws["id"] for ws in workspaces}
-    requested_ids = set(workspace_ids)
-
-    if found_ids != requested_ids:
-        missing_ids = requested_ids - found_ids
-        raise ResourceNotFoundException(f"Workspaces not found: {', '.join(missing_ids)}")
 
     return workspaces
 

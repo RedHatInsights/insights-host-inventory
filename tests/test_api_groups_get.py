@@ -424,20 +424,21 @@ def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
-    # Mock RBAC v2 workspace fetch to raise ResourceNotFoundException
-    from app.exceptions import ResourceNotFoundException
-
+    # Mock RBAC v2 workspace fetch to return empty list (no workspaces found)
     mocker.patch(
         "api.group_query.get_rbac_workspaces_by_ids",
-        side_effect=ResourceNotFoundException("Workspaces not found: " + group_id_list[1]),
+        return_value=[],  # No workspaces found
     )
 
     # Call endpoint
     response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
 
-    # Verify 404 error
+    # Verify 404 error with not_found_ids field
     assert_response_status(response_status, 404)
     assert "One or more groups not found" in response_data["detail"]
+    # check_all_ids_found() should include not_found_ids when all results are returned
+    assert "not_found_ids" in response_data
+    assert set(response_data["not_found_ids"]) == set(group_id_list)
 
 
 def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api_get):
@@ -455,20 +456,29 @@ def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
-    # Mock RBAC v2 workspace fetch to raise exception for partial results
-    from app.exceptions import ResourceNotFoundException
-
+    # Mock RBAC v2 workspace fetch to return only 2 out of 3 workspaces
+    # (simulating that the 3rd workspace is missing)
+    mock_workspaces = [
+        {"id": group_id_list[0], "name": "group_0", "type": "default"},
+        {"id": group_id_list[1], "name": "group_1", "type": "default"},
+        # group_id_list[2] is missing
+    ]
     mocker.patch(
         "api.group_query.get_rbac_workspaces_by_ids",
-        side_effect=ResourceNotFoundException(f"Workspaces not found: {group_id_list[2]}"),
+        return_value=mock_workspaces,
     )
+    # Mock host counts
+    mocker.patch("api.group_query.get_host_counts_batch", return_value={})
 
     # Call endpoint
     response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
 
-    # Verify 404 error
+    # Verify 404 error with not_found_ids field
     assert_response_status(response_status, 404)
     assert "One or more groups not found" in response_data["detail"]
+    # check_all_ids_found() should include the missing group ID
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [group_id_list[2]]
 
 
 def test_get_groups_by_id_feature_flag_disabled(

@@ -470,9 +470,6 @@ def get_groups_by_id(
         try:
             group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
             check_all_ids_found(group_id_list, group_list, "group", total=total)
-        except ResourceNotFoundException:
-            log_get_group_list_failed(logger)
-            abort(HTTPStatus.NOT_FOUND, "One or more groups not found.")
         except ValueError as e:
             log_get_group_list_failed(logger)
             abort(400, str(e))
