@@ -352,6 +352,171 @@ def test_sort_by_host_count_with_pagination(
                 end = end + per_page
 
 
+def test_get_groups_by_id_rbac_v2_success(
+    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get
+):
+    """
+    Test that GET /groups/{group_id_list} uses RBAC v2 when feature flag is enabled.
+
+    JIRA: RHINENG-17397
+    """
+    # Create groups with hosts
+    groups = [db_create_group(f"group_{i}") for i in range(3)]
+    group_id_list = [str(group.id) for group in groups]
+
+    # Add hosts to groups for host count verification
+    for i, group in enumerate(groups):
+        for _ in range(i + 1):  # group_0 has 1 host, group_1 has 2 hosts, group_2 has 3 hosts
+            host = db_create_host()
+            db_create_host_group_assoc(host.id, group.id)
+
+    # Mock workspaces response from RBAC v2 API
+    mock_workspaces = [
+        {
+            "id": str(group.id),
+            "name": group.name,
+            "org_id": "12345",
+            "type": "standard",
+            "created": "2025-11-06T20:40:41.151481Z",
+            "modified": "2025-11-06T20:40:41.160109Z",
+        }
+        for group in groups
+    ]
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch
+    mocker.patch("api.group_query.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+
+    # Call endpoint
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
+
+    # Verify success
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 3
+    assert response_data["count"] == 3
+    assert len(response_data["results"]) == 3
+
+    # Verify each group has correct data
+    for i, group_result in enumerate(response_data["results"]):
+        assert group_result["id"] == group_id_list[i]
+        assert group_result["name"] == f"group_{i}"
+        assert group_result["host_count"] == i + 1
+        assert "created" in group_result
+        assert "updated" in group_result
+
+
+def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
+    """
+    Test that GET /groups/{group_id_list} returns 404 when RBAC v2 workspace not found.
+
+    JIRA: RHINENG-17397
+    """
+    # Create groups in database
+    groups = [db_create_group(f"group_{i}") for i in range(3)]
+    group_id_list = [str(group.id) for group in groups]
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return empty list (no workspaces found)
+    mocker.patch(
+        "api.group_query.get_rbac_workspaces_by_ids",
+        return_value=[],  # No workspaces found
+    )
+
+    # Call endpoint
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
+
+    # Verify 404 error with not_found_ids field
+    assert_response_status(response_status, 404)
+    assert "One or more groups not found" in response_data["detail"]
+    # check_all_ids_found() should include not_found_ids when all results are returned
+    assert "not_found_ids" in response_data
+    assert set(response_data["not_found_ids"]) == set(group_id_list)
+
+
+def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api_get):
+    """
+    Test that GET /groups/{group_id_list} returns 404 when some workspaces are missing.
+
+    JIRA: RHINENG-17397
+    """
+    # Create groups
+    groups = [db_create_group(f"group_{i}") for i in range(3)]
+    group_id_list = [str(group.id) for group in groups]
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return only 2 out of 3 workspaces
+    # (simulating that the 3rd workspace is missing)
+    mock_workspaces = [
+        {"id": group_id_list[0], "name": "group_0", "type": "default"},
+        {"id": group_id_list[1], "name": "group_1", "type": "default"},
+        # group_id_list[2] is missing
+    ]
+    mocker.patch(
+        "api.group_query.get_rbac_workspaces_by_ids",
+        return_value=mock_workspaces,
+    )
+    # Mock host counts
+    mocker.patch("api.group_query.get_host_counts_batch", return_value={})
+
+    # Call endpoint
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
+
+    # Verify 404 error with not_found_ids field
+    assert_response_status(response_status, 404)
+    assert "One or more groups not found" in response_data["detail"]
+    # check_all_ids_found() should include the missing group ID
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [group_id_list[2]]
+
+
+def test_get_groups_by_id_feature_flag_disabled(
+    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get
+):
+    """
+    Test that GET /groups/{group_id_list} uses database when feature flag is disabled (RBAC v1).
+
+    JIRA: RHINENG-17397
+    """
+    # Create groups with hosts
+    groups = [db_create_group(f"group_{i}") for i in range(2)]
+    group_id_list = [str(group.id) for group in groups]
+
+    # Add hosts to groups
+    for group in groups:
+        host = db_create_host()
+        db_create_host_group_assoc(host.id, group.id)
+
+    # Mock feature flag disabled (RBAC v1 path - default behavior)
+    mocker.patch("api.group.get_flag_value", return_value=False)
+
+    # Call endpoint
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
+
+    # Verify success using database path
+    assert_response_status(response_status, 200)
+    assert response_data["total"] == 2
+    assert response_data["count"] == 2
+    assert len(response_data["results"]) == 2
+
+    # Verify each group has correct data from database
+    for i, group_result in enumerate(response_data["results"]):
+        assert group_result["id"] == group_id_list[i]
+        assert group_result["name"] == f"group_{i}"
+        assert group_result["host_count"] == 1
+
+
 # ============================================================================
 # RBAC v2 (Kessel) Integration Tests
 # ============================================================================

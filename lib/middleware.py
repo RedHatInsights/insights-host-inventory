@@ -769,65 +769,7 @@ def get_rbac_workspaces(
     return data, count
 
 
-def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
-    """
-    Fetch multiple workspaces from RBAC v2 API by ID list.
-
-    This function makes a batch API call to fetch multiple workspaces in a single request,
-    which is much more efficient than fetching them one at a time.
-
-    Args:
-        workspace_ids: List of workspace UUIDs to fetch
-
-    Returns:
-        list[dict]: List of workspace objects from RBAC v2 API
-
-    Raises:
-        ResourceNotFoundException: If one or more workspaces not found
-        HTTPException: For other RBAC v2 API errors (5xx, etc.)
-
-    Example:
-        workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
-    """
-    if inventory_config().bypass_rbac:
-        return []
-
-    if not workspace_ids:
-        return []
-
-    # Build query parameter string with multiple IDs
-    # Format: ?id=uuid1,uuid2,uuid3
-    ids_param = ",".join(str(wid) for wid in workspace_ids)
-    query_params = {"id": ids_param}
-
-    rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
-    request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
-
-    response = get_rbac_workspace_using_endpoint_and_headers(None, rbac_endpoint, request_headers)
-
-    if not response:
-        logger.warning("Empty response received from RBAC workspace endpoint")
-        return []
-
-    # Extract workspaces from response
-    workspaces = response.get("data", [])
-    if not isinstance(workspaces, list):
-        error_msg = f"RBAC service returned malformed response: expected 'data' to be a list, got {type(workspaces)}"
-        logger.error(error_msg)
-        abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
-
-    # Verify all requested workspaces were found
-    found_ids = {str(ws["id"]) for ws in workspaces}
-    requested_ids = {str(wid) for wid in workspace_ids}
-
-    if found_ids != requested_ids:
-        missing_ids = requested_ids - found_ids
-        raise ResourceNotFoundException(f"Workspaces not found: {', '.join(missing_ids)}")
-
-    return workspaces
-
-
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
@@ -840,21 +782,67 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[Any, Any] | None:
     Raises:
         ResourceNotFoundException: If workspace not found (404)
         HTTPException: For other RBAC v2 API errors (5xx, etc.)
+
+    Example:
+        workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
+        # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
     if inventory_config().bypass_kessel:
         return None
 
-    rbac_endpoint = _get_rbac_workspace_url(workspace_id)
+    # Delegate to batch API with single ID
+    workspaces = get_rbac_workspaces_by_ids([workspace_id])
+    return workspaces[0] if workspaces else None
+
+
+def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
+    """
+    Fetch multiple workspaces from RBAC v2 API by ID list.
+
+    This function makes a batch API call to fetch multiple workspaces in a single request.
+    Previously blocked by RHCLOUD-43362, now implemented with batch workspace fetch support.
+
+    Note:
+        This function does NOT validate that all requested workspaces were found.
+        The caller is responsible for checking the returned list against the requested IDs,
+        typically using check_all_ids_found() which provides detailed error messages
+        with not_found_ids field.
+
+    Args:
+        workspace_ids: List of workspace UUIDs to fetch
+
+    Returns:
+        list[dict]: List of workspace objects found from RBAC v2 API.
+                    May contain fewer workspaces than requested if some don't exist.
+
+    Raises:
+        HTTPException: For RBAC v2 API errors (5xx, etc.)
+
+    Example:
+        workspaces = get_rbac_workspaces_by_ids(["uuid1", "uuid2", "uuid3"])
+        # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
+        # Caller should use check_all_ids_found() to validate all were found
+    """
+    if inventory_config().bypass_kessel:
+        return []
+
+    # Build query parameter string with multiple IDs
+    # Format: ?id=uuid1,uuid2,uuid3
+    ids_param = ",".join(workspace_ids)
+    rbac_endpoint = _get_rbac_workspace_url(query_params={"id": ids_param})
     request_headers = _build_rbac_request_headers()
 
-    # Use skip_not_found=True so 404 errors raise ResourceNotFoundException
-    # This allows graceful handling of missing workspaces
-    return _execute_rbac_http_request(
+    response = _execute_rbac_http_request(
         method="GET",
         rbac_endpoint=rbac_endpoint,
         request_headers=request_headers,
-        skip_not_found=True,
+        skip_not_found=False,
     )
+
+    # Extract workspaces from response
+    workspaces = response.get("data", []) if response else []
+
+    return workspaces
 
 
 def get_rbac_workspace_using_endpoint_and_headers(
