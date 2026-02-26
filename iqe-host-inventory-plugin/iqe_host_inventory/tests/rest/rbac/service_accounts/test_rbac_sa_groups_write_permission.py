@@ -251,7 +251,7 @@ class TestRBACSAGroupsNoWritePermission:
 
         for group in groups:
             with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
-                host_inventory_sa_2.apis.groups.delete_groups(group, wait_for_deleted=False)
+                host_inventory_sa_2.apis.groups.delete_groups_raw(group)
 
             host_inventory.apis.groups.verify_not_deleted(group)
 
