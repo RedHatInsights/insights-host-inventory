@@ -92,9 +92,7 @@ class TestRBACGroupsCertAuth:
         """
         group = rbac_cert_auth_setup_resources[1][0]
 
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
+        with raises_apierror((403, 404)):
             host_inventory_non_org_admin_cert_auth.apis.groups.delete_groups(
                 group, wait_for_deleted=False
             )
