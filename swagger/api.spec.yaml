@@ -2061,9 +2061,16 @@ components:
       type: object
       properties:
         policies:
-          type: integer
-          minimum: 0
+          type: array
           nullable: true
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
         last_scan:
           type: string
           format: date-time
