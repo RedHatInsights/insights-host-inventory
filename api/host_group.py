@@ -16,7 +16,6 @@ from api.host_query_db import get_host_list
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -80,9 +79,8 @@ def get_host_list_by_group(
     # Otherwise, use database validation
     if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace exists
-        try:
-            get_rbac_workspace_by_id(str(group_id))
-        except ResourceNotFoundException:
+        workspace = get_rbac_workspace_by_id(str(group_id))
+        if workspace is None:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
         # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
@@ -190,14 +188,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Feature flag check for RBAC v2 workspace validation
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        try:
-            workspace = get_rbac_workspace_by_id(str(group_id))
-        except ResourceNotFoundException:
-            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
-
-        # workspace is guaranteed to be a dict here (not None) because:
-        # 1. bypass_kessel=False (checked above), so function won't return None
-        # 2. If workspace not found, ResourceNotFoundException is raised above
+        workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 

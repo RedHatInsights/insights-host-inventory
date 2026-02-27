@@ -358,8 +358,8 @@ def test_remove_hosts_rbac_v2_workspace_validation_success(
     mocker,
     db_create_group,
     db_create_host,
+    db_create_host_group_assoc,
     db_get_hosts_for_group,
-    api_add_hosts_to_group,
     api_remove_hosts_from_group,
 ):
     """
@@ -380,9 +380,10 @@ def test_remove_hosts_rbac_v2_workspace_validation_success(
     host2_id = host2.id
     host3_id = host3.id
 
-    # Add all 3 hosts to the group first
-    response_status, _ = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id), str(host3_id)])
-    assert response_status == 200
+    # Add all 3 hosts to the group using DB fixture
+    db_create_host_group_assoc(host1_id, group_id)
+    db_create_host_group_assoc(host2_id, group_id)
+    db_create_host_group_assoc(host3_id, group_id)
 
     # Verify group has 3 hosts
     hosts_before = db_get_hosts_for_group(group_id)
