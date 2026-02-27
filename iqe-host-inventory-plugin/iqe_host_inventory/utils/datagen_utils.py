@@ -1384,3 +1384,125 @@ def generate_dynamic_profile_test_data() -> dict[str, Any]:
             dynamic_profile[field_name] = complete_profile[field_name]
 
     return dynamic_profile
+
+
+@dataclass(frozen=True, order=False)
+class HostAppField:
+    """Describes a single column in a host-app data model."""
+
+    name: str
+    type: str  # "int", "str", "jsonb", "date-time", "uuid"
+    example: Any = None
+
+
+@dataclass(frozen=True, order=False)
+class HostApp:
+    """Describes a consumer application and its host-level data fields."""
+
+    name: str
+    fields: tuple[HostAppField, ...]
+
+
+HOST_APPS_: list[dict[str, Any]] = [
+    {
+        "name": "advisor",
+        "fields": (
+            HostAppField("recommendations", "int", 5),
+            HostAppField("incidents", "int", 2),
+        ),
+    },
+    {
+        "name": "vulnerability",
+        "fields": (
+            HostAppField("total_cves", "int", 50),
+            HostAppField("critical_cves", "int", 5),
+            HostAppField("high_severity_cves", "int", 10),
+            HostAppField("cves_with_security_rules", "int", 8),
+            HostAppField("cves_with_known_exploits", "int", 3),
+        ),
+    },
+    {
+        "name": "patch",
+        "fields": (
+            HostAppField("advisories_rhsa_applicable", "int", 10),
+            HostAppField("advisories_rhba_applicable", "int", 5),
+            HostAppField("advisories_rhsa_installable", "int", 8),
+            HostAppField("packages_installable", "int", 50),
+            HostAppField("template_name", "str", "baseline-template"),
+        ),
+    },
+    {
+        "name": "remediations",
+        "fields": (HostAppField("remediations_plans", "int", 7),),
+    },
+    {
+        "name": "compliance",
+        "fields": (
+            HostAppField(
+                "policies",
+                "jsonb",
+                [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}],
+            ),
+            HostAppField("last_scan", "date-time"),
+        ),
+    },
+    {
+        "name": "malware",
+        "fields": (
+            HostAppField("last_status", "str", "clean"),
+            HostAppField("last_matches", "int", 0),
+            HostAppField("total_matches", "int", 0),
+            HostAppField("last_scan", "date-time"),
+        ),
+    },
+]
+
+HOST_APPS: list[HostApp] = [HostApp(**item) for item in HOST_APPS_]
+
+
+def get_host_app_by_name(name: str) -> HostApp:
+    """Return the HostApp definition with the given name."""
+    return next(app for app in HOST_APPS if app.name == name)
+
+
+def get_host_app_names() -> list[str]:
+    """Return the list of all consumer application names."""
+    return [app.name for app in HOST_APPS]
+
+
+# Static sample data per app (no timestamps).
+# Suitable for deterministic assertions where datetime values would be flaky.
+HOST_APP_SAMPLE_DATA: dict[str, dict[str, Any]] = {
+    app.name: {
+        field.name: copy.deepcopy(field.example)
+        for field in app.fields
+        if field.type != "date-time"
+    }
+    for app in HOST_APPS
+}
+
+
+def generate_host_app_data(app: HostApp | str) -> dict[str, Any]:
+    """Generate sample data for a single application, including timestamps.
+
+    ``date-time`` fields are populated with a recent ISO-8601 timestamp.
+    All other fields use the static example value from the field definition.
+    """
+    if isinstance(app, str):
+        app = get_host_app_by_name(app)
+    data: dict[str, Any] = {}
+    for field in app.fields:
+        if field.type == "date-time":
+            data[field.name] = gen_iso8601_datetime(start_date="-1d", end_date="now")
+        else:
+            data[field.name] = copy.deepcopy(field.example)
+    return data
+
+
+def generate_all_host_apps_data() -> dict[str, dict[str, Any]]:
+    """Generate sample data for all consumer applications.
+
+    Returns a mapping of ``{app_name: sample_data}`` where each
+    ``sample_data`` dict is ready to be sent as a Kafka message payload.
+    """
+    return {app.name: generate_host_app_data(app) for app in HOST_APPS}

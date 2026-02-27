@@ -278,7 +278,7 @@ class HostsApi:
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
         :param str subscription_manager_id: Filter by subscription_manager_id
         :param _preload_content: if False, the urllib3.HTTPResponse object will
@@ -320,7 +320,7 @@ class HostsApi:
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
         :param str subscription_manager_id: Filter by subscription_manager_id
         :param _return_http_data_only: response data without head status code
@@ -747,7 +747,7 @@ class HostsApi:
         :param str order_by: Ordering field name
         :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
@@ -795,7 +795,7 @@ class HostsApi:
         :param str order_by: Ordering field name
         :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param dict(str, object) filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
@@ -1904,6 +1904,245 @@ class HostsApi:
             post_params=form_params,
             files=local_var_files,
             response_type=None,
+            auth_settings=auth_settings,
+            async_req=local_var_params.get("async_req"),
+            _return_http_data_only=local_var_params.get("_return_http_data_only"),
+            _preload_content=local_var_params.get("_preload_content", True),
+            _request_timeout=local_var_params.get("_request_timeout"),
+            collection_formats=collection_formats,
+        )
+
+    def api_host_views_get_host_views(self, **kwargs):
+        """Read aggregated host and application data  # noqa: E501
+
+        Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.api_host_views_get_host_views(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool: execute request asynchronously
+        :param str display_name: Filter by display_name (case-insensitive)
+        :param str fqdn: Filter by FQDN (case-insensitive)
+        :param str hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :param str insights_id: Filter by insights_id
+        :param str subscription_manager_id: Filter by subscription_manager_id
+        :param str provider_id: Filter by provider_id
+        :param str provider_type: Filter by provider_type
+        :param datetime updated_start: Only show hosts last modified after the given date
+        :param datetime updated_end: Only show hosts last modified before the given date
+        :param datetime last_check_in_start: Only show hosts last checked in after the given date
+        :param datetime last_check_in_end: Only show hosts last checked in before the given date
+        :param list[str] group_name: Filter by group name
+        :param str branch_id: Filter by branch_id
+        :param int per_page: A number of items to return per page.
+        :param int page: A page number of the items to return.
+        :param str order_by: Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
+        :param list[str] registered_with: Filters out any host not registered by the specified reporters
+        :param list[str] system_type: Filters systems by type
+        :param dict(str, dict) filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
+        :param dict(str, dict(str, bool)) fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
+        :param _preload_content: if False, the urllib3.HTTPResponse object will
+                                 be returned without reading/decoding response
+                                 data. Default is True.
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :return: HostViewQueryOutput
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+        kwargs["_return_http_data_only"] = True
+        return self.api_host_views_get_host_views_with_http_info(**kwargs)
+
+    def api_host_views_get_host_views_with_http_info(self, **kwargs):
+        """Read aggregated host and application data  # noqa: E501
+
+        Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read  # noqa: E501
+        This method makes a synchronous HTTP request by default. To make an
+        asynchronous HTTP request, please pass async_req=True
+        >>> thread = api.api_host_views_get_host_views_with_http_info(async_req=True)
+        >>> result = thread.get()
+
+        :param async_req bool: execute request asynchronously
+        :param str display_name: Filter by display_name (case-insensitive)
+        :param str fqdn: Filter by FQDN (case-insensitive)
+        :param str hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :param str insights_id: Filter by insights_id
+        :param str subscription_manager_id: Filter by subscription_manager_id
+        :param str provider_id: Filter by provider_id
+        :param str provider_type: Filter by provider_type
+        :param datetime updated_start: Only show hosts last modified after the given date
+        :param datetime updated_end: Only show hosts last modified before the given date
+        :param datetime last_check_in_start: Only show hosts last checked in after the given date
+        :param datetime last_check_in_end: Only show hosts last checked in before the given date
+        :param list[str] group_name: Filter by group name
+        :param str branch_id: Filter by branch_id
+        :param int per_page: A number of items to return per page.
+        :param int page: A page number of the items to return.
+        :param str order_by: Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
+        :param list[str] registered_with: Filters out any host not registered by the specified reporters
+        :param list[str] system_type: Filters systems by type
+        :param dict(str, dict) filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
+        :param dict(str, dict(str, bool)) fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
+        :param _return_http_data_only: response data without head status code
+                                       and headers
+        :param _preload_content: if False, the urllib3.HTTPResponse object will
+                                 be returned without reading/decoding response
+                                 data. Default is True.
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :return: tuple(HostViewQueryOutput, status_code(int), headers(HTTPHeaderDict))
+                 If the method is called asynchronously,
+                 returns the request thread.
+        """
+
+        local_var_params = locals()
+
+        all_params = [
+            "display_name",
+            "fqdn",
+            "hostname_or_id",
+            "insights_id",
+            "subscription_manager_id",
+            "provider_id",
+            "provider_type",
+            "updated_start",
+            "updated_end",
+            "last_check_in_start",
+            "last_check_in_end",
+            "group_name",
+            "branch_id",
+            "per_page",
+            "page",
+            "order_by",
+            "order_how",
+            "staleness",
+            "tags",
+            "registered_with",
+            "system_type",
+            "filter",
+            "fields",
+        ]
+        all_params.extend([
+            "async_req",
+            "_return_http_data_only",
+            "_preload_content",
+            "_request_timeout",
+        ])
+
+        for key, val in local_var_params["kwargs"].items():
+            if key not in all_params:
+                raise ApiTypeError(
+                    f"Got an unexpected keyword argument '{key}'"
+                    " to method api_host_views_get_host_views"
+                )
+            local_var_params[key] = val
+        del local_var_params["kwargs"]
+
+        collection_formats = {}
+
+        path_params = {}
+
+        query_params = []
+        if "display_name" in local_var_params and local_var_params["display_name"] is not None:
+            query_params.append(("display_name", local_var_params["display_name"]))
+        if "fqdn" in local_var_params and local_var_params["fqdn"] is not None:
+            query_params.append(("fqdn", local_var_params["fqdn"]))
+        if "hostname_or_id" in local_var_params and local_var_params["hostname_or_id"] is not None:
+            query_params.append(("hostname_or_id", local_var_params["hostname_or_id"]))
+        if "insights_id" in local_var_params and local_var_params["insights_id"] is not None:
+            query_params.append(("insights_id", local_var_params["insights_id"]))
+        if (
+            "subscription_manager_id" in local_var_params
+            and local_var_params["subscription_manager_id"] is not None
+        ):
+            query_params.append((
+                "subscription_manager_id",
+                local_var_params["subscription_manager_id"],
+            ))
+        if "provider_id" in local_var_params and local_var_params["provider_id"] is not None:
+            query_params.append(("provider_id", local_var_params["provider_id"]))
+        if "provider_type" in local_var_params and local_var_params["provider_type"] is not None:
+            query_params.append(("provider_type", local_var_params["provider_type"]))
+        if "updated_start" in local_var_params and local_var_params["updated_start"] is not None:
+            query_params.append(("updated_start", local_var_params["updated_start"]))
+        if "updated_end" in local_var_params and local_var_params["updated_end"] is not None:
+            query_params.append(("updated_end", local_var_params["updated_end"]))
+        if (
+            "last_check_in_start" in local_var_params
+            and local_var_params["last_check_in_start"] is not None
+        ):
+            query_params.append(("last_check_in_start", local_var_params["last_check_in_start"]))
+        if (
+            "last_check_in_end" in local_var_params
+            and local_var_params["last_check_in_end"] is not None
+        ):
+            query_params.append(("last_check_in_end", local_var_params["last_check_in_end"]))
+        if "group_name" in local_var_params and local_var_params["group_name"] is not None:
+            query_params.append(("group_name", local_var_params["group_name"]))
+            collection_formats["group_name"] = "multi"
+        if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
+            query_params.append(("branch_id", local_var_params["branch_id"]))
+        if "per_page" in local_var_params and local_var_params["per_page"] is not None:
+            query_params.append(("per_page", local_var_params["per_page"]))
+        if "page" in local_var_params and local_var_params["page"] is not None:
+            query_params.append(("page", local_var_params["page"]))
+        if "order_by" in local_var_params and local_var_params["order_by"] is not None:
+            query_params.append(("order_by", local_var_params["order_by"]))
+        if "order_how" in local_var_params and local_var_params["order_how"] is not None:
+            query_params.append(("order_how", local_var_params["order_how"]))
+        if "staleness" in local_var_params and local_var_params["staleness"] is not None:
+            query_params.append(("staleness", local_var_params["staleness"]))
+            collection_formats["staleness"] = "multi"
+        if "tags" in local_var_params and local_var_params["tags"] is not None:
+            query_params.append(("tags", local_var_params["tags"]))
+            collection_formats["tags"] = "multi"
+        if (
+            "registered_with" in local_var_params
+            and local_var_params["registered_with"] is not None
+        ):
+            query_params.append(("registered_with", local_var_params["registered_with"]))
+            collection_formats["registered_with"] = "multi"
+        if "system_type" in local_var_params and local_var_params["system_type"] is not None:
+            query_params.append(("system_type", local_var_params["system_type"]))
+            collection_formats["system_type"] = "multi"
+        if "filter" in local_var_params and local_var_params["filter"] is not None:
+            query_params.append(("filter", local_var_params["filter"]))
+        if "fields" in local_var_params and local_var_params["fields"] is not None:
+            query_params.append(("fields", local_var_params["fields"]))
+
+        header_params = {}
+
+        form_params = []
+        local_var_files = {}
+
+        body_params = None
+        # HTTP header `Accept`
+        header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
+        # Authentication setting
+        auth_settings = ["ApiKeyAuth"]
+
+        return self.api_client.call_api(
+            "/beta/hosts-view",
+            "GET",
+            path_params,
+            query_params,
+            header_params,
+            body=body_params,
+            post_params=form_params,
+            files=local_var_files,
+            response_type="HostViewQueryOutput",
             auth_settings=auth_settings,
             async_req=local_var_params.get("async_req"),
             _return_http_data_only=local_var_params.get("_return_http_data_only"),

@@ -6,6 +6,8 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
+from datagen_utils import HOST_APP_SAMPLE_DATA
+from datagen_utils import generate_host_app_data
 from marshmallow import ValidationError
 
 from app.exceptions import ValidationException
@@ -19,71 +21,28 @@ from app.models.host_app_data import HostAppDataVulnerability
 from app.queue.enums import ConsumerApplication
 from tests.helpers.test_utils import generate_uuid
 
-# Application test data configuration: (app_name, model_class, sample_data, fields_to_verify)
+# Mapping from app name to (ConsumerApplication enum, DB model class)
+_APP_META: dict[str, tuple[ConsumerApplication, type]] = {
+    "advisor": (ConsumerApplication.ADVISOR, HostAppDataAdvisor),
+    "vulnerability": (ConsumerApplication.VULNERABILITY, HostAppDataVulnerability),
+    "patch": (ConsumerApplication.PATCH, HostAppDataPatch),
+    "remediations": (ConsumerApplication.REMEDIATIONS, HostAppDataRemediations),
+    "compliance": (ConsumerApplication.COMPLIANCE, HostAppDataCompliance),
+    "malware": (ConsumerApplication.MALWARE, HostAppDataMalware),
+}
+
+# Application test data configuration: (app_enum, model_class, sample_data, fields_to_verify)
+# sample_data includes timestamps (for Kafka messages); fields_to_verify uses the
+# static subset from HOST_APP_SAMPLE_DATA (no timestamps) for deterministic assertions.
 APPLICATION_TEST_DATA = [
     pytest.param(
-        ConsumerApplication.ADVISOR,
-        HostAppDataAdvisor,
-        {"recommendations": 5, "incidents": 2},
-        {"recommendations": 5, "incidents": 2},
-        id="advisor",
-    ),
-    pytest.param(
-        ConsumerApplication.VULNERABILITY,
-        HostAppDataVulnerability,
-        {
-            "total_cves": 50,
-            "critical_cves": 5,
-            "high_severity_cves": 10,
-            "cves_with_security_rules": 8,
-            "cves_with_known_exploits": 3,
-        },
-        {"total_cves": 50, "critical_cves": 5, "high_severity_cves": 10},
-        id="vulnerability",
-    ),
-    pytest.param(
-        ConsumerApplication.PATCH,
-        HostAppDataPatch,
-        {
-            "advisories_rhsa_applicable": 10,
-            "advisories_rhba_applicable": 5,
-            "advisories_rhsa_installable": 8,
-            "packages_installable": 50,
-            "template_name": "baseline-template",
-        },
-        {
-            "advisories_rhsa_applicable": 10,
-            "advisories_rhba_applicable": 5,
-            "advisories_rhsa_installable": 8,
-            "packages_installable": 50,
-            "template_name": "baseline-template",
-        },
-        id="patch",
-    ),
-    pytest.param(
-        ConsumerApplication.REMEDIATIONS,
-        HostAppDataRemediations,
-        {"remediations_plans": 7},
-        {"remediations_plans": 7},
-        id="remediations",
-    ),
-    pytest.param(
-        ConsumerApplication.COMPLIANCE,
-        HostAppDataCompliance,
-        {
-            "policies": [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}],
-            "last_scan": datetime.now(UTC).isoformat(),
-        },
-        {"policies": [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}]},
-        id="compliance",
-    ),
-    pytest.param(
-        ConsumerApplication.MALWARE,
-        HostAppDataMalware,
-        {"last_status": "clean", "last_matches": 0, "last_scan": datetime.now(UTC).isoformat(), "total_matches": 0},
-        {"last_status": "clean", "last_matches": 0, "total_matches": 0},
-        id="malware",
-    ),
+        enum,
+        model_class,
+        generate_host_app_data(app_name),
+        HOST_APP_SAMPLE_DATA[app_name],
+        id=app_name,
+    )
+    for app_name, (enum, model_class) in _APP_META.items()
 ]
 
 

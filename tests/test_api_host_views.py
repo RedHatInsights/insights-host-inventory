@@ -354,7 +354,8 @@ class TestHostViewAppDataEdgeCases:
         host_id = str(host.id)
         host_org_id = host.org_id
         scan_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-        db_create_host_app_data(host_id, host_org_id, "compliance", policies=5, last_scan=scan_time)
+        policies_data = [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}]
+        db_create_host_app_data(host_id, host_org_id, "compliance", policies=policies_data, last_scan=scan_time)
 
         url = build_host_view_url()
         response_status, response_data = api_get(url)
@@ -362,7 +363,7 @@ class TestHostViewAppDataEdgeCases:
         assert_response_status(response_status, 200)
         result = response_data["results"][0]
         assert "compliance" in result["app_data"]
-        assert result["app_data"]["compliance"]["policies"] == 5
+        assert result["app_data"]["compliance"]["policies"] == policies_data
         assert result["app_data"]["compliance"]["last_scan"] is not None
 
     def test_malware_data(self, api_get, db_create_host):

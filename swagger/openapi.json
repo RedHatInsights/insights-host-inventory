@@ -200,8 +200,8 @@
         "tags": [
           "hosts"
         ],
-        "summary": "[WIP] Read aggregated host and application data",
-        "description": "**[Work In Progress]** This endpoint is under active development and currently returns HTTP 501 (Not Implemented).<br /><br /> Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read",
+        "summary": "Read aggregated host and application data",
+        "description": "Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -291,9 +291,6 @@
           },
           "400": {
             "description": "Invalid request."
-          },
-          "501": {
-            "description": "Not Implemented - endpoint under development."
           }
         }
       }
@@ -3109,9 +3106,11 @@
         "type": "object",
         "properties": {
           "policies": {
-            "type": "integer",
-            "minimum": 0,
-            "nullable": true
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "object"
+            }
           },
           "last_scan": {
             "type": "string",
@@ -3128,6 +3127,11 @@
             "nullable": true
           },
           "last_matches": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "total_matches": {
             "type": "integer",
             "minimum": 0,
             "nullable": true

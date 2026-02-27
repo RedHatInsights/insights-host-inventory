@@ -37,7 +37,7 @@ class SystemProfileApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
@@ -67,7 +67,7 @@ class SystemProfileApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
@@ -171,7 +171,7 @@ class SystemProfileApi:
 
         :param async_req bool: execute request asynchronously
         :param str search: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
@@ -202,7 +202,7 @@ class SystemProfileApi:
 
         :param async_req bool: execute request asynchronously
         :param str search: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
@@ -315,7 +315,7 @@ class SystemProfileApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
@@ -345,7 +345,7 @@ class SystemProfileApi:
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
-        :param list[str] tags: filters out hosts not tagged by the given tags
+        :param list[str] tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param list[str] staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
