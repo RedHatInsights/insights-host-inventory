@@ -963,7 +963,7 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
-            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
             headers = message_headers(
                 EventType.delete,
                 str(host.insights_id),
@@ -985,7 +985,7 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row.static_system_profile)
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
     headers = message_headers(
         EventType.delete,
         str(result.row.insights_id),
@@ -1025,13 +1025,14 @@ def write_add_update_event_message(
         insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
+        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
         headers = message_headers(
             result.event_type,
             insights_id,
             output_host.get("reporter"),
-            output_host.get("system_profile", {}).get("host_type"),
-            output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
-            str(output_host.get("system_profile", {}).get("bootc_status", {}).get("booted") is not None),
+            host_type,
+            os_name,
+            bootc_booted,
         )
 
     event_producer.write_event(event, str(result.row.id), headers, wait=True)

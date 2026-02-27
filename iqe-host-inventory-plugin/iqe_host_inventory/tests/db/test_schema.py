@@ -10,7 +10,6 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.base import NO_VALUE
 
-from iqe_host_inventory.utils.datagen_utils import create_system_profile_facts
 from iqe_host_inventory.utils.datagen_utils import generate_canonical_facts
 from iqe_host_inventory.utils.datagen_utils import generate_facts
 from iqe_host_inventory.utils.datagen_utils import generate_per_reporter_staleness
@@ -71,18 +70,20 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "h.facts->'rhsm'->>'SYSPURPOSE_UNITS' as syspurpose_units, "
         "h.facts->'rhsm'->>'BILLING_MODEL' as  billing_model, "
         "h.facts->'qpc'->>'IS_RHEL' as is_rhel, "
-        "h.system_profile_facts->>'infrastructure_type' as system_profile_infrastructure_type, "
-        "h.system_profile_facts->>'cores_per_socket' as system_profile_cores_per_socket, "
-        "h.system_profile_facts->>'number_of_sockets' as system_profile_sockets, "
-        "h.system_profile_facts->>'cloud_provider' as cloud_provider, "
-        "h.system_profile_facts->>'arch' as system_profile_arch, "
-        "h.system_profile_facts->>'is_marketplace' as is_marketplace, "
+        "sps.infrastructure_type as system_profile_infrastructure_type, "
+        "sps.cores_per_socket::text as system_profile_cores_per_socket, "
+        "sps.number_of_sockets::text as system_profile_sockets, "
+        "sps.cloud_provider as cloud_provider, "
+        "sps.arch as system_profile_arch, "
+        "sps.is_marketplace::text as is_marketplace, "
         "rhsm_products.products, "
         "qpc_prods.qpc_products, "
         "qpc_certs.qpc_product_ids, "
         "system_profile.system_profile_product_ids, "
         "h.stale_timestamp "
         "from hosts h "
+        "left join system_profiles_static sps on h.org_id = sps.org_id and h.id = sps.host_id "
+        "left join system_profiles_dynamic spd on h.org_id = spd.org_id and h.id = spd.host_id "
         "cross join lateral ( "
         "    select string_agg(items, ',') as products "
         "    from jsonb_array_elements_text(h.facts->'rhsm'->'RH_PROD') as items) rhsm_products "
@@ -94,10 +95,10 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "    from jsonb_array_elements_text(h.facts->'qpc'->'rh_product_certs') as items) qpc_certs "  # noqa: E501
         "cross join lateral ( "
         "    select string_agg(items->>'id', ',') as system_profile_product_ids "
-        "    from jsonb_array_elements(h.system_profile_facts->'installed_products') as items) system_profile "  # noqa: E501
+        "    from jsonb_array_elements(spd.installed_products) as items) system_profile "
         "where h.org_id IN ('00000000')"
         "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # noqa: E501
-        "   and (h.system_profile_facts->>'host_type' IS NULL OR h.system_profile_facts->>'host_type' <> 'edge')"  # noqa: E501
+        "   and (h.host_type IS NULL OR h.host_type <> 'edge')"
         "   and (stale_timestamp is null "
         "   or  (NOW() < stale_timestamp + make_interval(days => 30)))"
     )
@@ -186,7 +187,6 @@ def test_db_schema_hosts_max_len(inventory_db_session):
         tags=tags,
         tags_alt=convert_tag_from_nested_to_structured(tags),
         **canonical_facts,
-        system_profile_facts=create_system_profile_facts(),
         groups=groups,
         reporter=reporter,
         per_reporter_staleness=generate_per_reporter_staleness(reporter),

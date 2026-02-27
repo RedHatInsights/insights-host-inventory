@@ -593,7 +593,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
 
     _, _, headers = mq_create_or_update_host(host, platform_metadata={"request_id": request_id}, return_all_data=True)
 
-    assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit")
+    assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit", host.host_type)
 
 
 @pytest.mark.parametrize(
@@ -1021,11 +1021,10 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_
     )
     created_host_from_event = mq_create_or_update_host(host_to_create)
     created_host_from_db = db_get_host(created_host_from_event.id)
-    assert created_host_from_db.system_profile_facts == {
-        "number_of_cpus": 1,
-        "disk_devices": [{"options": {"uid": "0"}}],
-        "owner_id": OWNER_ID,
-    }
+    # Check that system profile data is stored in normalized tables
+    assert created_host_from_db.static_system_profile.number_of_cpus == 1
+    assert str(created_host_from_db.static_system_profile.owner_id) == OWNER_ID
+    assert created_host_from_db.static_system_profile.disk_devices == [{"options": {"uid": "0"}}]
 
 
 def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
@@ -1049,7 +1048,8 @@ def test_add_host_with_owner_id(mq_create_or_update_host, db_get_host):
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID})
     created_host_from_event = mq_create_or_update_host(host)
     created_host_from_db = db_get_host(created_host_from_event.id)
-    assert created_host_from_db.system_profile_facts == {"owner_id": OWNER_ID}
+    # Check that owner_id is stored in normalized static system profile table
+    assert str(created_host_from_db.static_system_profile.owner_id) == OWNER_ID
 
 
 @pytest.mark.usefixtures("event_datetime_mock", "db_get_host")

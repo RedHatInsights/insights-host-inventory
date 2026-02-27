@@ -920,7 +920,6 @@ def test_with_all_fields(flask_app):
             **canonical_facts,
             **unchanged_input,
             "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-            "system_profile_facts": full_input["system_profile"],
         }
 
         assert Host is type(actual)
@@ -955,7 +954,9 @@ def test_with_only_required_fields_serialization_deserialize_host_compound(subte
             assert reporter == host.reporter
             assert host.facts == {}
             assert host.tags == {}
-            assert host.system_profile_facts == {}
+            # system_profile_facts no longer exists - check normalized tables instead
+            assert host.static_system_profile is None
+            assert host.dynamic_system_profile is None
 
 
 def test_with_invalid_input_serialization_deserialize_host_compound(subtests, flask_app):
@@ -1088,7 +1089,6 @@ def test_with_all_common_fields_serialization_deserialize_host_compound(subtests
                 **canonical_facts,
                 **unchanged_input,
                 "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-                "system_profile_facts": full_input["system_profile"],
             }
 
             assert Host is type(actual)
@@ -1933,7 +1933,7 @@ def test_empty_profile_is_empty_dict_serialization_serialize_host_system_profile
             org_id=USER_IDENTITY["org_id"],
         )
         host.id = uuid4()
-        host.system_profile_facts = None
+        # No system profile data - should serialize to empty system_profile
 
         actual = serialize_host_system_profile(host)
         expected = {"id": str(host.id), "system_profile": {}}
