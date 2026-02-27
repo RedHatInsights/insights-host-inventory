@@ -808,11 +808,11 @@ def generate_digits(min_length, max_length=None) -> str:
     )
 
 
-def generate_fqdn(panic_prevention: str = "rhiqe") -> str:
+def generate_fqdn(panic_prevention: str = "hbiqe") -> str:
     return f"{panic_prevention}.{fake.hostname()}"
 
 
-def generate_display_name(panic_prevention: str = "rhiqe") -> str:
+def generate_display_name(panic_prevention: str = "hbiqe") -> str:
     return f"{panic_prevention}.{generate_uuid()}"
 
 
@@ -1210,7 +1210,7 @@ def generate_complete_random_host(
     org_id: str,
     *,
     account_number: str | None = None,
-    display_name_prefix: str = "rhiqe",
+    display_name_prefix: str = "hbiqe",
     include_sp: bool = True,
     is_virtual: bool = True,
     is_sap_system: bool = False,
@@ -1255,7 +1255,7 @@ def create_host_data(
     account_number: str | int | None = None,
     host_type: str | None = None,
     include_sp: bool = True,
-    name_prefix: str = "rhiqe",
+    name_prefix: str = "hbiqe",
     **extra_data: Any,
 ):
     if include_sp:

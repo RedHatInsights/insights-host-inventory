@@ -32,7 +32,7 @@ class HostData:
     """Used in 'create_hosts' method"""
 
     display_name: str | None = None
-    display_name_prefix: str = "rhiqe"
+    display_name_prefix: str = "hbiqe"
     insights_id: str | None = None
     subscription_manager_id: str | None = None
     mac_address: str | None = None
@@ -111,7 +111,7 @@ class HBIUploads(BaseEntity):
         self,
         *,
         display_name: str | None = None,
-        display_name_prefix: str = "rhiqe",
+        display_name_prefix: str = "hbiqe",
         insights_id: str | None = None,
         subscription_manager_id: str | None = None,
         mac_address: str | None = None,
@@ -129,7 +129,7 @@ class HBIUploads(BaseEntity):
             Default: random string
         :param str display_name_prefix: If 'display_name' parameter is not set, the host's FQDN
             will use this prefix + random string.
-            Default: "rhiqe"
+            Default: "hbiqe"
         :param str insights_id: Set the host's Insights ID.
             Default: random UUID
         :param str subscription_manager_id: Set the host's Subscription Manager ID.
@@ -193,7 +193,7 @@ class HBIUploads(BaseEntity):
         self,
         *,
         display_name: str | None = None,
-        display_name_prefix: str = "rhiqe",
+        display_name_prefix: str = "hbiqe",
         insights_id: str | None = None,
         subscription_manager_id: str | None = None,
         mac_address: str | None = None,
@@ -214,7 +214,7 @@ class HBIUploads(BaseEntity):
             Default: random string
         :param str display_name_prefix: If 'display_name' parameter is not set, the host's FQDN
             will use this prefix + random string.
-            Default: "rhiqe"
+            Default: "hbiqe"
         :param str insights_id: Set the host's Insights ID.
             Default: random UUID
         :param str subscription_manager_id: Set the host's Subscription Manager ID.

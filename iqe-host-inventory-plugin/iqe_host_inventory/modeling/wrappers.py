@@ -218,14 +218,14 @@ class ErrorNotificationWrapper(BaseNotificationWrapper):
       "bundle": "rhel",
       "context": {
         "event_name": "Host Validation Error",
-        "display_name": "rhiqe.16ae33d8-e00e-4186-abf1-58911c55a13f",
+        "display_name": "hbiqe.16ae33d8-e00e-4186-abf1-58911c55a13f",
       },
       "events":[
         {
           "metadata": {},
           "payload": {
             "request_id": "8036bf25-4a48-4da8-8a85-036b4348b624",
-            "display_name": "rhiqe.16ae33d8-e00e-4186-abf1-58911c55a13f",
+            "display_name": "hbiqe.16ae33d8-e00e-4186-abf1-58911c55a13f",
             "canonical_facts": {
               "insights_id": "89dce1ec-3f23-4195-9dc1-89f558d53361",
               "subscription_manager_id": "89dce1ec-3f23-4195-9dc1-89f558d53361",
@@ -235,7 +235,7 @@ class ErrorNotificationWrapper(BaseNotificationWrapper):
                 "192.168.115.41",
                 "10.39.61.241"
               ],
-              "fqdn": "rhiqe.laptop-37.robbins-ortiz.com",
+              "fqdn": "hbiqe.laptop-37.robbins-ortiz.com",
               "mac_addresses": [
                 "78:70:e8:58:07:4b",
                 "da:fd:ec:ea:d2:5a"
@@ -295,8 +295,8 @@ class DeleteNotificationWrapper(BaseNotificationWrapper):
       "bundle": "rhel",
       "context": {
         "inventory_id": "a241a329-fa97-4060-ab1a-3f62eb9d3fc9",
-        "hostname": "rhiqe.desktop-81.caldwell-griffin.com",
-        "display_name": "rhiqe.8163a002-3983-46c0-be31-8c0d2f26552e",
+        "hostname": "hbiqe.desktop-81.caldwell-griffin.com",
+        "display_name": "hbiqe.8163a002-3983-46c0-be31-8c0d2f26552e",
         "rhel_version": "7.10",
         "tags": {
           "feTCFjk": {
@@ -318,7 +318,7 @@ class DeleteNotificationWrapper(BaseNotificationWrapper):
             "groups": [
               {
                 "id": "acaa1636-de85-4368-8702-e61e75889c58",
-                "name": "rhiqe.025c666d-32f0-4d57-811e-19ec580b089a"
+                "name": "hbiqe.025c666d-32f0-4d57-811e-19ec580b089a"
               }
             ],
             "insights_id": "3f8fb7dd-fcde-4dd7-8064-fff42b366fd6",
@@ -357,8 +357,8 @@ class RegisteredNotificationWrapper(BaseNotificationWrapper):
       "bundle": "rhel",
       "context": {
         "inventory_id": "bb3999d4-7063-47fd-8524-f7714eec26a5",
-        "hostname": "rhiqe.desktop-99.henry.org",
-        "display_name": "rhiqe.29107221-93e5-4b11-b4ee-63123b667655",
+        "hostname": "hbiqe.desktop-99.henry.org",
+        "display_name": "hbiqe.29107221-93e5-4b11-b4ee-63123b667655",
         "rhel_version": "7.10",
         "tags": {
           "xgOOjr": {
@@ -420,8 +420,8 @@ class StaleNotificationWrapper(BaseNotificationWrapper):
       "bundle": "rhel",
       "context": {
         "inventory_id": "bb3999d4-7063-47fd-8524-f7714eec26a5",
-        "hostname": "rhiqe.desktop-99.henry.org",
-        "display_name": "rhiqe.29107221-93e5-4b11-b4ee-63123b667655",
+        "hostname": "hbiqe.desktop-99.henry.org",
+        "display_name": "hbiqe.29107221-93e5-4b11-b4ee-63123b667655",
         "rhel_version": "7.10",
         "tags": {
           "xgOOjr": {
@@ -642,7 +642,7 @@ class KesselOutboxWrapper:
           },
           "resource_data":{
             "insights_id":"2755693d-c394-4998-9864-e6ed4793a289",
-            "ansible_host":"rhiqe.desktop-25.johnson-dunn.org",
+            "ansible_host":"hbiqe.desktop-25.johnson-dunn.org",
             "satellite_id":"f790ae9b-aef5-49de-802d-1d1126c5414c",
             "subscription_manager_id":"5a097ded-1c10-4245-8a87-b7448b1f5eff"
           }
