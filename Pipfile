@@ -63,6 +63,9 @@ types-python-dateutil = "*"
 types-requests = "*"
 types-pytz = "*"
 tabulate = "*"
+pydantic = "*"
+hvac = "*"
+ocviapy = "*"
 
 [requires]
 python_version = "3.12"
