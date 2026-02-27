@@ -1930,6 +1930,10 @@ def test_create_host_app_data_advisor(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     db.session.add(advisor_data)
@@ -1943,6 +1947,10 @@ def test_create_host_app_data_advisor(db_create_host):
     assert retrieved.host_id == host.id
     assert retrieved.recommendations == 5
     assert retrieved.incidents == 2
+    assert retrieved.critical == 3
+    assert retrieved.important == 2
+    assert retrieved.moderate == 0
+    assert retrieved.low == 0
     assert retrieved.last_updated == current_time
 
 
@@ -2132,6 +2140,10 @@ def test_update_host_app_data_advisor(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     db.session.add(advisor_data)
@@ -2140,6 +2152,10 @@ def test_update_host_app_data_advisor(db_create_host):
     # Update the record
     advisor_data.recommendations = 8
     advisor_data.incidents = 3
+    advisor_data.critical = 4
+    advisor_data.important = 1
+    advisor_data.moderate = 2
+    advisor_data.low = 1
     new_time = now()
     advisor_data.last_updated = new_time
     db.session.commit()
@@ -2149,6 +2165,10 @@ def test_update_host_app_data_advisor(db_create_host):
 
     assert retrieved.recommendations == 8
     assert retrieved.incidents == 3
+    assert retrieved.critical == 4
+    assert retrieved.important == 1
+    assert retrieved.moderate == 2
+    assert retrieved.low == 1
     assert retrieved.last_updated == new_time
 
 
@@ -2164,6 +2184,10 @@ def test_multiple_app_data_records_same_host(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     vuln_data = HostAppDataVulnerability(

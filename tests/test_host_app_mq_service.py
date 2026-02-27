@@ -24,8 +24,8 @@ APPLICATION_TEST_DATA = [
     pytest.param(
         ConsumerApplication.ADVISOR,
         HostAppDataAdvisor,
-        {"recommendations": 5, "incidents": 2},
-        {"recommendations": 5, "incidents": 2},
+        {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0},
+        {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0},
         id="advisor",
     ),
     pytest.param(
@@ -269,7 +269,7 @@ class TestHostAppMessageConsumerMetrics:
         org_id = host.org_id
         host_id = str(host.id)
 
-        advisor_data = {"recommendations": 5, "incidents": 2}
+        advisor_data = {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0}
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -361,7 +361,7 @@ class TestHostAppMessageConsumerEdgeCases:
         org_id = host.org_id
         host_id = str(host.id)
 
-        advisor_data = {"recommendations": 5, "incidents": 2}
+        advisor_data = {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0}
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -379,7 +379,14 @@ class TestHostAppMessageConsumerEdgeCases:
         host_id = str(host.id)
 
         # Advisor data with null values
-        advisor_data = {"recommendations": None, "incidents": None}
+        advisor_data = {
+            "recommendations": None,
+            "incidents": None,
+            "critical": None,
+            "important": None,
+            "moderate": None,
+            "low": None,
+        }
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -390,6 +397,10 @@ class TestHostAppMessageConsumerEdgeCases:
         assert app_data is not None
         assert app_data.recommendations is None
         assert app_data.incidents is None
+        assert app_data.critical is None
+        assert app_data.important is None
+        assert app_data.moderate is None
+        assert app_data.low is None
 
 
 class TestHostAppDataValidation:
@@ -401,7 +412,7 @@ class TestHostAppDataValidation:
         org_id = host.org_id
         host_id = str(host.id)
 
-        advisor_data = {"recommendations": 5, "incidents": 2}
+        advisor_data = {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0}
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -411,6 +422,10 @@ class TestHostAppDataValidation:
         assert app_data is not None
         assert app_data.recommendations == 5
         assert app_data.incidents == 2
+        assert app_data.critical == 3
+        assert app_data.important == 2
+        assert app_data.moderate == 0
+        assert app_data.low == 0
 
     def test_advisor_data_invalid_type(self, host_app_consumer, db_create_host):
         """Test that Advisor data with wrong types is rejected."""
@@ -419,7 +434,14 @@ class TestHostAppDataValidation:
         host_id = str(host.id)
 
         # recommendations should be int, not string
-        advisor_data = {"recommendations": "not_a_number", "incidents": 2}
+        advisor_data = {
+            "recommendations": "not_a_number",
+            "incidents": 2,
+            "critical": 3,
+            "important": 2,
+            "moderate": 0,
+            "low": 0,
+        }
         message = create_host_app_message(org_id=org_id, host_id=host_id, data=advisor_data)
 
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
@@ -509,9 +531,39 @@ class TestHostAppDataValidation:
             "org_id": org_id,
             "timestamp": datetime.now(UTC).isoformat(),
             "hosts": [
-                {"id": str(host1.id), "data": {"recommendations": 5, "incidents": 2}},  # Valid
-                {"id": str(host2.id), "data": {"recommendations": "invalid", "incidents": 1}},  # Invalid
-                {"id": str(host3.id), "data": {"recommendations": 10, "incidents": 3}},  # Valid
+                {
+                    "id": str(host1.id),
+                    "data": {
+                        "recommendations": 5,
+                        "incidents": 2,
+                        "critical": 3,
+                        "important": 2,
+                        "moderate": 0,
+                        "low": 0,
+                    },
+                },  # Valid
+                {
+                    "id": str(host2.id),
+                    "data": {
+                        "recommendations": "invalid",
+                        "incidents": 1,
+                        "critical": 3,
+                        "important": 2,
+                        "moderate": 0,
+                        "low": 0,
+                    },
+                },  # Invalid
+                {
+                    "id": str(host3.id),
+                    "data": {
+                        "recommendations": 10,
+                        "incidents": 3,
+                        "critical": 4,
+                        "important": 3,
+                        "moderate": 2,
+                        "low": 1,
+                    },
+                },  # Valid
             ],
         }
 
