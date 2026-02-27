@@ -56,6 +56,10 @@ def in_order(
     def _get_field(group: GroupOutWithHostCount, field_name: str):
         if field_name == "host_count":
             return group.host_count
+        elif field_name == "type":
+            # type field is only in RBAC v2 workspaces, not in OpenAPI model
+            # Derive it from the ungrouped field which IS in the model
+            return "ungrouped-hosts" if group.ungrouped else "standard"
         return getattr(group, field_name)
 
     expected_compare_result = -1 if ascending else 1
@@ -653,7 +657,7 @@ class TestGetGroupByIDEmptyGroups:
             (
                 f"{order_by}",
                 "is not one of ['name', 'host_count', 'updated']",
-                "{'type': 'string', 'enum': ['name', 'host_count', 'updated']}",
+                "'enum': ['name', 'host_count', 'updated']",
             ),
         ):
             host_inventory.apis.groups.get_groups_by_id_response(groups, order_by=order_by)

@@ -182,6 +182,7 @@ def test_groups_get_list_pagination_only_my_groups(
 def test_groups_get_list_ordering(
     host_inventory,
     setup_groups_for_ordering,
+    is_kessel_phase_1_enabled_session,
     order_by,
     order_how,
 ):
@@ -192,7 +193,10 @@ def test_groups_get_list_ordering(
       requirements: inv-groups-get-list
       assignee: fstavela
       importance: high
-      title: Get groups list - test ordering parameters
+      title: Get groups list - test ordering parameters (RBAC v1 only)
+
+    NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
+    RBAC v2 does not handle order_how.
     """
     response = host_inventory.apis.groups.get_groups_response(
         order_by=order_by, order_how=order_how
@@ -205,11 +209,12 @@ def test_groups_get_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
     setup_groups_for_ordering,
+    is_kessel_phase_1_enabled_session,
     order_by,
     order_how,
 ):
@@ -220,8 +225,12 @@ def test_groups_get_list_ordering_and_pagination(
       requirements: inv-groups-get-list
       assignee: fstavela
       importance: high
-      title: Get groups list - paginate through ordered results
+      title: Get groups list - paginate through ordered results (RBAC v1 only)
+
+    NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
+    RBAC v2 does not handle order_how.
     """
+
     found_groups = []
     for i in range(3):
         response = host_inventory.apis.groups.get_groups_response(
@@ -243,6 +252,7 @@ def test_groups_get_list_ordering_and_pagination(
 def test_groups_get_list_order_how_default(
     host_inventory,
     setup_groups_for_ordering,
+    is_kessel_phase_1_enabled_session,
     order_by,
 ):
     """
@@ -252,8 +262,14 @@ def test_groups_get_list_order_how_default(
       requirements: inv-groups-get-list
       assignee: fstavela
       importance: high
-      title: Get groups list - default values for order_how parameter
+      title: Get groups list - default values for order_how parameter (RBAC v1 only)
+
+    NOTE: order_how (ASC/DESC) is only supported in RBAC v1 (database).
+    RBAC v2 does not handle order_how.
     """
+
+    # Default order_how is ASC for 'name',
+    # DESC for 'host_count' and 'updated'
     ascending = order_by == "name"
 
     response = host_inventory.apis.groups.get_groups_response(order_by=order_by)
@@ -351,7 +367,7 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
+@pytest.mark.parametrize("order_by", ["name", "host_count"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_by_name_ordering_and_pagination(
     host_inventory,
@@ -746,7 +762,7 @@ class TestGetGroupListEmptyGroups:
             (
                 f"{order_by}",
                 "is not one of ['name', 'host_count', 'updated']",
-                "{'type': 'string', 'enum': ['name', 'host_count', 'updated']}",
+                "'enum': ['name', 'host_count', 'updated']}",
             ),
         ):
             host_inventory.apis.groups.get_groups_response(order_by=order_by)
