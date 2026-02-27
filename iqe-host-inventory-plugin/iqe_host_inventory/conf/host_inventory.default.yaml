@@ -144,6 +144,24 @@ prod:
         org_id:
           vault_path: secrets/qe/prod/users/qe-ui-inventory
           vault_key: org_id
+    insights_qa:
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: org_id
 
 
 
@@ -447,6 +465,24 @@ stage: &stage
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: org_id
+    insights_qa:
+      auth:
+        username:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: refresh_token
+      identity:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_qa
           vault_key: org_id
 
 stage_proxy: *stage

@@ -40,6 +40,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Kessel will respond with either 403 or 404 if the user doesn't have access to the resource.
+# It's the same code for both cases. Kessel has changed this recently, so we need to handle both.
+FORBIDDEN_OR_NOT_FOUND = (403, 404)
+
 _COLLECTION_PARAMS = (
     "group_name",
     "group_id",
@@ -450,6 +454,12 @@ def build_query_string(
         query_params.append(f"fields[system_profile]={','.join(fields)}")
 
     return "&".join(query_params)
+
+
+def build_query_string_json_array_fields(fields: list[str]) -> str:
+    """Build a fields query using JSON array syntax: fields[system_profile]=["f1","f2"]"""
+    quoted = ",".join(f'"{f}"' for f in fields)
+    return f"fields[system_profile]=[{quoted}]"
 
 
 def set_per_page(

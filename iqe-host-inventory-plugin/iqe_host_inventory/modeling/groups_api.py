@@ -19,6 +19,7 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.hosts_api import HOST_OR_HOSTS
 from iqe_host_inventory.modeling.hosts_api import _ids_from_hosts
 from iqe_host_inventory.utils import is_global_account
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import accept_when
 from iqe_host_inventory.utils.api_utils import check_org_id
 from iqe_host_inventory.utils.api_utils import is_ungrouped_host
@@ -651,7 +652,7 @@ class GroupsAPIWrapper(BaseEntity):
                 if wait_for_deleted:
                     self.wait_for_deleted(group_ids[:100], delay=delay, retries=retries)
             except ApiException as err:
-                if err.status in (403, 404):
+                if err.status in FORBIDDEN_OR_NOT_FOUND:
                     logger.info(
                         f"Couldn't delete groups {group_ids}, because they were not found."
                     )

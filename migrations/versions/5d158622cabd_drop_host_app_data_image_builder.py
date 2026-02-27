@@ -22,7 +22,10 @@ depends_on = None
 
 
 def upgrade():
-    op.drop_table("hosts_app_data_image_builder", schema=INVENTORY_SCHEMA)
+    table_name = "hosts_app_data_image_builder"
+
+    op.drop_constraint(f"fk_{table_name}_hosts", table_name, schema=INVENTORY_SCHEMA, type_="foreignkey")
+    op.drop_table(table_name, schema=INVENTORY_SCHEMA)
 
 
 def downgrade():

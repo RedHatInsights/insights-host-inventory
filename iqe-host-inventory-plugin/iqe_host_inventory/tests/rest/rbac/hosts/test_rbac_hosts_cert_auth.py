@@ -11,6 +11,8 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
+from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -482,8 +484,8 @@ def test_rbac_hosts_cert_auth_different_certificate(
     response = host_inventory_cert_auth.apis.hosts.get_hosts_response()
     assert response.count == 0
 
-    response = host_inventory_cert_auth.apis.hosts.get_hosts_by_id_response(host.id)
-    assert response.count == 0
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
+        host_inventory_cert_auth.apis.hosts.get_hosts_by_id_response(host.id)
 
 
 def test_rbac_granular_hosts_cert_auth_bypass_checks_get_host(
