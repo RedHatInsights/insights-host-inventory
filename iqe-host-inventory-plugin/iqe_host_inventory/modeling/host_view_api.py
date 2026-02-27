@@ -31,7 +31,6 @@ APP_NAMES = (
     "remediations",
     "compliance",
     "malware",
-    "image_builder",
 )
 
 _COLLECTION_PARAMS = (
