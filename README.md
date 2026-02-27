@@ -763,16 +763,33 @@ Slash commands are markdown files in `.claude/commands/` that instruct Claude Co
 
 | Command | File | Purpose |
 |---------|------|---------|
+| **Setup & Environment** | | |
 | `/hbi-install` | `.claude/commands/hbi-install.md` | Runs `/hbi-prime` for orientation, then the setup init script, reports results |
 | `/hbi-install-hil` | `.claude/commands/hbi-install-hil.md` | Interactive setup — asks preferences for database, deps, and Podman services |
 | `/hbi-maintenance` | `.claude/commands/hbi-maintenance.md` | Runs `/hbi-prime` for orientation, then the maintenance script, reports results |
 | `/hbi-doctor` | `.claude/commands/hbi-doctor.md` | Health checks all services: Podman, PostgreSQL, Kafka, HBI web, DB migrations, Python env |
 | `/hbi-prime` | `.claude/commands/hbi-prime.md` | Quick orientation: reads key files (`CLAUDE.md`, `README.md`, `mk/private.mk`, `dev.yml`), reports project summary |
+| `/hbi-iqe-setup` | `.claude/commands/hbi-iqe-setup.md` | Set up the IQE local test environment for running integration tests against stage/production |
+| **API Interaction** | | |
 | `/hbi-api-hosts` | `.claude/commands/hbi-api-hosts.md` | Query and manage hosts (list, get by ID, filter, system profile, tags, update, delete) |
+| `/hbi-api-hosts-view` | `.claude/commands/hbi-api-hosts-view.md` | Query the beta hosts-view endpoint — hosts combined with app data (Advisor, Vulnerability, Patch, Compliance, Malware) |
 | `/hbi-api-groups` | `.claude/commands/hbi-api-groups.md` | Query and manage groups (list, create, get hosts in group, add/remove hosts, delete) |
 | `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
 | `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
 | `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
+| **Data & Database** | | |
+| `/hbi-seed-data` | `.claude/commands/hbi-seed-data.md` | Seed the dev database with sample hosts and app data via the real Kafka ingestion pipeline |
+| `/hbi-db-explorer` | `.claude/commands/hbi-db-explorer.md` | Interactive database explorer — dashboard, table exploration, partition analysis, index health, ad-hoc queries |
+| **Code Analysis & Review** | | |
+| `/hbi-pr-review` | `.claude/commands/hbi-pr-review.md` | Structured, HBI-aware code review on a pull request |
+| `/hbi-query-review` | `.claude/commands/hbi-query-review.md` | SQLAlchemy query performance analyzer — N+1, missing partition pruning, unbounded result sets, index gaps |
+| `/hbi-spec-sync` | `.claude/commands/hbi-spec-sync.md` | Validate OpenAPI spec (`swagger/api.spec.yaml`) stays in sync with Python endpoint implementations |
+| `/hbi-test-gaps` | `.claude/commands/hbi-test-gaps.md` | Test coverage gap analyzer — unmapped modules, untested endpoints, missing error-path tests |
+| `/hbi-auth-audit` | `.claude/commands/hbi-auth-audit.md` | RBAC & auth path auditor — map endpoints to permissions, validate RBAC V1/Kessel V2 consistency |
+| `/hbi-config-check` | `.claude/commands/hbi-config-check.md` | Configuration drift detection between `.env`, `dev.yml`, and Python code (`app/config.py`) |
+| `/hbi-event-check` | `.claude/commands/hbi-event-check.md` | Kafka event contract validator — detect field drift, type mismatches, header inconsistencies |
+| `/hbi-flag-check` | `.claude/commands/hbi-flag-check.md` | Feature flag impact analyzer — audit Unleash flags, detect stale flags, check test coverage for on/off paths |
+| `/hbi-migration` | `.claude/commands/hbi-migration.md` | Migration safety review — analyze Alembic migrations for zero-downtime compatibility with partitioned tables |
 | `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref Pipfile.lock/Dockerfile, produce Jira-formatted output |
 
 ### HBI Make Targets
