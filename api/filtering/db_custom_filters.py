@@ -314,13 +314,14 @@ def _unique_paths(
     return all_filters
 
 
-def _validate_pg_op_and_value(pg_op: str | None, value: str, field_filter: str, field_name: str) -> None:
+def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter: str, field_name: str) -> None:
     if field_filter != "array" and pg_op == "contains":
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
-    invalid_value = (field_filter == "integer" and not value.isdigit() and value not in ["nil", "not_nil"]) or (
-        field_filter == "boolean" and value.lower() not in ["true", "false", "nil", "not_nil"]
-    )
+    str_value = str(value).lower()
+    invalid_value = (
+        field_filter == "integer" and not str_value.isdigit() and str_value not in ["nil", "not_nil"]
+    ) or (field_filter == "boolean" and str_value not in ["true", "false", "nil", "not_nil"])
     if invalid_value:
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 

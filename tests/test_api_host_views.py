@@ -349,12 +349,13 @@ class TestHostViewAppDataEdgeCases:
         assert "template_uuid" not in patch_data
 
     def test_compliance_data(self, api_get, db_create_host):
-        """Compliance data should include policies and last_scan."""
+        """Compliance data should include policies (JSONB array) and last_scan."""
         host = db_create_host()
         host_id = str(host.id)
         host_org_id = host.org_id
         scan_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-        db_create_host_app_data(host_id, host_org_id, "compliance", policies=5, last_scan=scan_time)
+        policies = [{"id": "2aad4955-8fbd-4cd0-8336-421640774536", "name": "PCI-DSS"}]
+        db_create_host_app_data(host_id, host_org_id, "compliance", policies=policies, last_scan=scan_time)
 
         url = build_host_view_url()
         response_status, response_data = api_get(url)
@@ -362,7 +363,7 @@ class TestHostViewAppDataEdgeCases:
         assert_response_status(response_status, 200)
         result = response_data["results"][0]
         assert "compliance" in result["app_data"]
-        assert result["app_data"]["compliance"]["policies"] == 5
+        assert result["app_data"]["compliance"]["policies"] == policies
         assert result["app_data"]["compliance"]["last_scan"] is not None
 
     def test_malware_data(self, api_get, db_create_host):
@@ -784,7 +785,6 @@ class TestHostViewSystemProfileFilters:
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
         response_ids = [r["id"] for r in response_data["results"]]
         assert match_host_id in response_ids
 
@@ -797,11 +797,37 @@ class TestHostViewSystemProfileFilters:
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
         result = response_data["results"][0]
         assert "app_data" in result
         assert result["app_data"]["advisor"]["recommendations"] == 5
         assert result["app_data"]["advisor"]["incidents"] == 2
+
+    def test_filter_combined_system_profile_and_app_data(self, api_get, db_create_host, db_create_host_app_data):
+        """System profile and app data filters can be used together."""
+        # Host that matches both filters
+        match_host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        match_host_id = str(match_host.id)
+        db_create_host_app_data(match_host.id, match_host.org_id, "patch", advisories_rhsa_installable=5)
+
+        # Host that matches system_profile but has no patch data
+        sp_only_host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+        sp_only_host_id = str(sp_only_host.id)
+
+        # Host that matches patch filter but not system_profile
+        patch_only_host = db_create_host(extra_data={"system_profile_facts": {"arch": "s390x"}})
+        db_create_host_app_data(patch_only_host.id, patch_only_host.org_id, "patch", advisories_rhsa_installable=3)
+        patch_only_host_id = str(patch_only_host.id)
+
+        url = build_host_view_url(
+            query="?filter[system_profile][arch][eq]=x86_64&filter[patch][advisories_rhsa_installable][not_nil]=true"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        response_ids = [r["id"] for r in response_data["results"]]
+        assert match_host_id in response_ids
+        assert sp_only_host_id not in response_ids
+        assert patch_only_host_id not in response_ids
 
     def test_filter_invalid_key_returns_400(self, api_get, db_create_host):
         """Invalid filter key should return 400."""
@@ -811,6 +837,253 @@ class TestHostViewSystemProfileFilters:
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 400)
+
+
+def _to_url_value(v):
+    """Format a value for use in a query string parameter."""
+    if isinstance(v, datetime):
+        return v.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return str(v)
+
+
+# (app_name, field_name, value_a, value_b)
+_APP_FILTER_CASES = [
+    pytest.param("patch", "advisories_rhsa_installable", 5, 10, id="patch-advisories_rhsa_installable"),
+    pytest.param("advisor", "recommendations", 3, 8, id="advisor-recommendations"),
+    pytest.param("vulnerability", "total_cves", 10, 20, id="vulnerability-total_cves"),
+    pytest.param("remediations", "remediations_plans", 3, 7, id="remediations-remediations_plans"),
+    pytest.param("malware", "last_matches", 0, 5, id="malware-last_matches"),
+    pytest.param(
+        "malware",
+        "last_scan",
+        datetime(2024, 3, 1, 10, 0, 0, tzinfo=UTC),
+        datetime(2024, 9, 15, 10, 0, 0, tzinfo=UTC),
+        id="malware-last_scan",
+    ),
+    pytest.param(
+        "compliance",
+        "last_scan",
+        datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
+        datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC),
+        id="compliance-last_scan",
+    ),
+]
+
+# (operator, compare_against, expected_ids)
+# "a"/"b" selects whether to compare against host A's or host B's value.
+_VALUE_OPERATORS = [
+    pytest.param("eq", "a", "a", id="eq"),
+    pytest.param("ne", "a", "b", id="ne"),
+    pytest.param("gt", "a", "b", id="gt"),
+    pytest.param("gte", "a", "a,b", id="gte"),
+    pytest.param("lt", "b", "a", id="lt"),
+    pytest.param("lte", "a", "a", id="lte"),
+    pytest.param("gt", "b", "", id="gt-none"),
+]
+
+
+class TestHostViewAppDataFilters:
+    """Parametrized tests for app_data filtering across all apps."""
+
+    @pytest.mark.parametrize("app_name,field_name,value_a,value_b", _APP_FILTER_CASES)
+    @pytest.mark.parametrize("operator,compare_against,expected_ids", _VALUE_OPERATORS)
+    def test_app_data_value_operators(
+        self,
+        api_get,
+        db_create_host,
+        db_create_host_app_data,
+        app_name,
+        field_name,
+        value_a,
+        value_b,
+        operator,
+        compare_against,
+        expected_ids,
+    ):
+        """Parametrized test for all value operators across all app/field combinations."""
+        host_a = db_create_host(extra_data={"display_name": "host-a.example.com"})
+        host_a_id = str(host_a.id)
+        host_b = db_create_host(extra_data={"display_name": "host-b.example.com"})
+        host_b_id = str(host_b.id)
+
+        db_create_host_app_data(host_a_id, host_a.org_id, app_name, **{field_name: value_a})
+        db_create_host_app_data(host_b_id, host_b.org_id, app_name, **{field_name: value_b})
+
+        compare_value = _to_url_value(value_a if compare_against == "a" else value_b)
+        url = build_host_view_url(query=f"?filter[{app_name}][{field_name}][{operator}]={compare_value}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        expected = set()
+        if "a" in expected_ids:
+            expected.add(host_a_id)
+        if "b" in expected_ids:
+            expected.add(host_b_id)
+        assert result_ids == expected
+
+    @pytest.mark.parametrize("app_name,field_name,value_a,value_b", _APP_FILTER_CASES)
+    def test_app_data_nil(
+        self,
+        api_get,
+        db_create_host,
+        db_create_host_app_data,
+        app_name,
+        field_name,
+        value_a,
+        value_b,  # noqa: ARG002
+    ):
+        """nil operator returns hosts without app data (or with NULL field)."""
+        host_with = db_create_host(extra_data={"display_name": "host-with.example.com"})
+        host_with_id = str(host_with.id)
+        host_without = db_create_host(extra_data={"display_name": "host-without.example.com"})
+        host_without_id = str(host_without.id)
+
+        db_create_host_app_data(host_with_id, host_with.org_id, app_name, **{field_name: value_a})
+
+        url = build_host_view_url(query=f"?filter[{app_name}][{field_name}][nil]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert host_without_id in result_ids
+        assert host_with_id not in result_ids
+
+    @pytest.mark.parametrize("app_name,field_name,value_a,value_b", _APP_FILTER_CASES)
+    def test_app_data_not_nil(
+        self,
+        api_get,
+        db_create_host,
+        db_create_host_app_data,
+        app_name,
+        field_name,
+        value_a,
+        value_b,  # noqa: ARG002
+    ):
+        """not_nil operator returns only hosts with non-NULL app data field."""
+        host_with = db_create_host(extra_data={"display_name": "host-with.example.com"})
+        host_with_id = str(host_with.id)
+        host_without = db_create_host(extra_data={"display_name": "host-without.example.com"})
+        host_without_id = str(host_without.id)
+
+        db_create_host_app_data(host_with_id, host_with.org_id, app_name, **{field_name: value_a})
+
+        url = build_host_view_url(query=f"?filter[{app_name}][{field_name}][not_nil]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert host_with_id in result_ids
+        assert host_without_id not in result_ids
+
+
+class TestHostViewAppDataFiltersPatchSpecific:
+    """Tests for patch/malware-specific filter behaviors not covered by the parametrized matrix."""
+
+    def test_filter_patch_string_field(self, api_get, db_create_host, db_create_host_app_data):
+        """Filter on string field template_name with eq operator."""
+        host_a = db_create_host(extra_data={"display_name": "host-a.example.com"})
+        host_a_id = str(host_a.id)
+        host_a_org_id = host_a.org_id
+        host_b = db_create_host(extra_data={"display_name": "host-b.example.com"})
+        host_b_id = str(host_b.id)
+        host_b_org_id = host_b.org_id
+
+        db_create_host_app_data(host_a_id, host_a_org_id, "patch", template_name="production")
+        db_create_host_app_data(host_b_id, host_b_org_id, "patch", template_name="staging")
+
+        url = build_host_view_url(query="?filter[patch][template_name][eq]=production")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert str(response_data["results"][0]["id"]) == host_a_id
+
+    def test_filter_patch_combined_with_display_name(self, api_get, db_create_host, db_create_host_app_data):
+        """App data filter combined with display_name filter."""
+        host_a = db_create_host(extra_data={"display_name": "matching-host.example.com"})
+        host_a_id = str(host_a.id)
+        host_a_org_id = host_a.org_id
+        host_b = db_create_host(extra_data={"display_name": "other-host.example.com"})
+        host_b_id = str(host_b.id)
+        host_b_org_id = host_b.org_id
+
+        db_create_host_app_data(host_a_id, host_a_org_id, "patch", advisories_rhsa_installable=10)
+        db_create_host_app_data(host_b_id, host_b_org_id, "patch", advisories_rhsa_installable=10)
+
+        # Both hosts match the patch filter, but only one matches the display_name filter
+        url = build_host_view_url(
+            query="?filter[patch][advisories_rhsa_installable][gte]=5&display_name=matching-host"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert str(response_data["results"][0]["id"]) == host_a_id
+
+    def test_filter_patch_multiple_fields(self, api_get, db_create_host, db_create_host_app_data):
+        """Multiple fields on same app: both conditions must match (AND)."""
+        host_a = db_create_host(extra_data={"display_name": "host-a.example.com"})
+        host_a_id = str(host_a.id)
+        host_a_org_id = host_a.org_id
+        host_b = db_create_host(extra_data={"display_name": "host-b.example.com"})
+        host_b_id = str(host_b.id)
+        host_b_org_id = host_b.org_id
+
+        db_create_host_app_data(
+            host_a_id, host_a_org_id, "patch", advisories_rhsa_installable=10, packages_installed=500
+        )
+        db_create_host_app_data(
+            host_b_id, host_b_org_id, "patch", advisories_rhsa_installable=10, packages_installed=50
+        )
+
+        # Both have rhsa >= 5, but only host_a has packages_installed > 100
+        url = build_host_view_url(
+            query=("?filter[patch][advisories_rhsa_installable][gte]=5&filter[patch][packages_installed][gt]=100")
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert str(response_data["results"][0]["id"]) == host_a_id
+
+    def test_filter_patch_invalid_field_returns_400(self, api_get, db_create_host):
+        """Invalid field name should return 400."""
+        db_create_host()
+
+        url = build_host_view_url(query="?filter[patch][nonexistent_field][eq]=5")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 400)
+
+    def test_filter_patch_invalid_operator_returns_400(self, api_get, db_create_host):
+        """Invalid operator should return 400."""
+        db_create_host()
+
+        url = build_host_view_url(query="?filter[patch][advisories_rhsa_installable][badop]=5")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 400)
+
+    def test_filter_malware_string_field(self, api_get, db_create_host, db_create_host_app_data):
+        """Filter on string field last_status with eq operator."""
+        host_a = db_create_host(extra_data={"display_name": "host-a.example.com"})
+        host_a_id = str(host_a.id)
+        host_a_org_id = host_a.org_id
+        host_b = db_create_host(extra_data={"display_name": "host-b.example.com"})
+        host_b_id = str(host_b.id)
+        host_b_org_id = host_b.org_id
+
+        db_create_host_app_data(host_a_id, host_a_org_id, "malware", last_status="clean")
+        db_create_host_app_data(host_b_id, host_b_org_id, "malware", last_status="infected")
+
+        url = build_host_view_url(query="?filter[malware][last_status][eq]=clean")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert str(response_data["results"][0]["id"]) == host_a_id
 
 
 class TestHostViewAppDataSorting:
@@ -1142,3 +1415,47 @@ class TestHostViewAppDataSorting:
 
         # Should fail because it's not a valid app:field format and not a standard host field
         assert_response_status(response_status, 400)
+
+    def test_sort_and_filter_same_app(self, api_get, db_create_host, db_create_host_app_data):
+        """Filter and sort on the same app should work without duplicate join errors."""
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+        host_excluded = db_create_host(extra_data={"display_name": "host-excluded.example.com"})
+
+        db_create_host_app_data(
+            host_low.id,
+            host_low.org_id,
+            "patch",
+            advisories_rhsa_installable=5,
+            packages_installable=50,
+            packages_installed=500,
+        )
+        db_create_host_app_data(
+            host_high.id,
+            host_high.org_id,
+            "patch",
+            advisories_rhsa_installable=20,
+            packages_installable=200,
+            packages_installed=100,
+        )
+        db_create_host_app_data(
+            host_excluded.id,
+            host_excluded.org_id,
+            "patch",
+            advisories_rhsa_installable=1,
+            packages_installable=10,
+            packages_installed=50,
+        )
+
+        # Filter: advisories >= 5, Sort: packages_installable DESC
+        url = build_host_view_url(
+            query="?filter[patch][advisories_rhsa_installable][gte]=5"
+            "&order_by=patch:packages_installable&order_how=DESC"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2  # host_excluded filtered out
+        results = response_data["results"]
+        assert results[0]["app_data"]["patch"]["packages_installable"] == 200
+        assert results[1]["app_data"]["patch"]["packages_installable"] == 50

@@ -44,7 +44,7 @@ POSTGRES_DEFAULT_COMPARATOR = {
 FIELD_FILTER_TO_POSTGRES_CAST = {"integer": BigInteger, "boolean": Boolean}
 FIELD_FILTER_TO_PYTHON_CAST: dict[str, Callable] = {
     "integer": lambda v: int(v),
-    "boolean": lambda v: str.lower(v) == "true",
+    "boolean": lambda v: v if isinstance(v, bool) else str.lower(v) == "true",
 }
 
 
