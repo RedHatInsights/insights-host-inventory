@@ -149,11 +149,21 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     rbac_group_id_check(rbac_filter, {str(group_id)})
     identity = get_current_identity()
 
-    group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
+    # Feature flag check for RBAC v2 workspace validation
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Validate workspace via RBAC v2 API
+        try:
+            get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
+            log_patch_group_failed(logger, str(group_id))
+            return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+    else:
+        # RBAC v1 path: Validate group via database
+        group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
 
-    if not group_to_update:
-        log_patch_group_failed(logger, str(group_id))
-        return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+        if not group_to_update:
+            log_patch_group_failed(logger, str(group_id))
+            return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
     if not get_host_list_by_id_list_from_db(host_id_list, identity):
         return abort(HTTPStatus.NOT_FOUND)
