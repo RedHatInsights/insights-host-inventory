@@ -16,7 +16,6 @@ from api.host_query_db import get_host_list
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -80,9 +79,8 @@ def get_host_list_by_group(
     # Otherwise, use database validation
     if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
         # RBAC v2 path: Validate workspace exists
-        try:
-            get_rbac_workspace_by_id(str(group_id))
-        except ResourceNotFoundException:
+        workspace = get_rbac_workspace_by_id(str(group_id))
+        if workspace is None:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
         # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
@@ -186,11 +184,28 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
 
     rbac_group_id_check(rbac_filter, {str(group_id)})
     identity = get_current_identity()
-    if (group := get_group_by_id_from_db(str(group_id), identity.org_id)) is None:
-        abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
-    if group.ungrouped is True:
-        abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
+    # Feature flag check for RBAC v2 workspace validation
+    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+        # RBAC v2 path: Validate workspace via RBAC v2 API
+        workspace = get_rbac_workspace_by_id(str(group_id))
+        if workspace is None:
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+
+        # Check if workspace is ungrouped type
+        # The "ungrouped-hosts" workspace is special: hosts not in any group must belong to it.
+        # Hosts cannot be explicitly removed from ungrouped-hosts (blocked at workspace level).
+        # They are implicitly removed when added to another group via POST.
+        if workspace.get("type") == "ungrouped-hosts":  # type: ignore[union-attr]
+            abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
+    else:
+        # RBAC v1 path: Validate group via database
+        if (group := get_group_by_id_from_db(str(group_id), identity.org_id)) is None:
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+
+        # Check ungrouped group (added during RBAC v2 migration)
+        if group.ungrouped is True:
+            abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
 
     if remove_hosts_from_group(str(group_id), host_id_list, identity, current_app.event_producer) == 0:
         abort(HTTPStatus.NOT_FOUND, "Hosts not found")
