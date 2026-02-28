@@ -24,13 +24,19 @@ from logging import Logger
 from connexion import FlaskApp
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import attributes as orm
 
+from api.staleness_query import get_staleness_obj
 from app import create_app
+from app.common import inventory_config
 from app.config import Config
+from app.culling import Timestamps
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
+from app.serialization import serialize_staleness_to_dict
+from app.staleness_serialization import get_reporter_staleness_timestamps
 from jobs.common import excepthook
 from jobs.common import job_setup
 from lib.db import session_guard
@@ -57,7 +63,8 @@ def _count_hosts_missing_culled_timestamps(session: Session) -> int:
         session.query(Host)
         .filter(
             text("""
-            EXISTS (
+            per_reporter_staleness IS NOT NULL
+            AND EXISTS (
                 SELECT 1
                 FROM jsonb_each(per_reporter_staleness) AS reporter_entry
                 WHERE NOT (reporter_entry.value ? 'culled_timestamp')
@@ -85,7 +92,8 @@ def _get_hosts_missing_culled_timestamps(
     """
     query = session.query(Host).filter(
         text("""
-            EXISTS (
+            per_reporter_staleness IS NOT NULL
+            AND EXISTS (
                 SELECT 1
                 FROM jsonb_each(per_reporter_staleness) AS reporter_entry
                 WHERE NOT (reporter_entry.value ? 'culled_timestamp')
@@ -131,8 +139,17 @@ def _update_host_per_reporter_culled_timestamps(host: Host, logger: Logger, dry_
         return True
 
     try:
+        # Get staleness configuration for the host's org
+        staleness_obj = get_staleness_obj(host.org_id)
+        staleness = serialize_staleness_to_dict(staleness_obj)
+        staleness_ts = Timestamps.from_config(inventory_config())
+
         for reporter in reporters_missing_culled:
-            host._update_per_reporter_staleness(reporter)
+            timestamps = get_reporter_staleness_timestamps(host, staleness_ts, staleness, reporter)
+
+            host.per_reporter_staleness[reporter]["culled_timestamp"] = timestamps["culled_timestamp"].isoformat()
+            orm.flag_modified(host, "per_reporter_staleness")
+
             logger.debug(f"Updated Host {host.id} reporter {reporter} with culled_timestamp")
         host.save()
         return True
@@ -164,9 +181,15 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
 
         # In dry-run mode, just count and exit immediately
         if dry_run:
+            logger.debug("Executing count query for hosts missing culled_timestamp...")
             total_hosts = _count_hosts_missing_culled_timestamps(session)
             logger.info(f"Dry-run complete. Found {total_hosts} hosts that would be updated.")
             logger.info("This was a dry run - no actual changes were made to the database.")
+
+            # Additional debug: check total hosts in table for context
+            total_hosts_in_table = session.query(Host).count()
+            logger.debug(f"Total hosts in table: {total_hosts_in_table}")
+
             return
 
         total_hosts_processed = 0
