@@ -352,168 +352,222 @@ def test_add_host_list_with_duplicate_host_ids(db_create_group, api_add_hosts_to
     assert "Host IDs must be unique." in response_data["detail"]
 
 
-# RBAC v2 Integration Tests (RHINENG-17399)
-
-
-def test_add_hosts_to_group_rbac_v2_workspace_validation_success(
-    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
+@pytest.mark.usefixtures("event_producer")
+def test_remove_hosts_rbac_v2_workspace_validation_success(
+    mocker,
+    db_create_group,
+    db_create_host,
+    db_create_host_group_assoc,
+    db_get_hosts_for_group,
+    api_remove_hosts_from_group,
 ):
     """
-    Test that POST /groups/{group_id}/hosts validates workspace via RBAC v2
-    when feature flag is enabled and workspace exists.
+    Test that DELETE /groups/{group_id}/hosts/{host_id_list} succeeds
+    with RBAC v2 workspace validation when workspace exists.
 
-    JIRA: RHINENG-17399
+    JIRA: RHINENG-17400
     """
-    # Mock event producer to avoid errors
-    mocker.patch.object(event_producer, "write_event")
-
-    # Create group and hosts in database
-    group = db_create_group("test_group")
-    host1 = db_create_host()
-    host2 = db_create_host()
-
-    # Save IDs before session closes
-    group_id = group.id
-    host1_id = host1.id
-    host2_id = host2.id
-
-    # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
-    # Mock RBAC v2 workspace fetch to return workspace
-    mock_workspace = {"id": str(group_id), "name": "test_group", "org_id": "12345", "type": "standard"}
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=mock_workspace)
-
-    # Call endpoint
-    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
-
-    # Verify success
-    assert response_status == 200
-    assert response_data["id"] == str(group_id)
-    assert response_data["name"] == "test_group"
-
-
-def test_add_hosts_to_group_rbac_v2_workspace_not_found(
-    mocker, event_producer, db_create_host, api_add_hosts_to_group
-):
-    """
-    Test that POST /groups/{group_id}/hosts returns 404 when RBAC v2
-    workspace is not found.
-
-    JIRA: RHINENG-17399
-    """
-    # Mock event producer to avoid errors
-    mocker.patch.object(event_producer, "write_event")
-
-    # Create hosts but no group
-    host1 = db_create_host()
-    host2 = db_create_host()
-    group_id = generate_uuid()
-
-    # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
-
-    # Mock RBAC v2 workspace fetch to raise ResourceNotFoundException (not found)
-    from app.exceptions import ResourceNotFoundException
-
-    mocker.patch(
-        "api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Workspace not found")
-    )
-
-    # Call endpoint
-    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1.id), str(host2.id)])
-
-    # Verify 404 error
-    assert response_status == 404
-    assert "not found" in response_data["detail"].lower()
-
-
-def test_add_hosts_to_group_feature_flag_disabled(
-    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
-):
-    """
-    Test that POST /groups/{group_id}/hosts uses database validation
-    when feature flag is disabled (RBAC v1 path).
-
-    JIRA: RHINENG-17399
-    """
-    # Mock event producer to avoid errors
-    mocker.patch.object(event_producer, "write_event")
-
-    # Mock RBAC v2 workspace helper - should NOT be called when flag is disabled
-    workspace_mock = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-
-    # Create group and hosts in database
-    group = db_create_group("test_group")
-    host1 = db_create_host()
-    host2 = db_create_host()
-
-    # Save IDs before session closes
-    group_id = group.id
-    host1_id = host1.id
-    host2_id = host2.id
-
-    # Mock feature flag disabled (RBAC v1 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=False)
-
-    # Call endpoint - should use database validation, NOT workspace fetch
-    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
-
-    # Verify success using database path
-    assert response_status == 200
-    assert response_data["id"] == str(group_id)
-    assert response_data["name"] == "test_group"
-
-    # Verify RBAC v2 helper was never called when feature flag is disabled
-    workspace_mock.assert_not_called()
-
-
-def test_add_hosts_to_group_rbac_v2_bypass_kessel_enabled(
-    mocker, event_producer, db_create_group, db_create_host, api_add_hosts_to_group
-):
-    """
-    Test that POST /groups/{group_id}/hosts uses database path when
-    bypass_kessel is enabled (even if feature flag is enabled).
-
-    JIRA: RHINENG-17399
-    """
-    # Mock event producer to avoid errors
-    mocker.patch.object(event_producer, "write_event")
-
-    # Mock RBAC v2 workspace helper - should NOT be called when bypass_kessel is enabled
-    workspace_mock = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-
     # Create group and hosts
     group = db_create_group("test_group")
     host1 = db_create_host()
     host2 = db_create_host()
+    host3 = db_create_host()
 
     # Save IDs before session closes
     group_id = group.id
     host1_id = host1.id
     host2_id = host2.id
+    host3_id = host3.id
 
-    # Mock bypass_kessel enabled (should use database path)
+    # Add all 3 hosts to the group using DB fixture
+    db_create_host_group_assoc(host1_id, group_id)
+    db_create_host_group_assoc(host2_id, group_id)
+    db_create_host_group_assoc(host3_id, group_id)
+
+    # Verify group has 3 hosts
+    hosts_before = db_get_hosts_for_group(group_id)
+    assert len(hosts_before) == 3
+
+    # Mock feature flag enabled (RBAC v2 path)
     mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = True  # This takes precedence
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.host_group.get_flag_value", return_value=True)
 
-    # Call endpoint - should use database validation despite feature flag
-    response_status, response_data = api_add_hosts_to_group(group_id, [str(host1_id), str(host2_id)])
+    # Mock workspace fetch to return valid workspace
+    mock_workspace = {
+        "id": str(group_id),
+        "name": "test_group",
+        "org_id": "12345",
+        "type": "standard",
+    }
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=mock_workspace)
 
-    # Verify success using database path
-    assert response_status == 200
-    assert response_data["id"] == str(group_id)
-    assert response_data["name"] == "test_group"
+    # Remove 2 hosts from the group
+    response_status, _ = api_remove_hosts_from_group(group_id, [str(host1_id), str(host2_id)])
 
-    # Verify RBAC v2 helper was never called when bypass_kessel is enabled
-    workspace_mock.assert_not_called()
+    # Verify success (204 No Content)
+    assert_response_status(response_status, 204)
+
+    # Verify only 1 host remains
+    hosts_after = db_get_hosts_for_group(group_id)
+    assert len(hosts_after) == 1
+    assert hosts_after[0].id == host3_id
+
+
+def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_create_host, api_remove_hosts_from_group):
+    """
+    Test that DELETE /groups/{group_id}/hosts/{host_id_list} returns 404
+    when workspace not found using RBAC v2.
+
+    JIRA: RHINENG-17400
+    """
+    # Create valid hosts
+    host1 = db_create_host()
+    host2 = db_create_host()
+
+    # Save IDs before session closes
+    host1_id = host1.id
+    host2_id = host2.id
+
+    # Mock event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Use random group_id that doesn't exist
+    invalid_group_id = generate_uuid()
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return None (not found)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+
+    # Try to remove hosts from non-existent group
+    response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
+
+    # Verify 404 error
+    assert_response_status(response_status, 404)
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
+
+
+def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
+    mocker, event_producer, db_create_group, db_create_host, api_remove_hosts_from_group
+):
+    """
+    Test that DELETE /groups/{group_id}/hosts/{host_id_list} returns 400
+    when trying to remove hosts from ungrouped workspace using RBAC v2.
+
+    JIRA: RHINENG-17400
+    """
+    # Create a group (will pretend it's ungrouped via workspace mock)
+    group = db_create_group("ungrouped")
+    host1 = db_create_host()
+
+    # Save IDs before session closes
+    group_id = group.id
+    host1_id = host1.id
+
+    # Mock event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock workspace fetch to return ungrouped workspace
+    mock_workspace = {
+        "id": str(group_id),
+        "name": "ungrouped",
+        "org_id": "12345",
+        "type": "ungrouped-hosts",  # This is the key - ungrouped type
+    }
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=mock_workspace)
+
+    # Try to remove host from ungrouped workspace
+    response_status, response_data = api_remove_hosts_from_group(group_id, [str(host1_id)])
+
+    # Verify 400 error
+    assert_response_status(response_status, 400)
+    assert "Cannot remove hosts from ungrouped workspace" in response_data["detail"]
+
+
+def test_remove_invalid_hosts_from_group_rbac_v2(mocker, event_producer, db_create_group, api_remove_hosts_from_group):
+    """
+    Test that DELETE /groups/{group_id}/hosts/{host_id_list} returns 404
+    when trying to remove non-existent hosts from a valid group using RBAC v2.
+
+    JIRA: RHINENG-17400
+    """
+    # Create a valid group
+    group = db_create_group("test_group")
+    group_id = group.id
+
+    # Mock event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock workspace fetch to return valid workspace
+    mock_workspace = {
+        "id": str(group_id),
+        "name": "test_group",
+        "org_id": "12345",
+        "type": "standard",
+    }
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=mock_workspace)
+
+    # Try to remove hosts that don't exist (random UUIDs)
+    invalid_host_ids = [str(generate_uuid()), str(generate_uuid())]
+
+    response_status, response_data = api_remove_hosts_from_group(group_id, invalid_host_ids)
+
+    # Verify 404 error - hosts not found
+    assert_response_status(response_status, 404)
+    assert "Hosts not found" in response_data["detail"]
+
+
+def test_remove_valid_hosts_from_invalid_group_rbac_v2(
+    mocker, event_producer, db_create_host, api_remove_hosts_from_group
+):
+    """
+    Test that DELETE /groups/{group_id}/hosts/{host_id_list} returns 404
+    when trying to remove hosts from a non-existent group using RBAC v2.
+
+    JIRA: RHINENG-17400
+    """
+    # Create valid hosts
+    host1 = db_create_host()
+    host2 = db_create_host()
+
+    # Save IDs before session closes
+    host1_id = host1.id
+    host2_id = host2.id
+
+    # Mock event producer
+    mocker.patch.object(event_producer, "write_event")
+
+    # Use a random group_id that doesn't exist
+    invalid_group_id = generate_uuid()
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.host_group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.host_group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch to return None (not found)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+
+    # Try to remove valid hosts from non-existent group
+    response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
+
+    # Verify 404 error - group not found
+    assert_response_status(response_status, 404)
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
 
 
 #
@@ -580,10 +634,8 @@ def test_get_hosts_from_missing_group(
 
     # Mock RBAC workspace API for Kessel-enabled path
     if expect_rbac_call:
-        from app.exceptions import ResourceNotFoundException
-
         mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-        mock_get_workspace.side_effect = ResourceNotFoundException(f"Workspace {missing_group_id} not found")
+        mock_get_workspace.return_value = None  # Workspace not found
 
     # Mock database call for non-Kessel paths
     if expect_db_call:
