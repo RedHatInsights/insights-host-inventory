@@ -19,7 +19,8 @@
 8. [Finding 6: MQ Ingestion Runs 16 SQL Queries Per Host](#8-finding-6-mq-ingestion-runs-16-sql-queries-per-host)
 9. [Finding 7: system_profiles_static Wide INSERT](#9-finding-7-system_profiles_static-wide-insert)
 10. [Finding 8: SAP System Aggregation Query Becomes Dominant at Scale](#10-finding-8-sap-system-aggregation-query-becomes-dominant-at-scale)
-11. [Next Steps](#11-next-steps)
+11. [Production Impact Estimate (5M hosts, db.m7g.8xlarge)](#11-production-impact-estimate-5m-hosts-dbm7g8xlarge)
+12. [Next Steps](#12-next-steps)
 
 ---
 
@@ -477,7 +478,107 @@ the cost unnecessarily.
 
 ---
 
-## 11. Next Steps
+## 11. Production Impact Estimate (5M hosts, db.m7g.8xlarge)
+
+### Infrastructure context
+
+| Parameter | Value |
+|-----------|-------|
+| Total hosts | ~5,000,000 |
+| Database | AWS RDS `db.m7g.8xlarge` (32 vCPUs, 128 GB RAM, up to 40K IOPS) |
+| Table partitioning | `HASH(org_id)` — all hosts for one org land in the same partition |
+| Partition count | Configurable via `HOSTS_TABLE_NUM_PARTITIONS` |
+| Estimated table size | ~32 GB for hosts alone, ~100-200 GB including system profiles and indexes |
+
+### Critical insight
+
+Queries filter by `org_id`, so **per-org host count determines query cost**, not total
+host count. The hash partitioning by `org_id` means PostgreSQL only scans the partition
+containing that org, but all hosts within an org still require a full scan for queries
+like COUNT(DISTINCT) with staleness filters.
+
+### Query scaling projections
+
+Production estimates are adjusted ~2-3× faster than local Docker measurements to account
+for dedicated CPU, optimized memory management, and NVMe-backed EBS on db.m7g.8xlarge.
+
+#### COUNT(DISTINCT) pagination query — runs on EVERY list request
+
+| Hosts per org | Local estimate | Production estimate | Verdict |
+|---------------|----------------|---------------------|---------|
+| 1K | ~5ms | **2-3ms** | Fine |
+| 10K | ~20ms | **8-15ms** | Acceptable |
+| 50K | ~60-100ms | **25-50ms** | Noticeable to users |
+| 100K | ~120-200ms | **50-100ms** | **Slow** — users feel this |
+| 500K | ~400-700ms | **150-350ms** | **Unacceptable** — breaks SLOs |
+
+The staleness OR conditions prevent efficient index usage, forcing a sequential scan
+of all hosts in the org. No amount of hardware fixes an O(n) scan at 500K rows.
+
+#### Host data SELECT (paginated, per_page=50)
+
+| Hosts per org | Production estimate | Verdict |
+|---------------|---------------------|---------|
+| Any size | **2-10ms** | Bounded by pagination — not volume-sensitive |
+
+However, `ORDER BY modified_on` with large `OFFSET` (deep pagination) degrades as
+PostgreSQL must skip rows sequentially.
+
+#### System profile jsonb_build_object (single host lookup)
+
+| Hosts per org | Production estimate | Verdict |
+|---------------|---------------------|---------|
+| Any size | **10-15ms** | Stable — single-row lookup, cost is JSONB construction |
+
+#### SAP system / workloads aggregation (scans ALL hosts in org)
+
+| Hosts per org | Local estimate | Production estimate | Verdict |
+|---------------|----------------|---------------------|---------|
+| 1K | ~10ms | **3-5ms** | Fine |
+| 10K | ~75ms | **25-40ms** | Acceptable |
+| 50K | ~200-350ms | **80-150ms** | **Slow** |
+| 100K | ~400-600ms | **150-300ms** | **Unacceptable** |
+| 500K | ~1-2s | **400ms-1s** | **Broken** — likely times out |
+
+Scans every host, joins `system_profiles_dynamic`, extracts JSONB, aggregates — and
+runs the entire thing **twice** (results + count). This is the #2 concern after pagination.
+
+#### Staleness config SELECT (per request)
+
+| Hosts per org | Production estimate | Verdict |
+|---------------|---------------------|---------|
+| Any size | **<1ms** per query | Trivial individually, but multiplied by thousands of req/sec = unnecessary DB load |
+
+#### MQ ingestion — 16 queries per host
+
+| Scenario | Production estimate | Verdict |
+|----------|---------------------|---------|
+| Per host | **15-40ms** total SQL | Acceptable |
+| 1K hosts/min ingestion rate | ~15-40 sec DB time/min | Fine |
+| 10K hosts/min ingestion rate | ~2.5-7 min DB time/min | **Backpressure risk** — connection pool saturation |
+
+The concern is aggregate DB load during high-ingestion bursts, not individual query speed.
+
+### Production risk summary
+
+| Priority | Issue | Affected orgs | Risk | Finding |
+|----------|-------|---------------|------|---------|
+| **P1** | COUNT(DISTINCT) pagination | Orgs with >50K hosts | p99 latency SLO breach on every list request | #2 |
+| **P2** | SAP/workloads aggregation | Orgs with >50K hosts | Endpoint timeout, double query waste | #8 |
+| **P3** | Staleness query on every request | All orgs | Aggregate DB load — thousands of unnecessary queries/sec | #3 |
+| **P4** | MQ 16 queries/host | All orgs during ingestion | DB connection pool saturation during bursts | #6 |
+| Low | Host data SELECT, system profile | All orgs | Bounded by pagination, not volume-sensitive | #1, #5 |
+
+### Key takeaway
+
+The `db.m7g.8xlarge` is a powerful instance, but **hardware cannot compensate for O(n)
+scans on large orgs**. The COUNT(DISTINCT) pagination and SAP aggregation queries are
+algorithmic problems — they will be the performance bottleneck for the largest customers
+regardless of instance class.
+
+---
+
+## 12. Next Steps
 
 ### Immediate actions (quick wins)
 
