@@ -7,11 +7,12 @@ from typing import Any
 from app.exceptions import IdsNotFoundError
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models.mixins import HostTypeDeriver
 
 logger = get_logger(__name__)
 
 
-class HostWrapper:
+class HostWrapper(HostTypeDeriver):
     def __init__(self, data=None):
         self.__data = data or {}
 
@@ -218,6 +219,22 @@ class HostWrapper:
     @openshift_cluster_id.setter
     def openshift_cluster_id(self, openshift_cluster_id):
         self.__data["openshift_cluster_id"] = openshift_cluster_id
+
+    @property
+    def host_type(self):
+        # Derive host_type lazily if not already set
+        if "host_type" not in self.__data or self.__data["host_type"] is None:
+            self.__data["host_type"] = self.derive_host_type()
+        return self.__data.get("host_type")
+
+    def _update_derived_host_type(self):
+        """
+        Update the host_type based on system profile data.
+
+        This method should be called whenever the system profile is updated
+        to keep the host_type in sync with the source data.
+        """
+        self.__data["host_type"] = self.derive_host_type()
 
     @classmethod
     def from_json(cls, d):
