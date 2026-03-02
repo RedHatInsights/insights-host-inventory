@@ -1494,7 +1494,6 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
         "[workloads][sap][sids][contains]=ABC",
         "[workloads][sap][sids][]=ABC",
-        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
         "[workloads][sap][sids][]=not_nil",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=9000000000000000",
@@ -1580,6 +1579,21 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     response_ids = [result["id"] for result in response_data["results"]]
     assert match_host_id in response_ids
     assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        # Non-object JSON values: must not be treated as deep object filters
+        "=true",
+        "=1",
+        '=["ABC", "DEF"]',
+    ),
+)
+def test_query_all_sp_filters_json_invalid_object_notation(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+    response_status, _ = api_get(url)
+    assert response_status == 400
 
 
 @pytest.mark.parametrize(

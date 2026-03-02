@@ -91,17 +91,41 @@ class customURIParser(OpenAPIURIParser):
         return resolved_param
 
     @staticmethod
-    def _try_parse_json(value):
-        """Try to parse a JSON string. Returns the parsed dict or None if not valid JSON object."""
+    def _try_parse_json(value, param_name=None):
+        """
+        Try to parse a JSON object string.
+
+        Only attempts parsing if the value looks like a JSON object (starts with '{').
+        This prevents plain string values like "true", "false", or "15.3" from being
+        interpreted as JSON primitives.
+
+        Returns:
+            - The parsed dict if value is a valid JSON object
+            - None if value doesn't look like JSON or is not valid JSON
+
+        Raises:
+            BadRequestProblem if value looks like JSON (starts with '{' or '[') but is
+            invalid or not an object.
+        """
         if isinstance(value, dict):
             return value
         if isinstance(value, str):
-            try:
-                parsed = json.loads(value)
-                if isinstance(parsed, dict):
-                    return parsed
-            except (json.JSONDecodeError, ValueError):
-                pass
+            stripped = value.strip()
+            # Only attempt JSON parsing if it looks like a JSON object or array
+            if stripped.startswith("{"):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, dict):
+                        return parsed
+                    # Parsed successfully but not a dict (shouldn't happen for '{' prefix)
+                    raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' must be a JSON object.")
+                except (json.JSONDecodeError, ValueError) as e:
+                    raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' has invalid JSON: {e}") from e
+            elif stripped.startswith("["):
+                # Array syntax - error out with helpful message
+                raise BadRequestProblem(
+                    f"Filter param '{param_name or 'filter'}' must be a JSON object, not an array."
+                )
         return None
 
     @staticmethod
@@ -117,7 +141,7 @@ class customURIParser(OpenAPIURIParser):
         if k == root_key:
             # No square brackets in key
             # If v is already a dict or a JSON string, treat as deep object and pass through
-            parsed = customURIParser._try_parse_json(v)
+            parsed = customURIParser._try_parse_json(v, param_name=k)
             if parsed is not None:
                 return (root_key, [parsed], True)
             return (k, v, False)
@@ -145,7 +169,19 @@ class customURIParser(OpenAPIURIParser):
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             # Try to parse the value as JSON object
             leaf_value = v[0]
-            parsed = customURIParser._try_parse_json(leaf_value)
+            # Use the full parameter path for the error message (e.g., "filter[system_profile]")
+            full_param_path = f"{root_key}[{']['.join(key_path)}]"
+            parsed = customURIParser._try_parse_json(leaf_value, param_name=full_param_path)
+
+            # For filter params with only one path element (e.g., filter[system_profile]=value),
+            # the value must be a JSON object. A plain string value at this level is invalid
+            # because it would set the entire system_profile to a string instead of a nested filter.
+            if parsed is None and len(key_path) == 1 and root_key == "filter":
+                raise BadRequestProblem(
+                    f"Filter param '{full_param_path}' value must be a JSON object or use bracket "
+                    f"notation for nested fields (e.g., {full_param_path}[field]=value)."
+                )
+
             prev[k] = parsed if parsed is not None else leaf_value
 
         return (root_key, [root], True)
