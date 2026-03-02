@@ -1973,6 +1973,22 @@ components:
           type: integer
           minimum: 0
           nullable: true
+        critical:
+          type: integer
+          minimum: 0
+          nullable: true
+        important:
+          type: integer
+          minimum: 0
+          nullable: true
+        moderate:
+          type: integer
+          minimum: 0
+          nullable: true
+        low:
+          type: integer
+          minimum: 0
+          nullable: true
     VulnerabilityAppData:
       type: object
       properties:

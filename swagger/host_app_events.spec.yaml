@@ -54,6 +54,18 @@ $defs:
       incidents:
         type: integer
         description: Number of incidents
+      critical:
+        type: integer
+        description: Number of critical recommendations
+      important:
+        type: integer
+        description: Number of important recommendations
+      moderate:
+        type: integer
+        description: Number of moderate recommendations
+      low:
+        type: integer
+        description: Number of low recommendations
 
   VulnerabilityData:
     description: Vulnerability application data
