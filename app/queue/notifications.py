@@ -212,7 +212,13 @@ def build_base_notification_obj(notification_type: str, host: dict):
     if notification_type == NotificationType.validation_error.value:
         return base_obj
 
-    system_profile = host.get("system_profile_facts", host.get("system_profile", {}))
+    system_profile = host.get("system_profile", host.get("static_system_profile", {}))
+
+    if system_profile is None:
+        system_profile = {}
+    elif not isinstance(system_profile, dict):
+        # Convert SQLAlchemy model object to dict
+        system_profile = vars(system_profile)
 
     complete_base_obj: dict[str, Any] = {
         "context": {

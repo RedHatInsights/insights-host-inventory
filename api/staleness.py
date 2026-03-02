@@ -179,7 +179,7 @@ def _get_existing_host_ids(org_id, host_ids):
 
 
 def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host.static_system_profile)
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
     headers = message_headers(
         EventType.updated,
         str(host.insights_id),
