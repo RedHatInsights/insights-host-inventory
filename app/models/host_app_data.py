@@ -104,10 +104,14 @@ class HostAppDataMixin:
 class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_advisor"
     __app_name__ = "advisor"
-    __sortable_fields__ = ("recommendations", "incidents")
+    __sortable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
 
     recommendations = db.Column(db.Integer, nullable=True)
     incidents = db.Column(db.Integer, nullable=True)
+    critical = db.Column(db.Integer, nullable=True)
+    important = db.Column(db.Integer, nullable=True)
+    moderate = db.Column(db.Integer, nullable=True)
+    low = db.Column(db.Integer, nullable=True)
 
 
 class HostAppDataVulnerability(HostAppDataMixin, db.Model):
