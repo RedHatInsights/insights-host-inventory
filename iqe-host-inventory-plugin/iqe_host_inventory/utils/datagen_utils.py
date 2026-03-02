@@ -1506,3 +1506,38 @@ def generate_all_host_apps_data() -> dict[str, dict[str, Any]]:
     ``sample_data`` dict is ready to be sent as a Kafka message payload.
     """
     return {app.name: generate_host_app_data(app) for app in HOST_APPS}
+
+
+# ── Shared test-data constants (moved from test_system_profile.py) ───────────
+
+EMPTY_LIST = pytest.param([], id="empty list")
+EMPTY_DICT = pytest.param({}, id="empty dict")
+LIST_WITH_STR = pytest.param(["a"], id="list with data")
+EMPTY_STR = pytest.param("", id="empty str")
+
+EMPTY_BASICS = (EMPTY_LIST, EMPTY_DICT, EMPTY_STR)
+INCORRECT_STRING_VALUES = (EMPTY_LIST, EMPTY_DICT, LIST_WITH_STR)
+
+INCORRECT_CANONICAL_UUIDS = (
+    *EMPTY_BASICS,
+    pytest.param([generate_uuid()], id="list of uuid"),
+    pytest.param(generate_uuid().replace("-", "_"), id="bad uuid underscore"),
+    pytest.param(generate_uuid().replace("-", "."), id="bad uuid dots"),
+    pytest.param(generate_uuid().replace("-", " "), id="bad uuid spaces"),
+    pytest.param(generate_uuid().replace("-", ""), id="bad uuid no-separator"),
+    pytest.param(generate_uuid().upper(), id="uuid uppercase"),
+    pytest.param(generate_uuid()[:23], id="uuid short 23"),
+    pytest.param(generate_uuid()[:35], id="uuid shoirt 35"),
+    pytest.param(generate_uuid() + "a", id="uuid with bad char"),
+    pytest.param("f8c1684c-aáe7-4463-8cf4-773cc668862c", id="uuid bad accent"),
+    pytest.param("f8c1684c-a$e7-4463-8cf4-773cc668862c", id="uuid special char"),
+    pytest.param("f8c1684c-aae7-4463-8cf4-773cc6-68862", id="uuid evil extra dash"),
+    pytest.param(generate_uuid()[:10], id="uuid short 10"),
+)
+
+INCORRECT_DATETIMES = (
+    *EMPTY_BASICS,
+    pytest.param([generate_timestamp()], id="list of timestamp"),
+    pytest.param(generate_uuid(), id="uuid"),
+    pytest.param(generate_string_of_length(10), id="randstr(10)"),
+)

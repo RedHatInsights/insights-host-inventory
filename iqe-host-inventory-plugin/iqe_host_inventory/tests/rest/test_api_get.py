@@ -13,12 +13,12 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.tests.rest.groups.test_groups_hosts import group_to_hosts_api_dict
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_DATETIMES
 from iqe_host_inventory.utils import determine_positive_hosts_by_registered_with
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_REGISTERED_WITH_VALUES
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_DATETIMES
 from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
