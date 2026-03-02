@@ -122,10 +122,17 @@ class customURIParser(OpenAPIURIParser):
                 except (json.JSONDecodeError, ValueError) as e:
                     raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' has invalid JSON: {e}") from e
             elif stripped.startswith("["):
-                # Array syntax - error out with helpful message
-                raise BadRequestProblem(
-                    f"Filter param '{param_name or 'filter'}' must be a JSON object, not an array."
-                )
+                # Check if it's actually a valid JSON array - only then reject it
+                # Strings that merely start with '[' but aren't valid JSON are treated as regular values
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        raise BadRequestProblem(
+                            f"Filter param '{param_name or 'filter'}' must be a JSON object, not an array."
+                        )
+                except (json.JSONDecodeError, ValueError):
+                    # Not valid JSON - treat as regular string value
+                    pass
         return None
 
     @staticmethod
