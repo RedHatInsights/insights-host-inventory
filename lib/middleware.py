@@ -777,7 +777,8 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace_id: UUID of the workspace to fetch
 
     Returns:
-        dict: Workspace object from RBAC v2 API, or None if bypass_kessel is enabled
+        dict: Workspace object from RBAC v2 API
+        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
