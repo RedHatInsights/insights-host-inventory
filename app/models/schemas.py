@@ -745,6 +745,10 @@ class AdvisorDataSchema(MarshmallowSchema):
 
     recommendations = fields.Int(allow_none=True)
     incidents = fields.Int(allow_none=True)
+    critical = fields.Int(allow_none=True)
+    important = fields.Int(allow_none=True)
+    moderate = fields.Int(allow_none=True)
+    low = fields.Int(allow_none=True)
 
 
 class VulnerabilityDataSchema(MarshmallowSchema):
