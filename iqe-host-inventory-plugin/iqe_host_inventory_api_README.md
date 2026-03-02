@@ -110,6 +110,7 @@ Class | Method | HTTP request | Description
 *HostsApi* | [**api_host_merge_facts**](iqe_host_inventory_api/docs/HostsApi.md#api_host_merge_facts) | **PATCH** /hosts/{host_id_list}/facts/{namespace} | Merge facts under a namespace
 *HostsApi* | [**api_host_patch_host_by_id**](iqe_host_inventory_api/docs/HostsApi.md#api_host_patch_host_by_id) | **PATCH** /hosts/{host_id_list} | Update hosts
 *HostsApi* | [**api_host_replace_facts**](iqe_host_inventory_api/docs/HostsApi.md#api_host_replace_facts) | **PUT** /hosts/{host_id_list}/facts/{namespace} | Replace facts under a namespace
+*HostsApi* | [**api_host_views_get_host_views**](iqe_host_inventory_api/docs/HostsApi.md#api_host_views_get_host_views) | **GET** /beta/hosts-view | Read aggregated host and application data
 *ResourceTypesApi* | [**api_resource_type_get_resource_type_groups_list**](iqe_host_inventory_api/docs/ResourceTypesApi.md#api_resource_type_get_resource_type_groups_list) | **GET** /resource-types/inventory-groups | Get the list of inventory groups in resource-types format
 *ResourceTypesApi* | [**api_resource_type_get_resource_type_list**](iqe_host_inventory_api/docs/ResourceTypesApi.md#api_resource_type_get_resource_type_list) | **GET** /resource-types | Get the list of resource types
 *SystemProfileApi* | [**api_system_profile_get_operating_system**](iqe_host_inventory_api/docs/SystemProfileApi.md#api_system_profile_get_operating_system) | **GET** /system_profile/operating_system | get all operating system versions and counts on the account
@@ -124,9 +125,13 @@ Class | Method | HTTP request | Description
  - [ActiveTag](iqe_host_inventory_api/docs/ActiveTag.md)
  - [ActiveTags](iqe_host_inventory_api/docs/ActiveTags.md)
  - [ActiveTagsAllOf](iqe_host_inventory_api/docs/ActiveTagsAllOf.md)
+ - [AdvisorAppData](iqe_host_inventory_api/docs/AdvisorAppData.md)
+ - [AppSortableFields](iqe_host_inventory_api/docs/AppSortableFields.md)
  - [CanonicalFactsIn](iqe_host_inventory_api/docs/CanonicalFactsIn.md)
  - [CanonicalFactsInAllOf](iqe_host_inventory_api/docs/CanonicalFactsInAllOf.md)
  - [CanonicalFactsOut](iqe_host_inventory_api/docs/CanonicalFactsOut.md)
+ - [ComplianceAppData](iqe_host_inventory_api/docs/ComplianceAppData.md)
+ - [ConsumerApplicationsData](iqe_host_inventory_api/docs/ConsumerApplicationsData.md)
  - [CreateCheckIn](iqe_host_inventory_api/docs/CreateCheckIn.md)
  - [CreateCheckInAllOf](iqe_host_inventory_api/docs/CreateCheckInAllOf.md)
  - [FactSet](iqe_host_inventory_api/docs/FactSet.md)
@@ -142,10 +147,18 @@ Class | Method | HTTP request | Description
  - [HostQueryOutput](iqe_host_inventory_api/docs/HostQueryOutput.md)
  - [HostQueryOutputAllOf](iqe_host_inventory_api/docs/HostQueryOutputAllOf.md)
  - [HostSystemProfileOut](iqe_host_inventory_api/docs/HostSystemProfileOut.md)
+ - [HostViewFilterComparison](iqe_host_inventory_api/docs/HostViewFilterComparison.md)
+ - [HostViewHost](iqe_host_inventory_api/docs/HostViewHost.md)
+ - [HostViewHostAllOf](iqe_host_inventory_api/docs/HostViewHostAllOf.md)
+ - [HostViewQueryOutput](iqe_host_inventory_api/docs/HostViewQueryOutput.md)
+ - [HostViewQueryOutputAllOf](iqe_host_inventory_api/docs/HostViewQueryOutputAllOf.md)
+ - [MalwareAppData](iqe_host_inventory_api/docs/MalwareAppData.md)
  - [NotFoundErrorResponse](iqe_host_inventory_api/docs/NotFoundErrorResponse.md)
  - [PaginationOut](iqe_host_inventory_api/docs/PaginationOut.md)
+ - [PatchAppData](iqe_host_inventory_api/docs/PatchAppData.md)
  - [PatchHostIn](iqe_host_inventory_api/docs/PatchHostIn.md)
  - [PerReporterStaleness](iqe_host_inventory_api/docs/PerReporterStaleness.md)
+ - [RemediationsAppData](iqe_host_inventory_api/docs/RemediationsAppData.md)
  - [ResourceTypesGroupsQueryOutput](iqe_host_inventory_api/docs/ResourceTypesGroupsQueryOutput.md)
  - [ResourceTypesGroupsQueryOutputAllOf](iqe_host_inventory_api/docs/ResourceTypesGroupsQueryOutputAllOf.md)
  - [ResourceTypesOut](iqe_host_inventory_api/docs/ResourceTypesOut.md)
@@ -198,6 +211,7 @@ Class | Method | HTTP request | Description
  - [TagCountOutAllOf](iqe_host_inventory_api/docs/TagCountOutAllOf.md)
  - [TagsOut](iqe_host_inventory_api/docs/TagsOut.md)
  - [TagsOutAllOf](iqe_host_inventory_api/docs/TagsOutAllOf.md)
+ - [VulnerabilityAppData](iqe_host_inventory_api/docs/VulnerabilityAppData.md)
 
 
 ## Documentation For Authorization
