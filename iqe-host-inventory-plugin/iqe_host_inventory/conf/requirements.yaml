@@ -789,3 +789,12 @@ inv-canonical-facts-columns:
     ip_addresses, mac_addresses, provider_id, provider_type) are stored as individual columns
     in the hosts table rather than in a JSONB column. The API should correctly return these
     values and they should be preserved during host updates.
+
+inv-host-apps-topic:
+  summary: Downstream applications can send host data via platform.inventory.host-apps kafka topic
+  description: >
+    Downstream applications (Advisor, Vulnerability, Patch, Compliance, Malware, Remediations, Image Builder)
+    can send host-specific data to the `platform.inventory.host-apps` kafka topic. The HostAppMessageConsumer
+    processes these messages and stores the application data in the inventory read-model tables.
+    The data is then available via the /hosts-view endpoint.
+  priority: high
