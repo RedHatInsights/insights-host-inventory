@@ -48,7 +48,7 @@ configuration = iqe_host_inventory_api.Configuration(
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.TagsApi(api_client)
-    tags = ['tags_example'] # list[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # list[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
 order_by = 'tag' # str | Ordering field name (optional) (default to 'tag')
 order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC. (optional)
 per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
@@ -83,7 +83,7 @@ filter = {'key': {}} # dict(str, object) | Filters hosts based on system_profile
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **tags** | [**list[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**list[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **order_by** | **str**| Ordering field name | [optional] [default to &#39;tag&#39;]
  **order_how** | **str**| Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC. | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
