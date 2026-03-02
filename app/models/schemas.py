@@ -531,7 +531,7 @@ class HostSchema(LimitedHostSchema):
     def build_model(data, facts, tags, tags_alt=None):
         if tags_alt is None:
             tags_alt = []
-        return Host(
+        host = Host(
             data.get("display_name"),
             data.get("ansible_host"),
             data.get("account"),
@@ -554,6 +554,8 @@ class HostSchema(LimitedHostSchema):
             provider_type=data.get("provider_type"),
             openshift_cluster_id=data.get("openshift_cluster_id"),
         )
+
+        return host
 
 
 class PatchHostSchema(MarshmallowSchema):
@@ -745,6 +747,10 @@ class AdvisorDataSchema(MarshmallowSchema):
 
     recommendations = fields.Int(allow_none=True)
     incidents = fields.Int(allow_none=True)
+    critical = fields.Int(allow_none=True)
+    important = fields.Int(allow_none=True)
+    moderate = fields.Int(allow_none=True)
+    low = fields.Int(allow_none=True)
 
 
 class VulnerabilityDataSchema(MarshmallowSchema):

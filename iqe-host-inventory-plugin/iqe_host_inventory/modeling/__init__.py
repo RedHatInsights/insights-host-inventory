@@ -36,6 +36,7 @@ from .exports_api import ExportsAPIWrapper
 from .groups_api import GROUP_OR_GROUPS
 from .groups_api import GroupsAPIWrapper
 from .groups_api import _ids_from_groups
+from .host_view_api import HostViewAPIWrapper
 from .hosts_api import HOST_OR_HOSTS
 from .hosts_api import HostsAPIWrapper
 from .hosts_api import _ids_from_hosts
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 HBI_API_WRAPPER = (
     HostsAPIWrapper
+    | HostViewAPIWrapper
     | TagsAPIWrapper
     | SystemProfileAPIWrapper
     | GroupsAPIWrapper
@@ -224,6 +226,10 @@ class HBIApis(BaseEntity):
     @cached_property
     def hosts(self) -> HostsAPIWrapper:
         return HostsAPIWrapper(self)
+
+    @cached_property
+    def host_views(self) -> HostViewAPIWrapper:
+        return HostViewAPIWrapper(self)
 
     @cached_property
     def tags(self) -> TagsAPIWrapper:

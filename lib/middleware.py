@@ -777,7 +777,8 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace_id: UUID of the workspace to fetch
 
     Returns:
-        dict: Workspace object from RBAC v2 API, or None if bypass_kessel is enabled
+        dict: Workspace object from RBAC v2 API
+        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
@@ -827,9 +828,9 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         return []
 
     # Build query parameter string with multiple IDs
-    # Format: ?id=uuid1,uuid2,uuid3
+    # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"id": ids_param})
+    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param})
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(

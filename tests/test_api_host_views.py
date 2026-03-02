@@ -71,7 +71,9 @@ class TestHostViewWithAppData:
     def test_host_with_advisor_data(self, api_get, db_create_host):
         """Host with advisor data should return advisor in app_data."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=2, critical=3, important=2, moderate=0, low=0
+        )
 
         url = build_host_view_url()
         response_status, response_data = api_get(url)
@@ -81,6 +83,10 @@ class TestHostViewWithAppData:
         assert "advisor" in result["app_data"]
         assert result["app_data"]["advisor"]["recommendations"] == 5
         assert result["app_data"]["advisor"]["incidents"] == 2
+        assert result["app_data"]["advisor"]["critical"] == 3
+        assert result["app_data"]["advisor"]["important"] == 2
+        assert result["app_data"]["advisor"]["moderate"] == 0
+        assert result["app_data"]["advisor"]["low"] == 0
 
     def test_host_with_vulnerability_data(self, api_get, db_create_host):
         """Host with vulnerability data should return vulnerability in app_data."""
@@ -153,7 +159,17 @@ class TestHostViewWithAppData:
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         url = build_host_view_url()
         response_status, response_data = api_get(url)
@@ -354,7 +370,8 @@ class TestHostViewAppDataEdgeCases:
         host_id = str(host.id)
         host_org_id = host.org_id
         scan_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
-        db_create_host_app_data(host_id, host_org_id, "compliance", policies=5, last_scan=scan_time)
+        policies_data = [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}]
+        db_create_host_app_data(host_id, host_org_id, "compliance", policies=policies_data, last_scan=scan_time)
 
         url = build_host_view_url()
         response_status, response_data = api_get(url)
@@ -362,7 +379,7 @@ class TestHostViewAppDataEdgeCases:
         assert_response_status(response_status, 200)
         result = response_data["results"][0]
         assert "compliance" in result["app_data"]
-        assert result["app_data"]["compliance"]["policies"] == 5
+        assert result["app_data"]["compliance"]["policies"] == policies_data
         assert result["app_data"]["compliance"]["last_scan"] is not None
 
     def test_malware_data(self, api_get, db_create_host):
@@ -407,7 +424,17 @@ class TestHostViewSparseFieldsets:
     def test_request_single_app_all_fields(self, api_get, db_create_host):
         """Request a single app with all its fields."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
         db_create_host_app_data(
             host.id,
             host.org_id,
@@ -431,6 +458,10 @@ class TestHostViewSparseFieldsets:
         # All advisor fields should be present
         assert result["app_data"]["advisor"]["recommendations"] == 5
         assert result["app_data"]["advisor"]["incidents"] == 2
+        assert result["app_data"]["advisor"]["critical"] == 3
+        assert result["app_data"]["advisor"]["important"] == 2
+        assert result["app_data"]["advisor"]["moderate"] == 0
+        assert result["app_data"]["advisor"]["low"] == 0
 
     def test_request_single_app_specific_fields(self, api_get, db_create_host):
         """Request specific fields from a single app."""
@@ -460,7 +491,17 @@ class TestHostViewSparseFieldsets:
     def test_request_multiple_apps(self, api_get, db_create_host):
         """Request multiple apps at once."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
         db_create_host_app_data(
             host.id,
             host.org_id,
@@ -493,7 +534,17 @@ class TestHostViewSparseFieldsets:
     def test_request_multiple_specific_fields(self, api_get, db_create_host):
         """Request multiple specific fields from multiple apps."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
         db_create_host_app_data(
             host.id,
             host.org_id,
@@ -522,7 +573,17 @@ class TestHostViewSparseFieldsets:
     def test_request_app_with_no_data_in_db(self, api_get, db_create_host):
         """Request an app that has no data in DB should return empty for that app."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         # Request vulnerability (all fields) which has no data
         url = build_host_view_url(query="?fields[vulnerability]=true")
@@ -538,7 +599,17 @@ class TestHostViewSparseFieldsets:
     def test_empty_fields_returns_no_fields(self, api_get, db_create_host):
         """Per JSON:API spec, empty fields value means no fields should be returned."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         # Empty value means no fields (per JSON:API spec)
         url = build_host_view_url(query="?fields[advisor]=")
@@ -552,7 +623,17 @@ class TestHostViewSparseFieldsets:
     def test_app_data_true_returns_all_apps(self, api_get, db_create_host):
         """fields[app_data]=true should return all available app data."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
         db_create_host_app_data(
             host.id,
             host.org_id,
@@ -580,8 +661,28 @@ class TestHostViewSparseFieldsets:
         host1 = db_create_host(extra_data={"display_name": "filtered-host.example.com"})
         host2 = db_create_host(extra_data={"display_name": "other-host.example.com"})
 
-        db_create_host_app_data(host1.id, host1.org_id, "advisor", recommendations=5, incidents=2)
-        db_create_host_app_data(host2.id, host2.org_id, "advisor", recommendations=10, incidents=5)
+        db_create_host_app_data(
+            host1.id,
+            host1.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
+        db_create_host_app_data(
+            host2.id,
+            host2.org_id,
+            "advisor",
+            recommendations=10,
+            incidents=5,
+            critical=5,
+            important=3,
+            moderate=1,
+            low=1,
+        )
 
         # Filter by display_name and request specific fields
         url = build_host_view_url(query="?display_name=filtered-host&fields[advisor]=recommendations")
@@ -596,7 +697,17 @@ class TestHostViewSparseFieldsets:
     def test_invalid_app_name_ignored(self, api_get, db_create_host):
         """Invalid app name in fields parameter should be gracefully ignored."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         # Request an invalid app name
         url = build_host_view_url(query="?fields[invalid_app]=something")
@@ -611,7 +722,17 @@ class TestHostViewSparseFieldsets:
     def test_invalid_field_returns_empty_for_app(self, api_get, db_create_host):
         """Valid app with invalid field should return empty object for that app."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         # Request valid app with invalid field
         url = build_host_view_url(query="?fields[advisor]=nonexistent_field")
@@ -626,7 +747,17 @@ class TestHostViewSparseFieldsets:
     def test_mix_valid_and_invalid_fields(self, api_get, db_create_host):
         """Mix of valid and invalid fields should return only valid fields."""
         host = db_create_host()
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         # Request mix of valid and invalid fields
         url = build_host_view_url(query="?fields[advisor]=recommendations,invalid_field")
@@ -791,7 +922,17 @@ class TestHostViewSystemProfileFilters:
     def test_filter_returns_app_data(self, api_get, db_create_host, db_create_host_app_data):
         """Filtered results should still include app_data."""
         host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
-        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "advisor",
+            recommendations=5,
+            incidents=2,
+            critical=3,
+            important=2,
+            moderate=0,
+            low=0,
+        )
 
         url = build_host_view_url(query="?filter[system_profile][arch][eq]=x86_64")
         response_status, response_data = api_get(url)
@@ -802,6 +943,10 @@ class TestHostViewSystemProfileFilters:
         assert "app_data" in result
         assert result["app_data"]["advisor"]["recommendations"] == 5
         assert result["app_data"]["advisor"]["incidents"] == 2
+        assert result["app_data"]["advisor"]["critical"] == 3
+        assert result["app_data"]["advisor"]["important"] == 2
+        assert result["app_data"]["advisor"]["moderate"] == 0
+        assert result["app_data"]["advisor"]["low"] == 0
 
     def test_filter_invalid_key_returns_400(self, api_get, db_create_host):
         """Invalid filter key should return 400."""

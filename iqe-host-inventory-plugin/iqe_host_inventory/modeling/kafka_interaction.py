@@ -46,6 +46,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_complete_random_host
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_minimal_host
 from iqe_host_inventory.utils.datagen_utils import generate_tags
+from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_clamped_timestamp
 from iqe_host_inventory.utils.kafka_utils import wrap_payload
 
@@ -394,6 +395,10 @@ class HBIKafkaActions(BaseEntity):
         return self._kafka_config.kessel_outbox_topic
 
     @cached_property
+    def host_apps_topic(self) -> str:
+        return self._kafka_config.host_apps_topic
+
+    @cached_property
     def identity(self) -> dict:
         return self.application.user.identity
 
@@ -544,6 +549,72 @@ class HBIKafkaActions(BaseEntity):
             quiet=quiet,
             key=key,
         )
+
+    def produce_host_app_message(
+        self,
+        application: str,
+        org_id: str,
+        hosts_app_data: list[dict[str, Any]],
+        *,
+        timestamp: str | None = None,
+        request_id: str | None = None,
+        flush: bool = True,
+        quiet: bool = False,
+    ) -> None:
+        """Send host app data kafka messages to platform.inventory.host-apps topic.
+        This simulates downstream applications (Advisor, Vulnerability, Patch, etc.) sending
+        their host-specific data to HBI for storage in the read-model tables.
+        :param str application: (Required) The application name. Must be one of:
+            advisor, vulnerability, patch, remediations, compliance, malware, image_builder
+        :param str org_id: (Required) The organization ID for multi-tenant isolation
+        :param list[dict[str, Any]] hosts_app_data: (Required) List of host app data items.
+            Each item should have 'id' (host UUID) and 'data' (application-specific data).
+            Example: [{"id": "host-uuid-1", "data": {"recommendations": 5, "incidents": 2}}]
+        :param str timestamp: The timestamp when the data was generated. If not provided,
+            current UTC time will be used.
+            Default: None (uses current time)
+        :param str request_id: Request ID for distributed tracing. If not provided,
+            a random UUID will be generated.
+            Default: None (generates random UUID)
+        :param bool flush: If true, messages will be flushed immediately.
+            Default: True
+        :param bool quiet: If true, the produced host messages will not be logged.
+            Default: False
+        :return None
+        """
+        from datetime import UTC
+        from datetime import datetime
+
+        if timestamp is None:
+            timestamp = datetime.now(UTC).isoformat()
+
+        if request_id is None:
+            request_id = generate_uuid()
+
+        message_value = {
+            "org_id": org_id,
+            "timestamp": timestamp,
+            "hosts": hosts_app_data,
+        }
+
+        headers = [
+            ("application", application.encode("utf-8")),
+            ("request_id", request_id.encode("utf-8")),
+        ]
+
+        self._producer.produce(
+            self.host_apps_topic,
+            message_value,
+            key=org_id,
+            headers=headers,
+        )
+
+        if not quiet:
+            log.info(f"Produced host app message for {application}: {message_value}")
+
+        if flush:
+            res = self._producer.flush(timeout=15)
+            log.info(f"flush completed, {res} still in queue")
 
     def _walk_events(self, *, timeout: int) -> Iterator[Message]:
         yield from self._consumer.walk_messages(timeout=timeout, wrap=False)

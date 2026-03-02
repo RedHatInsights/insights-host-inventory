@@ -37,7 +37,7 @@ redis = "*"
 setuptools = "~=82.0.0"
 certifi = "~=2026.2.25"
 ratelimit = "*"
-confluent-kafka = "==2.13.0"
+confluent-kafka = "==2.13.2"
 kessel-sdk = {version = "~=2.1.0", extras = ["auth"]}
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
@@ -63,6 +63,7 @@ types-python-dateutil = "*"
 types-requests = "*"
 types-pytz = "*"
 tabulate = "*"
+faker = "*"
 
 [requires]
 python_version = "3.12"

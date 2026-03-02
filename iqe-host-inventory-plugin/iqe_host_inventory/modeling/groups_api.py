@@ -38,6 +38,11 @@ GROUP_NOT_DELETED_ERROR = Exception("Group wasn't successfully deleted")
 HOSTS_NOT_ADDED_ERROR = Exception("Hosts weren't successfully added")
 HOSTS_NOT_REMOVED_ERROR = Exception("Hosts weren't successfully removed")
 
+# Error message from Kessel/RBAC when trying to create a workspace with a duplicate name
+DUPLICATE_WORKSPACE_NAME_ERROR = (
+    "Can't create workspace with same name within same parent workspace"
+)
+
 GROUP_OR_ID = GroupOut | GroupOutWithHostCount | str
 GROUP_OR_GROUPS = GROUP_OR_ID | Collection[GROUP_OR_ID]
 
@@ -510,6 +515,7 @@ class GroupsAPIWrapper(BaseEntity):
         wait_for_created: bool = True,
         register_for_cleanup: bool = True,
         cleanup_scope: str = "function",
+        max_retries_per_group: int = 3,
         **api_kwargs: Any,
     ) -> list[GroupOutWithHostCount]:
         """Create n new empty groups with random names and return a list of created groups
@@ -527,23 +533,71 @@ class GroupsAPIWrapper(BaseEntity):
         :param str cleanup_scope: The scope to use for cleanup.
             Possible values: "function", "class", "module", "package", "session"
             Default: "function"
+        :param int max_retries_per_group: Maximum number of retries per group if creation fails
+            due to a duplicate workspace name error (from Kessel/RBAC).
+            Default: 3
         :return list[GroupOutWithHostCount]: Created groups (responses from POST /groups)
         """
-        groups = [
-            self.create_group(
-                generate_display_name(),
-                wait_for_created=False,
+        groups: list[GroupOutWithHostCount] = []
+
+        for _ in range(n):
+            group = self._create_group_with_retry(
                 register_for_cleanup=register_for_cleanup,
                 cleanup_scope=cleanup_scope,
+                max_retries=max_retries_per_group,
                 **api_kwargs,
             )
-            for _ in range(n)
-        ]
+            groups.append(group)
 
         if wait_for_created:
             self.wait_for_created(groups)
 
         return groups
+
+    def _create_group_with_retry(
+        self,
+        *,
+        register_for_cleanup: bool,
+        cleanup_scope: str,
+        max_retries: int = 3,
+        **api_kwargs: Any,
+    ) -> GroupOutWithHostCount:
+        """Create a group with a random name, retrying with a new name on duplicate errors.
+
+        This handles the case where Kessel/RBAC returns a 400 error because a workspace
+        with the same name already exists (e.g., from a previous failed test run).
+
+        :param bool register_for_cleanup: If True, register the group for cleanup
+        :param str cleanup_scope: The scope to use for cleanup
+        :param int max_retries: Maximum number of retries on duplicate name errors
+        :return GroupOutWithHostCount: Created group
+        :raises ApiException: If creation fails after all retries
+        """
+        last_exception: ApiException | None = None
+
+        for attempt in range(max_retries + 1):
+            name = generate_display_name()
+            try:
+                return self.create_group(
+                    name,
+                    wait_for_created=False,
+                    register_for_cleanup=register_for_cleanup,
+                    cleanup_scope=cleanup_scope,
+                    **api_kwargs,
+                )
+            except ApiException as err:
+                if err.status == 400 and DUPLICATE_WORKSPACE_NAME_ERROR in str(err.body):
+                    logger.warning(
+                        f"Group creation failed due to duplicate workspace name '{name}' "
+                        f"(attempt {attempt + 1}/{max_retries + 1}). Retrying with new name..."
+                    )
+                    last_exception = err
+                else:
+                    raise
+
+        # If we've exhausted all retries, raise the last exception
+        assert last_exception is not None
+        raise last_exception
 
     def wait_for_created(
         self,
