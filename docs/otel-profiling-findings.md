@@ -478,134 +478,184 @@ the cost unnecessarily.
 
 ---
 
-## 11. Production Impact Estimate (5M hosts, db.m7g.8xlarge)
+## 11. Production Impact — Validated (5.4M hosts, db.m7g.8xlarge)
 
-### Infrastructure context
+### Infrastructure (measured)
+
+All production queries were run against the **read-only replica** (also `db.m7g.8xlarge`).
+Index scan counts and cache hit ratio reflect replica read traffic. The primary instance
+handles the same read workload plus writes (MQ ingestion), so its cache pressure is
+likely equal or worse.
 
 | Parameter | Value |
 |-----------|-------|
-| Total hosts | ~5,000,000 |
-| Database | AWS RDS `db.m7g.8xlarge` (32 vCPUs, 128 GB RAM, up to 40K IOPS) |
-| Table partitioning | `HASH(org_id)` — all hosts for one org land in the same partition |
-| Partition count | Configurable via `HOSTS_TABLE_NUM_PARTITIONS` |
-| Estimated table size | ~32 GB for hosts alone, ~100-200 GB including system profiles and indexes |
+| Total hosts | **5,365,277** across **135,686 orgs** |
+| Database | AWS RDS `db.m7g.8xlarge` (32 vCPUs, 128 GB RAM) |
+| Measured on | Read-only replica (same instance type) |
+| Table partitioning | `HASH(org_id)`, **32 partitions** (p0–p31) |
+| Hosts table total size | **~260 GB** across all partitions (25 GB data + ~235 GB indexes) |
+| Index-to-data ratio | **~10:1** — 16 indexes per partition × 32 partitions = 512 index instances |
+| `hosts_old` (legacy table) | **361 GB** with 0 rows — dead weight |
+| Buffer cache hit ratio | **87.55%** (target: 99%+) — working set exceeds shared_buffers |
 
-### Critical insight
+### Partition distribution (measured)
 
-Queries filter by `org_id`, so **per-org host count determines query cost**, not total
-host count. The hash partitioning by `org_id` means PostgreSQL only scans the partition
-containing that org, but all hosts within an org still require a full scan for queries
-like COUNT(DISTINCT) with staleness filters.
+32 hash partitions with moderate skew — largest is 2.8× smallest:
 
-### Query scaling projections
+| Partition | Size | Partition | Size |
+|-----------|------|-----------|------|
+| hosts_p28 | **16 GB** (largest) | hosts_p16 | 12 GB |
+| hosts_p0 | 11 GB | hosts_p20 | 11 GB |
+| hosts_p7 | 11 GB | hosts_p25 | 10 GB |
+| hosts_p2 | 9.8 GB | hosts_p19 | 9.5 GB |
+| hosts_p14 | 9.4 GB | hosts_p3 | 8.9 GB |
+| hosts_p27 | **5.8 GB** (smallest) | hosts_p13 | 5.9 GB |
 
-Production estimates are adjusted ~2-3× faster than local Docker measurements to account
-for dedicated CPU, optimized memory management, and NVMe-backed EBS on db.m7g.8xlarge.
+Partition p28 hosts the largest org (466K hosts), explaining its disproportionate size.
 
-#### COUNT(DISTINCT) pagination query — runs on EVERY list request
+### Index usage audit (measured)
 
-| Hosts per org | Local estimate | Production estimate | Verdict |
-|---------------|----------------|---------------------|---------|
-| 1K | ~5ms | **2-3ms** | Fine |
-| 10K | ~20ms | **8-15ms** | Acceptable |
-| 50K | ~60-100ms | **25-50ms** | Noticeable to users |
-| 100K | ~120-200ms | **50-100ms** | **Slow** — users feel this |
-| 500K | ~400-700ms | **150-350ms** | **Unacceptable** — breaks SLOs |
+**Essential indexes (billions of scans):**
 
-The staleness OR conditions prevent efficient index usage, forcing a sequential scan
-of all hosts in the org. No amount of hardware fixes an O(n) scan at 500K rows.
+| Index type | Example | Scans | Verdict |
+|------------|---------|-------|---------|
+| Primary key (`_pkey`) | hosts_p28_pkey | 26.5B | Essential |
+| `org_id_id_insights_id_idx` | hosts_p28 | 6.1B | Essential for dedup |
+| `system_profiles_static_host_id_idx` | sp_static_p28 | 6.0B | Essential for JOIN |
+| `system_profiles_dynamic_pkey` | sp_dynamic_p2 | 2.3B | Essential |
 
-#### Host data SELECT (paginated, per_page=50)
+**Unused or near-unused indexes (candidates for dropping):**
 
-| Hosts per org | Production estimate | Verdict |
-|---------------|---------------------|---------|
-| Any size | **2-10ms** | Bounded by pagination — not volume-sensitive |
+| Index family | Partitions | Total scans | Total size | Action |
+|-------------|------------|-------------|------------|--------|
+| `hosts_old` (all indexes) | 1 table | **0** | **~319 GB** | Drop entire table |
+| `groups_idx` (GIN) | ×32 | **0** | **~1 GB** | Drop — never used for reads |
+| `hosts_groups_p*_pkey` | ×32 | **0** | **~860 MB** | Investigate — groups table PKs unused |
+| `org_id_idx` | ×32 | 5-7 | ~512 KB | Drop — redundant with composite idx |
+| `idx_gin_per_reporter_staleness` | ×32 | **9,754 total** | **14.5 GB** | Evaluate — low vs billions on essential idx |
+| `workloads_gin` | ×32 | 4 each | ~250 MB | Drop — negligible usage |
+| `subscription_manager_id_idx` | ×32 | 43 each | **~560 MB** | Drop — very low usage |
+| `idx_hosts_host_type_id` | ×32 | 86–211 | **~580 MB** | Investigate — low but non-zero |
+| **Total reclaimable** | | | **~378 GB+** | |
 
-However, `ORDER BY modified_on` with large `OFFSET` (deep pagination) degrades as
-PostgreSQL must skip rows sequentially.
+The remaining indexes (`canonical_facts_gin`, `ansible`, `bootc_status`, `mssql`,
+`sap_system`, `operating_system_multi`, `org_id_modified_on_expr_idx`) have >211 scans
+each and were not in the bottom 80 — these likely serve active query paths and should
+be kept unless further analysis shows otherwise.
 
-#### System profile jsonb_build_object (single host lookup)
+### Org size distribution (measured)
 
-| Hosts per org | Production estimate | Verdict |
-|---------------|---------------------|---------|
-| Any size | **10-15ms** | Stable — single-row lookup, cost is JSONB construction |
+| Bucket | Orgs | Total hosts | Largest org |
+|--------|------|-------------|-------------|
+| ≤100 hosts | 130,096 (96%) | 735K | 100 |
+| 101–1K | 4,759 | 1.4M | 1,000 |
+| 1K–10K | 762 | 1.9M | 9,987 |
+| 10K–50K | 60 | 1.0M | 43,766 |
+| 50K–100K | 6 | 409K | 88,822 |
+| **>100K** | **3** | **800K** | **466,762** |
 
-#### SAP system / workloads aggregation (scans ALL hosts in org)
+### Query validation results (EXPLAIN ANALYZE on production)
 
-| Hosts per org | Local estimate | Production estimate | Verdict |
-|---------------|----------------|---------------------|---------|
-| 1K | ~10ms | **3-5ms** | Fine |
-| 10K | ~75ms | **25-40ms** | Acceptable |
-| 50K | ~200-350ms | **80-150ms** | **Slow** |
-| 100K | ~400-600ms | **150-300ms** | **Unacceptable** |
-| 500K | ~1-2s | **400ms-1s** | **Broken** — likely times out |
+| Query | Org | Hosts | Estimate | **Actual** | Notes |
+|-------|-----|-------|----------|------------|-------|
+| COUNT(DISTINCT) | 12971302 | 23K | 25-50ms | **83ms** | Cold cache (7% hit ratio), bitmap scan |
+| COUNT(DISTINCT) | 6819021 | 466K | 150-350ms | **416ms** | Warm cache (100% hits), **seq scan**, CPU-bound |
+| Data SELECT page 1 | 6819021 | 466K | 2-10ms | **0.1ms** | Index scan backward, 56 buffer hits |
+| Data SELECT OFFSET 5000 | 6819021 | 466K | — | **6ms** | Still fast at deep pagination |
+| SAP aggregation | 6819021 | 466K | 400ms-1s | **105ms** | Parallel query (2 workers); only 16K dynamic rows |
+| Staleness lookup | 6819021 | 466K | <1ms | **0.02ms** | Index scan, trivial — but runs on every request |
 
-Scans every host, joins `system_profiles_dynamic`, extracts JSONB, aggregates — and
-runs the entire thing **twice** (results + count). This is the #2 concern after pagination.
+### Key production findings
 
-#### Staleness config SELECT (per request)
+**1. COUNT(DISTINCT) is confirmed as the #1 bottleneck.**
+At 466K hosts, it takes **416ms per request** — a sequential scan even with 100% cache
+hits. This is pure CPU work: scanning 650K rows, filtering 466K matches, sorting for
+DISTINCT. Every time the largest customer opens the host list, they wait 416ms for just
+this one query.
 
-| Hosts per org | Production estimate | Verdict |
-|---------------|---------------------|---------|
-| Any size | **<1ms** per query | Trivial individually, but multiplied by thousands of req/sec = unnecessary DB load |
+**2. The 87.55% cache hit ratio reveals memory pressure.**
+With 260 GB of hosts table + indexes competing for ~32 GB shared_buffers, only frequently
+accessed partitions stay hot. Cold orgs (23K hosts on partition p28) had a **7% buffer
+cache hit ratio** — meaning 93% of their reads went to disk. This makes medium-sized
+orgs proportionally slower than expected.
 
-#### MQ ingestion — 16 queries per host
+**3. The 10:1 index-to-data ratio is excessive.**
+Each partition has 16 indexes, but only the primary key and `org_id_id_insights_id_idx`
+appear in the top 30 most-used indexes. Many indexes (ansible, bootc_status, mssql,
+sap_system, canonical_facts GIN, groups GIN) may be rarely used but are maintained on
+every write and consume ~235 GB of memory/disk. Dropping unused indexes would:
+- Improve cache hit ratio (more room for useful data)
+- Speed up INSERTs/UPDATEs in MQ ingestion
+- Reduce VACUUM overhead
 
-| Scenario | Production estimate | Verdict |
-|----------|---------------------|---------|
-| Per host | **15-40ms** total SQL | Acceptable |
-| 1K hosts/min ingestion rate | ~15-40 sec DB time/min | Fine |
-| 10K hosts/min ingestion rate | ~2.5-7 min DB time/min | **Backpressure risk** — connection pool saturation |
+**4. `hosts_old` is 361 GB of dead weight.**
+This legacy unpartitioned table has 0 rows but still occupies 361 GB (42 GB data + 319 GB
+indexes). Dropping it would reclaim significant disk space and reduce catalog pressure.
 
-The concern is aggregate DB load during high-ingestion bursts, not individual query speed.
+**5. SAP aggregation was better than expected.**
+PostgreSQL's parallel query (2 workers) and the fact that `system_profiles_dynamic` has
+far fewer rows than hosts (16K vs 466K) kept this at 105ms. Still, the endpoint runs
+this query twice (results + count), so the real cost is ~210ms.
 
-### Production risk summary
+**6. Paginated data SELECT is not a problem.**
+Even for the 466K org, page 1 is **0.1ms** and deep pagination (OFFSET 5000) is **6ms**.
+The `hosts_p0_org_id_modified_on_expr_idx` index handles this perfectly.
 
-| Priority | Issue | Affected orgs | Risk | Finding |
-|----------|-------|---------------|------|---------|
-| **P1** | COUNT(DISTINCT) pagination | Orgs with >50K hosts | p99 latency SLO breach on every list request | #2 |
-| **P2** | SAP/workloads aggregation | Orgs with >50K hosts | Endpoint timeout, double query waste | #8 |
-| **P3** | Staleness query on every request | All orgs | Aggregate DB load — thousands of unnecessary queries/sec | #3 |
-| **P4** | MQ 16 queries/host | All orgs during ingestion | DB connection pool saturation during bursts | #6 |
-| Low | Host data SELECT, system profile | All orgs | Bounded by pagination, not volume-sensitive | #1, #5 |
+### Updated production risk summary
 
-### Key takeaway
-
-The `db.m7g.8xlarge` is a powerful instance, but **hardware cannot compensate for O(n)
-scans on large orgs**. The COUNT(DISTINCT) pagination and SAP aggregation queries are
-algorithmic problems — they will be the performance bottleneck for the largest customers
-regardless of instance class.
+| Priority | Issue | Measured impact | Affected | Action |
+|----------|-------|----------------|----------|--------|
+| **P1** | COUNT(DISTINCT) pagination | **416ms** for 466K org, **83ms** for 23K org | 9 orgs (50K+), felt by 69 orgs (10K+) | Optimize or eliminate |
+| **P2** | ~378 GB of unused/low-use indexes + dead table | 87.5% cache hit ratio, 93% disk reads for cold orgs | All orgs | Drop unused indexes and `hosts_old` |
+| **P3** | Staleness query per request | 0.02ms × thousands req/sec | All orgs | Cache in Redis |
+| **P4** | SAP aggregation double query | ~210ms for 466K org (2 × 105ms) | 9 orgs (50K+) | Eliminate count query |
+| Low | Paginated SELECT | 0.1ms–6ms | None | No action needed |
 
 ---
 
 ## 12. Next Steps
 
-### Immediate actions (quick wins)
+### Immediate actions — database cleanup (est. ~335 GB reclaimed)
 
-1. **Investigate the COUNT query in MQ ingestion** — likely unnecessary, quick win (Finding 6)
-2. **Cache staleness config** — per org_id with short TTL in Redis (Finding 3)
-3. **Eliminate double-query on SAP aggregation** — derive count from result set (Finding 8)
+1. **Drop `hosts_old` table** — 361 GB (42 GB data + 319 GB indexes), 0 rows, 0 scans
+   on all indexes. Pure dead weight from the partition migration.
+2. **Drop `groups_idx`** on all 32 host partitions — ~1 GB, 0 scans. GIN index on
+   groups JSONB column that is never used for index-based lookups.
+3. **Evaluate `idx_gin_per_reporter_staleness`** on all 32 partitions — **14.5 GB**,
+   ~9,754 total scans. Largest reclaimable index on active partitions. Usage is low
+   (~10K scans vs billions on essential indexes) but non-zero and uneven across
+   partitions (p9: 2,938 scans, p30: 2 scans). Verify which query path uses it
+   before dropping — if the `per_reporter_staleness` JSONB filter is rarely used
+   by API clients, this is safe to drop.
+4. **Drop `workloads_gin`** on all 32 partitions — ~250 MB, only 4 scans each.
+5. **Drop `org_id_idx`** on all 32 partitions — ~512 KB, 5-7 scans. Redundant with
+   the composite `org_id_id_insights_id_idx` (6.1B scans).
+6. **Evaluate `subscription_manager_id_idx`** — ~560 MB, 43 scans. Very low but non-zero;
+   verify no API endpoint depends on it before dropping.
+7. **Evaluate `idx_hosts_host_type_id`** — ~580 MB, 86-211 scans. Low usage; check if
+   the host_type filter endpoint uses this index.
 
-### High-impact optimizations
+Dropping items 1-5 alone would reclaim **~375 GB** and could improve the buffer cache
+hit ratio from 87.5% toward the 99%+ target, dramatically reducing disk I/O for cold orgs.
 
-4. **Optimize COUNT(DISTINCT) for pagination** — this is the #1 bottleneck at scale,
-   growing 4.8× from 100→10K hosts. Evaluate estimated counts, conditional counting,
-   or pre-computed `is_visible` column (Finding 2)
-5. **System profile query optimization** — avoid wrapping `jsonb_build_object` in COUNT
-   subquery; push field selection to SQL (Finding 4)
-6. **SAP/workloads JSONB index** — functional GIN index on hot JSONB paths (Finding 8)
+### Query-level optimizations
+
+8. **Optimize COUNT(DISTINCT) for pagination** — the #1 validated bottleneck (416ms for
+   largest org). Evaluate: conditional counting (`count=true` query param), estimated
+   counts (`pg_class.reltuples`), or materialized `is_visible` column.
+9. **Cache staleness config** — per org_id with short TTL in Redis (Finding 3)
+10. **Eliminate double-query on SAP aggregation** — derive count from result set (Finding 8)
+11. **Investigate the COUNT query in MQ ingestion** — likely unnecessary (Finding 6)
 
 ### Further investigation
 
-7. **Add serialization spans** — custom OTel spans around `serialize_host()` to quantify
-   the remaining app logic bottleneck at small scale (Finding 1)
-8. **Profile at production scale** — deploy OTel to staging with real data volumes
-   (50K-500K hosts) to validate the scaling trends observed locally
-9. **Profile host UPDATE path** — re-ingesting existing hosts (update vs create) may
-   have different query patterns
+12. **Add serialization spans** — custom OTel spans around `serialize_host()` to quantify
+    the app logic bottleneck at small org scale (Finding 1)
+13. **Profile host UPDATE path** — re-ingesting existing hosts (update vs create) may
+    have different query patterns
 
-### Production deployment
+### Production OTel deployment
 
-10. **Define sampling strategy** — 100% in dev/staging, configurable % in production
-11. **Clowder configuration** — document OTLP endpoint and env vars for ClowdApp deployment
-12. **Developer workflow guide** — step-by-step guide for investigating slow requests in Grafana/Tempo
+14. **Define sampling strategy** — 100% in dev/staging, configurable % in production
+15. **Clowder configuration** — document OTLP endpoint and env vars for ClowdApp deployment
+16. **Developer workflow guide** — step-by-step for investigating slow requests in Grafana/Tempo
