@@ -91,14 +91,37 @@ class customURIParser(OpenAPIURIParser):
         return resolved_param
 
     @staticmethod
+    def _try_parse_json(value):
+        """Try to parse a JSON string. Returns the parsed dict or None if not valid JSON object."""
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict):
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return None
+
+    @staticmethod
     def _make_deep_object(k, v):
         """consumes keys, value pairs like (a[foo][bar], "baz")
         returns (a, {"foo": {"bar": "baz"}}}, is_deep_object)
-        """
 
+        Also supports JSON object notation:
+        - (filter, '{"system_profile": {"arch": "x86_64"}}') -> (filter, [{"system_profile": ...}], True)
+        - (filter[system_profile], ['{"arch": "x86_64"}']) -> (filter, [{"system_profile": {"arch": ...}}], True)
+        """
         root_key = k.split("[", 1)[0]
         if k == root_key:
+            # No square brackets in key
+            # If v is already a dict or a JSON string, treat as deep object and pass through
+            parsed = customURIParser._try_parse_json(v)
+            if parsed is not None:
+                return (root_key, [parsed], True)
             return (k, v, False)
+
         key_path = re.findall(r"\[([^\[\]]*)\]", k)
         root = prev = node = {}
 
@@ -120,6 +143,9 @@ class customURIParser(OpenAPIURIParser):
         else:
             if len(v) > 1:
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
-            prev[k] = v[0]
+            # Try to parse the value as JSON object
+            leaf_value = v[0]
+            parsed = customURIParser._try_parse_json(leaf_value)
+            prev[k] = parsed if parsed is not None else leaf_value
 
         return (root_key, [root], True)

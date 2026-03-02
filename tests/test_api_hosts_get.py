@@ -1510,6 +1510,11 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[workloads][rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
         "[workloads][rhel_ai][variant][is]=nil",
         "[workloads][rhel_ai][gpu_models][is]=not_nil",
+        # JSON object notation (value is a JSON string instead of square bracket path)
+        '={"arch": "x86_64"}',
+        '={"arch": {"eq": "x86_64"}}',
+        '={"workloads": {"sap": {"sap_system": "true"}}}',
+        '={"workloads": {"sap": {"sids": {"contains": ["ABC", "DEF"]}}}}',
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
