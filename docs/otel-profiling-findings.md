@@ -1,9 +1,9 @@
 # OpenTelemetry Profiling Findings — HBI
 
-> **Sprint Spike** — February 2026
+> **Sprint Spike** — February/March 2026
 >
 > Results from local profiling of HBI using OpenTelemetry + Grafana Tempo.
-> 100 hosts ingested via Kafka MQ, 10 API endpoints profiled, all traces analyzed.
+> Two rounds of profiling: 100 hosts and 10,000 hosts.
 
 ---
 
@@ -18,7 +18,8 @@
 7. [Finding 5: Host List Fetches All Columns](#7-finding-5-host-list-fetches-all-columns)
 8. [Finding 6: MQ Ingestion Runs 16 SQL Queries Per Host](#8-finding-6-mq-ingestion-runs-16-sql-queries-per-host)
 9. [Finding 7: system_profiles_static Wide INSERT](#9-finding-7-system_profiles_static-wide-insert)
-10. [Next Steps](#10-next-steps)
+10. [Finding 8: SAP System Aggregation Query Becomes Dominant at Scale](#10-finding-8-sap-system-aggregation-query-becomes-dominant-at-scale)
+11. [Next Steps](#11-next-steps)
 
 ---
 
@@ -26,73 +27,93 @@
 
 | Parameter | Value |
 |-----------|-------|
-| Hosts in database | 100 (ingested via Kafka MQ) |
-| Org ID | `321` |
 | OTel SDK | `opentelemetry-sdk 1.32+` |
 | Trace backend | Grafana Tempo (local) |
 | Visualization | Grafana (local) |
 | Instrumentation | Flask, SQLAlchemy (with SQLCommenter), Requests, manual MQ spans |
 | Environment | Docker Compose (`dev.yml`) |
+| Org ID | `321` |
 
-### Endpoints profiled
+### Profiling rounds
 
-| # | Endpoint | Response Time |
-|---|----------|--------------|
-| 1 | `GET /hosts` (default page, 50 results) | 319ms |
-| 2 | `GET /hosts?per_page=50` | 154ms |
-| 3 | `GET /hosts?display_name=dhcp` | 42ms |
-| 4 | `GET /hosts?order_by=updated&order_how=DESC` | 157ms |
-| 5 | `GET /groups` | 40ms |
-| 6 | `GET /hosts/{id}/system_profile` | 132ms |
-| 7 | `GET /hosts/{id}` | 52ms |
-| 8 | `GET /hosts?registered_with=insights` | 193ms |
-| 9 | `GET /system_profile/sap_system` | 52ms |
-| 10 | `GET /hosts?tags=insights-client/os=linux` | 44ms |
+| Round | Hosts | Date | Purpose |
+|-------|-------|------|---------|
+| 1 | 100 | Feb 2026 | Baseline — find structural issues |
+| 2 | 10,000 | Mar 2026 | Scale test — find volume-sensitive issues |
+
+### Endpoints profiled (response times)
+
+| # | Endpoint | 100 hosts | 10K hosts | Change |
+|---|----------|-----------|-----------|--------|
+| 1 | `GET /hosts` (default page) | 319ms | 109ms* | — |
+| 2 | `GET /hosts?per_page=50` | 154ms | 162ms | +5% |
+| 3 | `GET /hosts?per_page=100` | — | 183ms | (new) |
+| 4 | `GET /hosts?display_name=dhcp` | 42ms | 100ms | **+138%** |
+| 5 | `GET /hosts?order_by=updated&order_how=DESC` | 157ms | 163ms | +4% |
+| 6 | `GET /groups` | 40ms | 33ms | -18% |
+| 7 | `GET /hosts/{id}/system_profile` | 132ms | 131ms | 0% |
+| 8 | `GET /hosts/{id}` | 52ms | 48ms | -8% |
+| 9 | `GET /hosts?registered_with=insights` | 193ms | 138ms | -28% |
+| 10 | `GET /system_profile/sap_system` | 52ms | **120ms** | **+131%** |
+| 11 | `GET /hosts?tags=...` | 44ms | 72ms | **+64%** |
+
+*\* First request after cold start; warmed-up requests at 10K are in the 50-90ms range.*
 
 ---
 
 ## 2. High-Level Results
 
-### API endpoints — time breakdown
+### API endpoints — time breakdown (10K hosts)
 
 | Endpoint | Total | SQL Time | App Logic | SQL % |
 |----------|-------|----------|-----------|-------|
-| `GET /hosts` (default page) | 221ms | 20ms | **201ms** | 9% |
-| `GET /hosts/{id}/system_profile` | 108ms | 28ms | **81ms** | 26% |
-| `GET /hosts?per_page=50` | 68ms | 10ms | **58ms** | 14% |
-| `GET /hosts?registered_with=insights` | 64ms | 9ms | **55ms** | 14% |
+| `GET /hosts` (default page) | 168ms | 20ms | **148ms** | 12% |
+| `GET /hosts?per_page=50` (warmed) | 91ms | 67ms | **23ms** | 74% |
+| `GET /hosts/{id}/system_profile` | 108ms | 27ms | **81ms** | 25% |
+| `GET /system_profile/sap_system` | 112ms | **74ms** | 38ms | **66%** |
+| `GET /hosts?registered_with=insights` | 56ms | 38ms | 18ms | 67% |
 
-### MQ ingestion — time breakdown
+### Key shift from 100 → 10K hosts
+
+At 100 hosts, app logic dominated (80-90% of latency). At 10K hosts, **SQL now accounts
+for 35-74% of latency** on most endpoints. The COUNT(DISTINCT) pagination query is the
+primary driver, growing from avg 4.3ms to avg **20.5ms** (4.8× increase for 100× more data).
+
+### MQ ingestion — time breakdown (100 hosts)
 
 | Operation | Total | SQL Time | App Logic | SQL % |
 |-----------|-------|----------|-----------|-------|
 | MQ batch (1 host, slowest) | 619ms | 106ms | **513ms** | 17% |
 | MQ batch (1 host, typical) | ~140ms | ~50ms | ~90ms | 36% |
 
-### Aggregate SQL patterns across all API traces
+### Aggregate SQL patterns across all API traces (10K hosts)
 
-| Query Pattern | Max | Avg | Count | Description |
+| Query Pattern | Max | Avg | Count | vs 100 hosts |
 |---------------|-----|-----|-------|-------------|
-| `jsonb_build_object` system profile | 23.6ms | 23.6ms | 1 | System profile construction |
-| `COUNT(DISTINCT hosts.id)` | 11.5ms | 4.3ms | 7 | Pagination total count |
-| Host data SELECT (all columns) | 6.3ms | 4.0ms | 8 | Main host list query |
-| Groups SELECT | 6.1ms | 6.1ms | 1 | Group list query |
-| `COUNT(*)` subquery | 3.9ms | 3.9ms | 1 | System profile count |
-| Staleness SELECT | 2.7ms | 2.7ms | 1 | Staleness config lookup |
+| SAP system aggregation | **42.0ms** | 42.0ms | 1 | (not tested before) |
+| `COUNT(DISTINCT hosts.id)` | **33.7ms** | **20.5ms** | 11 | max 3×, avg 4.8× |
+| `COUNT(*)` SAP subquery | **32.5ms** | 32.5ms | 1 | (not tested before) |
+| Host data SELECT (all columns) | **31.5ms** | 6.5ms | 12 | max 5×, avg 1.6× |
+| `jsonb_build_object` system profile | 23.3ms | 23.3ms | 1 | ~same |
+| `COUNT(*)` system profile subquery | 3.8ms | 3.8ms | 1 | ~same |
+| Groups SELECT | 3.7ms | 3.7ms | 1 | -39% |
+| `COUNT(DISTINCT)` with JOIN | 3.5ms | 3.5ms | 1 | (new pattern) |
+| Staleness SELECT | 2.3ms | **1.6ms** | 12 | ~same |
+| Groups COUNT | 1.5ms | 1.5ms | 1 | ~same |
 
 ---
 
-## 3. Finding 1: App Logic Dominates Latency, Not SQL
+## 3. Finding 1: App Logic Dominates Latency, Not SQL (but SQL catches up at scale)
 
 ### Observation
 
-Across all profiled API endpoints, **Python application logic consistently accounts for
-80-90% of total request latency**, with SQL queries contributing only 9-26%.
+At 100 hosts, **Python application logic accounted for 80-90% of total request latency**,
+with SQL contributing only 9-26%.
 
-For the slowest request (`GET /hosts`, 221ms), only 20ms was spent in SQL. The remaining
-201ms was spent in Python — serialization, middleware, validation, and response construction.
+At 10K hosts, the balance shifts significantly: **SQL now accounts for 35-74% of latency**
+on warmed-up requests. The COUNT(DISTINCT) pagination query is the main driver.
 
-### Trace evidence
+### Trace evidence (100 hosts)
 
 ```
 GET /hosts (221ms total, 6 spans, 3 SQL queries)
@@ -100,6 +121,16 @@ GET /hosts (221ms total, 6 spans, 3 SQL queries)
 ├── SQL: SELECT hosts.*                6.3ms
 ├── SQL: SELECT staleness.*            2.2ms
 └── App logic (serialization, etc.)  201.4ms  ← 91% of total time
+```
+
+### Trace evidence (10K hosts — warmed up)
+
+```
+GET /hosts (91ms total, 3 SQL queries)
+├── SQL: COUNT(DISTINCT hosts.id)     33.7ms  ← 3× slower than 100 hosts
+├── SQL: SELECT hosts.*               31.5ms  ← 5× slower than 100 hosts
+├── SQL: SELECT staleness.*            1.9ms
+└── App logic (serialization, etc.)   23.3ms  ← now only 26% of total
 ```
 
 ### Root cause
@@ -114,13 +145,14 @@ compute-heavy. Each host goes through multiple serialization steps including:
 
 ### Impact
 
-At production scale with large pages (50-100 hosts), serialization cost grows linearly
-with page size. This is likely a significant contributor to p99 latency on host list
-endpoints.
+At 100 hosts, serialization is the bottleneck. At 10K hosts, SQL takes over. At production
+scale (50K-500K hosts per org), SQL will dominate — but serialization still matters for
+large page sizes (per_page=100).
 
 ### Suggested optimization
 
-- Profile the serialization pipeline with cProfile to identify hotspots
+- **SQL side**: Focus on COUNT(DISTINCT) and host data query optimization (see Findings 2, 5)
+- **App side**: Profile the serialization pipeline with cProfile to identify hotspots
 - Consider returning pre-serialized JSONB from PostgreSQL instead of ORM-level serialization
 - Evaluate lazy loading for expensive fields (system_profile, tags) when not requested
 - Consider adding custom OTel spans around serialization steps to get finer-grained timing
@@ -134,8 +166,11 @@ endpoints.
 Every paginated host list request executes a separate `COUNT(DISTINCT hosts.id)` query
 to compute the total number of results for the `total` field in the response.
 
-This query was observed **7 times** across 11 API traces, with a **max of 11.5ms** and
-an average of 4.3ms.
+| Metric | 100 hosts | 10K hosts | Growth |
+|--------|-----------|-----------|--------|
+| Max | 11.5ms | **33.7ms** | **2.9×** |
+| Avg | 4.3ms | **20.5ms** | **4.8×** |
+| Count per round | 7 | 11 | — |
 
 ### SQL
 
@@ -384,22 +419,92 @@ This is structural to the data model.
 
 ---
 
-## 10. Next Steps
+## 10. Finding 8: SAP System Aggregation Query Becomes Dominant at Scale
 
-### Immediate actions (from spike findings)
+### Observation
 
-1. **Investigate the COUNT query in MQ ingestion** — likely unnecessary, quick win
-2. **Cache staleness config** — per org_id with short TTL in Redis, eliminates query from every request
-3. **Add serialization spans** — add custom OTel spans around `serialize_host()` to quantify the app logic bottleneck
+The `GET /system_profile/sap_system` endpoint was fast at 100 hosts (52ms) but became
+the **second slowest endpoint at 10K hosts (120ms, +131%)**. Its SQL now accounts for
+**66% of latency** — the highest SQL ratio of any endpoint.
 
-### Follow-up stories
+The endpoint executes two queries that together take **74.4ms**.
 
-4. **Optimize COUNT(DISTINCT) for pagination** — evaluate estimated counts or conditional counting
-5. **System profile query optimization** — sparse field selection, avoid COUNT on jsonb_build_object
-6. **Profile at production scale** — deploy OTel to staging with real data volumes to find scale-dependent bottlenecks
+### SQL
+
+**Query 1 — Aggregation (42.0ms):**
+```sql
+SELECT anon_1.value AS anon_1_value, count(*) AS count_1
+FROM (
+  SELECT hbi.system_profiles_dynamic.workloads -> 'SAP' -> 'sap_system' AS value
+  FROM hbi.hosts
+  JOIN hbi.system_profiles_dynamic ...
+  WHERE hbi.hosts.org_id = %(org_id_1)s AND (staleness filters...)
+) AS anon_1
+GROUP BY anon_1.value
+```
+
+**Query 2 — Count of the aggregation (32.5ms):**
+```sql
+SELECT count(*) AS count_1 FROM (
+  SELECT anon_2.value AS anon_2_value, count(*) AS count_2
+  FROM (... same subquery as above ...)
+  GROUP BY anon_2.value
+) AS anon_1
+```
+
+### Root cause
+
+- Scans every host in the org and joins with `system_profiles_dynamic` to extract
+  a JSONB nested field (`workloads -> 'SAP' -> 'sap_system'`)
+- The aggregation cannot use indexes because it operates on a computed JSONB expression
+- The COUNT query wraps the full aggregation, effectively running it twice
+- Growth is linear with host count — at 100K hosts this would be ~400ms+ per query
+
+### Impact
+
+This endpoint grows linearly with data volume. At production scale, it will be one of
+the slowest endpoints. The double execution (aggregation + count of aggregation) doubles
+the cost unnecessarily.
+
+### Suggested optimization
+
+- **Eliminate the count query**: The outer COUNT just counts how many distinct SAP system
+  values exist — this can be derived from the aggregation result set without a separate query
+- **GIN index on JSONB path**: Consider a functional index on
+  `(workloads -> 'SAP' -> 'sap_system')` if this query is hot
+- **Materialized aggregation**: If SAP system data changes infrequently, cache the
+  aggregation result with a TTL
+
+---
+
+## 11. Next Steps
+
+### Immediate actions (quick wins)
+
+1. **Investigate the COUNT query in MQ ingestion** — likely unnecessary, quick win (Finding 6)
+2. **Cache staleness config** — per org_id with short TTL in Redis (Finding 3)
+3. **Eliminate double-query on SAP aggregation** — derive count from result set (Finding 8)
+
+### High-impact optimizations
+
+4. **Optimize COUNT(DISTINCT) for pagination** — this is the #1 bottleneck at scale,
+   growing 4.8× from 100→10K hosts. Evaluate estimated counts, conditional counting,
+   or pre-computed `is_visible` column (Finding 2)
+5. **System profile query optimization** — avoid wrapping `jsonb_build_object` in COUNT
+   subquery; push field selection to SQL (Finding 4)
+6. **SAP/workloads JSONB index** — functional GIN index on hot JSONB paths (Finding 8)
+
+### Further investigation
+
+7. **Add serialization spans** — custom OTel spans around `serialize_host()` to quantify
+   the remaining app logic bottleneck at small scale (Finding 1)
+8. **Profile at production scale** — deploy OTel to staging with real data volumes
+   (50K-500K hosts) to validate the scaling trends observed locally
+9. **Profile host UPDATE path** — re-ingesting existing hosts (update vs create) may
+   have different query patterns
 
 ### Production deployment
 
-7. **Define sampling strategy** — 100% in dev/staging, configurable % in production
-8. **Clowder configuration** — document OTLP endpoint and env vars for ClowdApp deployment
-9. **Developer workflow guide** — step-by-step guide for investigating slow requests in Grafana/Tempo
+10. **Define sampling strategy** — 100% in dev/staging, configurable % in production
+11. **Clowder configuration** — document OTLP endpoint and env vars for ClowdApp deployment
+12. **Developer workflow guide** — step-by-step guide for investigating slow requests in Grafana/Tempo
