@@ -647,6 +647,11 @@ hit ratio from 87.5% toward the 99%+ target, dramatically reducing disk I/O for 
 10. **Eliminate double-query on SAP aggregation** — derive count from result set (Finding 8)
 11. **Investigate the COUNT query in MQ ingestion** — likely unnecessary (Finding 6)
 
+### New indexes to evaluate
+
+See **Section 13** below for detailed analysis of potential new indexes and their
+expected impact.
+
 ### Further investigation
 
 12. **Add serialization spans** — custom OTel spans around `serialize_host()` to quantify
@@ -659,3 +664,164 @@ hit ratio from 87.5% toward the 99%+ target, dramatically reducing disk I/O for 
 14. **Define sampling strategy** — 100% in dev/staging, configurable % in production
 15. **Clowder configuration** — document OTLP endpoint and env vars for ClowdApp deployment
 16. **Developer workflow guide** — step-by-step for investigating slow requests in Grafana/Tempo
+
+---
+
+## 13. Index Optimization Analysis
+
+### Current index landscape
+
+Each of the 32 host partitions has 16 indexes. The essential indexes (PK, `org_id_id_insights_id_idx`,
+`system_profiles_*_host_id_idx`) have billions of scans. The rest range from 0 to a few hundred scans.
+
+**Current indexes per partition** (from migration `28280de3f1ce` and later):
+
+| # | Index | Type | Scans | Status |
+|---|-------|------|-------|--------|
+| 1 | `hosts_p*_pkey` (id, org_id) | btree | 26.5B | Essential |
+| 2 | `hosts_p*_org_id_id_insights_id_idx` | btree UNIQUE | 6.1B | Essential (dedup + replica identity) |
+| 3 | `idx_hosts_modified_on_id` (modified_on DESC, id DESC) | btree | High | Essential (pagination ORDER BY) |
+| 4 | `idx_hosts_insights_id` | btree | High | Essential (host lookup) |
+| 5 | `idx_hosts_host_type_modified_on_org_id` (org_id, modified_on, host_type) | btree | Moderate | Used for filtered pagination |
+| 6 | `idx_hosts_last_check_in_id` (last_check_in, id) | btree | Moderate | Used for staleness filter |
+| 7 | `idx_hosts_canonical_facts_gin` | GIN | Moderate | Used for canonical facts matching |
+| 8 | `idx_hosts_operating_system_multi` | btree (partial) | Moderate | OS aggregation queries |
+| 9 | `idx_hosts_host_type_id` (host_type, id) | btree | 86-211 | Low — evaluate |
+| 10 | `idx_hosts_subscription_manager_id` | btree | 43 | Low — evaluate |
+| 11 | `idx_gin_per_reporter_staleness` | GIN | ~10K total | Low for 14.5 GB — evaluate |
+| 12 | `idx_hosts_groups_gin` (groups JSONB) | GIN | **0** | Drop |
+| 13 | `idx_hosts_system_profiles_workloads_gin` | GIN | 4 | Drop |
+| 14 | `idx_hosts_ansible` (system_profile_facts->'ansible') | btree | Unknown | Legacy — evaluate |
+| 15 | `idx_hosts_mssql` (system_profile_facts->'mssql') | btree | Unknown | Legacy — evaluate |
+| 16 | `idx_hosts_sap_system` (system_profile_facts->'sap_system') | btree | Unknown | Legacy — evaluate |
+
+### Proposed new indexes
+
+#### Index 1: Covering index for COUNT pagination (HIGH IMPACT)
+
+**Problem**: The `COUNT(DISTINCT id)` query runs on every `GET /hosts` request and does a
+sequential scan of all hosts in an org. At 466K hosts it takes 416ms. The query is:
+```sql
+SELECT count(DISTINCT hosts.id) FROM hosts
+WHERE hosts.org_id = $1 AND (now() < stale_timestamp
+   OR (now() >= stale_timestamp AND now() < stale_warning_timestamp)
+   OR (now() >= stale_warning_timestamp AND now() < deletion_timestamp))
+```
+
+The staleness filter uses `stale_timestamp`, `stale_warning_timestamp`, and
+`deletion_timestamp` with OR conditions. The OR prevents the planner from using
+a single btree range scan.
+
+**Proposed index**:
+```sql
+CREATE INDEX CONCURRENTLY idx_hosts_org_id_staleness
+ON hbi.hosts (org_id, deletion_timestamp)
+WHERE deletion_timestamp > now();
+```
+
+**Rationale**: The staleness OR conditions effectively reduce to "not culled"
+(`deletion_timestamp > now()`) for the common `not_culled` staleness filter, which is
+the default. A partial index with this WHERE clause would be:
+- Much smaller than a full index (excludes culled hosts)
+- Allow an index-only count instead of a sequential scan
+- Turn the 416ms seq scan into a ~5-10ms index scan
+
+**Caveat**: This only helps the `not_culled` case. The individual staleness states
+(`fresh`, `stale`, `stale_warning`) use different column comparisons. However,
+`not_culled` is the default and most common filter. Additionally, `deletion_timestamp`
+changes over time, so the partial index `WHERE deletion_timestamp > now()` cannot be
+used directly — PostgreSQL requires the WHERE clause to match the query exactly.
+
+**Alternative approach — computed `is_culled` column**:
+```sql
+ALTER TABLE hbi.hosts ADD COLUMN is_culled boolean
+  GENERATED ALWAYS AS (deletion_timestamp <= now()) STORED;
+CREATE INDEX CONCURRENTLY idx_hosts_org_id_not_culled
+ON hbi.hosts (org_id) WHERE is_culled = false;
+```
+This requires application support but would give the planner a clean, indexable predicate.
+However, PostgreSQL does not support `now()` in generated columns (it's not immutable).
+A trigger-based approach would be needed, but staleness timestamps change with each
+check-in, making this complex.
+
+**Most practical approach — optimize the query, not the index**:
+Since the OR-based staleness filter is fundamentally index-unfriendly, the most impactful
+change is to **avoid the COUNT query entirely** for large orgs:
+1. **Optional count** — add `?count=true` query parameter; omit count by default
+2. **Estimated count** — use `pg_class.reltuples` for large orgs (fast, ~95% accurate)
+3. **Count cache** — cache the count per org_id in Redis with a short TTL (30-60s)
+
+**Estimated impact**: Eliminating the COUNT query saves **416ms for the largest org**
+and **83ms for medium orgs** on every single list request.
+
+#### Index 2: Composite index for staleness + last_check_in (MEDIUM IMPACT)
+
+**Problem**: The `stale_timestamp_filter` in the default staleness path uses
+`Host.last_check_in <= now()` combined with staleness states. The existing
+`idx_hosts_last_check_in_id` covers `(last_check_in, id)` but doesn't include `org_id`.
+
+**Proposed index**:
+```sql
+CREATE INDEX CONCURRENTLY idx_hosts_org_id_last_check_in
+ON hbi.hosts (org_id, last_check_in DESC);
+```
+
+**Rationale**: This composite index would let PostgreSQL use a single index scan for
+the common query pattern: `WHERE org_id = $1 AND last_check_in <= now()`. Currently
+the planner may combine two separate indexes (org_id from the dedup index + last_check_in)
+via a bitmap scan, which is less efficient.
+
+**Estimated impact**: Could reduce the base filter time by 2-3× for medium-to-large
+orgs, benefiting every query that uses staleness filters (which is all of them).
+
+**Estimated size**: ~20 MB per partition × 32 = ~640 MB. Worth the trade-off given
+the query frequency.
+
+#### Index 3: SAP workloads on system_profiles_dynamic (LOW-MEDIUM IMPACT)
+
+**Problem**: SAP system aggregation joins `hosts` with `system_profiles_dynamic` and
+filters on `workloads->'SAP'->'sap_system'`. The existing `workloads_gin` index on
+`hosts.system_profile_facts` is on the wrong table (legacy column) and has only 4 scans.
+
+**Proposed index** (on `system_profiles_dynamic`):
+```sql
+CREATE INDEX CONCURRENTLY idx_sp_dynamic_sap_system
+ON hbi.system_profiles_dynamic ((workloads -> 'SAP' -> 'sap_system'))
+WHERE workloads -> 'SAP' -> 'sap_system' IS NOT NULL;
+```
+
+**Rationale**: This partial expression index targets exactly the SAP aggregation query
+path. Only rows with SAP data are indexed, keeping it small. The query already showed
+105ms in production with parallel workers, so this is lower priority than the COUNT fix.
+
+**Estimated impact**: Could reduce SAP aggregation from 105ms to ~20-30ms for large
+orgs. The double-query elimination (derive count from results) would have more impact.
+
+**Estimated size**: Small — only SAP systems are indexed. ~5 MB per partition.
+
+### Indexes NOT recommended
+
+| Index idea | Why not |
+|------------|---------|
+| `(org_id, stale_timestamp, stale_warning_timestamp, deletion_timestamp)` | OR conditions across 3 columns prevent btree range scans. The planner cannot use a single index scan when the filter is `a < X OR (a >= X AND b < Y) OR (b >= Y AND c < Z)` |
+| Covering index for pagination `(org_id, modified_on DESC, id DESC) INCLUDE (...)` | Already well-served by `idx_hosts_host_type_modified_on_org_id`. Paginated SELECT is 0.1ms — not a bottleneck |
+| GIN on `per_reporter_staleness` (keep existing) | 14.5 GB for ~10K scans. The `registered_with` filter uses complex JSONB operations (`jsonb_typeof`, `has_key`, nested casts) that GIN cannot efficiently serve. The queries fall back to sequential scans anyway |
+| Index on `display_name` | Uses `ILIKE '%pattern%'` which cannot use btree indexes. Would need `pg_trgm` GIN for prefix/infix searches, but these queries are infrequent |
+| Index on `tags` | Already uses `Host.tags.contains()` with GIN-friendly `@>` operator, served by existing JSONB storage |
+
+### Summary: index changes ranked by impact
+
+| Priority | Action | Space impact | Query impact |
+|----------|--------|-------------|--------------|
+| **P0** | Avoid COUNT query (app change, not index) | None | -416ms for largest org |
+| **P1** | Drop `hosts_old` table | **-361 GB** | Improves cache hit ratio |
+| **P2** | Drop zero-scan indexes (groups_gin, workloads_gin, org_id_idx) | **-1.3 GB** | Faster writes, better cache |
+| **P3** | Evaluate dropping `per_reporter_staleness` GIN | **-14.5 GB** | Better cache, faster writes |
+| **P4** | Add `(org_id, last_check_in DESC)` | +640 MB | Faster staleness filtering |
+| **P5** | Drop low-usage indexes (subscription_manager_id, host_type_id) | **-1.1 GB** | Marginal cache improvement |
+| **P6** | Add SAP partial index on system_profiles_dynamic | +160 MB | -75ms on SAP aggregation |
+
+The key insight: **dropping unused indexes has higher impact than creating new ones**.
+The 87.5% cache hit ratio means the database is memory-starved. Freeing ~378 GB of
+unused index space means PostgreSQL can keep more useful data in buffer cache, which
+improves ALL queries for ALL orgs — a much broader impact than any single new index.
