@@ -2677,6 +2677,24 @@ def test_invalid_deep_object_list_query_parameter_parsing():
             customURIParser._make_deep_object(key, value)
 
 
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        # Single-level filter paths with plain string values should be rejected
+        # because they would set the entire system_profile to a string instead of a nested filter
+        ("filter[system_profile]", ["plain_string"]),
+        ("filter[system_profile]", ["true"]),
+        ("filter[system_profile]", ["123"]),
+        ("filter[other_field]", ["some_value"]),
+    ],
+)
+def test_single_level_filter_path_requires_json_object(key, value):
+    """Test that filter[X]=plain_value (single path element) raises BadRequestProblem."""
+    with pytest.raises(BadRequestProblem) as exc_info:
+        customURIParser._make_deep_object(key, value)
+    assert "must be a JSON object or use bracket notation" in str(exc_info.value.detail)
+
+
 def test_custom_regex_escape_custom_regex_method(subtests):
     for regex_input, output in (
         (".?well+", "\\.\\?well\\+"),
