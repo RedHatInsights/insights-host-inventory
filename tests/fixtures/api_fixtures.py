@@ -207,6 +207,21 @@ def api_add_hosts_to_group(flask_client):
 
 
 @pytest.fixture(scope="function")
+def api_get_hosts_from_group(flask_client):
+    def _api_get_hosts_from_group(group_id, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
+        url = f"{GROUP_URL}/{group_id}/hosts"
+        return do_request(
+            flask_client.get,
+            url,
+            identity,
+            query_parameters=query_parameters,
+            extra_headers=extra_headers,
+        )
+
+    return _api_get_hosts_from_group
+
+
+@pytest.fixture(scope="function")
 def api_patch_group(flask_client):
     def _api_patch_group(group_id, group_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         url = f"{GROUP_URL}/{group_id}"

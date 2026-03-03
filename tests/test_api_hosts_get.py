@@ -1,5 +1,6 @@
 import logging
 import random
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
@@ -11,6 +12,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from app.exceptions import IdsNotFoundError
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -20,7 +22,6 @@ from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import api_base_pagination_test
 from tests.helpers.api_utils import api_pagination_invalid_parameters_test
 from tests.helpers.api_utils import api_pagination_test
-from tests.helpers.api_utils import api_query_test
 from tests.helpers.api_utils import assert_error_response
 from tests.helpers.api_utils import assert_host_lists_equal
 from tests.helpers.api_utils import assert_response_status
@@ -47,9 +48,85 @@ from tests.helpers.test_utils import now
 logger = logging.getLogger(__name__)
 
 
-def test_query_single_non_existent_host(api_get, subtests):
+def test_query_single_non_existent_host(api_get):
     url = build_hosts_url(host_list_or_id=generate_uuid())
-    api_query_test(api_get, subtests, url, [])
+    response_status, _ = api_get(url)
+    assert response_status == 404
+
+
+def test_query_non_existent_host_response_includes_missing_ids(api_get):
+    # Verify that 404 response includes the not_found_ids field
+    host_id = generate_uuid()
+    url = build_hosts_url(host_list_or_id=host_id)
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 404
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [host_id]
+    assert response_data["detail"] == "One or more hosts not found."
+
+
+def test_ids_not_found_error_to_json_includes_ids():
+    missing_ids = [generate_uuid(), generate_uuid()]
+
+    error = IdsNotFoundError("host", missing_ids)
+    error_json = error.to_json()
+
+    assert error_json["status"] == 404
+    assert error_json["detail"] == "One or more hosts not found."
+    assert error_json["not_found_ids"] == missing_ids
+
+
+def test_ids_not_found_error_to_json_omits_ids_when_none():
+    error = IdsNotFoundError("host")
+    error_json = error.to_json()
+
+    assert error_json["status"] == 404
+    assert error_json["detail"] == "One or more hosts not found."
+    assert "not_found_ids" not in error_json
+
+
+def test_query_mixed_valid_and_missing_hosts_response_includes_only_missing_ids(db_create_host, api_get):
+    # Verify 404 response only includes the missing IDs, not the valid ones
+    valid_host_id = str(db_create_host().id)
+    missing_host_id = generate_uuid()
+    url = build_hosts_url(host_list_or_id=f"{valid_host_id},{missing_host_id}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 404
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [missing_host_id]
+    assert valid_host_id not in response_data["not_found_ids"]
+    assert response_data["detail"] == "One or more hosts not found."
+
+
+def test_query_missing_hosts_with_pagination_omits_not_found_ids(db_create_host, api_get):
+    """
+    When requesting more IDs than can fit in a single page, the backend uses `total`
+    to detect missing IDs but cannot reliably compute `not_found_ids`. In this
+    paginated case, the 404 error body must NOT include `not_found_ids`.
+    """
+    # Create multiple valid hosts and a missing ID so that with per_page=1,
+    # only some results are returned (total > len(found_objects))
+    valid_host_1 = str(db_create_host().id)
+    valid_host_2 = str(db_create_host().id)
+    missing_host_id = str(generate_uuid())
+
+    combined_ids = ",".join([valid_host_1, valid_host_2, missing_host_id])
+
+    url = build_hosts_url(
+        host_list_or_id=combined_ids,
+        query="?per_page=1",
+    )
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 404
+    # In paginated scenarios where `have_all_results` is False, the API should *not*
+    # include `not_found_ids` because it cannot be accurately computed.
+    assert "not_found_ids" not in response_data
 
 
 def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests):
@@ -268,9 +345,10 @@ def test_get_hosts_with_RBAC_denied(subtests, mocker, db_create_host, api_get):
             get_host_list_mock.assert_not_called()
 
 
-@pytest.mark.usefixtures("enable_rbac")
 def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
-    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_hosts_url(host_list_or_id=host.id)
     response_status, _ = api_get(url, SYSTEM_IDENTITY)
@@ -278,15 +356,18 @@ def test_get_hosts_with_RBAC_bypassed_as_system(db_create_host, api_get):
     assert_response_status(response_status, 200)
 
 
-def test_get_hosts_sap_system_bad_parameter_values(api_get):
-    implicit_url = build_hosts_url(query="?filter[system_profile][sap_system]=Garfield")
-    eq_url = build_hosts_url(query="?filter[system_profile][sap_system][eq]=Garfield")
+@pytest.mark.parametrize(
+    "query",
+    (
+        "?filter[system_profile][workloads][sap][sap_system]=Garfield",
+        "?filter[system_profile][workloads][sap][sap_system][eq]=Garfield",
+    ),
+)
+def test_get_hosts_sap_system_bad_parameter_values(api_get, query):
+    implicit_url = build_hosts_url(query=query)
+    status, _ = api_get(implicit_url)
 
-    implicit_response_status, _ = api_get(implicit_url)
-    eq_response_status, _ = api_get(eq_url)
-
-    assert_response_status(implicit_response_status, 400)
-    assert_response_status(eq_response_status, 400)
+    assert_response_status(status, 400)
 
 
 @pytest.mark.parametrize(
@@ -792,6 +873,124 @@ def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_host
     assert group_result["ungrouped"] is ungrouped
 
 
+def test_query_using_group_id(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by group_id parameter."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+
+    # Create other groups that we don't want in the response
+    db_create_group_with_hosts("test_group_2", hosts_per_group)
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using group_id
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "test_group_1"
+
+
+def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+    """Test filtering hosts by multiple group_id parameters."""
+    hosts_per_group = 3
+    group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
+    group2 = db_create_group_with_hosts("test_group_2", hosts_per_group)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("other_group", 5)
+
+    # Query using multiple group_ids
+    url = build_hosts_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == hosts_per_group * 2
+    returned_group_ids = {result["groups"][0]["id"] for result in response_data["results"]}
+    assert returned_group_ids == {str(group1.id), str(group2.id)}
+
+
+def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get):
+    """
+    Test that group_id filter returns correct hosts even when multiple groups have the same name.
+    This is the key requirement from RHINENG-17234: with Kessel, multiple groups can have
+    the same name if they have different parents, and filtering by group_id ensures we get
+    the correct group's hosts.
+    """
+    # Create two groups with the same name
+    group1 = db_create_group_with_hosts("duplicate_name", 3)
+    group2 = db_create_group_with_hosts("duplicate_name", 5)
+
+    # Query using group_id for the first group
+    url = build_hosts_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group1, not group2
+    assert len(response_data["results"]) == 3
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group1.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+    # Query using group_id for the second group
+    url = build_hosts_url(query=f"?group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return only hosts from group2, not group1
+    assert len(response_data["results"]) == 5
+    for result in response_data["results"]:
+        assert result["groups"][0]["id"] == str(group2.id)
+        assert result["groups"][0]["name"] == "duplicate_name"
+
+
+def test_query_group_id_rejects_invalid_uuid(api_get):
+    """Test that group_id parameter rejects non-UUID values."""
+    # Try with an invalid UUID
+    url = build_hosts_url(query="?group_id=invalid-uuid")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request for invalid UUID
+    assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 3)
+
+    # Try using both filters together
+    url = build_hosts_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
+
+
+def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 3)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_hosts_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
 def test_query_hosts_filter_updated_start_end(mq_create_or_update_host, api_get):
     host_list = [mq_create_or_update_host(minimal_host(insights_id=generate_uuid())) for _ in range(3)]
 
@@ -1020,10 +1219,17 @@ def test_get_hosts_order_by_operating_system(mq_create_or_update_host, api_get, 
         assert ordered_insights_ids[index] == response_data["results"][index]["insights_id"]
 
 
-@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
-def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query):
+@pytest.mark.parametrize("num_hosts_to_query", (1, 3))
+@pytest.mark.parametrize("order_by", ("updated", "display_name", "group_name", "operating_system", "last_check_in"))
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_query_using_id_list(
+    mq_create_three_specific_hosts, api_get, subtests, num_hosts_to_query, order_by, order_how
+):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]])
+    url = build_hosts_url(
+        host_list_or_id=[host.id for host in created_hosts[:num_hosts_to_query]],
+        query=f"?order_by={order_by}&order_how={order_how}",
+    )
 
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=num_hosts_to_query)
@@ -1033,15 +1239,17 @@ def test_query_using_id_list(mq_create_three_specific_hosts, api_get, subtests, 
 
 
 def test_query_using_id_list_nonexistent_host(api_get):
-    response_status, response_data = api_get(build_hosts_url(generate_uuid()))
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(generate_uuid()))
+    assert response_status == 404
 
 
-@pytest.mark.parametrize("num_hosts_to_query", (1, 2, 3))
+@pytest.mark.parametrize("num_hosts_to_query", (1, 3))
 @pytest.mark.parametrize("sparse_request", (True, False))
-def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request):
+@pytest.mark.parametrize("order_by", ("updated", "display_name", "group_name", "operating_system", "last_check_in"))
+@pytest.mark.parametrize("order_how", ("ASC", "DESC"))
+def test_query_sp_by_id_list_sparse(
+    db_create_multiple_hosts, api_get, num_hosts_to_query, sparse_request, order_by, order_how
+):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
@@ -1053,9 +1261,9 @@ def test_query_sp_by_id_list_sparse(db_create_multiple_hosts, api_get, num_hosts
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     created_hosts_ids = [str(host.id) for host in created_hosts]
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
-    url = f"{host_list_url}/system_profile"
+    url = f"{host_list_url}/system_profile?order_by={order_by}&order_how={order_how}"
     if sparse_request:
-        url += "?fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+        url += "&fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
 
     response_status, response_data = api_get(url)
 
@@ -1157,9 +1365,9 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
 
     url = build_hosts_url(host_list_or_id=created_host_id)
     # The host should not be returned as it is in the "culled" state
-    response_status, response_data = api_get(url)
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
+    # Because the host is culled, the API should return a 404
+    response_status, _ = api_get(url)
+    assert response_status == 404
 
 
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
@@ -1219,7 +1427,7 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         db_create_multiple_hosts(
             how_many=1,
             extra_data={
-                "canonical_facts": {"insights_id": insights_id},
+                "insights_id": insights_id,
                 "per_reporter_staleness": registered_with_host_data[insights_id],
             },
         )
@@ -1251,9 +1459,25 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[insights_client_version]=3.0.1-2.el4_2",
         "[insights_client_version]=3.0.*",
         "[host_type]=edge",
+        "[workloads][sap][sap_system]=true",
         "[sap][sap_system]=true",
+        "[sap_system]=true",
+        "[workloads][mssql][version]=15.3",
+        "[workloads][mssql][version][]=15.3",
+        "[workloads][mssql][version][]=not_nil",
+        "[mssql][version]=15.3",
+        "[mssql][version][]=15.3",
+        "[mssql][version][]=not_nil",
+        "[workloads][ansible][controller_version]=1.0",
+        "[ansible][controller_version]=1.0",
+        "[workloads][sap][sap_system]=True",
+        "[workloads][sap][sap_system]=TRUE",
+        "[workloads][sap][sap_system][is]=not_nil",
+        "[workloads][sap][sap_system][is][]=not_nil",
         "[sap][sap_system]=True",
         "[sap][sap_system]=TRUE",
+        "[sap][sap_system][is]=not_nil",
+        "[sap][sap_system][is][]=not_nil",
         "[is_marketplace]=false",
         "[is_marketplace]=False",
         "[is_marketplace]=FALSE",
@@ -1264,14 +1488,13 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[greenboot_status][is][]=nil",
         "[host_type][]=not_nil",
         "[bootc_status][booted][image]=quay.io*",
-        "[sap_sids][contains][]=ABC",
-        "[sap_sids][contains][]=ABC&filter[system_profile][sap_sids][contains][]=DEF",
-        "[sap_sids][contains]=ABC",
-        "[sap_sids][]=ABC",
-        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][contains][]=ABC",
         "[sap][sids][contains][]=ABC",
-        "[sap][sids][contains]=ABC",
-        "[sap][sids][]=ABC",
+        "[sap_sids][contains][]=ABC",
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=DEF",
+        "[workloads][sap][sids][contains]=ABC",
+        "[workloads][sap][sids][]=ABC",
+        "[workloads][sap][sids][]=not_nil",
         "[systemd][failed_services][contains][]=foo",
         "[system_memory_bytes][lte]=9000000000000000",
         "[system_memory_bytes][eq]=8292048963606259",
@@ -1279,8 +1502,18 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
         "[number_of_cpus]=nil",
         "[bios_version]=2.0/3.5A",
         "[cpu_flags][]=nil",
-        "[sap_sids][]=not_nil",
-        "[sap][sids][]=not_nil",
+        "[workloads][rhel_ai][rhel_ai_version_id][is]=not_nil",
+        "[workloads][rhel_ai][rhel_ai_version_id]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq]=v1.1.2",
+        "[workloads][rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
+        "[workloads][rhel_ai][variant][is]=nil",
+        "[workloads][rhel_ai][gpu_models][is]=not_nil",
+        # JSON object notation (value is a JSON string instead of square bracket path)
+        '={"arch": "x86_64"}',
+        '={"arch": {"eq": "x86_64"}}',
+        '={"workloads": {"sap": {"sap_system": "true"}}}',
+        '={"workloads": {"sap": {"sids": {"contains": ["ABC", "DEF"]}}}}',
     ),
 )
 def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
@@ -1290,9 +1523,21 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {
+                "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+                "mssql": {"version": "15.3"},
+                "ansible": {
+                    "controller_version": "1.0",
+                },
+                "rhel_ai": {
+                    "rhel_ai_version_id": "v1.1.2",
+                    "gpu_models": [
+                        {"name": "NVIDIA T1000", "vendor": "Nvidia"},
+                        {"name": "AMD Device 0c31", "vendor": "AMD"},
+                    ],
+                },
+            },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
@@ -1308,7 +1553,14 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "cpu_flags": ["ex1", "ex2"],
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
-            "sap": {"sap_system": False},
+            "workloads": {
+                "sap": {},  # No sap_system field = nil
+                "rhel_ai": {
+                    "variant": "RHEL AI",  # Has variant (not nil) for variant filter
+                    # No gpu_models = nil for gpu_models filter
+                    # Different version for version filter
+                },
+            },
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
             "is_marketplace": True,
             "number_of_cpus": 8,
@@ -1330,6 +1582,105 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 
 
 @pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        # Non-object JSON values: must not be treated as deep object filters
+        "=true",
+        "=1",
+        '=["ABC", "DEF"]',
+    ),
+)
+def test_query_all_sp_filters_json_invalid_object_notation(api_get, sp_filter_param):
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+    response_status, _ = api_get(url)
+    assert response_status == 400
+
+
+@pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+    ),
+)
+def test_query_all_sp_filters_bools_use_or_logic(db_create_host, api_get, sp_filter_bool_field):
+    # Create host with true value for the boolean field
+    host_1_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: True,
+        }
+    }
+    host_1_id = str(db_create_host(extra_data=host_1_data).id)
+
+    # Create host with false value for the boolean field
+    host_2_data = {
+        "system_profile_facts": {
+            sp_filter_bool_field: False,
+        }
+    }
+    host_2_id = str(db_create_host(extra_data=host_2_data).id)
+
+    # Create host with no value for the boolean field
+    nomatch_host_data = {"system_profile_facts": {}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][{sp_filter_bool_field}][]=true"
+        + f"&filter[system_profile][{sp_filter_bool_field}][]=false"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 2
+    assert host_1_id in response_ids
+    assert host_2_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_bool_field",
+    (
+        "katello_agent_running",
+        "satellite_managed",
+        "is_marketplace",
+        "greenboot_fallback_detected",
+        "sap_system",
+    ),
+)
+@pytest.mark.parametrize("filter_append", ("", "[]", "[is]"))
+def test_query_all_sp_filters_bools_nil(db_create_host, api_get, sp_filter_bool_field, filter_append):
+    # Create host with no value for the boolean field
+    host_data = {"system_profile_facts": {}}
+    host_id = str(db_create_host(extra_data=host_data).id)
+
+    # Note: sap_system is now stored in workloads.sap.sap_system, not at root level.
+    # db_create_host fixture bypasses schema validation (which would migrate legacy fields),
+    # so we need to use the correct workloads structure directly.
+    if sp_filter_bool_field == "sap_system":
+        nomatch_host_data_1 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}
+        nomatch_host_data_2 = {"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}}
+    else:
+        nomatch_host_data_1 = {"system_profile_facts": {sp_filter_bool_field: True}}
+        nomatch_host_data_2 = {"system_profile_facts": {sp_filter_bool_field: False}}
+
+    nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_host_data_1).id)
+    nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_host_data_2).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile][{sp_filter_bool_field}]{filter_append}=nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 1
+    assert host_id in response_ids
+    assert nomatch_host_id_1 not in response_ids
+    assert nomatch_host_id_2 not in response_ids
+
+
+@pytest.mark.parametrize(
     "query_filter_param,match_host_facts",
     (
         ("?display_name=1*m", [{"display_name": "HkqL12lmIW"}]),
@@ -1337,7 +1688,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "?hostname_or_id=1*m",
             [
                 {"display_name": "HkqL12lmIW"},
-                {"canonical_facts": {"fqdn": "HkqL1m2lIW", "subscription_manager_id": generate_uuid()}},
+                {"fqdn": "HkqL1m2lIW", "subscription_manager_id": generate_uuid()},
             ],
         ),
     ),
@@ -1349,7 +1700,7 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
     # Create host with differing SP
     nomatch_host_facts = [
         {"display_name": "masdf1"},
-        {"canonical_facts": {"fqdn": "masdf1", "subscription_manager_id": generate_uuid()}},
+        {"fqdn": "masdf1", "subscription_manager_id": generate_uuid()},
     ]
     nomatch_host_id_list = [str(db_create_host(extra_data=host_fact).id) for host_fact in nomatch_host_facts]
 
@@ -1376,7 +1727,10 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
         "[host_type][eq]=",  # Same for this one
+        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=GHI",
         "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+        "[virtual_host_uuid]=",  # Valid field, but no match
+        "[arch]=",
     ),
 )
 def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param):
@@ -1385,7 +1739,7 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
         "system_profile_facts": {
             "arch": "x86_64",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -1540,85 +1894,6 @@ def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filt
     else:
         assert nomatch_host_id in response_ids
         assert match_host_id not in response_ids
-
-
-@pytest.mark.parametrize(
-    "os_match_data_list,os_nomatch_data_list,sp_filter_param_list",
-    (
-        (
-            [None],
-            [
-                {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
-                }
-            ],
-            [
-                "[operating_system][]=nil",
-                "[operating_system]=nil",
-            ],
-        ),
-        (
-            [
-                {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
-                }
-            ],
-            [None],
-            [
-                "[operating_system][]=not_nil",
-                "[operating_system]=not_nil",
-            ],
-        ),
-        (
-            [
-                None,
-                {
-                    "name": "RHEL",
-                    "major": "8",
-                    "minor": "1",
-                },
-            ],
-            None,
-            [
-                "[operating_system][]=nil&filter[system_profile][operating_system][]=not_nil",
-            ],
-        ),
-    ),
-)
-def test_query_all_operating_system_nil(
-    db_create_host, api_get, os_match_data_list, os_nomatch_data_list, sp_filter_param_list, subtests
-):
-    # Create host with this system profile
-    match_host_id_list = [
-        str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-        for os_data in os_match_data_list
-    ]
-    if os_nomatch_data_list:
-        nomatch_host_id_list = [
-            str(db_create_host(extra_data={"system_profile_facts": {"operating_system": os_data}}).id)
-            for os_data in os_nomatch_data_list
-        ]
-
-    for sp_filter_param in sp_filter_param_list:
-        with subtests.test(query_param=sp_filter_param):
-            url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
-
-            response_status, response_data = api_get(url)
-
-            assert response_status == 200
-
-            # Assert that only the matching hosts are returned
-            response_ids = [result["id"] for result in response_data["results"]]
-            for match_host_id in match_host_id_list:
-                assert match_host_id in response_ids
-
-            if os_nomatch_data_list:
-                for nomatch_host_id in nomatch_host_id_list:
-                    assert nomatch_host_id not in response_ids
 
 
 @pytest.mark.parametrize(
@@ -2023,7 +2298,7 @@ def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
 
 def test_get_host_exists_found(db_create_host, api_get):
     insights_id = generate_uuid()
-    created_host = db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}})
+    created_host = db_create_host(extra_data={"insights_id": insights_id})
 
     url = build_host_exists_url(insights_id)
     response_status, response_data = api_get(url)
@@ -2044,9 +2319,7 @@ def test_get_host_exists_error_multiple_found(db_create_host, api_get):
 
     # Create 2 hosts with the same Insights ID
     for _ in range(2):
-        db_create_host(
-            extra_data={"canonical_facts": {"insights_id": insights_id, "subscription_manager_id": generate_uuid()}}
-        )
+        db_create_host(extra_data={"insights_id": insights_id, "subscription_manager_id": generate_uuid()})
 
     url = build_host_exists_url(insights_id)
     response_status, _ = api_get(url)
@@ -2063,8 +2336,7 @@ def test_get_host_exists_granular_rbac(
     accessible_group_id = db_create_group("accessible_group").id
     accessible_insights_id_list = [generate_uuid() for _ in range(3)]
     accessible_host_id_list = [
-        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
-        for insights_id in accessible_insights_id_list
+        db_create_host(extra_data={"insights_id": insights_id}).id for insights_id in accessible_insights_id_list
     ]
     for host_id in accessible_host_id_list:
         db_create_host_group_assoc(host_id, accessible_group_id)
@@ -2073,8 +2345,7 @@ def test_get_host_exists_granular_rbac(
     inaccessible_group_id = db_create_group("inaccessible_group").id
     inaccessible_insights_id_list = [generate_uuid() for _ in range(2)]
     inaccessible_host_id_list = [
-        db_create_host(extra_data={"canonical_facts": {"insights_id": insights_id}}).id
-        for insights_id in inaccessible_insights_id_list
+        db_create_host(extra_data={"insights_id": insights_id}).id for insights_id in inaccessible_insights_id_list
     ]
     for host_id in inaccessible_host_id_list:
         db_create_host_group_assoc(host_id, inaccessible_group_id)
@@ -2272,7 +2543,7 @@ def test_system_type_filter_invalid_types(api_get, invalid_system_type):
     "query_filter_param,matching_host_indexes",
     (
         ("?system_type=conventional", [0]),
-        ("?system_type=bootc", [1, 4]),
+        ("?system_type=bootc", [1]),
         ("?system_type=edge", [2, 4]),
         ("?system_type=cluster", [3]),
         ("?system_type=bootc&system_type=edge", [1, 2, 4]),
@@ -2399,14 +2670,16 @@ def test_db_get_hosts_by_subman_id_multiple_hosts_org_filtering(db_get_hosts_by_
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id_1,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
     host2 = db_create_host(
         identity={"account_number": "123", "org_id": org_id_2},
         extra_data={
             "org_id": org_id_2,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
 
@@ -2440,14 +2713,16 @@ def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_i
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
     host2 = db_create_host(
         identity=USER_IDENTITY,
         extra_data={
             "org_id": org_id,
-            "canonical_facts": {"subscription_manager_id": subman_id, "insights_id": generate_uuid()},
+            "subscription_manager_id": subman_id,
+            "insights_id": generate_uuid(),
         },
     )
 
@@ -2455,3 +2730,40 @@ def test_db_get_hosts_by_subman_id_multiple_in_same_org(db_get_hosts_by_subman_i
     assert len(hosts) == 2
     host_ids = {host.id for host in hosts}
     assert host_ids == {host1.id, host2.id}
+
+
+@pytest.mark.parametrize(
+    "field_key_level_1,field_key_level_2",
+    (
+        ("sap", "sap_system"),
+        ("ibm_db2", "is_running"),
+        ("intersystems", "is_intersystems"),
+        ("oracle_db", "is_running"),
+    ),
+)
+def test_api_hosts_get_empty_boolean_workloads_fields(db_create_host, api_get, field_key_level_1, field_key_level_2):
+    """Test that empty strings are not allowed for boolean and integer fields."""
+    db_create_host()
+
+    # Test with empty string without eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_2}" in response_data["detail"]
+
+    # Test with empty string with eq comparator
+    url = build_hosts_url(query=f"?filter[system_profile][{field_key_level_1}][{field_key_level_2}][eq]=")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert f" is an invalid value for field {field_key_level_2}" in response_data["detail"]
+
+
+def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
+    """Test that multiple values are not allowed for a field without brackets."""
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][mssql][version]=value1"
+        + "&filter[system_profile][workloads][mssql][version]=value2"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]

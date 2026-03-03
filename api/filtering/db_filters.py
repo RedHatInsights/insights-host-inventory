@@ -5,7 +5,6 @@ from copy import deepcopy
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from functools import partial
 from typing import Any
 from uuid import UUID
 
@@ -16,12 +15,14 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
+from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
+from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -30,6 +31,7 @@ from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import db
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -51,7 +53,9 @@ __all__ = (
 
 logger = get_logger(__name__)
 DEFAULT_STALENESS_VALUES = ["not_culled"]
-DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
+
+# Order-by fields that require a join to HostStaticSystemProfile
+ORDER_BY_STATIC_PROFILE_FIELDS = {"operating_system"}
 
 
 # Cache the column names from system profile tables for performance
@@ -94,19 +98,17 @@ def _extract_filter_fields(filter_dict):
     return fields
 
 
-def _needs_system_profile_joins(filter, system_type, registered_with):
+def _needs_system_profile_joins(filter, order_by):
     """
     Dynamically determine if system profile table joins are needed based on
-    which fields are being filtered.
+    which fields are being filtered or sorted.
 
     Returns: (needs_static_join, needs_dynamic_join)
     """
-    # system_type and registered_with always use static profile fields
-    if system_type or registered_with:
-        return True, False
-
+    # Ordering by specific fields may require joins even without filters
+    requires_static_for_order = order_by in ORDER_BY_STATIC_PROFILE_FIELDS
     if not filter:
-        return False, False
+        return requires_static_for_order, False
 
     # Get the system profile field sets
     dynamic_fields, static_fields = _get_system_profile_fields()
@@ -114,33 +116,25 @@ def _needs_system_profile_joins(filter, system_type, registered_with):
     # Extract all fields referenced in the filter
     filter_fields = _extract_filter_fields(filter)
 
+    # Handle workloads fields (temporary)
+    # Only needed until we stop supporting the old filter paths
+    if filter_fields & WORKLOADS_FIELDS:
+        filter_fields.add("workloads")
+
     # Check if any filter fields match system profile fields
-    needs_static = bool(filter_fields & static_fields)
+    needs_static = bool(filter_fields & static_fields) or requires_static_for_order
     needs_dynamic = bool(filter_fields & dynamic_fields)
 
     return needs_static, needs_dynamic
 
 
-# Static system type filter mappings
+# ALL system types now use Host.host_type directly
+# The trigger intelligently derives 'bootc' or 'conventional' from bootc_status
 SYSTEM_TYPE_FILTERS: dict[str, Any] = {
-    SystemType.CONVENTIONAL.value: and_(
-        or_(
-            HostStaticSystemProfile.bootc_status.is_(None),
-            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.is_(None),
-            HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext == "",
-        ),
-        or_(
-            HostStaticSystemProfile.host_type.is_(None),
-            HostStaticSystemProfile.host_type == "",
-        ),
-    ),
-    SystemType.BOOTC.value: and_(
-        HostStaticSystemProfile.bootc_status.isnot(None),
-        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext.isnot(None),
-        HostStaticSystemProfile.bootc_status["booted"]["image_digest"].astext != "",
-    ),
-    SystemType.EDGE.value: HostStaticSystemProfile.host_type == SystemType.EDGE.value,
-    SystemType.CLUSTER.value: HostStaticSystemProfile.host_type == SystemType.CLUSTER.value,
+    SystemType.CONVENTIONAL.value: Host.host_type == SystemType.CONVENTIONAL.value,
+    SystemType.BOOTC.value: Host.host_type == SystemType.BOOTC.value,
+    SystemType.EDGE.value: Host.host_type == SystemType.EDGE.value,
+    SystemType.CLUSTER.value: Host.host_type == SystemType.CLUSTER.value,
 }
 
 
@@ -205,13 +199,29 @@ def stale_timestamp_filter(gt=None, lte=None):
     return and_(*filters)
 
 
-def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, staleness_config=None):
+def _stale_timestamp_per_reporter_filter(
+    reporter: str,
+    staleness_config: dict | None = None,
+    gt: datetime | None = None,
+    lte: datetime | None = None,
+) -> ColumnElement:
     """
     Filter hosts by reporter staleness.
 
-    Uses feature flag to determine which SQL to build:
-    - Flag=True: Simple SQL for flat format {"reporter": "ISO timestamp"}
-    - Flag=False: SQL for nested format {"reporter": {"last_check_in": "...", "culled_timestamp": "...", ...}}
+    Handles both database formats until RHINENG-21703 is completed:
+    - Flat format: {"reporter": "ISO timestamp"}
+    - Nested format: {"reporter": {"last_check_in": "...", "culled_timestamp": "...", ...}}
+
+    Uses PostgreSQL's jsonb_typeof() to detect format and apply appropriate logic.
+
+    Args:
+        reporter: Reporter name to filter by (required, can start with '!' for negation)
+        gt: Filter for timestamps greater than this value
+        lte: Filter for timestamps less than or equal to this value
+        staleness_config: Staleness configuration dict containing conventional_time_to_delete
+
+    Returns:
+        SQLAlchemy filter expression
     """
     non_negative_reporter = reporter.replace("!", "")
     reporter_list = [non_negative_reporter]
@@ -219,92 +229,94 @@ def _stale_timestamp_per_reporter_filter(gt=None, lte=None, reporter=None, stale
         reporter_list.extend(OLD_TO_NEW_REPORTER_MAP[non_negative_reporter])
 
     current_time = datetime.now(UTC)
-    use_flat_format = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
+    culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
+    culled_interval = timedelta(seconds=culled_seconds)
 
-    if use_flat_format:
-        # FLAT FORMAT: Simpler SQL - value is timestamp string
-        culled_seconds = staleness_config.get("conventional_time_to_delete", 0) if staleness_config else 0
-        culled_interval = timedelta(seconds=culled_seconds)
+    if reporter.startswith("!"):
+        # Negation: exclude hosts with this reporter (or culled)
+        time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
+        and_conditions = []
 
-        if reporter.startswith("!"):
-            # Negation: exclude hosts with this reporter (or culled)
-            time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
-            and_conditions = []
+        for rep in reporter_list:
+            # For flat format: reporter is culled if computed_culled < now
+            flat_format_culled = and_(
+                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval < current_time,
+            )
 
-            for rep in reporter_list:
-                # Compute culled_timestamp: last_check_in + interval
-                last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
-                computed_culled = last_check_in_expr + culled_interval
-
-                rep_condition = or_(
-                    not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
-                    computed_culled < current_time,  # Reporter is culled
+            # For nested format: reporter is culled if culled_timestamp is in the past
+            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
+            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
+            nested_format_culled = and_(
+                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
+                func.coalesce(
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
                 )
-                and_conditions.append(rep_condition)
+                < current_time,
+            )
 
-            return and_(and_(*and_conditions), time_filter_)
-        else:
-            # Positive: include hosts with this reporter (not culled)
-            or_filter = []
-            for rep in reporter_list:
-                conditions = [Host.per_reporter_staleness.has_key(rep)]
+            rep_condition = or_(
+                not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
+                flat_format_culled,  # Flat format and culled
+                nested_format_culled,  # Nested format and culled
+            )
+            and_conditions.append(rep_condition)
 
-                # Check not culled
-                last_check_in_expr = Host.per_reporter_staleness[rep].astext.cast(DateTime)
-                computed_culled = last_check_in_expr + culled_interval
-                conditions.append(computed_culled >= current_time)
-
-                # Time range filters
-                if gt:
-                    conditions.append(last_check_in_expr > gt)
-                if lte:
-                    conditions.append(last_check_in_expr <= lte)
-
-                or_filter.append(and_(*conditions))
-
-            return or_(*or_filter)
+        return and_(and_(*and_conditions), time_filter_)
     else:
-        # NESTED FORMAT: Original SQL - value is dict with culled_timestamp
-        if reporter.startswith("!"):
-            # Negation: exclude hosts with this reporter (or culled)
-            time_filter_ = stale_timestamp_filter(gt=gt, lte=lte)
-            and_conditions = []
+        # Positive: include hosts with this reporter (not culled)
+        or_filter = []
+        for rep in reporter_list:
+            conditions = [Host.per_reporter_staleness.has_key(rep)]
 
-            for rep in reporter_list:
-                rep_condition = or_(
-                    not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
-                    # Has reporter but culled
-                    and_(
-                        Host.per_reporter_staleness.has_key(rep),
-                        Host.per_reporter_staleness[rep].has_key("culled_timestamp"),
-                        Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) < current_time,
-                    ),
+            # For flat format: not culled if computed_culled >= now
+            flat_format_not_culled = and_(
+                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval >= current_time,
+            )
+
+            # For nested format: not culled if culled_timestamp >= now
+            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
+            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
+            nested_format_not_culled = and_(
+                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
+                func.coalesce(
+                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
                 )
-                and_conditions.append(rep_condition)
+                >= current_time,
+            )
 
-            return and_(and_(*and_conditions), time_filter_)
-        else:
-            # Positive: include hosts with this reporter (not culled)
-            or_filter = []
-            for rep in reporter_list:
-                conditions = [Host.per_reporter_staleness.has_key(rep)]
+            # Either format is acceptable as long as not culled
+            conditions.append(or_(flat_format_not_culled, nested_format_not_culled))
 
-                # Check not culled (backward compatible - if no culled_timestamp, include it)
-                culled_condition = or_(
-                    not_(Host.per_reporter_staleness[rep].has_key("culled_timestamp")),
-                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime) >= current_time,
+            # Time range filters - handle both formats
+            if gt:
+                flat_gt = and_(
+                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                    Host.per_reporter_staleness[rep].astext.cast(DateTime) > gt,
                 )
-                conditions.append(culled_condition)
+                nested_gt = and_(
+                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt,
+                )
+                conditions.append(or_(flat_gt, nested_gt))
 
-                # Time range filters
-                if gt:
-                    conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt)
-                if lte:
-                    conditions.append(Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte)
+            if lte:
+                flat_lte = and_(
+                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                    Host.per_reporter_staleness[rep].astext.cast(DateTime) <= lte,
+                )
+                nested_lte = and_(
+                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
+                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte,
+                )
+                conditions.append(or_(flat_lte, nested_lte))
 
-                or_filter.append(and_(*conditions))
+            or_filter.append(and_(*conditions))
 
-            return or_(*or_filter)
+        return or_(*or_filter)
 
 
 def per_reporter_staleness_filter(staleness, reporter, org_id):
@@ -313,7 +325,9 @@ def per_reporter_staleness_filter(staleness, reporter, org_id):
         *staleness_to_conditions(
             staleness_obj,
             staleness,
-            partial(_stale_timestamp_per_reporter_filter, reporter=reporter, staleness_config=staleness_obj),
+            lambda gt, lte: _stale_timestamp_per_reporter_filter(
+                reporter=reporter, staleness_config=staleness_obj, gt=gt, lte=lte
+            ),
         )
     )
     return [conditions]
@@ -351,7 +365,7 @@ def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
     )
 
 
-def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
+def _registered_with_filter(registered_with: list[str], org_id: str, staleness: list[str] | None = None) -> list:
     _query_filter: list = []
     if not registered_with:
         return _query_filter
@@ -364,8 +378,11 @@ def _registered_with_filter(registered_with: list[str], org_id: str) -> list:
 
     # Get the per_report_staleness check_in value for the reporter
     # and build the filter based on it
+    # If staleness is provided, use it to filter by per-reporter staleness state
+    # Otherwise, default to "not_culled" to only exclude culled reporters
+    staleness_states = staleness if staleness is not None else DEFAULT_STALENESS_VALUES
     for reporter in reg_with_copy:
-        prs_item = per_reporter_staleness_filter(DEFAULT_STALENESS_VALUES, reporter, org_id)
+        prs_item = per_reporter_staleness_filter(staleness_states, reporter, org_id)
 
         for n_items in prs_item:
             _query_filter.append(n_items)
@@ -571,8 +588,8 @@ def query_filters(
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
-    # Dynamically determine if we need system profile joins based on what fields are being filtered
-    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, system_type, registered_with)
+    # Dynamically determine if we need system profile joins based on filtering and ordering
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by)
 
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
@@ -582,12 +599,12 @@ def query_filters(
 
     # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = query_base.join(HostGroupAssoc, isouter=True).join(Group, isouter=True)
+        query_base = query_base.outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # Add system profile joins if needed (dynamic detection or explicit request)
     if needs_static_join:
-        query_base = query_base.join(HostStaticSystemProfile, isouter=True)
+        query_base = query_base.outerjoin(HostStaticSystemProfile)
     if needs_dynamic_join:
-        query_base = query_base.join(HostDynamicSystemProfile, isouter=True)
+        query_base = query_base.outerjoin(HostDynamicSystemProfile)
 
     return filters, query_base

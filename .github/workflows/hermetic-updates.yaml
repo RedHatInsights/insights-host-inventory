@@ -18,7 +18,7 @@ jobs:
       options: "--user root:root -v /usr/bin:/mnt/usrbin"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Subscribe to Red Hat
         run: |

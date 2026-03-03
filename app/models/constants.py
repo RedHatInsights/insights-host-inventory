@@ -1,7 +1,7 @@
 import os
 from datetime import UTC
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from marshmallow import validate as marshmallow_validate
 
@@ -16,6 +16,21 @@ FAR_FUTURE_STALE_TIMESTAMP = datetime(2260, 1, 1, tzinfo=UTC)
 
 NEW_TO_OLD_REPORTER_MAP = {"satellite": "yupana", "discovery": "yupana"}
 OLD_TO_NEW_REPORTER_MAP = {"yupana": ("satellite", "discovery")}
+WORKLOADS_FIELDS = {
+    "ansible",
+    "crowdstrike",
+    "ibm_db2",
+    "intersystems",
+    "mssql",
+    "oracle_db",
+    "rhel_ai",
+    "sap",
+    "sap_instance_number",
+    "sap_sids",
+    "sap_system",
+    "sap_version",
+    "third_party_services",
+}
 
 MIN_CANONICAL_FACTS_VERSION = 0
 MAX_CANONICAL_FACTS_VERSION = 1
@@ -25,7 +40,7 @@ ZERO_MAC_ADDRESS = "00:00:00:00:00:00"
 INVENTORY_SCHEMA = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     ALIBABA = "alibaba"
     AWS = "aws"
     AZURE = "azure"
@@ -34,7 +49,7 @@ class ProviderType(str, Enum):
     IBM = "ibm"
 
 
-class SystemType(str, Enum):
+class SystemType(StrEnum):
     CONVENTIONAL = "conventional"
     BOOTC = "bootc"
     EDGE = "edge"

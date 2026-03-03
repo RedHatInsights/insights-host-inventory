@@ -38,7 +38,7 @@ def test_match_host_without_id_facts_not_allowed(
     db_create_host: Callable[..., Host], mq_create_or_update_host: Callable[..., HostWrapper]
 ):
     canonical_facts = generate_all_canonical_facts()
-    host = db_host(canonical_facts=canonical_facts)
+    host = db_host(**canonical_facts)
     db_create_host(host=host)
 
     for id_fact in ID_FACTS:
@@ -55,7 +55,7 @@ def test_id_facts_dont_match(
 ):
     """When none of the ID facts matches and all other canonical facts match, don't update the host."""
     canonical_facts = generate_all_canonical_facts()
-    host = db_host(canonical_facts=canonical_facts)
+    host = db_host(**canonical_facts)
     db_create_host(host=host)
 
     for fact in ID_FACTS:
@@ -75,7 +75,7 @@ def test_id_facts_match(
 ):
     """When an ID fact matches and all other canonical facts don't match, update the host."""
     canonical_facts = generate_all_canonical_facts()
-    host = db_host(canonical_facts=canonical_facts)
+    host = db_host(**canonical_facts)
     db_create_host(host=host)
 
     search_canonical_facts = generate_all_canonical_facts()
@@ -97,8 +97,8 @@ def test_find_correct_host_when_similar_canonical_facts(db_create_host):
     cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
     cf3 = {"fqdn": cf1["fqdn"], "bios_uuid": cf1["bios_uuid"], "insights_id": cf2["insights_id"]}
 
-    db_create_host(host=minimal_db_host(canonical_facts=cf1))
-    created_host_2 = db_create_host(host=minimal_db_host(canonical_facts=cf2))
+    db_create_host(host=minimal_db_host(**cf1))
+    created_host_2 = db_create_host(host=minimal_db_host(**cf2))
 
     assert_host_exists_in_db(created_host_2.id, cf3)
 
@@ -217,7 +217,7 @@ def test_priority_order_nomatch(db_create_host, changing_id):
     search_canonical_facts = base_canonical_facts.copy()
     search_canonical_facts.update(generate_fact_dict(changing_id))
 
-    created_host = db_create_host(host=minimal_db_host(canonical_facts=created_host_canonical_facts))
+    created_host = db_create_host(host=minimal_db_host(**created_host_canonical_facts))
 
     assert_host_exists_in_db(created_host.id, created_host_canonical_facts)
     if changing_id in IMMUTABLE_ID_FACTS:
@@ -241,7 +241,7 @@ def test_priority_order_match(db_create_host, changing_id):
         "subscription_manager_id": generate_uuid(),
     }
 
-    created_host = db_create_host(host=minimal_db_host(canonical_facts=base_canonical_facts))
+    created_host = db_create_host(host=minimal_db_host(**base_canonical_facts))
 
     match_host_canonical_facts = base_canonical_facts.copy()
     match_host_canonical_facts[changing_id] = generate_fact(changing_id)
@@ -253,7 +253,7 @@ def test_no_merge_when_different_facts(db_create_host):
     cf1 = {"fqdn": "fred", "bios_uuid": generate_uuid(), "insights_id": generate_uuid()}
     cf2 = {"fqdn": "george", "bios_uuid": generate_uuid(), "subscription_manager_id": generate_uuid()}
 
-    db_create_host(host=minimal_db_host(canonical_facts=cf1))
+    db_create_host(host=minimal_db_host(**cf1))
 
     assert_host_missing_from_db(cf2)
 
@@ -268,7 +268,7 @@ def test_find_host_using_insights_id_match(db_create_host):
         "insights_id": canonical_facts["insights_id"],
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -283,7 +283,7 @@ def test_find_host_using_subscription_manager_id_match(db_create_host):
         "subscription_manager_id": canonical_facts["subscription_manager_id"],
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -400,7 +400,7 @@ def test_find_host_using_provider_id_and_type_match(db_create_host):
         "provider_type": canonical_facts["provider_type"],
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -418,7 +418,7 @@ def test_find_host_using_provider_id_different_type_nomatch(db_create_host):
         "provider_type": ProviderType.IBM.value,
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     db_create_host(host=host)
 
     assert_host_missing_from_db(search_canonical_facts)
@@ -435,7 +435,7 @@ def test_find_host_using_provider_id_no_type_exception(db_create_host):
         "provider_id": canonical_facts["provider_id"],
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     db_create_host(host=host)
 
     with pytest.raises(InventoryException):
@@ -453,7 +453,7 @@ def test_find_host_using_provider_id_existing_with_match(db_create_host):
         "insights_id": canonical_facts["insights_id"],
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -468,7 +468,7 @@ def test_find_host_using_provider_id_existing_without_match(db_create_host):
         "provider_type": ProviderType.AWS.value,
     }
 
-    host = minimal_db_host(canonical_facts=canonical_facts)
+    host = minimal_db_host(**canonical_facts)
     created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, search_canonical_facts)
@@ -479,11 +479,11 @@ def test_find_correct_host_varying_provider_type(db_create_host, mq_create_or_up
     aws_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.AWS.value}
     ibm_canonical_facts = {"provider_id": provider_id, "provider_type": ProviderType.IBM.value}
 
-    aws_host = db_create_host(host=minimal_db_host(canonical_facts=aws_canonical_facts))
+    aws_host = db_create_host(host=minimal_db_host(**aws_canonical_facts))
     aws_host_id = aws_host.id
     assert_host_exists_in_db(aws_host_id, aws_canonical_facts)
 
-    ibm_host = db_create_host(host=minimal_db_host(canonical_facts=ibm_canonical_facts))
+    ibm_host = db_create_host(host=minimal_db_host(**ibm_canonical_facts))
     ibm_host_id = ibm_host.id
     assert_host_exists_in_db(ibm_host_id, ibm_canonical_facts)
 
@@ -511,7 +511,7 @@ def test_deduplication_match_old_rhsm_host(
         "app.models.utils.datetime",
         **{"now.return_value": datetime.now(tz=UTC) - timedelta(days=100)},
     ):  # type: ignore [call-overload]
-        host = minimal_db_host(canonical_facts=canonical_facts, reporter="rhsm-system-profile-bridge")
+        host = minimal_db_host(**canonical_facts, reporter="rhsm-system-profile-bridge")
         created_host = db_create_host(host=host)
 
     assert_host_exists_in_db(created_host.id, canonical_facts)
@@ -535,7 +535,7 @@ def test_deduplication_culled_host(
         "app.models.utils.datetime",
         **{"now.return_value": datetime.now(tz=UTC) - timedelta(days=100)},
     ):  # type: ignore [call-overload]
-        host = minimal_db_host(canonical_facts=canonical_facts, reporter="puptoo")
+        host = minimal_db_host(**canonical_facts, reporter="puptoo")
         created_host = db_create_host(host=host)
 
     updated_host = mq_create_or_update_host(minimal_host(**canonical_facts, reporter="puptoo"))

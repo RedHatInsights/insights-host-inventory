@@ -7,6 +7,7 @@ from sqlalchemy import Engine
 from sqlalchemy import engine_from_config
 from sqlalchemy import inspect
 from sqlalchemy import pool
+from sqlalchemy import text
 from sqlalchemy.schema import CreateSchema
 
 from app.logging import get_logger
@@ -35,6 +36,37 @@ target_metadata = current_app.extensions["migrate"].db.metadata
 schema_name = os.getenv("INVENTORY_DB_SCHEMA", "hbi")
 
 
+def include_object(object, name, type_, reflected, compare_to):  # noqa: ARG001, required by alembic
+    """Filter Alembic autogenerate to only include objects in the target schema.
+
+    This prevents Alembic from:
+    - Trying to create/drop tables in other schemas (e.g., public)
+    - Trying to drop partition tables (e.g., hosts_p0, hosts_p1)
+    - Trying to drop backup/old tables (e.g., hosts_old)
+    - Trying to drop tables not defined in models (e.g., debezium_signal)
+    - Trying to drop columns, indexes, or constraints that exist in DB but not in models
+
+    The key insight is that `reflected=True` and `compare_to=None` means the object
+    exists in the database but NOT in the models. We don't want to generate DROP
+    statements for such objects, as they may be intentionally present (e.g., for
+    production performance, partition management, etc.).
+    """
+    if type_ == "table":
+        # For tables, only include those in the target schema (hbi)
+        table_schema = getattr(object, "schema", None)
+        if table_schema != schema_name:
+            return False
+
+        # If this is a reflected table (from DB) not in our models, exclude it
+        # This handles partition tables (_p0, _p1), old tables (_old), and
+        # other tables like debezium_signal that exist in DB but not in models
+        return not (reflected and compare_to is None)
+
+    # For columns, indexes, unique_constraints, foreign_keys, etc.:
+    # If the object exists in DB but not in models, don't try to drop it
+    return not (reflected and compare_to is None)
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -48,7 +80,13 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, version_table_schema=schema_name)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        include_schemas=True,
+        include_object=include_object,
+        version_table_schema=schema_name,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -82,6 +120,8 @@ def run_migrations_online():
             connection=conn,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives,
+            include_schemas=True,
+            include_object=include_object,
             **current_app.extensions["migrate"].configure_args,
             version_table_schema=schema,
         )
@@ -105,23 +145,35 @@ def run_migrations_online():
     connection = engine.connect()
     create_schema_if_not_exists(engine, connection, schema_name)
 
-    # Get current revision
-    configure_context(connection, schema_name)
-    curr_revision = context.get_context().get_current_revision()
-
-    # If there is no current revision, we need to migrate the version_table
-    if curr_revision is None:
-        migrate_alembic_version_table(connection)
-
     try:
+        # Acquire lock BEFORE checking revision to prevent TOCTOU race conditions.
+        # This ensures only one pod can check and run migrations at a time.
+        logger.info("Acquiring advisory lock for migrations...")
+        connection.execute(text("SELECT pg_advisory_lock(1);"))
+        logger.info("Advisory lock acquired.")
+
+        # Get current revision (now protected by the lock)
+        configure_context(connection, schema_name)
+        curr_revision = context.get_context().get_current_revision()
+
+        # If there is no current revision, we need to migrate the version_table
+        if curr_revision is None:
+            migrate_alembic_version_table(connection)
+
         with context.begin_transaction():
-            # Lock so multiple pods don't run the same migration simultaneously
-            context.execute("select pg_advisory_lock(1);")
             context.run_migrations()
+
+        # CRITICAL: Explicitly commit the transaction to persist migration changes.
+        connection.commit()
     finally:
-        # Release the lock
-        context.execute("select pg_advisory_unlock(1);")
-        connection.close()
+        logger.info("Releasing advisory lock...")
+        try:
+            connection.rollback()
+            connection.execute(text("SELECT pg_advisory_unlock(1);"))
+        except Exception:
+            logger.warning("Failed to release advisory lock; it will be released on disconnect.")
+        finally:
+            connection.close()
 
 
 if context.is_offline_mode():

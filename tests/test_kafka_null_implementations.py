@@ -241,7 +241,6 @@ class TestNullConsumerIntegration:
         mock_session = Mock()
         mock_session.no_autoflush = Mock()
         mocker.patch("app.queue.host_mq.db.session", mock_session)
-        mocker.patch("app.queue.host_mq.session_guard", return_value=Mock())
 
         # This should not raise any exceptions and should exit cleanly
         consumer.event_loop(interrupt)

@@ -1,0 +1,15 @@
+ARG REPOSITORY=quay.io/cloudservices/iqe-tests
+ARG TAG
+
+FROM ${REPOSITORY}:${TAG}
+
+ARG TAG
+
+USER 0
+
+COPY . ${IQE_VENV}/${TAG}
+
+RUN pip install --no-cache-dir -U ${TAG}/ && \
+    chmod -R g+rwX ${IQE_VENV}
+
+USER 1001

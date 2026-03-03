@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import math
+import types
 from base64 import b64encode
 from collections.abc import Callable
+from datetime import datetime
 from datetime import timedelta
-from enum import Enum
+from enum import StrEnum
 from http import HTTPStatus
 from itertools import product
 from struct import unpack
@@ -25,6 +27,7 @@ from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
+from app.models import db
 from app.utils import HostWrapper
 from tests.helpers.test_utils import now
 
@@ -32,6 +35,7 @@ BASE_URL = "/api/inventory/v1"
 LEGACY_BASE_URL = "/r/insights/platform/inventory/v1"
 HOST_URL = f"{BASE_URL}/hosts"
 HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
+HOST_VIEW_URL = f"{BASE_URL}/beta/hosts-view"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
 TAGS_URL = f"{BASE_URL}/tags"
@@ -502,6 +506,10 @@ def build_host_exists_url(insights_id):
     return _build_url(base_url=HOST_EXISTS_URL, query=f"?insights_id={insights_id}")
 
 
+def build_host_view_url(query: str | None = None) -> str:
+    return _build_url(base_url=HOST_VIEW_URL, query=query)
+
+
 def build_host_checkin_url():
     return build_hosts_url(path="/checkin")
 
@@ -597,7 +605,7 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-class RBACFilterOperation(str, Enum):
+class RBACFilterOperation(StrEnum):
     EQUAL = "equal"
     IN = "in"
 
@@ -688,3 +696,90 @@ def mocked_post_workspace_not_found(_self: Any, url: str, **_: Any) -> Response:
     response.status_code = HTTPStatus.NOT_FOUND
     response._content = b"Workspace not found"
     return response
+
+
+def mocked_delete_workspace_empty_response(_self: Any, url: str, **_: Any) -> Response:
+    response = Response()
+    response.url = url
+    response.status_code = HTTPStatus.NO_CONTENT
+    response._content = b""
+
+    return response
+
+
+def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, url: str, **_: Any) -> Response:
+    error_message = "Can't patch workspace with same name within same parent workspace"
+
+    # Create a mock response - Response.raise_for_status() will automatically raise HTTPError
+    # for non-2xx status codes, so we don't need to override it
+    response = Response()
+    response.url = url
+    response.status_code = kessel_response_status
+    response._content = error_message.encode()
+
+    # Add json() method for error handling code that tries to parse JSON
+    def json(self) -> dict[str, str]:  # noqa: ARG001
+        return {"detail": error_message}
+
+    response.json = types.MethodType(json, response)  # type: ignore[method-assign]
+
+    # Note: We don't override raise_for_status() because Response.raise_for_status()
+    # already raises HTTPError for non-2xx status codes, which is what we want
+
+    return response
+
+
+def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
+    """Helper to calculate staleness deltas from config."""
+    return {
+        "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
+        "stale_warning": timedelta(seconds=staleness_config["conventional_time_to_stale_warning"]),
+        "culled": timedelta(seconds=staleness_config["conventional_time_to_delete"]),
+    }
+
+
+def create_reporter_data(
+    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
+) -> dict[str, object]:
+    """Helper to create per_reporter_staleness data for a reporter."""
+    deltas = calculate_staleness_deltas(staleness_config)
+    data = {
+        "last_check_in": last_check_in.isoformat(),
+        "check_in_succeeded": True,
+    }
+    if include_timestamps:
+        data.update(
+            {
+                "stale_timestamp": (last_check_in + deltas["stale"]).isoformat(),
+                "stale_warning_timestamp": (last_check_in + deltas["stale_warning"]).isoformat(),
+                "culled_timestamp": (last_check_in + deltas["culled"]).isoformat(),
+            }
+        )
+    return data
+
+
+def create_host_with_reporter(
+    db_create_host: Callable[..., Host],
+    reporter: str,
+    last_check_in: datetime,
+    staleness_config: dict[str, int],
+    include_timestamps: bool = True,
+    stale_timestamp: datetime | None = None,
+) -> Host:
+    """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
+    host = db_create_host(
+        extra_data={
+            "reporter": reporter,
+            "per_reporter_staleness": {
+                reporter: create_reporter_data(last_check_in, staleness_config, include_timestamps),
+            },
+        },
+    )
+    host.last_check_in = last_check_in
+    if stale_timestamp is not None:
+        host.stale_timestamp = stale_timestamp
+    else:
+        deltas = calculate_staleness_deltas(staleness_config)
+        host.stale_timestamp = last_check_in + deltas["stale"]
+    db.session.commit()
+    return host

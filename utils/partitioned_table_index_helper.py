@@ -86,23 +86,37 @@ def create_partitioned_table_index(
         # For managed mode (stage, production), create concurrent indexes on partitions first
         try:
             # Step 1: Create indexes on all partition tables using CREATE INDEX CONCURRENTLY
+            # CONCURRENTLY requires running outside of a transaction. We must:
+            # 1. Commit the current transaction (so CONCURRENTLY doesn't wait for it)
+            # 2. Use a separate connection in autocommit mode
+            # 3. Start a new transaction for subsequent operations
             logger.info(f"Creating indexes on {num_partitions} partitions using CREATE INDEX CONCURRENTLY...")
 
             unique_clause = "UNIQUE" if unique else ""
 
-            for i in range(num_partitions):
-                partition_name = f"{table_name}_p{i}"
-                partition_index_name = f"{table_name}_p{i}_{index_name}"
+            bind = op.get_bind()
+            engine = bind.engine
 
-                logger.info(f"  Creating index '{partition_index_name}' on partition '{partition_name}'")
+            # Commit the current transaction so CONCURRENTLY doesn't wait for it
+            bind.commit()
 
-                with op.get_context().autocommit_block():
-                    op.execute(
+            # Use a separate connection with autocommit for CONCURRENTLY operations
+            with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as autocommit_conn:
+                for i in range(num_partitions):
+                    partition_name = f"{table_name}_p{i}"
+                    partition_index_name = f"{table_name}_p{i}_{index_name}"
+
+                    logger.info(f"  Creating index '{partition_index_name}' on partition '{partition_name}'")
+
+                    autocommit_conn.execute(
                         text(f"""
                             CREATE {unique_clause} INDEX CONCURRENTLY IF NOT EXISTS {partition_index_name}
                             ON {schema}.{partition_name} {index_definition};
                         """)
                     )
+
+            # Start a new transaction for subsequent operations
+            bind.begin()
 
             logger.info("Successfully created indexes on all partitions")
 
@@ -157,9 +171,15 @@ def drop_partitioned_table_index(
     """
     Drop an index from a partitioned table and all its partitions.
 
-    This is a utility function to clean up indexes created by create_partitioned_table_index.
-    - In "automated" mode: Drops the index directly from the parent table.
-    - In "managed" mode: Drops the parent index first, then all partition indexes.
+    This function handles two scenarios:
+    1. Normal case: Parent index exists with attached partition indexes.
+       Dropping the parent automatically cascades to all attached partitions.
+    2. Failed creation case: A previous index creation failed mid-way, leaving
+       orphaned partition indexes (not attached to any parent). These must be
+       cleaned up explicitly.
+
+    Note: DROP INDEX CONCURRENTLY cannot be used on partitioned tables or their
+    attached indexes (PostgreSQL limitation).
 
     Args:
         table_name: Name of the parent table (without schema prefix)
@@ -177,51 +197,41 @@ def drop_partitioned_table_index(
 
     validate_num_partitions(num_partitions)
 
-    migration_mode = MIGRATION_MODE
-
     logger.info(
         f"Dropping index '{index_name}' from partitioned table '{schema}.{table_name}' "
-        f"and its {num_partitions} partitions in '{migration_mode}' mode"
+        f"with {num_partitions} partitions"
     )
 
-    if migration_mode == "automated":
-        # For automated mode (local, ephemeral, on-premise), drop index directly from parent table
-        logger.info(f"Dropping index '{index_name}' directly from parent table '{schema}.{table_name}'")
+    if_exists_clause = "IF EXISTS" if if_exists else ""
 
-        op.drop_index(index_name, table_name=table_name, schema=schema, if_exists=if_exists)
+    try:
+        # Step 1: Drop the parent index (if it exists).
+        # This cascades to all attached partition indexes.
+        logger.info(f"Dropping index '{index_name}' from parent table '{schema}.{table_name}'")
 
-        logger.info(f"Successfully dropped index '{index_name}' from parent table")
+        op.execute(
+            text(f"""
+                DROP INDEX {if_exists_clause} {schema}.{index_name};
+            """)
+        )
 
-    else:
-        # For managed mode (stage, production), drop parent index first, then partition indexes
-        if_exists_clause = "IF EXISTS" if if_exists else ""
+        # Step 2: Clean up any orphaned partition indexes from failed creations.
+        # These are partition indexes that were created but never attached to a parent
+        # (e.g., if create_partitioned_table_index failed after creating some partition
+        # indexes but before creating the parent index).
+        logger.info(f"Cleaning up any orphaned partition indexes from {num_partitions} partitions...")
 
-        try:
-            # Step 1: Drop index from parent table
-            logger.info(f"Dropping index '{index_name}' from parent table '{schema}.{table_name}'")
+        for i in range(num_partitions):
+            partition_index_name = f"{table_name}_p{i}_{index_name}"
 
             op.execute(
                 text(f"""
-                    DROP INDEX {if_exists_clause} {schema}.{index_name};
+                    DROP INDEX {if_exists_clause} {schema}.{partition_index_name};
                 """)
             )
 
-            # Step 2: Drop indexes from all partition tables
-            logger.info(f"Dropping indexes from {num_partitions} partitions...")
+        logger.info(f"Successfully dropped index '{index_name}' from parent table and all partitions")
 
-            for i in range(num_partitions):
-                partition_index_name = f"{table_name}_p{i}_{index_name}"
-
-                logger.info(f"  Dropping index '{partition_index_name}' from partition")
-                with op.get_context().autocommit_block():
-                    op.execute(
-                        text(f"""
-                            DROP INDEX {if_exists_clause} {schema}.{partition_index_name};
-                        """)
-                    )
-
-            logger.info(f"Successfully dropped index '{index_name}' from parent table and all partitions")
-
-        except Exception as e:
-            logger.error(f"Error dropping index '{index_name}' from partitioned table '{schema}.{table_name}': {e}")
-            raise
+    except Exception as e:
+        logger.error(f"Error dropping index '{index_name}' from partitioned table '{schema}.{table_name}': {e}")
+        raise

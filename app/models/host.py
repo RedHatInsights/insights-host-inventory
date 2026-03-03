@@ -3,21 +3,20 @@ from contextlib import suppress
 
 from dateutil.parser import isoparse
 from flask import current_app
-from sqlalchemy import Index
 from sqlalchemy import String
 from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import orm
-from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
-from sqlalchemy.orm import column_property
 from sqlalchemy.orm import relationship
 
 from app.common import inventory_config
+from app.config import CANONICAL_FACTS_FIELDS
+from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -28,6 +27,7 @@ from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
+from app.models.mixins import HostTypeDeriver
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
@@ -42,23 +42,16 @@ logger = get_logger(__name__)
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
+# Fields that should be merged (shallow) instead of replaced when updating system profiles.
+SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
 
-class LimitedHost(db.Model):
+
+class LimitedHost(db.Model, HostTypeDeriver):
     __tablename__ = "hosts"
-    __table_args__ = (
-        Index("idxinsightsid", text("(canonical_facts ->> 'insights_id')")),
-        Index("idxgincanonicalfacts", "canonical_facts"),
-        Index("idxorgid", "org_id"),
-        Index("hosts_subscription_manager_id_index", text("(canonical_facts ->> 'subscription_manager_id')")),
-        Index("idxdisplay_name", "display_name"),
-        Index("idxsystem_profile_facts", "system_profile_facts", postgresql_using="gin"),
-        Index("idxgroups", "groups", postgresql_using="gin"),
-        {"schema": INVENTORY_SCHEMA},
-    )
+    __table_args__ = ({"schema": INVENTORY_SCHEMA},)
 
     def __init__(
         self,
-        canonical_facts=None,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -78,6 +71,7 @@ class LimitedHost(db.Model):
         mac_addresses=None,
         provider_id=None,
         provider_type=None,
+        openshift_cluster_id=None,
     ):
         if id:
             self.id = id
@@ -89,8 +83,6 @@ class LimitedHost(db.Model):
         if groups is None:
             groups = []
 
-        self.canonical_facts = canonical_facts
-
         if display_name:
             self.display_name = display_name
         self._update_ansible_host(ansible_host)
@@ -99,9 +91,9 @@ class LimitedHost(db.Model):
         self.facts = facts or {}
         self.tags = tags
         self.tags_alt = tags_alt
-        self.system_profile_facts = system_profile_facts or {}
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
+
         self.last_check_in = _time_now()
         # canonical facts
         self.insights_id = insights_id
@@ -113,6 +105,7 @@ class LimitedHost(db.Model):
         self.mac_addresses = mac_addresses
         self.provider_id = provider_id
         self.provider_type = provider_type
+        self.openshift_cluster_id = openshift_cluster_id
 
     def _update_ansible_host(self, ansible_host):
         if ansible_host is not None:
@@ -135,60 +128,108 @@ class LimitedHost(db.Model):
         major = 0
         minor = 0
 
-        if "operating_system" in self.system_profile_facts:
-            name = self.system_profile_facts["operating_system"]["name"]
-            major = self.system_profile_facts["operating_system"]["major"]
-            minor = self.system_profile_facts["operating_system"]["minor"]
+        if self.static_system_profile and (os := self.static_system_profile.operating_system):
+            name = os.get("name", "")
+            major = os.get("major", 0)
+            minor = os.get("minor", 0)
 
         return f"{name} {major:03}.{minor:03}"
 
     @operating_system.expression  # type: ignore [no-redef]
     def operating_system(cls):
+        # Note: This assumes HostStaticSystemProfile is joined in the query
         return case(
             (
-                cls.system_profile_facts.has_key("operating_system"),
+                HostStaticSystemProfile.operating_system.isnot(None),
                 func.concat(
-                    cls.system_profile_facts["operating_system"]["name"],
+                    HostStaticSystemProfile.operating_system["name"].astext,
                     " ",
-                    func.lpad(cast(cls.system_profile_facts["operating_system"]["major"], String), 3, "0"),
+                    func.lpad(cast(HostStaticSystemProfile.operating_system["major"].astext, String), 3, "0"),
                     ".",
-                    func.lpad(cast(cls.system_profile_facts["operating_system"]["minor"], String), 3, "0"),
+                    func.lpad(cast(HostStaticSystemProfile.operating_system["minor"].astext, String), 3, "0"),
                 ),
             ),
             else_=" 000.000",
         )
 
+    def _update_derived_host_type(self):
+        """
+        Update the denormalized host_type column from system profile.
+
+        This method should be called whenever the system profile is updated
+        to keep the host_type column in sync with the source data.
+        """
+        derived = self.derive_host_type()
+        if derived != self.host_type:
+            self.host_type = derived
+            orm.attributes.flag_modified(self, "host_type")
+
+    @staticmethod
+    def _update_profile_attributes(profile, data: dict, skip_keys: set | None = None):
+        """
+        Update a system profile object's attributes from a dictionary.
+
+        For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
+        For all other fields, replaces the value entirely.
+
+        Args:
+            profile: The system profile object to update (static or dynamic)
+            data: Dictionary of field names and values to apply
+            skip_keys: Set of keys to skip (e.g., {"org_id", "host_id"})
+        """
+        skip_keys = skip_keys or set()
+
+        for key, value in data.items():
+            if key in skip_keys:
+                continue
+
+            if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
+                existing = getattr(profile, key, None) or {}
+                merged = {**existing, **value}
+                setattr(profile, key, merged)
+            else:
+                setattr(profile, key, value)
+
     def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
+        from copy import deepcopy
+
+        from app.models.schemas import LimitedHostSchema
         from app.models.system_profile_transformer import validate_and_transform
 
         if not input_system_profile:
+            self._update_derived_host_type()
             return
 
+        # Make a copy and migrate legacy workload fields to workloads.* for the normalized tables
+        # This ensures backward compatibility: legacy fields in input are converted to workloads.*
+        # before being written to the new system_profiles_dynamic.workloads column
+        system_profile_copy = deepcopy(input_system_profile)
+        data_wrapper = {"system_profile": system_profile_copy}
+        LimitedHostSchema._migrate_and_remove_legacy_workloads_fields(data_wrapper)
+        migrated_profile = data_wrapper["system_profile"]
+
         # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), migrated_profile)
+
+        # Keys that are managed automatically and should not be updated from input
+        skip_keys = {"org_id", "host_id"}
 
         # Update or create static system profile
         if static_data:
             if self.static_system_profile:
-                # Update existing record
-                for key, value in static_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.static_system_profile, key, value)
+                self._update_profile_attributes(self.static_system_profile, static_data, skip_keys)
             else:
-                # Create new record
                 self.static_system_profile = HostStaticSystemProfile(**static_data)
 
         # Update or create dynamic system profile
         if dynamic_data:
             if self.dynamic_system_profile:
-                # Update existing record
-                for key, value in dynamic_data.items():
-                    if key not in ["org_id", "host_id"]:
-                        setattr(self.dynamic_system_profile, key, value)
+                self._update_profile_attributes(self.dynamic_system_profile, dynamic_data, skip_keys)
             else:
-                # Create new record
                 self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
+
+        self._update_derived_host_type()
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     account = db.Column(db.String(10))
@@ -200,22 +241,21 @@ class LimitedHost(db.Model):
     facts = db.Column(JSONB)
     tags = db.Column(JSONB)
     tags_alt = db.Column(JSONB)
-    canonical_facts = db.Column(JSONB)
 
     # canonical facts
-    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default="00000000-0000-0000-0000-000000000000")
-    subscription_manager_id = db.Column(db.String(36))
-    satellite_id = db.Column(db.String(255))
-    fqdn = db.Column(db.String(255))
-    bios_uuid = db.Column(db.String(36))
-    ip_addresses = db.Column(JSONB)
-    mac_addresses = db.Column(JSONB)
-    provider_id = db.Column(db.String(500))
-    provider_type = db.Column(db.String(50))
+    insights_id = db.Column(UUID(as_uuid=True), nullable=False, default=DEFAULT_INSIGHTS_ID)
+    subscription_manager_id = db.Column(db.String(36), nullable=True)
+    satellite_id = db.Column(db.String(255), nullable=True)
+    fqdn = db.Column(db.String(255), nullable=True)
+    bios_uuid = db.Column(db.String(36), nullable=True)
+    ip_addresses = db.Column(JSONB, nullable=True)
+    mac_addresses = db.Column(JSONB, nullable=True)
+    provider_id = db.Column(db.String(500), nullable=True)
+    provider_type = db.Column(db.String(50), nullable=True)
 
-    system_profile_facts = db.Column(JSONB)
-    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [])
-    host_type = column_property(system_profile_facts["host_type"])
+    openshift_cluster_id = db.Column(UUID(as_uuid=True))
+    host_type = db.Column(db.String(12))  # Denormalized from system_profiles_static for performance
+    groups = db.Column(MutableList.as_mutable(JSONB), default=lambda: [], nullable=False)
     last_check_in = db.Column(db.DateTime(timezone=True))
 
     static_system_profile = relationship(
@@ -227,16 +267,15 @@ class LimitedHost(db.Model):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True))
+    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
-    reporter = db.Column(db.String(255))
-    per_reporter_staleness = db.Column(JSONB)
+    reporter = db.Column(db.String(255), nullable=False)
+    per_reporter_staleness = db.Column(JSONB, nullable=False)
     display_name_reporter = db.Column(db.String(255))
 
     def __init__(
         self,
-        canonical_facts,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -259,6 +298,7 @@ class Host(LimitedHost):
         mac_addresses=None,
         provider_id=None,
         provider_type=None,
+        openshift_cluster_id=None,
     ):
         if tags is None:
             tags = {}
@@ -266,14 +306,17 @@ class Host(LimitedHost):
         if groups is None:
             groups = []
 
-        if not canonical_facts:
+        local_vars = locals()
+        fact_fields = tuple(local_vars[field] for field in CANONICAL_FACTS_FIELDS)
+        if all(field is None for field in fact_fields):
             raise ValidationException("At least one of the canonical fact fields must be present.")
 
-        if all(id_fact not in canonical_facts for id_fact in ID_FACTS):
+        id_fact_fields = tuple(local_vars[field] for field in ID_FACTS)
+        if all(field is None for field in id_fact_fields):
             raise ValidationException(f"At least one of the ID fact fields must be present: {ID_FACTS}")
 
-        if current_app.config["USE_SUBMAN_ID"] and "subscription_manager_id" in canonical_facts:
-            id = canonical_facts["subscription_manager_id"]
+        if current_app.config["USE_SUBMAN_ID"] and subscription_manager_id is not None:
+            id = subscription_manager_id
 
         if not reporter:
             raise ValidationException("The reporter field must be present.")
@@ -282,7 +325,6 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            canonical_facts,
             display_name,
             ansible_host,
             account,
@@ -302,6 +344,7 @@ class Host(LimitedHost):
             mac_addresses,
             provider_id,
             provider_type,
+            openshift_cluster_id,
         )
         self.reporter = reporter
         if display_name:
@@ -314,21 +357,23 @@ class Host(LimitedHost):
         if not per_reporter_staleness:
             self._update_per_reporter_staleness(reporter)
 
-        self.update_canonical_facts(canonical_facts)
-        self.update_canonical_facts_columns(canonical_facts)
+        self._update_derived_host_type()
 
     def save(self):
         self._cleanup_tags()
         db.session.add(self)
 
     def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
-        self.update_display_name(
-            input_host.display_name, input_host.reporter, input_fqdn=input_host.canonical_facts.get("fqdn")
-        )
+        self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.fqdn)
 
-        self.update_canonical_facts(input_host.canonical_facts)
+        canonical_facts_to_update = {}
+        for field in CANONICAL_FACTS_FIELDS:
+            value = getattr(input_host, field, None)
+            if value is not None:
+                canonical_facts_to_update[field] = value
 
-        self.update_canonical_facts_columns(input_host.canonical_facts)
+        if canonical_facts_to_update:
+            self.update_canonical_facts_columns(canonical_facts_to_update)
 
         self._update_ansible_host(input_host.ansible_host)
 
@@ -342,7 +387,12 @@ class Host(LimitedHost):
         self.reporter = input_host.reporter
 
         if update_system_profile:
-            self.update_system_profile(input_host.system_profile_facts)
+            # Get system profile data from the serialized representation
+            from app.serialization import build_system_profile_from_normalized
+
+            system_profile = build_system_profile_from_normalized(input_host)
+            if system_profile:
+                self.update_system_profile(system_profile)
 
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
@@ -363,12 +413,8 @@ class Host(LimitedHost):
         return input_reporter in RHSM_REPORTERS and self.display_name_reporter in DISPLAY_NAME_PRIORITY_REPORTERS
 
     def _apply_display_name_fallback(self, input_fqdn: str | None) -> None:
-        if (
-            not self.display_name
-            or self.display_name == self.canonical_facts.get("fqdn")
-            or self.display_name == str(self.id)
-        ):
-            self.display_name = input_fqdn or self.canonical_facts.get("fqdn") or self.id
+        if not self.display_name or self.display_name == self.fqdn or self.display_name == str(self.id):
+            self.display_name = input_fqdn or self.fqdn or self.id
 
     def update_display_name(
         self, input_display_name: str | None, input_reporter: str, *, input_fqdn: str | None = None
@@ -385,21 +431,16 @@ class Host(LimitedHost):
         else:
             self._apply_display_name_fallback(input_fqdn)
 
-    def update_canonical_facts(self, canonical_facts):
-        logger.debug(
-            "Updating host's (id=%s) canonical_facts (%s) with input canonical_facts=%s",
-            self.id,
-            self.canonical_facts,
-            canonical_facts,
-        )
-        self.canonical_facts.update(canonical_facts)  # Field being removed in the future
-        logger.debug("Host (id=%s) has updated canonical_facts (%s)", self.id, self.canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")  # Field being removed in the future
-
     def update_canonical_facts_columns(self, canonical_facts):
         try:
             for key, value in canonical_facts.items():
-                if getattr(self, key) != value:
+                current_value = getattr(self, key)
+                # Handle type conversion for comparison (e.g., UUID vs string)
+                # Convert both to strings for comparison to avoid false positives
+                current_value_str = str(current_value) if current_value is not None else None
+                value_str = str(value) if value is not None else None
+
+                if current_value_str != value_str:
                     setattr(self, key, value)
                     orm.attributes.flag_modified(self, key)
         except AttributeError as e:
@@ -560,22 +601,8 @@ class Host(LimitedHost):
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
 
-        # Update the existing JSONB column (backward compatibility)
-        if not self.system_profile_facts:
-            self.system_profile_facts = input_system_profile
-        else:
-            for key, value in input_system_profile.items():
-                if key in ["rhsm", "workloads"]:
-                    self.system_profile_facts[key] = {**self.system_profile_facts.get(key, {}), **value}
-                else:
-                    self.system_profile_facts[key] = value
-        orm.attributes.flag_modified(self, "system_profile_facts")
-
-        # Update the normalized system profile tables
         try:
             self._add_or_update_normalized_system_profiles(input_system_profile)
-        except ValidationException as e:
-            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 
@@ -632,5 +659,5 @@ class Host(LimitedHost):
     def __repr__(self):
         return (
             f"<Host id='{self.id}' account='{self.account}' org_id='{self.org_id}' display_name='{self.display_name}' "
-            f"canonical_facts={self.canonical_facts}>"
+            f"insights_id='{self.insights_id}'>"
         )

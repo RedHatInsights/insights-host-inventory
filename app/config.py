@@ -4,7 +4,8 @@ import json
 import os
 import tempfile
 from datetime import timedelta
-from enum import Enum
+
+from app_common_python import DependencyEndpoints
 
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -22,16 +23,29 @@ ALL_STALENESS_STATES = ["fresh", "stale", "stale_warning"]
 ID_FACTS = ("provider_id", "subscription_manager_id", "insights_id")
 # This elevated fact is to be used when the USE_SUBMAN_ID env is True
 ID_FACTS_USE_SUBMAN_ID = ("subscription_manager_id",)
+CANONICAL_FACTS_FIELDS = (
+    "insights_id",
+    "subscription_manager_id",
+    "satellite_id",
+    "bios_uuid",
+    "ip_addresses",
+    "fqdn",
+    "mac_addresses",
+    "provider_id",
+    "provider_type",
+)
 
 COMPOUND_ID_FACTS_MAP = {"provider_id": "provider_type"}
 COMPOUND_ID_FACTS = tuple(COMPOUND_ID_FACTS_MAP.values())
 IMMUTABLE_ID_FACTS = ("provider_id",)
 
+DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
-class HostType(str, Enum):
-    EDGE = "edge"
-    CLUSTER = "cluster"
-    NONE = None
+# Maximum number of groups that can be sorted by host_count when using RBAC v2
+# This limit exists because RBAC v2 doesn't store host counts, requiring us to
+# fetch all groups, add counts from DB, and sort in Python. The limit aligns
+# with RBAC v2 API's maximum response size of 3000 workspaces.
+MAX_GROUPS_FOR_HOST_COUNT_SORTING = int(os.environ.get("MAX_GROUPS_FOR_HOST_COUNT_SORTING", "3000"))
 
 
 class Config:
@@ -41,6 +55,13 @@ class Config:
         import app_common_python
 
         cfg = app_common_python.LoadedConfig
+
+        # Only configure Kessel from DependencyEndpoints if the dependency exists
+        try:
+            kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
+            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+        except KeyError:
+            self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
 
         self.is_clowder = True
         self.metrics_port = cfg.metricsPort
@@ -113,6 +134,7 @@ class Config:
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
         self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
+        self.host_app_data_topic = topic(os.environ.get("KAFKA_HOST_APP_DATA_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
         if custom_broker := os.getenv("CONSUMER_MQ_BROKER"):
@@ -156,6 +178,7 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
@@ -166,6 +189,7 @@ class Config:
         self.notification_topic = os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notifications.ingress")
         self.export_service_topic = os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests")
         self.workspaces_topic = os.environ.get("KAFKA_WORKSPACES_TOPIC", "outbox.event.workspace")
+        self.host_app_data_topic = os.environ.get("KAFKA_HOST_APP_DATA_TOPIC", "platform.inventory.host-apps")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
         self.payload_tracker_kafka_topic = os.environ.get("PAYLOAD_TRACKER_KAFKA_TOPIC", "platform.payload-status")
@@ -221,6 +245,14 @@ class Config:
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
+        self.kessel_auth_client_id = os.environ.get("KESSEL_AUTH_CLIENT_ID")
+        self.kessel_auth_client_secret = os.environ.get("KESSEL_AUTH_CLIENT_SECRET")
+        self.kessel_auth_oidc_issuer = os.getenv(
+            "KESSEL_AUTH_OIDC_ISSUER", "https://sso.redhat.com/auth/realms/redhat-external"
+        )
+        self.kessel_auth_enabled = os.environ.get("KESSEL_AUTH_ENABLED", "false").lower() == "true"
+        self.kessel_insecure = os.environ.get("KESSEL_INSECURE", "true").lower() == "true"
+
         self.bypass_unleash = os.environ.get("BYPASS_UNLEASH", "false").lower() == "true"
         self.unleash_refresh_interval = int(os.environ.get("UNLEASH_REFRESH_INTERVAL", "15"))
 
@@ -251,7 +283,7 @@ class Config:
         # https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         self.kafka_consumer = {
             "auto.offset.reset": os.environ.get("KAFKA_CONSUMER_AUTO_OFFSET_RESET", "latest"),
-            "auto.commit.interval.ms": int(os.environ.get("KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL_MS", "5000")),
+            "enable.auto.commit": False,
             "partition.assignment.strategy": "cooperative-sticky",
             **self.base_consumer_config,
         }
@@ -272,15 +304,15 @@ class Config:
         }
 
         self.kafka_producer = {
-            "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "all"),
-            "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "8")),
+            "acks": self._from_dict(PRODUCER_ACKS, "KAFKA_PRODUCER_ACKS", "1"),
+            "enable.idempotence": "false",
+            "retries": int(os.environ.get("KAFKA_PRODUCER_RETRIES", "0")),
             "batch.size": int(os.environ.get("KAFKA_PRODUCER_BATCH.SIZE", "65536")),
-            "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "5")),
+            "linger.ms": int(os.environ.get("KAFKA_PRODUCER_LINGER.MS", "0")),
             "retry.backoff.ms": int(os.environ.get("KAFKA_PRODUCER_RETRY.BACKOFF.MS", "100")),
             "max.in.flight.requests.per.connection": int(
                 os.environ.get("KAFKA_PRODUCER_MAX.IN.FLIGHT.REQUESTS.PER.CONNECTION", "5")
             ),
-            "enable.idempotence": os.environ.get("KAFKA_PRODUCER_ENABLE_IDEMPOTENCE", "true").lower() == "true",
             **self.kafka_ssl_configs,
         }
 
@@ -327,7 +359,6 @@ class Config:
         self.sp_authorized_users = os.getenv("SP_AUTHORIZED_USERS", "tuser@redhat.com").split()
         self.mq_db_batch_max_messages = int(os.getenv("MQ_DB_BATCH_MAX_MESSAGES", "1"))
         self.mq_db_batch_max_seconds = float(os.getenv("MQ_DB_BATCH_MAX_SECONDS", "0.5"))
-        self.kessel_target_url = os.getenv("KESSEL_TARGET_URL", "localhost:9000")
 
         self.s3_access_key_id = os.getenv("S3_AWS_ACCESS_KEY_ID")
         self.s3_secret_access_key = os.getenv("S3_AWS_SECRET_ACCESS_KEY")
@@ -461,6 +492,7 @@ class Config:
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
+            self.logger.info("Kessel is running in %s mode.", "INSECURE" if self.kessel_insecure else "SECURE")
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)
@@ -476,6 +508,7 @@ class Config:
                 self.logger.info("Kafka Events Topic: %s", self.event_topic)
                 self.logger.info("Kafka Notification Topic: %s", self.notification_topic)
                 self.logger.info("Kafka Export Service Topic: %s", self.export_service_topic)
+                self.logger.info("Kafka Host App Data Topic: %s", self.host_app_data_topic)
                 self.logger.info("Export Service Endpoint: %s", self.export_service_endpoint)
 
             if self._runtime_environment.event_producer_enabled:

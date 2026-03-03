@@ -1,14 +1,18 @@
 import json
 import re
 import urllib
+from collections.abc import Iterable
+from typing import Any
 
+from app.exceptions import IdsNotFoundError
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models.mixins import HostTypeDeriver
 
 logger = get_logger(__name__)
 
 
-class HostWrapper:
+class HostWrapper(HostTypeDeriver):
     def __init__(self, data=None):
         self.__data = data or {}
 
@@ -207,6 +211,30 @@ class HostWrapper:
 
     def to_json(self):
         return json.dumps(self.__data)
+
+    @property
+    def openshift_cluster_id(self):
+        return self.__data.get("openshift_cluster_id", None)
+
+    @openshift_cluster_id.setter
+    def openshift_cluster_id(self, openshift_cluster_id):
+        self.__data["openshift_cluster_id"] = openshift_cluster_id
+
+    @property
+    def host_type(self):
+        # Derive host_type lazily if not already set
+        if "host_type" not in self.__data or self.__data["host_type"] is None:
+            self.__data["host_type"] = self.derive_host_type()
+        return self.__data.get("host_type")
+
+    def _update_derived_host_type(self):
+        """
+        Update the host_type based on system profile data.
+
+        This method should be called whenever the system profile is updated
+        to keep the host_type in sync with the source data.
+        """
+        self.__data["host_type"] = self.derive_host_type()
 
     @classmethod
     def from_json(cls, d):
@@ -410,3 +438,71 @@ class Tag:
             return []
 
         return [{"namespace": tag.namespace, "key": tag.key, "value": tag.value} for tag in structured_tags]
+
+
+def find_missing_ids(requested_ids: Iterable[str], found_objects: Iterable[Any], id_attr: str = "id") -> list[str]:
+    """
+    Find which IDs from the request were not found in the results.
+
+    Args:
+        requested_ids: List of IDs that were requested
+        found_objects: Iterable of objects/dicts that were found
+        id_attr: The attribute/key name to use for getting the ID (default: "id")
+
+    Returns:
+        List of IDs that were requested but not found
+    """
+
+    def get_id(obj):
+        # Support both object attributes and dict keys
+        if isinstance(obj, dict):
+            return str(obj[id_attr])
+        return str(getattr(obj, id_attr))
+
+    found_ids = {get_id(obj) for obj in found_objects}
+    requested_set = {str(id) for id in requested_ids}
+    return list(requested_set - found_ids)
+
+
+def check_all_ids_found(
+    requested_ids: Iterable[str],
+    found_objects: Iterable[Any],
+    resource_name: str,
+    id_attr: str = "id",
+    total: int | None = None,
+) -> None:
+    """
+    Check that all requested IDs were found, and abort with 404 JSON response if any are missing.
+
+    Args:
+        requested_ids: List of IDs that were requested
+        found_objects: Iterable of objects/dicts that were found
+        resource_name: Name of the resource type for error message (e.g., "host", "group")
+        id_attr: The attribute/key name to use for getting the ID (default: "id")
+        total: Optional total count (for paginated results where found_objects is just one page).
+               If provided, this is compared against len(requested_ids) instead of len(found_objects).
+               Note: When total is provided, the response won't include specific missing IDs
+               since found_objects only contains the current page.
+
+    Raises:
+        IdsNotFoundError: If any requested IDs were not found
+    """
+    # Normalize types once
+    requested_ids_set = {str(i) for i in requested_ids}
+
+    if not isinstance(found_objects, (list, tuple)):
+        found_objects = list(found_objects)
+
+    # Decide if we have a complete result set (non‑paginated or fully fetched)
+    have_all_results = (total is None) or (total == len(found_objects))
+
+    # Decide which count to compare against
+    effective_found_count = len(found_objects) if have_all_results else total
+
+    # If counts match, nothing to do
+    if effective_found_count == len(requested_ids_set):
+        return
+
+    raise IdsNotFoundError(
+        resource_name, find_missing_ids(requested_ids, found_objects, id_attr) if have_all_results else None
+    )

@@ -186,7 +186,7 @@ def test_should_host_stay_fresh_forever():
     """Test the should_host_stay_fresh_forever utility function."""
     # Test rhsm-system-profile-bridge-only host
     host_rhsm_only = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="rhsm-system-profile-bridge",
         stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],
@@ -201,7 +201,7 @@ def test_should_host_stay_fresh_forever():
 
     # Test normal host
     host_normal = Host(
-        canonical_facts={"subscription_manager_id": generate_uuid()},
+        subscription_manager_id=generate_uuid(),
         reporter="puptoo",
         stale_timestamp=datetime.now(UTC),
         org_id=USER_IDENTITY["org_id"],

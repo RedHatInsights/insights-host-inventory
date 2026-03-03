@@ -8,9 +8,11 @@ from enum import Enum
 
 from marshmallow import Schema
 from marshmallow import fields
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from app.logging import threadctx
 from app.models import FactsSchema
+from app.models import Host
 from app.models import TagsSchema
 from app.queue.metrics import event_serialization_time
 from app.serialization import serialize_canonical_facts
@@ -55,6 +57,7 @@ class SerializedHostSchema(Schema):
     system_profile = fields.Dict()
     per_reporter_staleness = fields.Dict()
     groups = fields.List(fields.Dict())
+    openshift_cluster_id = fields.UUID()
 
 
 class HostEventMetadataSchema(Schema):
@@ -81,6 +84,35 @@ class HostDeleteEvent(Schema):
     initiated_by_frontend = fields.Bool()
     platform_metadata = fields.Dict()
     metadata = fields.Nested(HostEventMetadataSchema())
+
+
+def extract_system_profile_fields_for_headers(host: Host) -> tuple[str | None, str | None, str]:
+    """
+    Extract system profile fields for event headers from host.
+
+    Falls back to denormalized host.host_type when static_system_profile is unavailable.
+    Returns: (host_type, os_name, bootc_booted)
+    """
+    # Use denormalized host_type as primary source (always available)
+    host_type = host.host_type
+
+    # Extract additional fields from static profile if available
+    os_name = None
+    bootc_booted = "False"
+
+    try:
+        if host.static_system_profile:
+            if host.static_system_profile.operating_system:
+                os_name = host.static_system_profile.operating_system.get("name")
+
+            if host.static_system_profile.bootc_status:
+                bootc_booted = str(host.static_system_profile.bootc_status.get("booted") is not None)
+    except DetachedInstanceError:
+        # Host is detached from session, cannot access relationships
+        # Keep defaults: os_name=None, bootc_booted="False"
+        pass
+
+    return host_type, os_name, bootc_booted
 
 
 def message_headers(
@@ -121,7 +153,7 @@ def host_delete_event(event_type, host, initiated_by_frontend=False, platform_me
         "timestamp": datetime.now(UTC),
         "type": event_type.name,
         "id": host.id,
-        **serialize_canonical_facts(host.canonical_facts),
+        **serialize_canonical_facts(host),
         "org_id": host.org_id,
         "account": host.account,
         "initiated_by_frontend": initiated_by_frontend,

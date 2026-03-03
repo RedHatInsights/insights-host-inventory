@@ -9,9 +9,11 @@ import pytest
 from connexion import FlaskApp
 from pytest_mock import MockFixture
 
+from app.config import Config
 from app.models import db
 from app.queue.event_producer import EventProducer
 from app.queue.export_service_mq import ExportServiceConsumer
+from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
@@ -230,6 +232,12 @@ def workspace_message_consumer_mock(mocker):
 
 
 @pytest.fixture(scope="function")
+def host_app_consumer(flask_app, event_producer, mocker):
+    """Fixture to create HostAppMessageConsumer for testing."""
+    yield HostAppMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+
+
+@pytest.fixture(scope="function")
 def future_mock():
     yield MockFuture()
 
@@ -242,13 +250,13 @@ def event_datetime_mock(mocker):
 
 @pytest.fixture(scope="function")
 def mq_create_or_update_host_subman_id(
-    flask_app,
-    event_producer_mock,
-    notification_event_producer_mock,
+    flask_app: FlaskApp,
+    inventory_config: Config,
+    event_producer_mock: MockEventProducer,
+    notification_event_producer_mock: MockEventProducer,
 ):
-    config = flask_app.app.config["INVENTORY_CONFIG"]
-    config.use_sub_man_id_for_host_id = True
-    flask_app.app.config["USE_SUBMAN_ID"] = config.use_sub_man_id_for_host_id
+    inventory_config.use_sub_man_id_for_host_id = True
+    flask_app.app.config["USE_SUBMAN_ID"] = True
 
     def _mq_create_or_update_host_subman_id(
         host_data,

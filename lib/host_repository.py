@@ -7,6 +7,7 @@ from typing import Any
 from flask import current_app
 from flask_sqlalchemy.query import Query
 from sqlalchemy import and_
+from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
@@ -24,19 +25,18 @@ from app.config import ID_FACTS
 from app.config import ID_FACTS_USE_SUBMAN_ID
 from app.config import IMMUTABLE_ID_FACTS
 from app.exceptions import InventoryException
-from app.exceptions import OutboxSaveException
 from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import LimitedHost
 from app.models import db
-from app.queue.events import EventType
+from app.serialization import build_system_profile_from_normalized
+from app.serialization import serialize_canonical_facts
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
-from lib.outbox_repository import write_event_to_outbox
 
 __all__ = (
     "AddHostResult",
@@ -81,15 +81,16 @@ def add_host(
         operation_args = {}
 
     matched_host = None
+    canonical_facts = serialize_canonical_facts(input_host, include_none=False)
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
-        matched_host = find_existing_host(identity, input_host.canonical_facts, existing_hosts)
+        matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
     if matched_host is None:
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
-        matched_host = find_existing_host(identity, input_host.canonical_facts)
+        matched_host = find_existing_host(identity, canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [serialize_group(group)]
+    input_host.groups = [serialize_group(group, identity.org_id)]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
@@ -173,6 +174,12 @@ def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
     return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
+
+
+def find_existing_hosts_by_id_list(identity: Identity, host_id_list: list[str]) -> list[Host]:
+    query = host_query(identity.org_id).filter(Host.id.in_(host_id_list))
+    query = update_query_for_owner_id(identity, query)
+    return find_non_culled_hosts(query).all()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
@@ -273,16 +280,6 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
 
     input_host.save()
 
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.created, (input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write created event to outbox")
-            raise OutboxSaveException("Failed to write created host event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write created event to outbox: %s", str(ose))
-        raise ose
-
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)
 
@@ -298,16 +295,6 @@ def update_existing_host(
 
     existing_host.update(input_host, update_system_profile)
 
-    try:
-        # write to the outbox table for synchronization with Kessel
-        result = write_event_to_outbox(EventType.updated, str(input_host.id), input_host)
-        if not result:
-            logger.error("Failed to write updated event to outbox")
-            raise OutboxSaveException("Failed to write update event to outbox")
-    except OutboxSaveException as ose:
-        logger.error("Failed to write updated event to outbox: %s", str(ose))
-        raise ose
-
     metrics.update_host_count.inc()
     logger.debug("Updated host (uncommitted):%s", existing_host)
 
@@ -316,26 +303,30 @@ def update_existing_host(
 
 def contains_no_incorrect_facts_filter(canonical_facts: dict[str, Any]) -> BinaryExpression:
     # Does not contain any incorrect CF values
-    # Incorrect value = AND( key exists, NOT( contains key:value ) )
+    # Incorrect value = AND( column has value, column value != expected value )
     # -> NOT( OR( *Incorrect values ) )
     filter_: tuple = ()
     for key, value in canonical_facts.items():
-        filter_ += (and_(Host.canonical_facts.has_key(key), not_(Host.canonical_facts.contains({key: value}))),)
+        column = getattr(Host, key, None)
+        if column is not None:
+            # Check if column has a value AND it doesn't match the expected value
+            filter_ += (and_(column.isnot(None), column != value),)
 
     return not_(or_(*filter_))
 
 
 def contains_no_incorrect_facts_filter_in_memory(host: Host, canonical_facts: dict[str, Any]) -> bool:
     def _per_fact_query(host: Host, key: str, value: Any) -> bool:
-        # Either the key is not present in the host, or the fact matches
-        return key not in host.canonical_facts or host.canonical_facts[key] == value
+        # Either the column has no value, or the value matches
+        host_value = getattr(host, key, None)
+        return host_value is None or host_value == value
 
     return all(_per_fact_query(host, key, value) for key, value in canonical_facts.items())
 
 
 def matches_at_least_one_canonical_fact_filter(canonical_facts: dict[str, Any]) -> BooleanClauseList:
     # Contains at least one correct CF value
-    # Correct value = contains key:value
+    # Correct value = column value == expected value
     # -> OR( *correct values )
     filter_: tuple = ()
     for key, value in canonical_facts.items():
@@ -344,17 +335,21 @@ def matches_at_least_one_canonical_fact_filter(canonical_facts: dict[str, Any]) 
         # AND logic generated by contains_no_incorrect_facts_filter().
         if key in COMPOUND_ID_FACTS:
             continue
-        filter_ += (Host.canonical_facts.contains({key: value}),)
+        column = getattr(Host, key, None)
+        if column is not None:
+            filter_ += (column == value,)
 
     return or_(*filter_)
 
 
 def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_facts: dict[str, Any]) -> bool:
-    return any(host.canonical_facts.get(key) == value for key, value in canonical_facts.items())
+    return any(getattr(host, key, None) == value for key, value in canonical_facts.items())
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
-    if not input_host.system_profile_facts:
+    system_profile_data = build_system_profile_from_normalized(input_host)
+
+    if not system_profile_data:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
@@ -362,13 +357,14 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
     if input_host.id:
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
-        existing_host = find_existing_host(identity, input_host.canonical_facts)
+        input_host_canonical_facts = serialize_canonical_facts(input_host, include_none=False)
+        existing_host = find_existing_host(identity, input_host_canonical_facts)
 
     if existing_host:
         logger.debug("Updating system profile on an existing host")
         logger.debug(f"existing host = {existing_host}")
 
-        existing_host.update_system_profile(input_host.system_profile_facts)
+        existing_host.update_system_profile(system_profile_data)
 
         metrics.update_host_count.inc()
         logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
@@ -380,17 +376,19 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         )
 
 
-def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None):
-    filters = (
+def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None) -> Query:
+    filters = [
         Host.org_id == identity.org_id,
         Host.id.in_(host_id_list),
-    )
+    ]
     if rbac_filter and "groups" in rbac_filter:
-        rbac_group_filters = (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
+        rbac_group_filters = [HostGroupAssoc.group_id.in_(rbac_filter["groups"])]
         if None in rbac_filter["groups"]:
-            rbac_group_filters += (
-                HostGroupAssoc.group_id.is_(None),
-                Group.ungrouped.is_(True),
+            rbac_group_filters.extend(
+                [
+                    HostGroupAssoc.group_id.is_(None),
+                    Group.ungrouped.is_(True),
+                ]
             )
 
         filters += (or_(*rbac_group_filters),)
@@ -406,15 +404,121 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
 
 
-def get_non_culled_hosts_count_in_group(group: Group, org_id: str) -> int:
+def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
+    """
+    Get host counts for multiple groups in a single efficient batch query.
+
+    This eliminates the N+1 query problem when serializing multiple groups.
+    Instead of making one query per group, this makes a single aggregated query.
+
+    Args:
+        org_id: Organization ID
+        group_ids: List of group UUIDs to get host counts for
+
+    Returns:
+        Dictionary mapping group_id -> host_count
+        Groups with no hosts will have count of 0
+
+    Example:
+        counts = get_host_counts_batch('org123', ['uuid1', 'uuid2', 'uuid3'])
+        # Returns: {'uuid1': 150, 'uuid2': 0, 'uuid3': 45}
+    """
+    if not group_ids:
+        return {}
+
+    # Single aggregated query to get all host counts at once
     query = (
-        db.session.query(Host)
-        .join(HostGroupAssoc)
-        .filter(HostGroupAssoc.group_id == group.id, HostGroupAssoc.org_id == org_id)
-        .group_by(Host.id, Host.org_id)
+        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
+        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
+        .group_by(HostGroupAssoc.group_id)
     )
 
-    return find_non_culled_hosts(query).count()
+    # Apply non-culled host filter
+    query = find_non_culled_hosts(query)
+
+    # Execute query
+    results = query.all()
+
+    # Create map with explicit 0 counts for groups not in results
+    count_map = {str(gid): 0 for gid in group_ids}
+    count_map.update({str(gid): count for gid, count in results})
+
+    return count_map
+
+
+def get_group_ids_ordered_by_host_count(
+    org_id: str,
+    per_page: int,
+    page: int,
+    order_how: str | None = None,
+) -> tuple[list[str], int]:
+    """
+    Get group IDs ordered by host count with pagination (for RBAC v2 workspaces).
+
+    This is optimized for the scenario where you want to order groups by host_count
+    without any filters. The database does the ordering and pagination efficiently.
+
+    NOTE: This function includes groups with 0 hosts (empty groups) to maintain
+    parity with RBAC v1 behavior.
+
+    Args:
+        org_id: Organization ID
+        per_page: Number of results per page
+        page: Page number (1-based)
+        order_how: Sort direction ('ASC' or 'DESC'), defaults to 'DESC'
+
+    Returns:
+        Tuple of:
+        - List of group_ids for the requested page, ordered by host_count
+        - Total count of all groups in the organization (including empty groups)
+
+    Example:
+        group_ids, total = get_group_ids_ordered_by_host_count('org123', 100, 1, 'DESC')
+        # group_ids: ['uuid5', 'uuid2', ...] (100 IDs with highest counts, including empty groups)
+        # total: 5000 (all groups, including empty ones)
+    """
+    from sqlalchemy import desc
+    from sqlalchemy import func
+
+    # Get total count of ALL groups (including those with 0 hosts)
+    # Query from Group table, not HostGroupAssoc, to include empty groups
+    total = db.session.query(func.count(Group.id)).filter(Group.org_id == org_id).scalar() or 0
+
+    # Query to get group_ids ordered by host count
+    # Start from Group table with LEFT OUTER JOINs to include groups with 0 hosts
+    # Build staleness filter that includes NULL hosts (groups with no hosts)
+    host_staleness_states_filters = HostStalenessStatesDbFilters()
+
+    query = (
+        db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))
+        .outerjoin(
+            HostGroupAssoc,
+            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
+        )
+        .outerjoin(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(Group.org_id == org_id)
+        # Include groups with no hosts (Host.id IS NULL) OR groups with non-culled hosts
+        # This ensures empty groups still appear in results with host_count = 0
+        .filter(or_(Host.id.is_(None), not_(host_staleness_states_filters.culled())))
+        .group_by(Group.id)
+    )
+
+    # Order by host count (default DESC for host_count ordering)
+    # Groups with 0 hosts will have host_count = 0
+    query = query.order_by("host_count") if order_how == "ASC" else query.order_by(desc("host_count"))
+
+    # Apply pagination
+    offset = (page - 1) * per_page
+    query = query.limit(per_page).offset(offset)
+
+    # Execute query
+    results = query.all()
+
+    # Extract just the group_ids
+    group_ids = [str(gid) for gid, count in results]
+
+    return group_ids, total
 
 
 # Ensures that the query is filtered by org_id

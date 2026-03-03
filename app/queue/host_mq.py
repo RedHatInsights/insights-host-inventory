@@ -3,9 +3,12 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import time
 import uuid
 from collections.abc import Callable
+from contextlib import suppress
 from copy import deepcopy
+from datetime import datetime
 from functools import partial
 from typing import Any
 from uuid import UUID
@@ -19,6 +22,7 @@ from marshmallow import fields
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -40,6 +44,7 @@ from app.instrumentation import log_add_update_host_succeeded
 from app.instrumentation import log_create_group_via_mq
 from app.instrumentation import log_db_access_failure
 from app.instrumentation import log_delete_groups_via_mq
+from app.instrumentation import log_host_app_data_upsert_via_mq
 from app.instrumentation import log_update_group_via_mq
 from app.instrumentation import log_update_system_profile_failure
 from app.instrumentation import log_update_system_profile_success
@@ -48,15 +53,19 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import LimitedHostSchema
 from app.models import db
+from app.models import host_app_data
+from app.models import schemas as model_schemas
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue import metrics
+from app.queue.enums import ConsumerApplication
 from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.mq_common import common_message_parser
@@ -65,9 +74,12 @@ from app.queue.notifications import send_notification
 from app.serialization import deserialize_host
 from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
+from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
 from lib import group_repository
+from lib import host_app_repository
 from lib import host_repository
+from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
@@ -76,6 +88,7 @@ from utils.system_profile_log import extract_host_dict_sp_to_log
 logger = get_logger(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
+MAX_RETRIES = 5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -140,6 +153,17 @@ class DebeziumEnvelopeSchema(Schema):
     payload = fields.Str(required=True)
 
 
+class HostAppDataSchema(Schema):
+    id = fields.UUID(required=True)
+    data = fields.Dict(required=True)
+
+
+class HostAppOperationSchema(Schema):
+    org_id = fields.Str(required=True)
+    timestamp = fields.DateTime(required=True)
+    hosts = fields.List(fields.Nested(HostAppDataSchema), required=True)
+
+
 # Helper class to facilitate batch operations
 class OperationResult:
     def __init__(
@@ -173,60 +197,127 @@ class HBIMessageConsumerBase:
         self.notification_event_producer = notification_event_producer
         self.processed_rows: list[OperationResult] = []
 
+    @property
+    def success_metric(self):
+        """
+        Property that returns the success counter metric for this consumer.
+        Subclasses can override to use consumer-specific metrics.
+        """
+        return metrics.ingress_message_handler_success
+
+    @property
+    def failure_metric(self):
+        """
+        Property that returns the failure counter metric for this consumer.
+        Subclasses can override to use consumer-specific metrics.
+        """
+        return metrics.ingress_message_handler_failure
+
     def process_message(self, *args, **kwargs):
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
-    @metrics.ingress_message_handler_time.time()
-    def handle_message(self, *args, **kwargs) -> OperationResult | None:
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
+        """
+        Process a message from Kafka.
+
+        Subclasses must override this method and should apply their own
+        timing metric decorator (e.g., @metrics.ingress_message_handler_time.time())
+        """
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
+    def _process_batch(self) -> None:
+        """Process a single batch of messages from Kafka.
+
+        Raises:
+            InvalidRequestError: When the database session is in an invalid state
+            StaleDataError: When trying to update data modified by another transaction
+        """
+        with session_guard(db.session, close=False), db.session.no_autoflush:
+            messages = self.consumer.consume(
+                num_messages=inventory_config().mq_db_batch_max_messages,
+                timeout=inventory_config().mq_db_batch_max_seconds,
+            )
+
+            for msg in messages:
+                if msg is None:
+                    continue
+                elif msg.error():
+                    # This error is raised by the first consumer.consume() on a newly started Kafka.
+                    # msg.error() produces:
+                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    self.failure_metric.inc()
+                else:
+                    logger.debug("Message received")
+
+                    try:
+                        self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                        self.success_metric.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
+                        self.failure_metric.inc()
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+        self.post_process_rows()
+        # Commit Kafka offsets after successful batch processing
+        # This ensures offsets are persisted immediately after DB commit and event production,
+        # preventing duplicate message processing on service restart
+        if len(self.processed_rows) > 0:
+            try:
+                self.consumer.commit(asynchronous=False)
+                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+            except Exception as e:
+                logger.exception(f"Failed to commit Kafka offsets: {e}")
+
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
-            while not interrupt():
-                self.processed_rows = []
-                with session_guard(db.session), db.session.no_autoflush:
-                    messages = self.consumer.consume(
-                        num_messages=inventory_config().mq_db_batch_max_messages,
-                        timeout=inventory_config().mq_db_batch_max_seconds,
-                    )
+            try:
+                while not interrupt():
+                    for attempt in range(1, MAX_RETRIES + 1):
+                        self.processed_rows = []
+                        try:
+                            self._process_batch()
+                            break  # Success, exit retry loop
+                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
+                            """Handle database session errors with retry logic.
+                            InvalidRequestError includes PendingRollbackError which occurs when the session
+                            is in an invalid state. StaleDataError occurs when trying to update data that
+                            has been modified by another transaction. IntegrityError and UniqueViolation can
+                            occur when a unique constraint is violated.
+                            Note: session_guard already calls rollback() when an exception occurs.
+                            """
+                            self.failure_metric.inc()
 
-                    for msg in messages:
-                        if msg is None:
-                            continue
-                        elif msg.error():
-                            # This error is raised by the first consumer.consume() on a newly started Kafka.
-                            # msg.error() produces:
-                            # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                            #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                            logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                            metrics.ingress_message_handler_failure.inc()
-                        else:
-                            logger.debug("Message received")
-
-                            try:
-                                self.processed_rows.append(self.handle_message(msg.value()))
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                metrics.ingress_message_handler_success.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception:
-                                metrics.ingress_message_handler_failure.inc()
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-                    self.post_process_rows()
+                            if attempt < MAX_RETRIES:
+                                logger.warning(
+                                    "Database session error during batch processing"
+                                    f"(attempt {attempt}/{MAX_RETRIES}), retrying",
+                                    exc_info=e,
+                                )
+                            else:
+                                logger.exception(
+                                    "Database session error during batch processing failed after"
+                                    f"{MAX_RETRIES} attempts, continuing with next batch",
+                                    exc_info=e,
+                                )
+            finally:
+                db.session.close()
 
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message: str | bytes):
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):
         payload_schema = parse_operation_message(message, DebeziumEnvelopeSchema)
         validated_operation_msg = parse_operation_message(payload_schema["payload"], WorkspaceOperationSchema)
         initialize_thread_local_storage(None)  # No request_id for workspace MQ
@@ -294,31 +385,20 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
     def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
+        # Note: Commit happens in event_loop before this is called
+        for processed_row in self.processed_rows:
+            # Invoke OperationResult success logger for each processed row
+            if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                processed_row.success_logger()
 
-            for processed_row in self.processed_rows:
-                # Invoke OperationResult success logger for each processed row
-                if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
-                    processed_row.success_logger()
-
-                # PG Notify for each processed workspace
-                if processed_row and processed_row.event_type and processed_row.row:
-                    _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
+            # PG Notify for each processed workspace
+            if processed_row and processed_row.event_type and processed_row.row:
+                _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
 
 class HostMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message: str | bytes) -> OperationResult:
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
@@ -379,20 +459,9 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 raise
 
     def post_process_rows(self) -> None:
-        try:
-            if len(self.processed_rows) > 0:
-                db.session.commit()
-                # The above session is automatically committed or rolled back.
-                # Now we need to send out messages for the batch of hosts we just processed.
-                write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
-
-        except StaleDataError as exc:
-            metrics.ingress_message_handler_failure.inc(amount=len(self.processed_rows))
-            logger.error(
-                f"Session data is stale; failed to commit data from {len(self.processed_rows)} payloads.",
-                exc_info=exc,
-            )
-            db.session.rollback()
+        # Note: Commit happens in event_loop before this is called
+        if len(self.processed_rows) > 0:
+            write_message_batch(self.event_producer, self.notification_event_producer, self.processed_rows)
 
 
 class IngressMessageConsumer(HostMessageConsumer):
@@ -420,15 +489,19 @@ class IngressMessageConsumer(HostMessageConsumer):
             # New hosts don't have an id, so create one
             input_host.id = uuid.uuid4() if input_host.id is None else input_host.id
 
-            # basic-auth does not need owner_id
+            # Validate payload's owner_id against identity CN
             if identity.identity_type == IdentityType.SYSTEM:
-                input_host = _set_owner(input_host, identity)
+                _validate_payload_owner_id(input_host, identity)
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
             processed_hosts = [result.row for result in self.processed_rows]
             host_row, add_result = host_repository.add_host(
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
+
+            # Set owner_id on the persisted host
+            if identity.identity_type == IdentityType.SYSTEM:
+                _set_owner(host_row, identity)
 
             success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
 
@@ -495,11 +568,219 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
             raise
 
 
+class HostAppMessageConsumer(HBIMessageConsumerBase):
+    """Consumer for host application data from downstream services (Advisor, Vulnerability, Patch, etc.)."""
+
+    # Mapping of application names to their corresponding model and schema classes
+    APPLICATION_MAP = {
+        ConsumerApplication.ADVISOR: (host_app_data.HostAppDataAdvisor, model_schemas.AdvisorDataSchema),
+        ConsumerApplication.VULNERABILITY: (
+            host_app_data.HostAppDataVulnerability,
+            model_schemas.VulnerabilityDataSchema,
+        ),
+        ConsumerApplication.PATCH: (host_app_data.HostAppDataPatch, model_schemas.PatchDataSchema),
+        ConsumerApplication.REMEDIATIONS: (
+            host_app_data.HostAppDataRemediations,
+            model_schemas.RemediationsDataSchema,
+        ),
+        ConsumerApplication.COMPLIANCE: (host_app_data.HostAppDataCompliance, model_schemas.ComplianceDataSchema),
+        ConsumerApplication.MALWARE: (host_app_data.HostAppDataMalware, model_schemas.MalwareDataSchema),
+    }
+
+    @metrics.host_app_message_handler_time.time()
+    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
+        application_str, request_id = self._extract_headers(headers)
+
+        if not application_str:
+            logger.error("Missing 'application' in Kafka message headers")
+            metrics.host_app_data_failure.labels(application="unknown", reason="missing_application_header").inc()
+            raise ValidationException("Missing 'application' field in Kafka message headers")
+
+        # Convert string to enum with validation
+        try:
+            application = ConsumerApplication(application_str)
+        except ValueError as e:
+            logger.error(f"Unknown application: {application_str}")
+            metrics.host_app_data_failure.labels(application=application_str, reason="unknown_application").inc()
+            raise ValidationException(str(e)) from e
+
+        initialize_thread_local_storage(request_id)
+
+        validated_msg = parse_operation_message(
+            message,
+            HostAppOperationSchema,
+            parsing_time_metric=metrics.host_app_data_message_parsing_time,
+            parsing_failure_metric=metrics.host_app_data_failure,
+            application=application,
+        )
+
+        return self.process_message(application, validated_msg)
+
+    def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
+        org_id = validated_msg["org_id"]
+        timestamp = validated_msg["timestamp"]
+        hosts = validated_msg["hosts"]
+
+        logger.info(
+            f"Processing host app data message from {application}",
+            extra={"application": application, "org_id": org_id, "host_count": len(hosts)},
+        )
+
+        model_class, schema_class = self._get_app_classes(application)
+        valid_hosts_list = self._validate_and_prepare_hosts(hosts, schema_class, application, org_id, timestamp)
+
+        if not valid_hosts_list:
+            logger.warning(f"No valid hosts to process for application {application}")
+            return OperationResult(
+                None,
+                None,
+                None,
+                None,
+                None,
+                partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
+            )
+
+        self._upsert_hosts(model_class, application, org_id, valid_hosts_list)
+
+        host_ids = [str(host["host_id"]) for host in valid_hosts_list]
+        return OperationResult(
+            None,
+            None,
+            None,
+            None,
+            None,
+            partial(log_host_app_data_upsert_via_mq, logger, application, org_id, host_ids),
+        )
+
+    def _extract_headers(self, headers: list[tuple[str, bytes]] | None = None) -> tuple[str | None, str | None]:
+        application = None
+        request_id = None
+
+        if headers:
+            for key, value in headers:
+                if key == "application":
+                    application = value.decode("utf-8") if isinstance(value, bytes) else value
+                elif key == "request_id":
+                    request_id = value.decode("utf-8") if isinstance(value, bytes) else value
+
+        return application, request_id
+
+    def _get_app_classes(self, application: ConsumerApplication) -> tuple[type, type]:
+        """Get the model and schema classes for a given application.
+
+        Args:
+            application: ConsumerApplication enum value
+
+        Returns:
+            Tuple of (model_class, schema_class)
+        """
+        return self.APPLICATION_MAP[application]
+
+    def _validate_and_prepare_hosts(
+        self,
+        hosts: list[dict],
+        schema_class: type,
+        application: ConsumerApplication,
+        org_id: str,
+        timestamp: datetime,
+    ) -> list[dict]:
+        valid_hosts_list = []
+
+        for host_item in hosts:
+            host_id = host_item["id"]
+            host_data = host_item["data"]
+
+            try:
+                validated_data = schema_class().load(host_data)
+            except ValidationError as e:
+                logger.error(
+                    f"Data validation error for host {host_id} from {application}",
+                    extra={"host_id": host_id, "application": application, "errors": e.messages},
+                )
+                metrics.host_app_data_failure.labels(application=application, reason="invalid_host_data").inc()
+                continue
+            except Exception as e:
+                logger.exception(
+                    f"Unexpected error validating data for host {host_id} from {application}",
+                    extra={"host_id": host_id, "application": application, "error": str(e)},
+                )
+                metrics.host_app_data_failure.labels(
+                    application=application, reason="unexpected_data_validation_error"
+                ).inc()
+                continue
+
+            # Prepare row for upsert
+            row_data = {
+                "org_id": org_id,
+                "host_id": host_id,
+                "last_updated": timestamp,
+                **validated_data,
+            }
+            valid_hosts_list.append(row_data)
+
+        return valid_hosts_list
+
+    def _upsert_hosts(
+        self, model_class: type, application: ConsumerApplication, org_id: str, hosts_data: list[dict]
+    ) -> None:
+        try:
+            success_count = host_app_repository.upsert_host_app_data(
+                model_class=model_class,
+                application=application,
+                org_id=org_id,
+                hosts_data=hosts_data,
+            )
+            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(success_count)
+
+            # Update data freshness metric with current timestamp
+            # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
+            # isn't properly configured for multiprocess mode. This is non-fatal.
+            with suppress(TypeError, OSError):
+                metrics.host_app_data_last_processed_timestamp.labels(application=application, org_id=org_id).set(
+                    time.time()
+                )
+
+        except OperationalError as e:
+            logger.exception(
+                f"Database operational error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_failure.labels(application=application, reason="db_operational_error").inc()
+            raise
+        except IntegrityError as e:
+            logger.exception(
+                f"Database integrity error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_failure.labels(application=application, reason="db_integrity_error").inc()
+            raise
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error while upserting host app data for {application}",
+                extra={"application": application, "org_id": org_id, "error": str(e)},
+            )
+            metrics.host_app_data_failure.labels(application=application, reason="unexpected_error").inc()
+            raise
+
+    def post_process_rows(self) -> None:
+        """Process the results after batch commit - call success loggers."""
+        for processed_row in self.processed_rows:
+            if processed_row and hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+                processed_row.success_logger()
+
+
 def _pg_notify_workspace(operation: str, id: str):
-    conn = db.session.connection().connection
-    conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-    cursor = conn.cursor()
-    cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+    # Use a separate psycopg2 connection (not from the SQLAlchemy pool) so we don't
+    # contaminate the session's connection with ISOLATION_LEVEL_AUTOCOMMIT.
+    raw_conn = raw_db_connection()
+    try:
+        raw_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = raw_conn.cursor()
+        cursor.execute(f"NOTIFY workspace_{operation}, '{id}';")
+        logger.debug(f"DB notification 'workspace_{operation}' sent for workspace: {id}")
+        cursor.close()
+    finally:
+        raw_conn.close()
 
 
 # input is a base64 encoded utf-8 string. b64decode returns bytes, which
@@ -550,89 +831,127 @@ def _get_identity(host, metadata) -> Identity:
     return identity
 
 
-# When identity_type is System, set owner_id if missing from the host system_profile
-def _set_owner(host: Host, identity: Identity) -> Host:
+# Validate that if the payload includes owner_id, it matches the identity's CN
+def _validate_payload_owner_id(input_host: Host, identity: Identity) -> None:
+    """
+    Validates owner_id from the payload against the identity's CN.
+    Only raises if the payload explicitly includes an owner_id that doesn't match.
+    """
     cn = identity.system.get("cn")
-    if host.system_profile_facts is None:
-        host.system_profile_facts = {}
-        host.system_profile_facts["owner_id"] = cn
-    elif not host.system_profile_facts.get("owner_id"):
-        host.system_profile_facts["owner_id"] = cn
-    else:
-        reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.system_profile_facts["owner_id"] = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
-        else:
-            if host.system_profile_facts["owner_id"] != cn:
-                raise ValidationException("The owner in host does not match the owner in identity")
 
-    # Also set the owner_id in static_system_profile
+    # Check if the payload included an owner_id (via static_system_profile)
+    if input_host.static_system_profile and input_host.static_system_profile.owner_id:
+        payload_owner_id = str(input_host.static_system_profile.owner_id)
+        if payload_owner_id != cn:
+            raise ValidationException("The owner in host does not match the owner in identity")
+
+
+# Ensure the persisted host has owner_id set
+def _set_owner(host: Host, identity: Identity) -> None:
+    """
+    Sets owner_id on the persisted host based on identity and reporter logic.
+    Called after add_host to ensure the host has an owner_id.
+    """
+    cn = identity.system.get("cn")
+
     if host.static_system_profile is None:
-        # Create static system profile if it doesn't exist
         host.static_system_profile = HostStaticSystemProfile(org_id=host.org_id, host_id=host.id, owner_id=cn)
-    elif not host.static_system_profile.owner_id:
-        host.static_system_profile.owner_id = cn
     else:
+        # Determine the owner_id based on reporter
         reporter = host.reporter
-        if (
-            reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"]
-            and "subscription_manager_id" in host.canonical_facts
-        ):
-            host.static_system_profile.owner_id = _formatted_uuid(host.canonical_facts["subscription_manager_id"])
+        if reporter in ["rhsm-conduit", "rhsm-system-profile-bridge"] and host.subscription_manager_id:
+            host.static_system_profile.owner_id = _formatted_uuid(host.subscription_manager_id)
         else:
-            if str(host.static_system_profile.owner_id) != cn:
-                raise ValidationException("The owner in host does not match the owner in identity")
-
-    return host
+            # Always update to the current identity's CN
+            host.static_system_profile.owner_id = cn
 
 
 # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
 # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS blow up)
-# This functions looks for such invalid sequences with the intention of marking such messages as invalid
-def _validate_json_object_for_utf8(json_object):
+# Additionally, PostgreSQL does not allow NULL bytes (0x00) in text fields, so we need to sanitize those as well.
+# This function validates and sanitizes JSON objects for database storage
+def _sanitize_json_object_for_postgres(json_object):
     object_type = type(json_object)
     if object_type is str:
+        # Validate UTF-8 encoding (raises UnicodeEncodeError for invalid surrogate pairs)
         json_object.encode()
+        # Strip NULL bytes and log if any were found
+        if "\x00" in json_object:
+            sanitized = json_object.replace("\x00", "")
+            logger.warning(
+                "NULL byte(s) found in string field and removed",
+                extra={
+                    "original_length": len(json_object),
+                    "sanitized_length": len(sanitized),
+                },
+            )
+            return sanitized
+        return json_object
     elif object_type is dict:
-        for key, value in json_object.items():
-            _validate_json_object_for_utf8(key)
-            _validate_json_object_for_utf8(value)
+        return {
+            _sanitize_json_object_for_postgres(key): _sanitize_json_object_for_postgres(value)
+            for key, value in json_object.items()
+        }
     elif object_type is list:
-        for item in json_object:
-            _validate_json_object_for_utf8(item)
+        return [_sanitize_json_object_for_postgres(item) for item in json_object]
     else:
-        pass
+        return json_object
 
 
-@metrics.ingress_message_parsing_time.time()
-def parse_operation_message(message: str | bytes, schema: type[Schema]):
-    parsed_message = common_message_parser(message)
+def _inc_parsing_failure(parsing_failure_metric, reason, application=None):
+    if application:
+        parsing_failure_metric.labels(application=application, reason=reason).inc()
+    else:
+        parsing_failure_metric.labels(reason).inc()
 
-    try:
-        _validate_json_object_for_utf8(parsed_message)
-    except UnicodeEncodeError:
-        logger.exception("Invalid Unicode sequence in message from message queue", extra={"incoming_message": message})
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
-        raise
 
-    try:
-        parsed_operation = schema().load(parsed_message)
-    except ValidationError as e:
-        logger.error(
-            "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
-        )  # logger.error is used to avoid printing out the same traceback twice
-        metrics.ingress_message_parsing_failure.labels("invalid").inc()
-        raise
-    except Exception:
-        logger.exception("Error parsing operation message", extra={"operation": parsed_message})
-        metrics.ingress_message_parsing_failure.labels("error").inc()
-        raise
+def parse_operation_message(
+    message: str | bytes,
+    schema: type[Schema],
+    parsing_time_metric=metrics.ingress_message_parsing_time,
+    parsing_failure_metric=metrics.ingress_message_parsing_failure,
+    application: str | None = None,
+):
+    """
+    Parse and validate an operation message.
 
-    logger.debug("parsed_message: %s", parsed_operation)
-    return parsed_operation
+    Args:
+        message: The message to parse (JSON string or bytes)
+        schema: The Marshmallow schema to validate against
+        parsing_time_metric: Optional Summary metric for timing (default: ingress_message_parsing_time)
+        parsing_failure_metric: Optional Counter metric for failures (default: ingress_message_parsing_failure)
+        application: Optional application name to include in failure metric labels
+
+    Returns:
+        Parsed and validated operation dictionary
+    """
+    with parsing_time_metric.time():
+        parsed_message = common_message_parser(message)
+
+        try:
+            parsed_message = _sanitize_json_object_for_postgres(parsed_message)
+        except UnicodeEncodeError:
+            logger.exception(
+                "Invalid Unicode sequence in message from message queue", extra={"incoming_message": message}
+            )
+            _inc_parsing_failure(parsing_failure_metric, "invalid", application)
+            raise
+
+        try:
+            parsed_operation = schema().load(parsed_message)
+        except ValidationError as e:
+            logger.error(
+                "Input validation error while parsing operation message:%s", e, extra={"operation": parsed_message}
+            )  # logger.error is used to avoid printing out the same traceback twice
+            _inc_parsing_failure(parsing_failure_metric, "invalid", application)
+            raise
+        except Exception:
+            logger.exception("Error parsing operation message", extra={"operation": parsed_message})
+            _inc_parsing_failure(parsing_failure_metric, "error", application)
+            raise
+
+        logger.debug("parsed_message: %s", parsed_operation)
+        return parsed_operation
 
 
 def sync_event_message(message, session, event_producer):
@@ -644,13 +963,14 @@ def sync_event_message(message, session, event_producer):
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
             event = build_event(EventType.delete, host)
+            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
             headers = message_headers(
                 EventType.delete,
-                host.canonical_facts.get("insights_id"),
+                str(host.insights_id),
                 message["host"].get("reporter"),
-                host.system_profile_facts.get("host_type"),
-                host.system_profile_facts.get("operating_system", {}).get("name"),
-                str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+                host_type,
+                os_name,
+                bootc_booted,
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -665,17 +985,18 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
     )
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
     headers = message_headers(
         EventType.delete,
-        result.row.canonical_facts.get("insights_id"),
+        str(result.row.insights_id),
         result.row.reporter,
-        result.row.system_profile_facts.get("host_type"),
-        result.row.system_profile_facts.get("operating_system", {}).get("name"),
-        str(result.row.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
-    insights_id = result.row.canonical_facts.get("insights_id")
-    owner_id = result.row.system_profile_facts.get("owner_id")
+    insights_id = serialize_uuid(result.row.insights_id)
+    owner_id = serialize_uuid(result.row.static_system_profile.owner_id) if result.row.static_system_profile else None
     if insights_id and owner_id:
         delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
     result.success_logger()
@@ -701,16 +1022,17 @@ def write_add_update_event_message(
         inventory_id=result.row.id,
     ):
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
-        insights_id = result.row.canonical_facts.get("insights_id")
+        insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 
+        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
         headers = message_headers(
             result.event_type,
             insights_id,
             output_host.get("reporter"),
-            output_host.get("system_profile", {}).get("host_type"),
-            output_host.get("system_profile", {}).get("operating_system", {}).get("name"),
-            str(output_host.get("system_profile", {}).get("bootc_status", {}).get("booted") is not None),
+            host_type,
+            os_name,
+            bootc_booted,
         )
 
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
@@ -755,9 +1077,9 @@ def write_message_batch(
                 logger.exception("Error while producing message", exc_info=exc)
 
 
-def initialize_thread_local_storage(request_id: str | None, org_id: str | None = None, account: str | None = None):
+def initialize_thread_local_storage(
+    request_id: str | None, org_id: str | None = None, account_number: str | None = None
+):
     threadctx.request_id = request_id
-    if org_id:
-        threadctx.org_id = org_id
-    if account:
-        threadctx.account = account
+    threadctx.org_id = org_id
+    threadctx.account_number = account_number

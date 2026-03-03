@@ -15,13 +15,6 @@ migrate_db:
 upgrade_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade
 
-gen_offline_sql:
-	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade "${down_rev}:${up_rev}" --sql > "${project_dir}app_migrations/${up_rev}.sql"
-
-gen_hbi_schema_dump:
-	PGPASSWORD=insights pg_dump -d insights -h localhost -p 5432 -n hbi -U insights --schema-only --no-owner | sed 's/CREATE SCHEMA/CREATE SCHEMA IF NOT EXISTS/' > "${project_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql"
-	rm "./app_migrations/hbi_schema_latest.sql"
-	ln -s "${project_dir}app_migrations/hbi_schema_${SCHEMA_VERSION}.sql" "./app_migrations/hbi_schema_latest.sql"
 
 run_inv_web_service:
 	# Set the "KAFKA_TOPIC", "KAFKA_GROUP", "KAFKA_BOOTSTRAP_SERVERS" environment variables
@@ -51,9 +44,6 @@ run_reaper:
 
 run_pendo_syncher:
 	python3 jobs/pendo_syncher.py
-
-run_host_view_create:
-	python3 jobs/add_inventory_view.py
 
 run_host_delete_access_tags:
 	python3 jobs/delete_host_namespace_access_tags.py

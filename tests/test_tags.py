@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from datetime import timedelta
 
@@ -80,10 +81,22 @@ def test_get_tags_of_hosts_that_does_not_exist_via_db(api_get):
     """
     url = build_host_tags_url(generate_uuid())
 
-    response_status, response_data = api_get(url)
+    response_status, _ = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
+
+
+def test_get_tags_of_hosts_partial_not_found(api_get, db_create_host):
+    """
+    send a request for multiple hosts where some exist and some don't
+    """
+    existing_host = db_create_host()
+    non_existent_id = generate_uuid()
+    url = build_host_tags_url(host_list_or_id=[str(existing_host.id), non_existent_id])
+
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
 
 
 def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api_get, subtests):
@@ -112,11 +125,9 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     db_create_multiple_hosts(
         how_many=1,
         extra_data={
-            "canonical_facts": {
-                "insights_id": insights_id,
-                "provider_type": ProviderType.AZURE.value,
-                "provider_id": provider_id,
-            },
+            "insights_id": insights_id,
+            "provider_type": ProviderType.AZURE.value,
+            "provider_id": provider_id,
             "display_name": display_name,
             "tags": _deserialize_tags_dict({namespace: {tag_key: [tag_value]}}),
             "per_reporter_staleness": per_reporter_staleness,
@@ -156,8 +167,20 @@ def test_get_tags_count_of_host_that_does_not_exist(api_get):
     url = build_tags_count_url(host_list_or_id=generate_uuid())
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
+
+
+def test_get_tags_count_of_hosts_partial_not_found(api_get, db_create_host):
+    """
+    send a request for multiple hosts where some exist and some don't
+    """
+    existing_host = db_create_host()
+    non_existent_id = generate_uuid()
+    url = build_tags_count_url(host_list_or_id=[str(existing_host.id), non_existent_id])
+
+    response_status, _ = api_get(url)
+
+    assert response_status == 404
 
 
 def test_get_tags_from_host_with_no_tags(api_get, db_create_host):
@@ -187,7 +210,7 @@ def test_get_tags_count_from_host_with_no_tags(api_get, db_create_host):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
+def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, db_create_host):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
 
     for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
@@ -195,14 +218,15 @@ def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get):
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = build_host_tags_url(host_list_or_id=generate_uuid())
+            host_id = str(db_create_host().id)
+            url = build_host_tags_url(host_list_or_id=host_id)
             response_status, _ = api_get(url)
 
             assert_response_status(response_status, 200)
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
+def test_get_host_tags_with_RBAC_denied(subtests, db_create_host, mocker, api_get):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     get_host_tags_list_mock = mocker.patch("api.host.get_host_tags_list_by_id_list")
 
@@ -211,7 +235,8 @@ def test_get_host_tags_with_RBAC_denied(subtests, mocker, api_get):
         with subtests.test():
             get_rbac_permissions_mock.return_value = mock_rbac_response
 
-            url = build_host_tags_url(host_list_or_id=generate_uuid())
+            host_id = str(db_create_host().id)
+            url = build_host_tags_url(host_list_or_id=host_id)
             response_status, _ = api_get(url)
 
             assert_response_status(response_status, 403)
@@ -265,8 +290,7 @@ def test_get_tags_count_of_host_that_does_not_exist_via_db(api_get):
     url = build_tags_count_url(host_list_or_id=generate_uuid())
     response_status, response_data = api_get(url)
 
-    assert response_status == 200
-    assert response_data["results"] == {}
+    assert response_status == 404
 
 
 def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
@@ -283,7 +307,9 @@ def test_get_tags_count_of_host_via_db(api_get, mq_create_three_specific_hosts):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_bypassed_as_system(db_create_host, api_get):
-    host = db_create_host(SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": generate_uuid()}})
+    host = db_create_host(
+        SYSTEM_IDENTITY, extra_data={"system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]}}
+    )
 
     url = build_host_tags_url(host_list_or_id=host.id)
     response_status, _ = api_get(url, SYSTEM_IDENTITY)
@@ -399,3 +425,81 @@ def test_query_tags_filter_updated_last_check_in_start_after_end(api_get, param_
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
+
+
+def test_query_tags_using_group_id(db_create_group_with_hosts, api_get):
+    """Test filtering tags by group_id parameter."""
+    # Create group with hosts that have tags
+    group1 = db_create_group_with_hosts("test_group_1", 3)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("test_group_2", 2)
+
+    # Query tags using group_id
+    url = build_tags_url(query=f"?group_id={group1.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return tags from hosts in group1 only
+    assert response_data["count"] >= 0  # May be 0 if hosts have no tags
+
+
+def test_query_tags_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+    """Test filtering tags by multiple group_id parameters."""
+    group1 = db_create_group_with_hosts("test_group_1", 2)
+    group2 = db_create_group_with_hosts("test_group_2", 2)
+
+    # Create another group that we don't want in the response
+    db_create_group_with_hosts("other_group", 3)
+
+    # Query tags using multiple group_ids
+    url = build_tags_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Should return tags from hosts in both group1 and group2
+    assert response_data["count"] >= 0
+
+
+def test_query_tags_group_id_rejects_invalid_uuid(api_get):
+    """Test that group_id parameter rejects non-UUID values."""
+    url = build_tags_url(query="?group_id=invalid-uuid")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+
+    # Verify error message mentions the invalid value and UUID requirement
+    assert "invalid-uuid" in response_data["detail"]
+    assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
+
+
+def test_query_tags_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both group_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_group", 2)
+
+    # Try using both filters together
+    url = build_tags_url(query=f"?group_name=test_group&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    # Should return 400 Bad Request
+    assert response_status == 400
+
+    # Verify error message mentions both parameters
+    assert "group_name" in response_data["detail"].lower()
+    assert "group_id" in response_data["detail"].lower()
+
+
+def test_query_tags_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+    """Test that a syntactically valid but nonexistent group_id returns no results."""
+    # Create some hosts in an existing group so we have data present
+    db_create_group_with_hosts("existing_group", 2)
+
+    # Use a random UUID that does not correspond to any group
+    nonexistent_group_id = str(uuid.uuid4())
+    url = build_tags_url(query=f"?group_id={nonexistent_group_id}")
+    response_status, response_data = api_get(url)
+
+    # Expected behavior: 200 OK with no matching results
+    assert response_status == 200
+    assert response_data["results"] == []
+    assert response_data["count"] == 0

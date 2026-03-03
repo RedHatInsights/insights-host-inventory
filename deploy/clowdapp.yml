@@ -130,6 +130,19 @@ objects:
           key: psks.json
           name: rbac-psks
           optional: false
+    # Common Kessel auth secret reference
+    kesselClientId: &kesselClientId
+      valueFrom:
+        secretKeyRef:
+          key: client-id
+          name: kessel-auth-secret
+          optional: true
+    kesselClientSecret: &kesselClientSecret
+      valueFrom:
+        secretKeyRef:
+          key: client-secret
+          name: kessel-auth-secret
+          optional: true
     # Common namespace field reference
     namespaceFieldRef: &namespaceFieldRef
       valueFrom:
@@ -145,6 +158,11 @@ objects:
     # Base image and args for jobs
     jobPodSpecBase: &jobPodSpecBase
       image: ${IMAGE}:${IMAGE_TAG}
+    # Init container that waits for DB migrations to complete
+    # Used by deployments that need the DB schema to be up-to-date before starting
+    migrationWaitInitContainer: &migrationWaitInitContainer
+      - args: ["./wait_for_migrations.py"]
+        inheritEnv: true
   spec:
     envName: ${ENV_NAME}
     featureFlags: true
@@ -153,6 +171,7 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
+      - kessel-inventory
       - ingress
       - export-service
     deployments:
@@ -245,8 +264,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -291,6 +308,14 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -347,8 +372,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -393,6 +416,14 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: INVENTORY_API_USE_READREPLICA
             value: "${INVENTORY_API_USE_READREPLICA}"
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
@@ -422,6 +453,7 @@ objects:
           enabled: true
       podSpec:
         <<: *gunicornPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: APP_NAME
             value: ${APP_NAME}
@@ -449,8 +481,6 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -495,6 +525,16 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -519,6 +559,7 @@ objects:
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -582,8 +623,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -592,6 +631,8 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -603,9 +644,7 @@ objects:
       replicas: ${{REPLICAS_P1}}
       podSpec:
         <<: *mqPodSpec
-        initContainers:
-        - args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
-          inheritEnv: true
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -671,8 +710,6 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
@@ -694,6 +731,7 @@ objects:
       replicas: ${{REPLICAS_SP}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -757,14 +795,14 @@ objects:
             value: inventory-mq-service
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -776,6 +814,7 @@ objects:
       replicas: ${{REPLICAS_WORKSPACES}}
       podSpec:
         <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
         env:
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
@@ -843,6 +882,8 @@ objects:
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
           <<: *mqLivenessProbe
           initialDelaySeconds: 20
@@ -908,6 +949,73 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_EXPORT_SVC}
             memory: ${MEMORY_REQUEST_EXPORT_SVC}
+    - name: mq-host-app-data
+      replicas: ${{REPLICAS_HOST_APP_DATA}}
+      podSpec:
+        <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
+        env:
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_APP_DATA_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_HOST_APP_DATA_TOPIC}
+          - name: KAFKA_HOST_APP_DATA_TOPIC
+            value: ${KAFKA_HOST_APP_DATA_TOPIC}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_HOST_APP_DATA_MQ}
+            memory: ${MEMORY_LIMIT_HOST_APP_DATA_MQ}
+          requests:
+            cpu: ${CPU_REQUEST_HOST_APP_DATA_MQ}
+            memory: ${MEMORY_REQUEST_HOST_APP_DATA_MQ}
 
     jobs:
     - name: reaper
@@ -961,8 +1069,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1041,8 +1147,6 @@ objects:
             value: ${REPLICA_NAMESPACE}
           - name: CONNEXION_LOG_LEVEL
             value: ${CONNEXION_LOG_LEVEL}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
         resources:
@@ -1052,72 +1156,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_STALE_HOST_NOTIFICAION}
             memory: ${MEMORY_REQUEST_STALE_HOST_NOTIFICAION}
-    - name: syndicator
-      schedule: ${SYNDICATOR_CRON_SCHEDULE}
-      concurrencyPolicy: "Forbid"
-      suspend: ${{SYNDICATOR_SUSPEND}}
-      restartPolicy: Never
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: ["./jobs/inv_publish_hosts.py"]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - <<: *namespaceFieldRef
-            name: NAMESPACE
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - <<: *unleashToken
-            name: UNLEASH_TOKEN
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - name: CREATE_PUBLICATIONS
-            value: ${SYNDICATOR_CREATE_PUBLICATIONS}
-          - name: DROP_PUBLICATIONS
-            value: ${SYNDICATOR_DROP_PUBLICATIONS}
-          - name: DROP_REPLICATION_SLOTS
-            value: ${SYNDICATOR_DROP_REPLICATION_SLOTS}
-          - name: REPLICA_IDENTITY_MODE
-            value: ${SYNDICATOR_REPLICA_IDENTITY_MODE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_SYNDICATOR}
-            memory: ${MEMORY_LIMIT_SYNDICATOR}
-          requests:
-            cpu: ${CPU_REQUEST_SYNDICATOR}
-            memory: ${MEMORY_REQUEST_SYNDICATOR}
     - name: sp-validator
       schedule: '@hourly'
       suspend: ${{SP_VALIDATOR_SUSPEND}}
@@ -1178,8 +1216,6 @@ objects:
               secretKeyRef:
                 key: user
                 name: dippy-bot
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1315,8 +1351,6 @@ objects:
             value: ${PROMETHEUS_PUSHGATEWAY}
           - name: REPLICA_NAMESPACE
             value: ${REPLICA_NAMESPACE}
-          - name: KESSEL_TARGET_URL
-            value: ${KESSEL_TARGET_URL}
           - name: PAYLOAD_TRACKER_KAFKA_TOPIC
             value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
           - name: PAYLOAD_TRACKER_SERVICE_NAME
@@ -1658,6 +1692,67 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
             memory: ${MEMORY_REQUEST_UPDATE_RHSM_HOST_TIMESTAMPS_JOB}
+    - name: remove-null-values-in-workloads-fields-data
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["./jobs/remove_null_values_in_workloads_fields_data.py"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE}
+          - name: SUSPEND_JOB
+            value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB}
+          - name: DRY_RUN
+            value: ${REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
+            memory: ${MEMORY_LIMIT_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
+            memory: ${MEMORY_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
     - name: backfill-per-reporter-culled-timestamps
       restartPolicy: Never
       podSpec:
@@ -1715,6 +1810,102 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
             memory: ${MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
+    - name: populate-host-type
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/populate_host_type.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${POPULATE_HOST_TYPE_DRY_RUN}
+          - name: SUSPEND_JOB
+            value: ${POPULATE_HOST_TYPE_SUSPEND_JOB}
+          - name: POPULATE_HOST_TYPE_BATCH_SIZE
+            value: ${POPULATE_HOST_TYPE_BATCH_SIZE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_POPULATE_HOST_TYPE_JOB}
+            memory: ${MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
+            memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
+    - name: run-db-migrations
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_LIMIT_DB_MIGRATIONS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
@@ -1735,6 +1926,20 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_HOST_APP_DATA_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS}}
+# This CJI runs the DB migrations each time we deploy a new image.
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: run-db-migrations-${IMAGE_TAG}
+  spec:
+    appName: host-inventory
+    jobs:
+      - run-db-migrations
+    runOnNotReady: true
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
   kind: Service
@@ -1811,11 +2016,11 @@ objects:
 #            "created_on" AS "created_at",
 #            "modified_on" AS "updated_at",
 #            "reporter" AS "reporter",
-#            "canonical_facts"->>'insights_id' AS "insights_id",
-#            "canonical_facts"->>'subscription_manager_id' AS "subscription_manager_id",
-#            "canonical_facts"->>'bios_uuid' AS "bios_uuid",
-#            "canonical_facts"->>'provider_id' AS "provider_id",
-#            "canonical_facts"->>'provider_type' AS "provider_type"
+#            "insights_id" AS "insights_id",
+#            "subscription_manager_id" AS "subscription_manager_id",
+#            "bios_uuid" AS "bios_uuid",
+#            "provider_id" AS "provider_id",
+#            "provider_type" AS "provider_type"
 #          FROM "hbi"."hosts";
       - prefix: hms_analytics/inventory/${ENV_NAME}/groups
         chunksize: 10000
@@ -1864,28 +2069,29 @@ objects:
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/hosts_per_public_cloud
         query: >-
           SELECT
-            "canonical_facts"->>'provider_type' AS "provider_type",
+            "provider_type" AS "provider_type",
             COUNT(*) AS "host_count"
           FROM "hbi"."hosts"
-          GROUP BY "canonical_facts"->>'provider_type';
+          GROUP BY "provider_type";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/org_id_by_system_update_method
         chunksize: 10000
         query: >-
           SELECT
-            "org_id",
+            "h"."org_id",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NOT NULL
-              AND "system_profile_facts"->'bootc_status'->>'image_digest' <> ''
+              "h"."host_type" = 'bootc'
             ) AS "image_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->'bootc_status'->>'image_digest' IS NULL
-              AND "system_profile_facts"->>'host_type' IS NULL
+              "h"."host_type" = 'conventional'
             ) AS "package_mode_count",
             COUNT(*) FILTER (WHERE
-              "system_profile_facts"->>'host_type' = 'edge'
-            ) AS "edge_count"
-          FROM "hbi"."hosts"
-          GROUP BY "org_id";
+              "h"."host_type" = 'edge'
+            ) AS "edge_count",
+            COUNT(*) FILTER (WHERE
+              "h"."host_type" = 'cluster'
+            ) AS "cluster_count"
+          FROM "hbi"."hosts" AS "h"
+          GROUP BY "h"."org_id";
       - prefix: hms_analytics/inventory/${ENV_NAME}/hosts_metrics/duplicated_hosts_by_org
         chunksize: 10000
         query: >-
@@ -1898,37 +2104,37 @@ objects:
           FROM (
             SELECT
               "org_id",
-              "canonical_facts"->>'insights_id' AS "id_value",
+              "insights_id"::text AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'insights_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" != '00000000-0000-0000-0000-000000000000'::uuid
             GROUP BY
               "org_id",
-              "canonical_facts"->>'insights_id',
+              "insights_id",
               "reporter"
 
             UNION ALL
 
             SELECT
               "org_id",
-              "canonical_facts"->>'subscription_manager_id' AS "id_value",
+              "subscription_manager_id" AS "id_value",
               COUNT(*) AS "hosts_count",
               "reporter",
               'subscription_manager_id' AS "id_type"
             FROM
               "hbi"."hosts"
             WHERE
-              "canonical_facts"->'provider_id' IS NULL
-              AND "canonical_facts"->>'insights_id' IS NULL
-              AND "canonical_facts"->>'subscription_manager_id' IS NOT NULL
+              "provider_id" IS NULL
+              AND "insights_id" = '00000000-0000-0000-0000-000000000000'::uuid
+              AND "subscription_manager_id" IS NOT NULL
             GROUP BY
               "org_id",
-              "canonical_facts"->>'subscription_manager_id',
+              "subscription_manager_id",
               "reporter"
           ) AS "aa"
           WHERE
@@ -2088,6 +2294,9 @@ parameters:
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
   value: "2"
+- description: Replica count for mq-host-app-data consumer
+  name: REPLICAS_HOST_APP_DATA
+  value: "1"
 
 # -- NGINX Resources --
 - displayName: Minimum replicas for NGINX
@@ -2154,6 +2363,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_EXPORT_SVC
   value: 512Mi
+- name: CPU_REQUEST_HOST_APP_DATA_MQ
+  value: 250m
+- name: CPU_LIMIT_HOST_APP_DATA_MQ
+  value: 500m
+- name: MEMORY_REQUEST_HOST_APP_DATA_MQ
+  value: 256Mi
+- name: MEMORY_LIMIT_HOST_APP_DATA_MQ
+  value: 512Mi
 
 # -- Job Resources --
 - name: CPU_REQUEST_REAPER
@@ -2204,14 +2421,6 @@ parameters:
   value: 0.5Gi
 - name: MEMORY_LIMIT_DELETE_HOSTS_S3
   value: 1Gi
-- name: CPU_REQUEST_SYNDICATOR
-  value: 250m
-- name: CPU_LIMIT_SYNDICATOR
-  value: 500m
-- name: MEMORY_REQUEST_SYNDICATOR
-  value: 256Mi
-- name: MEMORY_LIMIT_SYNDICATOR
-  value: 512Mi
 - name: CPU_REQUEST_UNGROUPED_HOSTS_JOB
   value: 250m
 - name: CPU_LIMIT_UNGROUPED_HOSTS_JOB
@@ -2244,6 +2453,30 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
   value: 512Mi
+- name: CPU_REQUEST_POPULATE_HOST_TYPE_JOB
+  value: 250m
+- name: CPU_LIMIT_POPULATE_HOST_TYPE_JOB
+  value: 500m
+- name: MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
+  value: 512Mi
+- name: CPU_REQUEST_DB_MIGRATIONS_JOB
+  value: 250m
+- name: CPU_LIMIT_DB_MIGRATIONS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DB_MIGRATIONS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DB_MIGRATIONS_JOB
+  value: 512Mi
+- name: CPU_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB
+  value: 250m
+- name: CPU_LIMIT_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB
+  value: 512Mi
 
 # =================================================================================
 # III. External Services & Dependencies
@@ -2260,9 +2493,9 @@ parameters:
 - name: KAFKA_SASL_MECHANISM
   value: 'PLAIN'
 - name: KAFKA_PRODUCER_ACKS
-  value: 'all'
+  value: '1'
 - name: KAFKA_PRODUCER_RETRIES
-  value: '8'
+  value: '0'
 - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
   value: '100'
 - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
@@ -2323,6 +2556,15 @@ parameters:
 - name: KAFKA_ADDITIONAL_VALIDATION_TOPIC
   description: Used by system_profile_validator
   value: platform.inventory.host-ingress-p1
+- name: KAFKA_HOST_APP_DATA_TOPIC
+  description: The topic for host application data from downstream services
+  value: platform.inventory.host-apps
+- name: KAFKA_HOST_APP_DATA_GROUP
+  description: The Kafka consumer group for host app data consumer
+  value: inventory-views
+- name: NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka host app data topic
+  value: '1'
 
 # -- Database Configuration --
 - description: Database name
@@ -2367,8 +2609,6 @@ parameters:
   value: localhost
 - name: PROMETHEUS_PUSHGATEWAY
   value: 'localhost:9091'
-- name: KESSEL_TARGET_URL
-  value: 'localhost:20000'
 - name: URLLIB3_LOG_LEVEL
   value: WARNING
 - name: CONNEXION_LOG_LEVEL
@@ -2379,6 +2619,15 @@ parameters:
 - description: disable Kessel middleware
   name: BYPASS_KESSEL
   value: 'false'
+- description: enable Kessel authentication
+  name: KESSEL_AUTH_ENABLED
+  value: 'false'
+- description: enable Kessel insecure mode
+  name: KESSEL_INSECURE
+  value: 'true'
+- description: How long to wait for DB migrations to complete
+  name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+  value: '300'
 
 # =================================================================================
 # IV. Application Behavior & Tuning
@@ -2435,6 +2684,8 @@ parameters:
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
   value: '1'
+- name: MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES
+  value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
   value: '0.5'
 - name: SCRIPT_CHUNK_SIZE
@@ -2479,24 +2730,6 @@ parameters:
 - name: PENDO_SYNC_ACTIVE
   value: 'false'
 
-# -- Syndicator Job (Logical Replication) --
-- name: SYNDICATOR_SUSPEND
-  value: 'false'
-- name: SYNDICATOR_CRON_SCHEDULE
-  value: '*/5 * * * *'
-- name: SYNDICATOR_CREATE_PUBLICATIONS
-  description: Publications to create
-  value: ''
-- name: SYNDICATOR_DROP_PUBLICATIONS
-  description: Publications to drop
-  value: ''
-- name: SYNDICATOR_DROP_REPLICATION_SLOTS
-  description: Replication slots to drop
-  value: ''
-- name: SYNDICATOR_REPLICA_IDENTITY_MODE
-  description: Replica Identity Mode to set in the published tables (and their partitions)
-  value: ''
-
 # -- Delete Hosts from S3 Job --
 - name: DELETE_HOSTS_S3_AWS_SECRET
   description: The AWS secret for the delete-hosts S3 bucket
@@ -2536,6 +2769,29 @@ parameters:
 - name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN
   description: Whether the backfill-per-reporter-culled-timestamps script should run in dry-run mode
   value: 'true'
+
+# -- Populate host_type Job --
+- name: POPULATE_HOST_TYPE_DRY_RUN
+  description: Whether the populate-host-type script should run in dry-run mode
+  value: 'true'
+- name: POPULATE_HOST_TYPE_SUSPEND_JOB
+  description: Whether the populate-host-type job should be suspended
+  value: 'true'
+- name: POPULATE_HOST_TYPE_BATCH_SIZE
+  description: Number of hosts to process per batch in the populate-host-type job
+  value: '500'
+
+# -- Remove null values in workloads fields data Job --
+- name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN
+  description: Whether the remove-null-values-in-workloads-fields-data script should run in dry-run mode
+  value: 'true'
+- name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE
+  description: The batch size to use for the remove-null-values-in-workloads-fields-data script.
+  value: '500'
+- name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
+  description: Whether to suspend the remove-null-values-in-workloads-fields-data job
+  value: 'true'
+
 
 # =================================================================================
 # VI. Floorist Configuration

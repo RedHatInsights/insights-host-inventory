@@ -12,6 +12,8 @@ from unittest.mock import patch
 import pytest
 from confluent_kafka import KafkaException
 
+from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
+from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
 from app.queue.event_producer import MessageDetails
 from app.queue.event_producer import logger as event_producer_logger
@@ -34,6 +36,7 @@ from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
+from tests.helpers.test_utils import now
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
@@ -43,6 +46,47 @@ def test_delete_non_existent_host(api_delete_host):
     response_status, _ = api_delete_host(host_id)
 
     assert_response_status(response_status, expected_status=404)
+
+
+@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
+def test_delete_non_existent_host_response_includes_missing_ids(api_delete_host):
+    # Verify that 404 response includes the not_found_ids field
+    host_id = generate_uuid()
+
+    response_status, response_data = api_delete_host(host_id)
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [host_id]
+    assert response_data["detail"] == "One or more hosts not found."
+
+
+def test_delete_with_missing_host_id_and_valid_host_id(db_create_host, api_delete_host, db_get_host):
+    # Attempt to simultaneously delete a real host and a missing host
+    valid_host_id = db_create_host().id
+    missing_host_id = generate_uuid()
+    response_status, _ = api_delete_host(f"{str(valid_host_id)},{str(missing_host_id)}")
+
+    assert_response_status(response_status, expected_status=404)
+
+    # Make sure a partial deletion did not occur
+    assert db_get_host(valid_host_id)
+
+
+def test_delete_with_missing_host_id_response_includes_only_missing_ids(db_create_host, api_delete_host, db_get_host):
+    # Verify 404 response only includes the missing ID, not the valid one
+    valid_host_id = str(db_create_host().id)
+    missing_host_id = generate_uuid()
+
+    response_status, response_data = api_delete_host(f"{valid_host_id},{missing_host_id}")
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [missing_host_id]
+    assert valid_host_id not in response_data["not_found_ids"]
+
+    # Make sure a partial deletion did not occur
+    assert db_get_host(valid_host_id)
 
 
 def test_delete_with_invalid_host_id(api_delete_host):
@@ -140,7 +184,7 @@ def test_create_then_delete_without_insights_id(
     event_datetime_mock, event_producer_mock, db_create_host, api_delete_host
 ):
     host = db_host()
-    del host.canonical_facts["insights_id"]
+    del host.insights_id
 
     db_create_host(host=host)
 
@@ -161,7 +205,7 @@ def test_delete_hosts_filtered_by_subscription_manager_id(
     db_create_host(host=db_host())
     host = db_create_host(host=db_host())
     response_status, response_data = api_delete_filtered_hosts(
-        query_parameters={"subscription_manager_id": host.canonical_facts["subscription_manager_id"]}
+        query_parameters={"subscription_manager_id": host.subscription_manager_id}
     )
     assert response_data["hosts_found"] == 1
     assert response_data["hosts_deleted"] == 1
@@ -615,7 +659,7 @@ def test_postgres_delete_filtered_hosts(
     host_3_id = db_create_host(extra_data={"display_name": "asdf", "reporter": "puptoo"}).id
 
     # Create another host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Delete the first two hosts using the bulk deletion endpoint
     response_status, response_data = api_delete_filtered_hosts(request_body)
@@ -624,10 +668,10 @@ def test_postgres_delete_filtered_hosts(
 
     # Make sure they were both deleted and produced deletion events
     assert '"type": "delete"' in event_producer_mock.event
-    _, response_data = api_get(build_hosts_url(host_1_id))
-    assert len(response_data["results"]) == 0
-    _, response_data = api_get(build_hosts_url(host_2_id))
-    assert len(response_data["results"]) == 0
+    response_status, _ = api_get(build_hosts_url(host_1_id))
+    assert response_status == 404
+    response_status, _ = api_get(build_hosts_url(host_2_id))
+    assert response_status == 404
     _, response_data = api_get(build_hosts_url(host_3_id))
     assert len(response_data["results"]) == 1
 
@@ -651,16 +695,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     that they make when a host is unregistered from RHSM, to delete it from Insights Inventory.
     """
     searched_subman_id = generate_uuid()
-    matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}}).id
-    )
-    not_matching_host_id = str(
-        db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}}).id
-    )
+    matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": searched_subman_id}).id)
+    not_matching_host_id = str(db_create_host(extra_data={"subscription_manager_id": generate_uuid()}).id)
     different_org_host_id = str(
-        db_create_host(
-            extra_data={"canonical_facts": {"subscription_manager_id": searched_subman_id}, "org_id": "12345"}
-        ).id
+        db_create_host(extra_data={"subscription_manager_id": searched_subman_id, "org_id": "12345"}).id
     )
 
     # Delete the host using the bulk deletion endpoint
@@ -676,7 +714,10 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     # Make sure the correct host was deleted and produced a deletion event
     assert '"type": "delete"' in event_producer_mock.event
 
-    _, response_data = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    response_status, _ = api_get(build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]))
+    assert response_status == 404
+
+    _, response_data = api_get(build_hosts_url([not_matching_host_id]))
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == not_matching_host_id
 
@@ -684,7 +725,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     different_org_identity = deepcopy(USER_IDENTITY)
     different_org_identity["org_id"] = "12345"
     _, response_data = api_get(
-        build_hosts_url([matching_host_id, not_matching_host_id, different_org_host_id]),
+        build_hosts_url([different_org_host_id]),
         identity=different_org_identity,
     )
     assert len(response_data["results"]) == 1
@@ -694,7 +735,7 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
 @pytest.mark.usefixtures("event_producer_mock")
 def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_delete_filtered_hosts):
     # Create a host that we don't want to be deleted
-    not_deleted_host_id = str(db_create_host(extra_data={"canonical_facts": {"insights_id": generate_uuid()}}).id)
+    not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     # Call the delete endpoint when no hosts match the criteria
     response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
@@ -731,13 +772,15 @@ def test_log_create_delete(
 
     assert not db_get_host(host.id)
     # The use of logger.info() logs more messages before the deleted_host message
-    # so we're checking the first message instead of the third as was done previously
-    assert caplog.records[0].system_profile == "{}"
+    # Find the first log record that has the system_profile attribute
+    deleted_host_record = next((r for r in caplog.records if hasattr(r, "system_profile")), None)
+    assert deleted_host_record is not None, "Could not find deleted_host log record"
+    assert deleted_host_record.system_profile == "{}"
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_with_ui_host(db_create_host, api_delete_host, event_datetime_mock, event_producer_mock):
-    host = db_create_host(extra_data={"canonical_facts": {"subscription_manager_id": generate_uuid()}})
+    host = db_create_host(extra_data={"subscription_manager_id": generate_uuid()})
     headers = {"x-rh-frontend-origin": "hcc"}
 
     response_status, _ = api_delete_host(host.id, extra_headers=headers)
@@ -873,3 +916,121 @@ class DeleteQueryWrapper:
         self.query = get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter)
         self.query.limit = self.mocker.Mock(wraps=self.query.limit)
         return self.query
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize(
+    "staleness_filter",
+    [
+        ["fresh"],
+        ["stale"],
+        ["stale_warning"],
+        ["fresh", "stale"],
+        ["fresh", "stale_warning"],
+        ["stale", "stale_warning"],
+        ["fresh", "stale", "stale_warning"],
+    ],
+    ids=lambda param: ",".join(param),
+)
+@pytest.mark.parametrize("host_type", ("conventional", "edge"))
+def test_delete_hosts_filtered_by_staleness(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    mocker: Any,
+    staleness_filter: list[str],
+    host_type: str,
+):
+    """
+    Test DELETE on /hosts endpoint with 'staleness' parameter.
+    This test creates hosts in different staleness states and verifies that
+    only hosts matching the staleness filter are deleted.
+    """
+    secondary_org_id = "12345"
+
+    # Create timestamps for each staleness state (matching the logic in test_api_hosts_get.py)
+    staleness_timestamps = {
+        "fresh": now(),
+        "stale": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS),
+        "stale_warning": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS),
+    }
+
+    # Create a host in each staleness state
+    host_ids_to_delete = []
+    host_ids_to_keep = []
+    different_org_host_ids = []
+    for staleness_state, last_check_in_timestamp in staleness_timestamps.items():
+        # Patch the "now" function so the hosts are created in the desired state
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": last_check_in_timestamp}):
+            system_profile_facts = {"host_type": host_type} if host_type == "edge" else {}
+            host_id = str(db_create_host(extra_data={"system_profile_facts": system_profile_facts}).id)
+
+            # Determine if the host should be deleted based on the filter
+            if staleness_state in staleness_filter:
+                host_ids_to_delete.append(host_id)
+            else:
+                host_ids_to_keep.append(host_id)
+
+            # Create a host in a different organization
+            different_org_host_ids.append(
+                str(
+                    db_create_host(
+                        extra_data={"system_profile_facts": system_profile_facts, "org_id": secondary_org_id}
+                    ).id
+                )
+            )
+
+    # Execute the delete operation
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"staleness": staleness_filter})
+    assert response_status == 202
+    assert response_data["hosts_found"] == len(host_ids_to_delete)
+    assert response_data["hosts_deleted"] == len(host_ids_to_delete)
+
+    # Verify that the correct hosts were deleted
+    for host_id in host_ids_to_delete:
+        assert not db_get_host(host_id), f"Host {host_id} should have been deleted"
+
+    # Verify that the other hosts were not deleted
+    for host_id in host_ids_to_keep:
+        assert db_get_host(host_id), f"Host {host_id} should not have been deleted"
+
+    # Verify that the hosts in the different organization were not deleted
+    for host_id in different_org_host_ids:
+        assert db_get_host(host_id, org_id=secondary_org_id), f"Host {host_id} should not have been deleted"
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_hosts_filtered_default_staleness(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    mocker: Any,
+):
+    """
+    Test default staleness on DELETE /hosts endpoint.
+    When no staleness filter is provided, the default is to delete fresh, stale, and stale_warning hosts.
+    """
+    # Create timestamps for each staleness state
+    staleness_timestamps = {
+        "fresh": now(),
+        "stale": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS),
+        "stale_warning": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS),
+    }
+
+    # Create hosts for each staleness state with reporter="puptoo"
+    host_ids = []
+    for last_check_in_timestamp in staleness_timestamps.values():
+        with mocker.patch("app.models.utils.datetime", **{"now.return_value": last_check_in_timestamp}):
+            host = db_create_host(extra_data={"reporter": "puptoo"})
+            host_ids.append(str(host.id))
+
+    # Delete hosts filtered by registered_with="puptoo" without specifying staleness
+    # This should use the default staleness filter (all non-culled states)
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"registered_with": "puptoo"})
+    assert response_status == 202
+    # With default staleness, all three hosts should be deleted (fresh, stale, and stale_warning)
+    assert response_data["hosts_deleted"] == len(host_ids)
+
+    # Verify that all hosts were deleted
+    for host_id in host_ids:
+        assert not db_get_host(host_id), f"Host {host_id} should have been deleted"

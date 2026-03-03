@@ -25,12 +25,13 @@ from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
 from api.staleness_query import get_staleness_obj
+from api.validation import check_group_name_and_id
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import OutboxSaveException
+from app.exceptions import IdsNotFoundError
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -48,11 +49,14 @@ from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
 from app.queue.events import build_event
+from app.queue.events import extract_system_profile_fields_for_headers
 from app.queue.events import message_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
+from app.serialization import serialize_uuid
 from app.utils import Tag
+from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
@@ -62,7 +66,6 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
-from lib.outbox_repository import write_event_to_outbox
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -86,6 +89,7 @@ def get_host_list(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     tags=None,
     page=1,
     per_page=100,
@@ -102,6 +106,10 @@ def get_host_list(
     host_list = ()
     owner_id = None
     current_identity = get_current_identity()
+
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     has_complex_params = any(
         [
             display_name,
@@ -114,6 +122,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             order_by,
             order_how,
@@ -155,6 +164,7 @@ def get_host_list(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             tags,
             page,
             per_page,
@@ -199,6 +209,7 @@ def delete_hosts_by_filter(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    group_id=None,
     registered_with=None,
     system_type=None,
     staleness=None,
@@ -206,6 +217,9 @@ def delete_hosts_by_filter(
     filter=None,
     rbac_filter=None,
 ):
+    # Validate mutually exclusive group filters
+    check_group_name_and_id(group_name, group_id)
+
     if not any(
         [
             display_name,
@@ -220,6 +234,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,
@@ -244,6 +259,7 @@ def delete_hosts_by_filter(
             last_check_in_start,
             last_check_in_end,
             group_name,
+            group_id,
             registered_with,
             system_type,
             staleness,
@@ -333,12 +349,15 @@ def delete_all_hosts(confirm_delete_all=None, rbac_filter=None):
 @access(KesselResourceTypes.HOST.delete, id_param="host_id_list")
 @metrics.api_request_time.time()
 def delete_host_by_id(host_id_list, rbac_filter=None):
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
+
     delete_count = _delete_host_list(host_id_list, rbac_filter)
 
     if not delete_count:
         flask.abort(HTTPStatus.NOT_FOUND, "No hosts found for deletion.")
 
-    return flask.Response(None, HTTPStatus.OK)
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
@@ -349,6 +368,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
         host_list, total, additional_fields, system_profile_fields = get_host_list_by_id_list(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        check_all_ids_found(host_id_list, host_list, "host", total=total)
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -371,6 +391,7 @@ def get_host_system_profile_by_id(
         total, host_list = get_sparse_system_profile(
             host_id_list, page, per_page, order_by, order_how, fields, rbac_filter
         )
+        check_all_ids_found(host_id_list, host_list, "host", total=total)
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
@@ -380,13 +401,14 @@ def get_host_system_profile_by_id(
 
 
 def _emit_patch_event(serialized_host, host):
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
     headers = message_headers(
         EventType.updated,
-        host.canonical_facts.get("insights_id"),
+        str(host.insights_id),
         host.reporter,
-        host.system_profile_facts.get("host_type"),
-        host.system_profile_facts.get("operating_system", {}).get("name"),
-        str(host.system_profile_facts.get("bootc_status", {}).get("booted") is not None),
+        host_type,
+        os_name,
+        bootc_booted,
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
@@ -407,9 +429,9 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
     query = get_host_list_by_id_list_from_db(host_id_list, current_identity, rbac_filter)
     hosts_to_update = query.all()
 
-    if not hosts_to_update:
+    if len(hosts_to_update) != len(set(host_id_list)):
         log_patch_host_failed(logger, host_id_list)
-        return flask.abort(HTTPStatus.NOT_FOUND, "Requested host not found.")
+        check_all_ids_found(host_id_list, hosts_to_update, "host")
 
     staleness = get_staleness_obj(current_identity.org_id)
 
@@ -417,26 +439,17 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         host.patch(validated_patch_host_data)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
     log_patch_host_success(logger, host_id_list)
-    return 200
+    return flask_json_response({}, HTTPStatus.OK)
 
 
 @api_operation
@@ -484,7 +497,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
-    if len(hosts_to_update) != len(host_id_list):
+    if len(hosts_to_update) != len(set(host_id_list)):
         error_msg = (
             "ERROR: The number of hosts requested does not match the number of hosts found in the host database.  "
             "This could happen if the namespace does not exist or the org_id associated with the call does "
@@ -502,21 +515,12 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
             host.merge_facts_in_namespace(namespace, fact_dict)
 
         if db.session.is_modified(host):
-            try:
-                # write to the outbox table for synchronization with Kessel
-                result = write_event_to_outbox(EventType.updated, str(host.id), host)
-                if not result:
-                    logger.error("Failed to write updated event to outbox")
-                    raise OutboxSaveException("Failed to write updated host event to outbox")
-            except OutboxSaveException as ose:
-                logger.error("Failed to write updated event to outbox: %s", str(ose))
-                raise ose
-
+            db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
             serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
             _emit_patch_event(serialized_host, host)
-            insights_id = host.canonical_facts.get("insights_id")
-            owner_id = host.system_profile_facts.get("owner_id")
+            insights_id = serialize_uuid(host.insights_id)
+            owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
             if insights_id and owner_id:
                 delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
 
@@ -530,6 +534,9 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
 @metrics.api_request_time.time()
 def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_how=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
+
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     counts = {host_id: len(host_tags) for host_id, host_tags in host_list.items()}
@@ -541,6 +548,9 @@ def get_host_tag_count(host_id_list, page=1, per_page=100, order_by=None, order_
 @metrics.api_request_time.time()
 def get_host_tags(host_id_list, page=1, per_page=100, order_by=None, order_how=None, search=None, rbac_filter=None):
     limit, offset = pagination_params(page, per_page)
+    found_hosts = get_host_list_by_id_list_from_db(host_id_list, get_current_identity(), rbac_filter).all()
+    check_all_ids_found(host_id_list, found_hosts, "host")
+
     host_list, total = get_host_tags_list_by_id_list(host_id_list, limit, offset, order_by, order_how, rbac_filter)
 
     filtered_list = {host_id: Tag.filter_tags(host_tags, search) for host_id, host_tags in host_list.items()}
@@ -564,11 +574,13 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     if existing_host:
         existing_host._update_last_check_in_date()
         existing_host._update_staleness_timestamps()
+        db.session.flush()  # Trigger outbox event listeners before commit
         db.session.commit()
         serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
-        insights_id = existing_host.canonical_facts.get("insights_id")
-        owner_id = existing_host.system_profile_facts.get("owner_id")
+        insights_id = serialize_uuid(existing_host.insights_id)
+        static_sp = existing_host.static_system_profile
+        owner_id = serialize_uuid(static_sp.owner_id) if static_sp else None
         if insights_id and owner_id:
             delete_cached_system_keys(insights_id=insights_id, org_id=current_identity.org_id, owner_id=owner_id)
         return flask_json_response(serialized_host, 201)
@@ -588,11 +600,12 @@ def get_host_exists(insights_id, rbac_filter=None):
     # Duplicated - I wonder if this could be factored back into middleware.py
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
         kessel_client = get_kessel_client(current_app)
-        allowed, _ = get_kessel_filter(  # Kind of a duplicate Kessel call too
+        allowed, kessel_data = get_kessel_filter(
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
         )
         if not allowed:
-            flask.abort(HTTPStatus.NOT_FOUND)
+            unauthorized_ids = kessel_data.get("unauthorized_ids") if kessel_data else None
+            raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})

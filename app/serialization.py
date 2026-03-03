@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import Any
 from typing import TypedDict
+from uuid import UUID
 
 from dateutil.parser import isoparse
 from marshmallow import ValidationError
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.common import inventory_config
+from app.config import CANONICAL_FACTS_FIELDS
+from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import should_host_stay_fresh_forever
@@ -22,6 +27,7 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
+from app.models.constants import WORKLOADS_FIELDS
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -52,18 +58,6 @@ _EXPORT_SERVICE_FIELDS = [
     "host_type",
 ]
 
-_CANONICAL_FACTS_FIELDS = (
-    "insights_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "provider_id",
-    "provider_type",
-)
-
 DEFAULT_FIELDS = (
     "id",
     "account",
@@ -80,6 +74,7 @@ DEFAULT_FIELDS = (
     "updated",
     "groups",
     "last_check_in",
+    "openshift_cluster_id",
 )
 
 ADDITIONAL_HOST_MQ_FIELDS = (
@@ -109,7 +104,8 @@ def deserialize_host(
     facts = _deserialize_facts(validated_data.get("facts"))
     tags = _deserialize_tags(validated_data.get("tags"))
     tags_alt = validated_data.get("tags_alt", [])
-    return schema.build_model(validated_data, canonical_facts, facts, tags, tags_alt)
+    main_data = {**validated_data, **canonical_facts}
+    return schema.build_model(main_data, facts, tags, tags_alt)
 
 
 def deserialize_canonical_facts(raw_data, all=False):
@@ -126,8 +122,69 @@ def deserialize_canonical_facts(raw_data, all=False):
 
 # Removes any null canonical facts from a serialized host.
 def remove_null_canonical_facts(serialized_host: dict):
-    for field_name in [f for f in _CANONICAL_FACTS_FIELDS if serialized_host[f] is None]:
-        del serialized_host[field_name]
+    for field_name in CANONICAL_FACTS_FIELDS:
+        if field_name in serialized_host and serialized_host[field_name] is None:
+            del serialized_host[field_name]
+
+
+def build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
+    """
+    Build system profile dict from static and dynamic tables.
+    Used for serialization since system_profile_facts column was removed.
+    """
+    system_profile = {}
+
+    SERIALIZERS = {
+        "owner_id": serialize_uuid,
+        "rhc_client_id": serialize_uuid,
+        "rhc_config_state": serialize_uuid,
+        "virtual_host_uuid": serialize_uuid,
+        "captured_date": _serialize_datetime,
+        "last_boot_time": _serialize_datetime,
+    }
+    EXCLUDE_FIELDS = {"org_id", "host_id"}
+
+    requested_fields = set(system_profile_fields) if system_profile_fields else None
+
+    # Check if 'workloads' should be fetched implicitly to extract sub-fields later (backward compatibility)
+    requested_workload_subfields = set()
+    workloads_explicitly_requested = False
+
+    if requested_fields:
+        requested_workload_subfields = requested_fields & WORKLOADS_FIELDS
+        workloads_explicitly_requested = "workloads" in requested_fields
+
+        # If 'ansible' was requested but not 'workloads', we must fetch 'workloads'
+        # from DB first (backward compatibility)
+        if requested_workload_subfields and not workloads_explicitly_requested:
+            requested_fields.add("workloads")
+
+    for attr_name in ("static_system_profile", "dynamic_system_profile"):
+        try:
+            profile_source = getattr(host, attr_name, None)
+            if not profile_source:
+                continue
+
+            for column in profile_source.__table__.columns:
+                field_name = column.name
+
+                if field_name in EXCLUDE_FIELDS:
+                    continue
+
+                if requested_fields and field_name not in requested_fields:
+                    continue
+
+                value = getattr(profile_source, field_name, None)
+
+                if value is not None:
+                    serializer = SERIALIZERS.get(field_name)
+                    system_profile[field_name] = serializer(value) if serializer else value
+
+        except DetachedInstanceError:
+            # Relationship not loaded - skip this source
+            pass
+
+    return system_profile
 
 
 def serialize_host(
@@ -149,11 +206,11 @@ def serialize_host(
         fields += ADDITIONAL_HOST_MQ_FIELDS
 
     # Base serialization
-    serialized_host = {**serialize_canonical_facts(host.canonical_facts)}
+    serialized_host = {**serialize_canonical_facts(host)}
 
     # Define field mapping to avoid repeated "if" conditions
     field_mapping = {
-        "id": lambda: _serialize_uuid(host.id),
+        "id": lambda: serialize_uuid(host.id),
         "account": lambda: host.account,
         "org_id": lambda: host.org_id,
         "display_name": lambda: host.display_name,
@@ -174,7 +231,8 @@ def serialize_host(
             stale_warning_timestamp=timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
-        "os_release": lambda: host.system_profile_facts.get("os_release", None),
+        "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
+        "openshift_cluster_id": lambda: serialize_uuid(host.openshift_cluster_id),
     }
 
     # Process each field dynamically
@@ -182,28 +240,28 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = (
-            {k: v for k, v in host.system_profile_facts.items() if k in system_profile_fields}
-            if host.system_profile_facts and system_profile_fields
-            else host.system_profile_facts or {}
-        )
+        serialized_host["system_profile"] = build_system_profile_from_normalized(host, system_profile_fields)
 
-        # Add backward compatibility for workload fields (only for Kafka events)
-        if (
-            for_mq
-            and serialized_host["system_profile"]
-            and get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
+        # Add backward compatibility for workload fields
+        if serialized_host["system_profile"] and get_flag_value(
+            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
         ):
             serialized_host["system_profile"] = _add_workloads_backward_compatibility(
                 serialized_host["system_profile"]
             )
 
-        if (
-            system_profile_fields
-            and system_profile_fields.count("host_type") < 2
-            and serialized_host["system_profile"].get("host_type")
-        ):
-            del serialized_host["system_profile"]["host_type"]
+        # Map host_type for backward compatibility with downstream apps (cyndi)
+        # Downstream apps only recognize "edge" vs empty values
+        if for_mq and serialized_host["system_profile"].get("host_type"):
+            serialized_host["system_profile"]["host_type"] = _map_host_type_for_backward_compatibility(
+                serialized_host["system_profile"]["host_type"]
+            )
+
+        # Re-filter to only keep requested fields (after backward compat added legacy fields)
+        if system_profile_fields:
+            serialized_host["system_profile"] = {
+                k: v for k, v in serialized_host["system_profile"].items() if k in system_profile_fields
+            }
 
     # Handle groups separately
     if "groups" in fields:
@@ -228,7 +286,7 @@ def serialize_host_for_export_svc(
         host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
     )
 
-    serialized_host["host_id"] = _serialize_uuid(host.id)
+    serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
     if host.groups:
         serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
@@ -248,11 +306,11 @@ def serialize_host_for_export_svc(
 
 def serialize_group_without_host_count(group: Group) -> dict:
     return {
-        "id": _serialize_uuid(group.id),
+        "id": serialize_uuid(group.id),
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "ungrouped": group.ungrouped,
+        "ungrouped": bool(group.ungrouped),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
@@ -262,8 +320,61 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
+    """
+    Serialize a database Group object with host count.
+
+    Args:
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": bool(group.ungrouped),
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
+    }
+
+
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize an RBAC v2 workspace dictionary with host count.
+
+    Args:
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
+
+    Returns:
+        Dictionary containing serialized workspace data with host_count
+    """
+    # Parse and re-serialize datetime fields to ensure consistent format with DB groups
+    # RBAC v2 returns ISO strings, we normalize them to match DB serialization format
+    created_dt = _deserialize_datetime(workspace.get("created")) if workspace.get("created") else None
+    updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
+
+    return {
+        "id": serialize_uuid(workspace["id"]),
+        "org_id": org_id,
+        "account": workspace.get("account") or None,
+        "name": workspace.get("name"),
+        "ungrouped": workspace.get("type") == "ungrouped",
+        "created": _serialize_datetime(created_dt) if created_dt else "",
+        "updated": _serialize_datetime(updated_dt) if updated_dt else "",
+        "host_count": host_count,
+    }
+
+
 def serialize_host_system_profile(host):
-    return {"id": _serialize_uuid(host.id), "system_profile": host.system_profile_facts or {}}
+    system_profile = build_system_profile_from_normalized(host)
+    return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 
 def _recursive_casefold(field_data):
@@ -276,15 +387,45 @@ def _recursive_casefold(field_data):
 
 
 def _deserialize_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) for field in _CANONICAL_FACTS_FIELDS if data.get(field)}
+    """
+    Deserialize canonical facts: apply case folding and filter falsy values.
+    """
+    return {field: _recursive_casefold(data[field]) for field in CANONICAL_FACTS_FIELDS if data.get(field)}
 
 
 def _deserialize_all_canonical_facts(data):
-    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in _CANONICAL_FACTS_FIELDS}
+    """
+    Deserialize canonical facts: apply case folding, keeping None values.
+    """
+    return {field: _recursive_casefold(data[field]) if data.get(field) else None for field in CANONICAL_FACTS_FIELDS}
 
 
-def serialize_canonical_facts(canonical_facts):
-    return {field: canonical_facts.get(field) for field in _CANONICAL_FACTS_FIELDS}
+def serialize_canonical_facts(host: Host | LimitedHost, include_none: bool = True) -> dict[str, Any]:
+    """
+    Serialize canonical facts from a host object to a dictionary.
+
+    Args:
+        host: The host object (Host or LimitedHost) to serialize canonical facts from.
+        include_none: If True (default), includes all canonical fact fields in the output,
+            even when their values are None. If False, only includes fields with non-None values.
+
+    Returns:
+        A dictionary containing the serialized canonical facts. Empty lists for
+        ip_addresses and mac_addresses are converted to None.
+    """
+    canonical_facts = {}
+    for field in CANONICAL_FACTS_FIELDS:
+        value = getattr(host, field, None)
+        if isinstance(value, UUID):
+            value = serialize_uuid(value)
+        elif field in {"ip_addresses", "mac_addresses"} and value == []:
+            value = None
+        elif field == "insights_id" and value is None and include_none:
+            value = DEFAULT_INSIGHTS_ID
+
+        if value is not None or include_none:
+            canonical_facts[field] = value
+    return canonical_facts
 
 
 def _deserialize_facts(data):
@@ -328,8 +469,8 @@ def _deserialize_datetime(s):
     return dt.astimezone(UTC)
 
 
-def _serialize_uuid(u):
-    return str(u)
+def serialize_uuid(u):
+    return str(u) if u else None
 
 
 def _deserialize_tags(tags):
@@ -401,7 +542,7 @@ def _serialize_tags(tags):
 
 def serialize_staleness_response(staleness):
     return {
-        "id": _serialize_uuid(staleness.id),
+        "id": serialize_uuid(staleness.id),
         "org_id": staleness.org_id,
         "conventional_time_to_stale": staleness.conventional_time_to_stale,
         "conventional_time_to_stale_warning": staleness.conventional_time_to_stale_warning,
@@ -434,9 +575,33 @@ class _WorkloadCompatConfig(TypedDict, total=False):
     flat_fields: dict[str, str]
 
 
+def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
+    """
+    Map host_type values for backward compatibility with downstream apps.
+
+    Downstream applications only recognize 'edge' as a special value.
+    All other values (bootc, conventional, cluster) should be mapped to empty string
+    to maintain backward compatibility.
+
+    Args:
+        host_type: The host_type value from the database/system profile
+
+    Returns:
+        str: Backward-compatible host_type value:
+            - "edge" for actual edge systems (only explicit "edge")
+            - "" (empty string) for all other types (bootc, conventional, cluster, etc.)
+
+    Note:
+        This mapping is only applied to Kafka events, not API responses.
+        API responses return the actual database values.
+    """
+    return "edge" if host_type == "edge" else ""
+
+
 def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     """
-    Populate legacy workload fields with data from workloads.* for backward compatibility.
+    Populate legacy workload fields with data from workloads.* for backward compatibility,
+    and remove None values from workloads.* to comply with OpenAPI spec.
 
     This ensures subscribers can transition from legacy root-level fields to the new
     workloads structure for SAP, Ansible, InterSystems, MSSQL, and CrowdStrike.
@@ -498,6 +663,8 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
                 "falcon_version": "falcon_version",
             },
         },
+        # Note: rhel_ai is NOT included in backward compatibility because the legacy
+        # structure differs from workloads.rhel_ai (unified gpu_models array of objects).
     }
 
     for wl_key, cfg in COMPAT_CONFIG.items():
@@ -505,30 +672,102 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
         if not data:
             continue
 
+        # Remove None values from workloads.* to comply with OpenAPI spec
+        none_keys = [k for k, v in data.items() if v is None]
+        for k in none_keys:
+            del data[k]
+
         # ensure nested path exists
         target = system_profile
         for p in cfg["path"]:
             target = target.setdefault(p, {})
 
-        # copy each mapped field
+        # copy each mapped field (skip None values to comply with OpenAPI spec)
         for new_field, out_key in cfg["fields"].items():
-            if new_field in data:
+            if data.get(new_field) is not None:
                 target[out_key] = data[new_field]
 
         # handle any top‐level “flat” mappings
         for new_field, out_key in cfg.get("flat_fields", {}).items():
-            if new_field in data:
+            if data.get(new_field) is not None:
                 system_profile[out_key] = data[new_field]
 
     return system_profile
 
 
+def _normalize_per_reporter_value(value):
+    """
+    Normalize a per-reporter value into a canonical dict.
+
+    Accepts:
+      - Old format: {"last_check_in": <str>, ...}
+      - New format: <dt or str> (the last_check_in itself)
+
+    Returns a dict with:
+      - "last_check_in": datetime
+
+      - plus any extra keys from the old format
+    """
+    if isinstance(value, dict):
+        raw = value.get("last_check_in")
+        dt = _deserialize_datetime(raw) if isinstance(raw, str) else raw
+        return {
+            **value,
+            "last_check_in": dt,
+        }
+    # New format: value is last_check_in
+    dt = _deserialize_datetime(value) if isinstance(value, str) else value
+    return {
+        "last_check_in": dt,
+    }
+
+
+def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever):
+    """Return stale/stale_warning/culled timestamps; use far-future if forever is True."""
+    if forever:
+        return {
+            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+        }
+    return {
+        "stale_timestamp": staleness_timestamps.stale_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale"]
+        ),
+        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale_warning"]
+        ),
+        "culled_timestamp": staleness_timestamps.culled_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_delete"]
+        ),
+    }
+
+
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    result = {}
+    """
+    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
+    stale_warning_timestamp, and culled_timestamp.
+
+    Supports two input formats per reporter:
+    - Old format: value is a dict with "last_check_in" (string)
+    - New format: value is the last_check_in string itself
+    """
+    forever = should_host_stay_fresh_forever(host)
 
     for reporter, value in host.per_reporter_staleness.items():
-        # Detect format: if value is a string, it's the flat format; if dict, it's legacy format
-        is_flat_format = isinstance(value, str)
+        normalized = _normalize_per_reporter_value(value)
+        last_check_in_dt = normalized["last_check_in"]
+
+        ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
+
+        serialized = {
+            **normalized,
+            "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
+            "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
+            "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
+            "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        }
+        host.per_reporter_staleness[reporter] = serialized
 
         if is_flat_format:
             # New flat format: value is the last_check_in timestamp string

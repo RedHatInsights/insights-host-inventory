@@ -19,4 +19,23 @@ coverage.xml
 sonarqube/
 .hermetic_builds/ubi.repo
 
-.claude/
+.claude/hooks/*.log
+.claude/settings.local.json
+
+.vscode/
+.hypothesis/
+
+tools/simple-test/output.json
+
+# IQE test suite
+iqe-host-inventory-plugin/venv/
+iqe-host-inventory-plugin/.venv/
+iqe-host-inventory-plugin/__pycache__/
+iqe-host-inventory-plugin/**/__pycache__/
+iqe-host-inventory-plugin/*.egg-info/
+iqe-host-inventory-plugin/.pytest_cache/
+iqe-host-inventory-plugin/htmlcov/
+iqe-host-inventory-plugin/.coverage
+
+# worktrees
+worktrees/

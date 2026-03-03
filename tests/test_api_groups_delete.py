@@ -9,6 +9,7 @@ from app.auth.identity import to_auth_header
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import mocked_delete_workspace_empty_response
 from tests.helpers.api_utils import mocked_post_workspace_not_found
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -21,6 +22,33 @@ def test_delete_non_existent_group(api_delete_groups):
     response_status, _ = api_delete_groups([group_id])
 
     assert_response_status(response_status, expected_status=404)
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_response_includes_missing_ids(api_delete_groups):
+    # Verify that 404 response includes the not_found_ids field
+    group_id = generate_uuid()
+
+    response_status, response_data = api_delete_groups([group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [group_id]
+    assert response_data["detail"] == "One or more groups not found."
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_with_missing_group_id_response_includes_only_missing_ids(db_create_group, api_delete_groups):
+    # Verify 404 response only includes the missing ID, not the valid one
+    valid_group_id = str(db_create_group("test_group").id)
+    missing_group_id = generate_uuid()
+
+    response_status, response_data = api_delete_groups([valid_group_id, missing_group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    assert "not_found_ids" in response_data
+    assert response_data["not_found_ids"] == [missing_group_id]
+    assert valid_group_id not in response_data["not_found_ids"]
 
 
 def test_delete_with_invalid_group_id(api_delete_groups):
@@ -51,6 +79,42 @@ def test_remove_hosts_from_nonexistent_group(db_create_host, api_remove_hosts_fr
     assert response_status == 404
 
     assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_remove_hosts_from_group_RBAC_denied(
+    subtests, mocker, db_create_group, db_create_host, api_remove_hosts_from_group
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(db_create_group("new_group").id)
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_remove_hosts_from_group(group_id, [str(host) for host in host_id_list[:2]])
+
+            assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_remove_hosts_from_group_RBAC_denied_missing_group(
+    subtests, mocker, db_create_host, api_remove_hosts_from_group
+):
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    group_id = str(generate_uuid())
+
+    for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            host_id_list = [db_create_host().id for _ in range(3)]
+            response_status, _ = api_remove_hosts_from_group(group_id, [str(host) for host in host_id_list[:2]])
+
+            assert_response_status(response_status, 404)
 
 
 def test_remove_hosts_from_someone_elses_group(
@@ -238,41 +302,6 @@ def test_delete_hosts_from_different_groups_RBAC_denied(
     assert event_producer.write_event.call_count == 0
 
 
-def test_delete_hosts_no_group(
-    db_create_group,
-    db_create_host,
-    db_get_hosts_for_group,
-    db_create_host_group_assoc,
-    api_remove_hosts_from_diff_groups,
-    event_producer,
-    mocker,
-):
-    mocker.patch.object(event_producer, "write_event")
-
-    group_id = str(db_create_group("test_group1").id)
-    host_id_list = [str(db_create_host().id) for _ in range(2)]
-
-    # Add one host to the group
-    db_create_host_group_assoc(host_id_list[0], group_id)
-
-    # Confirm that the associations exist
-    hosts_before = db_get_hosts_for_group(group_id)
-    assert len(hosts_before) == 1
-
-    response_status, _ = api_remove_hosts_from_diff_groups(host_id_list)
-    assert_response_status(response_status, 204)
-
-    # Confirm that the host was removed from the group
-    hosts1_after = db_get_hosts_for_group(group_id)
-    assert len(hosts1_after) == 0
-
-    assert event_producer.write_event.call_count == 1
-    for call_arg in event_producer.write_event.call_args_list:
-        host = json.loads(call_arg[0][0])["host"]
-        assert host["id"] == host_id_list[0]
-        assert host["groups"][0]["ungrouped"] is True
-
-
 @pytest.mark.usefixtures("event_producer")
 def test_delete_non_empty_group(api_delete_groups, db_create_group_with_hosts):
     group = db_create_group_with_hosts("non_empty_group", 3)
@@ -289,9 +318,7 @@ def test_attempt_delete_group_read_only(api_delete_groups, mocker):
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts, mocker):
-    mocker.patch("api.group.get_flag_value", return_value=True)
-
+def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_group_with_hosts):
     group = db_create_group_with_hosts("non_empty_group", 3)
 
     response_status, rd = api_delete_groups([group.id])
@@ -299,12 +326,11 @@ def test_delete_non_empty_group_workspace_enabled(api_delete_groups, db_create_g
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group, mocker):
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        group_id = str(db_create_group("test_group").id)
+def test_delete_empty_group_workspace_enabled(api_delete_groups, db_create_group):
+    group_id = str(db_create_group("test_group").id)
 
-        response_status, _ = api_delete_groups([group_id])
-        assert_response_status(response_status, expected_status=204)
+    response_status, _ = api_delete_groups([group_id])
+    assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.parametrize("num_hosts_to_remove", [1, 2, 3])
@@ -422,12 +448,11 @@ def test_delete_ungrouped_group_post_kessel_migration(
 
 
 @pytest.mark.usefixtures("event_producer")
-def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups, mocker):
+def test_delete_multiple_groups(db_create_group, db_create_group_with_hosts, api_delete_groups):
     non_empty_group = db_create_group_with_hosts("non_empty_group", 3)
     empty_group = db_create_group("empty_group")
-    with mocker.patch("api.group.get_flag_value", return_value=True):
-        response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
-        assert_response_status(response_status, expected_status=204)
+    response_status, _ = api_delete_groups([non_empty_group.id, empty_group.id])
+    assert_response_status(response_status, expected_status=204)
 
 
 @pytest.mark.usefixtures("enable_kessel", "event_producer")
@@ -454,14 +479,38 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
     )
     get_rbac_permissions_mock.return_value = mock_rbac_response
 
-    # Turn on the Kessel flag
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    # Mock the metrics context manager bc we don't care about it here
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        response_status, _ = api_delete_groups_kessel([group_id])
+        assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_delete_workspace_empty_response)
+def test_delete_existing_group_kessel_empty_response(api_delete_groups_kessel, db_create_group, mocker):
+    """
+    Test that deleting a group succeeds when Kessel returns HTTP 204 with an empty response body.
+    Before the fix, an empty response body would cause a JSONDecodeError, resulting in HTTP 503.
+    After the fix, the API should handle this gracefully and return HTTP 204.
+    """
+    group_id = db_create_group("test group").id
+
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
 
     # Mock the metrics context manager bc we don't care about it here
     with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
         mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
 
         response_status, _ = api_delete_groups_kessel([group_id])
+        # Should succeed with 204, not fail with 503 due to JSONDecodeError
         assert_response_status(response_status, expected_status=204)
 
 
@@ -511,4 +560,59 @@ def test_delete_host_from_nonexistent_group(
     response_status, response_data = api_remove_hosts_from_group(str(generate_uuid()), [host_id])
 
     assert_response_status(response_status, 404)
-    assert "Group not found" in response_data["detail"]
+    assert "Group" in response_data["detail"] and "not found" in response_data["detail"]
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
+@mock.patch("requests.Session.delete", new=mocked_post_workspace_not_found)
+def test_delete_group_with_hosts_not_in_rbac_after_workspace_event(
+    api_delete_groups_kessel, db_create_group, db_create_group_with_hosts, mocker
+):
+    """Regression test: deleting a group with hosts that exists in HBI but not in RBAC.
+
+    Before the fix, wait_for_workspace_event contaminated the SQLAlchemy connection
+    pool by setting ISOLATION_LEVEL_AUTOCOMMIT on the session's underlying psycopg2
+    connection. When a subsequent request tried to delete a group (with hosts) that
+    didn't exist in RBAC, db.session.begin_nested() in _remove_all_hosts_from_group
+    would fail with 'SAVEPOINT can only be used in transaction blocks'.
+    """
+    from app.queue.events import EventType
+    from lib.group_repository import wait_for_workspace_event
+
+    # Step 1: Create a "seed" group so wait_for_workspace_event can find it
+    # in the DB and return early (without needing actual LISTEN/NOTIFY).
+    seed_group = db_create_group("seed_group")
+
+    # Step 2: Call wait_for_workspace_event. With the old code
+    # (db.session.connection().connection), this would set ISOLATION_LEVEL_AUTOCOMMIT
+    # on the session's underlying connection, contaminating it permanently.
+    # With the fix (psycopg2.connect()), a separate connection is used.
+    wait_for_workspace_event(str(seed_group.id), EventType.created, org_id=seed_group.org_id)
+
+    # Step 3: Create a group WITH hosts. The begin_nested() SAVEPOINT issue only
+    # manifests in _remove_all_hosts_from_group when moving hosts to ungrouped.
+    group_with_hosts = db_create_group_with_hosts("group_to_delete", num_hosts=2)
+
+    # Step 4: Mock RBAC permissions to allow the request.
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    # Mock ungrouped workspace creation (RBAC API call).
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    # Mock the metrics context manager.
+    with mock.patch("lib.middleware.outbound_http_response_time") as mock_metric:
+        mock_metric.labels.return_value.time.return_value = contextlib.nullcontext()
+
+        # Step 5: Delete the group. RBAC returns 404 (workspace not found), so HBI
+        # should delete it from its own DB, moving hosts to the ungrouped group.
+        response_status, _ = api_delete_groups_kessel([group_with_hosts.id])
+
+        # Before the fix, this would fail with HTTP 500:
+        # InternalError('SAVEPOINT can only be used in transaction blocks')
+        assert_response_status(response_status, expected_status=204)

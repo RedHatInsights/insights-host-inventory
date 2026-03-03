@@ -1,4 +1,5 @@
 from prometheus_client import Counter
+from prometheus_client import Gauge
 from prometheus_client import Info
 from prometheus_client import Summary
 
@@ -98,4 +99,27 @@ export_service_message_handler_failure = Counter(
 )
 export_service_message_handler_time = Summary(
     "export_service_message_handler_seconds", "Total time spent handling messages from the export service queue"
+)
+
+# Host App Data metrics
+host_app_message_handler_time = Summary(
+    "inventory_host_app_message_handler_seconds", "Total time spent handling host app data messages"
+)
+host_app_data_message_parsing_time = Summary(
+    "inventory_host_app_data_message_parsing_seconds", "Time spent parsing a host app data message"
+)
+host_app_data_processing_success = Counter(
+    "inventory_host_app_data_processing_successes",
+    "Total number of host app data records successfully processed",
+    ["application", "org_id"],
+)
+host_app_data_failure = Counter(
+    "inventory_host_app_data_failures",
+    "Total number of host app data failures (parsing, validation, processing)",
+    ["application", "reason"],
+)
+host_app_data_last_processed_timestamp = Gauge(
+    "inventory_host_app_data_last_processed_timestamp",
+    "Unix timestamp of the last successfully processed message for each application",
+    ["application", "org_id"],
 )

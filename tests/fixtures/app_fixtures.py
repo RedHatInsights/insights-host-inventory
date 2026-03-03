@@ -1,6 +1,7 @@
 # mypy: disallow-untyped-defs
 
 from collections.abc import Generator
+from copy import deepcopy
 
 import pytest
 from connexion import FlaskApp
@@ -25,12 +26,16 @@ def new_flask_app(database: str) -> Generator[FlaskApp]:  # noqa: ARG001
 
         db.session.remove()
         db.drop_all()
+        db.engine.dispose()
 
 
 @pytest.fixture(scope="function")
 def flask_app(new_flask_app: FlaskApp) -> Generator[FlaskApp]:
+    original_app_config = deepcopy(new_flask_app.app.config)
+
     yield new_flask_app
 
+    new_flask_app.app.config = original_app_config
     clean_tables()
 
 
