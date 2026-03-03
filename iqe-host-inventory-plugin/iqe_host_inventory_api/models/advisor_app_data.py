@@ -27,11 +27,34 @@ class AdvisorAppData:
       attribute_map (dict): The key is attribute name
                             and the value is json key in definition.
     """
-    openapi_types = {"recommendations": "int", "incidents": "int"}
+    openapi_types = {
+        "recommendations": "int",
+        "incidents": "int",
+        "critical": "int",
+        "important": "int",
+        "moderate": "int",
+        "low": "int",
+    }
 
-    attribute_map = {"recommendations": "recommendations", "incidents": "incidents"}
+    attribute_map = {
+        "recommendations": "recommendations",
+        "incidents": "incidents",
+        "critical": "critical",
+        "important": "important",
+        "moderate": "moderate",
+        "low": "low",
+    }
 
-    def __init__(self, recommendations=None, incidents=None, local_vars_configuration=None):
+    def __init__(
+        self,
+        recommendations=None,
+        incidents=None,
+        critical=None,
+        important=None,
+        moderate=None,
+        low=None,
+        local_vars_configuration=None,
+    ):
         """AdvisorAppData - a model defined in OpenAPI"""
         if local_vars_configuration is None:
             local_vars_configuration = Configuration()
@@ -39,10 +62,18 @@ class AdvisorAppData:
 
         self._recommendations = None
         self._incidents = None
+        self._critical = None
+        self._important = None
+        self._moderate = None
+        self._low = None
         self.discriminator = None
 
         self.recommendations = recommendations
         self.incidents = incidents
+        self.critical = critical
+        self.important = important
+        self.moderate = moderate
+        self.low = low
 
     @property
     def recommendations(self):
@@ -101,6 +132,118 @@ class AdvisorAppData:
             )
 
         self._incidents = incidents
+
+    @property
+    def critical(self):
+        """Gets the critical of this AdvisorAppData.  # noqa: E501
+
+
+        :return: The critical of this AdvisorAppData.  # noqa: E501
+        :rtype: int
+        """
+        return self._critical
+
+    @critical.setter
+    def critical(self, critical):
+        """Sets the critical of this AdvisorAppData.
+
+
+        :param critical: The critical of this AdvisorAppData.  # noqa: E501
+        :type: int
+        """
+        if (
+            self.local_vars_configuration.client_side_validation
+            and critical is not None
+            and critical < 0
+        ):
+            raise ValueError(
+                "Invalid value for `critical`, must be a value greater than or equal to `0`"
+            )
+
+        self._critical = critical
+
+    @property
+    def important(self):
+        """Gets the important of this AdvisorAppData.  # noqa: E501
+
+
+        :return: The important of this AdvisorAppData.  # noqa: E501
+        :rtype: int
+        """
+        return self._important
+
+    @important.setter
+    def important(self, important):
+        """Sets the important of this AdvisorAppData.
+
+
+        :param important: The important of this AdvisorAppData.  # noqa: E501
+        :type: int
+        """
+        if (
+            self.local_vars_configuration.client_side_validation
+            and important is not None
+            and important < 0
+        ):
+            raise ValueError(
+                "Invalid value for `important`, must be a value greater than or equal to `0`"
+            )
+
+        self._important = important
+
+    @property
+    def moderate(self):
+        """Gets the moderate of this AdvisorAppData.  # noqa: E501
+
+
+        :return: The moderate of this AdvisorAppData.  # noqa: E501
+        :rtype: int
+        """
+        return self._moderate
+
+    @moderate.setter
+    def moderate(self, moderate):
+        """Sets the moderate of this AdvisorAppData.
+
+
+        :param moderate: The moderate of this AdvisorAppData.  # noqa: E501
+        :type: int
+        """
+        if (
+            self.local_vars_configuration.client_side_validation
+            and moderate is not None
+            and moderate < 0
+        ):
+            raise ValueError(
+                "Invalid value for `moderate`, must be a value greater than or equal to `0`"
+            )
+
+        self._moderate = moderate
+
+    @property
+    def low(self):
+        """Gets the low of this AdvisorAppData.  # noqa: E501
+
+
+        :return: The low of this AdvisorAppData.  # noqa: E501
+        :rtype: int
+        """
+        return self._low
+
+    @low.setter
+    def low(self, low):
+        """Sets the low of this AdvisorAppData.
+
+
+        :param low: The low of this AdvisorAppData.  # noqa: E501
+        :type: int
+        """
+        if self.local_vars_configuration.client_side_validation and low is not None and low < 0:
+            raise ValueError(
+                "Invalid value for `low`, must be a value greater than or equal to `0`"
+            )
+
+        self._low = low
 
     def to_dict(self):
         """Returns the model properties as a dict"""
