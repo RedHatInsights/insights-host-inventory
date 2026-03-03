@@ -22,7 +22,6 @@ from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.tests.rest.test_culling import gen_fresh_date
 from iqe_host_inventory.tests.rest.test_culling import gen_stale_date
 from iqe_host_inventory.tests.rest.test_culling import gen_stale_warning_date
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_DATETIMES
 from iqe_host_inventory.utils import determine_positive_hosts_by_registered_with
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils import get_account_number
@@ -31,6 +30,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import temp_headers
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_REGISTERED_WITH_VALUES
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_DATETIMES
 from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_provider_type

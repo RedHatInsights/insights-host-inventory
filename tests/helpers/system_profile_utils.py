@@ -61,7 +61,7 @@ def mock_system_profile_specification(mock_spec):
         clear_schema_cache()
 
 
-INVALID_SYSTEM_PROFILES = (
+INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"infrastructure_type": "x" * 101},
     {"infrastructure_vendor": "x" * 101},
     {"network_interfaces": [{"mac_address": "x" * 60}]},
@@ -530,6 +530,23 @@ INVALID_SYSTEM_PROFILES = (
             "version": "x" * 35,
         }
     },
+    {"threads_per_core": 2147483648},  # over max
+    {"virtual_host_uuid": "not-a-uuid"},  # invalid UUID
+    {"systemd": {}},  # missing required fields
+    {"systemd": {"failed": -1, "jobs_queued": 4, "state": "running"}},  # negative integer
+    {"systemd": {"failed": 1, "jobs_queued": 4, "state": "invalid"}},  # bad enum
+    {"systemd": [{"failed": 1, "state": "running", "jobs_queued": 0}]},  # list not object
+    {"number_of_cpus": -1},  # below min integer
+    {"threads_per_core": -1},  # below min integer
+    {"network_interfaces": [{"name": ""}]},  # string below min_len (min=1)
+    {"os_kernel_version": "3.10"},  # too few segments
+    {"os_kernel_version": "3.10."},  # trailing dot, no last segment
+    {"os_kernel_version": "3,10,5"},  # commas not dots
+    {"os_kernel_version": "3.10.5."},  # trailing dot after segment
+    {"os_kernel_version": "12345.67890.12345.678"},  # last segment too long
+    {"os_kernel_version": ["3.10.0"]},  # list instead of string
+    {"os_kernel_version": "1234567890"},  # digits only, no dots
+    {"workloads": [{"sap": {}}]},  # list instead of object
     {"system_update_method": "inv_method"},
     {
         "conversions": {  # Must be a boolean, not a string
@@ -833,7 +850,7 @@ INVALID_SYSTEM_PROFILES = (
 )
 
 
-VALID_SYSTEM_PROFILES = (
+VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"infrastructure_type": "x" * 100},
     {"infrastructure_vendor": "x" * 100},
     {"network_interfaces": [{"mac_address": "BD0DC5FB4235"}]},
@@ -904,7 +921,7 @@ VALID_SYSTEM_PROFILES = (
     {"tuned_profile": "x" * 256},
     {"selinux_current_mode": "enforcing"},
     {"selinux_config_file": "permissive"},
-    {"owner_id": "22cd8e39-13bb-4d02-8316-84b850dc5136"},
+    {"owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378"},
     {"rhc_client_id": "22cd8e39-13bb-4d02-8316-84b850dc5136"},
     {"rhc_config_state": "22cd8e39-13bb-4d02-8316-84b850dc5136"},
     {"cpu_model": "Intel(R) Xeon(R) CPU E5-2690 0 @ 2.90GHz"},
@@ -1124,4 +1141,27 @@ VALID_SYSTEM_PROFILES = (
             },
         }
     },
+    {"number_of_cpus": 0},  # integer min boundary
+    {"number_of_cpus": 2147483647},  # integer max boundary
+    {"threads_per_core": 0},  # integer min boundary
+    {"threads_per_core": 4},
+    {"virtual_host_uuid": "22cd8e39-13bb-4d02-8316-84b850dc5136"},
+    {"infrastructure_type": ""},  # string min boundary (min_len=0)
+    {"cpu_flags": []},  # empty array is valid
+    {"installed_packages": []},  # empty array is valid
+    {"yum_repos": [{"name": "insights-test-\u00e7"}]},  # non-ASCII unicode (ç)
+    {"systemd": {"failed": 1, "jobs_queued": 4, "state": "running", "failed_services": ["ex1"]}},
+    {"systemd": {"failed": 0, "jobs_queued": 0, "state": "degraded"}},
+    {"last_boot_time": "2021-09-02T16:45:08.951Z"},
+    {"last_boot_time": "2021-09-02T16:45:08.951"},
+    {"last_boot_time": "2018-07-24T16:23:34+00:00"},
+    {"last_boot_time": "2021-08-30T03:42:02.284573+00:00"},
+    {"last_boot_time": "2021-08-30T03:42:02.284573Z"},
+    {"last_boot_time": "2021-08-30T03:42:02.284573"},
+    {"captured_date": "2021-08-30T03:42:02.284573+00:00"},
+    {"os_kernel_version": "3.10.0.5"},
+    {"os_kernel_version": "12345.67890.12345.67"},
+    {"workloads": {"sap": {}}},
+    {"workloads": {"ansible": {}}},
+    {"workloads": {"mssql": {}}},
 )

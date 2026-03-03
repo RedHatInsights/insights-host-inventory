@@ -51,7 +51,6 @@ from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
-from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SATELLITE_IDENTITY
@@ -969,17 +968,6 @@ def test_add_host_empty_keys_system_profile(mocker, mq_create_or_update_host):
 def test_add_host_with_invalid_system_update_method(mocker, mq_create_or_update_host):
     mock_notification_event_producer = mocker.Mock()
     system_profile = {"owner_id": OWNER_ID, "system_update_method": "Whooping-cranes"}
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
-
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
-@pytest.mark.system_profile
-@pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
-def test_add_host_long_values_system_profile(mocker, mq_create_or_update_host, system_profile):
-    mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
 
     with pytest.raises(ValidationException):
