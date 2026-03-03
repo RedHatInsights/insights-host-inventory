@@ -1974,6 +1974,7 @@ objects:
         query: >-
           SELECT
             "id",
+            "h"."org_id" AS "org_id",
             "account" AS "account_number",
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
