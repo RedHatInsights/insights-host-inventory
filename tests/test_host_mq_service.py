@@ -20,6 +20,8 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
+from api.host_query import staleness_timestamps
+from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -3197,6 +3199,50 @@ def test_write_add_update_event_message(mocker):
     # Assert that all group fields were present when calling mock_set_cached_system
     cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
     assert cached_group == serialized_group
+
+
+def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, mocker, db_create_host):
+    """
+    MQ path: host with new-format per_reporter_staleness (value is datetime string)
+    is serialized correctly in the event message (output is full dict per reporter).
+    """
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+
+    host = db_create_host(
+        extra_data={
+            "subscription_manager_id": generate_uuid(),
+            "reporter": "puptoo",
+            "org_id": USER_IDENTITY["org_id"],
+        }
+    )
+    # Ensure host is fully loaded in session state (avoids expired state when
+    # before_update runs on flush so flag_modified(host, "modified_on") succeeds).
+    _ = host.modified_on
+    # New DB format: reporter value is the last_check_in datetime string only
+    host.per_reporter_staleness = {"puptoo": "2024-06-15T10:00:00+00:00"}
+
+    with flask_app.app.app_context():
+        st = staleness_timestamps()
+        staleness_obj = get_staleness_obj(USER_IDENTITY["org_id"])
+
+        result = OperationResult(
+            row=host,
+            pm={"request_id": "mq-test"},
+            st=st,
+            so=staleness_obj,
+            et=EventType.created,
+            sl=mocker.Mock(),
+        )
+        write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+
+        event_payload = json.loads(mock_event_producer.write_event.call_args[0][0])
+        prs = event_payload["host"]["per_reporter_staleness"]["puptoo"]
+        assert isinstance(prs, dict)
+        assert prs["last_check_in"] == "2024-06-15T10:00:00+00:00"
+        assert "stale_timestamp" in prs
+        assert "stale_warning_timestamp" in prs
+        assert "culled_timestamp" in prs
 
 
 @pytest.mark.parametrize("provider_type", ["alibaba", "aws", "azure", "discovery", "gcp", "ibm"])
