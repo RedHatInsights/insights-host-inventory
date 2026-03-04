@@ -556,6 +556,8 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
     group3_id = str(group3.id)
 
     # Mock feature flag
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=flag_enabled)
 
     # Mock get_rbac_workspaces to return matching workspaces (only called if flag enabled)
@@ -653,6 +655,8 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     in test_get_groups_rbac_v2_ordering_by_host_count() and related tests.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock get_rbac_workspaces
@@ -688,6 +692,8 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     This test will FAIL if the code incorrectly relies on RBAC v2 API to sort by host_count.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Create mock workspaces in a specific order (by name)
@@ -748,6 +754,8 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
     Groups with same host_count should be ordered alphabetically by name.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Create mock workspaces - some with same host counts
@@ -813,6 +821,8 @@ def test_get_groups_rbac_v2_ordering_by_host_count_too_many_groups(mocker, api_g
     to use filters to narrow results.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock RBAC v2 returning 3500 total groups (exceeds MAX_GROUPS_FOR_HOST_COUNT_SORTING of 3000)
@@ -845,6 +855,8 @@ def test_get_groups_rbac_v2_ordering_by_host_count_timeout(mocker, api_get):
     even when using the special host_count sorting code path.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock get_rbac_workspaces to raise Timeout exception
@@ -868,6 +880,8 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
     Python's sort should provide stable ordering (preserves original order for equal values).
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock RBAC v2 returning 3 workspaces in specific order
@@ -929,6 +943,8 @@ def test_get_groups_rbac_v2_parameter_passing(
     Note: group_type=all fetches all workspace types including root and default.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock get_rbac_workspaces
@@ -976,6 +992,8 @@ def test_get_groups_rbac_v2_with_rbac_permissions(mocker, api_get):
     be redundant - RBAC v2 already knows what the user can access.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock RBAC permissions (RBAC v1 still runs for backward compatibility during migration)
@@ -1049,6 +1067,9 @@ def test_get_groups_rbac_v2_api_connection_error(mocker, api_get):
     Test GET /groups when RBAC v2 API connection fails.
     Should return 503 Service Unavailable when RBAC v2 API is unreachable.
     """
+    # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     mocker.patch(
@@ -1066,6 +1087,9 @@ def test_get_groups_rbac_v2_api_timeout(mocker, api_get):
     Test GET /groups when RBAC v2 API request times out.
     Should return 503 Service Unavailable when RBAC v2 API times out.
     """
+    # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     mocker.patch(
@@ -1086,6 +1110,8 @@ def test_get_groups_rbac_v2_invalid_order_by(mocker, api_get):
     Should return 400 Bad Request for unsupported ordering fields.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Try to order by invalid field (not in API spec)
@@ -1106,6 +1132,8 @@ def test_get_groups_rbac_v2_no_workspace_permissions(mocker, api_get):
     Should return empty results when user is not authorized to view any workspaces.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock RBAC permissions with empty resource definitions (no workspaces accessible)
@@ -1137,6 +1165,8 @@ def test_get_groups_rbac_v2_malformed_workspace_response(mocker, api_get):
     Should return HTTP 503 when workspace objects are missing required fields.
     """
     # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.get_flag_value", return_value=True)
 
     # Mock malformed workspace (missing required 'id' field)
