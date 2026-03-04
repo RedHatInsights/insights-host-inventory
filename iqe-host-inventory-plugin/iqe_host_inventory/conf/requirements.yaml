@@ -798,3 +798,7 @@ inv-host-apps-topic:
     processes these messages and stores the application data in the inventory read-model tables.
     The data is then available via the /hosts-view endpoint.
   priority: high
+
+inv-host-views-filter:
+  summary: Users can filter data through the `GET /beta/hosts-view` endpoint
+  priority: high
