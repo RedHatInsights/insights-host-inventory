@@ -291,6 +291,10 @@ class TestCheckMethodIntegration:
         # Mock _check_single_resource to track calls
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
 
+        # Mock CheckBulk to verify it's NOT called
+        mock_check_bulk = mocker.Mock()
+        kessel_client.inventory_svc.CheckBulk = mock_check_bulk
+
         resource_ids = ["host-1", "host-2"]
 
         # Call check() which should delegate to _check_bulk_resources
@@ -298,6 +302,10 @@ class TestCheckMethodIntegration:
 
         # Verify single checks were used (not bulk API)
         assert mock_check_single.call_count == len(resource_ids)
+
+        # Verify bulk API was NOT called when flag enabled
+        mock_check_bulk.assert_not_called()
+
         assert result is True
         assert unauthorized_ids == []
 
@@ -315,6 +323,9 @@ class TestCheckMethodIntegration:
         # Mock _build_subject_reference
         mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
 
+        # Mock _check_single_resource to verify it's NOT called
+        mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource")
+
         resource_ids = ["host-1", "host-2"]
 
         # Mock the bulk CheckBulk response
@@ -331,6 +342,10 @@ class TestCheckMethodIntegration:
 
         # Verify bulk API was used
         assert kessel_client.inventory_svc.CheckBulk.call_count == 1
+
+        # Verify single-resource checks were NOT called when flag disabled
+        mock_check_single.assert_not_called()
+
         assert result is True
         assert unauthorized_ids == []
 
