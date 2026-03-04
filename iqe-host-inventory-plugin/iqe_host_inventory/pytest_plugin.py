@@ -10,6 +10,7 @@ pytest_plugins = [
     "iqe_host_inventory.fixtures.exports_fixtures",
     "iqe_host_inventory.fixtures.filter_fixtures",
     "iqe_host_inventory.fixtures.groups_fixtures",
+    "iqe_host_inventory.fixtures.host_views_fixtures",
     "iqe_host_inventory.fixtures.cleanup_fixtures",
     "iqe_host_inventory.fixtures.identity_fixtures",
     "iqe_host_inventory.fixtures.kafka_fixtures",

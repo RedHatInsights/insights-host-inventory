@@ -1409,6 +1409,10 @@ HOST_APPS_: list[dict[str, Any]] = [
         "fields": (
             HostAppField("recommendations", "int", 5),
             HostAppField("incidents", "int", 2),
+            HostAppField("critical", "int", 3),
+            HostAppField("important", "int", 7),
+            HostAppField("moderate", "int", 4),
+            HostAppField("low", "int", 1),
         ),
     },
     {
