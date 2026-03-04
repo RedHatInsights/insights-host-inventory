@@ -13,6 +13,7 @@ FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_table
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
 FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
+FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS = "hbi.flattened_per_reporter_staleness"
 
 
 FLAG_FALLBACK_VALUES = {
@@ -23,6 +24,8 @@ FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
     FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY: True,
     FLAG_INVENTORY_KESSEL_GROUPS: False,
+    # Use when per_reporter_staleness has been flattened to store only timestamps
+    FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS: False,
 }
 
 
