@@ -23,18 +23,7 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture
-def mock_config():
-    """Create a mock config for Kessel initialization."""
-    config = Mock()
-    config.kessel_inventory_api_endpoint = "localhost:9000"
-    config.kessel_auth_enabled = False
-    config.kessel_insecure = True
-    config.kessel_timeout = 10.0
-    return config
-
-
-@pytest.fixture
-def kessel_client(mock_config, mocker):
+def kessel_client(mocker):
     """Create a Kessel client with mocked gRPC connection."""
     # Mock the ClientBuilder to avoid actual gRPC connection
     mock_inventory_svc = Mock()
@@ -43,7 +32,7 @@ def kessel_client(mock_config, mocker):
     mocker.patch("lib.kessel.ClientBuilder")
     mocker.patch.object(Kessel, "__init__", lambda _self, _config: None)
 
-    client = Kessel(mock_config)
+    client = Kessel(None)
     client.inventory_svc = mock_inventory_svc
     client.channel = mock_channel
     client.timeout = 10.0
@@ -125,9 +114,6 @@ class TestCheckBulkResourcesFeatureFlag:
         # Mock feature flag as enabled
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
 
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
-
         # Mock _check_single_resource to return True for all resources
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
 
@@ -158,9 +144,6 @@ class TestCheckBulkResourcesFeatureFlag:
         """
         # Mock feature flag as enabled
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
-
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
 
         resource_ids = ["host-1", "host-2", "host-3"]
 
@@ -227,9 +210,6 @@ class TestCheckBulkResourcesFeatureFlag:
         # Mock feature flag as enabled
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
 
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
-
         resource_ids = ["host-1", "host-2", "host-3"]
 
         # Mock _check_single_resource to return False for all resources
@@ -250,9 +230,6 @@ class TestCheckBulkResourcesFeatureFlag:
         """
         # Mock feature flag as enabled
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
-
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
 
         # Mock _check_single_resource
         mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
@@ -363,7 +340,7 @@ class TestCheckBulkResourcesEdgeCases:
             kessel_client._check_bulk_resources(mock_subject_ref, test_permission, [])
 
     def test_bulk_check_single_resource_not_affected_by_flag(
-        self, kessel_client, test_identity, test_permission, mock_subject_ref, mocker
+        self, kessel_client, test_identity, test_permission, mocker
     ):
         """
         Test that single resource check (len=1) bypasses the bulk logic entirely.
@@ -373,9 +350,6 @@ class TestCheckBulkResourcesEdgeCases:
         """
         # Mock feature flag (shouldn't matter for single resource)
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
-
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
 
         # Mock _check_single_resource
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
