@@ -71,7 +71,7 @@ Then run the setup script to install the updated dependencies.
 ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -k test_groups_remove_host
 
 # Run specific test by name
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory tests/rest/test_hosts.py::test_groups_remove_host
+ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory iqe-host-inventory-plugin/iqe_host_inventory/tests/rest/groups/test_groups_remove_hosts.py::test_groups_remove_host
 ```
 
 ### Common Test Commands
