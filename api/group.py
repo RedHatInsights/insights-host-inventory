@@ -42,7 +42,6 @@ from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
@@ -140,7 +139,8 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
-        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+        # Feature flag check for RBAC v2 integration
+        if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
             # RBAC v2 path: Query workspaces from RBAC v2 API
             # Special handling for host_count ordering: RBAC v2 doesn't have host count data
             if order_by == "host_count":
