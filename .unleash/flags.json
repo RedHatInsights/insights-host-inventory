@@ -66,6 +66,22 @@
             "createdAt": "2025-11-18T20:58:51.167Z"
         },
         {
+            "name": "hbi.api.kessel-force-single-checks-for-bulk",
+            "description": "Use single-resource checks instead of bulk checks for Kessel (RHINENG-24544).",
+            "type": "release",
+            "project": "default",
+            "stale": false,
+            "enabled": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2026-03-04T16:29:19.146Z"
+        },
+        {
             "name": "hbi.use_new_system_profile_tables",
             "description": "When turned ON, HBI will use the new system profile tables.",
             "type": "release",
