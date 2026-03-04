@@ -818,12 +818,11 @@ def get_sparse_system_profile(
     query_results = sp_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
 
-    # Build system profile dicts: skip None values, apply serializers
+    # Build system profile dicts in Python: skip None values, apply serializers
     result_list: list[dict[str, Any]] = []
     for item in query_results.items:
         system_profile = {}
-        for i, field_name in enumerate(sp_field_names):
-            value = item[i + 1]
+        for field_name, value in zip(sp_field_names, item[1:], strict=True):
             if value is not None:
                 serializer = SP_FIELD_SERIALIZERS.get(field_name)
                 system_profile[field_name] = serializer(value) if serializer else value
