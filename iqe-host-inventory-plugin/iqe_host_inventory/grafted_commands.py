@@ -309,3 +309,96 @@ def create_hosts_kafka(obj, number, user, display_name_prefix, reporter, timeout
             click.echo("Found events for all hosts. Hosts IDs:")
             for host in created_hosts:
                 click.echo(f"{host.host.display_name}: {host.host.id}")
+
+
+@host_inventory_group.command()
+@click.option("-n", "--number", help="Number of hosts to create", default=51)
+@click.option(
+    "--user",
+    help="C.R.C user from iqe-core or local config. (Default: insights_qa)",
+    default="insights_qa",
+)
+@click.option(
+    "--display-name-prefix", help="Display name prefix for hosts", default="rhiqe.example"
+)
+@click.option("--base-archive", help="Name of the base archive", default=None)
+@click.option("--archive-repo", help="IQE plugin with the archive", default=None)
+@click.option(
+    "--sleep",
+    "sleep_seconds",
+    help="Seconds to sleep after upload before querying",
+    default=30,
+    type=float,
+)
+@click.option(
+    "--cache-refresh-wait-time",
+    help="Seconds to sleep between API requests for cache refresh (0 to skip)",
+    default=20,
+    type=float,
+)
+@click.pass_obj
+def measure_api_get_times(
+    obj: Any,
+    number: int,
+    user: str,
+    display_name_prefix: str,
+    base_archive: str | None,
+    archive_repo: str | None,
+    sleep_seconds: float,
+    cache_refresh_wait_time: float,
+) -> None:
+    """
+    Uploads host archives, then benchmarks GET /host_exists and GET /hosts/<host_ids> API calls.
+
+    Creates hosts via archive upload, sleeps, then measures
+    the time for each GET /host_exists and GET /hosts/<host_ids> request.
+    Prints collected performance statistics at the end.
+    """
+    base_hostname: str = generate_display_name(panic_prevention=display_name_prefix)
+
+    click.echo(f"Building {number} insights archives...")
+    archives = [
+        build_host_archive(
+            display_name=f"{base_hostname}.test_{n:02}",
+            base_archive=base_archive,
+            archive_repo=archive_repo,
+        )
+        for n in range(number)
+    ]
+
+    with _app_with_maybe_user(obj.primary_application, user) as app:
+        host_inventory: ApplicationHostInventory = app.host_inventory
+
+        click.echo(f"Uploading {number} insights archives to ingress...")
+        host_inventory.upload.async_upload_archives(archives)
+        click.echo("All archives uploaded.")
+
+        click.echo(
+            f"Sleeping {sleep_seconds}s before querying to wait until the hosts are ready..."
+        )
+        time.sleep(sleep_seconds)
+
+        # --- Benchmark GET /host_exists ---
+        insights_ids: list[str] = [archive.insights_id for archive in archives]
+        host_ids: list[str] = []
+
+        click.echo(f"Calling GET /host_exists for {len(insights_ids)} hosts...")
+        for insights_id in insights_ids:
+            response = host_inventory.apis.hosts.get_host_exists(insights_id=insights_id)
+            host_ids.append(response.id)
+            if cache_refresh_wait_time > 0:
+                click.echo(f"Sleeping {cache_refresh_wait_time}s for cache refresh...")
+                time.sleep(cache_refresh_wait_time)
+
+        click.echo(f"Found {len(host_ids)} / {len(insights_ids)} hosts via GET /host_exists.")
+
+        # --- Benchmark GET /hosts/<host_ids> (all IDs in one request) ---
+        if host_ids:
+            click.echo(
+                f"Calling GET /hosts/<host_ids> for {len(host_ids)} hosts (single request)..."
+            )
+            host_inventory.apis.hosts.get_hosts_by_id(host_ids)
+
+        # --- Print collected stats ---
+        report: str = host_inventory.apis.log_request_statistics()
+        click.echo(report)
