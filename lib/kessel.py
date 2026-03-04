@@ -18,6 +18,8 @@ from app.auth.identity import Identity
 from app.auth.rbac import KesselPermission
 from app.config import Config
 from app.logging import get_logger
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK
+from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -245,6 +247,18 @@ class Kessel:
         """
         if not resource_ids:
             raise ValueError("resource_ids can't be empty")
+
+        # Check if feature flag forces single-resource checks instead of bulk
+        if get_flag_value(FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK):
+            logger.debug(
+                "Using single-resource checks instead of bulk (forced by feature flag)",
+                extra={"resource_ids_count": len(resource_ids)},
+            )
+            unauthorized_ids = []
+            for resource_id in resource_ids:
+                if not self._check_single_resource(subject_ref, permission, resource_id):
+                    unauthorized_ids.append(resource_id)
+            return len(unauthorized_ids) == 0, unauthorized_ids
 
         # Build bulk request items for all resources
         items = [
