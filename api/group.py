@@ -141,7 +141,9 @@ def get_group_list(
     try:
         # Feature flag check for RBAC v2 integration
         if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
-            # RBAC v2 path: Query workspaces from RBAC v2 API
+            # RBAC v2 path: rbac_filter is None (no RBAC v1 filter)
+            # Authorization is handled by get_rbac_workspaces() which uses user's identity header
+            # Query workspaces from RBAC v2 API
             # Special handling for host_count ordering: RBAC v2 doesn't have host count data
             if order_by == "host_count":
                 org_id = get_current_identity().org_id
@@ -289,8 +291,9 @@ def get_group_list(
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
-    # If there is an attribute filter on the RBAC permissions,
+    # RBAC v1 only: If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
+    # RBAC v2: rbac_filter is None, so this check is skipped
     if rbac_filter is not None:
         log_create_group_not_allowed(logger)
         abort(
@@ -371,7 +374,10 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
-    rbac_group_id_check(rbac_filter or {}, {group_id})
+    # RBAC v1 only: Validate group ID against RBAC v1 filter
+    # RBAC v2: Skip this check - authorization handled by database query (group must exist in org)
+    if not ((not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)):
+        rbac_group_id_check(rbac_filter or {}, {group_id})
 
     identity = get_current_identity()
 
@@ -412,7 +418,10 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
-    rbac_group_id_check(rbac_filter, set(group_id_list))
+    # RBAC v1 only: Validate group IDs against RBAC v1 filter
+    # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
+    if not ((not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)):
+        rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Abort with 404 if any of the groups do not exist
     found_groups = get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)
@@ -462,7 +471,10 @@ def get_groups_by_id(
     order_how=None,
     rbac_filter=None,
 ):
-    rbac_group_id_check(rbac_filter, set(group_id_list))
+    # RBAC v1 only: Validate group IDs against RBAC v1 filter
+    # RBAC v2: Skip this check - authorization handled by get_rbac_workspaces_by_ids()
+    if not ((not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)):
+        rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Feature flag check for RBAC v2 integration
     if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
@@ -511,7 +523,10 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    rbac_group_id_check(rbac_filter, requested_group_ids)
+    # RBAC v1 only: Validate group IDs against RBAC v1 filter
+    # RBAC v2: Skip this check - authorization handled by remove_hosts_from_group() for each group
+    if not ((not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)):
+        rbac_group_id_check(rbac_filter, requested_group_ids)
 
     found_hosts = get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()
     check_all_ids_found(host_id_list, found_hosts, "host")

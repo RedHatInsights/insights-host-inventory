@@ -37,6 +37,7 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.kessel import Kessel
@@ -481,6 +482,17 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
+            # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
+            # Authorization is handled by RBAC v2 workspace API calls within the endpoint
+            if (
+                resource_type == RbacResourceType.GROUPS
+                and not inventory_config().bypass_kessel
+                and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)
+            ):
+                # RBAC v2 path: No rbac_filter, authorization via workspace API
+                return func(*args, **kwargs)
+
+            # RBAC v1 path: Original authorization logic
             current_identity = get_current_identity()
 
             request_headers = _build_rbac_request_headers()
