@@ -23,7 +23,7 @@ from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture
-def kessel_client(mocker):
+def kessel_client(mocker) -> Kessel:
     """Create a Kessel client with mocked gRPC connection."""
     # Mock the ClientBuilder to avoid actual gRPC connection
     mock_inventory_svc = Mock()
@@ -32,7 +32,7 @@ def kessel_client(mocker):
     mocker.patch("lib.kessel.ClientBuilder")
     mocker.patch.object(Kessel, "__init__", lambda _self, _config: None)
 
-    client = Kessel(None)
+    client = Kessel(None)  # type: ignore[arg-type]
     client.inventory_svc = mock_inventory_svc
     client.channel = mock_channel
     client.timeout = 10.0
@@ -41,13 +41,13 @@ def kessel_client(mocker):
 
 
 @pytest.fixture
-def test_identity():
+def test_identity() -> Identity:
     """Create a test identity for Kessel checks."""
     return Identity(USER_IDENTITY)
 
 
 @pytest.fixture
-def test_permission():
+def test_permission() -> KesselPermission:
     """Create a test permission for host resources."""
     return KesselPermission(
         resource_type=KesselResourceTypes.HOST,
@@ -58,7 +58,7 @@ def test_permission():
 
 
 @pytest.fixture
-def mock_subject_ref():
+def mock_subject_ref() -> subject_reference_pb2.SubjectReference:
     """Create a real SubjectReference protobuf object for testing."""
     resource_ref = resource_reference_pb2.ResourceReference(
         resource_type="principal",
