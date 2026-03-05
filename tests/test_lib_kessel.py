@@ -72,8 +72,12 @@ class TestCheckBulkResourcesFeatureFlag:
     """Tests for _check_bulk_resources with feature flag control."""
 
     def test_bulk_check_with_flag_disabled_uses_bulk_api(
-        self, kessel_client, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that when feature flag is DISABLED (default), the method uses the bulk gRPC API.
 
@@ -104,8 +108,12 @@ class TestCheckBulkResourcesFeatureFlag:
         assert unauthorized_ids == []
 
     def test_bulk_check_with_flag_enabled_uses_single_checks(
-        self, kessel_client, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that when feature flag is ENABLED, the method uses single-resource checks in a loop.
 
@@ -134,8 +142,12 @@ class TestCheckBulkResourcesFeatureFlag:
         assert unauthorized_ids == []
 
     def test_bulk_check_with_flag_enabled_returns_unauthorized_ids(
-        self, kessel_client, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that when feature flag is ENABLED and some resources are unauthorized,
         the method returns the correct unauthorized IDs.
@@ -161,8 +173,12 @@ class TestCheckBulkResourcesFeatureFlag:
         assert unauthorized_ids == ["host-2"]
 
     def test_bulk_check_with_flag_disabled_returns_unauthorized_ids(
-        self, kessel_client, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that when feature flag is DISABLED and some resources are unauthorized,
         the bulk API returns the correct unauthorized IDs.
@@ -199,8 +215,12 @@ class TestCheckBulkResourcesFeatureFlag:
         assert unauthorized_ids == ["host-2"]
 
     def test_bulk_check_with_flag_enabled_all_unauthorized(
-        self, kessel_client, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that when feature flag is ENABLED and all resources are unauthorized,
         all IDs are returned.
@@ -222,7 +242,13 @@ class TestCheckBulkResourcesFeatureFlag:
         assert result is False
         assert set(unauthorized_ids) == set(resource_ids)
 
-    def test_bulk_check_with_flag_enabled_logging(self, kessel_client, test_permission, mock_subject_ref, mocker):
+    def test_bulk_check_with_flag_enabled_logging(
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that debug logging is emitted when feature flag forces single checks.
 
@@ -252,7 +278,9 @@ class TestCheckBulkResourcesFeatureFlag:
 class TestCheckMethodIntegration:
     """Integration tests for the check() method with feature flag."""
 
-    def test_check_with_multiple_ids_flag_enabled(self, kessel_client, test_identity, test_permission, mocker):
+    def test_check_with_multiple_ids_flag_enabled(
+        self, kessel_client: Kessel, test_identity: Identity, test_permission: KesselPermission, mocker
+    ) -> None:
         """
         Test that check() with multiple IDs uses _check_bulk_resources which respects the feature flag.
 
@@ -287,8 +315,13 @@ class TestCheckMethodIntegration:
         assert unauthorized_ids == []
 
     def test_check_with_multiple_ids_flag_disabled(
-        self, kessel_client, test_identity, test_permission, mock_subject_ref, mocker
-    ):
+        self,
+        kessel_client: Kessel,
+        test_identity: Identity,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+        mocker,
+    ) -> None:
         """
         Test that check() with multiple IDs uses bulk API when feature flag is disabled.
 
@@ -330,7 +363,12 @@ class TestCheckMethodIntegration:
 class TestCheckBulkResourcesEdgeCases:
     """Edge case tests for _check_bulk_resources."""
 
-    def test_bulk_check_empty_resource_ids_raises_error(self, kessel_client, test_permission, mock_subject_ref):
+    def test_bulk_check_empty_resource_ids_raises_error(
+        self,
+        kessel_client: Kessel,
+        test_permission: KesselPermission,
+        mock_subject_ref: subject_reference_pb2.SubjectReference,
+    ) -> None:
         """
         Test that passing empty resource_ids raises ValueError.
 
@@ -340,8 +378,8 @@ class TestCheckBulkResourcesEdgeCases:
             kessel_client._check_bulk_resources(mock_subject_ref, test_permission, [])
 
     def test_bulk_check_single_resource_not_affected_by_flag(
-        self, kessel_client, test_identity, test_permission, mocker
-    ):
+        self, kessel_client: Kessel, test_identity: Identity, test_permission: KesselPermission, mocker
+    ) -> None:
         """
         Test that single resource check (len=1) bypasses the bulk logic entirely.
         This is handled by check() method, not _check_bulk_resources.
