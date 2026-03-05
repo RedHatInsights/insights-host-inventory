@@ -131,8 +131,10 @@ class customURIParser(OpenAPIURIParser):
                         return parsed
                     # Parsed successfully but not a dict (shouldn't happen for '{' prefix)
                     raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' must be a JSON object.")
-                except (json.JSONDecodeError, ValueError) as e:
-                    raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' has invalid JSON: {e}") from e
+                except (json.JSONDecodeError, ValueError):
+                    # Not valid JSON - treat as regular string value
+                    # (e.g., os_release values like "{major}.{minor}" are not JSON)
+                    pass
             elif stripped.startswith("["):
                 # Check if it's actually a valid JSON array - only then reject it
                 # Strings that merely start with '[' but aren't valid JSON are treated as regular values
