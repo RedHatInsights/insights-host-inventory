@@ -16,7 +16,6 @@ from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.culling import Timestamps
-from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -26,8 +25,8 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import WORKLOADS_FIELDS
+from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -727,54 +726,32 @@ def _normalize_per_reporter_value(value):
     }
 
 
-def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever):
-    """Return stale/stale_warning/culled timestamps; use far-future if forever is True."""
-    if forever:
-        return {
-            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-        }
-    return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_stale"]
-        ),
-        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_stale_warning"]
-        ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_delete"]
-        ),
-    }
-
-
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     """
-    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
-    stale_warning_timestamp, and culled_timestamp.
+    Serialize per_reporter_staleness for API/event output, ensuring all entries have
+    stale_timestamp, stale_warning_timestamp, and culled_timestamp.
 
     Supports two input formats per reporter:
     - Old format: value is a dict with "last_check_in" (string)
     - New format: value is the last_check_in string itself
     """
-    forever = should_host_stay_fresh_forever(host)
+    result = {}
 
     for reporter, value in host.per_reporter_staleness.items():
         normalized = _normalize_per_reporter_value(value)
         last_check_in_dt = normalized["last_check_in"]
 
-        ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
+        ts = get_reporter_staleness_timestamps(host, staleness_timestamps, staleness, reporter)
 
-        serialized = {
+        result[reporter] = {
             **normalized,
             "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
             "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
             "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
             "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
         }
-        host.per_reporter_staleness[reporter] = serialized
 
-    return host.per_reporter_staleness
+    return result
 
 
 def build_rhel_version_str(system_profile: dict) -> str:

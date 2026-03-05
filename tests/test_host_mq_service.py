@@ -2781,7 +2781,12 @@ def test_add_host_logs(identity, mocker, caplog):
 
     assert result.event_type == EventType.created
     assert str(result.row.insights_id) == expected_insights_id
-    assert caplog.records[0].input_host["system_profile"] == "{}"
+    add_host_record = next(
+        (r for r in caplog.records if getattr(r, "input_host", None) is not None),
+        None,
+    )
+    assert add_host_record is not None, "Expected a log record with extra['input_host']"
+    assert add_host_record.input_host["system_profile"] == "{}"
     mock_notification_event_producer.write_event.assert_not_called()
 
 

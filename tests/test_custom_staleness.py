@@ -17,9 +17,10 @@ from app.models import Host
 from app.models import db
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.serialization import _serialize_per_reporter_staleness
-from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value as real_get_flag_value
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
@@ -48,24 +49,19 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
 }
 
 
-def _custom_staleness_attr_dict(config=None, org_id=USER_IDENTITY["org_id"]):
-    """Build AttrDict for custom staleness so _get_staleness_obj returns it when patched."""
-    config = config or CUSTOM_STALENESS_HOST_BECAME_STALE
-    return AttrDict(
-        {
-            "id": "test",
-            "org_id": org_id,
-            **config,
-            "immutable_time_to_stale": config["conventional_time_to_stale"],
-            "immutable_time_to_stale_warning": config["conventional_time_to_stale_warning"],
-            "immutable_time_to_delete": config["conventional_time_to_delete"],
-            "created_on": None,
-            "modified_on": None,
-        }
-    )
+def _patch_flattened_per_reporter_staleness_flag(mocker, use_flat: bool):
+    """Patch only FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS so other flags are unchanged."""
+
+    def side_effect(flag):
+        if flag == FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS:
+            return use_flat
+        return real_get_flag_value(flag)
+
+    mocker.patch("app.models.host.get_flag_value", side_effect=side_effect)
 
 
 @pytest.mark.parametrize("num_hosts", [1, 2, 3])
+@pytest.mark.parametrize("use_flat_format", [False, True], ids=["nested", "flat"])
 def test_async_update_host_create_custom_staleness(
     db_create_staleness_culling,
     db_get_hosts,
@@ -76,10 +72,10 @@ def test_async_update_host_create_custom_staleness(
     event_producer,
     mocker,
     num_hosts,
+    use_flat_format,
 ):
-    """Create hosts under NO_HOSTS_TO_DELETE, post HOST_BECAME_STALE, async job updates hosts to new config."""
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
-    # Initial config in DB so host creation uses it; async job (other thread) will read new config after api_post
+    """Create hosts under NO_HOSTS_TO_DELETE, then PATCH staleness to HOST_BECAME_STALE; async job runs."""
+    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -97,17 +93,18 @@ def test_async_update_host_create_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
-            # Before update: stale_timestamp should be last_check_in + NO_HOSTS_TO_DELETE offset
+            expected_stale_before = (
+                _now + timedelta(seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"])
+            ).isoformat()
             for reporter in hosts_before_update[0].per_reporter_staleness:
-                prs = hosts_before_update[0].per_reporter_staleness[reporter]
-                last_check_in = datetime.fromisoformat(prs["last_check_in"])
-                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
-                expected = last_check_in + timedelta(
-                    seconds=CUSTOM_STALENESS_NO_HOSTS_TO_DELETE["conventional_time_to_stale"]
-                )
-                assert abs((stale_ts - expected).total_seconds()) < 2, (
-                    "stale_timestamp should be last_check_in + offset"
-                )
+                if use_flat_format:
+                    assert isinstance(hosts_before_update[0].per_reporter_staleness[reporter], str)
+                    assert hosts_before_update[0].per_reporter_staleness[reporter] == _now.isoformat()
+                else:
+                    assert (
+                        hosts_before_update[0].per_reporter_staleness[reporter]["stale_timestamp"]
+                        == expected_stale_before
+                    )
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
@@ -117,15 +114,19 @@ def test_async_update_host_create_custom_staleness(
             wait_for_all_events(event_producer, num_hosts)
 
             hosts_after_update = db_get_hosts(host_ids).all()
-            # Async job does not update per_reporter_staleness (_update_all_per_reporter_staleness is a no-op);
-            # timestamps are computed on-the-fly during serialization. So per_reporter_staleness is unchanged.
+            expected_stale_after = (
+                _now + timedelta(seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"])
+            ).isoformat()
             for reporter in hosts_after_update[0].per_reporter_staleness:
-                prs = hosts_after_update[0].per_reporter_staleness[reporter]
-                last_check_in = datetime.fromisoformat(prs["last_check_in"])
-                stale_ts = datetime.fromisoformat(prs["stale_timestamp"])
-                assert stale_ts >= last_check_in, "stale_timestamp should be >= last_check_in"
+                if use_flat_format:
+                    assert isinstance(hosts_after_update[0].per_reporter_staleness[reporter], str)
+                    assert hosts_after_update[0].per_reporter_staleness[reporter] == _now.isoformat()
+                else:
+                    assert (
+                        hosts_after_update[0].per_reporter_staleness[reporter]["stale_timestamp"]
+                        == expected_stale_after
+                    )
 
-            # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
 
 
@@ -141,9 +142,8 @@ def test_async_update_host_delete_custom_staleness(
     mocker,
     num_hosts,
 ):
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
+    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -201,9 +201,8 @@ def test_async_update_host_update_custom_staleness(
     mocker,
     num_hosts,
 ):
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
+    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -261,9 +260,8 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
     mocker,
     num_hosts,
 ):
-    mocker.patch("lib.feature_flags.get_flag_value", return_value=False)  # nested format for these tests
+    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    mocker.patch("app.models.utils._get_staleness_obj", return_value=_custom_staleness_attr_dict())
     with (
         patch("app.models.utils.datetime") as mock_datetime,
     ):
@@ -442,6 +440,53 @@ def test_registered_with_filter_with_only_last_check_in(
     assert len(not_puptoo_hosts["results"]) == 1
     assert fresh_host_id in {h["id"] for h in puptoo_hosts["results"]}
     assert other_host_id in {h["id"] for h in not_puptoo_hosts["results"]}
+
+
+def test_registered_with_staleness_filter_flat_and_nested_formats(
+    db_create_staleness_culling: Callable[..., object],
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    """DB filter handles both flat and nested per_reporter_staleness (registered_with + not_culled)."""
+    # Use future last_check_in so both formats are "not culled" regardless of when the filter runs.
+    staleness_config = {
+        "conventional_time_to_stale": 7 * 24 * 3600,
+        "conventional_time_to_stale_warning": 14 * 24 * 3600,
+        "conventional_time_to_delete": 30 * 24 * 3600,
+    }
+    db_create_staleness_culling(**staleness_config)
+
+    future_check_in = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+
+    # Host with flat per_reporter_staleness (string = last_check_in only)
+    flat_host = db_create_host(
+        extra_data={
+            "reporter": "puptoo",
+            "per_reporter_staleness": {"puptoo": future_check_in},
+        },
+    )
+    flat_id = str(flat_host.id)
+
+    # Host with nested per_reporter_staleness (dict with last_check_in, etc.)
+    nested_host = db_create_host(
+        extra_data={
+            "reporter": "puptoo",
+            "per_reporter_staleness": {
+                "puptoo": create_reporter_data(datetime.now(UTC) + timedelta(days=1), staleness_config),
+            },
+        },
+    )
+    nested_host.last_check_in = datetime.now(UTC) + timedelta(days=1)
+    nested_host.per_reporter_staleness["puptoo"]["last_check_in"] = future_check_in
+    nested_id = str(nested_host.id)
+    db.session.commit()
+
+    # registered_with=puptoo uses per-reporter filter (both flat and nested "not culled")
+    _, resp = api_get(build_hosts_url(query="?registered_with=puptoo"))
+    result_ids = {h["id"] for h in resp["results"]}
+    assert flat_id in result_ids, "Flat per_reporter_staleness host should match registered_with=puptoo"
+    assert nested_id in result_ids, "Nested per_reporter_staleness host should match registered_with=puptoo"
+    assert len(resp["results"]) == 2
 
 
 def test_calculated_timestamps_match_stored_timestamps(

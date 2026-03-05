@@ -18,7 +18,6 @@ FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
 FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK = "hbi.api.kessel-force-single-checks-for-bulk"
 FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS = "hbi.flattened_per_reporter_staleness"
 
-
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_INVENTORY_KESSEL_PHASE_1: False,
