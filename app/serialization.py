@@ -134,14 +134,6 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
     """
     system_profile = {}
 
-    SERIALIZERS = {
-        "owner_id": serialize_uuid,
-        "rhc_client_id": serialize_uuid,
-        "rhc_config_state": serialize_uuid,
-        "virtual_host_uuid": serialize_uuid,
-        "captured_date": _serialize_datetime,
-        "last_boot_time": _serialize_datetime,
-    }
     EXCLUDE_FIELDS = {"org_id", "host_id"}
 
     requested_fields = set(system_profile_fields) if system_profile_fields else None
@@ -177,7 +169,7 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
                 value = getattr(profile_source, field_name, None)
 
                 if value is not None:
-                    serializer = SERIALIZERS.get(field_name)
+                    serializer = SP_FIELD_SERIALIZERS.get(field_name)
                     system_profile[field_name] = serializer(value) if serializer else value
 
         except DetachedInstanceError:
@@ -471,6 +463,16 @@ def _deserialize_datetime(s):
 
 def serialize_uuid(u):
     return str(u) if u else None
+
+
+SP_FIELD_SERIALIZERS = {
+    "owner_id": serialize_uuid,
+    "rhc_client_id": serialize_uuid,
+    "rhc_config_state": serialize_uuid,
+    "virtual_host_uuid": serialize_uuid,
+    "captured_date": _serialize_datetime,
+    "last_boot_time": _serialize_datetime,
+}
 
 
 def _deserialize_tags(tags):
