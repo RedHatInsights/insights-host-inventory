@@ -139,13 +139,15 @@ def get_group_list(
     rbac_filter=None,
 ):
     try:
+        # Get identity once and reuse throughout the function
+        identity = get_current_identity()
+        org_id = identity.org_id
+
         # Feature flag check for RBAC v2 integration
         if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
             # RBAC v2 path: Query workspaces from RBAC v2 API
             # Special handling for host_count ordering: RBAC v2 doesn't have host count data
             if order_by == "host_count":
-                org_id = get_current_identity().org_id
-
                 # Scenario 1: No filters - Most efficient approach
                 # Let the database do ordering and pagination, then fetch only the workspaces we need
                 if not name and not group_type:
@@ -164,9 +166,10 @@ def get_group_list(
                     host_counts = get_host_counts_batch(org_id, group_ids_page)
 
                     # Step 4: Serialize workspaces with pre-fetched host counts
-                    identity = get_current_identity()
                     serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, identity, host_counts.get(ws["id"], 0))
+                        serialize_rbac_workspace_with_host_count(
+                            ws, org_id, getattr(identity, "account_number", None), host_counts.get(ws["id"], 0)
+                        )
                         for ws in workspaces
                     ]
 
@@ -209,9 +212,10 @@ def get_group_list(
                     host_counts = get_host_counts_batch(org_id, group_ids)
 
                     # Step 4: Attach host_counts to workspaces (no DB queries!)
-                    identity = get_current_identity()
                     serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, identity, host_counts.get(ws["id"], 0))
+                        serialize_rbac_workspace_with_host_count(
+                            ws, org_id, getattr(identity, "account_number", None), host_counts.get(ws["id"], 0)
+                        )
                         for ws in group_list
                     ]
 
@@ -237,9 +241,6 @@ def get_group_list(
             )
 
         # Serialize groups with batch host count query (avoid N+1 queries)
-        identity = get_current_identity()
-        org_id = identity.org_id
-
         if group_list:
             # Extract group_ids from either dicts (RBAC v2) or ORM objects (RBAC v1)
             group_ids = [g["id"] if isinstance(g, dict) else str(g.id) for g in group_list]
@@ -254,7 +255,9 @@ def get_group_list(
                     # RBAC v2 workspace (dict)
                     group_id = group["id"]
                     serialized_groups.append(
-                        serialize_rbac_workspace_with_host_count(group, identity, host_counts.get(group_id, 0))
+                        serialize_rbac_workspace_with_host_count(
+                            group, org_id, getattr(identity, "account_number", None), host_counts.get(group_id, 0)
+                        )
                     )
                 else:
                     # RBAC v1 Group (ORM object)
