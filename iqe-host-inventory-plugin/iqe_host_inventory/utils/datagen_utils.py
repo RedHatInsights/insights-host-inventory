@@ -634,6 +634,7 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
         "name": "image_builder",
         "type": "custom",
         "example": {
+            "blueprint_id": "b5f4dcb0-09a5-4e42-a670-4a83a2e6b687",
             "compliance_policy_id": "89b52baa-9912-4edc-9ed5-be15c06eaaa9",
             "compliance_profile_id": "xccdf_org.ssgproject.content_profile_cis",
         },
