@@ -191,6 +191,36 @@ class TestRhsmSpBridgeHostModel:
         # Should be stale due to past timestamp
         assert created_host.reporter_stale("puptoo") is True
 
+    def test_reporter_flat_format_stale_and_fresh(self, db_create_host, flask_app, mocker):
+        """Test reporter_stale() with flat per_reporter_staleness (string last_check_in)."""
+        fixed_now = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
+        mocker.patch("app.models.host._time_now", return_value=fixed_now)
+
+        with flask_app.app.app_context():
+            # Stale: last_check_in far in the past (flat string format)
+            host_stale = Host(
+                subscription_manager_id=generate_uuid(),
+                reporter="puptoo",
+                stale_timestamp=fixed_now,
+                org_id=USER_IDENTITY["org_id"],
+            )
+            past_check_in = (fixed_now - timedelta(days=10)).isoformat()
+            host_stale.per_reporter_staleness = {"puptoo": past_check_in}
+            created_stale = db_create_host(host=host_stale)
+            assert created_stale.reporter_stale("puptoo") is True
+
+            # Fresh: last_check_in recently (flat string format)
+            host_fresh = Host(
+                subscription_manager_id=generate_uuid(),
+                reporter="puptoo",
+                stale_timestamp=fixed_now,
+                org_id=USER_IDENTITY["org_id"],
+            )
+            recent_check_in = (fixed_now - timedelta(hours=1)).isoformat()
+            host_fresh.per_reporter_staleness = {"puptoo": recent_check_in}
+            created_fresh = db_create_host(host=host_fresh)
+            assert created_fresh.reporter_stale("puptoo") is False
+
 
 class TestRhsmSpBridgeSerialization:
     """Test serialization behavior for rhsm-system-profile-bridge-only hosts."""

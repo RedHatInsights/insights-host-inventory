@@ -11,6 +11,8 @@ from uuid import UUID
 
 from confluent_kafka import TopicPartition
 
+from api.host_query import staleness_timestamps
+from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.common import inventory_config
@@ -20,6 +22,7 @@ from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
 from app.queue.events import extract_system_profile_fields_for_headers
 from app.serialization import _deserialize_tags
+from app.serialization import _serialize_per_reporter_staleness
 from app.serialization import build_system_profile_from_normalized
 from app.serialization import serialize_facts
 from app.serialization import serialize_uuid
@@ -434,7 +437,9 @@ def assert_patch_event_is_valid(
             "satellite_id": host.satellite_id,
             "subscription_manager_id": host.subscription_manager_id,
             "system_profile": build_system_profile_from_normalized(host),
-            "per_reporter_staleness": host.per_reporter_staleness,
+            "per_reporter_staleness": _serialize_per_reporter_staleness(
+                host, get_staleness_obj(host.org_id), staleness_timestamps()
+            ),
             "tags": [tag.data() for tag in Tag.create_tags_from_nested(host.tags)],
             "reporter": reporter,
             "stale_timestamp": stale_timestamp,

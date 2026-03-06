@@ -167,21 +167,37 @@ def check_prs_timestamps(
 ) -> None:
     assert latest_reporter in per_reporter_staleness
     for prs_reporter, prs_timestamps in per_reporter_staleness.items():
-        if prs_reporter == latest_reporter:
-            assert_datetimes_equal(
-                prs_timestamps["last_check_in"],
-                host_last_check_in,
-            )
+        if isinstance(prs_timestamps, str):
+            last_check_in = prs_timestamps
         else:
-            assert prs_timestamps["last_check_in"] < host_last_check_in
+            last_check_in = prs_timestamps["last_check_in"]
 
-        validate_staleness_timestamps(
-            prs_timestamps["last_check_in"],
-            stale_timestamp=prs_timestamps["stale_timestamp"],
-            stale_warning_timestamp=prs_timestamps["stale_warning_timestamp"],
-            culled_timestamp=prs_timestamps["culled_timestamp"],
-            staleness_settings=staleness_settings,
+        last = (
+            datetime.fromisoformat(last_check_in)
+            if isinstance(last_check_in, str)
+            else last_check_in
         )
+        host_last = (
+            datetime.fromisoformat(host_last_check_in)
+            if isinstance(host_last_check_in, str)
+            else host_last_check_in
+        )
+        if prs_reporter == latest_reporter:
+            assert_datetimes_equal(last_check_in, host_last_check_in)
+        else:
+            assert last < host_last
+
+        if isinstance(prs_timestamps, dict) and all(
+            prs_timestamps.get(k) is not None
+            for k in ("stale_timestamp", "stale_warning_timestamp", "culled_timestamp")
+        ):
+            validate_staleness_timestamps(
+                last_check_in,
+                stale_timestamp=prs_timestamps["stale_timestamp"],
+                stale_warning_timestamp=prs_timestamps["stale_warning_timestamp"],
+                culled_timestamp=prs_timestamps["culled_timestamp"],
+                staleness_settings=staleness_settings,
+            )
 
 
 def _check_event_headers(
