@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 from connexion import FlaskApp
+from sqlalchemy.orm import attributes as orm_attributes
 
 from app.models import Host
 from app.models import db
@@ -25,14 +26,14 @@ def test_flatten_nested_to_flat_format(flask_app: FlaskApp, db_create_host):
                 "puptoo": {
                     "last_check_in": (now_time - timedelta(days=1)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
-                    "stale_warning_timestamp": (now_time + timedelta(days=7)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
                     "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 },
                 "yupana": {
                     "last_check_in": (now_time - timedelta(days=2)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=2)).isoformat(),
-                    "stale_warning_timestamp": (now_time + timedelta(days=8)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
                     "culled_timestamp": (now_time + timedelta(days=31)).isoformat(),
                     "check_in_succeeded": True,
                 },
@@ -115,6 +116,8 @@ def test_flatten_mixed_reporters(flask_app: FlaskApp, db_create_host):
                 "puptoo": {
                     "last_check_in": (now_time - timedelta(days=1)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 },
                 "yupana": (now_time - timedelta(days=2)).isoformat(),  # Already flat
@@ -147,17 +150,21 @@ def test_flatten_mixed_reporters(flask_app: FlaskApp, db_create_host):
 
 
 def test_flatten_empty_per_reporter_staleness(flask_app: FlaskApp, db_create_host):
-    """Test that job doesn't fail on hosts with minimal per_reporter_staleness."""
+    """Test that job doesn't fail on hosts with empty per_reporter_staleness."""
 
+    # Create host with a placeholder so Host.__init__ doesn't auto-populate;
+    # then clear per_reporter_staleness to {} in the DB (Host treats {} as falsy and
+    # would call _update_per_reporter_staleness on create).
     now_time = datetime.now(UTC)
-
-    # Create a host with already-flat format (single timestamp string)
-    # to ensure the job doesn't try to flatten it again
-    host_id = db_create_host(extra_data={"per_reporter_staleness": {"test-reporter": now_time.isoformat()}}).id
-
+    host = db_create_host(extra_data={"per_reporter_staleness": {"placeholder": now_time.isoformat()}})
+    host_id = host.id
     db.session.commit()
 
-    # Create mock config with required attributes
+    host = Host.query.filter_by(id=host_id).one()
+    host.per_reporter_staleness = {}
+    orm_attributes.flag_modified(host, "per_reporter_staleness")
+    db.session.commit()
+
     config = Mock()
     config.dry_run = False
     config.script_chunk_size = 1000
@@ -172,9 +179,8 @@ def test_flatten_empty_per_reporter_staleness(flask_app: FlaskApp, db_create_hos
 
     host = Host.query.filter_by(id=host_id).one()
 
-    # Verify unchanged - the job should not modify hosts already in flat format
-    assert isinstance(host.per_reporter_staleness["test-reporter"], str)
-    assert host.per_reporter_staleness["test-reporter"] == now_time.isoformat()
+    # Job should complete without error and leave empty per_reporter_staleness unchanged
+    assert host.per_reporter_staleness == {}
 
 
 def test_flatten_dry_run_mode(flask_app: FlaskApp, db_create_host):
@@ -189,6 +195,8 @@ def test_flatten_dry_run_mode(flask_app: FlaskApp, db_create_host):
                 "puptoo": {
                     "last_check_in": (now_time - timedelta(days=1)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 },
             }
@@ -212,10 +220,12 @@ def test_flatten_dry_run_mode(flask_app: FlaskApp, db_create_host):
 
     host = Host.query.filter_by(id=host_id).one()
 
-    # Verify UNCHANGED - still nested format
     assert isinstance(host.per_reporter_staleness["puptoo"], dict)
     assert "last_check_in" in host.per_reporter_staleness["puptoo"]
     assert "stale_timestamp" in host.per_reporter_staleness["puptoo"]
+    assert "stale_warning_timestamp" in host.per_reporter_staleness["puptoo"]
+    assert "culled_timestamp" in host.per_reporter_staleness["puptoo"]
+    assert "check_in_succeeded" in host.per_reporter_staleness["puptoo"]
 
 
 def test_count_hosts_with_nested_format(db_create_host):
@@ -232,6 +242,8 @@ def test_count_hosts_with_nested_format(db_create_host):
                 "puptoo": {
                     "last_check_in": now_time.isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -245,6 +257,8 @@ def test_count_hosts_with_nested_format(db_create_host):
                 "yupana": {
                     "last_check_in": now_time.isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -263,6 +277,9 @@ def test_count_hosts_with_nested_format(db_create_host):
             "per_reporter_staleness": {
                 "puptoo": {
                     "last_check_in": now_time.isoformat(),
+                    "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -290,6 +307,9 @@ def test_get_hosts_with_nested_format(db_create_host):
             "per_reporter_staleness": {
                 "puptoo": {
                     "last_check_in": now_time.isoformat(),
+                    "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -302,6 +322,9 @@ def test_get_hosts_with_nested_format(db_create_host):
             "per_reporter_staleness": {
                 "yupana": {
                     "last_check_in": now_time.isoformat(),
+                    "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -335,6 +358,8 @@ def test_flatten_host_function(db_create_host):
                 "puptoo": {
                     "last_check_in": (now_time - timedelta(days=1)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 },
             }
@@ -385,6 +410,8 @@ def test_flatten_host_function_dry_run(db_create_host):
                 "puptoo": {
                     "last_check_in": (now_time - timedelta(days=1)).isoformat(),
                     "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 },
             }
@@ -415,6 +442,9 @@ def test_flatten_multiple_orgs(flask_app: FlaskApp, db_create_host):
             "per_reporter_staleness": {
                 "puptoo": {
                     "last_check_in": now_time.isoformat(),
+                    "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -427,6 +457,9 @@ def test_flatten_multiple_orgs(flask_app: FlaskApp, db_create_host):
             "per_reporter_staleness": {
                 "yupana": {
                     "last_check_in": now_time.isoformat(),
+                    "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                    "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                    "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                     "check_in_succeeded": True,
                 }
             },
@@ -469,6 +502,9 @@ def test_flatten_chunked_processing(flask_app: FlaskApp, db_create_host):
                 "per_reporter_staleness": {
                     "puptoo": {
                         "last_check_in": now_time.isoformat(),
+                        "stale_timestamp": (now_time + timedelta(days=1)).isoformat(),
+                        "stale_warning_timestamp": (now_time + timedelta(days=14)).isoformat(),
+                        "culled_timestamp": (now_time + timedelta(days=30)).isoformat(),
                         "check_in_succeeded": True,
                     }
                 }

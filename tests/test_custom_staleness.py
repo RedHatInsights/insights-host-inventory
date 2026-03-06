@@ -19,8 +19,6 @@ from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
-from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value as real_get_flag_value
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
@@ -29,6 +27,7 @@ from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import patch_flattened_per_reporter_staleness_flag
 
 CUSTOM_STALENESS_DELETE = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
@@ -49,17 +48,6 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
 }
 
 
-def _patch_flattened_per_reporter_staleness_flag(mocker, use_flat: bool):
-    """Patch only FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS so other flags are unchanged."""
-
-    def side_effect(flag):
-        if flag == FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS:
-            return use_flat
-        return real_get_flag_value(flag)
-
-    mocker.patch("app.models.host.get_flag_value", side_effect=side_effect)
-
-
 @pytest.mark.parametrize("num_hosts", [1, 2, 3])
 @pytest.mark.parametrize("use_flat_format", [False, True], ids=["nested", "flat"])
 def test_async_update_host_create_custom_staleness(
@@ -75,7 +63,7 @@ def test_async_update_host_create_custom_staleness(
     use_flat_format,
 ):
     """Create hosts under NO_HOSTS_TO_DELETE, then PATCH staleness to HOST_BECAME_STALE; async job runs."""
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
     db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -142,7 +130,7 @@ def test_async_update_host_delete_custom_staleness(
     mocker,
     num_hosts,
 ):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -201,7 +189,7 @@ def test_async_update_host_update_custom_staleness(
     mocker,
     num_hosts,
 ):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -260,7 +248,7 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
     mocker,
     num_hosts,
 ):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
     with (
         patch("app.models.utils.datetime") as mock_datetime,
@@ -341,6 +329,7 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
                         "puptoo": {
                             "last_check_in": _now.isoformat(),
                             "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                            "stale_warning_timestamp": (_now + timedelta(days=10)).isoformat(),
                             "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
                             "check_in_succeeded": True,
                         },
@@ -348,6 +337,7 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
                         "yupana": {
                             "last_check_in": _now.isoformat(),
                             "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                            "stale_warning_timestamp": (_now + timedelta(days=10)).isoformat(),
                             "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
                             "check_in_succeeded": True,
                         },
@@ -363,6 +353,7 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
                 "puptoo": {
                     "last_check_in": (_now - timedelta(days=30)).isoformat(),
                     "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
+                    "stale_warning_timestamp": (_now - timedelta(days=20)).isoformat(),
                     "culled_timestamp": (_now - timedelta(days=16)).isoformat(),
                     "check_in_succeeded": True,
                 }
@@ -378,6 +369,7 @@ def test_registered_with_filter_handles_multi_reporter_hosts(
                 "rhsm-conduit": {
                     "last_check_in": _now.isoformat(),
                     "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
+                    "stale_warning_timestamp": (_now + timedelta(days=10)).isoformat(),
                     "culled_timestamp": (_now + timedelta(days=14)).isoformat(),
                     "check_in_succeeded": True,
                 }
@@ -750,6 +742,9 @@ def test_serialize_per_reporter_staleness_mixed_formats(flask_app):
         host.per_reporter_staleness = {
             "puptoo": {
                 "last_check_in": "2024-06-15T10:00:00+00:00",
+                "stale_timestamp": "2024-06-22T10:00:00+00:00",
+                "stale_warning_timestamp": "2024-06-29T10:00:00+00:00",
+                "culled_timestamp": "2024-07-06T10:00:00+00:00",
                 "check_in_succeeded": True,
             },
             "yupana": "2024-06-16T12:00:00+00:00",

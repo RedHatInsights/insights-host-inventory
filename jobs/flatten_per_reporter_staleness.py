@@ -142,36 +142,28 @@ def _flatten_host_per_reporter_staleness(host: Host, logger: Logger, dry_run: bo
         True if the host was updated, False otherwise
     """
     if not host.per_reporter_staleness:
+        logger.warning(f"Host {host.id} has no per_reporter_staleness")
         return False
 
-    # Check if any reporters need flattening
-    needs_flattening = False
-    for _reporter_name, reporter_data in host.per_reporter_staleness.items():
-        if isinstance(reporter_data, dict) and "last_check_in" in reporter_data:
-            needs_flattening = True
-            break
-
-    if not needs_flattening:
+    reporters_to_flatten = [
+        name
+        for name, data in host.per_reporter_staleness.items()
+        if isinstance(data, dict) and "last_check_in" in data
+    ]
+    if not reporters_to_flatten:
         return False
 
     if dry_run:
-        reporters_to_flatten = [
-            name
-            for name, data in host.per_reporter_staleness.items()
-            if isinstance(data, dict) and "last_check_in" in data
-        ]
         logger.info(f"[DRY RUN] Would flatten Host {host.id} reporters {reporters_to_flatten}")
         return True
 
+    reporters_to_flatten_set = set(reporters_to_flatten)
     try:
-        # Transform the structure
         flattened = {}
         for reporter_name, reporter_data in host.per_reporter_staleness.items():
-            if isinstance(reporter_data, dict) and "last_check_in" in reporter_data:
-                # Extract only last_check_in timestamp
+            if reporter_name in reporters_to_flatten_set:
                 flattened[reporter_name] = reporter_data["last_check_in"]
             else:
-                # Already flat or invalid, keep as is
                 flattened[reporter_name] = reporter_data
 
         host.per_reporter_staleness = flattened
@@ -195,7 +187,6 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
     """
     dry_run = config.dry_run
     chunk_size = config.script_chunk_size
-    target_org_id = config.org_id if hasattr(config, "org_id") else None
 
     if dry_run:
         logger.info(f"Running {PROMETHEUS_JOB} in dry-run mode. No data will be modified.")
@@ -205,13 +196,8 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
     with application.app.app_context():
         threadctx.request_id = None
 
-        # Get list of org_ids to process
-        if target_org_id:
-            org_ids = [target_org_id]
-            logger.info(f"Processing single org: {target_org_id}")
-        else:
-            org_ids = _get_org_ids(session)
-            logger.info(f"Found {len(org_ids)} organizations to process")
+        org_ids = _get_org_ids(session)
+        logger.info(f"Found {len(org_ids)} organizations to process")
 
         total_orgs_processed = 0
         total_hosts_processed = 0
@@ -243,7 +229,7 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
 
                 batch_hosts_updated = 0
 
-                with session_guard(session):
+                with session_guard(session, close=False):
                     for host in hosts:
                         if _flatten_host_per_reporter_staleness(host, logger, dry_run):
                             batch_hosts_updated += 1
