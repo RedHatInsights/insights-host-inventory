@@ -358,7 +358,7 @@ def test_get_groups_by_id_rbac_v2_success(
     """
     Test that GET /groups/{group_id_list} uses RBAC v2 when feature flag is enabled.
 
-    JIRA: RHINENG-17397
+    JIRA: RHINENG-17397, RHINENG-24625
     """
     # Create groups with hosts
     groups = [db_create_group(f"group_{i}") for i in range(3)]
@@ -407,6 +407,8 @@ def test_get_groups_by_id_rbac_v2_success(
         assert group_result["host_count"] == i + 1
         assert "created" in group_result
         assert "updated" in group_result
+        # RHINENG-24625: Verify account from identity is included in response
+        assert group_result["account"] == "test"  # From USER_IDENTITY fixture
 
 
 def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
@@ -439,6 +441,77 @@ def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
     # check_all_ids_found() should include not_found_ids when all results are returned
     assert "not_found_ids" in response_data
     assert set(response_data["not_found_ids"]) == set(group_id_list)
+
+
+def test_get_groups_by_id_rbac_v2_account_from_identity(
+    mocker, db_create_group, db_create_host, db_create_host_group_assoc, api_get
+):
+    """
+    Test that RBAC v2 workspace responses include account_number from identity.
+
+    Verifies both positive (account present) and negative (account None) scenarios.
+
+    JIRA: RHINENG-24625
+    """
+    # Create groups with hosts
+    groups = [db_create_group(f"group_{i}") for i in range(2)]
+    group_id_list = [str(group.id) for group in groups]
+
+    # Add hosts to groups
+    for group in groups:
+        host = db_create_host()
+        db_create_host_group_assoc(host.id, group.id)
+
+    # Mock workspaces response from RBAC v2 API (no account field)
+    mock_workspaces = [
+        {
+            "id": str(group.id),
+            "name": group.name,
+            "org_id": "12345",
+            "type": "standard",
+            "created": "2025-11-06T20:40:41.151481Z",
+            "modified": "2025-11-06T20:40:41.160109Z",
+        }
+        for group in groups
+    ]
+
+    # Mock feature flag enabled (RBAC v2 path)
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.get_flag_value", return_value=True)
+
+    # Mock RBAC v2 workspace fetch
+    mocker.patch("api.group_query.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+
+    # Test 1: Identity with account_number (USER_IDENTITY has account_number="test")
+    response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
+
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 2
+    for group_result in response_data["results"]:
+        # RHINENG-24625: Verify account from USER_IDENTITY is included
+        assert group_result["account"] == "test"
+
+    # Test 2: Identity without account_number
+    # Create custom identity with org_id but no account_number
+    identity_no_account = {
+        "org_id": "test",
+        "type": "User",
+        "auth_type": "basic-auth",
+        "user": {"email": "tuser@redhat.com", "first_name": "test", "username": "tuser@redhat.com"},
+        # Note: account_number field is intentionally omitted
+    }
+
+    response_status, response_data = api_get(
+        GROUP_URL + "/" + ",".join(group_id_list),
+        identity=identity_no_account,
+    )
+
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 2
+    for group_result in response_data["results"]:
+        # RHINENG-24625: Verify account is None when identity lacks account_number
+        assert group_result["account"] is None
 
 
 def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api_get):

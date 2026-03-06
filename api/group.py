@@ -164,8 +164,9 @@ def get_group_list(
                     host_counts = get_host_counts_batch(org_id, group_ids_page)
 
                     # Step 4: Serialize workspaces with pre-fetched host counts
+                    identity = get_current_identity()
                     serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, org_id, host_counts.get(ws["id"], 0))
+                        serialize_rbac_workspace_with_host_count(ws, identity, host_counts.get(ws["id"], 0))
                         for ws in workspaces
                     ]
 
@@ -208,8 +209,9 @@ def get_group_list(
                     host_counts = get_host_counts_batch(org_id, group_ids)
 
                     # Step 4: Attach host_counts to workspaces (no DB queries!)
+                    identity = get_current_identity()
                     serialized_groups = [
-                        serialize_rbac_workspace_with_host_count(ws, org_id, host_counts.get(ws["id"], 0))
+                        serialize_rbac_workspace_with_host_count(ws, identity, host_counts.get(ws["id"], 0))
                         for ws in group_list
                     ]
 
@@ -235,7 +237,8 @@ def get_group_list(
             )
 
         # Serialize groups with batch host count query (avoid N+1 queries)
-        org_id = get_current_identity().org_id
+        identity = get_current_identity()
+        org_id = identity.org_id
 
         if group_list:
             # Extract group_ids from either dicts (RBAC v2) or ORM objects (RBAC v1)
@@ -251,7 +254,7 @@ def get_group_list(
                     # RBAC v2 workspace (dict)
                     group_id = group["id"]
                     serialized_groups.append(
-                        serialize_rbac_workspace_with_host_count(group, org_id, host_counts.get(group_id, 0))
+                        serialize_rbac_workspace_with_host_count(group, identity, host_counts.get(group_id, 0))
                     )
                 else:
                     # RBAC v1 Group (ORM object)

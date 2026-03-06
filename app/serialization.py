@@ -335,13 +335,13 @@ def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
     }
 
 
-def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+def serialize_rbac_workspace_with_host_count(workspace: dict, identity, host_count: int) -> dict:
     """
     Serialize an RBAC v2 workspace dictionary with host count.
 
     Args:
         workspace: A dictionary from RBAC v2 with workspace data
-        org_id: The Organization ID of the workspace
+        identity: Identity object containing org_id and account_number
         host_count: The number of hosts in the workspace
 
     Returns:
@@ -354,8 +354,8 @@ def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_
 
     return {
         "id": serialize_uuid(workspace["id"]),
-        "org_id": org_id,
-        "account": workspace.get("account") or None,
+        "org_id": identity.org_id,
+        "account": getattr(identity, "account_number", None),
         "name": workspace.get("name"),
         "ungrouped": workspace.get("type") == "ungrouped",
         "created": _serialize_datetime(created_dt) if created_dt else "",
