@@ -144,6 +144,56 @@ def validate_staleness_response(
             assert resp[f] == base[f]
 
 
+def has_full_per_reporter_timestamps(reporter_staleness: Any) -> bool:
+    """Return True if this per-reporter entry has full timestamps (nested format)."""
+    if reporter_staleness is None:
+        return False
+    if hasattr(reporter_staleness, "stale_timestamp"):
+        return (
+            getattr(reporter_staleness, "stale_timestamp", None) is not None
+            and getattr(reporter_staleness, "stale_warning_timestamp", None) is not None
+            and getattr(reporter_staleness, "culled_timestamp", None) is not None
+        )
+    if isinstance(reporter_staleness, dict):
+        return (
+            reporter_staleness.get("stale_timestamp") is not None
+            and reporter_staleness.get("stale_warning_timestamp") is not None
+            and reporter_staleness.get("culled_timestamp") is not None
+        )
+    return False
+
+
+def get_reporter_threshold_timestamp(
+    reporter_staleness: Any,
+    kind: str,
+) -> str | datetime:
+    """
+    Return the threshold timestamp for a reporter (stale, stale_warning, or culled).
+    When only last_check_in is present (flat format), returns last_check_in.
+    """
+    if reporter_staleness is None:
+        raise ValueError("reporter_staleness is None")
+    attr = f"{kind}_timestamp" if kind in ("stale", "stale_warning", "culled") else "last_check_in"
+    if hasattr(reporter_staleness, attr):
+        val = getattr(reporter_staleness, attr, None)
+        if val is not None:
+            return val
+    if isinstance(reporter_staleness, dict):
+        val = reporter_staleness.get(attr) or reporter_staleness.get("last_check_in")
+        if val is not None:
+            return val
+    # Flat format: only last_check_in
+    if hasattr(reporter_staleness, "last_check_in"):
+        val = getattr(reporter_staleness, "last_check_in", None)
+        if val is not None:
+            return val
+    if isinstance(reporter_staleness, dict):
+        val = reporter_staleness.get("last_check_in")
+        if val is not None:
+            return val
+    raise ValueError(f"No timestamp found in reporter_staleness for {kind}")
+
+
 def validate_staleness_timestamps(
     last_check_in: str | datetime,
     *,

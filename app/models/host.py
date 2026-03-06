@@ -478,8 +478,6 @@ class Host(LimitedHost):
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_per_reporter_staleness(self, reporter):
-        from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-        from lib.feature_flags import get_flag_value
 
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}

@@ -19,6 +19,8 @@ from app.config import COMPOUND_ID_FACTS_MAP
 from app.config import ID_FACTS
 from app.models import ProviderType
 from app.utils import HostWrapper
+from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
+from lib.feature_flags import get_flag_value as _real_get_flag_value
 
 NS = "testns"
 ID = "whoabuddy"
@@ -483,3 +485,19 @@ def assert_system_profile_with_workloads_migration(returned_system_profile, expe
         # Standard field comparison
         assert key in returned_system_profile, f"Expected key '{key}' not found in system_profile"
         assert returned_system_profile[key] == value, f"Mismatch for key '{key}'"
+
+
+def patch_flattened_per_reporter_staleness_flag(mocker, use_flat: bool) -> None:
+    """
+    Patch only FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS so other flags are unchanged.
+
+    Use when testing Host per_reporter_staleness behavior with flat vs nested format.
+    Patches app.models.host.get_flag_value so the Host model sees the override.
+    """
+
+    def side_effect(flag):
+        if flag == FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS:
+            return use_flat
+        return _real_get_flag_value(flag)
+
+    mocker.patch("app.models.host.get_flag_value", side_effect=side_effect)

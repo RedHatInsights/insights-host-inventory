@@ -56,6 +56,7 @@ from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
 from app.serialization import _serialize_datetime
+from app.serialization import _serialize_per_reporter_staleness
 from app.serialization import deserialize_canonical_facts
 from app.serialization import deserialize_host
 from app.serialization import serialize_canonical_facts
@@ -1697,7 +1698,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             "culled_timestamp": _timestamp_to_str(
                 _add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
-            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, Timestamps(config)),
         }
         expected["insights_id"] = str(expected["insights_id"])
         expected["subscription_manager_id"] = str(expected["subscription_manager_id"])
@@ -1768,7 +1769,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     "culled_timestamp": _timestamp_to_str(
                         _add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
                     ),
-                    "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+                    "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, staleness_offset),
                 }
 
                 assert expected == actual
@@ -1889,7 +1890,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             "culled_timestamp": _timestamp_to_str(
                 host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
-            "per_reporter_staleness": host_attr_data["per_reporter_staleness"],
+            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, staleness_offset),
         }
 
         assert expected == actual

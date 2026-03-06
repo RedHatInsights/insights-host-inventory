@@ -29,29 +29,17 @@ from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value as real_get_flag_value
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_sample_profile_data
 from tests.helpers.test_utils import now
+from tests.helpers.test_utils import patch_flattened_per_reporter_staleness_flag
 
 """
 These tests are for testing the db model classes outside of the api.
 """
-
-
-def _patch_flattened_per_reporter_staleness_flag(mocker, use_flat: bool):
-    """Override only FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS so other flags are unchanged."""
-
-    def side_effect(flag):
-        if flag == FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS:
-            return use_flat
-        return real_get_flag_value(flag)
-
-    mocker.patch("lib.feature_flags.get_flag_value", side_effect=side_effect)
 
 
 def test_create_host_with_fqdn_and_display_name_as_empty_str(db_create_host):
@@ -504,7 +492,7 @@ def test_host_model_constraints(field, value, db_create_host):
 
 
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
 
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -522,7 +510,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
 
 
 def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
 
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
@@ -583,7 +571,7 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, moc
 def test_update_per_reporter_staleness_yupana_replacement(
     db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker
 ):
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
 
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
@@ -1291,7 +1279,7 @@ def test_create_host_with_missing_canonical_facts(db_create_host, db_get_host):
 
 def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host, mocker):
     """Test that creating a host with only rhsm-system-profile-bridge reporter sets far-future staleness timestamps."""
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     stale_timestamp = datetime.now() + timedelta(days=1)
 
     input_host = Host(
@@ -1318,7 +1306,7 @@ def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host, mocker
 
 def test_create_host_rhsm_only_sets_far_future_timestamps_flattened(db_create_host, models_datetime_mock, mocker):
     """RHSM-only host with flattened format: flat per_reporter_staleness and reporter_stale False."""
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
 
     input_host = Host(
         subscription_manager_id=generate_uuid(),
@@ -1346,7 +1334,7 @@ def test_create_host_rhsm_only_sets_far_future_timestamps_flattened(db_create_ho
 
 def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, models_datetime_mock, mocker):
     """Test that hosts with rhsm-system-profile-bridge AND other reporters behave normally."""
-    _patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
+    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(

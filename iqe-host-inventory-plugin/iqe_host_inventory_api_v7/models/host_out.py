@@ -347,7 +347,9 @@ class HostOut(BaseModel):
             "culled_timestamp": obj.get("culled_timestamp"),
             "reporter": obj.get("reporter"),
             "per_reporter_staleness": {
-                _k: PerReporterStaleness.from_dict(_v)
+                _k: PerReporterStaleness.from_dict(
+                    _v if isinstance(_v, (dict, str)) else {"last_check_in": _v}
+                )
                 for _k, _v in obj["per_reporter_staleness"].items()
             }
             if obj.get("per_reporter_staleness") is not None
