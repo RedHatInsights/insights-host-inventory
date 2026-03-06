@@ -597,9 +597,10 @@ def serialize_group(group: Group | dict, org_id: str) -> dict:
     if isinstance(group, dict):
         # RBAC v2 workspace (dict from RBAC API)
         # Extract group_id from dict and get host count using batch function
+        identity = get_current_identity()
         group_id = group["id"]
         host_count = get_host_counts_batch(org_id, [group_id])[group_id]
-        return serialize_rbac_workspace_with_host_count(group, org_id, host_count)
+        return serialize_rbac_workspace_with_host_count(group, identity, host_count)
     else:
         # Database Group (ORM object)
         group_id = str(group.id)
