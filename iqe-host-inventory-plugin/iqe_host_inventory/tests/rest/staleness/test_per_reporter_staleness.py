@@ -170,8 +170,8 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
         return
 
     if reporter == "all":
-        for reporter in host.per_reporter_staleness:
-            _log_reporter_timestamps(host, str(reporter))
+        for r in host.per_reporter_staleness:
+            _log_reporter_timestamps(host, str(r))
     else:
         assert reporter in host.per_reporter_staleness
         _log_reporter_timestamps(host, reporter)
@@ -577,7 +577,7 @@ def create_hosts_reporter_state(
             )
         )
 
-    hosts = create_hosts_fresh_stale_stalewarning(
+    return create_hosts_fresh_stale_stalewarning(
         host_inventory,
         fresh_hosts_data,
         stale_hosts_data,
@@ -585,8 +585,6 @@ def create_hosts_reporter_state(
         host_type=host_type,
         deltas=deltas,
     )
-
-    return hosts
 
 
 @pytest.mark.ephemeral

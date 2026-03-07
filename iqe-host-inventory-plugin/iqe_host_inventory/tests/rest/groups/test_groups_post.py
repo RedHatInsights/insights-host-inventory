@@ -9,9 +9,9 @@ from uuid import UUID
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_STRING_VALUES
 from iqe_host_inventory.utils import assert_datetimes_equal
 from iqe_host_inventory.utils.api_utils import raises_apierror
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_STRING_VALUES
 from iqe_host_inventory.utils.datagen_utils import generate_digits
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_sp_field_value
@@ -188,12 +188,14 @@ def test_groups_create_two_groups_same_host(
     """
     https://issues.redhat.com/browse/ESSNTL-3828
 
+    Creating a second group with hosts that are already in another group now
+    succeeds and moves those hosts to the new group.
+
     metadata:
       requirements: inv-groups-post
       assignee: fstavela
       importance: medium
-      negative: true
-      title: Try to create two groups with the same host
+      title: Create two groups with the same host (second create moves the host)
     """
     hosts = host_inventory.kafka.create_random_hosts(3)
 
@@ -201,23 +203,22 @@ def test_groups_create_two_groups_same_host(
     group1 = host_inventory.apis.groups.create_group(group_name1, hosts=hosts[0])
     group_name2 = generate_display_name()
     group2_hosts = [hosts[0]] if which_hosts == "only_same" else hosts
-    with raises_apierror(
-        400,
-        "The following subset of hosts are already associated with another group: "
-        f"['{hosts[0].id}'].",
-    ):
-        host_inventory.apis.groups.create_group(
-            group_name2, hosts=group2_hosts, wait_for_created=False
-        )
 
-    host_inventory.apis.groups.verify_not_created(group_name2)
-    host_inventory.apis.groups.verify_not_updated(group1, name=group_name1, hosts=hosts[0])
+    group2 = host_inventory.apis.groups.create_group(
+        group_name2, hosts=group2_hosts, wait_for_created=False
+    )
+
+    # Hosts were moved from group1 to group2
+    host_inventory.apis.groups.verify_updated(group1, name=group_name1, hosts=[])
+    host_inventory.apis.groups.verify_updated(
+        group2, name=group_name2, hosts=[h.id for h in group2_hosts]
+    )
 
     response = host_inventory.apis.hosts.get_hosts(group_name=[group_name2])
-    assert response == []
+    assert len(response) == len(group2_hosts)
+    assert {r.id for r in response} == {h.id for h in group2_hosts}
     response = host_inventory.apis.hosts.get_hosts(group_name=[group_name1])
-    assert len(response) == 1
-    assert response[0].id == hosts[0].id
+    assert len(response) == 0
 
 
 @pytest.mark.ephemeral

@@ -77,26 +77,33 @@ def test_groups_mq_events_not_produce_create_groups_same_host(
     """
     https://issues.redhat.com/browse/ESSNTL-3855
 
+    Creating a group with hosts that are already in another group now succeeds
+    and moves those hosts to the new group; host update events are produced.
+
     metadata:
       requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
-      negative: true
-      title: Don't produce kafka event message when creating groups with same hosts
+      title: Create group with hosts from another group moves them and produces events
     """
     hosts = host_inventory.kafka.create_random_hosts(2)
 
     group_name1 = generate_display_name()
-    host_inventory.apis.groups.create_group(group_name1, hosts=hosts[0])
+    group1 = host_inventory.apis.groups.create_group(group_name1, hosts=hosts[0])
     host_inventory.kafka.wait_for_filtered_host_messages(
         HostWrapper.insights_id, [hosts[0].insights_id]
     )
 
     group_name2 = generate_display_name()
-    with raises_apierror(400):
-        host_inventory.apis.groups.create_group(group_name2, hosts=hosts, wait_for_created=False)
+    group2 = host_inventory.apis.groups.create_group(
+        group_name2, hosts=hosts, wait_for_created=False
+    )
 
-    host_inventory.kafka.verify_host_messages_not_produced(hosts)
+    # Hosts were moved from group1 to group2
+    host_inventory.apis.groups.verify_updated(group1, name=group_name1, hosts=[])
+    host_inventory.apis.groups.verify_updated(
+        group2, name=group_name2, hosts=[hosts[0].id, hosts[1].id]
+    )
 
 
 @pytest.mark.ephemeral
@@ -447,35 +454,47 @@ def test_groups_mq_events_produce_patch_change_name_and_hosts(
 
 
 @pytest.mark.ephemeral
-def test_groups_mq_events_not_produce_patch_groups_same_host(
+def test_groups_mq_events_patch_group_move_hosts_produces_events(
     host_inventory: ApplicationHostInventory,
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-3855
 
+    Patching a group to include hosts from another group moves them and produces
+    host update events.
+
     metadata:
       requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
-      negative: true
-      title: Don't produce kafka event message when patching groups with same hosts
+      title: Patching group to include hosts from another group moves them and produces events
     """
     hosts = host_inventory.kafka.create_random_hosts(4)
 
     group_name = generate_display_name()
-    host_inventory.apis.groups.create_group(group_name, hosts=hosts[3])
+    group_with_host3 = host_inventory.apis.groups.create_group(group_name, hosts=hosts[3])
     host_inventory.kafka.wait_for_filtered_host_messages(
         HostWrapper.insights_id, [hosts[3].insights_id]
     )
 
-    group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[:2])
+    group_name2 = generate_display_name()
+    group = host_inventory.apis.groups.create_group(group_name2, hosts=hosts[:2])
     insights_ids = [host.insights_id for host in hosts[:2]]
     host_inventory.kafka.wait_for_filtered_host_messages(HostWrapper.insights_id, insights_ids)
 
-    with raises_apierror(400):
-        host_inventory.apis.groups.patch_group(group, hosts=hosts[1:], wait_for_updated=False)
+    # PATCH is allowed to move hosts from one group to another; request succeeds
+    host_inventory.apis.groups.patch_group(group, hosts=hosts[1:], wait_for_updated=False)
 
-    host_inventory.kafka.verify_host_messages_not_produced(hosts)
+    # Hosts were moved into group, so host update events are produced
+    host_inventory.kafka.wait_for_filtered_host_messages(
+        HostWrapper.insights_id, [h.insights_id for h in hosts]
+    )
+
+    # Verify final group state: group has hosts[1:], first group is empty
+    host_inventory.apis.groups.verify_updated(group_with_host3, name=group_name, hosts=[])
+    host_inventory.apis.groups.verify_updated(
+        group, name=group_name2, hosts=[hosts[1].id, hosts[2].id, hosts[3].id]
+    )
 
 
 @pytest.mark.ephemeral

@@ -95,9 +95,8 @@ def _upload_create_or_update_host(
         delay=0.5,
         **args,
     )
-    host = response.results[0]
 
-    return host
+    return response.results[0]
 
 
 @pytest.fixture
@@ -246,9 +245,7 @@ def _upload_create_or_update_edge_host(
 
     api_response = accept_when(_get_created_host, _is_created, delay=0.5, retries=50)
 
-    host = api_response.results[0]
-
-    return host
+    return api_response.results[0]
 
 
 @pytest.fixture(scope="class")

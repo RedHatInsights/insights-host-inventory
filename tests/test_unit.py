@@ -920,7 +920,6 @@ def test_with_all_fields(flask_app):
             **canonical_facts,
             **unchanged_input,
             "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-            "system_profile_facts": full_input["system_profile"],
         }
 
         assert Host is type(actual)
@@ -955,7 +954,9 @@ def test_with_only_required_fields_serialization_deserialize_host_compound(subte
             assert reporter == host.reporter
             assert host.facts == {}
             assert host.tags == {}
-            assert host.system_profile_facts == {}
+            # system_profile_facts no longer exists - check normalized tables instead
+            assert host.static_system_profile is None
+            assert host.dynamic_system_profile is None
 
 
 def test_with_invalid_input_serialization_deserialize_host_compound(subtests, flask_app):
@@ -1088,7 +1089,6 @@ def test_with_all_common_fields_serialization_deserialize_host_compound(subtests
                 **canonical_facts,
                 **unchanged_input,
                 "facts": {item["namespace"]: item["facts"] for item in full_input["facts"]},
-                "system_profile_facts": full_input["system_profile"],
             }
 
             assert Host is type(actual)
@@ -1933,7 +1933,7 @@ def test_empty_profile_is_empty_dict_serialization_serialize_host_system_profile
             org_id=USER_IDENTITY["org_id"],
         )
         host.id = uuid4()
-        host.system_profile_facts = None
+        # No system profile data - should serialize to empty system_profile
 
         actual = serialize_host_system_profile(host)
         expected = {"id": str(host.id), "system_profile": {}}
@@ -2643,6 +2643,18 @@ def test_custom_fields_parser_query_parameter_parsing():
             ("fields", ["system_profile"], ["os_version,arch,yum_repos"]),
             [{"system_profile": {"os_version": True, "arch": True, "yum_repos": True}}],
         ),
+        (
+            ("fields", ["system_profile"], ['["arch"]']),
+            [{"system_profile": {"arch": True}}],
+        ),
+        (
+            ("fields", ["system_profile"], ['["arch","host_type"]']),
+            [{"system_profile": {"arch": True, "host_type": True}}],
+        ),
+        (
+            ("fields", ["system_profile"], ['["os_version", "arch", "yum_repos"]']),
+            [{"system_profile": {"os_version": True, "arch": True, "yum_repos": True}}],
+        ),
     ):
         root_key, response, is_deep_object = custom_fields_parser(*parser_input)
         assert root_key == parser_input[0]
@@ -2663,6 +2675,24 @@ def test_invalid_deep_object_list_query_parameter_parsing():
     ):
         with pytest.raises(BadRequestProblem):
             customURIParser._make_deep_object(key, value)
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        # Single-level filter paths with plain string values should be rejected
+        # because they would set the entire system_profile to a string instead of a nested filter
+        ("filter[system_profile]", ["plain_string"]),
+        ("filter[system_profile]", ["true"]),
+        ("filter[system_profile]", ["123"]),
+        ("filter[other_field]", ["some_value"]),
+    ],
+)
+def test_single_level_filter_path_requires_json_object(key, value):
+    """Test that filter[X]=plain_value (single path element) raises BadRequestProblem."""
+    with pytest.raises(BadRequestProblem) as exc_info:
+        customURIParser._make_deep_object(key, value)
+    assert "must be a JSON object or use bracket notation" in str(exc_info.value.detail)
 
 
 def test_custom_regex_escape_custom_regex_method(subtests):

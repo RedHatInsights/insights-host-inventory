@@ -201,7 +201,7 @@ def _check_event_headers(
         "name", ""
     )
     assert message.headers["reporter"] == host.reporter
-    assert message.headers["host_type"] == host.system_profile.get("host_type", "")
+    assert message.headers["host_type"] == host.host_type
     is_bootc = str(host.system_profile.get("bootc_status", {}).get("booted") is not None)
     assert message.headers["is_bootc"] == is_bootc
 
@@ -435,9 +435,10 @@ def check_mq_create_or_update_event_host_data(
 def is_uuid(value: str) -> bool:
     try:
         UUID(value)
-        return True
     except ValueError:
         return False
+    else:
+        return True
 
 
 def encode_identity(identity: dict) -> str:

@@ -4,6 +4,7 @@ on:
     paths:
       - 'Pipfile'
       - 'Pipfile.lock'
+      - '.hermetic_builds/requirements.txt'
 
 jobs:
   dependabot-automerge:

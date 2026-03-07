@@ -7,10 +7,10 @@ from uuid import UUID
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_CANONICAL_UUIDS
 from iqe_host_inventory.utils.api_utils import api_disabled_validation
 from iqe_host_inventory.utils.api_utils import is_ungrouped_host
 from iqe_host_inventory.utils.api_utils import raises_apierror
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_CANONICAL_UUIDS
 from iqe_host_inventory.utils.datagen_utils import generate_digits
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_sp_field_value
@@ -238,12 +238,14 @@ def test_groups_add_hosts_already_in_different_group(
     """
     https://issues.redhat.com/browse/ESSNTL-4377
 
+    Adding hosts that are already in another group now moves them to the target group
+    (same behavior as PATCH with host_ids).
+
     metadata:
       requirements: inv-groups-add-hosts
       assignee: fstavela
       importance: high
-      negative: true
-      title: Try to add a host from a different group to my group
+      title: Add a host from a different group to my group (moves the host)
     """
     hosts = host_inventory.kafka.create_random_hosts(3)
 
@@ -253,19 +255,14 @@ def test_groups_add_hosts_already_in_different_group(
     group2 = host_inventory.apis.groups.create_group(group_name2)
 
     hosts_to_add = [hosts[1]] if how_many == "one" else hosts
-    with raises_apierror(
-        400,
-        (
-            "The following subset of hosts are already associated with another group: ",
-            *[host.id for host in hosts_to_add],
-        ),
-    ):
-        host_inventory.apis.groups.add_hosts_to_group(
-            group2, hosts=hosts_to_add, wait_for_added=False
-        )
+    host_inventory.apis.groups.add_hosts_to_group(group2, hosts=hosts_to_add, wait_for_added=False)
 
-    host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts)
-    host_inventory.apis.groups.verify_not_updated(group2, name=group_name2, hosts=[])
+    # Hosts are moved from group to group2
+    remaining_in_group = {h.id for h in hosts} - {h.id for h in hosts_to_add}
+    host_inventory.apis.groups.verify_updated(group, name=group_name, hosts=remaining_in_group)
+    host_inventory.apis.groups.verify_updated(
+        group2, name=group_name2, hosts=[h.id for h in hosts_to_add]
+    )
 
 
 @pytest.mark.ephemeral
@@ -275,12 +272,14 @@ def test_groups_add_hosts_good_and_already_in_different_group(
     """
     https://issues.redhat.com/browse/ESSNTL-4377
 
+    Adding a mix of new hosts and a host from another group now succeeds;
+    the host from the other group is moved to the target group.
+
     metadata:
       requirements: inv-groups-add-hosts
       assignee: fstavela
       importance: high
-      negative: true
-      title: Try to add a new host together with a host from a different group to my group
+      title: Add a new host together with a host from a different group to my group
     """
     hosts = host_inventory.kafka.create_random_hosts(3)
 
@@ -292,17 +291,17 @@ def test_groups_add_hosts_good_and_already_in_different_group(
     new_hosts = host_inventory.kafka.create_random_hosts(2)
     hosts_to_add = [new_hosts[0], hosts[1], new_hosts[1]]
 
-    with raises_apierror(
-        400,
-        f"The following subset of hosts are already associated with another group: "
-        f"['{hosts[1].id}'].",
-    ):
-        host_inventory.apis.groups.add_hosts_to_group(
-            group2, hosts=hosts_to_add, wait_for_added=False
-        )
+    host_inventory.apis.groups.add_hosts_to_group(group2, hosts=hosts_to_add, wait_for_added=False)
 
-    host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts)
-    host_inventory.apis.groups.verify_not_updated(group2, name=group_name2, hosts=[])
+    # group keeps hosts that were not moved; group2 gets all hosts_to_add (hosts[1] is moved)
+    host_inventory.apis.groups.verify_updated(
+        group, name=group_name, hosts=[hosts[0].id, hosts[2].id]
+    )
+    host_inventory.apis.groups.verify_updated(
+        group2,
+        name=group_name2,
+        hosts=[new_hosts[0].id, hosts[1].id, new_hosts[1].id],
+    )
 
 
 @pytest.mark.ephemeral

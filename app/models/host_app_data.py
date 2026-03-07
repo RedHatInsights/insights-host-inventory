@@ -31,6 +31,9 @@ class HostAppDataMixin:
     # Optional: fields that can be used for sorting in the hosts-view endpoint
     __sortable_fields__: tuple[str, ...] = ()
 
+    # Optional: fields that can be used for filtering in the hosts-view endpoint
+    __filterable_fields__: tuple[str, ...] = ()
+
     # Fields from the mixin that should never be serialized
     _MIXIN_FIELDS = frozenset({"org_id", "host_id", "last_updated"})
 
@@ -104,16 +107,28 @@ class HostAppDataMixin:
 class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_advisor"
     __app_name__ = "advisor"
-    __sortable_fields__ = ("recommendations", "incidents")
+    __sortable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
+    __filterable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
 
     recommendations = db.Column(db.Integer, nullable=True)
     incidents = db.Column(db.Integer, nullable=True)
+    critical = db.Column(db.Integer, nullable=True)
+    important = db.Column(db.Integer, nullable=True)
+    moderate = db.Column(db.Integer, nullable=True)
+    low = db.Column(db.Integer, nullable=True)
 
 
 class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_vulnerability"
     __app_name__ = "vulnerability"
     __sortable_fields__ = (
+        "total_cves",
+        "critical_cves",
+        "high_severity_cves",
+        "cves_with_security_rules",
+        "cves_with_known_exploits",
+    )
+    __filterable_fields__ = (
         "total_cves",
         "critical_cves",
         "high_severity_cves",
@@ -144,6 +159,21 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
         "packages_applicable",
         "packages_installed",
     )
+    __filterable_fields__ = (
+        "advisories_rhsa_installable",
+        "advisories_rhba_installable",
+        "advisories_rhea_installable",
+        "advisories_other_installable",
+        "advisories_rhsa_applicable",
+        "advisories_rhba_applicable",
+        "advisories_rhea_applicable",
+        "advisories_other_applicable",
+        "packages_installable",
+        "packages_applicable",
+        "packages_installed",
+        "template_name",
+        "template_uuid",
+    )
 
     # Advisory counts by type (applicable)
     advisories_rhsa_applicable = db.Column(db.Integer, nullable=True)
@@ -171,6 +201,7 @@ class HostAppDataRemediations(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_remediations"
     __app_name__ = "remediations"
     __sortable_fields__ = ("remediations_plans",)
+    __filterable_fields__ = ("remediations_plans",)
 
     remediations_plans = db.Column(db.Integer, nullable=True)
 
@@ -179,6 +210,7 @@ class HostAppDataCompliance(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_compliance"
     __app_name__ = "compliance"
     __sortable_fields__ = ("last_scan",)
+    __filterable_fields__ = ("last_scan",)
 
     policies = db.Column(JSONB, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -188,6 +220,7 @@ class HostAppDataMalware(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_malware"
     __app_name__ = "malware"
     __sortable_fields__ = ("last_matches", "total_matches", "last_scan")
+    __filterable_fields__ = ("last_matches", "total_matches", "last_scan", "last_status")
 
     last_status = db.Column(db.String(50), nullable=True)  # Not sortable - string field
     last_matches = db.Column(db.Integer, nullable=True)

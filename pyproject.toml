@@ -1,84 +1,67 @@
-[metadata]
-name = "insights-host-inventory"
-version = "0.1.0"
-
 [tool.ruff]
-line-length = 119
 target-version = "py312"
-
+line-length = 119
 lint.select = [
-    # pycodestyle
-    "E",
-    # pycodestyle warnings
-    "W",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # flake8-unused-arguments
-    "ARG",
+  # flake8-unused-arguments
+  "ARG",
+  # flake8-bugbear
+  "B",
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # isort
+  "I",
+  # flake8-simplify
+  "SIM",
+  # pyupgrade
+  "UP",
+  # pycodestyle warnings
+  "W",
 ]
-
 lint.ignore = [
-    "SIM117", #merge stacked with statements
-    "SIM118", # replace dict.keys iteration with dictkeys set operations
+  "SIM117", # merge stacked with statements
+  "SIM118", # replace dict.keys iteration with dictkeys set operations
 ]
-
-lint.per-file-ignores."lib/host_remove_duplicates.py" = ["B023"]
-
+lint.per-file-ignores."lib/host_remove_duplicates.py" = [ "B023" ]
 lint.extend-safe-fixes = [
-    "UP006", # Use tuple, list, etc. instead of typing.Tuple, typing.List in type annotations
-    "UP031", # Use f-string instead of percent format
+  "UP006", # Use tuple, list, etc. instead of typing.Tuple, typing.List in type annotations
+  "UP031", # Use f-string instead of percent format
 ]
-
-lint.isort.force-single-line = true
-
 lint.flake8-unused-arguments.ignore-variadic-names = true
+lint.isort.force-single-line = true
 
 [tool.mypy]
 python_version = "3.12"
-
 # Start off with these
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-
 # Getting these passing should be easy
 strict_equality = true
 extra_checks = true
-
 # Strongly recommend enabling this one as soon as you can
-#check_untyped_defs = true
-
+# check_untyped_defs = true
 # These shouldn't be too much additional work, but may be tricky to
 # get passing if you use a lot of untyped libraries
-#disallow_subclassing_any = true
-#disallow_untyped_decorators = true
-#disallow_any_generics = true
-
+# disallow_subclassing_any = true
+# disallow_untyped_decorators = true
+# disallow_any_generics = true
 # These next few are various gradations of forcing use of type annotations
-#disallow_untyped_calls = true
-#disallow_incomplete_defs = true
-#disallow_untyped_defs = true
-
+# disallow_untyped_calls = true
+# disallow_incomplete_defs = true
+# disallow_untyped_defs = true
 # This one isn't too hard to get passing, but return on investment is lower
 no_implicit_reexport = true
-
 # This one can be tricky to get passing if you use a lot of untyped libraries
-#warn_return_any = true
+# warn_return_any = true
 
 # When everything above is enabled, it is equivalent to --strict, so we can switch to:
-#strict = true
+# strict = true
 
 [[tool.mypy.overrides]]
 # missing in the stub
-module = ["requests.packages.urllib3.*"]
+module = [ "requests.packages.urllib3.*" ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -88,10 +71,10 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Generated API code in IQE plugin
 module = [
-    "iqe_host_inventory_api",
-    "iqe_host_inventory_api.*",
-    "iqe_host_inventory_api_v7",
-    "iqe_host_inventory_api_v7.*",
+  "iqe_host_inventory_api",
+  "iqe_host_inventory_api.*",
+  "iqe_host_inventory_api_v7",
+  "iqe_host_inventory_api_v7.*",
 ]
 ignore_errors = true
 
@@ -99,14 +82,18 @@ ignore_errors = true
 # IQE files that import from generated API modules (attr-defined errors)
 # TODO: Stop ignoring mypy errors on IQE: https://issues.redhat.com/browse/RHINENG-22478
 module = [
-    "iqe_host_inventory.schemas",
-    "iqe_host_inventory.pytest_plugin",
-    "iqe_host_inventory.utils.tag_utils",
-    "iqe_host_inventory.utils.api_utils",
-    "iqe_host_inventory.utils.staleness_utils",
-    "iqe_host_inventory.utils.notifications_utils",
-    "iqe_host_inventory.modeling.*",
-    "iqe_host_inventory.fixtures.*",
-    "iqe_host_inventory.tests.rest.*",
+  "iqe_host_inventory.schemas",
+  "iqe_host_inventory.pytest_plugin",
+  "iqe_host_inventory.utils.tag_utils",
+  "iqe_host_inventory.utils.api_utils",
+  "iqe_host_inventory.utils.staleness_utils",
+  "iqe_host_inventory.utils.notifications_utils",
+  "iqe_host_inventory.modeling.*",
+  "iqe_host_inventory.fixtures.*",
+  "iqe_host_inventory.tests.rest.*",
 ]
 ignore_errors = true
+
+[metadata]
+name = "insights-host-inventory"
+version = "0.1.0"

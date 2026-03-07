@@ -166,10 +166,14 @@ def run_migrations_online():
         # CRITICAL: Explicitly commit the transaction to persist migration changes.
         connection.commit()
     finally:
-        # Release the lock
         logger.info("Releasing advisory lock...")
-        connection.execute(text("SELECT pg_advisory_unlock(1);"))
-        connection.close()
+        try:
+            connection.rollback()
+            connection.execute(text("SELECT pg_advisory_unlock(1);"))
+        except Exception:
+            logger.warning("Failed to release advisory lock; it will be released on disconnect.")
+        finally:
+            connection.close()
 
 
 if context.is_offline_mode():

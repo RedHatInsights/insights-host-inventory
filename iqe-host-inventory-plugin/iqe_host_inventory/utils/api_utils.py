@@ -40,6 +40,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Kessel will respond with either 403 or 404 if the user doesn't have access to the resource.
+# It's the same code for both cases. Kessel has changed this recently, so we need to handle both.
+FORBIDDEN_OR_NOT_FOUND = (403, 404)
+
 _COLLECTION_PARAMS = (
     "group_name",
     "group_id",
@@ -207,20 +211,17 @@ def delete_hosts(host_list: list[Any], openapi_client: HostsApi) -> None:
 def delete_hosts_by_tags(tag_search_term, openapi_client: HostsApi, openapi_client_tags: TagsApi):
     tags = []
     response = openapi_client_tags.api_tag_get_tags(search=tag_search_term)
-    for tag in response.results:
-        tags.append(convert_tag_to_string(tag.tag.to_dict()))
+    tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
     pages = response.total // 50 + (response.total % 50 > 0)
     for page in range(2, pages + 1):
         response = openapi_client_tags.api_tag_get_tags(search=tag_search_term, page=page)
-        for tag in response.results:
-            tags.append(convert_tag_to_string(tag.tag.to_dict()))
+        tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
     logger.info(f"Deleting hosts by {len(tags)} tags: " + str(tags))
 
     hosts = []
     for tag in tags:
         response = openapi_client.api_host_get_host_list(tags=[tag])
-        for host in response.results:
-            hosts.append(host)
+        hosts.extend(response.results)
         # Prevent from "Request Line is too large" error when deleting too many hosts at once
         if len(hosts) >= 50:
             delete_hosts(hosts, openapi_client)
@@ -442,20 +443,23 @@ def build_query_string(
 
     for key, val in api_kwargs.items():
         if key in _COLLECTION_PARAMS and isinstance(val, (list, tuple)):
-            for v in val:
-                if v is not None:
-                    query_params.append(f"{quote(key)}={quote(str(v))}")
+            query_params.extend(f"{quote(key)}={quote(str(v))}" for v in val if v is not None)
         elif val is not None:
             query_params.append(f"{quote(key)}={quote(str(val))}")
 
     if filter is not None:
-        for f in filter:
-            query_params.append(f"filter[system_profile]{f}")
+        query_params.extend(f"filter[system_profile]{f}" for f in filter)
 
     if fields is not None:
         query_params.append(f"fields[system_profile]={','.join(fields)}")
 
     return "&".join(query_params)
+
+
+def build_query_string_json_array_fields(fields: list[str]) -> str:
+    """Build a fields query using JSON array syntax: fields[system_profile]=["f1","f2"]"""
+    quoted = ",".join(f'"{f}"' for f in fields)
+    return f"fields[system_profile]=[{quoted}]"
 
 
 def set_per_page(

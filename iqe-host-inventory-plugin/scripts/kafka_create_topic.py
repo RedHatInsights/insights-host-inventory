@@ -8,9 +8,10 @@ new_topics = [NewTopic("example_topic", num_partitions=1, replication_factor=1)]
 
 future = admin_client.create_topics(new_topics)
 
-for _, f in future.items():
+for f in future.values():
     try:
         f.result()
-        print("Topic created")
-    except Exception:
+    except Exception:  # noqa: BLE001
         print("Failed to create topic")
+    else:
+        print("Topic created")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import Any
+from typing import Self
 
 import attrs
 import pytest
@@ -16,10 +16,10 @@ class HBICleanupRegistry:
     _scope: str
     _applications: list[ApplicationHostInventory] = attrs.field(factory=list)
 
-    def __enter__(self) -> HBICleanupRegistry:
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         for host_inventory_app in self._applications:
             host_inventory_app.cleanup.clean_all(self._scope)
 
@@ -30,30 +30,30 @@ class HBICleanupRegistry:
 
 
 @pytest.fixture(scope="session")
-def hbi_cleanup_session() -> Generator[HBICleanupRegistry, None, None]:
+def hbi_cleanup_session() -> Generator[HBICleanupRegistry]:
     with HBICleanupRegistry("session") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="package")
-def hbi_cleanup_package() -> Generator[HBICleanupRegistry, None, None]:
+def hbi_cleanup_package() -> Generator[HBICleanupRegistry]:
     with HBICleanupRegistry("package") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="module")
-def hbi_cleanup_module() -> Generator[HBICleanupRegistry, None, None]:
+def hbi_cleanup_module() -> Generator[HBICleanupRegistry]:
     with HBICleanupRegistry("module") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="class")
-def hbi_cleanup_class() -> Generator[HBICleanupRegistry, None, None]:
+def hbi_cleanup_class() -> Generator[HBICleanupRegistry]:
     with HBICleanupRegistry("class") as cleanup:
         yield cleanup
 
 
 @pytest.fixture(scope="function")
-def hbi_cleanup_function() -> Generator[HBICleanupRegistry, None, None]:
+def hbi_cleanup_function() -> Generator[HBICleanupRegistry]:
     with HBICleanupRegistry("function") as cleanup:
         yield cleanup

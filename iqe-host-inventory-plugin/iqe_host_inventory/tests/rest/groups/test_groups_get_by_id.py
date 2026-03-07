@@ -10,8 +10,8 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GroupData
-from iqe_host_inventory.tests.rest.validation.test_system_profile import EMPTY_BASICS
 from iqe_host_inventory.utils.api_utils import raises_apierror
+from iqe_host_inventory.utils.datagen_utils import EMPTY_BASICS
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -56,6 +56,10 @@ def in_order(
     def _get_field(group: GroupOutWithHostCount, field_name: str):
         if field_name == "host_count":
             return group.host_count
+        elif field_name == "type":
+            # type field is only in RBAC v2 workspaces, not in OpenAPI model
+            # Derive it from the ungrouped field which IS in the model
+            return "ungrouped-hosts" if group.ungrouped else "standard"
         return getattr(group, field_name)
 
     expected_compare_result = -1 if ascending else 1
@@ -75,7 +79,7 @@ def in_order(
         lr = _get_field(last_result, sort_field)
         cr = _get_field(current_results[0], sort_field)
         comparison_result = comparator_func(lr, cr)
-        if comparison_result != expected_compare_result and comparison_result != 0:
+        if comparison_result not in (expected_compare_result, 0):
             return False
 
     prev_result = None
@@ -84,7 +88,7 @@ def in_order(
             pr = _get_field(prev_result, sort_field)
             cr = _get_field(cur_result, sort_field)
             comparison_result = comparator_func(pr, cr)
-            if comparison_result != expected_compare_result and comparison_result != 0:
+            if comparison_result not in (expected_compare_result, 0):
                 return False
         prev_result = cur_result
 
@@ -653,7 +657,7 @@ class TestGetGroupByIDEmptyGroups:
             (
                 f"{order_by}",
                 "is not one of ['name', 'host_count', 'updated']",
-                "{'type': 'string', 'enum': ['name', 'host_count', 'updated']}",
+                "'enum': ['name', 'host_count', 'updated']",
             ),
         ):
             host_inventory.apis.groups.get_groups_by_id_response(groups, order_by=order_by)

@@ -15,7 +15,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
-from sqlalchemy.orm import defer
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import load_only
 from sqlalchemy.sql import expression
@@ -23,6 +22,7 @@ from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.app_data_sorting import resolve_app_sort
 from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
+from api.filtering.db_filters import _is_table_already_joined
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
@@ -45,6 +45,7 @@ from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
+from app.serialization import SP_FIELD_SERIALIZERS
 from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import serialize_host_for_export_svc
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -134,9 +135,6 @@ def _get_host_list_using_filters(
     if is_sp_requested:
         # Load full ORM objects (needed for relationships)
         base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
-
-        # Defer loading of the deprecated JSONB column - we use the new normalized tables
-        base_query = base_query.options(defer(Host.system_profile_facts))
 
         # Conditionally join related tables based on requested fields
         requested_keys = set(sp_fields_map.keys())
@@ -348,6 +346,7 @@ def get_host_list_for_views(
     registered_with: list[str] | None,
     system_type: list[str] | None,
     filter: dict | None,
+    fields: dict | None,  # noqa: ARG001
     rbac_filter: dict | None,
 ) -> tuple[list[Host], int]:
     """
@@ -388,9 +387,10 @@ def get_host_list_for_views(
     resolved = resolve_app_sort(param_order_by)
     if resolved:
         app_sort_model, _ = resolved
-        query_base = query_base.outerjoin(
-            app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
-        )
+        if not _is_table_already_joined(query_base, app_sort_model):
+            query_base = query_base.outerjoin(
+                app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
+            )
 
     # Reuse _get_host_list_using_filters with app fields enabled, no system_profile support
     items, count, _, _ = _get_host_list_using_filters(
@@ -783,39 +783,22 @@ def get_sparse_system_profile(
         fields_to_fetch = deepcopy(requested_sp_fields)
         if workloads_needed_for_compat and not workloads_requested:
             fields_to_fetch.append("workloads")
-
-        jsonb_parts = []
-        for key in fields_to_fetch:
-            if key in STATIC_FIELDS:
-                jsonb_parts.extend([key, getattr(HostStaticSystemProfile, key)])
-                needs_static_join = True
-            elif key in DYNAMIC_FIELDS:
-                jsonb_parts.extend([key, getattr(HostDynamicSystemProfile, key)])
-                needs_dynamic_join = True
-
-        columns = [
-            Host.id,
-            func.jsonb_strip_nulls(func.jsonb_build_object(*jsonb_parts))
-            if jsonb_parts
-            else func.jsonb_build_object(),
-        ]
     else:
-        # Fetch all fields from both normalized tables
-        # Build separate JSONB objects for static and dynamic fields to avoid exceeding
-        # PostgreSQL's 100-argument limit for jsonb_build_object
-        static_parts = [field for f in STATIC_FIELDS for field in (f, getattr(HostStaticSystemProfile, f))]
-        dynamic_parts = [field for f in DYNAMIC_FIELDS for field in (f, getattr(HostDynamicSystemProfile, f))]
-        # Merge the two JSONB objects using || operator
-        static_jsonb = func.jsonb_build_object(*static_parts)
-        dynamic_jsonb = func.jsonb_build_object(*dynamic_parts)
-        merged_jsonb = static_jsonb.op("||")(dynamic_jsonb)
-        columns = [
-            Host.id,
-            func.jsonb_strip_nulls(merged_jsonb),
-        ]
-        # When fetching all fields, we need both joins
-        needs_static_join = True
-        needs_dynamic_join = True
+        fields_to_fetch = STATIC_FIELDS + DYNAMIC_FIELDS
+
+    sp_columns = []
+    sp_field_names = []
+    for key in fields_to_fetch:
+        if key in STATIC_FIELDS:
+            sp_columns.append(getattr(HostStaticSystemProfile, key))
+            sp_field_names.append(key)
+            needs_static_join = True
+        elif key in DYNAMIC_FIELDS:
+            sp_columns.append(getattr(HostDynamicSystemProfile, key))
+            sp_field_names.append(key)
+            needs_dynamic_join = True
+
+    columns = [Host.id] + sp_columns
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
 
@@ -835,8 +818,15 @@ def get_sparse_system_profile(
     query_results = sp_query.paginate(page=page, per_page=per_page, error_out=True)
     db.session.close()
 
-    # Build the result list
-    result_list = [{"id": str(item[0]), "system_profile": item[1]} for item in query_results.items]
+    # Build system profile dicts in Python: skip None values, apply serializers
+    result_list: list[dict[str, Any]] = []
+    for item in query_results.items:
+        system_profile = {}
+        for field_name, value in zip(sp_field_names, item[1:], strict=True):
+            if value is not None:
+                serializer = SP_FIELD_SERIALIZERS.get(field_name)
+                system_profile[field_name] = serializer(value) if serializer else value
+        result_list.append({"id": str(item[0]), "system_profile": system_profile})
 
     # Apply backward compatibility logic if the flag is enabled
     if get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY):

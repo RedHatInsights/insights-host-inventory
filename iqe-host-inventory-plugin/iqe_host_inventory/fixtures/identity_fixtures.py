@@ -63,13 +63,11 @@ def get_system_identity(request) -> dict[str, Any]:
 
 
 def get_user_identity() -> dict[str, Any]:
-    identity = deepcopy(MINIMAL_USER_IDENTITY)
-    return identity
+    return deepcopy(MINIMAL_USER_IDENTITY)
 
 
 def get_service_account_identity() -> dict[str, Any]:
-    identity = deepcopy(MINIMAL_SERVICE_ACCOUNT_IDENTITY)
-    return identity
+    return deepcopy(MINIMAL_SERVICE_ACCOUNT_IDENTITY)
 
 
 @pytest.fixture(params=["user", "service_account"])

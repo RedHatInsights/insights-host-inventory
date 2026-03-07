@@ -44,8 +44,7 @@ def accept_when[T](
         response = func()
         if is_valid(response):
             return response
-    else:
-        if error is None:
-            assert response is not None
-            return response
-        raise error
+    if error is None:
+        assert response is not None
+        return response
+    raise error

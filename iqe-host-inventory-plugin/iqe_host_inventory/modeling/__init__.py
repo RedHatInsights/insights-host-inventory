@@ -36,6 +36,7 @@ from .exports_api import ExportsAPIWrapper
 from .groups_api import GROUP_OR_GROUPS
 from .groups_api import GroupsAPIWrapper
 from .groups_api import _ids_from_groups
+from .host_view_api import HostViewAPIWrapper
 from .hosts_api import HOST_OR_HOSTS
 from .hosts_api import HostsAPIWrapper
 from .hosts_api import _ids_from_hosts
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 
 HBI_API_WRAPPER = (
     HostsAPIWrapper
+    | HostViewAPIWrapper
     | TagsAPIWrapper
     | SystemProfileAPIWrapper
     | GroupsAPIWrapper
@@ -157,10 +159,10 @@ def _format_endpoint_stats(endpoint: str, entries: list[tuple[float, int | None]
 
     if count_groups:
         lines.append("    Per item count:")
-        for count in sorted(count_groups):
-            lines.append(
-                f"      N={count:<4} {_format_stats(_compute_stats(count_groups[count]))}"
-            )
+        lines.extend(
+            f"      N={count:<4} {_format_stats(_compute_stats(count_groups[count]))}"
+            for count in sorted(count_groups)
+        )
 
     return lines
 
@@ -173,9 +175,7 @@ class HBIApis(BaseEntity):
         self.request_times[endpoint].append(elapsed)
 
     @contextmanager
-    def measure_time(
-        self, endpoint: str, *, count: int | None = None
-    ) -> Generator[None, None, None]:
+    def measure_time(self, endpoint: str, *, count: int | None = None) -> Generator[None]:
         label = endpoint if count is None else f"{endpoint}; {count}"
         start = time.monotonic()
         try:
@@ -226,6 +226,10 @@ class HBIApis(BaseEntity):
     @cached_property
     def hosts(self) -> HostsAPIWrapper:
         return HostsAPIWrapper(self)
+
+    @cached_property
+    def host_views(self) -> HostViewAPIWrapper:
+        return HostViewAPIWrapper(self)
 
     @cached_property
     def tags(self) -> TagsAPIWrapper:

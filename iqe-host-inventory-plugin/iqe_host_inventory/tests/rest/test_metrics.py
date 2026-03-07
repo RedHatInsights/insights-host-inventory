@@ -14,8 +14,7 @@ def metrics_url(application):
         application.host_inventory.config.get("service_objects").get("api").get("config")
     )
     base = f"{inventory_conf.get('scheme')}://{inventory_conf.get('hostname')}:9000"
-    url = urljoin(base, "metrics")
-    return url
+    return urljoin(base, "metrics")
 
 
 @iqe_blocker(iqe_blocker.jira("RHINENG-11724", category=iqe_blocker.AUTOMATION_ISSUE))

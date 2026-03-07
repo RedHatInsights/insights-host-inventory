@@ -9,6 +9,7 @@ from iqe.utils.blockers import iqe_blocker
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import build_query_string
+from iqe_host_inventory.utils.api_utils import build_query_string_json_array_fields
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import fields_having
@@ -294,7 +295,11 @@ def test_get_specific_fields_bad_type(
 
 
 def _call_api(
-    host_inventory: ApplicationHostInventory, path: str, *, fields: list[str] | None = None
+    host_inventory: ApplicationHostInventory,
+    path: str,
+    *,
+    fields: list[str] | None = None,
+    build_fields_query: Callable = build_query_string,
 ) -> dict:
     """Return host info with the desired fields.  This helper is specific to
     the test cases that follow.
@@ -302,11 +307,11 @@ def _call_api(
     :param ApplicationHostInventory host_inventory: host_inventory object
     :param str path: Path endpoint
     :param list[str] fields: List of desired fields
+    :param build_fields_query: callable that builds the fields query string
     :return dict: Host info
     """
-    query = build_query_string(fields=fields)
-    if query:
-        path += "?" + query
+    if fields:
+        path += "?" + build_fields_query(fields=fields)
 
     return host_inventory.apis.hosts.api_client.call_api(
         path, "GET", response_type=object, _return_http_data_only=True
@@ -314,9 +319,17 @@ def _call_api(
 
 
 @pytest.mark.ephemeral
+@pytest.mark.parametrize(
+    "build_fields_query",
+    [
+        pytest.param(build_query_string, id="comma-separated"),
+        pytest.param(build_query_string_json_array_fields, id="json-array"),
+    ],
+)
 def test_get_host_list_selected_fields(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,
+    build_fields_query,
 ):
     """
     metadata:
@@ -334,7 +347,9 @@ def test_get_host_list_selected_fields(
     selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
-    response_hosts = _call_api(host_inventory, "/hosts", fields=fields)["results"]
+    response_hosts = _call_api(
+        host_inventory, "/hosts", fields=fields, build_fields_query=build_fields_query
+    )["results"]
 
     for host in response_hosts:
         response_fields = host["system_profile"].keys()
@@ -345,9 +360,17 @@ def test_get_host_list_selected_fields(
 
 
 @pytest.mark.ephemeral
+@pytest.mark.parametrize(
+    "build_fields_query",
+    [
+        pytest.param(build_query_string, id="comma-separated"),
+        pytest.param(build_query_string_json_array_fields, id="json-array"),
+    ],
+)
 def test_get_host_by_id_selected_fields(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,
+    build_fields_query,
 ):
     """
     metadata:
@@ -367,16 +390,26 @@ def test_get_host_by_id_selected_fields(
     selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
-    response_host = _call_api(host_inventory, f"/hosts/{host.id}", fields=fields)["results"][0]
+    response_host = _call_api(
+        host_inventory, f"/hosts/{host.id}", fields=fields, build_fields_query=build_fields_query
+    )["results"][0]
 
     response_fields = response_host["system_profile"].keys()
     assert set(response_fields) == set(fields)
 
 
 @pytest.mark.ephemeral
+@pytest.mark.parametrize(
+    "build_fields_query",
+    [
+        pytest.param(build_query_string, id="comma-separated"),
+        pytest.param(build_query_string_json_array_fields, id="json-array"),
+    ],
+)
 def test_get_host_system_profile_by_id_selected_fields(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,
+    build_fields_query,
 ):
     """
     metadata:
@@ -397,9 +430,12 @@ def test_get_host_system_profile_by_id_selected_fields(
     selected_fields = sample(available_fields, min(20, len(available_fields)))
     fields = [field.name for field in selected_fields]
 
-    response = _call_api(host_inventory, f"/hosts/{host.id}/system_profile", fields=fields)[
-        "results"
-    ][0]
+    response = _call_api(
+        host_inventory,
+        f"/hosts/{host.id}/system_profile",
+        fields=fields,
+        build_fields_query=build_fields_query,
+    )["results"][0]
 
     response_fields = response["system_profile"].keys()
     assert set(response_fields) == set(fields)

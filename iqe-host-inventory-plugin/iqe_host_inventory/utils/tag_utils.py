@@ -13,7 +13,7 @@ from iqe_host_inventory_api import StructuredTag
 def convert_tag_to_string(tag_structure: dict[str, str] | object, url_encode: bool = False) -> str:
     """Converts tag from structured representation to string representation."""
     if not isinstance(tag_structure, dict):
-        raise ValueError(
+        raise TypeError(
             f"Wrong tag representation provided, expected dict, received {tag_structure}"
         )
     encode: Callable[[str], str] = cast(Callable[[str], str], quote if url_encode else str)
@@ -33,9 +33,7 @@ def convert_tag_to_string(tag_structure: dict[str, str] | object, url_encode: bo
 
 def convert_tag_from_nested_to_structured(tag_nested: dict) -> list[TagDict]:
     if not isinstance(tag_nested, dict):
-        raise ValueError(
-            f"Wrong tag representation provided, expected dict, received {tag_nested}"
-        )
+        raise TypeError(f"Wrong tag representation provided, expected dict, received {tag_nested}")
     tag_structured = []
     for namespace, keys in tag_nested.items():
         namespace = None if namespace == "" else namespace

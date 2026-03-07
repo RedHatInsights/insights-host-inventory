@@ -818,26 +818,17 @@ def generate_display_name(panic_prevention: str = "rhiqe") -> str:
 
 def generate_ips(num_ips: int = 2) -> list[str]:
     """Generate a list of ipv4 IPs."""
-    result = []
-    for _ in range(0, num_ips):
-        result.append(fake.ipv4_private())
-    return result
+    return [fake.ipv4_private() for _ in range(num_ips)]
 
 
 def generate_ipv6s(num_ips: int = 2) -> list[str]:
     """Generate a list of ipv6 IPs."""
-    result = []
-    for _ in range(0, num_ips):
-        result.append(fake.ipv6())
-    return result
+    return [fake.ipv6() for _ in range(num_ips)]
 
 
 def generate_macs(num_macs=2):
     """Generate a list of mac addresses."""
-    result = []
-    for _ in range(0, num_macs):
-        result.append(fake.mac_address())
-    return result
+    return [fake.mac_address() for _ in range(num_macs)]
 
 
 class FactNamespace(TypedDict):
@@ -848,7 +839,7 @@ class FactNamespace(TypedDict):
 def generate_facts(num_facts: int = 2) -> list[FactNamespace]:
     """Generate some facts."""
     facts = {}
-    for _ in range(0, num_facts):
+    for _ in range(num_facts):
         facts[fake.domain_word()] = fake.domain_word()
 
     result = FactNamespace(namespace=fake.domain_word(), facts=facts)
@@ -857,10 +848,7 @@ def generate_facts(num_facts: int = 2) -> list[FactNamespace]:
 
 def generate_tags(num_tags: int = 2) -> list[TagDict]:
     """Generate some tags"""
-    result: list[TagDict] = []
-    for _ in range(num_tags):
-        result.append(gen_tag())
-    return result
+    return [gen_tag() for _ in range(num_tags)]
 
 
 def generate_random_mac_address(size: int) -> str:
@@ -1215,9 +1203,7 @@ def generate_complete_system_profile(
         system_profile.pop("bootc_status")
 
     # Ensure workloads field values match individual field values
-    system_profile = sync_workloads_with_individual_fields(system_profile)
-
-    return system_profile
+    return sync_workloads_with_individual_fields(system_profile)
 
 
 def generate_complete_random_host(
@@ -1301,9 +1287,8 @@ def create_host_data(
     data["mac_addresses"] = generate_macs()
 
     data["facts"] = generate_facts()
-    data = {**data, **extra_data}
 
-    return data
+    return {**data, **extra_data}
 
 
 _EXAMPLE_SYSTEM_PROFILE_FACTS = {
@@ -1399,3 +1384,164 @@ def generate_dynamic_profile_test_data() -> dict[str, Any]:
             dynamic_profile[field_name] = complete_profile[field_name]
 
     return dynamic_profile
+
+
+@dataclass(frozen=True, order=False)
+class HostAppField:
+    """Describes a single column in a host-app data model."""
+
+    name: str
+    type: str  # "int", "str", "jsonb", "date-time", "uuid"
+    example: Any = None
+
+
+@dataclass(frozen=True, order=False)
+class HostApp:
+    """Describes a consumer application and its host-level data fields."""
+
+    name: str
+    fields: tuple[HostAppField, ...]
+
+
+HOST_APPS_: list[dict[str, Any]] = [
+    {
+        "name": "advisor",
+        "fields": (
+            HostAppField("recommendations", "int", 5),
+            HostAppField("incidents", "int", 2),
+            HostAppField("critical", "int", 3),
+            HostAppField("important", "int", 7),
+            HostAppField("moderate", "int", 4),
+            HostAppField("low", "int", 1),
+        ),
+    },
+    {
+        "name": "vulnerability",
+        "fields": (
+            HostAppField("total_cves", "int", 50),
+            HostAppField("critical_cves", "int", 5),
+            HostAppField("high_severity_cves", "int", 10),
+            HostAppField("cves_with_security_rules", "int", 8),
+            HostAppField("cves_with_known_exploits", "int", 3),
+        ),
+    },
+    {
+        "name": "patch",
+        "fields": (
+            HostAppField("advisories_rhsa_applicable", "int", 10),
+            HostAppField("advisories_rhba_applicable", "int", 5),
+            HostAppField("advisories_rhsa_installable", "int", 8),
+            HostAppField("packages_installable", "int", 50),
+            HostAppField("template_name", "str", "baseline-template"),
+        ),
+    },
+    {
+        "name": "remediations",
+        "fields": (HostAppField("remediations_plans", "int", 7),),
+    },
+    {
+        "name": "compliance",
+        "fields": (
+            HostAppField(
+                "policies",
+                "jsonb",
+                [{"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "name": "Policy 1"}],
+            ),
+            HostAppField("last_scan", "date-time"),
+        ),
+    },
+    {
+        "name": "malware",
+        "fields": (
+            HostAppField("last_status", "str", "clean"),
+            HostAppField("last_matches", "int", 0),
+            HostAppField("total_matches", "int", 0),
+            HostAppField("last_scan", "date-time"),
+        ),
+    },
+]
+
+HOST_APPS: list[HostApp] = [HostApp(**item) for item in HOST_APPS_]
+
+
+def get_host_app_by_name(name: str) -> HostApp:
+    """Return the HostApp definition with the given name."""
+    return next(app for app in HOST_APPS if app.name == name)
+
+
+def get_host_app_names() -> list[str]:
+    """Return the list of all consumer application names."""
+    return [app.name for app in HOST_APPS]
+
+
+# Static sample data per app (no timestamps).
+# Suitable for deterministic assertions where datetime values would be flaky.
+HOST_APP_SAMPLE_DATA: dict[str, dict[str, Any]] = {
+    app.name: {
+        field.name: copy.deepcopy(field.example)
+        for field in app.fields
+        if field.type != "date-time"
+    }
+    for app in HOST_APPS
+}
+
+
+def generate_host_app_data(app: HostApp | str) -> dict[str, Any]:
+    """Generate sample data for a single application, including timestamps.
+
+    ``date-time`` fields are populated with a recent ISO-8601 timestamp.
+    All other fields use the static example value from the field definition.
+    """
+    if isinstance(app, str):
+        app = get_host_app_by_name(app)
+    data: dict[str, Any] = {}
+    for field in app.fields:
+        if field.type == "date-time":
+            data[field.name] = gen_iso8601_datetime(start_date="-1d", end_date="now")
+        else:
+            data[field.name] = copy.deepcopy(field.example)
+    return data
+
+
+def generate_all_host_apps_data() -> dict[str, dict[str, Any]]:
+    """Generate sample data for all consumer applications.
+
+    Returns a mapping of ``{app_name: sample_data}`` where each
+    ``sample_data`` dict is ready to be sent as a Kafka message payload.
+    """
+    return {app.name: generate_host_app_data(app) for app in HOST_APPS}
+
+
+# ── Shared test-data constants (moved from test_system_profile.py) ───────────
+
+EMPTY_LIST = pytest.param([], id="empty list")
+EMPTY_DICT = pytest.param({}, id="empty dict")
+LIST_WITH_STR = pytest.param(["a"], id="list with data")
+EMPTY_STR = pytest.param("", id="empty str")
+
+EMPTY_BASICS = (EMPTY_LIST, EMPTY_DICT, EMPTY_STR)
+INCORRECT_STRING_VALUES = (EMPTY_LIST, EMPTY_DICT, LIST_WITH_STR)
+
+INCORRECT_CANONICAL_UUIDS = (
+    *EMPTY_BASICS,
+    pytest.param([generate_uuid()], id="list of uuid"),
+    pytest.param(generate_uuid().replace("-", "_"), id="bad uuid underscore"),
+    pytest.param(generate_uuid().replace("-", "."), id="bad uuid dots"),
+    pytest.param(generate_uuid().replace("-", " "), id="bad uuid spaces"),
+    pytest.param(generate_uuid().replace("-", ""), id="bad uuid no-separator"),
+    pytest.param(generate_uuid().upper(), id="uuid uppercase"),
+    pytest.param(generate_uuid()[:23], id="uuid short 23"),
+    pytest.param(generate_uuid()[:35], id="uuid short 35"),
+    pytest.param(generate_uuid() + "a", id="uuid with bad char"),
+    pytest.param("f8c1684c-aáe7-4463-8cf4-773cc668862c", id="uuid bad accent"),
+    pytest.param("f8c1684c-a$e7-4463-8cf4-773cc668862c", id="uuid special char"),
+    pytest.param("f8c1684c-aae7-4463-8cf4-773cc6-68862", id="uuid evil extra dash"),
+    pytest.param(generate_uuid()[:10], id="uuid short 10"),
+)
+
+INCORRECT_DATETIMES = (
+    *EMPTY_BASICS,
+    pytest.param([generate_timestamp()], id="list of timestamp"),
+    pytest.param(generate_uuid(), id="uuid"),
+    pytest.param(generate_string_of_length(10), id="randstr(10)"),
+)

@@ -9,7 +9,9 @@ from iqe.utils.blockers import iqe_blocker
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import ErrorNotificationWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.utils.datagen_utils import EMPTY_BASICS
 from iqe_host_inventory.utils.datagen_utils import HOST_FIELDS
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_STRING_VALUES
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import generate_facts
 from iqe_host_inventory.utils.datagen_utils import generate_host_field_value
@@ -22,9 +24,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_host_field_by_name
 from iqe_host_inventory.utils.datagen_utils import get_id_facts
 from iqe_host_inventory.utils.datagen_utils import parametrize_field
-
-from .test_system_profile import EMPTY_BASICS
-from .test_system_profile import INCORRECT_STRING_VALUES
 
 pytestmark = [pytest.mark.backend]
 
@@ -59,9 +58,7 @@ def validate_correct_value(host_inventory: ApplicationHostInventory):
         if isinstance(field_value, datetime):
             assert field_value.isoformat() == value
         elif field.name == "facts":
-            converted_facts = []
-            for fact in field_value:
-                converted_facts.append(fact.to_dict())
+            converted_facts = [fact.to_dict() for fact in field_value]
             assert sorted(value) == sorted(converted_facts)
         elif value == []:
             assert field_value is None

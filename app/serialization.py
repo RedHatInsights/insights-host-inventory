@@ -127,21 +127,13 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
-def _build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
+def build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
     """
     Build system profile dict from static and dynamic tables.
-    This replaces host.system_profile_facts.
+    Used for serialization since system_profile_facts column was removed.
     """
     system_profile = {}
 
-    SERIALIZERS = {
-        "owner_id": serialize_uuid,
-        "rhc_client_id": serialize_uuid,
-        "rhc_config_state": serialize_uuid,
-        "virtual_host_uuid": serialize_uuid,
-        "captured_date": _serialize_datetime,
-        "last_boot_time": _serialize_datetime,
-    }
     EXCLUDE_FIELDS = {"org_id", "host_id"}
 
     requested_fields = set(system_profile_fields) if system_profile_fields else None
@@ -177,7 +169,7 @@ def _build_system_profile_from_normalized(host: Host, system_profile_fields: lis
                 value = getattr(profile_source, field_name, None)
 
                 if value is not None:
-                    serializer = SERIALIZERS.get(field_name)
+                    serializer = SP_FIELD_SERIALIZERS.get(field_name)
                     system_profile[field_name] = serializer(value) if serializer else value
 
         except DetachedInstanceError:
@@ -240,7 +232,7 @@ def serialize_host(
 
     # Handle system_profile separately due to its complexity
     if "system_profile" in fields:
-        serialized_host["system_profile"] = _build_system_profile_from_normalized(host, system_profile_fields)
+        serialized_host["system_profile"] = build_system_profile_from_normalized(host, system_profile_fields)
 
         # Add backward compatibility for workload fields
         if serialized_host["system_profile"] and get_flag_value(
@@ -310,7 +302,7 @@ def serialize_group_without_host_count(group: Group) -> dict:
         "org_id": group.org_id,
         "account": group.account,
         "name": group.name,
-        "ungrouped": group.ungrouped,
+        "ungrouped": bool(group.ungrouped),
         "created": _serialize_datetime(group.created_on),
         "updated": _serialize_datetime(group.modified_on),
     }
@@ -320,8 +312,60 @@ def serialize_group_with_host_count(group: Group, host_count: int) -> dict:
     return {**serialize_group_without_host_count(group), "host_count": host_count}
 
 
+def serialize_db_group_with_host_count(group: Group, host_count: int) -> dict:
+    """
+    Serialize a database Group object with host count.
+
+    Args:
+        group: A Group ORM object from the database
+        host_count: The number of hosts in the group
+
+    Returns:
+        Dictionary containing serialized group data with host_count
+    """
+    return {
+        "id": serialize_uuid(group.id),
+        "org_id": group.org_id,
+        "account": group.account,
+        "name": group.name,
+        "ungrouped": bool(group.ungrouped),
+        "created": _serialize_datetime(group.created_on),
+        "updated": _serialize_datetime(group.modified_on),
+        "host_count": host_count,
+    }
+
+
+def serialize_rbac_workspace_with_host_count(workspace: dict, org_id: str, host_count: int) -> dict:
+    """
+    Serialize an RBAC v2 workspace dictionary with host count.
+
+    Args:
+        workspace: A dictionary from RBAC v2 with workspace data
+        org_id: The Organization ID of the workspace
+        host_count: The number of hosts in the workspace
+
+    Returns:
+        Dictionary containing serialized workspace data with host_count
+    """
+    # Parse and re-serialize datetime fields to ensure consistent format with DB groups
+    # RBAC v2 returns ISO strings, we normalize them to match DB serialization format
+    created_dt = _deserialize_datetime(workspace.get("created")) if workspace.get("created") else None
+    updated_dt = _deserialize_datetime(workspace.get("modified")) if workspace.get("modified") else None
+
+    return {
+        "id": serialize_uuid(workspace["id"]),
+        "org_id": org_id,
+        "account": workspace.get("account") or None,
+        "name": workspace.get("name"),
+        "ungrouped": workspace.get("type") == "ungrouped",
+        "created": _serialize_datetime(created_dt) if created_dt else "",
+        "updated": _serialize_datetime(updated_dt) if updated_dt else "",
+        "host_count": host_count,
+    }
+
+
 def serialize_host_system_profile(host):
-    system_profile = _build_system_profile_from_normalized(host)
+    system_profile = build_system_profile_from_normalized(host)
     return {"id": serialize_uuid(host.id), "system_profile": system_profile}
 
 
@@ -419,6 +463,16 @@ def _deserialize_datetime(s):
 
 def serialize_uuid(u):
     return str(u) if u else None
+
+
+SP_FIELD_SERIALIZERS = {
+    "owner_id": serialize_uuid,
+    "rhc_client_id": serialize_uuid,
+    "rhc_config_state": serialize_uuid,
+    "virtual_host_uuid": serialize_uuid,
+    "captured_date": _serialize_datetime,
+    "last_boot_time": _serialize_datetime,
+}
 
 
 def _deserialize_tags(tags):
@@ -643,32 +697,79 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
-    for reporter in host.per_reporter_staleness:
-        # For hosts that should stay fresh forever, use far-future timestamps
-        if should_host_stay_fresh_forever(host):
-            stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            delete_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-        else:
-            stale_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale"],
-            )
-            stale_warning_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_stale_warning"],
-            )
-            delete_timestamp = staleness_timestamps.stale_timestamp(
-                _deserialize_datetime(host.per_reporter_staleness[reporter]["last_check_in"]),
-                staleness["conventional_time_to_delete"],
-            )
+def _normalize_per_reporter_value(value):
+    """
+    Normalize a per-reporter value into a canonical dict.
 
-        host.per_reporter_staleness[reporter]["stale_timestamp"] = _serialize_staleness_to_string(stale_timestamp)
-        host.per_reporter_staleness[reporter]["stale_warning_timestamp"] = _serialize_staleness_to_string(
-            stale_warning_timestamp
-        )
-        host.per_reporter_staleness[reporter]["culled_timestamp"] = _serialize_staleness_to_string(delete_timestamp)
+    Accepts:
+      - Old format: {"last_check_in": <str>, ...}
+      - New format: <dt or str> (the last_check_in itself)
+
+    Returns a dict with:
+      - "last_check_in": datetime
+
+      - plus any extra keys from the old format
+    """
+    if isinstance(value, dict):
+        raw = value.get("last_check_in")
+        dt = _deserialize_datetime(raw) if isinstance(raw, str) else raw
+        return {
+            **value,
+            "last_check_in": dt,
+        }
+    # New format: value is last_check_in
+    dt = _deserialize_datetime(value) if isinstance(value, str) else value
+    return {
+        "last_check_in": dt,
+    }
+
+
+def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever):
+    """Return stale/stale_warning/culled timestamps; use far-future if forever is True."""
+    if forever:
+        return {
+            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
+        }
+    return {
+        "stale_timestamp": staleness_timestamps.stale_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale"]
+        ),
+        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_stale_warning"]
+        ),
+        "culled_timestamp": staleness_timestamps.culled_timestamp(
+            last_check_in_dt, staleness["conventional_time_to_delete"]
+        ),
+    }
+
+
+def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+    """
+    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
+    stale_warning_timestamp, and culled_timestamp.
+
+    Supports two input formats per reporter:
+    - Old format: value is a dict with "last_check_in" (string)
+    - New format: value is the last_check_in string itself
+    """
+    forever = should_host_stay_fresh_forever(host)
+
+    for reporter, value in host.per_reporter_staleness.items():
+        normalized = _normalize_per_reporter_value(value)
+        last_check_in_dt = normalized["last_check_in"]
+
+        ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
+
+        serialized = {
+            **normalized,
+            "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
+            "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
+            "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
+            "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        }
+        host.per_reporter_staleness[reporter] = serialized
 
     return host.per_reporter_staleness
 

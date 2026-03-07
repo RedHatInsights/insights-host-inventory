@@ -10,10 +10,10 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_CANONICAL_UUIDS
-from iqe_host_inventory.tests.rest.validation.test_system_profile import INCORRECT_STRING_VALUES
 from iqe_host_inventory.utils.api_utils import api_disabled_validation
 from iqe_host_inventory.utils.api_utils import raises_apierror
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_CANONICAL_UUIDS
+from iqe_host_inventory.utils.datagen_utils import INCORRECT_STRING_VALUES
 from iqe_host_inventory.utils.datagen_utils import generate_digits
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
@@ -444,7 +444,7 @@ def test_groups_patch_two_groups_same_hosts(host_inventory: ApplicationHostInven
       requirements: inv-groups-patch
       assignee: fstavela
       importance: high
-      title: Update group's hosts to match hosts of other group
+      title: Update group's hosts to match hosts of other group (move allowed)
     """
     hosts = host_inventory.kafka.create_random_hosts(3)
 
@@ -453,18 +453,14 @@ def test_groups_patch_two_groups_same_hosts(host_inventory: ApplicationHostInven
     group_name2 = generate_display_name()
     group2 = host_inventory.apis.groups.create_group(group_name2, hosts=hosts[2:])
 
-    duplicate_host_ids = [host.id for host in hosts[:2]]
-    with raises_apierror(
-        400,
-        (
-            "The following subset of hosts are already associated with another group: ",
-            *duplicate_host_ids,
-        ),
-    ):
-        host_inventory.apis.groups.patch_group(group2, hosts=hosts, wait_for_updated=False)
+    # Patching group2 to include all hosts moves hosts[0] and hosts[1] from group to group2
+    response = host_inventory.apis.groups.patch_group(group2, hosts=hosts, wait_for_updated=False)
+    assert response.id == group2.id
+    assert response.host_count == 3
 
-    host_inventory.apis.groups.verify_not_updated(group, name=group_name, hosts=hosts[:2])
-    host_inventory.apis.groups.verify_not_updated(group2, name=group_name2, hosts=hosts[2:])
+    host_inventory.apis.groups.verify_updated(group2, name=group_name2, hosts=hosts)
+    # group1 should now have no hosts (they were moved to group2)
+    host_inventory.apis.groups.verify_updated(group, name=group_name, hosts=[])
 
 
 @pytest.mark.ephemeral

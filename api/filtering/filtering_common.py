@@ -15,6 +15,7 @@ POSTGRES_COMPARATOR_LOOKUP = {
     "gt": ColumnOperators.__gt__,
     "gte": ColumnOperators.__ge__,
     "eq": ColumnOperators.__eq__,
+    "ne": ColumnOperators.__ne__,
     "neq": ColumnOperators.__ne__,
     "is": ColumnOperators.is_,
     "contains": "contains",
@@ -43,7 +44,7 @@ POSTGRES_DEFAULT_COMPARATOR = {
 FIELD_FILTER_TO_POSTGRES_CAST = {"integer": BigInteger, "boolean": Boolean}
 FIELD_FILTER_TO_PYTHON_CAST: dict[str, Callable] = {
     "integer": lambda v: int(v),
-    "boolean": lambda v: str.lower(v) == "true",
+    "boolean": lambda v: v if isinstance(v, bool) else str.lower(v) == "true",
 }
 
 

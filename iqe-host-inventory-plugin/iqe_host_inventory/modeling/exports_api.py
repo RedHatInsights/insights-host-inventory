@@ -164,7 +164,7 @@ class ExportsAPIWrapper(BaseEntity):
             return status
 
         def is_valid(status: str) -> bool:
-            return status == "complete" or status == "failed"
+            return status in ("complete", "failed")
 
         return accept_when(get_status, is_valid=is_valid, retries=retries, delay=delay)
 
@@ -257,7 +257,7 @@ class ExportsAPIWrapper(BaseEntity):
             if err.status == 404 and not fail_when_not_found:
                 logger.info(f"Couldn't delete export {export_id}, because it was not found.")
             else:
-                raise err
+                raise
 
     def delete_exports(self, export_ids: set[str], *, fail_when_not_found: bool = False) -> None:
         """Delete a list of exports
@@ -389,9 +389,8 @@ class ExportsAPIWrapper(BaseEntity):
 
         export_id = self.create_export(name=name, format=format, filters=filters)
         path = self.download_export(export_id)
-        data = self.fetch_export_data(path, delete_zip=delete_zip)
 
-        return data
+        return self.fetch_export_data(path, delete_zip=delete_zip)
 
     def convert_export_report(
         self,

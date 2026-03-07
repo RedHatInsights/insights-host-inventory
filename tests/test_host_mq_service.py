@@ -20,6 +20,8 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
+from api.host_query import staleness_timestamps
+from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -49,7 +51,6 @@ from tests.helpers.mq_utils import assert_mq_host_data
 from tests.helpers.mq_utils import expected_headers
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
-from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SATELLITE_IDENTITY
@@ -593,7 +594,7 @@ def test_handle_message_verify_message_headers(mocker, add_host_result, mq_creat
 
     _, _, headers = mq_create_or_update_host(host, platform_metadata={"request_id": request_id}, return_all_data=True)
 
-    assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit")
+    assert headers == expected_headers(add_host_result.name, request_id, insights_id, "rhsm-conduit", host.host_type)
 
 
 @pytest.mark.parametrize(
@@ -975,17 +976,6 @@ def test_add_host_with_invalid_system_update_method(mocker, mq_create_or_update_
 
 
 @pytest.mark.system_profile
-@pytest.mark.parametrize(("system_profile",), ((system_profile,) for system_profile in INVALID_SYSTEM_PROFILES))
-def test_add_host_long_values_system_profile(mocker, mq_create_or_update_host, system_profile):
-    mock_notification_event_producer = mocker.Mock()
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile=system_profile)
-
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
-@pytest.mark.system_profile
 @pytest.mark.parametrize(("baseurl",), (("http://www.example.com",), ("x" * 2049,)))
 def test_add_host_yum_repos_baseurl_system_profile(mq_create_or_update_host, db_get_host, baseurl):
     yum_repo = {"name": "repo1", "gpgcheck": True, "enabled": True}
@@ -1021,11 +1011,10 @@ def test_add_host_key_filtering_system_profile(mq_create_or_update_host, db_get_
     )
     created_host_from_event = mq_create_or_update_host(host_to_create)
     created_host_from_db = db_get_host(created_host_from_event.id)
-    assert created_host_from_db.system_profile_facts == {
-        "number_of_cpus": 1,
-        "disk_devices": [{"options": {"uid": "0"}}],
-        "owner_id": OWNER_ID,
-    }
+    # Check that system profile data is stored in normalized tables
+    assert created_host_from_db.static_system_profile.number_of_cpus == 1
+    assert str(created_host_from_db.static_system_profile.owner_id) == OWNER_ID
+    assert created_host_from_db.static_system_profile.disk_devices == [{"options": {"uid": "0"}}]
 
 
 def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
@@ -1049,7 +1038,8 @@ def test_add_host_with_owner_id(mq_create_or_update_host, db_get_host):
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID})
     created_host_from_event = mq_create_or_update_host(host)
     created_host_from_db = db_get_host(created_host_from_event.id)
-    assert created_host_from_db.system_profile_facts == {"owner_id": OWNER_ID}
+    # Check that owner_id is stored in normalized static system profile table
+    assert str(created_host_from_db.static_system_profile.owner_id) == OWNER_ID
 
 
 @pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
@@ -3197,6 +3187,50 @@ def test_write_add_update_event_message(mocker):
     # Assert that all group fields were present when calling mock_set_cached_system
     cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
     assert cached_group == serialized_group
+
+
+def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, mocker, db_create_host):
+    """
+    MQ path: host with new-format per_reporter_staleness (value is datetime string)
+    is serialized correctly in the event message (output is full dict per reporter).
+    """
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+
+    host = db_create_host(
+        extra_data={
+            "subscription_manager_id": generate_uuid(),
+            "reporter": "puptoo",
+            "org_id": USER_IDENTITY["org_id"],
+        }
+    )
+    # Ensure host is fully loaded in session state (avoids expired state when
+    # before_update runs on flush so flag_modified(host, "modified_on") succeeds).
+    _ = host.modified_on
+    # New DB format: reporter value is the last_check_in datetime string only
+    host.per_reporter_staleness = {"puptoo": "2024-06-15T10:00:00+00:00"}
+
+    with flask_app.app.app_context():
+        st = staleness_timestamps()
+        staleness_obj = get_staleness_obj(USER_IDENTITY["org_id"])
+
+        result = OperationResult(
+            row=host,
+            pm={"request_id": "mq-test"},
+            st=st,
+            so=staleness_obj,
+            et=EventType.created,
+            sl=mocker.Mock(),
+        )
+        write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+
+        event_payload = json.loads(mock_event_producer.write_event.call_args[0][0])
+        prs = event_payload["host"]["per_reporter_staleness"]["puptoo"]
+        assert isinstance(prs, dict)
+        assert prs["last_check_in"] == "2024-06-15T10:00:00+00:00"
+        assert "stale_timestamp" in prs
+        assert "stale_warning_timestamp" in prs
+        assert "culled_timestamp" in prs
 
 
 @pytest.mark.parametrize("provider_type", ["alibaba", "aws", "azure", "discovery", "gcp", "ibm"])

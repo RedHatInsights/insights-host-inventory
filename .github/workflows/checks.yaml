@@ -55,12 +55,11 @@ jobs:
         with:
             fetch-depth: 0
 
-      # PostgreSQL must be run as a step instead of a service because we need to
-      # configure it with 'wal_level=logical' to support logical replication slots.
+      # We run PostgreSQL as a step instead of a service because we originally
+      # needed to configure it to support logical replication slots.
       # GitHub Actions services don't support overriding the container command,
       # only Docker runtime options via the 'options' field.
-      # Tests in test_inv_publish_hosts.py require logical replication for publication functionality.
-      - name: Start PostgreSQL with logical replication
+      - name: Start PostgreSQL
         run: |
           docker run -d \
             --name postgres \
@@ -73,7 +72,7 @@ jobs:
             --health-interval 10s \
             --health-timeout 5s \
             --health-retries 5 \
-            postgres:16.4 postgres -c wal_level=logical
+            postgres:16.4 postgres
 
       - name: Wait for PostgreSQL to be ready
         run: |

@@ -22,6 +22,7 @@ from typing import TypedDict
 import attr
 from iqe.base.modeling import BaseEntity
 
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import build_query_string
 from iqe_host_inventory.utils.api_utils import check_org_id
 from iqe_host_inventory_api import ApiClient
@@ -114,10 +115,7 @@ def _host_fields_match(
 
 def _find_facts_by_namespace(host: HostOut, namespace: str) -> dict[str, Any]:
     """Returns host facts in the namespace."""
-    found_facts = []
-    for facts in host.facts:
-        if facts.namespace == namespace:
-            found_facts.append(facts.facts)
+    found_facts = [facts.facts for facts in host.facts if facts.namespace == namespace]
 
     assert len(found_facts) == 1
     return found_facts[0]
@@ -1092,7 +1090,7 @@ class HostsAPIWrapper(BaseEntity):
                     host_ids.append(response.id)
                     break
                 except ApiException as exc:
-                    assert exc.status in (403, 404)
+                    assert exc.status in FORBIDDEN_OR_NOT_FOUND
                     sleep(delay)
                     retries -= 1
 
@@ -1502,7 +1500,7 @@ class HostsAPIWrapper(BaseEntity):
                         f"Couldn't delete host {host_ids[0]}, because it was not found in HBI."
                     )
                 else:
-                    raise err
+                    raise
             finally:
                 host_ids.pop(0)
 
@@ -1843,7 +1841,7 @@ class HostsAPIWrapper(BaseEntity):
         :return None
         """
         if is_global_account(self.application):
-            raise Exception("It's not safe to delete all hosts on a global account")
+            raise RuntimeError("It's not safe to delete all hosts on a global account")
 
         self.delete_all(confirm_delete_all=True)
 

@@ -67,11 +67,11 @@ Then run the setup script to install the updated dependencies.
 
 ### Run a Single Test
 ```bash
-# Run specific test by name
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -k test_create_single_host
-
 # Run specific test file
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory tests/rest/test_hosts.py::test_create_single_host
+ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -k test_outage
+
+# Run specific test by name
+ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory iqe-host-inventory-plugin/iqe_host_inventory/tests/rest/test_outage.py::test_outage_get_host_list
 ```
 
 ### Common Test Commands

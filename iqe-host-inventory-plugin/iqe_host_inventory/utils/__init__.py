@@ -81,8 +81,7 @@ def rand_start_end(max_page: int, num_iterations: int) -> tuple[int, int]:
         random_start = 1
 
     end = random_start + num_iterations
-    if end > max_page:
-        end = max_page
+    end = min(end, max_page)
 
     return random_start, end
 

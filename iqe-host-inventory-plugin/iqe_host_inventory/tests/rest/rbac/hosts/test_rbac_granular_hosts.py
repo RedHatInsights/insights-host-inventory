@@ -222,7 +222,7 @@ class TestRBACGranularHostsReadPermission:
             host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(
-            all_hosts_ids
+            expected_hosts_ids
         )
 
         assert response.count == len(expected_hosts)

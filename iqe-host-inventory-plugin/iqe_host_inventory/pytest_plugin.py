@@ -10,6 +10,7 @@ pytest_plugins = [
     "iqe_host_inventory.fixtures.exports_fixtures",
     "iqe_host_inventory.fixtures.filter_fixtures",
     "iqe_host_inventory.fixtures.groups_fixtures",
+    "iqe_host_inventory.fixtures.host_views_fixtures",
     "iqe_host_inventory.fixtures.cleanup_fixtures",
     "iqe_host_inventory.fixtures.identity_fixtures",
     "iqe_host_inventory.fixtures.kafka_fixtures",
@@ -42,8 +43,6 @@ def pytest_configure(config):
         "markers", "cert_auth: Tests that require certificates for authorization"
     )
     config.addinivalue_line("markers", "rbac_dependent: Tests that require RBAC to be running")
-    config.addinivalue_line("markers", "service_account: Tests that require service accounts")
-    config.addinivalue_line("markers", "extended: Tests that might run for an extended time")
 
 
 @pytest.fixture(scope="session")

@@ -347,7 +347,7 @@ def test_update_host_with_no_tags(db_create_host):
 
 
 def test_host_model_assigned_values(db_create_host, db_get_host):
-    values = {
+    values_input = {
         "account": USER_IDENTITY["account_number"],
         "org_id": USER_IDENTITY["org_id"],
         "display_name": "display_name",
@@ -360,12 +360,22 @@ def test_host_model_assigned_values(db_create_host, db_get_host):
         "openshift_cluster_id": uuid.uuid4(),
     }
 
-    inserted_host = Host(**values)
+    expected_values = {**values_input, "static_system_profile": {"number_of_cpus": 1}}
+    expected_values.pop("system_profile_facts")
+    inserted_host = Host(**values_input)
     db_create_host(host=inserted_host)
 
+    def assert_values_recursively(host, expected_values):
+        for key, value in expected_values.items():
+            if key == "static_system_profile":
+                assert_values_recursively(host.static_system_profile, value)
+            elif key == "dynamic_system_profile":
+                assert_values_recursively(host.dynamic_system_profile, value)
+            else:
+                assert getattr(host, key) == value
+
     selected_host = db_get_host(inserted_host.id)
-    for key, value in values.items():
-        assert getattr(selected_host, key) == value
+    assert_values_recursively(selected_host, expected_values)
 
 
 def test_host_model_invalid_openshift_cluster_id(db_create_host):
@@ -1930,6 +1940,10 @@ def test_create_host_app_data_advisor(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     db.session.add(advisor_data)
@@ -1943,6 +1957,10 @@ def test_create_host_app_data_advisor(db_create_host):
     assert retrieved.host_id == host.id
     assert retrieved.recommendations == 5
     assert retrieved.incidents == 2
+    assert retrieved.critical == 3
+    assert retrieved.important == 2
+    assert retrieved.moderate == 0
+    assert retrieved.low == 0
     assert retrieved.last_updated == current_time
 
 
@@ -2132,6 +2150,10 @@ def test_update_host_app_data_advisor(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     db.session.add(advisor_data)
@@ -2140,6 +2162,10 @@ def test_update_host_app_data_advisor(db_create_host):
     # Update the record
     advisor_data.recommendations = 8
     advisor_data.incidents = 3
+    advisor_data.critical = 4
+    advisor_data.important = 1
+    advisor_data.moderate = 2
+    advisor_data.low = 1
     new_time = now()
     advisor_data.last_updated = new_time
     db.session.commit()
@@ -2149,6 +2175,10 @@ def test_update_host_app_data_advisor(db_create_host):
 
     assert retrieved.recommendations == 8
     assert retrieved.incidents == 3
+    assert retrieved.critical == 4
+    assert retrieved.important == 1
+    assert retrieved.moderate == 2
+    assert retrieved.low == 1
     assert retrieved.last_updated == new_time
 
 
@@ -2164,6 +2194,10 @@ def test_multiple_app_data_records_same_host(db_create_host):
         last_updated=current_time,
         recommendations=5,
         incidents=2,
+        critical=3,
+        important=2,
+        moderate=0,
+        low=0,
     )
 
     vuln_data = HostAppDataVulnerability(

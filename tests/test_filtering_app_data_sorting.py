@@ -177,6 +177,10 @@ class TestAppSortFieldMap:
         assert advisor_keys == {
             "advisor:recommendations",
             "advisor:incidents",
+            "advisor:critical",
+            "advisor:important",
+            "advisor:moderate",
+            "advisor:low",
         }
 
     def test_exact_vulnerability_fields(self):
