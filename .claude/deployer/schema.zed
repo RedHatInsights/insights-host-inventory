@@ -82,6 +82,13 @@ definition rbac/platform {
 	permission playbook_dispatcher_config_manager_run_view = t_binding->playbook_dispatcher_config_manager_run_view
 	permission playbook_dispatcher_remediations_run_view = t_binding->playbook_dispatcher_remediations_run_view
 	permission playbook_dispatcher_tasks_run_view = t_binding->playbook_dispatcher_tasks_run_view
+	permission rbac_assignments_read = t_binding->rbac_assignments_read
+	permission rbac_assignments_write = t_binding->rbac_assignments_write
+	permission rbac_groups_read = t_binding->rbac_groups_read
+	permission rbac_groups_write = t_binding->rbac_groups_write
+	permission rbac_principal_read = t_binding->rbac_principal_read
+	permission rbac_roles_read = t_binding->rbac_roles_read
+	permission rbac_roles_write = t_binding->rbac_roles_write
 	permission rbac_workspace_create = t_binding->rbac_workspace_create
 	permission rbac_workspace_delete = t_binding->rbac_workspace_delete
 	permission rbac_workspace_edit = t_binding->rbac_workspace_edit
@@ -474,14 +481,38 @@ definition rbac/role {
 	relation t_policies_policies_write: rbac/principal:*
 	permission rbac_all_all = t_rbac_all_all
 	relation t_rbac_all_all: rbac/principal:*
+	permission rbac_all_read = t_rbac_all_read
+	relation t_rbac_all_read: rbac/principal:*
 	permission rbac_all_role_binding_grant = t_rbac_all_role_binding_grant
 	relation t_rbac_all_role_binding_grant: rbac/principal:*
 	permission rbac_all_role_binding_revoke = t_rbac_all_role_binding_revoke
 	relation t_rbac_all_role_binding_revoke: rbac/principal:*
 	permission rbac_all_role_binding_view = t_rbac_all_role_binding_view
 	relation t_rbac_all_role_binding_view: rbac/principal:*
-	permission rbac_principal_read = t_rbac_principal_read
+	permission rbac_all_write = t_rbac_all_write
+	relation t_rbac_all_write: rbac/principal:*
+	permission rbac_assignments_all = t_rbac_assignments_all
+	relation t_rbac_assignments_all: rbac/principal:*
+	permission rbac_assignments_read = t_rbac_assignments_read + rbac_assignments_all + rbac_all_read + rbac_all_all + all_all_all + t_child->rbac_assignments_read
+	relation t_rbac_assignments_read: rbac/principal:*
+	permission rbac_assignments_write = t_rbac_assignments_write + rbac_assignments_all + rbac_all_write + rbac_all_all + all_all_all + t_child->rbac_assignments_write
+	relation t_rbac_assignments_write: rbac/principal:*
+	permission rbac_groups_all = t_rbac_groups_all
+	relation t_rbac_groups_all: rbac/principal:*
+	permission rbac_groups_read = t_rbac_groups_read + rbac_groups_all + rbac_all_read + rbac_all_all + all_all_all + t_child->rbac_groups_read
+	relation t_rbac_groups_read: rbac/principal:*
+	permission rbac_groups_write = t_rbac_groups_write + rbac_groups_all + rbac_all_write + rbac_all_all + all_all_all + t_child->rbac_groups_write
+	relation t_rbac_groups_write: rbac/principal:*
+	permission rbac_principal_all = t_rbac_principal_all
+	relation t_rbac_principal_all: rbac/principal:*
+	permission rbac_principal_read = t_rbac_principal_read + rbac_principal_all + rbac_all_read + rbac_all_all + all_all_all + t_child->rbac_principal_read
 	relation t_rbac_principal_read: rbac/principal:*
+	permission rbac_roles_all = t_rbac_roles_all
+	relation t_rbac_roles_all: rbac/principal:*
+	permission rbac_roles_read = t_rbac_roles_read + rbac_roles_all + rbac_all_read + rbac_all_all + all_all_all + t_child->rbac_roles_read
+	relation t_rbac_roles_read: rbac/principal:*
+	permission rbac_roles_write = t_rbac_roles_write + rbac_roles_all + rbac_all_write + rbac_all_all + all_all_all + t_child->rbac_roles_write
+	relation t_rbac_roles_write: rbac/principal:*
 	permission rbac_workspace_create = inventory_groups_write + inventory_groups_all + inventory_all_write + inventory_all_all + all_all_all + t_child->rbac_workspace_create
 	permission rbac_workspace_delete = inventory_groups_write + inventory_groups_all + inventory_all_write + inventory_all_all + all_all_all + t_child->rbac_workspace_delete
 	permission rbac_workspace_edit = inventory_groups_write + inventory_groups_all + inventory_all_write + inventory_all_all + all_all_all + t_child->rbac_workspace_edit
@@ -684,6 +715,13 @@ definition rbac/role_binding {
 	permission playbook_dispatcher_config_manager_run_view = (subject & t_role->playbook_dispatcher_config_manager_run_view)
 	permission playbook_dispatcher_remediations_run_view = (subject & t_role->playbook_dispatcher_remediations_run_view)
 	permission playbook_dispatcher_tasks_run_view = (subject & t_role->playbook_dispatcher_tasks_run_view)
+	permission rbac_assignments_read = (subject & t_role->rbac_assignments_read)
+	permission rbac_assignments_write = (subject & t_role->rbac_assignments_write)
+	permission rbac_groups_read = (subject & t_role->rbac_groups_read)
+	permission rbac_groups_write = (subject & t_role->rbac_groups_write)
+	permission rbac_principal_read = (subject & t_role->rbac_principal_read)
+	permission rbac_roles_read = (subject & t_role->rbac_roles_read)
+	permission rbac_roles_write = (subject & t_role->rbac_roles_write)
 	permission rbac_workspace_create = (subject & t_role->rbac_workspace_create)
 	permission rbac_workspace_delete = (subject & t_role->rbac_workspace_delete)
 	permission rbac_workspace_edit = (subject & t_role->rbac_workspace_edit)
@@ -779,6 +817,13 @@ definition rbac/tenant {
 	permission playbook_dispatcher_config_manager_run_view = t_binding->playbook_dispatcher_config_manager_run_view + t_platform->playbook_dispatcher_config_manager_run_view
 	permission playbook_dispatcher_remediations_run_view = t_binding->playbook_dispatcher_remediations_run_view + t_platform->playbook_dispatcher_remediations_run_view
 	permission playbook_dispatcher_tasks_run_view = t_binding->playbook_dispatcher_tasks_run_view + t_platform->playbook_dispatcher_tasks_run_view
+	permission rbac_assignments_read = t_binding->rbac_assignments_read + t_platform->rbac_assignments_read
+	permission rbac_assignments_write = t_binding->rbac_assignments_write + t_platform->rbac_assignments_write
+	permission rbac_groups_read = t_binding->rbac_groups_read + t_platform->rbac_groups_read
+	permission rbac_groups_write = t_binding->rbac_groups_write + t_platform->rbac_groups_write
+	permission rbac_principal_read = t_binding->rbac_principal_read + t_platform->rbac_principal_read
+	permission rbac_roles_read = t_binding->rbac_roles_read + t_platform->rbac_roles_read
+	permission rbac_roles_write = t_binding->rbac_roles_write + t_platform->rbac_roles_write
 	permission rbac_workspace_create = t_binding->rbac_workspace_create + t_platform->rbac_workspace_create
 	permission rbac_workspace_delete = t_binding->rbac_workspace_delete + t_platform->rbac_workspace_delete
 	permission rbac_workspace_edit = t_binding->rbac_workspace_edit + t_platform->rbac_workspace_edit
@@ -833,7 +878,7 @@ definition rbac/workspace {
 	permission advisor_weekly_report_auto_subscribe_edit = t_binding->advisor_weekly_report_auto_subscribe_edit + t_parent->advisor_weekly_report_auto_subscribe_edit
 	permission advisor_weekly_report_auto_subscribe_view = t_binding->advisor_weekly_report_auto_subscribe_view + t_parent->advisor_weekly_report_auto_subscribe_view
 	permission advisor_weekly_report_view = t_binding->advisor_weekly_report_view + t_parent->advisor_weekly_report_view
-	permission binding = t_binding
+	permission binding = t_binding + t_parent->binding
 	relation t_binding: rbac/role_binding
 	permission compliance_policy_edit = t_binding->compliance_policy_edit + t_parent->compliance_policy_edit
 	permission compliance_policy_new = t_binding->compliance_policy_new + t_parent->compliance_policy_new
@@ -881,6 +926,13 @@ definition rbac/workspace {
 	permission playbook_dispatcher_config_manager_run_view = t_binding->playbook_dispatcher_config_manager_run_view + t_parent->playbook_dispatcher_config_manager_run_view
 	permission playbook_dispatcher_remediations_run_view = t_binding->playbook_dispatcher_remediations_run_view + t_parent->playbook_dispatcher_remediations_run_view
 	permission playbook_dispatcher_tasks_run_view = t_binding->playbook_dispatcher_tasks_run_view + t_parent->playbook_dispatcher_tasks_run_view
+	permission rbac_assignments_read = t_binding->rbac_assignments_read + t_parent->rbac_assignments_read
+	permission rbac_assignments_write = t_binding->rbac_assignments_write + t_parent->rbac_assignments_write
+	permission rbac_groups_read = t_binding->rbac_groups_read + t_parent->rbac_groups_read
+	permission rbac_groups_write = t_binding->rbac_groups_write + t_parent->rbac_groups_write
+	permission rbac_principal_read = t_binding->rbac_principal_read + t_parent->rbac_principal_read
+	permission rbac_roles_read = t_binding->rbac_roles_read + t_parent->rbac_roles_read
+	permission rbac_roles_write = t_binding->rbac_roles_write + t_parent->rbac_roles_write
 	permission rbac_workspace_create = t_binding->rbac_workspace_create + t_parent->rbac_workspace_create
 	permission rbac_workspace_delete = t_binding->rbac_workspace_delete + t_parent->rbac_workspace_delete
 	permission rbac_workspace_edit = t_binding->rbac_workspace_edit + t_parent->rbac_workspace_edit
