@@ -6,7 +6,7 @@
 #   ./deploy-and-unit-test.sh [--duration DURATION] [--force]
 #
 # Options:
-#   --duration DURATION - Namespace reservation duration (default: 4h)
+#   --duration DURATION - Namespace reservation duration (default: 335h)
 #   --force            - Use existing namespace without prompting
 #
 # Examples:
@@ -34,7 +34,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
 # Default values
-DURATION="4h"
+DURATION="335h"
 FORCE_FLAG=""
 
 # Parse arguments
@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--duration DURATION] [--force]"
             echo ""
             echo "Options:"
-            echo "  --duration DURATION  Namespace reservation duration (default: 4h)"
+            echo "  --duration DURATION  Namespace reservation duration (default: 335h)"
             echo "  --force             Use existing namespace without prompting"
             echo ""
             exit 0

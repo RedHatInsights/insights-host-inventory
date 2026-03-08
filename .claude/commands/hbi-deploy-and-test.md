@@ -19,7 +19,7 @@ Deploy HBI to ephemeral environment, enable feature flags, and run unit tests.
 
 ## Options
 
-- `--duration DURATION` - Namespace reservation duration (default: 4h)
+- `--duration DURATION` - Namespace reservation duration (default: 335h)
 - `--force` - Use existing namespace without prompting
 
 ## What Gets Tested
