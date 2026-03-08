@@ -47,6 +47,17 @@ log_warning() {
     echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] ⚠${NC} $1"
 }
 
+# Portable sed in-place editing for macOS and Linux
+sed_inplace() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS requires empty string after -i
+        sed -i '' "$@"
+    else
+        # Linux uses -i without argument
+        sed -i "$@"
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     log "Checking prerequisites..."
@@ -276,10 +287,10 @@ update_env_file() {
     cp "$env_file" "$env_file.backup_${TIMESTAMP}"
     log "Created backup: $env_file.backup_${TIMESTAMP}"
 
-    # Update the .env file using sed (macOS compatible)
-    sed -i '' "s/^INVENTORY_DB_USER=.*/INVENTORY_DB_USER=$db_user/" "$env_file"
-    sed -i '' "s/^INVENTORY_DB_PASS=.*/INVENTORY_DB_PASS=$db_pass/" "$env_file"
-    sed -i '' "s/^INVENTORY_DB_NAME=.*/INVENTORY_DB_NAME=$db_name/" "$env_file"
+    # Update the .env file using sed (cross-platform compatible)
+    sed_inplace "s/^INVENTORY_DB_USER=.*/INVENTORY_DB_USER=$db_user/" "$env_file"
+    sed_inplace "s/^INVENTORY_DB_PASS=.*/INVENTORY_DB_PASS=$db_pass/" "$env_file"
+    sed_inplace "s/^INVENTORY_DB_NAME=.*/INVENTORY_DB_NAME=$db_name/" "$env_file"
 
     log_success ".env file updated successfully"
     log "Updated values in $env_file:"
@@ -322,8 +333,12 @@ update_etc_hosts_file() {
     if [[ -n "$current_env_id" && "$current_env_id" != "$env_id" ]]; then
         log "Replacing old environment ID '$current_env_id' with new ID '$env_id'"
 
-        # Replace all occurrences of the old environment ID with the new one
-        sudo sed -i '' "s/$current_env_id/$env_id/g" /etc/hosts
+        # Replace all occurrences of the old environment ID with the new one (cross-platform)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sudo sed -i '' "s/$current_env_id/$env_id/g" /etc/hosts
+        else
+            sudo sed -i "s/$current_env_id/$env_id/g" /etc/hosts
+        fi
 
         log_success "/etc/hosts updated successfully"
         log "Old environment: ephemeral-$current_env_id"
