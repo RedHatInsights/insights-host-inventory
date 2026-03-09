@@ -30,6 +30,9 @@ class SystemProfileImageBuilder(BaseModel):
     Object containing image builder facts
     """
 
+    blueprint_id: Annotated[str, Field(strict=True, max_length=36)] | None = Field(
+        default=None, description="The blueprint used to build the image deployed on this host"
+    )
     compliance_policy_id: Annotated[str, Field(strict=True, max_length=36)] | None = Field(
         default=None,
         description="The compliance policy that was used and applied during the image build",
@@ -39,7 +42,23 @@ class SystemProfileImageBuilder(BaseModel):
         description="The profile that was applied during the image build on which the compliance policy was based ",
     )
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["compliance_policy_id", "compliance_profile_id"]
+    __properties: ClassVar[list[str]] = [
+        "blueprint_id",
+        "compliance_policy_id",
+        "compliance_profile_id",
+    ]
+
+    @field_validator("blueprint_id")
+    def blueprint_id_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value):
+            raise ValueError(
+                r"must validate the regular expression /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/"
+            )
+        return value
 
     @field_validator("compliance_policy_id")
     def compliance_policy_id_validate_regular_expression(cls, value):
@@ -110,6 +129,7 @@ class SystemProfileImageBuilder(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "blueprint_id": obj.get("blueprint_id"),
             "compliance_policy_id": obj.get("compliance_policy_id"),
             "compliance_profile_id": obj.get("compliance_profile_id"),
         })
