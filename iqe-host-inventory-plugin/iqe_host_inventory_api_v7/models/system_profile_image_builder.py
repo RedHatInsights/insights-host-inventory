@@ -31,8 +31,7 @@ class SystemProfileImageBuilder(BaseModel):
     """
 
     blueprint_id: Annotated[str, Field(strict=True, max_length=36)] | None = Field(
-        default=None,
-        description="The blueprint used to build the image deployed on this host",
+        default=None, description="The blueprint used to build the image deployed on this host"
     )
     compliance_policy_id: Annotated[str, Field(strict=True, max_length=36)] | None = Field(
         default=None,
