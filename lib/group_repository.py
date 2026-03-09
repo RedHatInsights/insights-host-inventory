@@ -116,19 +116,6 @@ def validate_add_host_list_to_group_for_group_create(host_id_list: list[str], gr
             title="Invalid request", detail=f"Could not find existing host(s) with ID {nonexistent_hosts}."
         )
 
-    # Check if the hosts are already associated with another (ungrouped) group
-    if assoc_query := (
-        HostGroupAssoc.query.join(Group)
-        .filter(HostGroupAssoc.host_id.in_(host_id_list), Group.ungrouped.is_(False))
-        .all()
-    ):
-        taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
-        log_host_group_add_failed(logger, host_id_list, group_name)
-        raise InventoryException(
-            title="Invalid request",
-            detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
-        )
-
 
 def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_id: str):
     # Check if the hosts exist in Inventory and have correct org_id
@@ -139,22 +126,6 @@ def validate_add_host_list_to_group(host_id_list: list[str], group_id: str, org_
         log_host_group_add_failed(logger, host_id_list, group_id)
         raise InventoryException(
             title="Invalid request", detail=f"Could not find existing host(s) with ID {nonexistent_hosts}."
-        )
-
-    # Check if the hosts are already associated with another (ungrouped) group
-    if assoc_query := (
-        db.session.query(HostGroupAssoc)
-        .join(Group)
-        .filter(
-            HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id, Group.ungrouped.is_(False)
-        )
-        .all()
-    ):
-        taken_hosts = [str(assoc.host_id) for assoc in assoc_query]
-        log_host_group_add_failed(logger, host_id_list, group_id)
-        raise InventoryException(
-            title="Invalid request",
-            detail=f"The following subset of hosts are already associated with another group: {taken_hosts}.",
         )
 
 
