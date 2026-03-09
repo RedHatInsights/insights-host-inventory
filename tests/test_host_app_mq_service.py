@@ -331,6 +331,32 @@ class TestHostAppMessageConsumerEdgeCases:
             application="advisor", reason="db_operational_error"
         )
 
+    def test_foreign_key_violation_for_deleted_host(self, host_app_consumer, db_create_host):
+        """FK violation when host was deleted between ingestion and app-data upsert is handled gracefully.
+
+        Valid hosts in the same batch must still be upserted.
+        """
+        host = db_create_host()
+        org_id = host.org_id
+        nonexistent_host_id = generate_uuid()
+
+        advisor_data = {"recommendations": 5, "incidents": 2, "critical": 3, "important": 2, "moderate": 0, "low": 0}
+        message = {
+            "org_id": org_id,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "hosts": [
+                {"id": str(host.id), "data": advisor_data},
+                {"id": nonexistent_host_id, "data": advisor_data},
+            ],
+        }
+
+        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        host_app_consumer.handle_message(json.dumps(message), headers=headers)
+
+        app_data = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host.id).first()
+        assert app_data is not None
+        assert app_data.recommendations == 5
+
     def test_null_values_in_data(self, host_app_consumer, db_create_host):
         """Test handling of null values in application data."""
         host = db_create_host()

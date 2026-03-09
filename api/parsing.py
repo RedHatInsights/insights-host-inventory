@@ -107,17 +107,17 @@ class customURIParser(OpenAPIURIParser):
         """
         Try to parse a JSON object string.
 
-        Only attempts parsing if the value looks like a JSON object (starts with '{').
+        Only attempts parsing if the value looks like it could be JSON (starts with '{' or '[').
         This prevents plain string values like "true", "false", or "15.3" from being
         interpreted as JSON primitives.
 
         Returns:
             - The parsed dict if value is a valid JSON object
-            - None if value doesn't look like JSON or is not valid JSON
+            - None if value doesn't look like JSON, is invalid JSON, or is already a dict
 
         Raises:
-            BadRequestProblem if value looks like JSON (starts with '{' or '[') but is
-            invalid or not an object.
+            BadRequestProblem if value is a valid JSON array (arrays are not supported as
+            filter values - use bracket notation like filter[field][]=value1&filter[field][]=value2).
         """
         if isinstance(value, dict):
             return value
@@ -131,8 +131,10 @@ class customURIParser(OpenAPIURIParser):
                         return parsed
                     # Parsed successfully but not a dict (shouldn't happen for '{' prefix)
                     raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' must be a JSON object.")
-                except (json.JSONDecodeError, ValueError) as e:
-                    raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' has invalid JSON: {e}") from e
+                except (json.JSONDecodeError, ValueError):
+                    # Not valid JSON - treat as regular string value
+                    # (e.g., os_release values like "{major}.{minor}" are not JSON)
+                    pass
             elif stripped.startswith("["):
                 # Check if it's actually a valid JSON array - only then reject it
                 # Strings that merely start with '[' but aren't valid JSON are treated as regular values
