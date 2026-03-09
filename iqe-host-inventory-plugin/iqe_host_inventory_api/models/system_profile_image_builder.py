@@ -27,29 +27,82 @@ class SystemProfileImageBuilder:
       attribute_map (dict): The key is attribute name
                             and the value is json key in definition.
     """
-    openapi_types = {"compliance_policy_id": "str", "compliance_profile_id": "str"}
+    openapi_types = {
+        "blueprint_id": "str",
+        "compliance_policy_id": "str",
+        "compliance_profile_id": "str",
+    }
 
     attribute_map = {
+        "blueprint_id": "blueprint_id",
         "compliance_policy_id": "compliance_policy_id",
         "compliance_profile_id": "compliance_profile_id",
     }
 
     def __init__(
-        self, compliance_policy_id=None, compliance_profile_id=None, local_vars_configuration=None
+        self,
+        blueprint_id=None,
+        compliance_policy_id=None,
+        compliance_profile_id=None,
+        local_vars_configuration=None,
     ):
         """SystemProfileImageBuilder - a model defined in OpenAPI"""
         if local_vars_configuration is None:
             local_vars_configuration = Configuration()
         self.local_vars_configuration = local_vars_configuration
 
+        self._blueprint_id = None
         self._compliance_policy_id = None
         self._compliance_profile_id = None
         self.discriminator = None
 
+        if blueprint_id is not None:
+            self.blueprint_id = blueprint_id
         if compliance_policy_id is not None:
             self.compliance_policy_id = compliance_policy_id
         if compliance_profile_id is not None:
             self.compliance_profile_id = compliance_profile_id
+
+    @property
+    def blueprint_id(self):
+        """Gets the blueprint_id of this SystemProfileImageBuilder.  # noqa: E501
+
+        The blueprint used to build the image deployed on this host  # noqa: E501
+
+        :return: The blueprint_id of this SystemProfileImageBuilder.  # noqa: E501
+        :rtype: str
+        """
+        return self._blueprint_id
+
+    @blueprint_id.setter
+    def blueprint_id(self, blueprint_id):
+        """Sets the blueprint_id of this SystemProfileImageBuilder.
+
+        The blueprint used to build the image deployed on this host  # noqa: E501
+
+        :param blueprint_id: The blueprint_id of this SystemProfileImageBuilder.  # noqa: E501
+        :type: str
+        """
+        if (
+            self.local_vars_configuration.client_side_validation
+            and blueprint_id is not None
+            and len(blueprint_id) > 36
+        ):
+            raise ValueError(
+                "Invalid value for `blueprint_id`, length must be less than or equal to `36`"
+            )
+        if (
+            self.local_vars_configuration.client_side_validation
+            and blueprint_id is not None
+            and not re.search(
+                r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", blueprint_id
+            )
+        ):
+            raise ValueError(
+                r"Invalid value for `blueprint_id`, must be a follow pattern or equal to `/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/`"
+            )
+
+        self._blueprint_id = blueprint_id
 
     @property
     def compliance_policy_id(self):

@@ -616,6 +616,16 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
         }
     },
     {
+        "image_builder": {  # blueprint_id must be a string
+            "blueprint_id": 10,
+        }
+    },
+    {
+        "image_builder": {  # blueprint_id must be a uuid
+            "blueprint_id": "definitely not a uuid",
+        }
+    },
+    {
         "workloads": {
             "ansible": {  # wrong data type for controller_version
                 "controller_version": 1.0,
@@ -1093,6 +1103,7 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     },
     {
         "image_builder": {
+            "blueprint_id": "b5f4dcb0-09a5-4e42-a670-4a83a2e6b687",
             "compliance_policy_id": "b27443a3-078d-4ac2-bb46-ba7a8c31d21b",
             "compliance_profile_id": "some_profile_id",
         }
