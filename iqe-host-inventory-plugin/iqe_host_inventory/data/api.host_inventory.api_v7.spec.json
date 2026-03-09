@@ -4522,6 +4522,13 @@
             "description": "Object containing image builder facts",
             "type": "object",
             "properties": {
+              "blueprint_id": {
+                "description": "The blueprint used to build the image deployed on this host",
+                "type": "string",
+                "example": "b5f4dcb0-09a5-4e42-a670-4a83a2e6b687",
+                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "maxLength": 36
+              },
               "compliance_policy_id": {
                 "description": "The compliance policy that was used and applied during the image build",
                 "type": "string",
