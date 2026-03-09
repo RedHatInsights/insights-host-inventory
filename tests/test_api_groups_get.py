@@ -7,6 +7,7 @@ from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -408,7 +409,7 @@ def test_get_groups_by_id_rbac_v2_success(
         assert "created" in group_result
         assert "updated" in group_result
         # RHINENG-24625: Verify account from identity is included in response
-        assert group_result["account"] == "test"  # From USER_IDENTITY fixture
+        assert group_result["account"] == USER_IDENTITY["account_number"]  # From USER_IDENTITY fixture
 
     # RHINENG-24625: Test scenario where identity has no account_number
     # Create custom identity with org_id but no account_number
