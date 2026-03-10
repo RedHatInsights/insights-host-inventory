@@ -1158,6 +1158,7 @@ objects:
             memory: ${MEMORY_REQUEST_STALE_HOST_NOTIFICAION}
     - name: sp-validator
       schedule: '@hourly'
+      concurrencyPolicy: "Forbid"
       suspend: ${{SP_VALIDATOR_SUSPEND}}
       restartPolicy: Never
       podSpec:
