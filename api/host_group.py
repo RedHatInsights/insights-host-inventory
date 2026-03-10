@@ -15,6 +15,8 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query_db import get_host_list
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
+from app.auth.rbac import RbacPermission
+from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
@@ -28,6 +30,8 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import is_rbac_v2_groups_enabled
+from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -128,12 +132,7 @@ def get_host_list_by_group(
 
 
 @api_operation
-@access(
-    KesselResourceTypes.WORKSPACE.move_host, id_param="group_id"
-)  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
-# of doing a lookupresources, but it's being kept this way for now for backward comaptibility
-# (V1 doesn't require any host permissions to move a host but does require write group permission on the origin
-# and destination, which this preserves)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data
@@ -148,7 +147,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    if is_rbac_v2_groups_enabled():
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -175,12 +174,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
 
 
 @api_operation
-@access(
-    KesselResourceTypes.WORKSPACE.move_host, id_param="group_id"
-)  # NOTE: this -could- use the group_id param to check the group and the body to check the hosts by id instead
-# of doing a lookupresources, but it's being kept this way for now for backward comaptibility
-# (V1 doesn't require any host permissions to move a host but does require write group permission on the
-# origin and destination, which this preserves)
+@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data
@@ -195,7 +189,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    if is_rbac_v2_groups_enabled():
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:

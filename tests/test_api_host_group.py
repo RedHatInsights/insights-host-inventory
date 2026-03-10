@@ -54,6 +54,10 @@ def test_add_host_to_group_RBAC_denied(
 @pytest.mark.usefixtures("enable_rbac")
 def test_add_host_to_group_RBAC_denied_missing_group(subtests, mocker, db_create_host, api_add_hosts_to_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
     group_id = str(generate_uuid())
 
     for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -484,10 +488,8 @@ def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
     # Mock event producer
     mocker.patch.object(event_producer, "write_event")
 
-    # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    # Mock RBAC v2 enabled (this function is imported from lib.middleware)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock workspace fetch to return ungrouped workspace
     mock_workspace = {

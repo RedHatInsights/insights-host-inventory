@@ -104,6 +104,10 @@ def test_remove_hosts_from_group_RBAC_denied_missing_group(
     subtests, mocker, db_create_host, api_remove_hosts_from_group
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
     group_id = str(generate_uuid())
 
     for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
