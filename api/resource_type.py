@@ -65,6 +65,8 @@ def get_resource_type_groups_list(
         flask.abort(400, str(e))
 
     log_get_group_list_succeeded(logger, group_list)
-    org_id = get_current_identity().org_id
-    serialized_groups = [serialize_group(group, org_id) for group in group_list]
+    identity = get_current_identity()
+    serialized_groups = [
+        serialize_group(group, identity.org_id, getattr(identity, "account_number", None)) for group in group_list
+    ]
     return flask_json_response(build_paginated_resource_list_response(total, page, per_page, serialized_groups))
