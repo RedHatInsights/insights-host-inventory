@@ -1,17 +1,16 @@
 #!/bin/bash
 
 #############################################################################
-# Auto-Deploy Script for Host Inventory Ephemeral Environment
+# Deploy Script for Host Inventory Ephemeral Environment
 #############################################################################
 # This script automates the following workflow:
 # 1. Login to Ephemeral cluster
 # 2. Reserve a new namespace
 # 3. Deploy host-inventory with its dependencies (Kessel, RBAC)
-# 4. Setup port-forwarding for services
-# 5. Retrieve database credentials
-# 6. Update .env file with new database credentials
-# 7. Update /etc/hosts with Kafka bootstrap server
-# 8. Save outputs to tmp directory
+# 4. Verify deployment is successful
+#
+# For local development setup (port-forwarding, credentials, etc.),
+# run setup-for-dev.sh after this completes.
 #############################################################################
 
 set -e
@@ -197,162 +196,6 @@ deploy_services() {
     fi
 }
 
-# Function to setup port forwarding
-setup_port_forwarding() {
-    log "Setting up port-forwarding for services..."
-
-    cd "$HBI_DIR" || {
-        log_error "Failed to change to HBI directory: $HBI_DIR"
-        exit 1
-    }
-
-    # Create tmp directory if it doesn't exist
-    mkdir -p "$TMP_DIR"
-
-    # Run port-forwarding script
-    local port_forward_output="$TMP_DIR/ephemeral_ports_${TIMESTAMP}.log"
-
-    if bash ./docs/set_hbi_rbac_ports.sh "$PROJECT_NAMESPACE" | tee "$port_forward_output"; then
-        log_success "Port-forwarding setup completed"
-        log_success "Port-forwarding log saved to: $port_forward_output"
-    else
-        log_error "Port-forwarding setup failed"
-        exit 1
-    fi
-}
-
-# Function to get database credentials
-get_db_credentials() {
-    log "Retrieving database credentials..."
-
-    cd "$HBI_DIR" || {
-        log_error "Failed to change to HBI directory: $HBI_DIR"
-        exit 1
-    }
-
-    # Create tmp directory if it doesn't exist
-    mkdir -p "$TMP_DIR"
-
-    # Run credentials script
-    local creds_output="$TMP_DIR/ephemeral_db_credentials_${TIMESTAMP}.log"
-
-    if bash ./docs/get_hbi_rbac_db_creds.sh "$PROJECT_NAMESPACE" | tee "$creds_output"; then
-        log_success "Database credentials retrieved"
-        log_success "Credentials saved to: $creds_output"
-    else
-        log_error "Failed to retrieve database credentials"
-        exit 1
-    fi
-}
-
-# Function to update .env file with database credentials
-update_env_file() {
-    log "Updating .env file with database credentials..."
-
-    local env_file="$HBI_DIR/.env"
-    local creds_file="$TMP_DIR/ephemeral_db_credentials_${TIMESTAMP}.log"
-
-    # Check if credentials file exists
-    if [[ ! -f "$creds_file" ]]; then
-        log_error "Credentials file not found: $creds_file"
-        return 1
-    fi
-
-    # Check if .env file exists
-    if [[ ! -f "$env_file" ]]; then
-        log_error ".env file not found: $env_file"
-        return 1
-    fi
-
-    # Extract credentials from log file
-    local db_user=$(grep "INVENTORY_DB_USER:" "$creds_file" | awk '{print $2}')
-    local db_pass=$(grep "INVENTORY_DB_PASS:" "$creds_file" | awk '{print $2}')
-    local db_name=$(grep "INVENTORY_DB_NAME:" "$creds_file" | awk '{print $2}')
-
-    # Validate that we got all the values
-    if [[ -z "$db_user" || -z "$db_pass" || -z "$db_name" ]]; then
-        log_error "Failed to extract all database credentials from $creds_file"
-        log_error "  INVENTORY_DB_USER: ${db_user:-NOT FOUND}"
-        log_error "  INVENTORY_DB_PASS: ${db_pass:-NOT FOUND}"
-        log_error "  INVENTORY_DB_NAME: ${db_name:-NOT FOUND}"
-        return 1
-    fi
-
-    log "Found credentials:"
-    log "  INVENTORY_DB_USER: $db_user"
-    log "  INVENTORY_DB_PASS: $db_pass"
-    log "  INVENTORY_DB_NAME: $db_name"
-
-    # Create a backup of the .env file
-    cp "$env_file" "$env_file.backup_${TIMESTAMP}"
-    log "Created backup: $env_file.backup_${TIMESTAMP}"
-
-    # Update the .env file using sed (cross-platform compatible)
-    sed_inplace "s/^INVENTORY_DB_USER=.*/INVENTORY_DB_USER=$db_user/" "$env_file"
-    sed_inplace "s/^INVENTORY_DB_PASS=.*/INVENTORY_DB_PASS=$db_pass/" "$env_file"
-    sed_inplace "s/^INVENTORY_DB_NAME=.*/INVENTORY_DB_NAME=$db_name/" "$env_file"
-
-    log_success ".env file updated successfully"
-    log "Updated values in $env_file:"
-    log "  INVENTORY_DB_USER=$db_user"
-    log "  INVENTORY_DB_PASS=$db_pass"
-    log "  INVENTORY_DB_NAME=$db_name"
-}
-
-# Function to update /etc/hosts with ephemeral environment
-# Assuming sudo is configured for the user and does not require a password
-update_etc_hosts_file() {
-    log "Updating /etc/hosts with ephemeral environment details..."
-
-    # Extract environment ID from namespace (e.g., ephemeral-ijl7bd -> ijl7bd)
-    local env_id="${PROJECT_NAMESPACE#ephemeral-}"
-
-    if [[ -z "$env_id" || "$env_id" == "$PROJECT_NAMESPACE" ]]; then
-        log_error "Could not extract environment ID from namespace: $PROJECT_NAMESPACE"
-        log_error "Expected format: ephemeral-<id>"
-        return 1
-    fi
-
-    log "Environment ID: $env_id"
-
-    # Check if we can run sudo without password
-    if ! sudo -n true 2>/dev/null; then
-        log_error "Passwordless sudo is required to update /etc/hosts"
-        log_error "Please configure passwordless sudo and try again"
-        return 1
-    fi
-
-    # Backup /etc/hosts
-    local backup_file="/tmp/hosts.backup.$(date +%Y%m%d_%H%M%S)"
-    sudo cp /etc/hosts "$backup_file"
-    log "Created backup of /etc/hosts: $backup_file"
-
-    # Get the current ephemeral ID from /etc/hosts (if it exists)
-    local current_env_id=$(grep -oE 'ephemeral-[a-z0-9]+' /etc/hosts | head -1 | sed 's/ephemeral-//')
-
-    if [[ -n "$current_env_id" && "$current_env_id" != "$env_id" ]]; then
-        log "Replacing old environment ID '$current_env_id' with new ID '$env_id'"
-
-        # Replace all occurrences of the old environment ID with the new one (cross-platform)
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sudo sed -i '' "s/$current_env_id/$env_id/g" /etc/hosts
-        else
-            sudo sed -i "s/$current_env_id/$env_id/g" /etc/hosts
-        fi
-
-        log_success "/etc/hosts updated successfully"
-        log "Old environment: ephemeral-$current_env_id"
-        log "New environment: ephemeral-$env_id"
-    else
-        log_warning "No existing ephemeral environment found in /etc/hosts or ID matches current namespace"
-        log "You may need to manually add ephemeral entries to /etc/hosts"
-    fi
-
-    # Display the current ephemeral entries
-    log "Current ephemeral entries in /etc/hosts:"
-    grep -i "ephemeral" /etc/hosts || log_warning "No ephemeral entries found"
-}
-
 # Function to display summary
 display_summary() {
     echo ""
@@ -362,24 +205,21 @@ display_summary() {
     echo ""
     echo "Namespace: $PROJECT_NAMESPACE"
     echo ""
-    echo "Outputs saved to: $TMP_DIR"
-    echo "  - Port forwarding log: ephemeral_ports_${TIMESTAMP}.log"
-    echo "  - Database credentials: ephemeral_db_credentials_${TIMESTAMP}.log"
+    echo "Services Deployed:"
+    echo "  - Host Inventory (API + MQ service)"
+    echo "  - Kessel Inventory API"
+    echo "  - Kessel Relations API (SpiceDB)"
+    echo "  - RBAC v2 Service"
+    echo "  - Kafka + Zookeeper"
+    echo "  - PostgreSQL (HBI, RBAC, Kessel databases)"
+    echo "  - Unleash (Feature Flags)"
     echo ""
-    echo "Port Forwards Active:"
-    echo "  - Host Inventory API:     http://localhost:8000"
-    echo "  - RBAC Service:           http://localhost:8111"
-    echo "  - Kessel Inventory API:   http://localhost:8222"
-    echo "  - Kessel Relations API:   http://localhost:8333"
-    echo "  - Kafka Bootstrap:        localhost:9092, localhost:29092"
-    echo "  - Kafka Connect:          http://localhost:8083"
-    echo "  - Feature Flags:          http://localhost:4242"
-    echo "  - HBI Database:           localhost:5432"
-    echo "  - RBAC Database:          localhost:5433"
-    echo "  - Kessel Database:        localhost:5434"
-    echo ""
-    echo "To view namespace details:"
+    echo "View deployment status:"
     echo "  bonfire namespace describe"
+    echo "  kubectl get pods -n $PROJECT_NAMESPACE"
+    echo ""
+    echo "View namespace in console:"
+    bonfire namespace describe | grep "console url" || true
     echo ""
     echo "To release namespace when done:"
     echo "  bonfire namespace release $PROJECT_NAMESPACE"
@@ -457,13 +297,14 @@ main() {
     login_to_cluster
     reserve_namespace "$NAMESPACE_DURATION"
     deploy_services "${DEPLOY_ARGS[@]}"
-    setup_port_forwarding
-    get_db_credentials
-    update_env_file
-    update_etc_hosts_file
     display_summary
 
-    log_success "All tasks completed successfully!"
+    log_success "Deployment completed successfully!"
+    echo ""
+    echo "Next Steps:"
+    echo "  Run '/hbi-setup-for-dev' or './claude/deployer/setup-for-dev.sh'"
+    echo "  to configure local development environment (port-forwards, .env, etc.)"
+    echo ""
 }
 
 # Run main function

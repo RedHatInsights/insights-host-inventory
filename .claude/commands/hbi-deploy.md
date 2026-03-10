@@ -9,10 +9,9 @@ Deploy Host Inventory with Kessel, RBAC v2, and all dependencies to an ephemeral
 3. **Reserve Namespace** - Creates or uses existing ephemeral namespace
 4. **Deploy Services** - Deploys HBI, Kessel, RBAC with bonfire
 5. **Setup Demo Data** - Creates connectors, users, and sample hosts
-6. **Port Forwarding** - Sets up local port forwards for all services
-7. **Get Credentials** - Retrieves database credentials
-8. **Update .env** - Updates HBI .env file with new credentials
-9. **Update /etc/hosts** - Updates Kafka bootstrap server entry
+6. **Verify Deployment** - Checks that all pods are running
+
+**Note:** This command ONLY deploys services. For local development setup (port-forwarding, credentials, .env file), run `/hbi-setup-for-dev` after deployment completes.
 
 ## Usage
 
@@ -39,7 +38,6 @@ Deploy Host Inventory with Kessel, RBAC v2, and all dependencies to an ephemeral
 **Required Configuration:**
 - Ephemeral cluster access (token + server URL)
 - Podman (optional - for custom unleash image)
-- Passwordless sudo (for /etc/hosts updates)
 
 **Environment Variables:**
 - `EPHEMERAL_TOKEN` - Auth token (or use `oc whoami -t`)
@@ -64,36 +62,15 @@ Get token from: https://oauth-openshift.apps.crc-eph.r9lp.p1.openshiftapps.com/o
 - Kafka connectors (migration + outbox)
 - SpiceDB schema
 
-## Port Forwards
+## After Deployment
 
-After deployment, these services are available locally:
+Once deployment completes, run `/hbi-setup-for-dev` to:
+- Setup port forwarding to all services
+- Retrieve database credentials
+- Update .env file with credentials
+- Update /etc/hosts for Kafka
 
-| Service | Local Port | Description |
-|---------|-----------|-------------|
-| HBI API | 8000 | Host Inventory REST API |
-| RBAC Service | 8111 | RBAC v2 API |
-| Kessel Inventory | 8222 | Kessel Inventory API |
-| Kessel Relations | 8333 | SpiceDB gRPC API |
-| Kafka Bootstrap | 9092, 29092 | Kafka brokers |
-| Kafka Connect | 8083 | Kafka Connect REST API |
-| Feature Flags | 4242 | Unleash API |
-| HBI Database | 5432 | PostgreSQL |
-| RBAC Database | 5433 | PostgreSQL |
-| Kessel Database | 5434 | PostgreSQL |
-
-## Files Modified
-
-- `$HBI_DIR/.env` - Database credentials updated
-- `$HBI_DIR/tmp/ephemeral_ports.log` - Port forwarding log
-- `$HBI_DIR/tmp/ephemeral_db_credentials.log` - Database credentials
-- `/etc/hosts` - Kafka bootstrap server entry
-
-## Output
-
-Deployment logs and artifacts saved to `$HBI_DIR/tmp/`:
-- Port forwarding processes
-- Database credentials
-- Namespace details
+See `/hbi-setup-for-dev` documentation for details on local development setup.
 
 ## Cleanup
 
@@ -129,13 +106,13 @@ kudis  # Alias that kills all kubectl port-forward processes
 
 ## Related Commands
 
+- `/hbi-setup-for-dev` - Setup local dev environment after deployment
+- `/hbi-verify-setup` - Verify deployment is healthy
+- `/hbi-cleanup` - Cleanup ephemeral environment
 - `/hbi-doctor` - Health check your dev environment
-- `/hbi-maintenance` - Update dependencies and containers
 
 ## Implementation
 
 This command uses:
-- `.claude/deployer/deploy-ephemeral.sh` - Main orchestration
+- `.claude/deployer/deploy-ephemeral.sh` - Main deployment script
 - `.claude/deployer/bonfire-deploy.sh` - Bonfire deployment logic
-- `docs/set_hbi_rbac_ports.sh` - Port forwarding setup
-- `docs/get_hbi_rbac_db_creds.sh` - Credential retrieval
