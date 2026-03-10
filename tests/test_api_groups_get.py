@@ -7,6 +7,7 @@ from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 
@@ -358,7 +359,7 @@ def test_get_groups_by_id_rbac_v2_success(
     """
     Test that GET /groups/{group_id_list} uses RBAC v2 when feature flag is enabled.
 
-    JIRA: RHINENG-17397
+    JIRA: RHINENG-17397, RHINENG-24625
     """
     # Create groups with hosts
     groups = [db_create_group(f"group_{i}") for i in range(3)]
@@ -407,6 +408,29 @@ def test_get_groups_by_id_rbac_v2_success(
         assert group_result["host_count"] == i + 1
         assert "created" in group_result
         assert "updated" in group_result
+        # RHINENG-24625: Verify account from identity is included in response
+        assert group_result["account"] == USER_IDENTITY["account_number"]  # From USER_IDENTITY fixture
+
+    # RHINENG-24625: Test scenario where identity has no account_number
+    # Create custom identity with org_id but no account_number
+    identity_no_account = {
+        "org_id": "test",
+        "type": "User",
+        "auth_type": "basic-auth",
+        "user": {"email": "tuser@redhat.com", "first_name": "test", "username": "tuser@redhat.com"},
+        # Note: account_number field is intentionally omitted
+    }
+
+    response_status, response_data = api_get(
+        GROUP_URL + "/" + ",".join(group_id_list),
+        identity=identity_no_account,
+    )
+
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 3
+    for group_result in response_data["results"]:
+        # RHINENG-24625: Verify account is None when identity lacks account_number
+        assert group_result["account"] is None
 
 
 def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):

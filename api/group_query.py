@@ -163,7 +163,9 @@ def get_group_list_by_id_list_rbac_v2(
 
     # Serialize with pre-fetched host counts
     group_list = [
-        serialize_rbac_workspace_with_host_count(workspace, identity.org_id, host_counts.get(workspace["id"], 0))
+        serialize_rbac_workspace_with_host_count(
+            workspace, identity.org_id, getattr(identity, "account_number", None), host_counts.get(workspace["id"], 0)
+        )
         for workspace in workspaces
     ]
 
@@ -223,8 +225,10 @@ def get_filtered_group_list_db(group_name, page, per_page, order_by, order_how, 
 
 def build_paginated_group_list_response(total, page, per_page, group_list):
     # group resource provided by rbac_v2 does not have org_id
-    org_id = get_current_identity().org_id
-    json_group_list = [serialize_group(group, org_id) for group in group_list]
+    identity = get_current_identity()
+    json_group_list = [
+        serialize_group(group, identity.org_id, getattr(identity, "account_number", None)) for group in group_list
+    ]
     return {
         "total": total,
         "count": len(json_group_list),
@@ -236,5 +240,5 @@ def build_paginated_group_list_response(total, page, per_page, group_list):
 
 def build_group_response(group):
     # group resource provided by RBAC V2 API does not have org_id
-    org_id = get_current_identity().org_id
-    return serialize_group(group, org_id)
+    identity = get_current_identity()
+    return serialize_group(group, identity.org_id, getattr(identity, "account_number", None))
