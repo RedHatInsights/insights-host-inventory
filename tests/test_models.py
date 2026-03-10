@@ -2749,3 +2749,233 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "legacy_count=2" in call_args
     assert "workloads.sap" in call_args  # Shows SAP is migrated
     assert "sending_both_formats=True" in call_args  # Mixed state
+
+
+# ─── Skip-if-unchanged optimization tests ───
+
+
+def test_update_staleness_timestamps_skips_when_unchanged(db_create_host, models_datetime_mock, mocker):
+    """When staleness timestamps haven't changed, flag_modified should not be called for them."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    saved_stale = existing_host.stale_timestamp
+    saved_warning = existing_host.stale_warning_timestamp
+    saved_deletion = existing_host.deletion_timestamp
+
+    flag_modified = mocker.patch("app.models.host.orm.attributes.flag_modified")
+
+    existing_host._update_staleness_timestamps()
+
+    # Timestamps haven't changed (mocked time is frozen), so flag_modified should not be called
+    for call_args in flag_modified.call_args_list:
+        assert call_args[0][1] not in ("stale_timestamp", "stale_warning_timestamp", "deletion_timestamp")
+
+    assert existing_host.stale_timestamp == saved_stale
+    assert existing_host.stale_warning_timestamp == saved_warning
+    assert existing_host.deletion_timestamp == saved_deletion
+
+
+def test_update_staleness_timestamps_writes_when_changed(db_create_host, models_datetime_mock, mocker):
+    """When staleness timestamps change, flag_modified should be called."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    # Force a different timestamp to simulate a change
+    existing_host.stale_timestamp = models_datetime_mock - timedelta(days=100)
+    existing_host.stale_warning_timestamp = models_datetime_mock - timedelta(days=100)
+    existing_host.deletion_timestamp = models_datetime_mock - timedelta(days=100)
+
+    flag_modified = mocker.patch("app.models.host.orm.attributes.flag_modified")
+
+    existing_host._update_staleness_timestamps()
+
+    flagged_columns = {call_args[0][1] for call_args in flag_modified.call_args_list}
+    assert "stale_timestamp" in flagged_columns
+    assert "stale_warning_timestamp" in flagged_columns
+    assert "deletion_timestamp" in flagged_columns
+
+
+def test_update_per_reporter_staleness_skips_unchanged_staleness(db_create_host, models_datetime_mock):
+    """When per_reporter staleness values haven't changed, only last_check_in should update."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    original_stale = existing_host.per_reporter_staleness["puptoo"]["stale_timestamp"]
+    original_culled = existing_host.per_reporter_staleness["puptoo"]["culled_timestamp"]
+    original_warning = existing_host.per_reporter_staleness["puptoo"]["stale_warning_timestamp"]
+
+    # Simulate a second check-in with the same reporter (time is mocked, so staleness is identical)
+    existing_host._update_last_check_in_date()
+    existing_host._update_per_reporter_staleness("puptoo")
+
+    # Staleness values should remain identical
+    assert existing_host.per_reporter_staleness["puptoo"]["stale_timestamp"] == original_stale
+    assert existing_host.per_reporter_staleness["puptoo"]["culled_timestamp"] == original_culled
+    assert existing_host.per_reporter_staleness["puptoo"]["stale_warning_timestamp"] == original_warning
+    # last_check_in and check_in_succeeded always update
+    assert existing_host.per_reporter_staleness["puptoo"]["last_check_in"] == models_datetime_mock.isoformat()
+    assert existing_host.per_reporter_staleness["puptoo"]["check_in_succeeded"] is True
+
+
+def test_update_skips_tags_when_empty(db_create_host, models_datetime_mock, mocker):
+    """When input_host.tags is empty, _update_tags should not be called."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+    original_tags = deepcopy(existing_host.tags)
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    update_tags_spy = mocker.patch.object(existing_host, "_update_tags")
+    existing_host.update(update_host)
+
+    update_tags_spy.assert_not_called()
+    assert existing_host.tags == original_tags
+
+
+def test_update_skips_facts_when_empty(db_create_host, models_datetime_mock, mocker):
+    """When input_host.facts is empty, update_facts should not be called."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+    original_facts = deepcopy(existing_host.facts)
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    update_facts_spy = mocker.patch.object(existing_host, "update_facts")
+    existing_host.update(update_host)
+
+    update_facts_spy.assert_not_called()
+    assert existing_host.facts == original_facts
+
+
+def test_update_calls_tags_when_non_empty(db_create_host, models_datetime_mock, mocker):
+    """When input_host.tags is non-empty, _update_tags should be called."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+        tags={"ns1": {"key1": ["val1"]}},
+    )
+    update_tags_spy = mocker.patch.object(existing_host, "_update_tags")
+    existing_host.update(update_host)
+
+    update_tags_spy.assert_called_once_with({"ns1": {"key1": ["val1"]}})
+
+
+def test_update_display_name_skips_when_unchanged(db_create_host, models_datetime_mock):
+    """When display_name and reporter are the same, no assignment should happen."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "puptoo"
+
+    # Track attribute state before update
+    original_display_name = existing_host.display_name
+    original_reporter = existing_host.display_name_reporter
+
+    existing_host.update_display_name("my-host", "puptoo")
+
+    # Values should still be the same (no unnecessary write)
+    assert existing_host.display_name == original_display_name
+    assert existing_host.display_name_reporter == original_reporter
+
+
+def test_update_display_name_writes_when_changed(db_create_host, models_datetime_mock):
+    """When display_name differs, it should be updated."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="old-name",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("new-name", "puptoo")
+
+    assert existing_host.display_name == "new-name"
+    assert existing_host.display_name_reporter == "puptoo"
+
+
+def test_update_display_name_writes_when_reporter_changed(db_create_host, models_datetime_mock):
+    """When display_name is the same but reporter differs, it should update."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("my-host", "yupana")
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "yupana"

@@ -374,9 +374,11 @@ class Host(LimitedHost):
 
         self._update_ansible_host(input_host.ansible_host)
 
-        self.update_facts(input_host.facts)
+        if input_host.facts:
+            self.update_facts(input_host.facts)
 
-        self._update_tags(input_host.tags)
+        if input_host.tags:
+            self._update_tags(input_host.tags)
 
         if input_host.org_id:
             self.org_id = input_host.org_id
@@ -422,6 +424,8 @@ class Host(LimitedHost):
                     f"Ignoring display_name update from {input_reporter}, "
                     f"current display_name_reporter: {self.display_name_reporter}"
                 )
+                return
+            if self.display_name == input_display_name and self.display_name_reporter == input_reporter:
                 return
             self.display_name = input_display_name
             self.display_name_reporter = input_reporter
@@ -475,25 +479,31 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        # For hosts that should stay fresh forever, set far-future timestamps
         if should_host_stay_fresh_forever(self):
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                culled_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                stale_warning_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                last_check_in=self.last_check_in.isoformat(),
-                check_in_succeeded=True,
-            )
+            new_stale = FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+            new_culled = FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+            new_warning = FAR_FUTURE_STALE_TIMESTAMP.isoformat()
         else:
             st = _create_staleness_timestamps_values(self, self.org_id)
+            new_stale = st["stale_timestamp"].isoformat()
+            new_culled = st["culled_timestamp"].isoformat()
+            new_warning = st["stale_warning_timestamp"].isoformat()
 
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=st["stale_timestamp"].isoformat(),
-                culled_timestamp=st["culled_timestamp"].isoformat(),
-                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
-                last_check_in=self.last_check_in.isoformat(),
-                check_in_succeeded=True,
-            )
+        existing = self.per_reporter_staleness[reporter]
+        staleness_changed = (
+            existing.get("stale_timestamp") != new_stale
+            or existing.get("culled_timestamp") != new_culled
+            or existing.get("stale_warning_timestamp") != new_warning
+        )
+
+        if staleness_changed:
+            existing["stale_timestamp"] = new_stale
+            existing["culled_timestamp"] = new_culled
+            existing["stale_warning_timestamp"] = new_warning
+
+        existing["last_check_in"] = self.last_check_in.isoformat()
+        existing["check_in_succeeded"] = True
+
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_last_check_in_date(self):
@@ -585,18 +595,24 @@ class Host(LimitedHost):
 
     def _update_staleness_timestamps(self):
         if should_host_stay_fresh_forever(self):
-            self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            self.stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            self.deletion_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            new_stale = FAR_FUTURE_STALE_TIMESTAMP
+            new_warning = FAR_FUTURE_STALE_TIMESTAMP
+            new_deletion = FAR_FUTURE_STALE_TIMESTAMP
         else:
             staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
-            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
-            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
-            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+            new_stale = staleness_timestamps["stale_timestamp"]
+            new_warning = staleness_timestamps["stale_warning_timestamp"]
+            new_deletion = staleness_timestamps["culled_timestamp"]
 
-        orm.attributes.flag_modified(self, "stale_timestamp")
-        orm.attributes.flag_modified(self, "stale_warning_timestamp")
-        orm.attributes.flag_modified(self, "deletion_timestamp")
+        if self.stale_timestamp != new_stale:
+            self.stale_timestamp = new_stale
+            orm.attributes.flag_modified(self, "stale_timestamp")
+        if self.stale_warning_timestamp != new_warning:
+            self.stale_warning_timestamp = new_warning
+            orm.attributes.flag_modified(self, "stale_warning_timestamp")
+        if self.deletion_timestamp != new_deletion:
+            self.deletion_timestamp = new_deletion
+            orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
         # Hosts that should stay fresh forever are never stale
