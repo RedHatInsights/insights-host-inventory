@@ -37,6 +37,7 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import get_flag_value
 from lib.kessel import Kessel
@@ -481,6 +482,13 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
+            # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
+            # Authorization is handled by RBAC v2 workspace API calls within the endpoint
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled():
+                # RBAC v2 path: No rbac_filter, authorization via workspace API
+                return func(*args, **kwargs)
+
+            # RBAC v1 path: Original authorization logic
             current_identity = get_current_identity()
 
             request_headers = _build_rbac_request_headers()
@@ -560,6 +568,19 @@ def access(permission: KesselPermission, id_param: str = ""):
         return modified_func
 
     return other_func
+
+
+def is_rbac_v2_groups_enabled() -> bool:
+    """
+    Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
+
+    When True: RBAC v2 workspace API handles all authorization
+    When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
+
+    Returns:
+        True if RBAC v2 should be used for groups, False if RBAC v1 should be used
+    """
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
