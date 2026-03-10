@@ -16,6 +16,7 @@ from app.models import Host
 from app.models import ProviderType
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.utils import HostWrapper
+from lib.host_repository import batch_find_existing_hosts
 from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
@@ -541,3 +542,20 @@ def test_deduplication_culled_host(
     updated_host = mq_create_or_update_host(minimal_host(**canonical_facts, reporter="puptoo"))
     assert str(updated_host.id) != str(created_host.id)
     assert_host_exists_in_db(updated_host.id, canonical_facts)
+
+
+def test_batch_find_existing_hosts_returns_matches(db_create_host):
+    """batch_find_existing_hosts should find hosts matching ID facts in a single query."""
+    insights_id = generate_uuid()
+    subman_id = generate_uuid()
+    host = minimal_db_host(insights_id=insights_id, subscription_manager_id=subman_id)
+    created = db_create_host(host=host)
+
+    results = batch_find_existing_hosts(
+        [
+            {"org_id": created.org_id, "insights_id": str(created.insights_id)},
+        ]
+    )
+
+    assert len(results) >= 1
+    assert any(str(h.id) == str(created.id) for h in results)

@@ -2751,9 +2751,6 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "sending_both_formats=True" in call_args  # Mixed state
 
 
-# ─── Batch ingestion optimization tests ───
-
-
 def test_compute_staleness_shared_between_methods(db_create_host, models_datetime_mock, mocker):
     """Host.update() should compute staleness once and share it between per_reporter and timestamps."""
     insights_id = generate_uuid()
@@ -2818,7 +2815,7 @@ def test_staleness_cache_context_manager():
     assert StalenessCache.get("org1") is None
 
 
-def test_ungrouped_group_cache(flask_app, mocker):  # noqa: ARG001
+def test_ungrouped_group_cache_context_manager(flask_app, mocker):  # noqa: ARG001
     """UngroupedGroupCache should prevent duplicate Group DB queries."""
     from lib.group_repository import UngroupedGroupCache
 

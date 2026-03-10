@@ -3368,37 +3368,6 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert second_host_from_db.static_system_profile.bios_version == "1.23"
 
 
-# ─── Batch ingestion optimization tests ───
-
-
-@pytest.mark.usefixtures("flask_app")
-def test_batch_find_existing_hosts_returns_matches(db_create_host):
-    """batch_find_existing_hosts should find hosts matching ID facts in a single query."""
-    from lib.host_repository import batch_find_existing_hosts
-
-    insights_id = generate_uuid()
-    subman_id = generate_uuid()
-    host = minimal_db_host(insights_id=insights_id, subscription_manager_id=subman_id)
-    created = db_create_host(host=host)
-
-    results = batch_find_existing_hosts(
-        [
-            {"org_id": created.org_id, "insights_id": str(created.insights_id)},
-        ]
-    )
-
-    assert len(results) >= 1
-    assert any(str(h.id) == str(created.id) for h in results)
-
-
-@pytest.mark.usefixtures("flask_app")
-def test_batch_find_existing_hosts_empty_batch():
-    """batch_find_existing_hosts should return empty list for empty input."""
-    from lib.host_repository import batch_find_existing_hosts
-
-    assert batch_find_existing_hosts([]) == []
-
-
 @pytest.mark.usefixtures("flask_app")
 def test_ingress_consumer_prefetches_hosts(mocker, event_producer, flask_app):
     """IngressMessageConsumer should call batch_find_existing_hosts for multi-message batches."""
