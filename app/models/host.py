@@ -168,11 +168,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
         For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
         For all other fields, replaces the value entirely.
-
-        Args:
-            profile: The system profile object to update (static or dynamic)
-            data: Dictionary of field names and values to apply
-            skip_keys: Set of keys to skip (e.g., {"org_id", "host_id"})
+        Skips writes when the new value matches the current value.
         """
         skip_keys = skip_keys or set()
 
@@ -183,9 +179,11 @@ class LimitedHost(db.Model, HostTypeDeriver):
             if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
                 existing = getattr(profile, key, None) or {}
                 merged = {**existing, **value}
-                setattr(profile, key, merged)
+                if merged != existing:
+                    setattr(profile, key, merged)
             else:
-                setattr(profile, key, value)
+                if getattr(profile, key, None) != value:
+                    setattr(profile, key, value)
 
     def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
