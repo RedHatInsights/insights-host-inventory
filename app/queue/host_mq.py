@@ -89,7 +89,6 @@ from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
 
-CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 MAX_RETRIES = 5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
