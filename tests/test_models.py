@@ -2781,3 +2781,52 @@ def test_compute_staleness_shared_between_methods(db_create_host, models_datetim
 
     # _compute_staleness_timestamps should be called exactly once in update()
     assert compute_spy.call_count == 1
+
+
+def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
+    """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
+    from app.models.utils import StalenessCache
+    from app.models.utils import _get_staleness_obj
+
+    with StalenessCache():
+        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        assert first_result is not None
+
+        # Patch the Staleness model inside its lazy import to prove the DB isn't hit again
+        mocker.patch("app.models.staleness.Staleness.query")
+        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+
+        assert second_result is first_result
+        # The patched query should not have been touched
+        from app.models.staleness import Staleness
+
+        Staleness.query.filter.assert_not_called()
+
+    assert StalenessCache.get(USER_IDENTITY["org_id"]) is None
+
+
+def test_staleness_cache_context_manager():
+    """StalenessCache context manager should create and clear cache."""
+    from app.models.utils import StalenessCache
+
+    assert StalenessCache.get("org1") is None
+
+    with StalenessCache():
+        StalenessCache.put("org1", {"test": True})
+        assert StalenessCache.get("org1") == {"test": True}
+
+    assert StalenessCache.get("org1") is None
+
+
+def test_ungrouped_group_cache(flask_app, mocker):  # noqa: ARG001
+    """UngroupedGroupCache should prevent duplicate Group DB queries."""
+    from lib.group_repository import UngroupedGroupCache
+
+    assert UngroupedGroupCache.get("org1") is None
+
+    with UngroupedGroupCache():
+        mock_group = mocker.Mock()
+        UngroupedGroupCache.put("org1", mock_group)
+        assert UngroupedGroupCache.get("org1") is mock_group
+
+    assert UngroupedGroupCache.get("org1") is None
