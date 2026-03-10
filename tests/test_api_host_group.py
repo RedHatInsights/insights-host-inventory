@@ -488,10 +488,8 @@ def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
     # Mock event producer
     mocker.patch.object(event_producer, "write_event")
 
-    # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    # Mock RBAC v2 enabled (this function is imported from lib.middleware)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock workspace fetch to return ungrouped workspace
     mock_workspace = {
