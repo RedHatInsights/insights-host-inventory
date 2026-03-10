@@ -2749,3 +2749,35 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "legacy_count=2" in call_args
     assert "workloads.sap" in call_args  # Shows SAP is migrated
     assert "sending_both_formats=True" in call_args  # Mixed state
+
+
+# ─── Batch ingestion optimization tests ───
+
+
+def test_compute_staleness_shared_between_methods(db_create_host, models_datetime_mock, mocker):
+    """Host.update() should compute staleness once and share it between per_reporter and timestamps."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    compute_spy = mocker.patch.object(
+        existing_host, "_compute_staleness_timestamps", wraps=existing_host._compute_staleness_timestamps
+    )
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
+
+    # _compute_staleness_timestamps should be called exactly once in update()
+    assert compute_spy.call_count == 1
