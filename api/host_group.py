@@ -30,6 +30,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import is_rbac_v2_groups_enabled
 from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
@@ -146,7 +147,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    if is_rbac_v2_groups_enabled():
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -188,7 +189,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    if is_rbac_v2_groups_enabled():
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
