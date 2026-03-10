@@ -14,6 +14,10 @@ class ThreadLocalBatchCache:
 
     The cache dict is created on ``__enter__`` and cleared on ``__exit__``.
     Outside a context, ``get`` returns ``None`` and ``put`` is a no-op.
+
+    .. warning::
+        Nesting the same cache type is **not** supported.  The inner
+        ``__exit__`` will clear the cache for the outer context as well.
     """
 
     _store: local  # each subclass must define its own

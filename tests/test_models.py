@@ -2751,6 +2751,40 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "sending_both_formats=True" in call_args  # Mixed state
 
 
+def test_compute_staleness_stay_fresh_forever_shared(db_create_host, models_datetime_mock):
+    """Shared staleness timestamps should propagate far-future values for 'stay fresh forever' hosts."""
+    insights_id = generate_uuid()
+    reporter = "rhsm-system-profile-bridge"
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="rhsm-only-host",
+        reporter=reporter,
+        subscription_manager_id=generate_uuid(),
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="rhsm-only-host",
+        reporter=reporter,
+        subscription_manager_id=str(existing_host.subscription_manager_id),
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
+
+    assert existing_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert existing_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert existing_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    prs = existing_host.per_reporter_staleness[reporter]
+    assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+
+
 def test_compute_staleness_shared_between_methods(db_create_host, models_datetime_mock, mocker):
     """Host.update() should compute staleness once and share it between per_reporter and timestamps."""
     insights_id = generate_uuid()
