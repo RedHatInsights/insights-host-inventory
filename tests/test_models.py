@@ -2827,3 +2827,63 @@ def test_ungrouped_group_cache_context_manager(flask_app, mocker):  # noqa: ARG0
         assert UngroupedGroupCache.get("org1") is mock_group
 
     assert UngroupedGroupCache.get("org1") is None
+
+
+def test_update_display_name_skips_when_unchanged(db_create_host, models_datetime_mock):
+    """When display_name and reporter are the same, no assignment should happen."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "puptoo"
+
+    original_display_name = existing_host.display_name
+    original_reporter = existing_host.display_name_reporter
+
+    existing_host.update_display_name("my-host", "puptoo")
+
+    assert existing_host.display_name == original_display_name
+    assert existing_host.display_name_reporter == original_reporter
+
+
+def test_update_display_name_writes_when_changed(db_create_host, models_datetime_mock):
+    """When display_name differs, it should be updated."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="old-name",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("new-name", "puptoo")
+
+    assert existing_host.display_name == "new-name"
+    assert existing_host.display_name_reporter == "puptoo"
+
+
+def test_update_display_name_writes_when_reporter_changed(db_create_host, models_datetime_mock):
+    """When display_name is the same but reporter differs, it should update."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("my-host", "yupana")
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "yupana"

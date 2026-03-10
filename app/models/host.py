@@ -426,6 +426,8 @@ class Host(LimitedHost):
                     f"current display_name_reporter: {self.display_name_reporter}"
                 )
                 return
+            if self.display_name == input_display_name and self.display_name_reporter == input_reporter:
+                return
             self.display_name = input_display_name
             self.display_name_reporter = input_reporter
         else:
