@@ -3366,3 +3366,65 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert str(second_host_from_db.static_system_profile.owner_id) == OWNER_ID
     assert second_host_from_db.static_system_profile.bios_vendor == "new_vendor"
     assert second_host_from_db.static_system_profile.bios_version == "1.23"
+
+
+# ─── Batch ingestion optimization tests ───
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_batch_find_existing_hosts_returns_matches(db_create_host):
+    """batch_find_existing_hosts should find hosts matching ID facts in a single query."""
+    from lib.host_repository import batch_find_existing_hosts
+
+    insights_id = generate_uuid()
+    subman_id = generate_uuid()
+    host = minimal_db_host(insights_id=insights_id, subscription_manager_id=subman_id)
+    created = db_create_host(host=host)
+
+    results = batch_find_existing_hosts(
+        [
+            {"org_id": created.org_id, "insights_id": str(created.insights_id)},
+        ]
+    )
+
+    assert len(results) >= 1
+    assert any(str(h.id) == str(created.id) for h in results)
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_batch_find_existing_hosts_empty_batch():
+    """batch_find_existing_hosts should return empty list for empty input."""
+    from lib.host_repository import batch_find_existing_hosts
+
+    assert batch_find_existing_hosts([]) == []
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_ingress_consumer_prefetches_hosts(mocker, event_producer, flask_app):
+    """IngressMessageConsumer should call batch_find_existing_hosts for multi-message batches."""
+    batch_find_spy = mocker.patch("lib.host_repository.batch_find_existing_hosts", return_value=[])
+
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+
+    host1 = minimal_host(insights_id=generate_uuid())
+    host2 = minimal_host(insights_id=generate_uuid())
+    msg1 = json.dumps(wrap_message(host1.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+    msg2 = json.dumps(wrap_message(host2.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+
+    mock_msg1 = mocker.Mock()
+    mock_msg1.value.return_value = msg1
+    mock_msg1.error.return_value = None
+    mock_msg1.headers.return_value = None
+
+    mock_msg2 = mocker.Mock()
+    mock_msg2.value.return_value = msg2
+    mock_msg2.error.return_value = None
+    mock_msg2.headers.return_value = None
+
+    consumer.consumer.consume.return_value = [mock_msg1, mock_msg2]
+    consumer.consumer.commit.return_value = None
+
+    consumer._process_batch()
+
+    batch_find_spy.assert_called_once()
+    assert len(consumer.processed_rows) == 2
