@@ -517,20 +517,36 @@ def get_groups_by_id(
 def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     identity = get_current_identity()
     hosts_per_group = {}
+    groups_by_id = {}  # Cache group objects to avoid duplicate lookups
 
-    # Separate hosts per group
+    # Separate hosts per group (lookup from local DB)
     for host_id in host_id_list:
         if group := get_group_using_host_id(host_id, identity.org_id):
-            if group.ungrouped:
-                abort(HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group.")
-
-            hosts_per_group.setdefault(str(group.id), []).append(host_id)
+            group_id_str = str(group.id)
+            hosts_per_group.setdefault(group_id_str, []).append(host_id)
+            groups_by_id[group_id_str] = group
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    # RBAC v1 only: Validate group IDs against RBAC v1 filter
-    # RBAC v2: Skip this check - authorization handled by remove_hosts_from_group() for each group
-    if not is_rbac_v2_groups_enabled():
+    if is_rbac_v2_groups_enabled():
+        # RBAC v2 path: Validate workspaces via RBAC v2 API
+        # The API automatically filters based on user permissions
+        if requested_group_ids:
+            workspaces = get_rbac_workspaces_by_ids(list(requested_group_ids))
+            accessible_workspace_ids = {w.get("id") for w in workspaces}
+            check_all_ids_found(requested_group_ids, accessible_workspace_ids, "group")
+
+            # Check for ungrouped type workspaces (cannot remove hosts from ungrouped)
+            for workspace in workspaces:
+                if workspace.get("type") == "ungrouped-hosts":
+                    abort(
+                        HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group."
+                    )
+    else:
+        # RBAC v1 path: Validate group IDs against RBAC v1 filter and check ungrouped
+        for group in groups_by_id.values():
+            if group.ungrouped:
+                abort(HTTPStatus.BAD_REQUEST, "The provided hosts cannot be removed from the ungrouped-hosts group.")
         rbac_group_id_check(rbac_filter, requested_group_ids)
 
     found_hosts = get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter).all()

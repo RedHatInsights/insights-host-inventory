@@ -482,31 +482,33 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
+            # Cert auth / system identities are only allowed to access HOSTS resources.
+            # For all other resources (e.g., GROUPS), deny access with 403 Forbidden.
+            # This check must happen BEFORE any RBAC v2 bypass to maintain security.
+            current_identity = get_current_identity()
+            if current_identity.identity_type not in CHECKED_TYPES and resource_type != RbacResourceType.HOSTS:
+                abort(HTTPStatus.FORBIDDEN)
+
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
-            # Authorization is handled by RBAC v2 workspace API calls within the endpoint
+            # In RBAC v2, authorization is handled by workspace API calls within the endpoint
+            # (but identity type check above still applies - cert auth is always denied for groups)
             if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled():
-                # RBAC v2 path: No rbac_filter, authorization via workspace API
                 return func(*args, **kwargs)
 
-            # RBAC v1 path: Original authorization logic
-            current_identity = get_current_identity()
-
+            # RBAC v1 path: Check permissions via RBAC v1 API
             request_headers = _build_rbac_request_headers()
-
-            allowed = None
-            rbac_filter = None
 
             allowed, rbac_filter = get_rbac_filter(
                 resource_type, required_permission, current_identity, request_headers, permission_base
             )
 
-            if allowed:
-                if rbac_filter:
-                    return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
-                else:
-                    return func(*args, **kwargs)
-            else:
+            if not allowed:
                 abort(HTTPStatus.FORBIDDEN)
+
+            if rbac_filter:
+                return partial(func, rbac_filter=rbac_filter)(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
 
         return modified_func
 
