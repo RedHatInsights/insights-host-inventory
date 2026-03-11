@@ -40,59 +40,89 @@ GIT_MAX_RETRIES = int(getenv("GIT_MAX_RETRIES", 3))
 logger = get_logger(LOGGER_NAME)
 
 
-def _get_rate_limit_wait_time(response: Response) -> int | None:
+class _GitHubRateLimiter:
+    """Tracks GitHub API rate limit state across all requests.
+
+    Without this, each _get_git_response call manages retries independently.
+    When iterating through PRs (each requiring 3+ API calls), tokens are
+    consumed instantly after a reset, and a nested call can exhaust its own
+    retry budget — crashing the whole job.  By sharing state globally we
+    proactively wait *before* sending a request that would be rejected.
     """
-    Calculate wait time based on GitHub rate limit headers.
-    Returns the number of seconds to wait, or None if no wait is needed.
-    """
-    # Check for Retry-After header first (used in some rate limit scenarios)
-    retry_after = response.headers.get("Retry-After")
-    if retry_after:
+
+    def __init__(self):
+        self._remaining: int | None = None
+        self._reset_timestamp: int | None = None
+        self._limit: int | None = None
+
+    @property
+    def remaining(self) -> int | None:
+        return self._remaining
+
+    @property
+    def limit(self) -> int | None:
+        return self._limit
+
+    def update_from_response(self, response: Response) -> None:
         try:
-            return int(retry_after)
+            remaining = response.headers.get("X-RateLimit-Remaining")
+            reset_time = response.headers.get("X-RateLimit-Reset")
+            limit = response.headers.get("X-RateLimit-Limit")
+
+            if remaining is not None:
+                self._remaining = int(remaining)
+            if reset_time is not None:
+                self._reset_timestamp = int(reset_time)
+            if limit is not None:
+                self._limit = int(limit)
         except ValueError:
-            pass
+            logger.warning("Non-numeric rate-limit header received; ignoring")
 
-    # Check X-RateLimit headers
-    remaining = response.headers.get("X-RateLimit-Remaining")
-    reset_time = response.headers.get("X-RateLimit-Reset")
+    def get_wait_seconds(self, response: Response | None = None) -> int | None:
+        """Return how many seconds to wait, or None if no wait is needed."""
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return int(retry_after)
+                except ValueError:
+                    pass
 
-    if remaining is not None and reset_time is not None:
-        try:
-            remaining_count = int(remaining)
-            reset_timestamp = int(reset_time)
+        if self._remaining is not None and self._remaining <= 0 and self._reset_timestamp:
+            wait = self._reset_timestamp - int(time.time()) + 1
+            return max(wait, 1)
 
-            # If we're rate limited (remaining is 0) or about to be
-            if remaining_count == 0:
-                wait_time = reset_timestamp - int(time.time())
-                # Add a small buffer to ensure the reset has occurred
-                return max(wait_time + 1, 1)
-        except ValueError:
-            pass
+        return None
 
-    return None
+    def wait_if_needed(self) -> None:
+        """Block until the rate-limit window resets (if we know it's exhausted)."""
+        wait = self.get_wait_seconds()
+        if wait and wait > 0:
+            logger.info(f"Rate limit exhausted ({self._remaining} remaining). Waiting {wait}s for reset.")
+            time.sleep(wait)
+            self._remaining = None
+
+
+_rate_limiter = _GitHubRateLimiter()
 
 
 def _get_git_response(path: str, max_retries: int = GIT_MAX_RETRIES) -> dict:
-    """
-    Make a GET request to GitHub API with rate limit handling and retry logic.
-    """
+    """Make a GET request to GitHub API with global rate-limit awareness."""
+    _rate_limiter.wait_if_needed()
+
     for attempt in range(max_retries + 1):
         response = get(f"https://api.github.com{path}", auth=HTTPBasicAuth(GIT_USER, GIT_TOKEN))
+        _rate_limiter.update_from_response(response)
 
-        # Log rate limit info for debugging
-        remaining = response.headers.get("X-RateLimit-Remaining")
-        limit = response.headers.get("X-RateLimit-Limit")
-        if remaining is not None and limit is not None:
-            logger.debug(f"GitHub API rate limit: {remaining}/{limit} remaining")
+        if _rate_limiter.remaining is not None and _rate_limiter.limit is not None:
+            logger.debug(f"GitHub API rate limit: {_rate_limiter.remaining}/{_rate_limiter.limit} remaining")
 
-        # Check for rate limiting (403 with rate limit message or 429)
         is_rate_limited = response.status_code == 429 or (
             response.status_code == 403 and "rate limit" in response.text.lower()
         )
 
         if is_rate_limited:
-            wait_time = _get_rate_limit_wait_time(response)
+            wait_time = _rate_limiter.get_wait_seconds(response)
             if wait_time and attempt < max_retries:
                 logger.warning(
                     f"GitHub API rate limit hit. Waiting {wait_time} seconds before retry "
@@ -104,20 +134,17 @@ def _get_git_response(path: str, max_retries: int = GIT_MAX_RETRIES) -> dict:
                 logger.error(f"GitHub API rate limit exceeded after {max_retries} retries")
                 raise RuntimeError(f"GitHub API rate limit exceeded: {response.text}")
 
-        # Handle other errors
         if response.status_code >= 400:
             logger.error(f"GitHub API request failed: {response.status_code} - {response.text}")
             raise RuntimeError(f"GitHub API request failed with status {response.status_code}: {response.text}")
 
-        # Success - but check if we're close to the rate limit for proactive waiting
-        wait_time = _get_rate_limit_wait_time(response)
-        if wait_time and remaining is not None and int(remaining) == 0:
-            logger.info(f"Proactively waiting {wait_time} seconds for rate limit reset")
-            time.sleep(wait_time)
+        # Proactively wait after a successful response that exhausted the quota,
+        # so the *next* caller doesn't immediately get a 403.
+        if _rate_limiter.remaining is not None and _rate_limiter.remaining <= 0:
+            _rate_limiter.wait_if_needed()
 
         return json.loads(response.content.decode("utf-8"))
 
-    # Should not reach here, but just in case
     raise RuntimeError("GitHub API request failed: max retries exceeded")
 
 
