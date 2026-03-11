@@ -42,6 +42,7 @@ from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
+from app.queue.host_mq import write_message_batch
 from app.utils import Tag
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
@@ -3366,3 +3367,123 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert str(second_host_from_db.static_system_profile.owner_id) == OWNER_ID
     assert second_host_from_db.static_system_profile.bios_vendor == "new_vendor"
     assert second_host_from_db.static_system_profile.bios_version == "1.23"
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_ingress_consumer_prefetches_hosts(mocker, event_producer, flask_app):
+    """IngressMessageConsumer should call batch_find_existing_hosts for multi-message batches."""
+    batch_find_spy = mocker.patch("lib.host_repository.batch_find_existing_hosts", return_value=[])
+
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+
+    host1 = minimal_host(insights_id=generate_uuid())
+    host2 = minimal_host(insights_id=generate_uuid())
+    msg1 = json.dumps(wrap_message(host1.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+    msg2 = json.dumps(wrap_message(host2.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+
+    mock_msg1 = mocker.Mock()
+    mock_msg1.value.return_value = msg1
+    mock_msg1.error.return_value = None
+    mock_msg1.headers.return_value = None
+
+    mock_msg2 = mocker.Mock()
+    mock_msg2.value.return_value = msg2
+    mock_msg2.error.return_value = None
+    mock_msg2.headers.return_value = None
+
+    consumer.consumer.consume.return_value = [mock_msg1, mock_msg2]
+    consumer.consumer.commit.return_value = None
+
+    consumer._process_batch()
+
+    batch_find_spy.assert_called_once()
+    assert len(consumer.processed_rows) == 2
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_ingress_consumer_skips_prefetch_for_single_message(mocker, event_producer, flask_app):
+    """IngressMessageConsumer should not call batch_find_existing_hosts for single-message batches."""
+    batch_find_spy = mocker.patch("lib.host_repository.batch_find_existing_hosts", return_value=[])
+
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+
+    host = minimal_host(insights_id=generate_uuid())
+    msg = json.dumps(wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+
+    mock_msg = mocker.Mock()
+    mock_msg.value.return_value = msg
+    mock_msg.error.return_value = None
+    mock_msg.headers.return_value = None
+
+    consumer.consumer.consume.return_value = [mock_msg]
+    consumer.consumer.commit.return_value = None
+
+    consumer._process_batch()
+
+    batch_find_spy.assert_not_called()
+    assert len(consumer.processed_rows) == 1
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_ingress_consumer_passes_prefetched_hosts_to_add_host(mocker, event_producer, flask_app):
+    """Prefetched hosts from batch dedup should be forwarded to host_repository.add_host."""
+    sentinel_hosts = [mocker.Mock(name="prefetched_host")]
+    mocker.patch("lib.host_repository.batch_find_existing_hosts", return_value=sentinel_hosts)
+    add_host_spy = mocker.patch(
+        "app.queue.host_mq.host_repository.add_host",
+        return_value=(mocker.Mock(id=generate_uuid(), org_id="test"), AddHostResult.created),
+    )
+
+    consumer = IngressMessageConsumer(mocker.Mock(), flask_app, event_producer, mocker.Mock())
+
+    host1 = minimal_host(insights_id=generate_uuid())
+    host2 = minimal_host(insights_id=generate_uuid())
+    msg1 = json.dumps(wrap_message(host1.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+    msg2 = json.dumps(wrap_message(host2.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY)))
+
+    mock_msg1 = mocker.Mock()
+    mock_msg1.value.return_value = msg1
+    mock_msg1.error.return_value = None
+    mock_msg1.headers.return_value = None
+
+    mock_msg2 = mocker.Mock()
+    mock_msg2.value.return_value = msg2
+    mock_msg2.error.return_value = None
+    mock_msg2.headers.return_value = None
+
+    consumer.consumer.consume.return_value = [mock_msg1, mock_msg2]
+    consumer.consumer.commit.return_value = None
+
+    consumer._process_batch()
+
+    assert add_host_spy.call_count == 2
+    for call in add_host_spy.call_args_list:
+        assert call.kwargs["prefetched_hosts"] is sentinel_hosts
+
+
+@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
+def test_write_message_batch_flushes_once(mocker):
+    """write_message_batch should call flush() exactly once after producing all events."""
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+
+    host = minimal_host(insights_id=generate_uuid())
+    consumer = IngressMessageConsumer(
+        mocker.Mock(), mocker.Mock(), mock_event_producer, mock_notification_event_producer
+    )
+
+    results = []
+    for _ in range(3):
+        host = minimal_host(insights_id=generate_uuid())
+        message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+        results.append(consumer.handle_message(json.dumps(message)))
+
+    mock_event_producer.reset_mock()
+
+    write_message_batch(mock_event_producer, mock_notification_event_producer, results)
+
+    assert mock_event_producer.write_event.call_count == 3
+    for call in mock_event_producer.write_event.call_args_list:
+        assert call.kwargs["wait"] is False
+
+    mock_event_producer.flush.assert_called_once()
