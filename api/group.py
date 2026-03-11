@@ -533,8 +533,8 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
         # The API automatically filters based on user permissions
         if requested_group_ids:
             workspaces = get_rbac_workspaces_by_ids(list(requested_group_ids))
-            accessible_workspace_ids = {w.get("id") for w in workspaces}
-            check_all_ids_found(requested_group_ids, accessible_workspace_ids, "group")
+            # check_all_ids_found expects objects/dicts with 'id' key, not raw strings
+            check_all_ids_found(requested_group_ids, workspaces, "group")
 
             # Check for ungrouped type workspaces (cannot remove hosts from ungrouped)
             for workspace in workspaces:
