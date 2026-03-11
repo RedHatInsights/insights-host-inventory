@@ -14,6 +14,7 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
 from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -114,7 +115,7 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
@@ -147,7 +148,7 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_hosts_system_profile_response(
                 all_hosts_ids
             )
@@ -183,7 +184,7 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_host_tags_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_host_tags_response(
@@ -218,7 +219,7 @@ class TestRBACGranularHostsReadPermission:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(
@@ -400,7 +401,7 @@ class TestRBACGranularHostsReadPermission:
         """
         insights_id = rbac_setup_resources_for_granular_rbac[0][2][0].insights_id
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_host_exists(insights_id)
 
 
@@ -516,10 +517,10 @@ class TestRBACGranularHostsWritePermission:
         host1 = rbac_setup_resources_for_granular_rbac[0][2][0]
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.delete_by_id_raw(host1.id)
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.delete_by_id_raw(host2.id)
 
         host_inventory.apis.hosts.verify_not_deleted([host1.id, host2.id])
@@ -544,12 +545,12 @@ class TestRBACGranularHostsWritePermission:
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
         new_display_name = generate_display_name()
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host1.id, display_name=new_display_name, wait_for_updated=False
             )
 
-        with raises_apierror((403, 404)):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host2.id, display_name=new_display_name, wait_for_updated=False
             )
@@ -823,7 +824,7 @@ def test_rbac_granular_hosts_read_permission_single_group(
     hosts = flatten(rbac_setup_resources_for_granular_rbac[0])
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][0]}
 
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
@@ -893,7 +894,7 @@ def test_rbac_granular_hosts_read_permission_null_group(
     hosts = flatten(rbac_setup_resources_for_granular_rbac[0])
     correct_hosts_ids = {host.id for host in rbac_setup_resources_for_granular_rbac[0][3]}
 
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
@@ -965,7 +966,7 @@ def test_rbac_granular_hosts_write_permission_null_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
@@ -1005,7 +1006,7 @@ def test_rbac_granular_hosts_read_permission_null_and_normal_group(
         + rbac_setup_resources_for_granular_rbac[0][3]
     }
 
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(hosts)
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(correct_hosts_ids)
@@ -1089,7 +1090,7 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group_wrong(
     # Test
     host = rbac_setup_resources_for_granular_rbac[0][2][0]
     new_name = generate_display_name()
-    with raises_apierror((403, 404)):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
             host.id, display_name=new_name, wait_for_updated=False
         )
