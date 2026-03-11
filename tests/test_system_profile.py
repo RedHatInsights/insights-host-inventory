@@ -1,3 +1,4 @@
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -7,7 +8,8 @@ from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.exceptions import ValidationException
 from jobs.system_profile_validator import _get_git_response
-from jobs.system_profile_validator import _get_rate_limit_wait_time
+from jobs.system_profile_validator import _GitHubRateLimiter
+from jobs.system_profile_validator import _rate_limiter
 from jobs.system_profile_validator import _validate_schema_for_pr_and_generate_comment
 from lib.system_profile_validate import validate_sp_for_branch
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -568,65 +570,89 @@ def test_create_empty_update_failing_system_profile(
 
 
 class TestGitHubRateLimiting:
-    """Tests for GitHub API rate limit handling."""
+    """Tests for GitHub API rate limit handling via _GitHubRateLimiter."""
 
-    def test_get_rate_limit_wait_time_with_retry_after(self):
+    def _reset_global_limiter(self):
+        _rate_limiter._remaining = None
+        _rate_limiter._reset_timestamp = None
+        _rate_limiter._limit = None
+
+    def test_get_wait_seconds_with_retry_after(self):
         """Test that Retry-After header is respected."""
+        limiter = _GitHubRateLimiter()
         mock_response = MagicMock()
         mock_response.headers = {"Retry-After": "60"}
 
-        wait_time = _get_rate_limit_wait_time(mock_response)
+        wait_time = limiter.get_wait_seconds(response=mock_response)
 
         assert wait_time == 60
 
-    def test_get_rate_limit_wait_time_with_remaining_zero(self, mocker):
+    def test_get_wait_seconds_with_remaining_zero(self, mocker):
         """Test wait time calculation when rate limit remaining is zero."""
         mock_time = mocker.patch("jobs.system_profile_validator.time")
         mock_time.time.return_value = 1000
 
+        limiter = _GitHubRateLimiter()
         mock_response = MagicMock()
         mock_response.headers = {
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": "1060",
         }
+        limiter.update_from_response(mock_response)
 
-        wait_time = _get_rate_limit_wait_time(mock_response)
+        wait_time = limiter.get_wait_seconds()
 
         # 1060 - 1000 + 1 (buffer) = 61
         assert wait_time == 61
 
-    def test_get_rate_limit_wait_time_with_remaining_positive(self):
+    def test_get_wait_seconds_with_remaining_positive(self):
         """Test that no wait time is returned when requests remain."""
+        limiter = _GitHubRateLimiter()
         mock_response = MagicMock()
         mock_response.headers = {
             "X-RateLimit-Remaining": "100",
             "X-RateLimit-Reset": "1060",
         }
+        limiter.update_from_response(mock_response)
 
-        wait_time = _get_rate_limit_wait_time(mock_response)
+        wait_time = limiter.get_wait_seconds()
 
         assert wait_time is None
 
-    def test_get_rate_limit_wait_time_no_headers(self):
-        """Test that no wait time is returned when headers are missing."""
+    def test_get_wait_seconds_no_state(self):
+        """Test that no wait time is returned when no state is tracked."""
+        limiter = _GitHubRateLimiter()
+
+        assert limiter.get_wait_seconds() is None
+
+    def test_update_from_response_non_numeric_headers(self):
+        """Test that non-numeric rate-limit headers don't crash the limiter."""
+        limiter = _GitHubRateLimiter()
         mock_response = MagicMock()
-        mock_response.headers = {}
+        mock_response.headers = {
+            "X-RateLimit-Remaining": "not-a-number",
+            "X-RateLimit-Reset": "",
+            "X-RateLimit-Limit": "abc",
+        }
 
-        wait_time = _get_rate_limit_wait_time(mock_response)
+        limiter.update_from_response(mock_response)
 
-        assert wait_time is None
+        assert limiter.remaining is None
+        assert limiter.limit is None
 
-    def test_get_rate_limit_wait_time_invalid_retry_after(self):
+    def test_get_wait_seconds_invalid_retry_after(self):
         """Test handling of invalid Retry-After header value."""
+        limiter = _GitHubRateLimiter()
         mock_response = MagicMock()
         mock_response.headers = {"Retry-After": "not-a-number"}
 
-        wait_time = _get_rate_limit_wait_time(mock_response)
+        wait_time = limiter.get_wait_seconds(response=mock_response)
 
         assert wait_time is None
 
     def test_get_git_response_success(self, mocker):
         """Test successful GitHub API response."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -639,12 +665,40 @@ class TestGitHubRateLimiting:
         assert result == {"key": "value"}
         mock_get.assert_called_once()
 
+    def test_get_git_response_proactive_wait_on_exhausted_limiter(self, mocker):
+        """Test that _get_git_response waits before making a request when the limiter is already exhausted."""
+        self._reset_global_limiter()
+        now = int(time.time())
+        _rate_limiter._remaining = 0
+        _rate_limiter._reset_timestamp = now + 30
+
+        call_order = []
+        mock_sleep = mocker.patch(
+            "jobs.system_profile_validator.time.sleep", side_effect=lambda _: call_order.append("sleep")
+        )
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"X-RateLimit-Remaining": "59", "X-RateLimit-Limit": "60"}
+        mock_response.content = b'{"ok": true}'
+        mock_get = mocker.patch(
+            "jobs.system_profile_validator.get",
+            side_effect=lambda *a, **kw: (call_order.append("get"), mock_response)[1],
+        )
+
+        result = _get_git_response("/repos/org/repo")
+
+        assert result == {"ok": True}
+        mock_get.assert_called_once()
+        mock_sleep.assert_called_once()
+        assert mock_sleep.call_args[0][0] >= 29
+        assert call_order == ["sleep", "get"]
+
     def test_get_git_response_rate_limit_retry(self, mocker):
         """Test retry behavior when rate limited."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
         mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
 
-        # First call: rate limited, second call: success
         rate_limited_response = MagicMock()
         rate_limited_response.status_code = 429
         rate_limited_response.headers = {"Retry-After": "1"}
@@ -665,10 +719,10 @@ class TestGitHubRateLimiting:
 
     def test_get_git_response_rate_limit_403(self, mocker):
         """Test retry behavior on 403 with rate limit message."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
         mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
 
-        # First call: 403 rate limit, second call: success
         rate_limited_response = MagicMock()
         rate_limited_response.status_code = 403
         rate_limited_response.headers = {"Retry-After": "2"}
@@ -689,6 +743,7 @@ class TestGitHubRateLimiting:
 
     def test_get_git_response_rate_limit_max_retries_exceeded(self, mocker):
         """Test that RuntimeError is raised after max retries."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
         mock_sleep = mocker.patch("jobs.system_profile_validator.time.sleep")
 
@@ -708,6 +763,7 @@ class TestGitHubRateLimiting:
 
     def test_get_git_response_non_rate_limit_error(self, mocker):
         """Test that non-rate-limit errors are raised immediately."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
 
         error_response = MagicMock()
@@ -724,6 +780,7 @@ class TestGitHubRateLimiting:
 
     def test_get_git_response_403_without_rate_limit(self, mocker):
         """Test that 403 without rate limit message is not retried."""
+        self._reset_global_limiter()
         mock_get = mocker.patch("jobs.system_profile_validator.get")
 
         error_response = MagicMock()
