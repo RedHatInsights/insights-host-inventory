@@ -750,14 +750,15 @@ def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timesta
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     """
-    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
-    stale_warning_timestamp, and culled_timestamp.
+    Serialize per_reporter_staleness for API/event output, ensuring all entries have
+    stale_timestamp, stale_warning_timestamp, and culled_timestamp.
 
     Supports two input formats per reporter:
     - Old format: value is a dict with "last_check_in" (string)
     - New format: value is the last_check_in string itself
     """
     forever = should_host_stay_fresh_forever(host)
+    result = {}
 
     for reporter, value in host.per_reporter_staleness.items():
         normalized = _normalize_per_reporter_value(value)
@@ -765,16 +766,15 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
 
         ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
 
-        serialized = {
+        result[reporter] = {
             **normalized,
             "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
             "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
             "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
             "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
         }
-        host.per_reporter_staleness[reporter] = serialized
 
-    return host.per_reporter_staleness
+    return result
 
 
 def build_rhel_version_str(system_profile: dict) -> str:

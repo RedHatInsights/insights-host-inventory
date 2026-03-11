@@ -21,6 +21,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
+from iqe_host_inventory.utils.staleness_utils import get_reporter_threshold_timestamp
 
 logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
@@ -369,7 +370,10 @@ def test_mq_operation_args_defer_to_stale_reporter(
         deltas=deltas,
     )[0]
 
-    puptoo_staleness_timestamp = host.per_reporter_staleness["puptoo"][staleness + "_timestamp"]  # type: ignore
+    puptoo_prs = host.per_reporter_staleness["puptoo"]
+    puptoo_staleness_timestamp = get_reporter_threshold_timestamp(puptoo_prs, kind=staleness)
+    if hasattr(puptoo_staleness_timestamp, "isoformat"):
+        puptoo_staleness_timestamp = puptoo_staleness_timestamp.isoformat()
 
     if fresh_host:
         host_data1["reporter"] = "iqe-host-inventory"

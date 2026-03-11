@@ -91,10 +91,15 @@ class PerReporterStaleness(BaseModel):
         return _dict
 
     @classmethod
-    def from_dict(cls, obj: dict[str, Any] | None) -> Self | None:
-        """Create an instance of PerReporterStaleness from a dict"""
+    def from_dict(
+        cls, obj: dict[str, Any] | str | None
+    ) -> Self | None:  # Keeping the same name for now
+        """Create an instance of PerReporterStaleness from a dict or string (flat format)."""
         if obj is None:
             return None
+
+        if isinstance(obj, str):
+            return cls(last_check_in=datetime.fromisoformat(obj))
 
         if not isinstance(obj, dict):
             return cls.model_validate(obj)

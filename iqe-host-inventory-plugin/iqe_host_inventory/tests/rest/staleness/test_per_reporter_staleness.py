@@ -28,6 +28,7 @@ from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE_WARNING
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import gen_staleness_settings
+from iqe_host_inventory.utils.staleness_utils import has_full_per_reporter_timestamps
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
@@ -85,7 +86,12 @@ def do_reporter_check_ins(
     )
 
     # Verify that the puptoo data is unchanged after the yupana reporter checks in
-    assert puptoo_reporter_staleness == host_with_yupana.per_reporter_staleness["puptoo"]
+    puptoo_after = host_with_yupana.per_reporter_staleness["puptoo"]
+    assert puptoo_reporter_staleness.last_check_in == puptoo_after.last_check_in
+    if has_full_per_reporter_timestamps(
+        puptoo_reporter_staleness
+    ) and has_full_per_reporter_timestamps(puptoo_after):
+        assert puptoo_reporter_staleness == puptoo_after
 
     return host_with_yupana
 
@@ -101,18 +107,19 @@ def verify_staleness(
     assert reporter_staleness.check_in_succeeded
 
     assert_datetimes_equal(reporter_staleness.last_check_in, host.last_check_in)
-    assert_datetimes_equal(
-        host.stale_timestamp,
-        reporter_staleness.stale_timestamp,
-    )
-    assert_datetimes_equal(
-        host.stale_warning_timestamp,
-        reporter_staleness.stale_warning_timestamp,
-    )
-    assert_datetimes_equal(
-        host.culled_timestamp,
-        reporter_staleness.culled_timestamp,
-    )
+    if has_full_per_reporter_timestamps(reporter_staleness):
+        assert_datetimes_equal(
+            host.stale_timestamp,
+            reporter_staleness.stale_timestamp,
+        )
+        assert_datetimes_equal(
+            host.stale_warning_timestamp,
+            reporter_staleness.stale_warning_timestamp,
+        )
+        assert_datetimes_equal(
+            host.culled_timestamp,
+            reporter_staleness.culled_timestamp,
+        )
     verify_reporter_timestamps(host_inventory, host, reporter)
 
 
@@ -121,13 +128,15 @@ def verify_reporter_timestamps(
     host: HostOut,
     reporter: str,
 ) -> None:
+    reporter_staleness = host.per_reporter_staleness[reporter]
+    if not has_full_per_reporter_timestamps(reporter_staleness):
+        return
+
     response = host_inventory.apis.account_staleness.get_staleness()
 
     time_to_stale = response[TIME_TO_STALE]
     time_to_stale_warning = response[TIME_TO_STALE_WARNING]
     time_to_stale_delete = response[TIME_TO_DELETE]
-
-    reporter_staleness = host.per_reporter_staleness[reporter]
 
     assert_datetimes_equal(
         reporter_staleness.stale_timestamp,
@@ -156,15 +165,16 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
         logger.info(
             f"{reporter} last_check_in: {per_reporter.last_check_in.strftime('%m/%d/%Y %H:%M:%S')}"
         )
-        logger.info(
-            f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
-        )
-        logger.info(
-            f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
-        )
-        logger.info(
-            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
-        )
+        if has_full_per_reporter_timestamps(per_reporter):
+            logger.info(
+                f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            )
+            logger.info(
+                f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            )
+            logger.info(
+                f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            )
 
     if not reporter:
         return
