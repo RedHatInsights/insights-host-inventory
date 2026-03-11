@@ -1,3 +1,4 @@
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -624,6 +625,21 @@ class TestGitHubRateLimiting:
 
         assert limiter.get_wait_seconds() is None
 
+    def test_update_from_response_non_numeric_headers(self):
+        """Test that non-numeric rate-limit headers don't crash the limiter."""
+        limiter = _GitHubRateLimiter()
+        mock_response = MagicMock()
+        mock_response.headers = {
+            "X-RateLimit-Remaining": "not-a-number",
+            "X-RateLimit-Reset": "",
+            "X-RateLimit-Limit": "abc",
+        }
+
+        limiter.update_from_response(mock_response)
+
+        assert limiter.remaining is None
+        assert limiter.limit is None
+
     def test_get_wait_seconds_invalid_retry_after(self):
         """Test handling of invalid Retry-After header value."""
         limiter = _GitHubRateLimiter()
@@ -648,6 +664,34 @@ class TestGitHubRateLimiting:
 
         assert result == {"key": "value"}
         mock_get.assert_called_once()
+
+    def test_get_git_response_proactive_wait_on_exhausted_limiter(self, mocker):
+        """Test that _get_git_response waits before making a request when the limiter is already exhausted."""
+        self._reset_global_limiter()
+        now = int(time.time())
+        _rate_limiter._remaining = 0
+        _rate_limiter._reset_timestamp = now + 30
+
+        call_order = []
+        mock_sleep = mocker.patch(
+            "jobs.system_profile_validator.time.sleep", side_effect=lambda _: call_order.append("sleep")
+        )
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"X-RateLimit-Remaining": "59", "X-RateLimit-Limit": "60"}
+        mock_response.content = b'{"ok": true}'
+        mock_get = mocker.patch(
+            "jobs.system_profile_validator.get",
+            side_effect=lambda *a, **kw: (call_order.append("get"), mock_response)[1],
+        )
+
+        result = _get_git_response("/repos/org/repo")
+
+        assert result == {"ok": True}
+        mock_get.assert_called_once()
+        mock_sleep.assert_called_once()
+        assert mock_sleep.call_args[0][0] >= 29
+        assert call_order == ["sleep", "get"]
 
     def test_get_git_response_rate_limit_retry(self, mocker):
         """Test retry behavior when rate limited."""

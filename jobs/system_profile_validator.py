@@ -64,16 +64,19 @@ class _GitHubRateLimiter:
         return self._limit
 
     def update_from_response(self, response: Response) -> None:
-        remaining = response.headers.get("X-RateLimit-Remaining")
-        reset_time = response.headers.get("X-RateLimit-Reset")
-        limit = response.headers.get("X-RateLimit-Limit")
+        try:
+            remaining = response.headers.get("X-RateLimit-Remaining")
+            reset_time = response.headers.get("X-RateLimit-Reset")
+            limit = response.headers.get("X-RateLimit-Limit")
 
-        if remaining is not None:
-            self._remaining = int(remaining)
-        if reset_time is not None:
-            self._reset_timestamp = int(reset_time)
-        if limit is not None:
-            self._limit = int(limit)
+            if remaining is not None:
+                self._remaining = int(remaining)
+            if reset_time is not None:
+                self._reset_timestamp = int(reset_time)
+            if limit is not None:
+                self._limit = int(limit)
+        except ValueError:
+            logger.warning("Non-numeric rate-limit header received; ignoring")
 
     def get_wait_seconds(self, response: Response | None = None) -> int | None:
         """Return how many seconds to wait, or None if no wait is needed."""
