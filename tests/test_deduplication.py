@@ -545,17 +545,40 @@ def test_deduplication_culled_host(
 
 
 def test_batch_find_existing_hosts_returns_matches(db_create_host):
-    """batch_find_existing_hosts should find hosts matching ID facts in a single query."""
-    insights_id = generate_uuid()
-    subman_id = generate_uuid()
-    host = minimal_db_host(insights_id=insights_id, subscription_manager_id=subman_id)
-    created = db_create_host(host=host)
+    """batch_find_existing_hosts should find multiple hosts across different ID fact types in a single query."""
+    from sqlalchemy import event
 
-    results = batch_find_existing_hosts(
-        [
-            {"org_id": created.org_id, "insights_id": str(created.insights_id)},
-        ]
+    from app.models import db as _db
+
+    host_by_insights = db_create_host(host=minimal_db_host(insights_id=generate_uuid()))
+    host_by_subman = db_create_host(host=minimal_db_host(subscription_manager_id=generate_uuid()))
+    host_by_provider = db_create_host(
+        host=minimal_db_host(provider_id=generate_uuid(), provider_type=ProviderType.AWS)
     )
 
-    assert len(results) >= 1
-    assert any(str(h.id) == str(created.id) for h in results)
+    batch_facts = [
+        {"org_id": host_by_insights.org_id, "insights_id": str(host_by_insights.insights_id)},
+        {"org_id": host_by_subman.org_id, "subscription_manager_id": str(host_by_subman.subscription_manager_id)},
+        {"org_id": host_by_provider.org_id, "provider_id": str(host_by_provider.provider_id)},
+    ]
+
+    query_count = 0
+
+    def _count_queries(_conn, _cursor, statement, _parameters, _context, _executemany):
+        nonlocal query_count
+        if statement.startswith("SELECT"):
+            query_count += 1
+
+    engine = _db.engine
+    event.listen(engine, "before_cursor_execute", _count_queries)
+    try:
+        results = batch_find_existing_hosts(batch_facts)
+    finally:
+        event.remove(engine, "before_cursor_execute", _count_queries)
+
+    result_ids = {str(h.id) for h in results}
+    assert str(host_by_insights.id) in result_ids
+    assert str(host_by_subman.id) in result_ids
+    assert str(host_by_provider.id) in result_ids
+
+    assert query_count == 1, f"Expected 1 SELECT query, got {query_count}"
