@@ -620,3 +620,162 @@ def test_delete_group_with_hosts_not_in_rbac_after_workspace_event(
         # Before the fix, this would fail with HTTP 500:
         # InternalError('SAVEPOINT can only be used in transaction blocks')
         assert_response_status(response_status, expected_status=204)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_hosts_from_diff_groups_rbac_v2_success(
+    mocker,
+    api_remove_hosts_from_diff_groups,
+    db_create_group_with_hosts,
+    event_producer,
+    db_get_hosts_for_group,
+):
+    """
+    Test that delete_hosts_from_different_groups succeeds when RBAC v2 is enabled
+    and the user has access to all requested workspaces.
+    """
+    mocker.patch.object(event_producer, "write_event")
+
+    # Enable RBAC v2 for groups
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+
+    # Create groups with hosts
+    group1 = db_create_group_with_hosts("test_group1", 2)
+    group2 = db_create_group_with_hosts("test_group2", 2)
+
+    # Store IDs before session is closed
+    group1_id = str(group1.id)
+    group2_id = str(group2.id)
+
+    # Get hosts to delete (one from each group)
+    host1_to_delete = str(db_get_hosts_for_group(group1_id)[0].id)
+    host2_to_delete = str(db_get_hosts_for_group(group2_id)[0].id)
+    hosts_to_delete = [host1_to_delete, host2_to_delete]
+
+    # Mock RBAC v2 workspace API to return both workspaces (user has access)
+    mock_workspaces = [
+        {"id": group1_id, "name": "test_group1", "type": "user-defined"},
+        {"id": group2_id, "name": "test_group2", "type": "user-defined"},
+    ]
+    mocker.patch("api.group.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+
+    # Call the endpoint
+    response_status, _ = api_remove_hosts_from_diff_groups(hosts_to_delete)
+
+    # Should succeed
+    assert_response_status(response_status, 204)
+    assert event_producer.write_event.call_count == 2
+
+    # Verify hosts were removed from their groups
+    hosts1_after = db_get_hosts_for_group(group1_id)
+    assert len(hosts1_after) == 1
+    hosts2_after = db_get_hosts_for_group(group2_id)
+    assert len(hosts2_after) == 1
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_hosts_from_diff_groups_rbac_v2_workspace_not_accessible(
+    mocker,
+    api_remove_hosts_from_diff_groups,
+    db_create_group_with_hosts,
+    event_producer,
+    db_get_hosts_for_group,
+):
+    """
+    Test that delete_hosts_from_different_groups returns 404 when RBAC v2 is enabled
+    and the user doesn't have access to one or more workspaces.
+    """
+    mocker.patch.object(event_producer, "write_event")
+
+    # Enable RBAC v2 for groups
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+
+    # Create groups with hosts
+    group1 = db_create_group_with_hosts("test_group1", 2)
+    group2 = db_create_group_with_hosts("test_group2", 2)
+
+    # Store IDs before session is closed
+    group1_id = str(group1.id)
+    group2_id = str(group2.id)
+
+    # Get hosts to delete (one from each group)
+    host1_to_delete = str(db_get_hosts_for_group(group1_id)[0].id)
+    host2_to_delete = str(db_get_hosts_for_group(group2_id)[0].id)
+    hosts_to_delete = [host1_to_delete, host2_to_delete]
+
+    # Mock RBAC v2 workspace API to return only group1 (user doesn't have access to group2)
+    mock_workspaces = [
+        {"id": group1_id, "name": "test_group1", "type": "user-defined"},
+        # group2 is missing - user doesn't have access
+    ]
+    mocker.patch("api.group.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+
+    # Call the endpoint
+    response_status, response_data = api_remove_hosts_from_diff_groups(hosts_to_delete)
+
+    # Should return 404 because user doesn't have access to group2
+    assert_response_status(response_status, 404)
+    assert "One or more groups not found" in response_data["detail"]
+
+    # Verify no hosts were removed (operation should be atomic)
+    assert event_producer.write_event.call_count == 0
+    hosts1_after = db_get_hosts_for_group(group1_id)
+    assert len(hosts1_after) == 2
+    hosts2_after = db_get_hosts_for_group(group2_id)
+    assert len(hosts2_after) == 2
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_hosts_from_diff_groups_rbac_v2_ungrouped_workspace(
+    mocker,
+    api_remove_hosts_from_diff_groups,
+    db_create_group_with_hosts,
+    event_producer,
+    db_get_hosts_for_group,
+):
+    """
+    Test that delete_hosts_from_different_groups returns 400 when RBAC v2 is enabled
+    and one of the workspaces is of type 'ungrouped-hosts'.
+    """
+    mocker.patch.object(event_producer, "write_event")
+
+    # Enable RBAC v2 for groups
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+
+    # Create a normal group and an ungrouped group
+    normal_group = db_create_group_with_hosts("test_group", 2)
+    ungrouped_group = db_create_group_with_hosts("ungrouped", 2, ungrouped=True)
+
+    # Store IDs before session is closed
+    normal_group_id = str(normal_group.id)
+    ungrouped_group_id = str(ungrouped_group.id)
+
+    # Get hosts to delete (one from each group)
+    host1_to_delete = str(db_get_hosts_for_group(normal_group_id)[0].id)
+    host2_to_delete = str(db_get_hosts_for_group(ungrouped_group_id)[0].id)
+    hosts_to_delete = [host1_to_delete, host2_to_delete]
+
+    # Mock RBAC v2 workspace API to return both workspaces,
+    # but mark ungrouped_group as type "ungrouped-hosts"
+    mock_workspaces = [
+        {"id": normal_group_id, "name": "test_group", "type": "user-defined"},
+        {"id": ungrouped_group_id, "name": "ungrouped", "type": "ungrouped-hosts"},
+    ]
+    mocker.patch("api.group.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
+
+    # Call the endpoint
+    response_status, response_data = api_remove_hosts_from_diff_groups(hosts_to_delete)
+
+    # Should return 400 because we can't remove hosts from ungrouped workspace
+    assert_response_status(response_status, 400)
+    assert "ungrouped-hosts" in response_data["detail"]
+
+    # Verify no hosts were removed
+    assert event_producer.write_event.call_count == 0
+    hosts1_after = db_get_hosts_for_group(normal_group_id)
+    assert len(hosts1_after) == 2
+    hosts2_after = db_get_hosts_for_group(ungrouped_group_id)
+    assert len(hosts2_after) == 2
