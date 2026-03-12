@@ -110,25 +110,7 @@
 
 ---
 
-### Slide 5 - Known Pain Points (Evidence-Based)
-
-Findings from Day of Learning investigation + production DB analysis:
-
-1. **Highest AAS query**: The `hosts_groups` host count query is the most expensive query in production -- it does **full sequential scans** on both tables instead of using indexes
-
-2. **Missing partition statistics**: `ANALYZE` has not been run on host partitions -- the query planner is making decisions with **default estimates** (e.g., estimating 25M join rows when the actual is ~31K)
-
-3. **Dead weight**: ~361 GB from the legacy `hosts_old` table that is no longer queried
-
-4. **Unused indexes**: ~1.3 GB of zero-scan indexes (GIN on groups, GIN on workloads, redundant org_id index)
-
-5. **No query-level visibility**: `pg_stat_statements` is not enabled on the replica, so we cannot get historical query performance data
-
-> **Speaker notes**: These are not theoretical concerns -- we validated each one with production queries. The seq scan issue was confirmed via `EXPLAIN` on the primary. The statistics gap was confirmed via `pg_stat_user_tables`. The dead indexes were confirmed via `pg_stat_user_indexes` scan counts.
-
----
-
-### Slide 6 - What We Cannot Answer Today
+### Slide 5 - What We Cannot Answer Today
 
 | Question | Why we can't answer it |
 |----------|----------------------|
