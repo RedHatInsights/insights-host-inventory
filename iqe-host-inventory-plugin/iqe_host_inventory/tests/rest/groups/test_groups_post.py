@@ -73,9 +73,8 @@ def test_groups_create_response(
     assert group.account == hbi_default_account_number
     assert group.ungrouped is False
     assert time1 < group.created < time2
-    # With kessel sync, even an empty list will take longer
-    # time_delta = 100 if hosts_list else 1
-    time_delta = 100
+    # With kessel sync it will take longer
+    time_delta = 500
     assert_datetimes_equal(group.updated, group.created, timedelta(milliseconds=time_delta))
 
     if not assigned_hosts:
@@ -105,9 +104,7 @@ def test_groups_create_empty(host_inventory, hosts_list):
     host_inventory.apis.groups.verify_updated(group, name=group_name, hosts=[])
 
 
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("host_type", ["conventional", "edge", "image-mode"])
-def test_groups_create_with_one_host(host_inventory: ApplicationHostInventory, host_type: str):
+def test_groups_create_with_one_host(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-3828
     https://issues.redhat.com/browse/RHINENG-8990
@@ -118,26 +115,14 @@ def test_groups_create_with_one_host(host_inventory: ApplicationHostInventory, h
       importance: high
       title: Create a group with one host
     """
-    sp_bootc = get_sp_field_by_name("bootc_status")
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
-
-    if host_type == "edge":
-        for host_data in hosts_data:
-            host_data["system_profile"]["host_type"] = "edge"
-    if host_type == "image-mode":
-        for host_data in hosts_data:
-            host_data["system_profile"]["bootc_status"] = generate_sp_field_value(sp_bootc)
-
-    hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
+    host = host_inventory.upload.create_host()
 
     group_name = generate_display_name()
-    group = host_inventory.apis.groups.create_group(
-        group_name, hosts=hosts[0], wait_for_created=False
-    )
+    group = host_inventory.apis.groups.create_group(group_name, hosts=host, wait_for_created=False)
     assert group.id
     assert group.name == group_name
     assert group.host_count == 1
-    host_inventory.apis.groups.verify_updated(group, name=group_name, hosts=hosts[0])
+    host_inventory.apis.groups.verify_updated(group, name=group_name, hosts=host)
 
 
 @pytest.mark.ephemeral

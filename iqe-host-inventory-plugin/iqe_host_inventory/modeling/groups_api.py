@@ -6,9 +6,9 @@ import contextlib
 import logging
 from collections.abc import Collection
 from collections.abc import Generator
-from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
+from time import sleep
 from typing import Any
 from typing import TypedDict
 
@@ -85,6 +85,22 @@ def _verify_host_count_params(
             raise ValueError(
                 f"Provided host count {host_count} and number of hosts {len(host_ids)} differ"
             )
+
+
+def _validate_host_params(
+    hosts: HOST_OR_HOSTS | None,
+    groups_data: Collection[GroupData] | None,
+    group_ids: set[str],
+) -> None:
+    """Validation for wait_for_created method"""
+    if hosts is not None and groups_data is not None:
+        raise ValueError("Cannot specify both hosts and groups_data")
+    if hosts is not None and len(group_ids) > 1:
+        raise ValueError(
+            "When waiting for more groups to be created, provide hosts via `groups_data`"
+        )
+    if groups_data is not None and len(group_ids) != len(groups_data):
+        raise ValueError("`groups_data` is provided, but it has different length than `groups`")
 
 
 @attr.s
@@ -452,7 +468,7 @@ class GroupsAPIWrapper(BaseEntity):
             created_group = self.raw_api.api_group_create_group(group_data, **api_kwargs)
 
         if wait_for_created:
-            self.wait_for_created(created_group)
+            self.wait_for_created(created_group, hosts=hosts)
 
         if register_for_cleanup:
             self._host_inventory.cleanup.add_groups(created_group, scope=cleanup_scope)
@@ -461,7 +477,7 @@ class GroupsAPIWrapper(BaseEntity):
 
     def create_groups(
         self,
-        data: Iterable[GroupData],
+        data: Collection[GroupData],
         *,
         wait_for_created: bool = True,
         register_for_cleanup: bool = True,
@@ -470,7 +486,7 @@ class GroupsAPIWrapper(BaseEntity):
     ) -> list[GroupOutWithHostCount]:
         """Create multiple new groups and return a list of created groups
 
-        :param Iterable[GroupData] data: (required) A sequence of data used for creating groups.
+        :param Collection[GroupData] data: (required) A sequence of data used for creating groups.
             The group data are represented by a GroupData object. If a group name is not provided,
             a random one will be generated. If hosts are not provided, the group will be empty.
         :param bool wait_for_created: If True, this method will wait until the group is
@@ -504,7 +520,7 @@ class GroupsAPIWrapper(BaseEntity):
             )
 
         if wait_for_created:
-            self.wait_for_created(groups)
+            self.wait_for_created(groups, groups_data=data)
 
         return groups
 
@@ -603,23 +619,31 @@ class GroupsAPIWrapper(BaseEntity):
         self,
         groups: GROUP_OR_GROUPS,
         *,
+        hosts: HOST_OR_HOSTS | None = None,
+        groups_data: Collection[GroupData] | None = None,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_CREATED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully created and retrievable by API
 
         :param GROUP_OR_GROUPS groups: (required) Either a single group or a list of groups
             A group can be represented either by its ID (str) or a group object
+        :param HOST_OR_HOSTS hosts: Hosts expected in the created group. Use this when waiting
+            for a single group. Cannot be combined with ``groups_data``.
+        :param Collection[GroupData] groups_data: Per-group host expectations when waiting for
+            multiple groups. Each entry is matched to a group by name. Cannot be combined
+            with ``hosts``, and must have the same length as ``groups``.
         :param float delay: A delay in seconds between attempts to retrieve the groups
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the groups
-            Default: 10
+            Default: 40
         :param Exception error: An error to raise when the groups are not retrievable. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: Retrieved groups
         """
         group_ids = set(_ids_from_groups(groups))
+        _validate_host_params(hosts, groups_data, group_ids)
 
         def get_groups() -> list[GroupOutWithHostCount]:
             try:
@@ -629,7 +653,7 @@ class GroupsAPIWrapper(BaseEntity):
                     return []
                 raise
 
-        def found_all(response_groups: list[GroupOutWithHostCount]) -> bool:
+        def found_all_groups(response_groups: list[GroupOutWithHostCount]) -> bool:
             found_ids = {group.id for group in response_groups}
             if found_ids == group_ids:
                 return True
@@ -637,9 +661,37 @@ class GroupsAPIWrapper(BaseEntity):
             logger.info(f"Group IDs missing: {group_ids - found_ids}")
             return False
 
-        return accept_when(
-            get_groups, is_valid=found_all, delay=delay, retries=retries, error=error
+        logger.info("Waiting for the groups to be created")
+        response = accept_when(
+            get_groups, is_valid=found_all_groups, delay=delay, retries=retries, error=error
         )
+
+        self.wait_for_hosts_in_created_groups(hosts, groups_data, group_ids)
+
+        return response
+
+    def wait_for_hosts_in_created_groups(
+        self,
+        hosts: HOST_OR_HOSTS | None,
+        groups_data: Collection[GroupData] | None,
+        group_ids: set[str],
+    ) -> None:
+        # https://issues.redhat.com/browse/RHCLOUD-45765
+        if hosts:
+            logger.info("Waiting for the hosts in new groups availability (due to Kessel sync)")
+            self.wait_for_updated(next(iter(group_ids)), hosts=hosts)
+        elif groups_data:
+            logger.info("Waiting for the hosts in new groups availability (due to Kessel sync)")
+            for data in groups_data:
+                groups_by_name = self.get_groups(name=data.name)
+                assert len(groups_by_name) == 1
+                self.wait_for_updated(groups_by_name[0], hosts=data.hosts)
+        else:
+            return
+
+        if self.application.config.current_env.lower() != "clowder_smoke":
+            logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+            sleep(10)
 
     def verify_not_created(self, group_name: str, *, delay: float = 0.5, retries: int = 2) -> None:
         """Verify that the group was not created
@@ -746,7 +798,7 @@ class GroupsAPIWrapper(BaseEntity):
         groups: GROUP_OR_GROUPS,
         *,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_DELETED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully deleted and not retrievable by API
@@ -756,7 +808,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to check that groups are deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that the groups are deleted
-            Default: 10
+            Default: 40
         :param Exception error: An error to raise when the groups are not deleted. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: A list of not deleted groups
@@ -864,7 +916,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         host_count: int | None = None,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_UPDATED_ERROR,
     ) -> GroupOutWithHostCount:
         """Wait until the group is successfully updated and the changes are retrievable by API
@@ -879,7 +931,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the group updates
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the group updates
-            Default: 10
+            Default: 40
         :param Exception error: An error to raise when the group is not updated. If `None`,
             then no error will be raised and the method will finish successfully.
         :return GroupOutWithHostCount: Retrieved group
@@ -924,29 +976,29 @@ class GroupsAPIWrapper(BaseEntity):
         """
         _verify_host_count_params(hosts, host_count)
 
-        response_group = self.wait_for_updated(
-            group,
-            name=name,
-            hosts=hosts,
-            host_count=host_count,
-            delay=delay,
-            retries=retries,
-            error=None,
-        )
-
-        if not self._group_fields_match(
-            response_group, name=name, hosts=hosts, host_count=host_count
-        ):
+        try:
+            response_group = self.wait_for_updated(
+                group,
+                name=name,
+                hosts=hosts,
+                host_count=host_count,
+                delay=delay,
+                retries=retries,
+            )
+        except GROUP_NOT_UPDATED_ERROR as e:
+            response_group = self.get_group_by_id(group)
             failure_msg = f"Expected name: {name}, response name: {response_group.name}\n"
             failure_msg += (
                 f"Expected host_count: {host_count}, "
                 f"response host_count: {response_group.host_count}\n"
             )
             failure_msg += (
-                f"Expected hosts: {_ids_from_hosts(hosts) if hosts is not None else None}, "
-                f"response hosts: {self.get_group_host_ids(group=group)}\n"
+                f"Expected hosts: {set(_ids_from_hosts(hosts)) if hosts is not None else None}, "
+                f"response hosts: {set(self.get_group_host_ids(group=group))}\n"
             )
-            raise AssertionError(f"Group {response_group.id} wasn't updated:\n{failure_msg}")
+            raise AssertionError(
+                f"Group {response_group.id} wasn't updated:\n{failure_msg}"
+            ) from e
 
         return response_group
 
@@ -1077,7 +1129,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 40,
         error: Exception | None = HOSTS_NOT_REMOVED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are removed from groups and the changes are retrievable by API
@@ -1087,7 +1139,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between host groups checks
             Default: 0.5
         :param int retries: A maximum number of host groups checks
-            Default: 10
+            Default: 40
         :param Exception error: An error to raise when the hosts are not removed from groups.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[HostOut]: Retrieved hosts
@@ -1161,7 +1213,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 40,
         error: Exception | None = HOSTS_NOT_ADDED_ERROR,
     ) -> list[str]:
         """Wait until the hosts are added to the group and the changes are retrievable by API
@@ -1173,7 +1225,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between group hosts checks
             Default: 0.5
         :param int retries: A maximum number of group hosts checks
-            Default: 10
+            Default: 40
         :param Exception error: An error to raise when the hosts are not added to the group.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[str]: Host IDs associated with the provided group

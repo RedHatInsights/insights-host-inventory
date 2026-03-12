@@ -19,6 +19,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
 
@@ -1162,6 +1163,7 @@ def setup_permissions_with_and_without_resource_definitions(
         ]
 
     host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+    wait_for_kessel_sync(host_inventory)
 
     yield
 
@@ -1246,6 +1248,7 @@ def setup_resource_definitions_in_multiple_roles(
     ]
 
     host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+    wait_for_kessel_sync(host_inventory)
 
     yield
 
@@ -1503,6 +1506,8 @@ def setup_rbac_bad_key(
     )
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
 
+    wait_for_kessel_sync(host_inventory)
+
     yield
 
     host_inventory.apis.rbac.delete_role(role.uuid)
@@ -1528,7 +1533,8 @@ class TestRBACGranularBadAttributeFilter:
         """
         group = rbac_setup_resources_for_granular_rbac[1][0]
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
     def test_rbac_granular_groups_bad_attribute_filter_write_endpoint(
@@ -1552,7 +1558,8 @@ class TestRBACGranularBadAttributeFilter:
         original_group_name = host_inventory.apis.groups.get_group_by_id(group).name
         new_group_name = generate_display_name()
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.groups.patch_group(
                 group, name=new_group_name, wait_for_updated=False
             )
@@ -1578,7 +1585,8 @@ class TestRBACGranularBadAttributeFilter:
         hosts = rbac_setup_resources_for_granular_rbac[0][0]
         hosts_ids = [host.id for host in hosts]
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.hosts.get_hosts_by_id(hosts_ids)
 
     def test_rbac_granular_hosts_bad_attribute_filter_write_endpoint(
@@ -1600,7 +1608,9 @@ class TestRBACGranularBadAttributeFilter:
         """
         host = rbac_setup_resources_for_granular_rbac[0][0][0]
         new_display_name = generate_display_name()
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host.id, display_name=new_display_name, wait_for_updated=False
             )

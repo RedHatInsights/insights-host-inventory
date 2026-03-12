@@ -590,6 +590,8 @@ def rbac_setup_granular_hosts_permissions_for_sa(
     )
     host_inventory.apis.rbac.add_roles_to_a_group([role], rbac_group.uuid)
 
+    wait_for_kessel_sync(host_inventory)
+
     yield
 
     host_inventory.apis.rbac.delete_role(role.uuid)
