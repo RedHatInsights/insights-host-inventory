@@ -622,7 +622,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         groups_data: Collection[GroupData] | None = None,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_CREATED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully created and retrievable by API
@@ -637,7 +637,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the groups
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the groups
-            Default: 30
+            Default: 40
         :param Exception error: An error to raise when the groups are not retrievable. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: Retrieved groups
@@ -798,7 +798,7 @@ class GroupsAPIWrapper(BaseEntity):
         groups: GROUP_OR_GROUPS,
         *,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_DELETED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully deleted and not retrievable by API
@@ -808,7 +808,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to check that groups are deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that the groups are deleted
-            Default: 30
+            Default: 40
         :param Exception error: An error to raise when the groups are not deleted. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: A list of not deleted groups
@@ -916,7 +916,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         host_count: int | None = None,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 40,
         error: Exception | None = GROUP_NOT_UPDATED_ERROR,
     ) -> GroupOutWithHostCount:
         """Wait until the group is successfully updated and the changes are retrievable by API
@@ -931,7 +931,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the group updates
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the group updates
-            Default: 30
+            Default: 40
         :param Exception error: An error to raise when the group is not updated. If `None`,
             then no error will be raised and the method will finish successfully.
         :return GroupOutWithHostCount: Retrieved group
@@ -1129,7 +1129,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 40,
         error: Exception | None = HOSTS_NOT_REMOVED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are removed from groups and the changes are retrievable by API
@@ -1139,7 +1139,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between host groups checks
             Default: 0.5
         :param int retries: A maximum number of host groups checks
-            Default: 30
+            Default: 40
         :param Exception error: An error to raise when the hosts are not removed from groups.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[HostOut]: Retrieved hosts
@@ -1213,7 +1213,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 40,
         error: Exception | None = HOSTS_NOT_ADDED_ERROR,
     ) -> list[str]:
         """Wait until the hosts are added to the group and the changes are retrievable by API
@@ -1225,7 +1225,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between group hosts checks
             Default: 0.5
         :param int retries: A maximum number of group hosts checks
-            Default: 30
+            Default: 40
         :param Exception error: An error to raise when the hosts are not added to the group.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[str]: Host IDs associated with the provided group
