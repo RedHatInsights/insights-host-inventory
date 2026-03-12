@@ -1533,7 +1533,8 @@ class TestRBACGranularBadAttributeFilter:
         """
         group = rbac_setup_resources_for_granular_rbac[1][0]
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
     def test_rbac_granular_groups_bad_attribute_filter_write_endpoint(
@@ -1557,7 +1558,8 @@ class TestRBACGranularBadAttributeFilter:
         original_group_name = host_inventory.apis.groups.get_group_by_id(group).name
         new_group_name = generate_display_name()
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.groups.patch_group(
                 group, name=new_group_name, wait_for_updated=False
             )
@@ -1583,7 +1585,8 @@ class TestRBACGranularBadAttributeFilter:
         hosts = rbac_setup_resources_for_granular_rbac[0][0]
         hosts_ids = [host.id for host in hosts]
 
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.hosts.get_hosts_by_id(hosts_ids)
 
     def test_rbac_granular_hosts_bad_attribute_filter_write_endpoint(
@@ -1605,7 +1608,9 @@ class TestRBACGranularBadAttributeFilter:
         """
         host = rbac_setup_resources_for_granular_rbac[0][0][0]
         new_display_name = generate_display_name()
-        with raises_apierror(503, "Invalid value for attributeFilter.key in RBAC response."):
+
+        # RBAC v1 returns 503, Kessel returns 403
+        with raises_apierror((503, 403)):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host.id, display_name=new_display_name, wait_for_updated=False
             )
