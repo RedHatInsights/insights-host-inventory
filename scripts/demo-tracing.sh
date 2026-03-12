@@ -18,7 +18,7 @@ cd "$PROJECT_DIR"
 
 NUM_HOSTS="${NUM_HOSTS:-100}"
 API_URL="http://localhost:8080/api/inventory/v1"
-ORG_ID="0000001"
+ORG_ID="${INVENTORY_HOST_ACCOUNT:-321}"
 IDENTITY=$(echo -n "{\"identity\":{\"org_id\":\"$ORG_ID\",\"auth_type\":\"basic-auth\",\"type\":\"User\",\"user\":{\"username\":\"demo-user\",\"email\":\"demo@example.com\",\"is_org_admin\":true}}}" | base64 -w0 2>/dev/null || echo -n "{\"identity\":{\"org_id\":\"$ORG_ID\",\"auth_type\":\"basic-auth\",\"type\":\"User\",\"user\":{\"username\":\"demo-user\",\"email\":\"demo@example.com\",\"is_org_admin\":true}}}" | base64)
 
 RED='\033[0;31m'
