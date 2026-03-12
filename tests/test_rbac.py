@@ -175,3 +175,31 @@ def test_access_decorator_patch_nonexistent_host_with_permission_denied(mocker, 
 
     # Should return 404, not 403
     assert_response_status(response_status, 404)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_access_decorator_kessel_unauthorized_ids_returns_404(mocker, api_get, db_create_host):
+    """
+    Test that when Kessel returns unauthorized_ids, the API returns 404.
+
+    This is the expected behavior for granular RBAC with Kessel - when a user doesn't
+    have access to specific resources, we return 404 to not reveal their existence.
+    """
+    # Create a host
+    host = db_create_host()
+
+    # Mock Kessel to be enabled
+    mocker.patch("lib.middleware.get_flag_value", return_value=True)
+
+    # Mock get_kessel_filter to return unauthorized_ids
+    mock_get_kessel_filter = mocker.patch("lib.middleware.get_kessel_filter")
+    mock_get_kessel_filter.return_value = (False, {"unauthorized_ids": [str(host.id)]})
+
+    # Try to access the host
+    url = build_hosts_url(host_list_or_id=host.id)
+
+    response_status, response_data = api_get(url)
+
+    # Should return 404 (because Kessel denied access with unauthorized_ids)
+    assert_response_status(response_status, 404)
+    assert "One or more hosts not found" in response_data.get("detail", "")
