@@ -19,6 +19,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
 
@@ -1162,6 +1163,7 @@ def setup_permissions_with_and_without_resource_definitions(
         ]
 
     host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+    wait_for_kessel_sync(host_inventory)
 
     yield
 
@@ -1246,6 +1248,7 @@ def setup_resource_definitions_in_multiple_roles(
     ]
 
     host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+    wait_for_kessel_sync(host_inventory)
 
     yield
 
@@ -1502,6 +1505,8 @@ def setup_rbac_bad_key(
         RBACInventoryPermission.ADMIN, hbi_groups=value, key=key
     )
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
+
+    wait_for_kessel_sync(host_inventory)
 
     yield
 

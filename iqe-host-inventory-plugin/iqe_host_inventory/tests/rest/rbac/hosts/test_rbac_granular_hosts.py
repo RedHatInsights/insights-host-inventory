@@ -66,8 +66,8 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_list_hosts(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
-        hbi_non_org_admin_user_org_id,
+        host_inventory_non_org_admin: ApplicationHostInventory,
+        hbi_non_org_admin_user_org_id: str,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -95,7 +95,7 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_host(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -128,7 +128,7 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_host_system_profile(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -164,7 +164,7 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_host_tags(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -199,7 +199,7 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_host_tags_count(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -234,8 +234,8 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_tags(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory,
-        host_inventory_non_org_admin,
+        host_inventory: ApplicationHostInventory,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
 
@@ -270,7 +270,7 @@ class TestRBACGranularHostsReadPermission:
     def test_rbac_granular_hosts_read_permission_get_operating_systems(
         self,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
 

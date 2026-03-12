@@ -1,4 +1,5 @@
 import logging
+from time import sleep
 
 import pytest
 from iqe_rbac_v2_api import ApiException as rbac_v2_exception
@@ -205,6 +206,10 @@ def test_kessel_add_hosts_to_group(
 
     group = host_inventory.apis.groups.add_hosts_to_group(group, hosts[:2])
     assert group.host_count == 2
+
+    # https://issues.redhat.com/browse/RHCLOUD-45765
+    logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+    sleep(10)
 
     response_hosts = host_inventory.apis.hosts.get_hosts(group_name=[group_name])
     assert len(response_hosts) == 2
