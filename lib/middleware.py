@@ -559,7 +559,6 @@ def access(permission: KesselPermission, id_param: str = ""):
                 return func(*args, **kwargs)
             else:
                 # When permission is denied for specific IDs (granular RBAC), return 404
-                # to not reveal the existence of resources the user can't access
                 if rbac_filter and "unauthorized_ids" in rbac_filter:
                     unauthorized_ids = rbac_filter.get("unauthorized_ids", [])
                     resource_name = permission.resource_type.name
