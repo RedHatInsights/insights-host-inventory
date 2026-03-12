@@ -83,6 +83,7 @@ def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
       importance: high
       title: Verify the GET /groups type param works correctly
     """
+    host_inventory.apis.groups.delete_all_groups()
     group = host_inventory.apis.groups.create_group(generate_display_name())
 
     ungrouped_groups = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")

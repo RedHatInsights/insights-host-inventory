@@ -73,9 +73,8 @@ def test_groups_create_response(
     assert group.account == hbi_default_account_number
     assert group.ungrouped is False
     assert time1 < group.created < time2
-    # With kessel sync, even an empty list will take longer
-    # time_delta = 100 if hosts_list else 1
-    time_delta = 100
+    # With kessel sync it will take longer
+    time_delta = 500
     assert_datetimes_equal(group.updated, group.created, timedelta(milliseconds=time_delta))
 
     if not assigned_hosts:
