@@ -131,7 +131,7 @@
 
 ---
 
-### Slide 7 - What is Distributed Tracing?
+### Slide 6 - What is Distributed Tracing?
 
 **Core concepts:**
 
@@ -162,7 +162,7 @@ Each span carries:
 
 ---
 
-### Slide 8 - OpenTelemetry: The Standard
+### Slide 7 - OpenTelemetry: The Standard
 
 - **What**: CNCF project -- the industry standard for observability instrumentation
 - **Vendor-neutral**: Instrument once, export to any backend
@@ -182,7 +182,7 @@ Each span carries:
 
 ---
 
-### Slide 9 - What We Built on the Day of Learning
+### Slide 8 - What We Built on the Day of Learning
 
 **Phase 1 implementation** (working prototype on a feature branch):
 
@@ -205,7 +205,7 @@ Each span carries:
 
 ---
 
-### Slide 10 - Live Demo: Traces in Grafana Tempo
+### Slide 9 - Live Demo: Traces in Grafana Tempo
 
 **Pre-demo setup** (run before the session or during the break):
 ```bash
@@ -239,7 +239,7 @@ This script automatically:
 
 ---
 
-### Slide 11 - Gaps Tracing Closes
+### Slide 10 - Gaps Tracing Closes
 
 | Gap Today | How Tracing Closes It |
 |-----------|----------------------|
@@ -254,18 +254,16 @@ This script automatically:
 
 ---
 
-### Slide 12 - What We Found Using Traces + DB Analysis
+### Slide 11 - What We Found Using Traces + DB Analysis
 
 The Day of Learning tracing work led us to investigate production query patterns. Here's what we confirmed:
 
-**Sequential scans instead of index scans:**
-- The highest-cost query (`hosts_groups` count) does 2 full sequential scans
-- The planner chose this because partition statistics were never collected
-
-**Statistics gap:**
-- `ANALYZE` has never been triggered on host partitions
-- The planner estimated 25M join rows for a result set of ~31K
-- This caused it to choose hash join + seq scan instead of nested loop + index scan
+**Missing `org_id` in join conditions (biggest finding):**
+- Every query that joins `hosts_groups` is missing `org_id` in the join condition
+- Since `hosts_groups` is partitioned by `HASH(org_id)`, PostgreSQL **scans all 32 partitions** instead of just 1
+- The current #1 AAS query (group listing) scans ~2.7M rows across all partitions for a query that only needs 1 partition
+- This affects **every endpoint** that touches groups: host listing, group listing, system profile, filtered queries
+- Fix: add `org_id` to all 8 join sites -- **code-only change, no migration, ~97% reduction in scanned data**
 
 **Dead weight consuming resources:**
 - `hosts_old` table: ~361 GB, never queried
@@ -277,60 +275,62 @@ The Day of Learning tracing work led us to investigate production query patterns
 - SAP aggregation endpoint executing two queries when one would suffice
 - Staleness configuration fetched from DB on every request (could be cached)
 
-> **Speaker notes**: The key narrative is: tracing gave us the visibility to ask the right questions, and production validation gave us the evidence to prioritize. Without tracing, these issues would have stayed hidden in aggregate metrics.
+> **Speaker notes**: The partition pruning fix is the star of this slide. Show the EXPLAIN output: 32 seq scans on a table partitioned by org_id, just because the join condition uses group_id without org_id. It's a one-line code fix per join site with massive impact. This is exactly the kind of issue that tracing and query analysis surfaces.
 
 ---
 
-### Slide 13 - Proposed Optimizations
+### Slide 12 - Proposed Optimizations
 
 | Priority | Optimization | Estimated Impact | Status |
 |----------|-------------|-----------------|--------|
-| P1 | Run `ANALYZE` on all partitions | Correct planner estimates immediately, fix highest-AAS query plan | **New ticket** |
-| P2 | Covering index `(org_id, id, deletion_timestamp)` | Fix highest-AAS query: eliminate seq scans on hosts | **New ticket** |
-| P3 | Drop `hosts_old` table | ~361 GB freed, reduced backup time | RHINENG-24456 |
-| P4 | Drop zero-scan indexes | ~1.3 GB freed, less buffer cache waste | RHINENG-24458 (Release Pending) |
-| P5 | Composite index `(org_id, last_check_in DESC)` | Faster staleness-filtered queries | RHINENG-24465 (Closed) |
-| P6 | Move `jsonb_build_object` to Python | Reduce DB CPU on system profile queries | RHINENG-24461 (Closed) |
-| P7 | Optimize COUNT(DISTINCT) pagination query | Faster paginated host listing | RHINENG-24460 |
-| P8 | Cache staleness config in Redis | Eliminate repeated config lookups | RHINENG-24462 |
-| P9 | Eliminate SAP double-query | 50% fewer queries on SAP endpoint | RHINENG-24463 |
-| P10 | Evaluate dropping low-usage indexes | Recover ~14.5 GB (per_reporter_staleness GIN, etc.) | RHINENG-24464 |
-| P11 | Refactor MQ ingestion to batched queries | Fewer DB round-trips during ingestion | RHINENG-24466 (Code Review) |
-| P12 | Deploy OpenTelemetry to staging | Ongoing query/trace visibility | RHINENG-24190 (Code Review) |
+| P1 | Add `org_id` to all `hosts_groups` join conditions | **~97% reduction** in scanned data on every group-related query. Fixes #1 AAS query. Code-only, no migration. | **New ticket** |
+| P2 | Drop `hosts_old` table | ~361 GB freed, reduced backup time | RHINENG-24456 |
+| P3 | Drop zero-scan indexes | ~1.3 GB freed, less buffer cache waste | RHINENG-24458 (Release Pending) |
+| P4 | Composite index `(org_id, last_check_in DESC)` | Faster staleness-filtered queries | RHINENG-24465 (Closed) |
+| P5 | Move `jsonb_build_object` to Python | Reduce DB CPU on system profile queries | RHINENG-24461 (Closed) |
+| P6 | Optimize COUNT(DISTINCT) pagination query | Faster paginated host listing | RHINENG-24460 |
+| P7 | Cache staleness config in Redis | Eliminate repeated config lookups | RHINENG-24462 |
+| P8 | Eliminate SAP double-query | 50% fewer queries on SAP endpoint | RHINENG-24463 |
+| P9 | Evaluate dropping low-usage indexes | Recover ~14.5 GB (per_reporter_staleness GIN, etc.) | RHINENG-24464 |
+| P10 | Refactor MQ ingestion to batched queries | Fewer DB round-trips during ingestion | RHINENG-24466 (Code Review) |
+| P11 | Deploy OpenTelemetry to staging (Datadog) | Ongoing query/trace visibility | RHINENG-24190 (Code Review) |
 
-> **Speaker notes**: Walk through each one briefly. P1 and P2 are the newest findings -- together they fix the highest-cost query in production. P1 is a zero-code-change DBA action. Several items are already in development (P4, P5, P6, P11, P12). The table shows a healthy mix of quick wins, in-progress work, and strategic items.
+> **Speaker notes**: P1 is the headline finding -- a code-only fix that affects every endpoint touching groups. Show the EXPLAIN: 32 partition seq scans because of a missing org_id in the join. Several items are already closed or in development (P3, P4, P5, P10, P11). The table shows we've already delivered wins while identifying the biggest remaining issue.
 
 ---
 
-### Slide 14 - Effort vs Impact Matrix
+### Slide 13 - Effort vs Impact Matrix
 
 ```
                         HIGH IMPACT
                             │
         ┌───────────────────┼───────────────────┐
         │                   │                   │
-        │  Run ANALYZE (P1) │  OTel to staging  │
-        │  Drop hosts_old   │  Covering index   │
-        │  Drop dead indexes│  Redis caching    │
-        │                   │  COUNT pagination  │
+        │  Fix join org_id  │  OTel to staging  │
+        │  (P1 - biggest!)  │  Redis caching    │
+        │  Drop hosts_old   │  COUNT pagination  │
+        │  Drop dead indexes│                   │
         │   QUICK WINS      │    STRATEGIC      │
   LOW ──┼───────────────────┼───────────────────┼── HIGH
  EFFORT │                   │                   │  EFFORT
-        │  SAP query fix    │  jsonb refactor   │
-        │  Low-usage indexes│  Batch MQ queries │
+        │  SAP query fix    │                   │
+        │  Low-usage indexes│                   │
         │                   │                   │
         │   INCREMENTAL     │    EVALUATE       │
         │                   │                   │
         └───────────────────┼───────────────────┘
                             │
                         LOW IMPACT
+
+Already delivered: Composite index (P4), jsonb refactor (P5),
+                   Batch MQ queries (P10 - in review)
 ```
 
-> **Speaker notes**: Start from the top-left (Quick Wins). P1 (Run ANALYZE) is the single highest-impact item and requires zero code changes -- just a DBA action. Several Quick Wins are already done or in release (dead indexes, composite index). The Covering Index (P2) is Strategic because it requires a migration but directly fixes the highest-AAS query. Items already closed (composite index, jsonb refactor) can be mentioned as wins already delivered.
+> **Speaker notes**: P1 (fix join org_id) is both low-effort AND high-impact -- it's a code-only fix touching 8 join sites, no migration needed, and it fixes the #1 AAS query in production by enabling partition pruning. This is the clear winner. Quick Wins in the top-left are already in progress (dead indexes, hosts_old). Note the "Already delivered" line at the bottom -- we've already completed several items, which demonstrates momentum.
 
 ---
 
-### Slide 15 - Discussion: Where Else Can Tracing Help?
+### Slide 14 - Discussion: Where Else Can Tracing Help?
 
 Open discussion prompts for the team:
 
@@ -355,23 +355,21 @@ Open discussion prompts for the team:
 
 ---
 
-### Slide 16 - Hackathon Goals
+### Slide 15 - Hackathon Goals
 
 By the end of this session, we should have:
 
 - [ ] Everyone with tracing running locally
 - [ ] Generated realistic traffic and examined real traces
-- [ ] Identified at least 2-3 performance observations from traces
-- [ ] Created tickets or attempted fixes for findings
+- [ ] Attempted to fix the remaining issues in this epic: RHINENG-24190
 
 **Ground rules:**
-- Work in pairs or small groups
 - Share interesting findings in Slack / group chat as you go
 - We'll do a 10-minute show-and-tell at the end
 
 ---
 
-### Slide 17 - Setup Instructions
+### Slide 16 - Setup Instructions
 
 **Prerequisites:** Docker Desktop, git, local clone of the repo
 
@@ -415,7 +413,7 @@ open http://localhost:3000
 
 ---
 
-### Slide 18 - Hackathon Tracks
+### Slide 17 - Hackathon Tracks
 
 **Track A: Local tracing exploration** (for those new to tracing)
 
@@ -435,51 +433,9 @@ with tracer.start_as_current_span("my_operation", attributes={"key": "value"}):
     pass
 ```
 
-**Track B: Deploy tracing to staging** (stretch goal)
-
-Goal: Get HBI traces flowing in staging using Sumologic as the trace backend.
-
-```
-HBI Pods (web/mq) ──OTLP──> OTel Collector ──OTLP──> Sumologic
-```
-
-**Confirmed**: Sumologic tracing is available in our plan (visible under + New -> Traces). The team already has a Sumologic account with OTel support.
-
-**Step 1: Create an OTLP source in Sumologic**
-- Go to **Manage Data** -> look for **Collection** or use the **Unified Data Collection with OTel** wizard
-- Create an HTTP Source endpoint for OTLP trace ingestion
-- This gives you an endpoint URL + authentication token
-
-**Step 2: Choose a deployment approach**
-
-Option A -- Direct export (simplest, good for hackathon):
-- Point HBI pods directly at the Sumologic OTLP endpoint
-- Set `OTEL_EXPORTER_OTLP_ENDPOINT` in staging `clowdapp.yml` to the Sumologic URL
-- Add the auth token via environment variable or secret
-- No collector needed, fastest path to traces
-
-Option B -- OTel Collector (recommended for production):
-- Deploy an OTel Collector in the staging namespace
-- HBI pods send traces to the collector, collector forwards to Sumologic
-- Benefits: sampling, batching, retry, decouples app from backend
-- Can deploy via Kubernetes Helm chart or standalone OpenShift Deployment
-
-**Step 3: Validate**
-- Make requests in staging
-- Open Sumologic -> **Observability** -> **Application Monitoring**:
-  - **Transaction Traces**: Search and view individual trace waterfalls (like Grafana Tempo)
-  - **Services**: See `host-inventory` appear as a service with latency/error metrics
-  - **Span Analytics**: Run aggregate queries across spans (e.g., P99 by endpoint, errors by org_id)
-- Verify custom attributes are searchable: `hbi.org_id`, `hbi.request_id`
-
-**Questions to answer during the hackathon:**
-- Should we use sampling (e.g., 10% of traces) to control data volume in staging/prod?
-- Do we need to request OTLP source creation through the Sumologic onboarding YAML config, or can we create it directly in the UI?
-- Can Sumologic's tracing UI filter by our custom attributes (`hbi.org_id`, `hbi.request_id`)?
-
 ---
 
-### Slide 19 - Wrap-up & Action Items
+### Slide 18 - Wrap-up & Action Items
 
 **What we found today:**
 
@@ -491,11 +447,7 @@ Option B -- OTel Collector (recommended for production):
 
 **Standing action items:**
 
-- [ ] Deploy OTel instrumentation to staging (JIRA Epic Task 11)
-- [ ] Run `ANALYZE` on production host partitions
-- [ ] Merge PR #3719 (drop zero-scan indexes)
-- [ ] Merge composite index migration
-- [ ] Evaluate covering index for hosts_groups join query
+- [ ] Deploy OTel instrumentation to staging (JIRA Epic Task 12)
 - [ ] Enable `pg_stat_statements` on production (request to DBA team)
 - [ ] _(Add items from today's hackathon findings)_
 
@@ -513,16 +465,16 @@ Use these numbers throughout the presentation. All data validated against produc
 | Partition count | 32 (HASH on org_id) | Schema |
 | `hosts_old` table size | ~361 GB | `pg_total_relation_size` |
 | Zero-scan index waste | ~1.3 GB | `pg_stat_user_indexes` |
-| Highest AAS query | hosts_groups count (2 seq scans, hash join) | RDS Performance Insights |
-| Planner cardinality error | Estimated 25M rows, actual ~31K | `EXPLAIN` on primary |
-| Partition statistics | Never analyzed (autoanalyze not triggered) | `pg_stat_user_tables` |
-| Buffer cache | Under pressure from dead weight | Estimated from index/table ratios |
+| Highest AAS query | Group listing: scans all 32 `hosts_groups` partitions (~2.7M rows) due to missing `org_id` in join | RDS Performance Insights |
+| Single partition heap size | 8.9 GB (`hosts_p4`) | `pg_total_relation_size` |
+| Partition pruning miss | Joins scan 32/32 partitions instead of 1/32 (missing `org_id` in join condition) | `EXPLAIN` plan |
+| Affected join sites | 8 code locations across 6 files | Code audit |
 
 ---
 
 ## Appendix: Preparation Checklist
 
-- [ ] Capture Grafana/Tempo screenshots from local OTel branch for Slides 10 and 17
+- [ ] Capture Grafana/Tempo screenshots from local OTel branch for Slides 9 and 16
 - [ ] Test the hackathon setup end-to-end on a clean machine
 - [ ] Pre-generate the `x-rh-identity` header for demo/hackathon use
 - [ ] Have the JIRA Epic link ready to share with the team
