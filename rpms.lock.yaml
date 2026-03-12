@@ -683,27 +683,27 @@ arches:
     name: postgresql-private-libs
     evr: 16.13-1.module+el9.7.0+24031+188c384c
     sourcerpm: postgresql-16.13-1.module+el9.7.0+24031+188c384c.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.12-4.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-3.12.12-4.el9_7.1.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 32501
-    checksum: sha256:b8f6891103491d23b53ed7dc01319ce943a426194bddb47383ed8b05da7340c3
+    size: 32599
+    checksum: sha256:320e0811e1a64e9ac607c666b41d69fbd9917cf83befd52d88cf55396a2f0f6b
     name: python3.12
-    evr: 3.12.12-4.el9_7
-    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.12-4.el9_7.x86_64.rpm
+    evr: 3.12.12-4.el9_7.1
+    sourcerpm: python3.12-3.12.12-4.el9_7.1.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-devel-3.12.12-4.el9_7.1.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 338363
-    checksum: sha256:3b278827df7abf18464b8100a19ecd5d94971a71f528803522ff3de43fa17f1e
+    size: 338470
+    checksum: sha256:e3805fb4876aab3183cf972175b9279932f410ca515ab4e53a1f3082228e6110
     name: python3.12-devel
-    evr: 3.12.12-4.el9_7
-    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.12-4.el9_7.x86_64.rpm
+    evr: 3.12.12-4.el9_7.1
+    sourcerpm: python3.12-3.12.12-4.el9_7.1.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-libs-3.12.12-4.el9_7.1.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 10201800
-    checksum: sha256:11c7551ca41c44e1e3913a6dfb1107ad6a42cc707371676689584decbcf762e3
+    size: 10214024
+    checksum: sha256:3c63141ada03d7512b5e068309d0a067503601d9dfae060dd06dd69478943b82
     name: python3.12-libs
-    evr: 3.12.12-4.el9_7
-    sourcerpm: python3.12-3.12.12-4.el9_7.src.rpm
+    evr: 3.12.12-4.el9_7.1
+    sourcerpm: python3.12-3.12.12-4.el9_7.1.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/python3.12-pip-23.2.1-5.el9.noarch.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 3370313
@@ -1361,12 +1361,12 @@ arches:
     checksum: sha256:62e2515a0d8c5bc0bb889adb15a08bbd78f4ac225e7b427bc432fef6ba646699
     name: postgresql
     evr: 16.13-1.module+el9.7.0+24031+188c384c
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.12-4.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-3.12.12-4.el9_7.1.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 20873997
-    checksum: sha256:1f4a8ae3002de2a536e58c42ec410bcd9cf3371c40b3b3d8efb2c58feece28f7
+    size: 20878981
+    checksum: sha256:5fa971ae08c44c59bee11855de099a683c81b02bc3c6f94be7b7efae0508a83f
     name: python3.12
-    evr: 3.12.12-4.el9_7
+    evr: 3.12.12-4.el9_7.1
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/python3.12-pip-23.2.1-5.el9.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
     size: 9384965
@@ -1674,7 +1674,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/a62d80da81dd56b132c7b9b5bbda3c3bb932c53b75caa92cb6efe5b45a7d6805-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/319306ad5f4af51b24c1041d4b752cfde8c2e1cf99e44a0bbafa1a13ceb7ca4b-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 43747
-    checksum: sha256:a62d80da81dd56b132c7b9b5bbda3c3bb932c53b75caa92cb6efe5b45a7d6805
+    size: 44284
+    checksum: sha256:319306ad5f4af51b24c1041d4b752cfde8c2e1cf99e44a0bbafa1a13ceb7ca4b
