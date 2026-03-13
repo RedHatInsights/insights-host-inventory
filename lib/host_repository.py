@@ -92,7 +92,9 @@ def add_host(
         matched_host = find_existing_host(identity, canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [serialize_group(group, identity.org_id, getattr(identity, "account_number", None))]
+    input_host.groups = [
+        serialize_group(group, identity.org_id, getattr(identity, "account_number", None), with_host_count=False)
+    ]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
