@@ -10,6 +10,7 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class TestRBACSAGranularHosts:
         expected_hosts = rbac_setup_resources_for_granular_rbac.host_groups[0]
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror(404):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_sa_2.apis.hosts.get_hosts_by_id_response(all_hosts)
 
         response = host_inventory_sa_2.apis.hosts.get_hosts_by_id_response(expected_hosts_ids)
@@ -115,10 +116,10 @@ class TestRBACSAGranularHosts:
         host1 = rbac_setup_resources_for_granular_rbac.host_groups[2][0]
         host2 = rbac_setup_resources_for_granular_rbac.host_groups[3][0]
 
-        with raises_apierror(404, "One or more hosts not found."):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_sa_2.apis.hosts.delete_by_id_raw(host1)
 
-        with raises_apierror(404, "One or more hosts not found."):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_sa_2.apis.hosts.delete_by_id_raw(host2)
 
         host_inventory.apis.hosts.verify_not_deleted([host1, host2])

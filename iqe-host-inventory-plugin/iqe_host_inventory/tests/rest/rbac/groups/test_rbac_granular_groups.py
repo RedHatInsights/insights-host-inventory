@@ -1395,7 +1395,7 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         )
         expected_hosts_ids = {host.id for host in expected_hosts}
 
-        with raises_apierror(404, "One or more hosts not found."):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(all_hosts_ids)
 
         response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
@@ -1462,12 +1462,12 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         host2 = rbac_setup_resources_for_granular_rbac[0][3][0]
 
         new_display_name = generate_display_name()
-        with raises_apierror(404, "One or more hosts not found."):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host1.id, display_name=new_display_name, wait_for_updated=False
             )
 
-        with raises_apierror(404, "One or more hosts not found."):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.hosts.patch_hosts(
                 host2.id, display_name=new_display_name, wait_for_updated=False
             )
