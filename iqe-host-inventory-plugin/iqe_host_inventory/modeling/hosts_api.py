@@ -914,7 +914,7 @@ class HostsAPIWrapper(BaseEntity):
             try:
                 return self.get_hosts_by_id(hosts)
             except ApiException as exc:
-                assert exc.status == 403
+                assert exc.status in (403, 404)
                 return []
 
         def found_all(response_hosts: list[HostOut]) -> bool:
