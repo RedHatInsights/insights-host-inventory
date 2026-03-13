@@ -86,7 +86,7 @@ services:
         - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
         - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
       healthcheck:
-        test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --topic platform.inventory.host-ingress --create --if-not-exists && kafka-broker-api-versions --bootstrap-server localhost:29092"]
+        test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --topic platform.inventory.host-ingress --create --if-not-exists && kafka-topics --bootstrap-server localhost:29092 --topic platform.inventory.host-apps --create --if-not-exists && kafka-broker-api-versions --bootstrap-server localhost:29092"]
         interval: 5s
         timeout: 10s
         retries: 10
@@ -203,6 +203,31 @@ services:
         - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
         - KAFKA_EVENT_TOPIC=platform.inventory.events
         - PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service
+        - BYPASS_KESSEL=${BYPASS_KESSEL:-false}
+      depends_on:
+        db:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+      volumes:
+        - .:/opt/app-root/src
+      command: python3 inv_mq_service.py
+      security_opt:
+        - label=disable
+
+    hbi-mq-apps:
+      container_name: hbi-mq-apps
+      build: .
+      environment:
+        - INVENTORY_LOG_LEVEL=${INVENTORY_LOG_LEVEL:-DEBUG}
+        - INVENTORY_DB_HOST=db
+        - INVENTORY_DB_NAME=${INVENTORY_DB_NAME:-insights}
+        - INVENTORY_DB_USER=${INVENTORY_DB_USER:-insights}
+        - INVENTORY_DB_PASS=${INVENTORY_DB_PASS:-insights}
+        - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+        - KAFKA_EVENT_TOPIC=platform.inventory.events
+        - KAFKA_CONSUMER_TOPIC=platform.inventory.host-apps
+        - PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service-apps
         - BYPASS_KESSEL=${BYPASS_KESSEL:-false}
       depends_on:
         db:

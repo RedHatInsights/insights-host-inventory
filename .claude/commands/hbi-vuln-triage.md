@@ -1,16 +1,98 @@
 # /hbi-vuln-triage - HBI Container Vulnerability Triage
 
-Analyze a vulnerability report pasted from Jira (pipe-delimited table rows) and produce a deduplicated, actionable triage with Jira-formatted output.
+Analyze a vulnerability report and produce a deduplicated, actionable triage with Jira-formatted output.
+
+## Prerequisites (optional)
+
+To fetch vulnerability data directly from Jira tickets, install and configure the [go-jira](https://github.com/go-jira/jira) CLI. This is optional — you can always paste raw vulnerability data instead.
+
+### 1. Install go-jira
+
+```bash
+# With Go installed:
+go install github.com/go-jira/jira/cmd/jira@latest
+
+# Or via Homebrew (macOS):
+brew install go-jira
+```
+
+### 2. Create a Personal Access Token
+
+1. Log in to your Jira instance (e.g., `https://issues.redhat.com/`)
+2. Navigate to **Profile** > **Personal Access Tokens**
+3. Click **Create token**, give it a name (e.g., `go-jira`), and copy the generated token
+4. Store the token securely (see step 3 for options)
+
+### 3. Configure go-jira
+
+Create `~/.jira.d/config.yml`. The example below uses `pass` (the standard Unix password manager), but go-jira supports other `password-source` methods — see the [go-jira documentation](https://github.com/go-jira/jira#password-source) for alternatives such as `keyring`, `stdin`, or setting the token directly via environment variables.
+
+**Example using `pass`:**
+
+```bash
+# Store your PAT in pass
+pass insert GoJira/youruser@redhat.com
+```
+
+```yaml
+endpoint: https://issues.redhat.com/
+authentication-method: bearer-token
+password-source: pass
+password-name: GoJira/youruser@redhat.com
+user: rh-gs-youruser
+```
+
+- `endpoint` — your Jira instance URL
+- `authentication-method` — set to `bearer-token` to use a PAT
+- `password-source` — how go-jira retrieves the token (`pass`, `keyring`, `stdin`, etc.)
+- `password-name` — the entry name in your chosen password store
+- `user` — your Jira username
+
+### 4. Verify
+
+```bash
+jira view RHINENG-23874 --gjq 'fields.summary'
+```
+
+If this prints the issue summary, the CLI is configured correctly.
 
 ## Input
 
-The user provides vulnerability data as pipe-delimited table rows in this format:
+The input is provided as: $ARGUMENTS
 
+The argument can be **either**:
+
+1. **A Jira issue key** (e.g., `RHINENG-23874`) — the vulnerability data will be fetched automatically from the ticket.
+2. **Raw pipe-delimited table rows** pasted directly — the traditional input format.
+
+### Phase 0: Resolve Input
+
+Determine which input format was provided:
+
+- If `$ARGUMENTS` matches the pattern of a Jira issue key (e.g., `RHINENG-\d+` or similar `PROJECT-NUMBER` format):
+  1. Check if the `jira` CLI (go-jira) is available locally by running `which jira`.
+  2. If available, **validate the issue is related to Host-Inventory**. Fetch the metadata and description:
+     ```
+     jira view <ISSUE_KEY> --gjq 'fields.summary'
+     jira view <ISSUE_KEY> --gjq 'fields.components'
+     jira view <ISSUE_KEY> --gjq 'fields.description'
+     ```
+     The issue must satisfy **all three** of these conditions (case-insensitive):
+     - The summary contains `Host-Inventory` or `host-inventory`
+     - The components list includes `Inventory`
+     - The description contains `insights-host-inventory`
+
+     If any condition fails, report which checks passed and which failed: *"Issue <KEY> does not appear to be related to Host-Inventory: summary '<summary>' [PASS/FAIL], components [<list>] [PASS/FAIL], description contains insights-host-inventory [PASS/FAIL]. Please verify the issue key."* and stop.
+  3. Extract the pipe-delimited vulnerability table from the description by filtering lines that start with `|` and contain vulnerability data (skip the header row if it matches `|Workstream|OSD Namespace|...`). If the table is empty, report the error and stop.
+  6. If `jira` is NOT available, report the error and ask the user to either install go-jira (`go install github.com/go-jira/jira/cmd/jira@latest`) or paste the vulnerability data directly.
+  7. If the `jira` command fails (auth error, issue not found), report the error and stop.
+
+- If `$ARGUMENTS` contains pipe-delimited rows (starts with `|`), use them directly as the vulnerability data.
+
+The expected table format is:
 ```
 |Workstream|OSD Namespace|Image|Image Tag|Vulnerability ID|Alt Vulnerability ID(s)|Severity|NVD Severity|KEV Detection Date|Name|Version|Fixed Version|Upstream Fix Status|Package Type|
 ```
-
-The input is provided as: $ARGUMENTS
 
 ## Instructions
 
@@ -57,9 +139,21 @@ For vulnerabilities in **external images** (e.g., `registry.access.redhat.com/ub
 1. Note these are NOT controlled by HBI — they are upstream Red Hat images.
 2. Recommend checking if Red Hat has published an updated image.
 
-### Phase 4: Produce Jira-Formatted Output
+### Phase 4: Present Triage Results
 
-Generate output using Jira wiki markup that the user can paste directly into a Jira ticket comment. Use this structure:
+Present the full triage findings using GitHub-flavored markdown so they are readable directly in the Claude Code session. Use tables, bold for severity, and standard markdown formatting:
+
+- **Image tags in report**: table with tag, date, commit message, status (newest/older)
+- **Python packages**: table with package, vulnerable version(s), fixed version, CVE/GHSA, severity, Pipfile.lock status (already fixed or needs update), recommended action
+- **RPM packages (HBI image)**: table with package(s), current version, fixed version, CVE(s), highest severity, action — split into "present in newest tag" and "only in older tags" sub-sections
+- **RPM packages (external images)**: table with image, package(s), current version, fixed version, CVE(s), highest severity, action
+- **Dockerfile findings**: list devel/build packages that remain in the final image unnecessarily
+- **Summary**: table with category, unique CVE count, highest severity, fix status
+- **Recommended actions**: numbered list in priority order
+
+### Phase 5: Produce Jira-Formatted Output
+
+Generate the same content as Phase 4, but using Jira wiki markup so the user can paste it directly into a Jira ticket comment. Use this structure:
 
 ```
 h2. Vulnerability Triage - HBI Container Images
@@ -113,7 +207,7 @@ h3. Recommended Actions
 - Use `{{monospace}}` for package names in prose text
 - Wrap the entire Jira output in a code block so the user can copy it easily
 
-### Phase 5: Plain-Text Summary
+### Phase 6: Plain-Text Summary
 
 After the Jira block, provide a brief plain-text summary:
 - Total vulnerabilities vs unique after dedup

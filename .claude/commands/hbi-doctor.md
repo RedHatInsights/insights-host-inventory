@@ -9,7 +9,7 @@ Run each of the following checks and report results in a summary table:
 ### 1. Podman Containers
 - Run `podman compose -f dev.yml ps` to check container status
 - Report which containers are running, stopped, or missing
-- Expected containers: hbi-db, kafka, zookeeper, hbi-web, hbi-mq, unleash, minio, export-service, prometheus_gateway
+- Expected containers: hbi-db, kafka, zookeeper, hbi-web, hbi-mq, hbi-mq-apps, unleash, minio, export-service, prometheus_gateway
 
 ### 2. PostgreSQL
 - Run `podman compose -f dev.yml exec -T db pg_isready -h db`
