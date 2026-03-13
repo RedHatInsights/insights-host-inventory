@@ -171,9 +171,10 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
-      - kessel-inventory
       - ingress
       - export-service
+    optionalDependencies:
+      - kessel-inventory
     deployments:
     - name: service
       podSpec:
