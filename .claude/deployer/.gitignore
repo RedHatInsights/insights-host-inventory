@@ -1,0 +1,7 @@
+# Temporary deployment files
+schema.zed
+*.log
+*.tmp
+
+# Downloaded configurations
+deploy/
