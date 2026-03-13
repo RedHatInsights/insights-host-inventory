@@ -26,6 +26,11 @@ def no_expire_on_commit(session):
 
     Uses session() to get the underlying Session because Flask-SQLAlchemy's
     scoped_session proxy does not forward __setattr__.
+
+    On exit, expire_all() is called to purge stale objects from the identity
+    map.  Without this, objects committed while expire_on_commit was False
+    would persist across subsequent batches and could return stale data on
+    queries that hit the identity map instead of the DB.
     """
     actual_session = session() if callable(session) else session
     original = actual_session.expire_on_commit
@@ -34,6 +39,7 @@ def no_expire_on_commit(session):
         yield
     finally:
         actual_session.expire_on_commit = original
+        actual_session.expire_all()
 
 
 @contextmanager
