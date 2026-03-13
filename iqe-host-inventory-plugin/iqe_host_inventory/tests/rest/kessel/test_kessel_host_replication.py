@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from os import getenv
 from time import sleep
 
 import pytest
@@ -62,13 +61,7 @@ To run in the EE:
 2. Run the tests with --kessel option
 """
 
-pytestmark = [
-    pytest.mark.backend,
-    pytest.mark.skipif(
-        getenv("ENV_FOR_DYNACONF", "stage_proxy").lower() == "prod",
-        reason="The HBI -> Kessel data migration is not yet complete in Prod",
-    ),
-]
+pytestmark = [pytest.mark.backend]
 
 logger = logging.getLogger(__name__)
 
