@@ -3,11 +3,16 @@
 # This script creates an IQE pod in an ephemeral namespace for running tests
 #
 # Usage:
-#   ./deploy-iqe-pod.sh [NAMESPACE] [TEST_MARKERS]
+#   ./deploy-iqe-pod.sh [OPTIONS] [NAMESPACE] [TEST_EXPRESSION]
 #
 # Arguments:
-#   NAMESPACE      - Ephemeral namespace (optional, auto-detected if not provided)
-#   TEST_MARKERS   - Pytest markers for test selection (optional, default: "backend and smoke and not resilience and not cert_auth and not rbac_dependent")
+#   NAMESPACE         - Ephemeral namespace (optional, auto-detected if not provided)
+#   TEST_EXPRESSION   - Pytest markers (-m) or test filter (-k) expression
+#                       Default: "backend and smoke and not resilience and not cert_auth and not rbac_dependent"
+#
+# Options:
+#   -k, --filter      - Use pytest -k filter (test name matching) instead of -m markers
+#   -m, --marker      - Use pytest -m markers (default behavior)
 #
 # Returns:
 #   Outputs pod name to stdout on success
@@ -17,6 +22,8 @@
 #   ./deploy-iqe-pod.sh
 #   ./deploy-iqe-pod.sh ephemeral-abc123
 #   ./deploy-iqe-pod.sh ephemeral-abc123 "backend and smoke"
+#   ./deploy-iqe-pod.sh -k "test_cache_invalidation or test_kessel_repl"
+#   ./deploy-iqe-pod.sh -k ephemeral-abc123 "test_rbac_groups"
 #   POD=$(./deploy-iqe-pod.sh) && oc logs -f -n $NAMESPACE $POD
 
 set -e
@@ -30,10 +37,28 @@ NC='\033[0m' # No Color
 
 # Default values
 DEFAULT_MARKERS="backend and smoke and not resilience and not cert_auth and not rbac_dependent"
+USE_FILTER=false
 
-# Parse arguments
+# Parse options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -k|--filter)
+            USE_FILTER=true
+            shift
+            ;;
+        -m|--marker)
+            USE_FILTER=false
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Parse positional arguments
 NAMESPACE="${1:-}"
-TEST_MARKERS="${2:-$DEFAULT_MARKERS}"
+TEST_EXPRESSION="${2:-$DEFAULT_MARKERS}"
 
 # Function to log messages to stderr (so stdout is clean for pod name)
 log_info() {
@@ -74,12 +99,22 @@ fi
 
 # Deploy IQE pod using bonfire
 log_info "Deploying IQE pod to namespace: $NAMESPACE"
-log_info "Test markers: $TEST_MARKERS"
+if [ "$USE_FILTER" = true ]; then
+    log_info "Test filter (-k): $TEST_EXPRESSION"
+else
+    log_info "Test markers (-m): $TEST_EXPRESSION"
+fi
 
 # Run bonfire deploy-iqe-cji and capture output
-DEPLOY_OUTPUT=$(bonfire deploy-iqe-cji host-inventory \
-    -m "$TEST_MARKERS" \
-    -n "$NAMESPACE" 2>&1)
+if [ "$USE_FILTER" = true ]; then
+    DEPLOY_OUTPUT=$(bonfire deploy-iqe-cji host-inventory \
+        -k "$TEST_EXPRESSION" \
+        -n "$NAMESPACE" 2>&1)
+else
+    DEPLOY_OUTPUT=$(bonfire deploy-iqe-cji host-inventory \
+        -m "$TEST_EXPRESSION" \
+        -n "$NAMESPACE" 2>&1)
+fi
 
 # Extract pod name from output
 POD_NAME=$(echo "$DEPLOY_OUTPUT" | grep -oE "pod '[^']+' related to CJI" | grep -oE "'[^']+'" | tr -d "'" | head -1)
