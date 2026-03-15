@@ -40,7 +40,12 @@ deploy() {
     LOCAL_SCHEMA_FILE="$4"
   fi
 
-  HOST_FRONTEND_GIT_COMMIT=$(git ls-remote https://github.com/RedHatInsights/insights-inventory-frontend HEAD | awk '{print $1}' | cut -c1-7)
+  # Fetch frontend commit with fallback to 'latest' if git fails
+  HOST_FRONTEND_GIT_COMMIT=$(git ls-remote https://github.com/RedHatInsights/insights-inventory-frontend HEAD 2>/dev/null | awk '{print $1}' | cut -c1-7)
+  if [ -z "$HOST_FRONTEND_GIT_COMMIT" ]; then
+    echo "⚠️  WARNING: Failed to fetch frontend commit, using 'latest' instead"
+    HOST_FRONTEND_GIT_COMMIT="latest"
+  fi
 
   echo "Deployment parameters:"
   echo "  Template ref: $HBI_DEPLOYMENT_TEMPLATE_REF"

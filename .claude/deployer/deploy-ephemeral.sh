@@ -141,7 +141,7 @@ reserve_namespace() {
         log "No bonfire namespace set or using 'default', reserving a new namespace..."
 
         # Parse duration argument
-        DURATION="${1:-10h}"
+        DURATION="${1:-335h}"
         log "Reserving namespace for duration: $DURATION"
 
         if bonfire namespace reserve --duration "$DURATION"; then

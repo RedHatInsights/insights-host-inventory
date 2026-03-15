@@ -1,6 +1,7 @@
 #!/bin/bash
 # Deploy HBI to Ephemeral and Run Unit Tests
-# This script automates the full deployment and testing workflow
+# This script orchestrates the complete deployment and testing workflow by
+# calling existing modular scripts instead of duplicating logic.
 #
 # Usage:
 #   ./deploy-and-unit-test.sh [--duration DURATION] [--force]
@@ -51,6 +52,13 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "Usage: $0 [--duration DURATION] [--force]"
             echo ""
+            echo "This script orchestrates:"
+            echo "  1. /hbi-deploy           - Deploy HBI to ephemeral"
+            echo "  2. /hbi-setup-for-dev    - Setup port forwards and .env"
+            echo "  3. /hbi-verify-setup     - Verify deployment health"
+            echo "  4. /hbi-enable-flags     - Enable Kessel feature flags"
+            echo "  5. pytest tests/         - Run full test suite"
+            echo ""
             echo "Options:"
             echo "  --duration DURATION  Namespace reservation duration (default: 335h)"
             echo "  --force             Use existing namespace without prompting"
@@ -65,9 +73,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Setup logging to file
+LOG_DIR="$PROJECT_ROOT/tmp/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/hbi-deploy-test-$(date +%Y%m%d-%H%M%S).log"
+
+# Redirect all output to both terminal and log file
+exec > >(tee "$LOG_FILE") 2>&1
+
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}  HBI Deploy and Unit Test${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${INFO_MARK} Log file: ${BLUE}$LOG_FILE${NC}"
 echo ""
 
 # Step 1: Deploy HBI
@@ -98,8 +115,22 @@ fi
 echo -e "${INFO_MARK} Using namespace: ${BLUE}$NAMESPACE${NC}"
 echo ""
 
-# Step 2: Verify deployment
-echo -e "${BLUE}Step 2: Verifying deployment${NC}"
+# Step 2: Setup local development environment (port forwards, .env)
+echo -e "${BLUE}Step 2: Setting up local development environment${NC}"
+echo ""
+
+if "$SCRIPT_DIR/../deployer/setup-for-dev.sh" --namespace "$NAMESPACE"; then
+    echo ""
+    echo -e "${CHECK_MARK} ${GREEN}Local setup successful${NC}"
+else
+    echo ""
+    echo -e "${CROSS_MARK} ${RED}Local setup failed${NC}"
+    exit 1
+fi
+echo ""
+
+# Step 3: Verify deployment
+echo -e "${BLUE}Step 3: Verifying deployment${NC}"
 echo ""
 
 if "$SCRIPT_DIR/verify-ephemeral-setup.sh"; then
@@ -112,67 +143,22 @@ else
 fi
 echo ""
 
-# Step 3: Enable feature flags
-echo -e "${BLUE}Step 3: Enabling Kessel feature flags${NC}"
+# Step 4: Enable feature flags
+echo -e "${BLUE}Step 4: Enabling Kessel feature flags${NC}"
 echo ""
 
-# Login to Unleash
-echo -e "${INFO_MARK} Logging into Unleash..."
-LOGIN_RESULT=$(curl -s -X POST http://localhost:4242/auth/simple/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "unleash4all"}' \
-  -c /tmp/unleash-cookies-test.txt 2>/dev/null)
-
-if ! echo "$LOGIN_RESULT" | grep -q "username"; then
-    echo -e "${CROSS_MARK} ${RED}Failed to login to Unleash${NC}"
+if "$SCRIPT_DIR/enable-feature-flags.sh"; then
+    echo ""
+    echo -e "${CHECK_MARK} ${GREEN}Feature flags enabled${NC}"
+else
+    echo ""
+    echo -e "${CROSS_MARK} ${RED}Failed to enable feature flags${NC}"
     exit 1
 fi
-echo -e "${CHECK_MARK} ${GREEN}Logged into Unleash${NC}"
-
-# Feature flags to enable
-FLAGS=(
-    "hbi.api.kessel-phase-1"
-    "hbi.api.kessel-groups"
-    "hbi.api.kessel-force-single-checks-for-bulk"
-)
-
-# Create and enable flags
-for flag in "${FLAGS[@]}"; do
-    echo -e "${INFO_MARK} Configuring: $flag"
-
-    # Create flag (ignore if already exists)
-    curl -s -X POST http://localhost:4242/api/admin/projects/default/features \
-        -b /tmp/unleash-cookies-test.txt \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"name\": \"$flag\",
-            \"description\": \"Enable $flag feature\",
-            \"type\": \"release\",
-            \"impressionData\": false
-        }" >/dev/null 2>&1 || true
-
-    # Enable in development
-    curl -s -X POST "http://localhost:4242/api/admin/projects/default/features/$flag/environments/development/on" \
-        -b /tmp/unleash-cookies-test.txt \
-        -H "Content-Type: application/json" >/dev/null 2>&1
-
-    # Enable in production
-    curl -s -X POST "http://localhost:4242/api/admin/projects/default/features/$flag/environments/production/on" \
-        -b /tmp/unleash-cookies-test.txt \
-        -H "Content-Type: application/json" >/dev/null 2>&1
-
-    echo -e "   ${CHECK_MARK} Enabled: $flag"
-done
-
-# Cleanup
-rm -f /tmp/unleash-cookies-test.txt
-
-echo ""
-echo -e "${CHECK_MARK} ${GREEN}All feature flags enabled${NC}"
 echo ""
 
-# Step 4: Run unit tests
-echo -e "${BLUE}Step 4: Running unit tests${NC}"
+# Step 5: Run unit tests
+echo -e "${BLUE}Step 5: Running unit tests${NC}"
 echo ""
 
 cd "$PROJECT_ROOT"
@@ -204,6 +190,7 @@ echo ""
 echo -e "Namespace:      ${BLUE}$NAMESPACE${NC}"
 echo -e "Duration:       ${BLUE}$DURATION${NC}"
 echo -e "Test Result:    ${TEST_SYMBOL} ${TEST_COLOR}${TEST_RESULT}${NC}"
+echo -e "Log File:       ${BLUE}$LOG_FILE${NC}"
 echo ""
 
 if [ $EXIT_CODE -eq 0 ]; then
