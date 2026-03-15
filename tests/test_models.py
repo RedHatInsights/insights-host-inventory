@@ -2749,3 +2749,175 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "legacy_count=2" in call_args
     assert "workloads.sap" in call_args  # Shows SAP is migrated
     assert "sending_both_formats=True" in call_args  # Mixed state
+
+
+def test_compute_staleness_stay_fresh_forever_shared(db_create_host, models_datetime_mock):
+    """Shared staleness timestamps should propagate far-future values for 'stay fresh forever' hosts."""
+    insights_id = generate_uuid()
+    reporter = "rhsm-system-profile-bridge"
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="rhsm-only-host",
+        reporter=reporter,
+        subscription_manager_id=generate_uuid(),
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="rhsm-only-host",
+        reporter=reporter,
+        subscription_manager_id=str(existing_host.subscription_manager_id),
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
+
+    assert existing_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert existing_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+    assert existing_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
+
+    prs = existing_host.per_reporter_staleness[reporter]
+    assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+    assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
+
+
+def test_compute_staleness_shared_between_methods(db_create_host, models_datetime_mock, mocker):
+    """Host.update() should compute staleness once and share it between per_reporter and timestamps."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    compute_spy = mocker.patch.object(
+        existing_host, "_compute_staleness_timestamps", wraps=existing_host._compute_staleness_timestamps
+    )
+
+    update_host = Host(
+        insights_id=insights_id,
+        display_name="test",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host.update(update_host)
+
+    # _compute_staleness_timestamps should be called exactly once in update()
+    assert compute_spy.call_count == 1
+
+
+def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
+    """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
+    from app.models.utils import StalenessCache
+    from app.models.utils import _get_staleness_obj
+
+    with StalenessCache():
+        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        assert first_result is not None
+
+        # Patch the Staleness model inside its lazy import to prove the DB isn't hit again
+        mocker.patch("app.models.staleness.Staleness.query")
+        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+
+        assert second_result is first_result
+        # The patched query should not have been touched
+        from app.models.staleness import Staleness
+
+        Staleness.query.filter.assert_not_called()
+
+    assert StalenessCache.get(USER_IDENTITY["org_id"]) is None
+
+
+def test_staleness_cache_context_manager():
+    """StalenessCache context manager should create and clear cache."""
+    from app.models.utils import StalenessCache
+
+    assert StalenessCache.get("org1") is None
+
+    with StalenessCache():
+        StalenessCache.put("org1", {"test": True})
+        assert StalenessCache.get("org1") == {"test": True}
+
+    assert StalenessCache.get("org1") is None
+
+
+def test_ungrouped_group_cache_context_manager(flask_app, mocker):  # noqa: ARG001
+    """UngroupedGroupCache should prevent duplicate Group DB queries."""
+    from lib.group_repository import UngroupedGroupCache
+
+    assert UngroupedGroupCache.get("org1") is None
+
+    with UngroupedGroupCache():
+        mock_group = mocker.Mock()
+        UngroupedGroupCache.put("org1", mock_group)
+        assert UngroupedGroupCache.get("org1") is mock_group
+
+    assert UngroupedGroupCache.get("org1") is None
+
+
+def test_update_display_name_skips_when_unchanged(db_create_host, models_datetime_mock):
+    """When display_name and reporter are the same, no assignment should happen."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "puptoo"
+
+    original_display_name = existing_host.display_name
+    original_reporter = existing_host.display_name_reporter
+
+    existing_host.update_display_name("my-host", "puptoo")
+
+    assert existing_host.display_name == original_display_name
+    assert existing_host.display_name_reporter == original_reporter
+
+
+def test_update_display_name_writes_when_changed(db_create_host, models_datetime_mock):
+    """When display_name differs, it should be updated."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="old-name",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("new-name", "puptoo")
+
+    assert existing_host.display_name == "new-name"
+    assert existing_host.display_name_reporter == "puptoo"
+
+
+def test_update_display_name_writes_when_reporter_changed(db_create_host, models_datetime_mock):
+    """When display_name is the same but reporter differs, it should update."""
+    insights_id = generate_uuid()
+    input_host = Host(
+        insights_id=insights_id,
+        display_name="my-host",
+        reporter="puptoo",
+        stale_timestamp=models_datetime_mock + timedelta(days=1),
+        org_id=USER_IDENTITY["org_id"],
+    )
+    existing_host = db_create_host(host=input_host)
+
+    existing_host.update_display_name("my-host", "yupana")
+
+    assert existing_host.display_name == "my-host"
+    assert existing_host.display_name_reporter == "yupana"

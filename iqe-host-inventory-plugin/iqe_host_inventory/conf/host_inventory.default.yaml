@@ -512,7 +512,7 @@ smoke:
   users: &smoke-users
     insights_inventory_qe:
       identity:
-        account_number: &smoke-primary-account "0369234"
+        account_number: &smoke-primary-account "0369233"
         org_id: &smoke-primary-org "3340851"
         type: User
         auth_type: basic-auth
@@ -534,7 +534,7 @@ smoke:
           is_entitled: true
     insights_inventory_qe_2:
       identity:
-        account_number: "0369235"
+        account_number: *smoke-primary-account
         org_id: *smoke-primary-org
         type: User
         auth_type: basic-auth

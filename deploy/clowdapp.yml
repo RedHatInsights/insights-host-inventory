@@ -171,9 +171,10 @@ objects:
       iqePlugin: host-inventory
     dependencies:
       - rbac
-      - kessel-inventory
       - ingress
       - export-service
+    optionalDependencies:
+      - kessel-inventory
     deployments:
     - name: service
       podSpec:
@@ -1157,7 +1158,7 @@ objects:
             cpu: ${CPU_REQUEST_STALE_HOST_NOTIFICAION}
             memory: ${MEMORY_REQUEST_STALE_HOST_NOTIFICAION}
     - name: sp-validator
-      schedule: '@hourly'
+      schedule: ${{SP_VALIDATOR_SCHEDULE}}
       concurrencyPolicy: "Forbid"
       suspend: ${{SP_VALIDATOR_SUSPEND}}
       restartPolicy: Never
@@ -2720,6 +2721,8 @@ parameters:
 # -- System Profile Validator Job --
 - name: SP_VALIDATOR_SUSPEND
   value: 'true'
+- name: SP_VALIDATOR_SCHEDULE
+  value: '0 0 * * *'
 - name: KAFKA_SP_VALIDATOR_MAX_MESSAGES
   value: '10000'
 

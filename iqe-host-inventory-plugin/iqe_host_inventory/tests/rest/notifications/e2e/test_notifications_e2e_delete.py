@@ -198,7 +198,7 @@ def test_notifications_e2e_delete_digest(
     """
     email = application.notifications.email.find_email(
         options=FindEmailOptions(
-            subject_token="Daily digest - Red Hat Enterprise Linux",
+            subject_token="Daily Digest - Red Hat Enterprise Linux",
             body_token="Systems deleted",
             recipient_token=get_email_recipient(application, digest=True),
             email_amount=100,
@@ -208,6 +208,6 @@ def test_notifications_e2e_delete_digest(
     )
 
     assert email is not None, "Couldn't find the email notification"
-    assert "Daily digest - Red Hat Enterprise Linux" in email.body
+    assert "Daily Digest - Red Hat Enterprise Linux" in email.body
     assert "System deleted" in email.body
     assert f"{hbi_base_url}/insights/inventory/" in email.body

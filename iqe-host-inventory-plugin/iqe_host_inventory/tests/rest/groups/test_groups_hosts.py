@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from time import sleep
 
 import pytest
 
@@ -192,6 +193,16 @@ def test_get_hosts_from_empty_group(host_inventory: ApplicationHostInventory):
     """
     # Create an empty group
     group = host_inventory.apis.groups.create_group(generate_display_name())
+
+    # Wait until the Kessel cache gets refreshed for the new group
+    # https://issues.redhat.com/browse/RHCLOUD-45765
+    if host_inventory.application.config.current_env.lower() == "clowder_smoke":
+        time_to_wait = 3
+    else:
+        time_to_wait = 20
+
+    logger.info(f"Waiting {time_to_wait} seconds for Kessel cache refresh")
+    sleep(time_to_wait)
 
     # Get hosts from empty group
     response_hosts = host_inventory.apis.groups.get_hosts_from_group(group)
