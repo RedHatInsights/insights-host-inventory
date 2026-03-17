@@ -92,19 +92,6 @@ oc logs -n <namespace> <pod-name> | tail -100
 oc get pod <pod-name> -n <namespace>
 ```
 
-## Difference from /hbi-test-iqe
-
-**`/hbi-deploy-iqe-pod`**:
-- Always creates fresh pod (cleanup first)
-- Supports both `-m` (markers) and `-k` (test names)
-- Useful when previous pod failed/stuck
-- Returns pod name for automation
-
-**`/hbi-test-iqe`**:
-- Simpler, no cleanup
-- Only supports `-m` markers
-- Faster if no cleanup needed
-
 ## Prerequisites
 
 - Active ephemeral namespace (via `/hbi-deploy`)
@@ -134,6 +121,6 @@ Uses: `.claude/scripts/hbi-deploy-iqe-pod.sh`
 
 ## Related Commands
 
-- `/hbi-test-iqe` - Simple test deployment (no cleanup)
 - `/hbi-verify-setup` - Verify environment health
 - `/hbi-cleanup` - Full environment cleanup
+- `/hbi-deploy` - Deploy ephemeral environment

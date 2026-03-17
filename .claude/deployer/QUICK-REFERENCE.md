@@ -5,7 +5,7 @@
 ```bash
 /hbi-deploy              # Deploy environment (~7 min)
 /hbi-verify-setup        # Verify health (~10 sec)
-/hbi-test-iqe smoke      # Run smoke tests (~20 min)
+/hbi-deploy-iqe-pod -m "smoke"  # Deploy IQE test pod (~1 min)
 /hbi-cleanup             # Delete environment (~30 sec)
 ```
 
@@ -31,7 +31,7 @@
 ```bash
 /hbi-deploy
 /hbi-verify-setup
-/hbi-test-iqe smoke
+/hbi-deploy-iqe-pod -m "smoke"
 .claude/scripts/view-iqe-logs.sh --follow
 /hbi-cleanup
 ```
@@ -89,7 +89,7 @@ curl http://localhost:8000/health
 .claude/scripts/remove-ephemeral-namespace.sh --force
 
 # Deploy IQE pod
-.claude/scripts/deploy-iqe-pod.sh <namespace> "smoke"
+.claude/scripts/hbi-deploy-iqe-pod.sh -m "smoke"
 
 # View IQE logs
 .claude/scripts/view-iqe-logs.sh --follow
@@ -121,7 +121,7 @@ kubectl logs -n <namespace> <pod-name>
 ├── commands/              # Slash command docs
 │   ├── hbi-deploy.md
 │   ├── hbi-verify-setup.md
-│   ├── hbi-test-iqe.md
+│   ├── hbi-deploy-iqe-pod.md
 │   └── hbi-cleanup.md
 ├── deployer/              # Deployment scripts
 │   ├── deploy-ephemeral.sh
@@ -130,7 +130,7 @@ kubectl logs -n <namespace> <pod-name>
 └── scripts/               # Utility scripts
     ├── verify-ephemeral-setup.sh
     ├── remove-ephemeral-namespace.sh
-    ├── deploy-iqe-pod.sh
+    ├── hbi-deploy-iqe-pod.sh
     └── view-iqe-logs.sh
 
 tmp/                       # Generated files

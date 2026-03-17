@@ -11,8 +11,8 @@ Complete guide to deploying, verifying, testing, and cleaning up HBI ephemeral e
 # Verify it's working
 /hbi-verify-setup
 
-# Run tests (optional)
-/hbi-test-iqe smoke
+# Deploy IQE test pod (optional)
+/hbi-deploy-iqe-pod -m "smoke"
 
 # Cleanup when done
 /hbi-cleanup
@@ -24,7 +24,7 @@ Complete guide to deploying, verifying, testing, and cleaning up HBI ephemeral e
 |---------|---------|----------|
 | `/hbi-deploy` | 🚀 Deploy ephemeral environment | ~7 minutes |
 | `/hbi-verify-setup` | ✅ Verify environment health | ~10 seconds |
-| `/hbi-test-iqe` | 🧪 Run IQE tests | ~15-60 minutes |
+| `/hbi-deploy-iqe-pod` | 🧪 Deploy IQE test pod | ~1 minute |
 | `/hbi-cleanup` | 🧹 Delete environment | ~30 seconds |
 
 ---
@@ -133,25 +133,30 @@ Script: `.claude/scripts/verify-ephemeral-setup.sh`
 
 ---
 
-## 3. /hbi-test-iqe
+## 3. /hbi-deploy-iqe-pod
 
-Run IQE tests against the ephemeral environment.
+Deploy an IQE test pod to run tests against the ephemeral environment.
 
-### Test Suites
+### Test Options
 
-**Smoke Tests (~81 tests, ~15-25 minutes):**
+**Smoke Tests (default):**
 ```bash
-/hbi-test-iqe smoke
+/hbi-deploy-iqe-pod -m "smoke"
 ```
 
-**Full Backend Tests (~1+ hour):**
+**Full Backend Tests:**
 ```bash
-/hbi-test-iqe backend
+/hbi-deploy-iqe-pod -m "backend"
 ```
 
 **Custom Markers:**
 ```bash
-/hbi-test-iqe "backend and groups"
+/hbi-deploy-iqe-pod -m "backend and groups"
+```
+
+**Test Name Filters:**
+```bash
+/hbi-deploy-iqe-pod -k "test_create_host or test_rbac"
 ```
 
 ### What Gets Tested
@@ -166,10 +171,11 @@ Run IQE tests against the ephemeral environment.
 
 ### How It Works
 
-1. Creates ClowdJobInvocation in ephemeral namespace
-2. Deploys IQE pod with test environment
-3. Runs pytest with specified markers
-4. Outputs pod name for log viewing
+1. Cleans up any existing ClowdJobInvocations
+2. Creates new ClowdJobInvocation in ephemeral namespace
+3. Deploys IQE pod with test environment
+4. Waits for pod to be ready
+5. Outputs pod name for log viewing
 
 ### View Results
 
@@ -184,7 +190,7 @@ oc logs -n <namespace> <pod-name> | tail -100
 ### Implementation
 
 Scripts:
-- `.claude/scripts/deploy-iqe-pod.sh` - Deploy test pod
+- `.claude/scripts/hbi-deploy-iqe-pod.sh` - Deploy test pod with cleanup
 - `.claude/scripts/view-iqe-logs.sh` - View logs
 
 ---
@@ -273,8 +279,8 @@ Script: `.claude/scripts/remove-ephemeral-namespace.sh`
 # Verify
 /hbi-verify-setup
 
-# Run smoke tests
-/hbi-test-iqe smoke
+# Deploy IQE test pod
+/hbi-deploy-iqe-pod -m "smoke"
 
 # View results
 .claude/scripts/view-iqe-logs.sh --follow
@@ -327,7 +333,7 @@ All scripts are located in `.claude/scripts/`:
 | `deploy-ephemeral.sh` | Deploy HBI environment | ✅ Yes |
 | `verify-ephemeral-setup.sh` | Verify environment | ✅ Yes |
 | `remove-ephemeral-namespace.sh` | Cleanup environment | ✅ Yes |
-| `deploy-iqe-pod.sh` | Deploy IQE test pod | ✅ Yes |
+| `hbi-deploy-iqe-pod.sh` | Deploy IQE test pod | ✅ Yes |
 | `view-iqe-logs.sh` | View IQE test logs | ✅ Yes |
 
 ### Direct Script Usage
@@ -345,7 +351,7 @@ All scripts support direct execution for automation:
 .claude/scripts/remove-ephemeral-namespace.sh --force
 
 # Deploy IQE pod
-POD=$(.claude/scripts/deploy-iqe-pod.sh ephemeral-abc123 "smoke")
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh -m "smoke")
 
 # View logs
 .claude/scripts/view-iqe-logs.sh $POD --follow
@@ -488,7 +494,7 @@ if ! .claude/scripts/verify-ephemeral-setup.sh; then
 fi
 
 # Run smoke tests
-POD=$(.claude/scripts/deploy-iqe-pod.sh $NAMESPACE "backend and smoke")
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh -m "backend and smoke")
 
 # Wait for completion
 oc wait --for=condition=Complete job -l job-name=$POD -n $NAMESPACE --timeout=30m

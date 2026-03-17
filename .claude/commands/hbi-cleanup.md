@@ -179,7 +179,7 @@ ps aux | grep "kubectl port-forward"
 
 - `/hbi-deploy` - Deploy ephemeral environment
 - `/hbi-verify-setup` - Verify environment setup
-- `/hbi-test-iqe` - Run IQE tests
+- `/hbi-deploy-iqe-pod` - Deploy IQE test pod
 
 ## Implementation
 

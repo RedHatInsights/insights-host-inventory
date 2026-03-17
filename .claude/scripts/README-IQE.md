@@ -6,7 +6,7 @@ Reusable scripts for deploying and managing IQE test pods in ephemeral environme
 
 These scripts automate IQE test execution in ephemeral namespaces:
 
-1. **deploy-iqe-pod.sh** - Deploy IQE test pod using ClowdJobInvocation
+1. **hbi-deploy-iqe-pod.sh** - Deploy IQE test pod using ClowdJobInvocation
 2. **view-iqe-logs.sh** - View logs from IQE test pods
 
 ## Quick Start
@@ -15,7 +15,7 @@ These scripts automate IQE test execution in ephemeral namespaces:
 
 ```bash
 # Deploy IQE pod with smoke tests
-POD=$(.claude/scripts/deploy-iqe-pod.sh)
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh)
 
 # View live logs
 .claude/scripts/view-iqe-logs.sh --follow
@@ -25,7 +25,7 @@ POD=$(.claude/scripts/deploy-iqe-pod.sh)
 
 ```bash
 # Deploy with custom markers
-POD=$(.claude/scripts/deploy-iqe-pod.sh ephemeral-abc123 "backend and groups"
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh ephemeral-abc123 "backend and groups"
 
 # View logs later
 .claude/scripts/view-iqe-logs.sh $POD
@@ -33,13 +33,13 @@ POD=$(.claude/scripts/deploy-iqe-pod.sh ephemeral-abc123 "backend and groups"
 
 ## Scripts
 
-### deploy-iqe-pod.sh
+### hbi-deploy-iqe-pod.sh
 
 Deploy an IQE test pod to run tests in an ephemeral environment.
 
 **Usage:**
 ```bash
-./deploy-iqe-pod.sh [NAMESPACE] [TEST_MARKERS]
+./hbi-deploy-iqe-pod.sh [NAMESPACE] [TEST_MARKERS]
 ```
 
 **Arguments:**
@@ -54,16 +54,16 @@ Deploy an IQE test pod to run tests in an ephemeral environment.
 **Examples:**
 ```bash
 # Auto-detect namespace, run smoke tests
-./deploy-iqe-pod.sh
+./hbi-deploy-iqe-pod.sh
 
 # Specific namespace, smoke tests
-./deploy-iqe-pod.sh ephemeral-abc123
+./hbi-deploy-iqe-pod.sh ephemeral-abc123
 
 # Custom test markers
-./deploy-iqe-pod.sh ephemeral-abc123 "backend and not resilience"
+./hbi-deploy-iqe-pod.sh ephemeral-abc123 "backend and not resilience"
 
 # Capture pod name for later use
-POD=$(./deploy-iqe-pod.sh)
+POD=$(./hbi-deploy-iqe-pod.sh)
 echo "Pod: $POD"
 ```
 
@@ -113,22 +113,22 @@ View logs from IQE test pods with auto-detection.
 
 **Smoke Tests (~81 tests, ~15-25 minutes):**
 ```bash
-POD=$(./deploy-iqe-pod.sh "" "backend and smoke and not resilience and not cert_auth and not rbac_dependent")
+POD=$(./hbi-deploy-iqe-pod.sh "" "backend and smoke and not resilience and not cert_auth and not rbac_dependent")
 ```
 
 **Full Backend Tests (~1+ hour):**
 ```bash
-POD=$(./deploy-iqe-pod.sh "" "backend and not resilience and not cert_auth and not rbac_dependent")
+POD=$(./hbi-deploy-iqe-pod.sh "" "backend and not resilience and not cert_auth and not rbac_dependent")
 ```
 
 **Group Tests Only:**
 ```bash
-POD=$(./deploy-iqe-pod.sh "" "backend and groups and not rbac_dependent")
+POD=$(./hbi-deploy-iqe-pod.sh "" "backend and groups and not rbac_dependent")
 ```
 
 **Single Test:**
 ```bash
-POD=$(./deploy-iqe-pod.sh "" "test_create_host")
+POD=$(./hbi-deploy-iqe-pod.sh "" "test_create_host")
 ```
 
 ## Automation Examples
@@ -140,7 +140,7 @@ POD=$(./deploy-iqe-pod.sh "" "test_create_host")
 NAMESPACE=ephemeral-abc123
 
 # Deploy IQE pod
-POD=$(.claude/scripts/deploy-iqe-pod.sh $NAMESPACE "smoke")
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh $NAMESPACE "smoke")
 
 # Stream logs in background
 .claude/scripts/view-iqe-logs.sh $POD $NAMESPACE > iqe-logs.txt &
@@ -166,12 +166,12 @@ NAMESPACE=$(bonfire namespace list | grep $(whoami) | awk '{print $1}')
 
 # Run smoke tests
 echo "Running smoke tests..."
-POD_SMOKE=$(.claude/scripts/deploy-iqe-pod.sh $NAMESPACE "smoke")
+POD_SMOKE=$(.claude/scripts/hbi-deploy-iqe-pod.sh $NAMESPACE "smoke")
 oc wait --for=condition=Complete job -l job-name=$POD_SMOKE -n $NAMESPACE --timeout=30m
 
 # Run group tests
 echo "Running group tests..."
-POD_GROUPS=$(.claude/scripts/deploy-iqe-pod.sh $NAMESPACE "backend and groups")
+POD_GROUPS=$(.claude/scripts/hbi-deploy-iqe-pod.sh $NAMESPACE "backend and groups")
 oc wait --for=condition=Complete job -l job-name=$POD_GROUPS -n $NAMESPACE --timeout=30m
 
 echo "All tests completed!"
@@ -188,7 +188,7 @@ NAMESPACE=$(bonfire namespace reserve -d 4)
 bonfire deploy host-inventory -n $NAMESPACE
 
 # Run IQE tests
-POD=$(.claude/scripts/deploy-iqe-pod.sh $NAMESPACE "backend and smoke")
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh $NAMESPACE "backend and smoke")
 
 # Wait and capture results
 oc wait --for=condition=Complete job -l job-name=$POD -n $NAMESPACE --timeout=30m
@@ -208,11 +208,11 @@ bonfire namespace release $NAMESPACE
 
 ### Slash Command
 
-Use `/hbi-test-iqe` for interactive testing:
+Use `/hbi-deploy-iqe-pod` for interactive testing:
 
 ```bash
-/hbi-test-iqe smoke
-/hbi-test-iqe "backend and groups"
+/hbi-deploy-iqe-pod -m "smoke"
+/hbi-deploy-iqe-pod -m "backend and groups"
 ```
 
 ### Direct Script Usage
@@ -221,7 +221,7 @@ For automation and scripting:
 
 ```bash
 # From any script or automation
-POD=$(.claude/scripts/deploy-iqe-pod.sh)
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh)
 .claude/scripts/view-iqe-logs.sh --follow
 ```
 
@@ -229,7 +229,7 @@ POD=$(.claude/scripts/deploy-iqe-pod.sh)
 
 **"Could not auto-detect namespace"**
 - Ensure you have a reserved namespace: `bonfire namespace list`
-- Or provide namespace explicitly: `./deploy-iqe-pod.sh ephemeral-abc123`
+- Or provide namespace explicitly: `./hbi-deploy-iqe-pod.sh ephemeral-abc123`
 
 **"Pod failed to become ready"**
 - Check pod status: `oc get pod -n <namespace>`
