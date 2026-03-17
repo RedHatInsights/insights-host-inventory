@@ -53,11 +53,15 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--duration DURATION] [--force]"
             echo ""
             echo "This script orchestrates:"
-            echo "  1. /hbi-deploy           - Deploy HBI to ephemeral"
-            echo "  2. /hbi-setup-for-dev    - Setup port forwards and .env"
-            echo "  3. /hbi-verify-setup     - Verify deployment health"
-            echo "  4. /hbi-enable-flags     - Enable Kessel feature flags"
-            echo "  5. pytest tests/         - Run full test suite"
+            echo "  1. Check existing deployment health"
+            echo "  2. /hbi-deploy (if needed) - Deploy HBI to ephemeral"
+            echo "  3. /hbi-setup-for-dev      - Setup port forwards and .env"
+            echo "  4. /hbi-verify-setup       - Verify deployment health"
+            echo "  5. /hbi-enable-flags       - Enable Kessel feature flags"
+            echo "  6. pytest tests/           - Run full test suite"
+            echo ""
+            echo "Smart deployment: If a healthy deployment exists, skips deployment"
+            echo "and proceeds directly to testing (saves ~7 minutes)."
             echo ""
             echo "Options:"
             echo "  --duration DURATION  Namespace reservation duration (default: 335h)"
@@ -87,36 +91,71 @@ echo -e "${BLUE}═════════════════════�
 echo -e "${INFO_MARK} Log file: ${BLUE}$LOG_FILE${NC}"
 echo ""
 
-# Step 1: Deploy HBI
-echo -e "${BLUE}Step 1: Deploying HBI to ephemeral environment${NC}"
-echo -e "${INFO_MARK} Duration: $DURATION"
-if [ -n "$FORCE_FLAG" ]; then
-    echo -e "${INFO_MARK} Force mode: Using existing namespace"
-fi
+# Step 1: Check if environment already exists and is healthy
+echo -e "${BLUE}Step 1: Checking for existing deployment${NC}"
 echo ""
 
-cd "$PROJECT_ROOT"
-
-if "$SCRIPT_DIR/../deployer/deploy-ephemeral.sh" --duration "$DURATION" $FORCE_FLAG; then
-    echo ""
-    echo -e "${CHECK_MARK} ${GREEN}Deployment successful${NC}"
-else
-    echo ""
-    echo -e "${CROSS_MARK} ${RED}Deployment failed${NC}"
-    exit 1
-fi
-
-# Get namespace from bonfire
+SKIP_DEPLOYMENT=false
 NAMESPACE=$(bonfire namespace list 2>/dev/null | grep $(whoami) | awk '{print $1}' | head -1)
-if [ -z "$NAMESPACE" ]; then
-    echo -e "${CROSS_MARK} ${RED}Could not determine namespace${NC}"
-    exit 1
+
+if [ -n "$NAMESPACE" ]; then
+    echo -e "${INFO_MARK} Found existing namespace: ${BLUE}$NAMESPACE${NC}"
+    echo -e "${INFO_MARK} Verifying deployment health..."
+    echo ""
+
+    # Run verification to check if environment is healthy
+    if "$SCRIPT_DIR/verify-ephemeral-setup.sh" 2>/dev/null; then
+        echo ""
+        echo -e "${CHECK_MARK} ${GREEN}Existing deployment is healthy${NC}"
+        echo -e "${INFO_MARK} Skipping deployment, will use existing environment"
+        SKIP_DEPLOYMENT=true
+    else
+        echo ""
+        echo -e "${YELLOW}⚠${NC}  ${YELLOW}Existing deployment is not healthy or verification failed${NC}"
+        echo -e "${INFO_MARK} Will deploy fresh environment"
+    fi
+else
+    echo -e "${INFO_MARK} No existing namespace found"
+    echo -e "${INFO_MARK} Will deploy fresh environment"
 fi
-echo -e "${INFO_MARK} Using namespace: ${BLUE}$NAMESPACE${NC}"
 echo ""
 
-# Step 2: Setup local development environment (port forwards, .env)
-echo -e "${BLUE}Step 2: Setting up local development environment${NC}"
+# Step 2: Deploy HBI (if needed)
+if [ "$SKIP_DEPLOYMENT" = false ]; then
+    echo -e "${BLUE}Step 2: Deploying HBI to ephemeral environment${NC}"
+    echo -e "${INFO_MARK} Duration: $DURATION"
+    if [ -n "$FORCE_FLAG" ]; then
+        echo -e "${INFO_MARK} Force mode: Using existing namespace"
+    fi
+    echo ""
+
+    cd "$PROJECT_ROOT"
+
+    if "$SCRIPT_DIR/../deployer/deploy-ephemeral.sh" --duration "$DURATION" $FORCE_FLAG; then
+        echo ""
+        echo -e "${CHECK_MARK} ${GREEN}Deployment successful${NC}"
+    else
+        echo ""
+        echo -e "${CROSS_MARK} ${RED}Deployment failed${NC}"
+        exit 1
+    fi
+
+    # Get namespace from bonfire after deployment
+    NAMESPACE=$(bonfire namespace list 2>/dev/null | grep $(whoami) | awk '{print $1}' | head -1)
+    if [ -z "$NAMESPACE" ]; then
+        echo -e "${CROSS_MARK} ${RED}Could not determine namespace${NC}"
+        exit 1
+    fi
+    echo -e "${INFO_MARK} Using namespace: ${BLUE}$NAMESPACE${NC}"
+    echo ""
+else
+    echo -e "${BLUE}Step 2: Skipping deployment (using existing environment)${NC}"
+    echo -e "${INFO_MARK} Namespace: ${BLUE}$NAMESPACE${NC}"
+    echo ""
+fi
+
+# Step 3: Setup local development environment (port forwards, .env)
+echo -e "${BLUE}Step 3: Setting up local development environment${NC}"
 echo ""
 
 if "$SCRIPT_DIR/../deployer/setup-for-dev.sh" --namespace "$NAMESPACE"; then
@@ -129,22 +168,27 @@ else
 fi
 echo ""
 
-# Step 3: Verify deployment
-echo -e "${BLUE}Step 3: Verifying deployment${NC}"
-echo ""
-
-if "$SCRIPT_DIR/verify-ephemeral-setup.sh"; then
+# Step 4: Verify deployment (final check before tests)
+if [ "$SKIP_DEPLOYMENT" = false ]; then
+    echo -e "${BLUE}Step 4: Verifying deployment${NC}"
     echo ""
-    echo -e "${CHECK_MARK} ${GREEN}Verification successful${NC}"
+
+    if "$SCRIPT_DIR/verify-ephemeral-setup.sh"; then
+        echo ""
+        echo -e "${CHECK_MARK} ${GREEN}Verification successful${NC}"
+    else
+        echo ""
+        echo -e "${CROSS_MARK} ${RED}Verification failed${NC}"
+        exit 1
+    fi
+    echo ""
 else
+    echo -e "${BLUE}Step 4: Skipping verification (already verified)${NC}"
     echo ""
-    echo -e "${CROSS_MARK} ${RED}Verification failed${NC}"
-    exit 1
 fi
-echo ""
 
-# Step 4: Enable feature flags
-echo -e "${BLUE}Step 4: Enabling Kessel feature flags${NC}"
+# Step 5: Enable feature flags
+echo -e "${BLUE}Step 5: Enabling Kessel feature flags${NC}"
 echo ""
 
 if "$SCRIPT_DIR/enable-feature-flags.sh"; then
@@ -157,8 +201,8 @@ else
 fi
 echo ""
 
-# Step 5: Run unit tests
-echo -e "${BLUE}Step 5: Running unit tests${NC}"
+# Step 6: Run unit tests
+echo -e "${BLUE}Step 6: Running unit tests${NC}"
 echo ""
 
 cd "$PROJECT_ROOT"
