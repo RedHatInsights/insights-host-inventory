@@ -4,11 +4,12 @@ Tear down and cleanup an HBI ephemeral environment by stopping port forwards and
 
 ## What This Command Does
 
-1. **Auto-detect Namespace** - Finds your active ephemeral namespace
-2. **Stop Port Forwards** - Kills all kubectl port-forward processes
-3. **Release Namespace** - Deletes the ephemeral namespace and all resources
-4. **Clean Temp Files** - Removes temporary session files
-5. **Verify Cleanup** - Confirms everything was cleaned up successfully
+1. **Auto-detect Namespace** - Finds your active ephemeral namespace and displays it
+2. **Verify Ownership** - Confirms you own the namespace before proceeding
+3. **Stop Port Forwards** - Kills all kubectl port-forward processes
+4. **Prompt for Confirmation** - Shows which namespace will be deleted and asks for confirmation
+5. **Release Namespace** - Deletes the ephemeral namespace and all resources
+6. **Verify Cleanup** - Confirms everything was cleaned up successfully
 
 ## Usage
 
@@ -46,9 +47,13 @@ The script:
 - ✅ Provides clear feedback at each step
 - ⚠️  **Cannot be undone** - all data is permanently deleted
 
+**The command always shows which namespace will be cleaned:**
+- If no namespace specified: Auto-detects and displays the namespace
+- If namespace specified: Verifies and displays the namespace
+
 **Confirmation Prompt:**
 ```
-This will permanently delete:
+⚠️  This will permanently delete:
    • All pods and containers
    • All databases and data
    • All services and deployments
@@ -67,8 +72,47 @@ Type `yes` or `y` to confirm deletion, anything else to cancel.
 
 ## Output
 
+**Example output showing namespace detection and confirmation:**
+
+```bash
+$ /hbi-cleanup
+
+═══════════════════════════════════════════════════════════
+  HBI Ephemeral Environment Cleanup
+═══════════════════════════════════════════════════════════
+
+ℹ️  No namespace provided, auto-detecting...
+ℹ️  Auto-detected namespace: ephemeral-9uu6pk
+
+Verifying namespace...
+✅ Namespace verified
+
+1. Stopping port forwards...
+✅ No port forwards to stop
+
+2. Releasing namespace: ephemeral-9uu6pk
+⚠️  This will permanently delete:
+   • All pods and containers
+   • All databases and data
+   • All services and deployments
+   • The entire namespace: ephemeral-9uu6pk
+
+Are you sure you want to delete this namespace? (yes/no): yes
+
+✅ Namespace released successfully
+
+3. Verification...
+✅ Namespace no longer exists
+✅ Cleanup complete!
+
+═══════════════════════════════════════════════════════════
+✓ Complete!
+═══════════════════════════════════════════════════════════
+```
+
 Provides:
 - 📊 Progress updates for each step
+- 🔍 **Shows which namespace will be cleaned** (auto-detected or specified)
 - ✅ Success confirmations
 - ⚠️  Warnings when needed
 - 📝 Summary of what was cleaned up
