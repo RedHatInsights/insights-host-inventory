@@ -1,5 +1,7 @@
 # Host Based Inventory (HBI)
 
+Hi! Please do not merge this.
+
 You've arrived at the repo for the backend of the Host Based Inventory (HBI).
 If you're looking for API, integration or user documentation for HBI
 please see the
