@@ -93,25 +93,25 @@ appropriate values for your environment.
 cat > ${PWD}/.env<<EOF
 # RUNNING HBI Locally
 PROMETHEUS_MULTIPROC_DIR=/tmp
-BYPASS_RBAC="true"
-BYPASS_UNLEASH="true"
-BYPASS_KESSEL="true"
+BYPASS_RBAC=true
+BYPASS_UNLEASH=true
+BYPASS_KESSEL=true
 # Optional legacy prefix configuration
 # PATH_PREFIX="/r/insights/platform"
-APP_NAME="inventory"
-INVENTORY_DB_USER="insights"
-INVENTORY_DB_PASS="insights"
-INVENTORY_DB_HOST="localhost"
-INVENTORY_DB_NAME="insights"
-INVENTORY_DB_POOL_TIMEOUT="5"
-INVENTORY_DB_POOL_SIZE="5"
+APP_NAME=inventory
+INVENTORY_DB_USER=insights
+INVENTORY_DB_PASS=insights
+INVENTORY_DB_HOST=localhost
+INVENTORY_DB_NAME=insights
+INVENTORY_DB_POOL_TIMEOUT=5
+INVENTORY_DB_POOL_SIZE=5
 INVENTORY_DB_SSL_MODE=""
 INVENTORY_DB_SSL_CERT=""
 UNLEASH_TOKEN='*:*.dbffffc83b1f92eeaf133a7eb878d4c58231acc159b5e1478ce53cfc'
 UNLEASH_CACHE_DIR=./.unleash
-UNLEASH_URL="http://localhost:4242/api"
+UNLEASH_URL=http://localhost:4242/api
 # Kafka Export Service Configuration
-KAFKA_EXPORT_SERVICE_TOPIC="platform.export.requests"
+KAFKA_EXPORT_SERVICE_TOPIC=platform.export.requests
 EOF
 ```
 
