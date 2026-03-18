@@ -34,7 +34,7 @@ step() { echo -e "\n${CYAN}=== $1 ===${NC}\n"; }
 
 if [[ "${1:-}" == "--clean" ]]; then
     step "Tearing down containers"
-    docker compose -f dev.yml down -v
+    podman-compose -f dev.yml down -v
     log "Done. All containers and volumes removed."
     exit 0
 fi
@@ -42,7 +42,7 @@ fi
 if [[ "${1:-}" != "--quick" ]]; then
     step "Step 1: Starting containers"
     log "Building and starting all services (DB, Kafka, Tempo, Grafana, HBI)..."
-    docker compose -f dev.yml up -d --build
+    podman-compose -f dev.yml up -d --build
 
     step "Step 2: Waiting for services to be healthy"
     log "Waiting for hbi-web to be ready..."
@@ -53,7 +53,7 @@ if [[ "${1:-}" != "--quick" ]]; then
         fi
         if [ "$i" -eq 60 ]; then
             err "hbi-web did not become ready in 60 seconds."
-            err "Check logs: docker compose -f dev.yml logs hbi-web"
+            err "Check logs: podman-compose -f dev.yml logs hbi-web"
             exit 1
         fi
         sleep 2
@@ -62,7 +62,7 @@ if [[ "${1:-}" != "--quick" ]]; then
     echo ""
 
     step "Step 3: Running database migrations"
-    docker exec hbi-web bash -c "FLASK_APP=manage.py flask db upgrade"
+    podman exec hbi-web bash -c "FLASK_APP=manage.py flask db upgrade"
     log "Migrations complete."
 else
     step "Quick mode: skipping build and migrations"
@@ -70,7 +70,7 @@ fi
 
 step "Step 4: Ingesting $NUM_HOSTS hosts via Kafka"
 log "Producing $NUM_HOSTS host messages..."
-NUM_HOSTS=$NUM_HOSTS docker exec hbi-mq bash -c "NUM_HOSTS=$NUM_HOSTS python3 utils/kafka_producer.py"
+NUM_HOSTS=$NUM_HOSTS podman exec hbi-mq bash -c "NUM_HOSTS=$NUM_HOSTS python3 utils/kafka_producer.py"
 log "Messages sent. Waiting 15s for MQ service to process them..."
 sleep 15
 log "Ingestion complete. These will show as mq.batch traces in Tempo."
