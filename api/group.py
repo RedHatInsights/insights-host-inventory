@@ -24,7 +24,8 @@ from app.auth import get_current_identity
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
-from app.config import MAX_GROUPS_FOR_HOST_COUNT_SORTING
+from app.config import MAX_GROUPS_FOR_CLIENT_SIDE_SORTING
+from app.config import MAX_GROUPS_FOR_HOST_COUNT_SORTING  # Deprecated alias
 from app.exceptions import InventoryException
 from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_create_group_failed
@@ -238,16 +239,16 @@ def get_group_list(
 
                 # Step 1: Fetch all groups from RBAC v2 (up to limit)
                 group_list, total = get_rbac_workspaces(
-                    name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, group_type, None, None
+                    name, 1, MAX_GROUPS_FOR_CLIENT_SIDE_SORTING, group_type, None, None
                 )
 
                 # Validate that we can sort all groups
-                if total > MAX_GROUPS_FOR_HOST_COUNT_SORTING:
+                if total > MAX_GROUPS_FOR_CLIENT_SIDE_SORTING:
                     log_get_group_list_failed(logger)
                     abort(
                         400,
                         f"Cannot sort by {order_by}: organization has {total} groups, which exceeds "
-                        f"the maximum of {MAX_GROUPS_FOR_HOST_COUNT_SORTING} groups that can be sorted. "
+                        f"the maximum of {MAX_GROUPS_FOR_CLIENT_SIDE_SORTING} groups that can be sorted. "
                         f"Please use filters (name, group_type) to narrow your results.",
                     )
 
