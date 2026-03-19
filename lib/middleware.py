@@ -492,7 +492,8 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled():
+            flag_context = {"userId": current_identity.org_id}
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(context=flag_context):
                 return func(*args, **kwargs)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -539,8 +540,10 @@ def access(permission: KesselPermission, id_param: str = ""):
             if id_param:
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
+            # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
+            flag_context = {"userId": current_identity.org_id}
             if get_flag_value(
-                FLAG_INVENTORY_KESSEL_PHASE_1
+                FLAG_INVENTORY_KESSEL_PHASE_1, context=flag_context
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
@@ -572,17 +575,20 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
-def is_rbac_v2_groups_enabled() -> bool:
+def is_rbac_v2_groups_enabled(context: dict | None = None) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
 
     When True: RBAC v2 workspace API handles all authorization
     When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
 
+    Args:
+        context: Optional context for org-specific targeting (e.g., {"userId": "3340851"})
+
     Returns:
         True if RBAC v2 should be used for groups, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS)
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS, context=context)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:

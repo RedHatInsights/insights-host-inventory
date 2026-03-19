@@ -81,7 +81,9 @@ def get_host_list_by_group(
     # Validate group exists
     # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
     # Otherwise, use database validation
-    if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
+    flag_context = {"userId": identity.org_id}
+    if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS, context=flag_context):
         # RBAC v2 path: Validate workspace exists
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -147,7 +149,8 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled():
+    flag_context = {"userId": identity.org_id}
+    if is_rbac_v2_groups_enabled(context=flag_context):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -189,7 +192,8 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled():
+    flag_context = {"userId": identity.org_id}
+    if is_rbac_v2_groups_enabled(context=flag_context):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
