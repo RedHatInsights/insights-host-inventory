@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Mapping
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
@@ -39,6 +40,7 @@ from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.kessel import Kessel
 from lib.kessel import get_kessel_client
@@ -492,8 +494,9 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            flag_context = {"userId": current_identity.org_id}
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(context=flag_context):
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(
+                context=build_flag_context(current_identity.org_id)
+            ):
                 return func(*args, **kwargs)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -541,9 +544,8 @@ def access(permission: KesselPermission, id_param: str = ""):
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
             # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
-            flag_context = {"userId": current_identity.org_id}
             if get_flag_value(
-                FLAG_INVENTORY_KESSEL_PHASE_1, context=flag_context
+                FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
                 kessel_client = get_kessel_client(current_app)
                 allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
@@ -575,7 +577,7 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
-def is_rbac_v2_groups_enabled(context: dict | None = None) -> bool:
+def is_rbac_v2_groups_enabled(context: Mapping[str, str] | None = None) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
 
