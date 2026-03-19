@@ -232,8 +232,83 @@ def get_group_list(
 
                     log_get_group_list_succeeded(logger, paginated_groups)
                     return flask_json_response(_build_group_list_response(total, page, per_page, paginated_groups))
+            elif order_by in ["updated", "created", "name", "type"]:
+                # Client-side sorting: RBAC v2 API does not support order_how parameter
+                # Fetch all groups, sort in Python, then paginate
+
+                # Step 1: Fetch all groups from RBAC v2 (up to limit)
+                group_list, total = get_rbac_workspaces(
+                    name, 1, MAX_GROUPS_FOR_HOST_COUNT_SORTING, group_type, None, None
+                )
+
+                # Validate that we can sort all groups
+                if total > MAX_GROUPS_FOR_HOST_COUNT_SORTING:
+                    log_get_group_list_failed(logger)
+                    abort(
+                        400,
+                        f"Cannot sort by {order_by}: organization has {total} groups, which exceeds "
+                        f"the maximum of {MAX_GROUPS_FOR_HOST_COUNT_SORTING} groups that can be sorted. "
+                        f"Please use filters (name, group_type) to narrow your results.",
+                    )
+
+                if not group_list:
+                    # No groups found
+                    log_get_group_list_succeeded(logger, [])
+                    return flask_json_response(_build_group_list_response(total, page, per_page, []))
+
+                # Step 2: Extract group_ids
+                group_ids = [ws["id"] for ws in group_list]
+
+                # Step 3: Fetch ALL host counts in ONE batch query
+                host_counts = get_host_counts_batch(org_id, group_ids)
+
+                # Step 4: Serialize workspaces with host counts
+                serialized_groups = [
+                    serialize_rbac_workspace_with_host_count(
+                        ws, org_id, getattr(identity, "account_number", None), host_counts.get(ws["id"], 0)
+                    )
+                    for ws in group_list
+                ]
+
+                # Step 5: Client-side sorting
+                # Map API field names to serialized group field names
+                field_mapping = {
+                    "updated": "updated",  # Already in correct format after serialization
+                    "created": "created",
+                    "name": "name",
+                    "type": "ungrouped",  # ungrouped is a boolean, will sort False before True
+                }
+                sort_field = field_mapping.get(order_by, order_by)
+
+                # Apply smart defaults to match RBAC v1 behavior
+                default_order_how = {
+                    "name": "ASC",
+                    "updated": "DESC",  # Default DESC for "Last modified" column
+                    "created": "DESC",
+                    "type": "ASC",
+                }
+
+                # Determine sort direction
+                if order_how:
+                    reverse = order_how.upper() == "DESC"
+                else:
+                    # Use smart default
+                    reverse = default_order_how.get(order_by, "ASC") == "DESC"
+
+                # Sort with secondary sort by name for stable ordering
+                serialized_groups.sort(key=lambda g: g.get("name", ""))  # Secondary: name (ASC)
+                serialized_groups.sort(key=lambda g: g.get(sort_field, ""), reverse=reverse)
+
+                # Step 6: Apply pagination to sorted results
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                paginated_groups = serialized_groups[start_idx:end_idx]
+
+                log_get_group_list_succeeded(logger, paginated_groups)
+                return flask_json_response(_build_group_list_response(total, page, per_page, paginated_groups))
             else:
-                # Normal RBAC v2 path: RBAC v2 API can handle ordering
+                # Fallback: For any other order_by fields, pass through to RBAC v2
+                # (though the API spec should only allow the fields above)
                 group_list, total = get_rbac_workspaces(name, page, per_page, group_type, order_by, order_how)
         else:
             # RBAC v1 path: Query groups from database
