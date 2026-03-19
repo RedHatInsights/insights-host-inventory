@@ -761,8 +761,21 @@ def get_rbac_workspaces(
         rbac_order_by = field_mapping.get(order_by, order_by)
         query_params["order_by"] = rbac_order_by
 
+        # Apply smart defaults to match RBAC v1 behavior (api/group_query.py:56-64)
+        # This ensures consistent UX between RBAC v1 and RBAC v2
+        default_order_how = {
+            "name": "ASC",
+            "updated": "DESC",  # Default DESC for "Last modified" column
+            "created": "DESC",
+            "host_count": "DESC",
+            "type": "ASC",
+        }
+
         if order_how:
-            query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
+            query_params["order_how"] = order_how.upper()  # User's explicit choice
+        else:
+            # Use smart default based on the field being sorted
+            query_params["order_how"] = default_order_how.get(order_by, "ASC")
 
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)
