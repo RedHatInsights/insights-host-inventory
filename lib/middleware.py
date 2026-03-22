@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Mapping
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
@@ -494,9 +493,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(
-                context=build_flag_context(current_identity.org_id)
-            ):
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(current_identity.org_id):
                 return func(*args, **kwargs)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -577,7 +574,7 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
-def is_rbac_v2_groups_enabled(context: Mapping[str, str] | None = None) -> bool:
+def is_rbac_v2_groups_enabled(org_id: str) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
 
@@ -585,12 +582,14 @@ def is_rbac_v2_groups_enabled(context: Mapping[str, str] | None = None) -> bool:
     When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
 
     Args:
-        context: Optional context for org-specific targeting (e.g., {"userId": "3340851"})
+        org_id: Organization ID for org-specific feature flag targeting
 
     Returns:
         True if RBAC v2 should be used for groups, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS, context=context)
+    return (not inventory_config().bypass_kessel) and get_flag_value(
+        FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)
+    )
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:

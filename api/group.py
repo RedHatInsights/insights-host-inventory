@@ -41,7 +41,6 @@ from app.queue.events import EventType
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
-from lib.feature_flags import build_flag_context
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -144,7 +143,7 @@ def get_group_list(
         org_id = identity.org_id
 
         # Feature flag check for RBAC v2 integration
-        if is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+        if is_rbac_v2_groups_enabled(identity.org_id):
             # RBAC v2 path: rbac_filter is None (no RBAC v1 filter)
             # Authorization is handled by get_rbac_workspaces() which uses user's identity header
             # Query workspaces from RBAC v2 API
@@ -384,7 +383,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 
     # RBAC v1 only: Validate group ID against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by database query (group must exist in org)
-    if not is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter or {}, {group_id})
 
     # Validate all inputs
@@ -428,7 +427,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
     # RBAC v1 only: Validate group IDs against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
-    if not is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Abort with 404 if any of the groups do not exist
@@ -483,11 +482,11 @@ def get_groups_by_id(
 
     # RBAC v1 only: Validate group IDs against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by get_rbac_workspaces_by_ids()
-    if not is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Feature flag check for RBAC v2 integration
-    if is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Use RBAC v2 API queries
         try:
             group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
@@ -534,7 +533,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     requested_group_ids = set(hosts_per_group.keys())
 
     # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
-    if is_rbac_v2_groups_enabled(context=build_flag_context(identity.org_id)):
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
         if requested_group_ids:
