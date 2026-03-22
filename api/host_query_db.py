@@ -159,8 +159,6 @@ def _get_host_list_using_filters(
     )
     paginated_results = ordered_query.paginate(page=page, per_page=per_page, error_out=True, count=False)
 
-    db.session.close()
-
     return paginated_results.items, count_total, additional_fields, system_profile_fields
 
 
