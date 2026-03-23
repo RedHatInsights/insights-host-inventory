@@ -628,12 +628,13 @@ class HBIKafkaActions(BaseEntity):
         *,
         flush: bool = True,
         quiet: bool = False,
+        partition_key: str | None = None,
     ) -> None:
         """Send workspace operation messages to the configured workspaces Kafka topic."""
         self._consumer.mini_drain()
         for msg in messages:
             wire = json.dumps(msg)
-            self._producer.produce(self.workspaces_topic, wire)
+            self._producer.produce(self.workspaces_topic, wire, key=partition_key)
             if not quiet:
                 log.info("Produced workspace MQ message to %s: %s", self.workspaces_topic, wire)
         if flush:
@@ -658,7 +659,9 @@ class HBIKafkaActions(BaseEntity):
             account_number=get_account_number(self.application),
             workspace_type=workspace_type,
         )
-        self.produce_kessel_workspace_debezium_messages([envelope], flush=flush, quiet=quiet)
+        self.produce_kessel_workspace_debezium_messages(
+            [envelope], flush=flush, quiet=quiet, partition_key=workspace_id
+        )
 
     def _walk_events(self, *, timeout: int) -> Iterator[Message]:
         yield from self._consumer.walk_messages(timeout=timeout, wrap=False)
