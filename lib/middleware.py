@@ -540,7 +540,7 @@ def access(permission: KesselPermission, id_param: str = ""):
             if id_param:
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-            # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
+            # Pass org_id context for org-specific feature flag targeting
             if get_flag_value(
                 FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
