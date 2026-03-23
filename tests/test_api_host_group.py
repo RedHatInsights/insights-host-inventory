@@ -406,9 +406,7 @@ def test_remove_hosts_rbac_v2_workspace_validation_success(
     assert len(hosts_before) == 3
 
     # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock workspace fetch to return valid workspace
     mock_workspace = {
@@ -453,9 +451,7 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
     invalid_group_id = generate_uuid()
 
     # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
@@ -523,9 +519,7 @@ def test_remove_invalid_hosts_from_group_rbac_v2(mocker, event_producer, db_crea
     mocker.patch.object(event_producer, "write_event")
 
     # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock workspace fetch to return valid workspace
     mock_workspace = {
@@ -570,9 +564,7 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
     invalid_group_id = generate_uuid()
 
     # Mock feature flag enabled (RBAC v2 path)
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
@@ -643,9 +635,9 @@ def test_get_hosts_from_missing_group(
     missing_group_id = "454dddba-9a4d-42b3-8f16-86a8c1400000"
 
     # Always mock configuration to make test deterministic
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = bypass_kessel
-    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+    # RBAC v2 enabled when: not bypass_kessel and flag_enabled
+    rbac_v2_enabled = not bypass_kessel and flag_enabled
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=rbac_v2_enabled)
 
     # Mock RBAC workspace API for Kessel-enabled path
     if expect_rbac_call:
@@ -836,10 +828,8 @@ def test_get_hosts_from_group_with_kessel_feature_flag(
     host = db_create_host()
     db_create_host_group_assoc(host.id, group_id)
 
-    # Mock bypass_kessel=False and flag=flag_enabled
-    mock_config = mocker.patch("api.host_group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.host_group.get_flag_value", return_value=flag_enabled)
+    # Mock RBAC v2 feature flag (when bypass_kessel=False, flag determines RBAC v2 state)
+    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=flag_enabled)
 
     if flag_enabled:
         # Mock the RBAC workspace API to return a valid workspace
