@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import datetime
 from datetime import UTC
+from datetime import datetime
 from typing import Any
 from typing import TypedDict
 from uuid import UUID
@@ -707,17 +707,24 @@ def _normalize_per_reporter_value(value: Any) -> datetime:
 
     Accepts:
       - Legacy dict: {"last_check_in": <str|datetime>, "check_in_succeeded": bool, ...}
-      - Flat DB format: "last_check_in" as ISO string or datetime
+      - Flat DB format: last_check_in as ISO string or datetime
 
-    Returns last_check_in: datetime
+    Returns last_check_in as timezone-aware datetime.
     """
     if isinstance(value, dict):
         raw_li = value.get("last_check_in")
-        last_check_in_dt = _deserialize_datetime(raw_li) if isinstance(raw_li, str) else raw_li
-        return last_check_in_dt
+        if isinstance(raw_li, str):
+            return _deserialize_datetime(raw_li)
+        if isinstance(raw_li, datetime):
+            return raw_li
+        raise ValueError(f"per_reporter_staleness dict missing valid last_check_in: {value!r}")
 
-    last_check_in_dt = _deserialize_datetime(value) if isinstance(value, str) else value
-    return last_check_in_dt
+    if isinstance(value, str):
+        return _deserialize_datetime(value)
+    if isinstance(value, datetime):
+        return value
+
+    raise ValueError(f"Unsupported per_reporter_staleness storage value: {type(value).__name__}")
 
 
 def _legacy_per_reporter_staleness_dict(
