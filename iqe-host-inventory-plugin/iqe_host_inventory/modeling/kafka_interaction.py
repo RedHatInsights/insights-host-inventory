@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 import warnings
@@ -48,6 +49,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_minimal_host
 from iqe_host_inventory.utils.datagen_utils import generate_tags
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_clamped_timestamp
+from iqe_host_inventory.utils.kafka_utils import build_kessel_workspace_debezium_message
 from iqe_host_inventory.utils.kafka_utils import wrap_payload
 
 log = logging.getLogger(__name__)
@@ -399,6 +401,10 @@ class HBIKafkaActions(BaseEntity):
         return self._kafka_config.host_apps_topic
 
     @cached_property
+    def workspaces_topic(self) -> str:
+        return self._kafka_config.workspaces_topic
+
+    @cached_property
     def identity(self) -> dict:
         return self.application.user.identity
 
@@ -615,6 +621,44 @@ class HBIKafkaActions(BaseEntity):
         if flush:
             res = self._producer.flush(timeout=15)
             log.info(f"flush completed, {res} still in queue")
+
+    def produce_kessel_workspace_debezium_messages(
+        self,
+        messages: Iterable[dict[str, Any]],
+        *,
+        flush: bool = True,
+        quiet: bool = False,
+    ) -> None:
+        """Send workspace operation messages to the configured workspaces Kafka topic."""
+        self._consumer.mini_drain()
+        for msg in messages:
+            wire = json.dumps(msg)
+            self._producer.produce(self.workspaces_topic, wire)
+            if not quiet:
+                log.info("Produced workspace MQ message to %s: %s", self.workspaces_topic, wire)
+        if flush:
+            res = self._producer.flush(timeout=15)
+            log.info("flush completed, %s still in queue", res)
+
+    def produce_kessel_workspace_delete(
+        self,
+        workspace_id: str,
+        workspace_name: str,
+        *,
+        workspace_type: str = "standard",
+        flush: bool = True,
+        quiet: bool = False,
+    ) -> None:
+        """Emit a workspace delete message using the current application user's org and account."""
+        envelope = build_kessel_workspace_debezium_message(
+            "delete",
+            workspace_id,
+            workspace_name,
+            org_id=get_org_id(self.application),
+            account_number=get_account_number(self.application),
+            workspace_type=workspace_type,
+        )
+        self.produce_kessel_workspace_debezium_messages([envelope], flush=flush, quiet=quiet)
 
     def _walk_events(self, *, timeout: int) -> Iterator[Message]:
         yield from self._consumer.walk_messages(timeout=timeout, wrap=False)

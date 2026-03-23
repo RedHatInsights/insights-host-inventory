@@ -7,6 +7,7 @@ from base64 import b64decode
 from base64 import b64encode
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from time import sleep
@@ -65,6 +66,41 @@ def wrap_payload(
         result["platform_metadata"] = metadata
 
     return result
+
+
+def build_kessel_workspace_debezium_message(
+    operation: str,
+    workspace_id: str,
+    workspace_name: str,
+    *,
+    org_id: str,
+    account_number: str | None = None,
+    workspace_type: str = "standard",
+) -> dict[str, Any]:
+    """Debezium envelope for messages consumed by Inventory's workspace MQ handler."""
+    now = datetime.now(tz=UTC).isoformat()
+    payload_dict: dict[str, Any] = {
+        "operation": operation,
+        "org_id": org_id,
+        "workspace": {
+            "id": workspace_id,
+            "name": workspace_name,
+            "type": workspace_type,
+            "created": now,
+            "modified": now,
+        },
+    }
+    if account_number is not None:
+        payload_dict["account_number"] = account_number
+    return {
+        "schema": {
+            "type": "string",
+            "optional": False,
+            "name": "io.debezium.data.Json",
+            "version": 1,
+        },
+        "payload": json.dumps(payload_dict),
+    }
 
 
 def match_hosts(message: dict, data_to_match: dict):
