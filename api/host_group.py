@@ -17,13 +17,10 @@ from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
-from app.common import inventory_config
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
 from app.models.schemas import RequiredHostIdListSchema
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import get_group_by_id_from_db
 from lib.group_repository import remove_hosts_from_group
@@ -81,7 +78,7 @@ def get_host_list_by_group(
     # Validate group exists
     # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
     # Otherwise, use database validation
-    if not inventory_config().bypass_kessel and get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS):
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace exists
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -147,7 +144,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled():
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:
@@ -189,7 +186,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled():
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
         if workspace is None:

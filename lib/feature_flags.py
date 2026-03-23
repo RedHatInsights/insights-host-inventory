@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from flask_unleash import Unleash
 
 from app.logging import get_logger
@@ -64,10 +66,26 @@ def custom_fallback(feature_name: str, context: dict) -> bool:  # noqa: ARG001, 
     raise ConnectionError(f"Could not contact Unleash server, or feature toggle {feature_name} not found.")
 
 
+def build_flag_context(org_id: str) -> dict[str, str]:
+    """
+    Build a feature flag context for org-specific targeting.
+
+    This centralizes the flag context construction to ensure consistency
+    across all feature flag checks that use org-specific targeting.
+
+    Args:
+        org_id: The organization ID to use for targeting
+
+    Returns:
+        A dictionary with userId key for Unleash's userWithId strategy
+    """
+    return {"userId": org_id}
+
+
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
-def get_flag_value_and_fallback(flag_name: str, context: dict | None = None) -> tuple[bool, bool]:
+def get_flag_value_and_fallback(flag_name: str, context: Mapping[str, str] | None = None) -> tuple[bool, bool]:
     if context is None:
         context = {}
 
@@ -94,7 +112,7 @@ def get_flag_value_and_fallback(flag_name: str, context: dict | None = None) -> 
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns the value of the feature flag, whether it's the fallback or real value.
-def get_flag_value(flag_name: str, context: dict | None = None) -> bool:
+def get_flag_value(flag_name: str, context: Mapping[str, str] | None = None) -> bool:
     if context is None:
         context = {}
 
