@@ -532,7 +532,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
+    # Pass org_id context for org-specific feature flag targeting
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
