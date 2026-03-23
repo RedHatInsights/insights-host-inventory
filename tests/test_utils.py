@@ -241,11 +241,11 @@ def test_get_flag_value_without_context(_enable_unleash):
     ],
 )
 def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected_enabled):
-    """Test get_flag_value() with org-specific targeting via userWithId strategy."""
+    """Test get_flag_value() with org-specific targeting via orgId context."""
     context = build_flag_context(org_id)
 
     unleash_mock = MagicMock()
-    # Simulate Unleash's userWithId strategy behavior
+    # Simulate Unleash's org-specific targeting behavior
     unleash_mock.is_enabled.return_value = expected_enabled
 
     with patch.object(UNLEASH, "client", unleash_mock):
@@ -254,6 +254,9 @@ def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected
         # Verify correct value based on org_id
         assert flag_value == expected_enabled
 
-        # Verify context was passed to Unleash
+        # Verify context was passed to Unleash and that we no longer use userId
         call_args = unleash_mock.is_enabled.call_args
-        assert call_args[1]["context"]["userId"] == org_id
+        assert call_args is not None
+
+        context = call_args[1]["context"]
+        assert context == {"orgId": org_id}

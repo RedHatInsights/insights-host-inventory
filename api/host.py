@@ -599,7 +599,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
     # Duplicated - I wonder if this could be factored back into middleware.py
-    # Pass org_id as userId for org-specific feature flag targeting (uses userWithId strategy)
+    # Pass org_id context for org-specific feature flag targeting
     if (not inventory_config().bypass_kessel) and get_flag_value(
         FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
     ):

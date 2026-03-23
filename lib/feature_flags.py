@@ -77,9 +77,9 @@ def build_flag_context(org_id: str) -> dict[str, str]:
         org_id: The organization ID to use for targeting
 
     Returns:
-        A dictionary with userId key for Unleash's userWithId strategy
+        A dictionary with orgId key for Unleash's org-specific targeting
     """
-    return {"userId": org_id}
+    return {"orgId": org_id}
 
 
 # Gets a feature flag's value from Unleash, if available.
