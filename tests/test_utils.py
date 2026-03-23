@@ -254,6 +254,9 @@ def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected
         # Verify correct value based on org_id
         assert flag_value == expected_enabled
 
-        # Verify context was passed to Unleash
+        # Verify context was passed to Unleash and that we no longer use userId
         call_args = unleash_mock.is_enabled.call_args
-        assert call_args[1]["context"]["orgId"] == org_id
+        assert call_args is not None
+
+        context = call_args[1]["context"]
+        assert context == {"orgId": org_id}
