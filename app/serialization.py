@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC
+from datetime import datetime
 from typing import Any
 from typing import TypedDict
 from uuid import UUID
@@ -16,7 +17,6 @@ from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
 from app.culling import Timestamps
-from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -26,8 +26,8 @@ from app.models import Host
 from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import WORKLOADS_FIELDS
+from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -700,81 +700,62 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _normalize_per_reporter_value(value):
+def _normalize_per_reporter_value(value: Any) -> datetime:
     """
-    Normalize a per-reporter value into a canonical dict.
+    Parse a stored per_reporter_staleness entry for serialization.
+    Should be used for read path only.
 
     Accepts:
-      - Old format: {"last_check_in": <str>, ...}
-      - New format: <dt or str> (the last_check_in itself)
+      - Legacy dict: {"last_check_in": <str|datetime>, "check_in_succeeded": bool, ...}
+      - Flat DB format: last_check_in as ISO string or datetime
 
-    Returns a dict with:
-      - "last_check_in": datetime
-
-      - plus any extra keys from the old format
+    Returns last_check_in as timezone-aware datetime.
     """
     if isinstance(value, dict):
-        raw = value.get("last_check_in")
-        dt = _deserialize_datetime(raw) if isinstance(raw, str) else raw
-        return {
-            **value,
-            "last_check_in": dt,
-        }
-    # New format: value is last_check_in
-    dt = _deserialize_datetime(value) if isinstance(value, str) else value
-    return {
-        "last_check_in": dt,
-    }
+        raw_li = value.get("last_check_in")
+        if isinstance(raw_li, str):
+            return _deserialize_datetime(raw_li)
+        if isinstance(raw_li, datetime):
+            return raw_li
+        raise ValueError(f"per_reporter_staleness dict missing valid last_check_in: {value!r}")
+
+    if isinstance(value, str):
+        return _deserialize_datetime(value)
+    if isinstance(value, datetime):
+        return value
+
+    raise ValueError(f"Unsupported per_reporter_staleness storage value: {type(value).__name__}")
 
 
-def _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever):
-    """Return stale/stale_warning/culled timestamps; use far-future if forever is True."""
-    if forever:
-        return {
-            "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-        }
+def _legacy_per_reporter_staleness_dict(
+    host: Host,
+    staleness: Any,
+    staleness_timestamps: Timestamps,
+    reporter: str,
+    stored_value: Any,
+) -> dict[str, Any]:
+    """Single reporter: full legacy API/MQ dict."""
+    last_check_in_dt = _normalize_per_reporter_value(stored_value)
+    ts = get_reporter_staleness_timestamps(host, staleness_timestamps, staleness, reporter)
     return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_stale"]
-        ),
-        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_stale_warning"]
-        ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(
-            last_check_in_dt, staleness["conventional_time_to_delete"]
-        ),
+        "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
+        "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
+        "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
+        "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
+        "check_in_succeeded": True,
     }
 
 
 def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     """
-    Serialize per_reporter_staleness, ensuring all entries have stale_timestamp,
-    stale_warning_timestamp, and culled_timestamp.
+    Serialize per_reporter_staleness for API/event output.
 
-    Supports two input formats per reporter:
-    - Old format: value is a dict with "last_check_in" (string)
-    - New format: value is the last_check_in string itself
+    Staleness timestamps are computed from org staleness + host.
     """
-    forever = should_host_stay_fresh_forever(host)
-
-    for reporter, value in host.per_reporter_staleness.items():
-        normalized = _normalize_per_reporter_value(value)
-        last_check_in_dt = normalized["last_check_in"]
-
-        ts = _compute_staleness_timestamps(last_check_in_dt, staleness, staleness_timestamps, forever)
-
-        serialized = {
-            **normalized,
-            "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
-            "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
-            "stale_warning_timestamp": _serialize_staleness_to_string(ts["stale_warning_timestamp"]),
-            "culled_timestamp": _serialize_staleness_to_string(ts["culled_timestamp"]),
-        }
-        host.per_reporter_staleness[reporter] = serialized
-
-    return host.per_reporter_staleness
+    return {
+        reporter: _legacy_per_reporter_staleness_dict(host, staleness, staleness_timestamps, reporter, stored)
+        for reporter, stored in host.per_reporter_staleness.items()
+    }
 
 
 def build_rhel_version_str(system_profile: dict) -> str:
