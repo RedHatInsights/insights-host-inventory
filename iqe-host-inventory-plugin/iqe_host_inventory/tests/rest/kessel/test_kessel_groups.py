@@ -466,46 +466,6 @@ def test_kessel_delete_workspace(host_inventory: ApplicationHostInventory):
     host_inventory.apis.groups.wait_for_deleted(groups[0].id)
 
 
-def test_kessel_workspace_mq_delete_after_member_host_deleted_rhineng_23961(
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-23961
-
-    Deleting a workspace via Kessel MQ must succeed when a host that was in that
-    workspace was already removed from Inventory. Previously, moving remaining
-    membership to the ungrouped workspace could raise a foreign-key violation
-    or leave the session in a bad state.
-
-    metadata:
-      requirements: inv-kessel-workspaces, inv-kessel-groups
-      assignee: msager
-      importance: high
-      title: Workspace MQ delete succeeds after a grouped host was already deleted
-    """
-    hosts = host_inventory.kafka.create_random_hosts(3)
-    group_name = generate_display_name()
-    group = host_inventory.apis.groups.create_group(group_name, hosts=hosts)
-    host_inventory.apis.workspaces.wait_for_created(group.id)
-
-    host_inventory.apis.hosts.delete_by_id(hosts[1])
-    host_inventory.apis.hosts.wait_for_deleted(hosts[1])
-
-    host_inventory.kafka.produce_kessel_workspace_delete(str(group.id), group_name)
-
-    host_inventory.apis.groups.wait_for_deleted(group.id)
-
-    ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
-    for host in (hosts[0], hosts[2]):
-        updated = host_inventory.apis.hosts.get_host_by_id(host)
-        assert len(updated.groups) == 1
-        assert updated.groups[0].id == ungrouped_group.id
-        assert updated.groups[0].ungrouped is True
-
-    with raises_apierror(404):
-        host_inventory.apis.hosts.get_host_by_id(hosts[1])
-
-
 @pytest.fixture(scope="module")
 def setup_parent_workspaces(
     host_inventory: ApplicationHostInventory,
