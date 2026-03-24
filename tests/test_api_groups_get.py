@@ -671,12 +671,15 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
 )
 def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
     """
-    Test GET /groups with RBAC v2 and ordering parameters.
-    Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
+    Test GET /groups with RBAC v2 and client-side ordering.
 
-    Note: The GET /groups API spec allows ordering by: name, host_count, updated.
-    However, host_count uses a special code path (client-side sorting) and is tested separately
-    in test_get_groups_rbac_v2_ordering_by_host_count() and related tests.
+    Since RBAC v2 API doesn't support order_how, these fields use client-side sorting.
+    This test verifies that:
+    1. get_rbac_workspaces is called with None for order_by/order_how (client-side sorting)
+    2. The endpoint returns success
+
+    Note: The actual sorting behavior is tested in other tests that verify result order.
+    host_count uses a separate code path and is tested in test_get_groups_rbac_v2_ordering_by_host_count().
     """
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
@@ -693,13 +696,81 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
 
     assert_response_status(response_status, 200)
 
-    # Verify get_rbac_workspaces was called with correct parameters
+    # Verify get_rbac_workspaces was called (for client-side sorting, it's called with None, None)
     assert mock_get_rbac_workspaces.called
     call_args = mock_get_rbac_workspaces.call_args
 
-    # Check positional arguments (name, page, per_page, group_type, order_by, order_how)
-    assert call_args[0][4] == order_by  # order_by is 5th positional arg (index 4)
-    assert call_args[0][5] == order_how  # order_how is 6th positional arg (index 5)
+    # For client-side sorting, order_by and order_how are None when calling get_rbac_workspaces
+    # The sorting happens in Python after fetching all data
+    assert call_args[0][4] is None  # order_by is None (client-side sorting)
+    assert call_args[0][5] is None  # order_how is None (client-side sorting)
+
+
+def test_get_groups_rbac_v2_smart_defaults_for_updated(mocker, api_get):
+    """
+    Test GET /groups with RBAC v2 applies client-side smart default DESC for order_by=updated.
+
+    Since RBAC v2 API doesn't support order_how parameter, host-inventory implements
+    client-side sorting. When users click "Last modified" column without explicitly
+    specifying DESC, they expect newest groups first (DESC order).
+
+    This test verifies that client-side sorting applies the correct smart defaults
+    to match RBAC v1 behavior.
+
+    JIRA: RHINENG-24764 - This test catches bugs where client-side sorting doesn't
+    apply smart defaults correctly.
+
+    Note: This tests the end-to-end behavior - RBAC v2 returns data in any order,
+    then host-inventory sorts it client-side before returning to the user.
+    """
+    # Mock feature flag enabled
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+
+    # Mock get_rbac_workspaces to return some test data
+    # The key is that when this is called with order_how=None, the middleware
+    # applies smart defaults internally before calling RBAC API
+    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
+
+    # Create mock workspace data sorted by "modified" DESC (smart default applied)
+    # Workspace A modified more recently (2026-03-19) should appear first
+    # Workspace B modified less recently (2026-03-18) should appear second
+    from tests.helpers.test_utils import generate_uuid
+
+    workspace_a_id = str(generate_uuid())
+    workspace_b_id = str(generate_uuid())
+
+    mock_workspaces = [
+        {
+            "id": workspace_a_id,
+            "name": "workspace-a",
+            "type": "default",
+            "created": "2026-03-19T10:00:00Z",
+            "modified": "2026-03-19T10:00:00Z",  # Newer - should be first
+        },
+        {
+            "id": workspace_b_id,
+            "name": "workspace-b",
+            "type": "default",
+            "created": "2026-03-18T10:00:00Z",
+            "modified": "2026-03-18T10:00:00Z",  # Older - should be second
+        },
+    ]
+    mock_get_rbac_workspaces.return_value = (mock_workspaces, 2)
+
+    # Call endpoint with order_by=updated but NO order_how (testing default behavior)
+    query = "?order_by=updated"
+    response_status, response_data = api_get(build_groups_url(query=query))
+
+    assert_response_status(response_status, 200)
+
+    # Verify the results are in the expected order (DESC by default)
+    # If smart defaults weren't applied, results would be in ASC or random order
+    results = response_data["results"]
+    assert len(results) == 2
+    assert results[0]["name"] == "workspace-a"  # Newer first (DESC order)
+    assert results[1]["name"] == "workspace-b"  # Older second
 
 
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])

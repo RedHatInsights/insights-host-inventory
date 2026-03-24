@@ -41,11 +41,18 @@ IMMUTABLE_ID_FACTS = ("provider_id",)
 
 DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 
-# Maximum number of groups that can be sorted by host_count when using RBAC v2
-# This limit exists because RBAC v2 doesn't store host counts, requiring us to
-# fetch all groups, add counts from DB, and sort in Python. The limit aligns
-# with RBAC v2 API's maximum response size of 3000 workspaces.
-MAX_GROUPS_FOR_HOST_COUNT_SORTING = int(os.environ.get("MAX_GROUPS_FOR_HOST_COUNT_SORTING", "3000"))
+# Maximum number of groups that can be sorted client-side when using RBAC v2
+# This limit exists because RBAC v2 has limitations requiring client-side processing:
+# 1. Doesn't store host counts - must fetch all groups, add counts from DB, and sort in Python
+# 2. Doesn't support order_how parameter - must fetch all groups and sort in Python
+# The limit aligns with RBAC v2 API's maximum response size of 3000 workspaces.
+MAX_GROUPS_FOR_CLIENT_SIDE_SORTING = int(os.environ.get("MAX_GROUPS_FOR_CLIENT_SIDE_SORTING", "3000"))
+
+# Deprecated alias for backwards compatibility with existing deployments
+# TODO: Remove after all deployments migrate to MAX_GROUPS_FOR_CLIENT_SIDE_SORTING
+MAX_GROUPS_FOR_HOST_COUNT_SORTING = int(
+    os.environ.get("MAX_GROUPS_FOR_HOST_COUNT_SORTING", str(MAX_GROUPS_FOR_CLIENT_SIDE_SORTING))
+)
 
 
 class Config:
