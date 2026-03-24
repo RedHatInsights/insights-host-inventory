@@ -713,6 +713,8 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
     assert parsed["order_by"] == [expected_rbac_order_by]
+    if order_how is None:
+        assert "order_how" not in parsed
 
 
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
