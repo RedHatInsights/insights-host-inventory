@@ -19,7 +19,6 @@ class Group(db.Model):
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
         Index("idx_groups_org_id_name_ignorecase", text("lower(name)"), "org_id", unique=False),
-        Index("idxorgidungrouped", "org_id", "ungrouped"),
         {"schema": INVENTORY_SCHEMA},
     )
 
