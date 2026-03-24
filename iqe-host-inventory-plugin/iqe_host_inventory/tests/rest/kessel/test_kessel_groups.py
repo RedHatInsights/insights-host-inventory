@@ -479,7 +479,7 @@ def test_kessel_workspace_mq_delete_after_member_host_deleted_rhineng_23961(
 
     metadata:
       requirements: inv-kessel-workspaces, inv-kessel-groups
-      assignee: aprice
+      assignee: msager
       importance: high
       title: Workspace MQ delete succeeds after a grouped host was already deleted
     """
@@ -493,10 +493,7 @@ def test_kessel_workspace_mq_delete_after_member_host_deleted_rhineng_23961(
 
     host_inventory.kafka.produce_kessel_workspace_delete(str(group.id), group_name)
 
-    # mq-workspaces processes the topic with batching; EE runs can backlog many workspace
-    # messages (session cleanup, outbox). Default wait_for_deleted (40 x 0.5s) can time out
-    # before our delete is committed even though the consumer succeeds shortly after.
-    host_inventory.apis.groups.wait_for_deleted(group.id, retries=120, delay=0.5)
+    host_inventory.apis.groups.wait_for_deleted(group.id)
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
     for host in (hosts[0], hosts[2]):
