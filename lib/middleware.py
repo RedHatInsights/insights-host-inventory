@@ -766,10 +766,13 @@ def get_rbac_workspaces(
             "type": "type",
         }
         rbac_order_by = field_mapping.get(order_by, order_by)
-        query_params["order_by"] = rbac_order_by
 
-        if order_how:
-            query_params["order_how"] = order_how.upper()  # Ensure uppercase (ASC/DESC)
+        # RBAC v2 API expects descending order to be prefixed with a hyphen
+        # Example: To sort by updated date in descending order, use "-modified"
+        if order_how and order_how.lower() == "desc":
+            rbac_order_by = f"-{rbac_order_by}"
+
+        query_params["order_by"] = rbac_order_by
 
     rbac_endpoint = _get_rbac_workspace_url(query_params=query_params)
     request_headers = _build_rbac_request_headers(request.headers[IDENTITY_HEADER], threadctx.request_id)

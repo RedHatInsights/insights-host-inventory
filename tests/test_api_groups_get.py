@@ -1,3 +1,6 @@
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
+
 import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
@@ -661,45 +664,46 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
 
 
 @pytest.mark.parametrize(
-    "order_by,order_how",
+    "order_by,order_how,expected_rbac_order_by",
     [
-        ("name", "ASC"),
-        ("name", "DESC"),
-        ("updated", "ASC"),
-        ("updated", "DESC"),
+        ("name", "ASC", "name"),
+        ("name", "DESC", "-name"),
+        ("updated", "ASC", "modified"),
+        ("updated", "DESC", "-modified"),
     ],
 )
-def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how):
+def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, expected_rbac_order_by):
     """
     Test GET /groups with RBAC v2 and ordering parameters.
-    Verifies that order_by and order_how are passed correctly to get_rbac_workspaces().
 
-    Note: The GET /groups API spec allows ordering by: name, host_count, updated.
-    However, host_count uses a special code path (client-side sorting) and is tested separately
-    in test_get_groups_rbac_v2_ordering_by_host_count() and related tests.
+    Verifies that get_rbac_workspaces() maps public query params for the RBAC v2 workspace
+    GET request: field names (e.g. updated -> modified) and DESC as a leading hyphen on the
+    order_by value (-field), per RBAC v2 workspace API conventions.
     """
-    # Mock feature flag enabled
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
 
-    # Mock get_rbac_workspaces
-    mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
-    mock_get_rbac_workspaces.return_value = ([], 0)
+    mock_rbac_http = mocker.patch(
+        "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
+        return_value={"data": [], "meta": {"count": 0}},
+    )
 
-    # Call endpoint with ordering
     query = f"?order_by={order_by}&order_how={order_how}"
     response_status, response_data = api_get(build_groups_url(query=query))
 
     assert_response_status(response_status, 200)
+    assert response_data["total"] == 0
 
-    # Verify get_rbac_workspaces was called with correct parameters
-    assert mock_get_rbac_workspaces.called
-    call_args = mock_get_rbac_workspaces.call_args
-
-    # Check positional arguments (name, page, per_page, group_type, order_by, order_how)
-    assert call_args[0][4] == order_by  # order_by is 5th positional arg (index 4)
-    assert call_args[0][5] == order_how  # order_how is 6th positional arg (index 5)
+    assert mock_rbac_http.called
+    rbac_endpoint = mock_rbac_http.call_args[0][1]
+    parsed = parse_qs(urlparse(rbac_endpoint).query)
+    assert parsed["order_by"] == [expected_rbac_order_by]
 
 
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
