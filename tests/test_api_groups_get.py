@@ -688,6 +688,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
     mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
 
     mock_rbac_http = mocker.patch(
         "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
