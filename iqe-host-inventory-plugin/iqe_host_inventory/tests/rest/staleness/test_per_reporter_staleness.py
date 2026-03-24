@@ -85,7 +85,9 @@ def do_reporter_check_ins(
     )
 
     # Verify that the puptoo data is unchanged after the yupana reporter checks in
-    assert puptoo_reporter_staleness == host_with_yupana.per_reporter_staleness["puptoo"]
+    puptoo_after = host_with_yupana.per_reporter_staleness["puptoo"]
+    assert puptoo_reporter_staleness.last_check_in == puptoo_after.last_check_in
+    assert puptoo_reporter_staleness == puptoo_after
 
     return host_with_yupana
 
@@ -121,13 +123,12 @@ def verify_reporter_timestamps(
     host: HostOut,
     reporter: str,
 ) -> None:
+    reporter_staleness = host.per_reporter_staleness[reporter]
     response = host_inventory.apis.account_staleness.get_staleness()
 
     time_to_stale = response[TIME_TO_STALE]
     time_to_stale_warning = response[TIME_TO_STALE_WARNING]
     time_to_stale_delete = response[TIME_TO_DELETE]
-
-    reporter_staleness = host.per_reporter_staleness[reporter]
 
     assert_datetimes_equal(
         reporter_staleness.stale_timestamp,
@@ -156,6 +157,7 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
         logger.info(
             f"{reporter} last_check_in: {per_reporter.last_check_in.strftime('%m/%d/%Y %H:%M:%S')}"
         )
+
         logger.info(
             f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
         )
