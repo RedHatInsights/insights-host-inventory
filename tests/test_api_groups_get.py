@@ -666,10 +666,17 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
 @pytest.mark.parametrize(
     "order_by,order_how,expected_rbac_order_by",
     [
+        # Baseline name ordering
         ("name", "ASC", "name"),
         ("name", "DESC", "-name"),
+        # Baseline updated->modified mapping with standard ASC/DESC
         ("updated", "ASC", "modified"),
         ("updated", "DESC", "-modified"),
+        # No order_how: should default to ascending, with the mapped field name and no hyphen
+        ("updated", None, "modified"),
+        # Different order_how casing: should still be treated as DESC and apply a leading hyphen
+        ("updated", "desc", "-modified"),
+        ("updated", "Desc", "-modified"),
     ],
 )
 def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, expected_rbac_order_by):
@@ -695,7 +702,8 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
         return_value={"data": [], "meta": {"count": 0}},
     )
 
-    query = f"?order_by={order_by}&order_how={order_how}"
+    # If order_how is None, omit it from the query string to avoid passing an empty value
+    query = f"?order_by={order_by}" if order_how is None else f"?order_by={order_by}&order_how={order_how}"
     response_status, response_data = api_get(build_groups_url(query=query))
 
     assert_response_status(response_status, 200)
