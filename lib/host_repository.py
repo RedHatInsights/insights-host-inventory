@@ -394,8 +394,11 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
         filters += (or_(*rbac_group_filters),)
 
     query = (
-        Host.query.join(HostGroupAssoc, isouter=True)
-        .join(Group, isouter=True)
+        Host.query.outerjoin(
+            HostGroupAssoc,
+            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
+        )
+        .outerjoin(Group)
         .filter(*filters)
         .group_by(Host.id, Host.org_id)
     )

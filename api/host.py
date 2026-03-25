@@ -5,6 +5,7 @@ import flask
 from confluent_kafka.error import KafkaError
 from flask import current_app
 from marshmallow import ValidationError
+from sqlalchemy import and_
 
 from api import api_operation
 from api import build_collection_response
@@ -480,13 +481,27 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.facts.has_key(namespace),
     )
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+    query = (
+        Host.query.outerjoin(
+            HostGroupAssoc,
+            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
+        )
+        .filter(*filters)
+        .group_by(Host.org_id, Host.id)
+    )
 
     if rbac_filter and "groups" in rbac_filter:
         count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
-        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+        query = (
+            Host.query.outerjoin(
+                HostGroupAssoc,
+                and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
+            )
+            .filter(*filters)
+            .group_by(Host.org_id, Host.id)
+        )
 
         if (
             count_before_rbac_filter

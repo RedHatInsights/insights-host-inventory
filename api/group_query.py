@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import and_
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
@@ -92,7 +93,10 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
 
     # Order the list of groups, then offset and limit based on page and per_page
     group_list = (
-        Group.query.join(HostGroupAssoc, isouter=True)
+        Group.query.outerjoin(
+            HostGroupAssoc,
+            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
+        )
         .filter(*filters)
         .group_by(Group.id)
         .order_by(order_how_func(order_by))

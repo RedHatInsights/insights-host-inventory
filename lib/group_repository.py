@@ -2,6 +2,7 @@ import time
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from sqlalchemy import and_
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -140,14 +141,14 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
 
     # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
-        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
+        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
     ).all()
     ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
 
     # Delete any prior host-group associations, which should now just be to "ungrouped" group
-    HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id).delete(
-        synchronize_session="fetch"
-    )
+    HostGroupAssoc.query.filter(
+        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
+    ).delete(synchronize_session="fetch")
 
     host_group_assoc = [
         HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
@@ -301,7 +302,10 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
 
     host_ids = [
-        row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+        row[0]
+        for row in db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id == group.id)
+        .all()
     ]
     if not host_ids:
         return
@@ -332,7 +336,9 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
 
 def _delete_host_group_assoc(session, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
-        HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
+        HostGroupAssoc.org_id == assoc.org_id,
+        HostGroupAssoc.group_id == assoc.group_id,
+        HostGroupAssoc.host_id == assoc.host_id,
     )
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = deleted_by_this_query(assoc)
@@ -359,8 +365,8 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
         staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
-            .join(Group, HostGroupAssoc.group_id == Group.id)
-            .filter(Group.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
+            .join(Group, and_(HostGroupAssoc.group_id == Group.id, HostGroupAssoc.org_id == Group.org_id))
+            .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
         )
 
         assocs_to_delete = db.session.execute(query).scalars().all()
@@ -421,7 +427,9 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
         return []
 
     host_group_query = HostGroupAssoc.query.filter(
-        HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
+        HostGroupAssoc.org_id == org_id,
+        HostGroupAssoc.group_id == found_group.id,
+        HostGroupAssoc.host_id.in_(host_id_list),
     )
     with delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
@@ -456,7 +464,11 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
     new_host_ids = set(host_id_data) if host_id_data is not None else None
     removed_group_id_list = []
 
-    existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
+    existing_host_uuids = (
+        db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id == group_id)
+        .all()
+    )
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
     staleness = get_staleness_obj(identity.org_id)
 

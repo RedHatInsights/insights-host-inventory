@@ -609,7 +609,10 @@ def query_filters(
 
     # Determine base query - start with Host and add group joins if needed
     if group_name or group_ids or rbac_filter or order_by == "group_name":
-        query_base = query_base.outerjoin(HostGroupAssoc).outerjoin(Group)
+        query_base = query_base.outerjoin(
+            HostGroupAssoc,
+            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
+        ).outerjoin(Group)
 
     # Add system profile joins if needed (dynamic detection or explicit request)
     if needs_static_join:
