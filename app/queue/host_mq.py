@@ -56,6 +56,7 @@ from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.models.utils import StalenessCache
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
@@ -83,6 +84,7 @@ from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
+from lib.group_repository import UngroupedGroupCache
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -235,7 +237,7 @@ class HBIMessageConsumerBase:
             InvalidRequestError: When the database session is in an invalid state
             StaleDataError: When trying to update data modified by another transaction
         """
-        with session_guard(db.session, close=False), db.session.no_autoflush:
+        with session_guard(db.session, close=False), db.session.no_autoflush, StalenessCache(), UngroupedGroupCache():
             messages = self.consumer.consume(
                 num_messages=inventory_config().mq_db_batch_max_messages,
                 timeout=inventory_config().mq_db_batch_max_seconds,
