@@ -1834,7 +1834,7 @@ objects:
             memory: ${MEMORY_LIMIT_DB_MIGRATIONS_JOB}
           requests:
             cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
-            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}  
+            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     database:
       name: ${DB_NAME}
       version: 16
