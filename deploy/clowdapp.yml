@@ -1800,6 +1800,41 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
             memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
+    - name: db-migration-downgrade
+      restartPolicy: OnFailure
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: ["FLASK_APP=./manage.py", "flask", "db", "downgrade", "${DB_DOWNGRADE_REVISION}"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_LIMIT_DB_MIGRATIONS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}  
     database:
       name: ${DB_NAME}
       version: 16
@@ -1833,6 +1868,18 @@ objects:
     appName: host-inventory
     jobs:
       - run-db-migrations
+    runOnNotReady: true
+# This CJI downgrades the DB to the specified revision.
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: db-migration-downgrade-${DB_DOWNGRADE_REVISION}
+  spec:
+    appName: host-inventory
+    jobs:
+      - db-migration-downgrade
     runOnNotReady: true
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
@@ -2682,6 +2729,11 @@ parameters:
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
   description: Whether to suspend the remove-null-values-in-workloads-fields-data job
   value: 'true'
+
+# -- Downgrade Alembic revision Job --
+- name: DB_DOWNGRADE_REVISION
+  description: The revision to downgrade the DB to
+  value: a7b8c9d0e1f2
 
 
 # =================================================================================
