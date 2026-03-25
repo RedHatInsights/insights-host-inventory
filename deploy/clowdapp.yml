@@ -1802,6 +1802,7 @@ objects:
             memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     - name: db-migration-downgrade
       restartPolicy: OnFailure
+      suspend: ${{MIGRATION_DOWNGRADE_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["FLASK_APP=./manage.py", "flask", "db", "downgrade", "${DB_DOWNGRADE_REVISION}"]
@@ -2733,7 +2734,9 @@ parameters:
 # -- Downgrade Alembic revision Job --
 - name: DB_DOWNGRADE_REVISION
   description: The revision to downgrade the DB to
-  value: a7b8c9d0e1f2
+- name: MIGRATION_DOWNGRADE_SUSPEND
+  description: Whether to suspend the db-migration-downgrade job
+  value: 'true'
 
 
 # =================================================================================
