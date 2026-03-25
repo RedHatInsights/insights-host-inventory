@@ -6,7 +6,7 @@ from collections.abc import Generator
 
 import pytest
 from iqe.base.application import Application
-from iqe_ingress_api import IngressApi
+from iqe_bindings.v7.ingress_v1 import IngressApi
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.deprecations import DEPRECATE_UPLOAD_CREATE_MULTIPLE_HOSTS
@@ -44,9 +44,9 @@ def ingress_openapi_client(application: Application) -> IngressApi:
             user=application.config.USERS.insights_qa,
             auth_type=application.config.HTTP.default_auth_type,
         ) as app:
-            return app.ingress.rest_client.ingress_api
+            return app.host_inventory.v7_ingress_v1.ingress_api
     else:
-        return application.ingress.rest_client.ingress_api
+        return application.host_inventory.v7_ingress_v1.ingress_api
 
 
 # TODO: Move away from these upload fixtures (https://issues.redhat.com/browse/ESSNTL-5150)

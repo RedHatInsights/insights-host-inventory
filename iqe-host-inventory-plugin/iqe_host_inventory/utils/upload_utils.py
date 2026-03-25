@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
-import multiprocessing
+import mimetypes
 import os
+import pathlib
 import warnings
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from os import remove
 from os.path import isfile
@@ -24,6 +26,9 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
 from iqe_host_inventory.utils.datagen_utils import get_operating_system_string
+
+# https://redhat.atlassian.net/browse/RHCLOUD-45847
+mimetypes.add_type("application/vnd.redhat.advisor.payload+tgz", ".redhat-advisor-tgz")
 
 logger = logging.getLogger(__name__)
 
@@ -74,24 +79,29 @@ def get_archive_and_collect_method(os_name: str = "RHEL") -> tuple[str, bool]:
     return base_archive, core_collect
 
 
+def _upload_single_file(ingress_openapi_client, filepath, content_type):
+    """Upload a single file to ingress using iqe-bindings v7 client."""
+    file_data = pathlib.Path(filepath).read_bytes()
+
+    # https://redhat.atlassian.net/browse/RHCLOUD-45847
+    return ingress_openapi_client.upload_post_without_preload_content(
+        file=("upload.redhat-advisor-tgz", file_data),
+        metadata={"content_type": content_type},
+    )
+
+
 def async_multiple_uploads(ingress_openapi_client, files: list[InsightsArchiveInMemory]):
     warnings.warn(DEPRECATE_ASYNC_MULTIPLE_UPLOADS, stacklevel=2)
 
     file_type = "application/vnd.redhat.advisor.payload+tgz"
 
-    ingress_openapi_client.api_client.pool_threads = multiprocessing.cpu_count()
+    def _do_upload(archive):
+        return _upload_single_file(ingress_openapi_client, archive.filename, file_type)
 
-    threads = []
-    for file in files:
-        thread = ingress_openapi_client.upload_post(
-            file=file.filename, content_type=file_type, async_req=True, _preload_content=False
-        )
-        threads.append(thread)
-
-    for thread in threads:
-        thread.get()
-
-    ingress_openapi_client.api_client.pool_threads = 1
+    with ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as executor:
+        futures = [executor.submit(_do_upload, f) for f in files]
+        for future in futures:
+            future.result()
 
 
 def upload(ingress_openapi_client, filename):
@@ -99,11 +109,7 @@ def upload(ingress_openapi_client, filename):
 
     file_type = "application/vnd.redhat.advisor.payload+tgz"
 
-    return ingress_openapi_client.upload_post(
-        file=filename,
-        content_type=file_type,
-        _preload_content=False,
-    )
+    return _upload_single_file(ingress_openapi_client, filename, file_type)
 
 
 def build_host_archive(
