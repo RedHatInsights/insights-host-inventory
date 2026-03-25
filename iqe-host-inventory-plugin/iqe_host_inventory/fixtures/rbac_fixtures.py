@@ -84,7 +84,8 @@ def hbi_non_org_admin_user_rbac_setup_class(
 
         # If we set up permissions for a group/workspace that has child workspaces, then RBAC is
         # going to return all child workspaces as well
-        expected_hbi_groups = expected_hbi_groups or hbi_groups
+        if expected_hbi_groups is None:
+            expected_hbi_groups = hbi_groups
 
         host_inventory.apis.rbac.check_inventory_user_permission(
             hbi_non_org_admin_user_username,
