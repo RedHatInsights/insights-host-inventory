@@ -577,9 +577,7 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(
-    group: Group | dict, org_id: str, account: str | None = None, with_host_count: bool = True
-) -> dict:
+def serialize_group(group: Group | dict, org_id: str, account: str | None = None) -> dict:
     """
     Serialize a group with host count.
     Delegates to the appropriate serializer based on whether the group is from the database or RBAC v2.
@@ -588,16 +586,18 @@ def serialize_group(
         group: Either a Group ORM object (from DB) or a dict (from RBAC v2)
         org_id: The organization ID
         account: The account_number (optional, only used for RBAC v2 workspaces)
-        with_host_count: Whether to query the DB for host_count (False skips the expensive JOIN)
 
     Returns:
         Dictionary containing serialized group data with host_count
     """
     if isinstance(group, dict):
+        # RBAC v2 workspace (dict from RBAC API)
+        # Extract group_id from dict and get host count using batch function
         group_id = group["id"]
-        host_count = get_host_counts_batch(org_id, [group_id])[group_id] if with_host_count else 0
+        host_count = get_host_counts_batch(org_id, [group_id])[group_id]
         return serialize_rbac_workspace_with_host_count(group, org_id, account, host_count)
     else:
+        # Database Group (ORM object)
         group_id = str(group.id)
-        host_count = get_host_counts_batch(org_id, [group_id])[group_id] if with_host_count else 0
+        host_count = get_host_counts_batch(org_id, [group_id])[group_id]
         return serialize_db_group_with_host_count(group, host_count)
