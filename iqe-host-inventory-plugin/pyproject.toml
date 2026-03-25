@@ -24,6 +24,7 @@ classifiers = [
 dependencies = [
   "click",
   "faker",
+  "iqe-bindings",
   "iqe-core>=24.11.29.1",
   "iqe-export-service-plugin",
   "iqe-ingress-plugin",
