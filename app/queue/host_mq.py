@@ -1037,7 +1037,7 @@ def write_add_update_event_message(
             bootc_booted,
         )
 
-    event_producer.write_event(event, str(result.row.id), headers, wait=True)
+    event_producer.write_event(event, str(result.row.id), headers, wait=False)
 
     if result.event_type.name == HOST_EVENT_TYPE_CREATED:
         # Notifications are expected to omit null canonical facts
@@ -1070,13 +1070,18 @@ def write_message_batch(
     notification_event_producer: EventProducer,
     processed_rows: list[OperationResult],
 ):
+    produced = False
     for result in processed_rows:
         if result is not None:
             try:
                 write_add_update_event_message(event_producer, notification_event_producer, result)
+                produced = True
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
+
+    if produced:
+        event_producer.flush()
 
 
 def initialize_thread_local_storage(

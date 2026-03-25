@@ -3401,3 +3401,22 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
     assert HostDynamicSystemProfile not in identity_map_types, (
         "HostDynamicSystemProfile found in identity map — system profiles are being eagerly loaded."
     )
+
+
+def test_write_message_batch_flushes_once(mocker):
+    """Kafka events should be produced with wait=False and flushed once at the end of the batch."""
+    from app.queue.host_mq import write_message_batch
+
+    mock_event_producer = mocker.Mock()
+    notification_producer = mocker.Mock()
+
+    mock_write = mocker.patch(
+        "app.queue.host_mq.write_add_update_event_message",
+    )
+
+    mock_results = [mocker.Mock(spec=OperationResult) for _ in range(5)]
+
+    write_message_batch(mock_event_producer, notification_producer, mock_results)
+
+    assert mock_write.call_count == 5
+    assert mock_event_producer.flush.call_count == 1, "flush() should be called exactly once at the end of the batch"
