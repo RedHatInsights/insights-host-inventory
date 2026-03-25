@@ -11,6 +11,8 @@ from iqe.base.feature_flags.unleash import UnleashFlagRequest
 from iqe.base.feature_flags.unleash import _RequestType
 from iqe.base.modeling import BaseEntity
 
+from iqe_host_inventory.utils import get_org_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,7 @@ class HBIUnleash(BaseEntity):
         return feature_flag
 
     def is_flag_enabled(self, flag: str) -> bool:
-        return self._unleash.is_enabled(flag)
+        return self._unleash.is_enabled(flag, context={"orgId": get_org_id(self.application)})
 
     def is_kessel_phase_1_enabled(self) -> bool:
         return self.is_flag_enabled(self.kessel_phase_1_flag)
