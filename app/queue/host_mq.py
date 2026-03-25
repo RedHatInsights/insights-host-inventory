@@ -286,6 +286,10 @@ class HBIMessageConsumerBase:
                             self.failure_metric.inc()
                             logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
+            # Release batch-scoped ORM references before serialization
+            if hasattr(self, "_prefetched_hosts"):
+                self._prefetched_hosts.clear()
+
             self.post_process_rows()
         # Commit Kafka offsets after successful batch processing
         # This ensures offsets are persisted immediately after DB commit and event production,
@@ -1120,6 +1124,26 @@ def write_add_update_event_message(
         logger.error("Error during set cache", ex)
 
 
+def _expire_host_orm_objects(host):
+    """Expire a Host and its eagerly-loaded system profile objects.
+
+    When no_expire_on_commit keeps all batch ORM objects alive during
+    post-processing, calling this after each host is serialized frees
+    the heavy attribute data (system profiles, JSONB columns) from
+    the identity map immediately, bounding peak memory to a single
+    host's data instead of accumulating across the entire batch.
+    """
+    if host is None:
+        return
+    for attr_name in ("static_system_profile", "dynamic_system_profile"):
+        related = host.__dict__.get(attr_name)
+        if related is not None:
+            with suppress(Exception):
+                db.session.expire(related)
+    with suppress(Exception):
+        db.session.expire(host)
+
+
 def write_message_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
@@ -1132,6 +1156,7 @@ def write_message_batch(
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
+            _expire_host_orm_objects(result.row)
     if event_producer is not None:
         event_producer.flush()
 
