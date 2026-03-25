@@ -406,14 +406,7 @@ def _find_hosts_entities_query(
     identity = identity or get_current_identity()
 
     if query is None:
-        query = (
-            db.session.query(Host)
-            .outerjoin(
-                HostGroupAssoc,
-                and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
-            )
-            .outerjoin(Group)
-        )
+        query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
         if order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
             query = query.outerjoin(HostStaticSystemProfile)
         query = query.filter(Host.org_id == identity.org_id)
@@ -424,14 +417,7 @@ def _find_hosts_entities_query(
 
 
 def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
-    query = (
-        db.session.query(Host)
-        .outerjoin(
-            HostGroupAssoc,
-            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
-        )
-        .outerjoin(Group)
-    )
+    query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # In this case, return a list of Hosts
     # wih the requested columns.
@@ -816,13 +802,7 @@ def get_sparse_system_profile(
 
     identity = get_current_identity()
     query_base = (
-        db.session.query(Host)
-        .outerjoin(
-            HostGroupAssoc,
-            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
-        )
-        .outerjoin(Group)
-        .filter(Host.org_id == identity.org_id)
+        db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group).filter(Host.org_id == identity.org_id)
     )
     if needs_static_join:
         query_base = query_base.outerjoin(HostStaticSystemProfile)

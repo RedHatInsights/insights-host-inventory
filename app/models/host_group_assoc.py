@@ -1,6 +1,7 @@
 from sqlalchemy import ForeignKey
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -34,4 +35,13 @@ class HostGroupAssoc(db.Model):
         UUID(as_uuid=True),
         ForeignKey(f"{INVENTORY_SCHEMA}.groups.id", name="fk_hosts_groups_on_groups"),
         primary_key=True,
+    )
+
+    host = relationship("LimitedHost", viewonly=True, lazy="noload")
+    group = relationship(
+        "Group",
+        primaryjoin="and_(HostGroupAssoc.group_id == Group.id, HostGroupAssoc.org_id == Group.org_id)",
+        foreign_keys="[HostGroupAssoc.group_id, HostGroupAssoc.org_id]",
+        viewonly=True,
+        lazy="noload",
     )

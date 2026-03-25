@@ -5,7 +5,6 @@ from functools import partial
 from logging import Logger
 
 from connexion import FlaskApp
-from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app.environment import RuntimeEnvironment
@@ -50,10 +49,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 with session_guard(session):
                     host_ids = (
                         session.query(Host.id)
-                        .outerjoin(
-                            HostGroupAssoc,
-                            and_(Host.id == HostGroupAssoc.host_id, Host.org_id == HostGroupAssoc.org_id),
-                        )
+                        .outerjoin(HostGroupAssoc)
                         .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
                         .order_by(Host.id)
                         .limit(BATCH_SIZE)

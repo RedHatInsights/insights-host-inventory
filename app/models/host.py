@@ -261,6 +261,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
     dynamic_system_profile = relationship(
         "HostDynamicSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
     )
+    host_group_assocs = relationship("HostGroupAssoc", viewonly=True, lazy="noload")
 
 
 class Host(LimitedHost):

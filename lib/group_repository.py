@@ -2,7 +2,6 @@ import time
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from sqlalchemy import and_
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -365,7 +364,7 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
         staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
-            .join(Group, and_(HostGroupAssoc.group_id == Group.id, HostGroupAssoc.org_id == Group.org_id))
+            .join(Group)
             .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
         )
 
