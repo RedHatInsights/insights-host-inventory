@@ -368,20 +368,34 @@ def test_legacy_paths_ephemeral(
         title: Inventory: Test that "legacy paths" are operating correctly in ephemeral
     """
 
+    from collections.abc import Mapping
+
+    from iqe.users.user import SystemIdentity
+    from iqe.users.user import UserLike
+
     host_data = test_host_inventory.datagen.create_host_data_with_tags(
         account_number=hbi_default_account_number
     )
     host_data["facts"] = [{"namespace": FACTS_NAMESPACE, "facts": FACTS_FACTS}]
-    sys_conf = test_host_inventory.application.user.get("identity").get("system")
-    if sys_conf:  # This is needed for cert auth (system test)
-        host_data["system_profile"]["owner_id"] = sys_conf.get("cn")
+
+    user = test_host_inventory.application.user
+    owner_id: str | None = None
+    if isinstance(user, UserLike) and isinstance(user.identity, SystemIdentity):
+        owner_id = user.identity.system.cn
+    elif isinstance(user, Mapping):
+        sys_conf = user.get("identity", {}).get("system")
+        if sys_conf:
+            owner_id = sys_conf.get("cn")
+
+    if owner_id:
+        host_data["system_profile"]["owner_id"] = owner_id
 
     host = test_host_inventory.kafka.create_host(host_data=host_data)
 
     session = test_host_inventory.application.http_client
     base_url = f"{hbi_ephemeral_base_url}{LEGACY_API_PATH}"
 
-    if not sys_conf:  # These endpoints are forbidden with cert auth (HTTP 403)
+    if owner_id is None:  # These endpoints are forbidden with cert auth (HTTP 403)
         test_host_inventory.apis.groups.create_n_empty_groups(1)
         check_legacy_get_groups(session, base_url)
         check_legacy_get_resource_types(session, base_url)

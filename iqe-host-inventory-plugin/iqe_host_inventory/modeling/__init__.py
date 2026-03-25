@@ -213,7 +213,16 @@ class HBIApis(BaseEntity):
 
     @cached_property
     def rest_identity(self) -> dict:
-        return self.application.user.identity.to_dict()
+        from collections.abc import Mapping
+
+        from iqe.users.user import UserLike
+
+        user = self.application.user
+        if isinstance(user, UserLike):
+            return user.as_identity().model_dump()
+        if isinstance(user, Mapping):
+            return user.get("identity", {}).to_dict()
+        raise TypeError(f"Unexpected user type: {type(user)}")
 
     @cached_property
     def rest_identity_encoded(self) -> str:
