@@ -2734,6 +2734,7 @@ parameters:
 # -- Downgrade Alembic revision Job --
 - name: DB_DOWNGRADE_REVISION
   description: The revision to downgrade the DB to
+  value: a7b8c9d0e1f2
 - name: MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
   value: 'true'
