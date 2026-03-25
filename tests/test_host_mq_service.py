@@ -3375,27 +3375,72 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
 
 @pytest.mark.usefixtures("flask_app")
 def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer, flask_app):
-    """OOM regression test: processing a batch of 50 messages must NOT accumulate
-    system profile ORM objects in the SQLAlchemy identity map.
+    """OOM regression test: host lookup queries must NOT eagerly load system profiles.
 
-    The OOM that hit production was caused by joinedload of HostStaticSystemProfile
-    and HostDynamicSystemProfile during host lookup queries. This test verifies that
-    after processing a full batch, no system profile instances remain in the session
-    identity map — proving that system profiles are only loaded lazily (one at a time
-    during serialization) and released afterward.
+    The production OOM was caused by joinedload of HostStaticSystemProfile and
+    HostDynamicSystemProfile during host lookup (multiple_canonical_facts_host_query).
+    With 50 hosts per batch, each carrying ~500 installed_packages and large
+    network_interfaces, the session identity map grew to several GiB.
+
+    This test reproduces the exact scenario:
+    1. Pre-create 50 hosts in the DB with large system profiles.
+    2. Send update messages for those same hosts through the consumer.
+    3. Intercept every SQL statement and assert that NONE reference the
+       system_profiles_static or system_profiles_dynamic tables.
+    4. Also verify the identity map contains no system profile ORM objects.
+
+    write_message_batch is mocked out so serialization (which legitimately
+    lazy-loads system profiles) does not run — isolating the lookup phase.
     """
+    from sqlalchemy import event as sqlevent
+
     from app.models.system_profile_dynamic import HostDynamicSystemProfile
     from app.models.system_profile_static import HostStaticSystemProfile
 
     batch_size = 50
+
+    large_system_profile = {
+        "number_of_cpus": 4,
+        "os_release": "RHEL 9.2",
+        "arch": "x86-64",
+        "installed_packages": [f"pkg-{i}-0:{i}.0.1.el9.x86_64" for i in range(500)],
+        "network_interfaces": [
+            {
+                "ipv4_addresses": [f"10.0.{i // 256}.{i % 256}"],
+                "ipv6_addresses": [f"fd00::{i:04x}"],
+                "mtu": 1500,
+                "mac_address": f"aa:bb:cc:dd:{i:02x}:ff",
+                "name": f"eth{i}",
+                "state": "UP",
+                "type": "ether",
+            }
+            for i in range(20)
+        ],
+        "disk_devices": [
+            {"device": f"/dev/sd{chr(97 + i)}", "mount_point": f"/mnt/disk{i}", "type": "ext4"} for i in range(10)
+        ],
+        "running_processes": [f"process_{i}" for i in range(200)],
+        "kernel_modules": [f"mod_{i}" for i in range(100)],
+        "cpu_flags": [f"flag_{i}" for i in range(50)],
+        "enabled_services": [f"svc_{i}" for i in range(100)],
+        "installed_services": [f"svc_{i}" for i in range(100)],
+    }
+
+    insights_ids = [generate_uuid() for _ in range(batch_size)]
+    stale_ts = now() + timedelta(days=7)
+
+    for iid in insights_ids:
+        create_reference_host_in_db(iid, "puptoo", large_system_profile, stale_ts)
+
+    db.session.expire_all()
+
     hosts = [
         minimal_host(
-            insights_id=generate_uuid(),
-            system_profile={"number_of_cpus": 4, "os_release": "RHEL 9.2"},
+            insights_id=iid,
+            system_profile={"number_of_cpus": 8},
         ).data()
-        for _ in range(batch_size)
+        for iid in insights_ids
     ]
-
     msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in hosts]
 
     mocker.patch(
@@ -3409,24 +3454,43 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
     )
     mocker.patch("app.queue.host_mq.write_message_batch")
 
-    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs], []]})
+    captured_sql: list[str] = []
 
-    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
-    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+    def _capture_sql(conn, clauseelement, multiparams, params, execution_options):  # noqa: ARG001
+        captured_sql.append(str(clauseelement))
 
-    # Inspect the SQLAlchemy identity map for system profile objects.
-    # If joinedload were used, all 50 static + 50 dynamic profiles would be here.
+    sqlevent.listen(db.engine, "before_execute", _capture_sql)
+    try:
+        fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs], []]})
+
+        consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+        consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+    finally:
+        sqlevent.remove(db.engine, "before_execute", _capture_sql)
+
+    # Detect joinedload: these produce JOINs between hosts and system profile tables.
+    # Lazy-load SELECTs (safe, one-at-a-time) only reference system_profiles_* in FROM,
+    # never alongside hbi.hosts in the same query.
+    eager_load_queries = [
+        sql
+        for sql in captured_sql
+        if ("system_profiles_static" in sql.lower() or "system_profiles_dynamic" in sql.lower())
+        and "join" in sql.lower()
+    ]
+    assert not eager_load_queries, (
+        f"Found {len(eager_load_queries)} SQL queries JOINing system profile tables during batch "
+        f"processing. This means system profiles are being eagerly loaded (e.g. via joinedload), "
+        f"which will cause OOM in production.\n\nOffending queries:\n" + "\n---\n".join(eager_load_queries[:3])
+    )
+
     identity_map_types = {type(obj) for obj in db.session.identity_map.values()}
     assert HostStaticSystemProfile not in identity_map_types, (
-        "HostStaticSystemProfile found in identity map — system profiles are being eagerly loaded. "
-        "This will cause OOM in production."
+        "HostStaticSystemProfile found in identity map — system profiles are being eagerly loaded."
     )
     assert HostDynamicSystemProfile not in identity_map_types, (
-        "HostDynamicSystemProfile found in identity map — system profiles are being eagerly loaded. "
-        "This will cause OOM in production."
+        "HostDynamicSystemProfile found in identity map — system profiles are being eagerly loaded."
     )
 
-    # Also verify no batch-level host list is being held
     assert not hasattr(consumer, "_prefetched_hosts"), (
         "_prefetched_hosts attribute found on consumer — batch prefetching holds strong ORM references."
     )
