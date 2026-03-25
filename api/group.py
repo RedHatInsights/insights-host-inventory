@@ -319,11 +319,12 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 
         if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
+            identity = get_current_identity()
             if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
                 validate_add_host_list_to_group_for_group_create(
                     host_id_list,
                     group_name,
-                    get_current_identity().org_id,
+                    identity.org_id,
                 )
 
             workspace_id = post_rbac_workspace(group_name)
@@ -337,7 +338,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                 wait_for_workspace_event(
                     str(workspace_id),
                     EventType.created,
-                    org_id=get_current_identity().org_id,
+                    org_id=identity.org_id,
                     timeout=inventory_config().rbac_timeout,
                 )
             except TimeoutError:
@@ -346,10 +347,10 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
             add_hosts_to_group(
                 str(workspace_id),
                 host_id_list,
-                get_current_identity(),
+                identity,
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(str(workspace_id), get_current_identity().org_id)
+            created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
@@ -436,7 +437,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
-        ungrouped_group = get_ungrouped_group(get_current_identity())
+        ungrouped_group = get_ungrouped_group(identity)
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
 
         for group_id in group_id_list:
@@ -457,9 +458,9 @@ def delete_groups(group_id_list, rbac_filter=None):
                 group_ids_to_delete.append(group_id)
 
         # Attempt to delete the "not found" groups on our side
-        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
+        delete_count += delete_group_list(group_ids_to_delete, identity, current_app.event_producer)
     else:
-        delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
+        delete_count = delete_group_list(group_id_list, identity, current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)

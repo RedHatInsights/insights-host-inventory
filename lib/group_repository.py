@@ -523,6 +523,14 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
 
 def _update_group_update_time(group_id: str, org_id: str):
     group = get_group_by_id_from_db(group_id, org_id)
+    if group is None:
+        # Another transaction may have deleted the group (e.g. duplicate MQ delete messages).
+        logger.debug(
+            "Skipping group modified timestamp update; group %s not found for org %s",
+            group_id,
+            org_id,
+        )
+        return
     group.update_modified_on()
     db.session.add(group)
     db.session.flush()
