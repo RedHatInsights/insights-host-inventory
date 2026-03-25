@@ -3371,3 +3371,81 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert str(second_host_from_db.static_system_profile.owner_id) == OWNER_ID
     assert second_host_from_db.static_system_profile.bios_vendor == "new_vendor"
     assert second_host_from_db.static_system_profile.bios_version == "1.23"
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer, flask_app):
+    """OOM regression test: processing a batch of 50 messages must NOT accumulate
+    system profile ORM objects in the SQLAlchemy identity map.
+
+    The OOM that hit production was caused by joinedload of HostStaticSystemProfile
+    and HostDynamicSystemProfile during host lookup queries. This test verifies that
+    after processing a full batch, no system profile instances remain in the session
+    identity map — proving that system profiles are only loaded lazily (one at a time
+    during serialization) and released afterward.
+    """
+    from app.models.system_profile_dynamic import HostDynamicSystemProfile
+    from app.models.system_profile_static import HostStaticSystemProfile
+
+    batch_size = 50
+    hosts = [
+        minimal_host(
+            insights_id=generate_uuid(),
+            system_profile={"number_of_cpus": 4, "os_release": "RHEL 9.2"},
+        ).data()
+        for _ in range(batch_size)
+    ]
+
+    msgs = [json.dumps(wrap_message(host, "add_host", get_platform_metadata())) for host in hosts]
+
+    mocker.patch(
+        "app.queue.host_mq.inventory_config",
+        return_value=SimpleNamespace(
+            mq_db_batch_max_messages=batch_size,
+            mq_db_batch_max_seconds=5,
+            culling_stale_warning_offset_delta=1,
+            culling_culled_offset_delta=1,
+        ),
+    )
+    mocker.patch("app.queue.host_mq.write_message_batch")
+
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [[FakeMessage(message=msg) for msg in msgs], []]})
+
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, mocker.Mock())
+    consumer.event_loop(mocker.Mock(side_effect=(False, True)))
+
+    # Inspect the SQLAlchemy identity map for system profile objects.
+    # If joinedload were used, all 50 static + 50 dynamic profiles would be here.
+    identity_map_types = {type(obj) for obj in db.session.identity_map.values()}
+    assert HostStaticSystemProfile not in identity_map_types, (
+        "HostStaticSystemProfile found in identity map — system profiles are being eagerly loaded. "
+        "This will cause OOM in production."
+    )
+    assert HostDynamicSystemProfile not in identity_map_types, (
+        "HostDynamicSystemProfile found in identity map — system profiles are being eagerly loaded. "
+        "This will cause OOM in production."
+    )
+
+    # Also verify no batch-level host list is being held
+    assert not hasattr(consumer, "_prefetched_hosts"), (
+        "_prefetched_hosts attribute found on consumer — batch prefetching holds strong ORM references."
+    )
+
+
+def test_write_message_batch_flushes_once(mocker):
+    """Kafka events should be produced with wait=False and flushed once at the end of the batch."""
+    from app.queue.host_mq import write_message_batch
+
+    mock_event_producer = mocker.Mock()
+    notification_producer = mocker.Mock()
+
+    mock_write = mocker.patch(
+        "app.queue.host_mq.write_add_update_event_message",
+    )
+
+    mock_results = [mocker.Mock(spec=OperationResult) for _ in range(5)]
+
+    write_message_batch(mock_event_producer, notification_producer, mock_results)
+
+    assert mock_write.call_count == 5
+    assert mock_event_producer.flush.call_count == 1, "flush() should be called exactly once at the end of the batch"
