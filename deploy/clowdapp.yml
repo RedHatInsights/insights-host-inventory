@@ -2733,8 +2733,11 @@ parameters:
 
 # -- Downgrade Alembic revision Job --
 - name: DB_DOWNGRADE_REVISION
-  description: The revision to downgrade the DB to
-  value: a7b8c9d0e1f2
+  description: >-
+    Target alembic revision for downgrade. Set to the desired revision
+    in app-interface before unsuspending the job. Default value CHANGE_ME
+    will cause the job to fail safely.
+  value: CHANGE_ME
 - name: MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
   value: 'true'
