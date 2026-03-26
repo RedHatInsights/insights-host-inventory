@@ -393,12 +393,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    query = (
-        Host.query.join(HostGroupAssoc, isouter=True)
-        .join(Group, isouter=True)
-        .filter(*filters)
-        .group_by(Host.id, Host.org_id)
-    )
+    query = Host.query.outerjoin(HostGroupAssoc).outerjoin(Group).filter(*filters).group_by(Host.id, Host.org_id)
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
@@ -429,7 +424,7 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     # Single aggregated query to get all host counts at once
     query = (
         db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
-        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .join(Host)
         .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
         .group_by(HostGroupAssoc.group_id)
     )
@@ -492,11 +487,8 @@ def get_group_ids_ordered_by_host_count(
 
     query = (
         db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))
-        .outerjoin(
-            HostGroupAssoc,
-            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
-        )
-        .outerjoin(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .outerjoin(HostGroupAssoc)
+        .outerjoin(Host)
         .filter(Group.org_id == org_id)
         # Include groups with no hosts (Host.id IS NULL) OR groups with non-culled hosts
         # This ensures empty groups still appear in results with host_count = 0
