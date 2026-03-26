@@ -395,19 +395,20 @@ def _is_workload_filter(grouped_filter_param):
     return field_name in WORKLOADS_FIELDS or field_name == "workloads"
 
 
-def _process_workload_group(grouped_filter_param):
-    """Workloads always use OR conjunction for multiple values."""
+def _build_group_filter(grouped_filter_param, *, is_workload: bool):
     if isinstance(grouped_filter_param, list):
-        return or_(*(_build_workloads_filter(f) for f in grouped_filter_param))
-    return _build_workloads_filter(grouped_filter_param)
+        if is_workload:
+            # Workloads: OR across values
+            return or_(*(_build_workloads_filter(f) for f in grouped_filter_param))
 
-
-def _process_standard_group(grouped_filter_param):
-    """Standard fields use AND for arrays and OR for everything else."""
-    if isinstance(grouped_filter_param, list):
-        field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0])
+        # Standard fields: AND for arrays, OR otherwise
+        field_filter = _get_field_filter_for_deepest_param(
+            system_profile_spec(), grouped_filter_param[0]
+        )
         conjunction = and_ if field_filter == "array" else or_
         return conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
+
+    # Single filter object: workloads and standard share the same builder
     return _build_workloads_filter(grouped_filter_param)
 
 
@@ -478,10 +479,13 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
 
     for grouped_filter_param in filter_param_list:
-        if _is_workload_filter(grouped_filter_param):
-            workload_filters.append(_process_workload_group(grouped_filter_param))
+        is_workload = _is_workload_filter(grouped_filter_param)
+        group_filter = _build_group_filter(grouped_filter_param, is_workload=is_workload)
+
+        if is_workload:
+            workload_filters.append(group_filter)
         else:
-            standard_filters.append(_process_standard_group(grouped_filter_param))
+            standard_filters.append(group_filter)
 
     # Standard filters stay separate (AND), Workloads get grouped (OR)
     system_profile_filter = tuple(standard_filters)
