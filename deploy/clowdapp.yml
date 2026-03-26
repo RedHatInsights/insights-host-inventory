@@ -1808,7 +1808,7 @@ objects:
         command: ["/bin/sh", "-c"]
         args:
           - |
-            if [ -z "${DB_DOWNGRADE_REVISION}" ] || [ "${DB_DOWNGRADE_REVISION}" = "CHANGE_ME" ]; then
+            if [ -z "${DB_DOWNGRADE_REVISION}" ] || [ "${DB_DOWNGRADE_REVISION}" = "CHANGE-ME" ]; then
               echo "ERROR: DB_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
               exit 1
             fi
@@ -2742,9 +2742,9 @@ parameters:
 - name: DB_DOWNGRADE_REVISION
   description: >-
     Target alembic revision for downgrade. Set to the desired revision
-    in app-interface before unsuspending the job. Default value CHANGE_ME
+    in app-interface before unsuspending the job. Default value CHANGE-ME
     will cause the job to fail safely.
-  value: CHANGE_ME
+  value: CHANGE-ME
 - name: MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
   value: 'true'
