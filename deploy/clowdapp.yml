@@ -1805,7 +1805,14 @@ objects:
       suspend: ${{MIGRATION_DOWNGRADE_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
-        args: ["FLASK_APP=./manage.py", "flask", "db", "downgrade", "${DB_DOWNGRADE_REVISION}"]
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            if [ -z "${DB_DOWNGRADE_REVISION}" ] || [ "${DB_DOWNGRADE_REVISION}" = "CHANGE_ME" ]; then
+              echo "ERROR: DB_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
+              exit 1
+            fi
+            FLASK_APP=./manage.py flask db downgrade "${DB_DOWNGRADE_REVISION}"
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
