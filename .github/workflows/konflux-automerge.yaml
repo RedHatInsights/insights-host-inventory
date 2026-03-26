@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v6
       - name: Generate token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.AUTOMERGE_APP_ID }}
           private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
