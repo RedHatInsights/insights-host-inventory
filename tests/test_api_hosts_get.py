@@ -1727,8 +1727,8 @@ def test_query_host_fuzzy_match(db_create_host, api_get, query_filter_param, mat
         "[arch]=x86",  # EQ field, no wildcard
         "[host_type]=",  # Valid bc it's a string field, but no match
         "[host_type][eq]=",  # Same for this one
-        "[workloads][sap][sids][contains][]=ABC&filter[system_profile][workloads][sap][sids][contains][]=GHI",
-        "[sap][sids][contains][]=ABC&filter[system_profile][sap][sids][contains][]=GHI",
+        "[workloads][sap][sids][contains][]=HIJ&filter[system_profile][workloads][sap][sids][contains][]=GHI",
+        "[sap][sids][contains][]=HIJ&filter[system_profile][sap][sids][contains][]=GHI",
         "[virtual_host_uuid]=",  # Valid field, but no match
         "[arch]=",
     ),
@@ -2767,3 +2767,52 @@ def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        (
+            "[workloads][sap][sids][contains][]=ABC"
+            "&filter[system_profile][workloads][sap][sap_system][]=true"
+            "&filter[system_profile][workloads][ansible][controller_version][]=1.2.3"
+        ),
+        (
+            "[sap_sids][contains][]=ABC"
+            "&filter[system_profile][sap_system][]=true"
+            "&filter[system_profile][ansible][controller_version][]=1.2.3"
+        ),
+        (
+            "[sap_sids][contains][]=ABC"
+            "&filter[system_profile][sap_system][]=true"
+            "&filter[system_profile][workloads][ansible][controller_version][]=1.2.3"
+        ),
+    ),
+)
+def test_query_multiple_workloads_uses_or_logic(db_create_host, api_get, sp_filter_param):
+    """Test that filtering by multiple different workloads returns a UNION (OR)"""
+    sap_host_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
+    )
+
+    sap_sids_host_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}}).id
+    )
+
+    ansible_host_id = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"workloads": {"ansible": {"controller_version": "1.2.3"}}}}
+        ).id
+    )
+
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.0"}}}})
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert len(response_ids) == 3
+    assert sap_host_id in response_ids
+    assert ansible_host_id in response_ids
+    assert sap_sids_host_id in response_ids
