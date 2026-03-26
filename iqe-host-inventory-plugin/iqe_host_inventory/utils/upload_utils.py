@@ -4,10 +4,7 @@ import json
 import logging
 import mimetypes
 import os
-import pathlib
-import warnings
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from os import remove
 from os.path import isfile
@@ -17,8 +14,6 @@ from iqe.utils.archive import get_insights_archive
 from iqe.utils.archive_memory import InsightsArchiveInMemory
 from iqe.utils.plugins import plugin_path
 
-from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_MULTIPLE_UPLOADS
-from iqe_host_inventory.deprecations import DEPRECATE_UPLOAD
 from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import gen_tag
@@ -77,39 +72,6 @@ def get_archive_and_collect_method(os_name: str = "RHEL") -> tuple[str, bool]:
         base_archive = get_default_rhel_archive()
         core_collect = True
     return base_archive, core_collect
-
-
-def _upload_single_file(ingress_openapi_client, filepath, content_type):
-    """Upload a single file to ingress using iqe-bindings v7 client."""
-    file_data = pathlib.Path(filepath).read_bytes()
-
-    # https://redhat.atlassian.net/browse/RHCLOUD-45847
-    return ingress_openapi_client.upload_post_without_preload_content(
-        file=("upload.redhat-advisor-tgz", file_data),
-        metadata={"content_type": content_type},
-    )
-
-
-def async_multiple_uploads(ingress_openapi_client, files: list[InsightsArchiveInMemory]):
-    warnings.warn(DEPRECATE_ASYNC_MULTIPLE_UPLOADS, stacklevel=2)
-
-    file_type = "application/vnd.redhat.advisor.payload+tgz"
-
-    def _do_upload(archive):
-        return _upload_single_file(ingress_openapi_client, archive.filename, file_type)
-
-    with ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as executor:
-        futures = [executor.submit(_do_upload, f) for f in files]
-        for future in futures:
-            future.result()
-
-
-def upload(ingress_openapi_client, filename):
-    warnings.warn(DEPRECATE_UPLOAD, stacklevel=2)
-
-    file_type = "application/vnd.redhat.advisor.payload+tgz"
-
-    return _upload_single_file(ingress_openapi_client, filename, file_type)
 
 
 def build_host_archive(
