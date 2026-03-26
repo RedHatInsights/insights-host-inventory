@@ -1802,17 +1802,17 @@ objects:
             memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     - name: db-migration-downgrade
       restartPolicy: OnFailure
-      suspend: ${{MIGRATION_DOWNGRADE_SUSPEND}}
+      suspend: ${{DB_MIGRATION_DOWNGRADE_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         command: ["/bin/sh", "-c"]
         args:
           - |
-            if [ -z "${DB_DOWNGRADE_REVISION}" ] || [ "${DB_DOWNGRADE_REVISION}" = "change-me" ]; then
-              echo "ERROR: DB_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
+            if [ -z "${DB_MIGRATION_DOWNGRADE_REVISION}" ] || [ "${DB_MIGRATION_DOWNGRADE_REVISION}" = "change-me" ]; then
+              echo "ERROR: DB_MIGRATION_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
               exit 1
             fi
-            FLASK_APP=./manage.py flask db downgrade "${DB_DOWNGRADE_REVISION}"
+            FLASK_APP=./manage.py flask db downgrade "${DB_MIGRATION_DOWNGRADE_REVISION}"
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
@@ -1883,7 +1883,7 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: db-migration-downgrade-${DB_DOWNGRADE_REVISION}-${DB_MIGRATION_DOWNGRADE_RUN_NUMBER}
+    name: db-migration-downgrade-${DB_MIGRATION_DOWNGRADE_REVISION}-${DB_MIGRATION_DOWNGRADE_RUN_NUMBER}
   spec:
     appName: host-inventory
     jobs:
@@ -2739,7 +2739,7 @@ parameters:
   value: 'true'
 
 # -- Downgrade Alembic revision Job --
-- name: DB_DOWNGRADE_REVISION
+- name: DB_MIGRATION_DOWNGRADE_REVISION
   description: >-
     Target alembic revision for downgrade. Set to the desired revision
     in app-interface before unsuspending the job. Default value change-me
@@ -2748,7 +2748,7 @@ parameters:
 - name: DB_MIGRATION_DOWNGRADE_RUN_NUMBER
   description: The run number for the db-migration-downgrade job
   value: '1'
-- name: MIGRATION_DOWNGRADE_SUSPEND
+- name: DB_MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
   value: 'false'
 
