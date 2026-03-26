@@ -1883,7 +1883,7 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: db-migration-downgrade-${DB_DOWNGRADE_REVISION}
+    name: db-migration-downgrade-${DB_DOWNGRADE_REVISION}-${DB_MIGRATION_DOWNGRADE_RUN_NUMBER}
   spec:
     appName: host-inventory
     jobs:
@@ -2745,9 +2745,12 @@ parameters:
     in app-interface before unsuspending the job. Default value change-me
     will cause the job to fail safely.
   value: change-me
+- name: DB_MIGRATION_DOWNGRADE_RUN_NUMBER
+  description: The run number for the db-migration-downgrade job
+  value: '1'
 - name: MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
-  value: 'true'
+  value: 'false'
 
 
 # =================================================================================
