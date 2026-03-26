@@ -261,6 +261,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
     dynamic_system_profile = relationship(
         "HostDynamicSystemProfile", back_populates="host", cascade="all, delete-orphan", lazy="select", uselist=False
     )
+    host_group_assocs = relationship("HostGroupAssoc", viewonly=True, lazy="noload")
 
 
 class Host(LimitedHost):
@@ -348,13 +349,11 @@ class Host(LimitedHost):
             self.display_name_reporter = reporter
 
         self._update_last_check_in_date()
-
-        staleness_ts = self._compute_staleness_timestamps()
-        self._update_staleness_timestamps(staleness_ts)
+        self._update_staleness_timestamps()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
-            self._update_per_reporter_staleness(reporter, staleness_ts)
+            self._update_per_reporter_staleness(reporter)
 
         self._update_derived_host_type()
 
@@ -394,11 +393,8 @@ class Host(LimitedHost):
                 self.update_system_profile(system_profile)
 
         self._update_last_check_in_date()
-
-        self._prepare_per_reporter_entry(input_host.reporter)
-        staleness_ts = self._compute_staleness_timestamps()
-        self._update_per_reporter_staleness(input_host.reporter, staleness_ts)
-        self._update_staleness_timestamps(staleness_ts)
+        self._update_per_reporter_staleness(input_host.reporter)
+        self._update_staleness_timestamps()
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -478,22 +474,7 @@ class Host(LimitedHost):
             )
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
-    def _compute_staleness_timestamps(self):
-        """Compute staleness timestamps once, to be shared by multiple update methods."""
-        if should_host_stay_fresh_forever(self):
-            return {
-                "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-                "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-                "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-            }
-        return _create_staleness_timestamps_values(self, self.org_id)
-
-    def _prepare_per_reporter_entry(self, reporter):
-        """Ensure the reporter key exists in per_reporter_staleness and remove legacy mappings.
-
-        Call this before _compute_staleness_timestamps so that should_host_stay_fresh_forever
-        sees the correct set of reporters.
-        """
+    def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
@@ -503,24 +484,24 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-    def _update_per_reporter_staleness(self, reporter, staleness_ts=None):
-        self._prepare_per_reporter_entry(reporter)
-
-        # Check feature flag to determine storage format
         use_flat_structure = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
 
         if use_flat_structure:
-            # New format: Store only the last_check_in timestamp as a string
-            # Staleness timestamps are computed on-the-fly during serialization
             self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
-        else:
-            if staleness_ts is None:
-                staleness_ts = self._compute_staleness_timestamps()
-
+        elif should_host_stay_fresh_forever(self):
             self.per_reporter_staleness[reporter].update(
-                stale_timestamp=staleness_ts["stale_timestamp"].isoformat(),
-                culled_timestamp=staleness_ts["culled_timestamp"].isoformat(),
-                stale_warning_timestamp=staleness_ts["stale_warning_timestamp"].isoformat(),
+                stale_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                culled_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                stale_warning_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                last_check_in=self.last_check_in.isoformat(),
+                check_in_succeeded=True,
+            )
+        else:
+            st = _create_staleness_timestamps_values(self, self.org_id)
+            self.per_reporter_staleness[reporter].update(
+                stale_timestamp=st["stale_timestamp"].isoformat(),
+                culled_timestamp=st["culled_timestamp"].isoformat(),
+                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
                 last_check_in=self.last_check_in.isoformat(),
                 check_in_succeeded=True,
             )
@@ -613,13 +594,16 @@ class Host(LimitedHost):
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 
-    def _update_staleness_timestamps(self, staleness_ts=None):
-        if staleness_ts is None:
-            staleness_ts = self._compute_staleness_timestamps()
-
-        self.stale_timestamp = staleness_ts["stale_timestamp"]
-        self.stale_warning_timestamp = staleness_ts["stale_warning_timestamp"]
-        self.deletion_timestamp = staleness_ts["culled_timestamp"]
+    def _update_staleness_timestamps(self):
+        if should_host_stay_fresh_forever(self):
+            self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            self.stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+            self.deletion_timestamp = FAR_FUTURE_STALE_TIMESTAMP
+        else:
+            staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
+            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
+            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
 
         orm.attributes.flag_modified(self, "stale_timestamp")
         orm.attributes.flag_modified(self, "stale_warning_timestamp")

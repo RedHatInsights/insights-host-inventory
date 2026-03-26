@@ -10,7 +10,6 @@ from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import not_
 from sqlalchemy import or_
-from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.elements import BooleanClauseList
 
@@ -62,7 +61,6 @@ def add_host(
     update_system_profile: bool = True,
     operation_args: dict | None = None,
     existing_hosts: list[Host] | None = None,
-    prefetched_hosts: list[Host] | None = None,
 ) -> tuple[Host, AddHostResult]:
     """
     Add or update a host
@@ -85,16 +83,14 @@ def add_host(
     matched_host = None
     canonical_facts = serialize_canonical_facts(input_host, include_none=False)
     if existing_hosts:
+        # First, try to match the host in memory - from the provided list of existing hosts
         matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
-    if matched_host is None and prefetched_hosts:
-        matched_host = find_existing_host(identity, canonical_facts, prefetched_hosts)
     if matched_host is None:
+        # If the list of existing hosts was not provided, or the match was not found, try querying DB
         matched_host = find_existing_host(identity, canonical_facts)
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-    input_host.groups = [
-        serialize_group(group, identity.org_id, getattr(identity, "account_number", None), with_host_count=False)
-    ]
+    input_host.groups = [serialize_group(group, identity.org_id, getattr(identity, "account_number", None))]
 
     if matched_host:
         defer_to_reporter = operation_args.get("defer_to_reporter")
@@ -218,10 +214,7 @@ def multiple_canonical_facts_host_query(
 ) -> Query:
     _check_compound_id_facts(canonical_facts)
 
-    base_query = host_query(identity.org_id).options(
-        joinedload(Host.static_system_profile),
-        joinedload(Host.dynamic_system_profile),
-    )
+    base_query = host_query(identity.org_id)
     query = base_query.filter(
         contains_no_incorrect_facts_filter(canonical_facts),
         matches_at_least_one_canonical_fact_filter(canonical_facts),
@@ -274,47 +267,6 @@ def find_hosts_sys_default_staleness(staleness_types):
     staleness_conditions = staleness_to_conditions(sys_default_staleness, staleness_types, stale_timestamp_filter)
 
     return or_(False, *staleness_conditions)
-
-
-def batch_find_existing_hosts(canonical_facts_batch: list[dict[str, Any]]) -> list[Host]:
-    """Pre-fetch potential host matches for a batch of messages.
-
-    Collects all ID-fact values (insights_id, subscription_manager_id, provider_id)
-    across the batch and runs a single query.  Results are then matched in memory
-    by the existing ``find_existing_host(identity, facts, from_hosts)`` logic.
-    """
-    insights_ids: set[str] = set()
-    subman_ids: set[str] = set()
-    provider_ids: set[str] = set()
-    org_ids: set[str] = set()
-
-    for facts in canonical_facts_batch:
-        org_id = facts.get("org_id")
-        if org_id:
-            org_ids.add(org_id)
-        if v := facts.get("insights_id"):
-            insights_ids.add(v)
-        if v := facts.get("subscription_manager_id"):
-            subman_ids.add(v)
-        if v := facts.get("provider_id"):
-            provider_ids.add(v)
-
-    if not org_ids or not (insights_ids or subman_ids or provider_ids):
-        return []
-
-    id_conditions = []
-    if insights_ids:
-        id_conditions.append(Host.insights_id.in_(insights_ids))
-    if subman_ids:
-        id_conditions.append(Host.subscription_manager_id.in_(subman_ids))
-    if provider_ids:
-        id_conditions.append(Host.provider_id.in_(provider_ids))
-
-    query = Host.query.filter(Host.org_id.in_(org_ids), or_(*id_conditions)).options(
-        joinedload(Host.static_system_profile),
-        joinedload(Host.dynamic_system_profile),
-    )
-    return find_non_culled_hosts(query).all()
 
 
 def find_non_culled_hosts(query: Query) -> Query:
@@ -441,12 +393,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
 
         filters += (or_(*rbac_group_filters),)
 
-    query = (
-        Host.query.join(HostGroupAssoc, isouter=True)
-        .join(Group, isouter=True)
-        .filter(*filters)
-        .group_by(Host.id, Host.org_id)
-    )
+    query = Host.query.outerjoin(HostGroupAssoc).outerjoin(Group).filter(*filters).group_by(Host.id, Host.org_id)
     if columns:
         query = query.with_entities(*columns)
     return find_non_culled_hosts(update_query_for_owner_id(identity, query))
@@ -477,7 +424,7 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     # Single aggregated query to get all host counts at once
     query = (
         db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
-        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .join(Host)
         .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
         .group_by(HostGroupAssoc.group_id)
     )
@@ -540,11 +487,8 @@ def get_group_ids_ordered_by_host_count(
 
     query = (
         db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))
-        .outerjoin(
-            HostGroupAssoc,
-            and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id),
-        )
-        .outerjoin(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .outerjoin(HostGroupAssoc)
+        .outerjoin(Host)
         .filter(Group.org_id == org_id)
         # Include groups with no hosts (Host.id IS NULL) OR groups with non-culled hosts
         # This ensures empty groups still appear in results with host_count = 0

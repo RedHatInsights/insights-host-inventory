@@ -16,7 +16,6 @@ from app.models import Host
 from app.models import ProviderType
 from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.utils import HostWrapper
-from lib.host_repository import batch_find_existing_hosts
 from lib.host_repository import find_existing_host
 from tests.helpers.db_utils import assert_host_exists_in_db
 from tests.helpers.db_utils import assert_host_missing_from_db
@@ -542,43 +541,3 @@ def test_deduplication_culled_host(
     updated_host = mq_create_or_update_host(minimal_host(**canonical_facts, reporter="puptoo"))
     assert str(updated_host.id) != str(created_host.id)
     assert_host_exists_in_db(updated_host.id, canonical_facts)
-
-
-def test_batch_find_existing_hosts_returns_matches(db_create_host):
-    """batch_find_existing_hosts should find multiple hosts across different ID fact types in a single query."""
-    from sqlalchemy import event
-
-    from app.models import db as _db
-
-    host_by_insights = db_create_host(host=minimal_db_host(insights_id=generate_uuid()))
-    host_by_subman = db_create_host(host=minimal_db_host(subscription_manager_id=generate_uuid()))
-    host_by_provider = db_create_host(
-        host=minimal_db_host(provider_id=generate_uuid(), provider_type=ProviderType.AWS)
-    )
-
-    batch_facts = [
-        {"org_id": host_by_insights.org_id, "insights_id": str(host_by_insights.insights_id)},
-        {"org_id": host_by_subman.org_id, "subscription_manager_id": str(host_by_subman.subscription_manager_id)},
-        {"org_id": host_by_provider.org_id, "provider_id": str(host_by_provider.provider_id)},
-    ]
-
-    query_count = 0
-
-    def _count_queries(_conn, _cursor, statement, _parameters, _context, _executemany):
-        nonlocal query_count
-        if statement.startswith("SELECT"):
-            query_count += 1
-
-    engine = _db.engine
-    event.listen(engine, "before_cursor_execute", _count_queries)
-    try:
-        results = batch_find_existing_hosts(batch_facts)
-    finally:
-        event.remove(engine, "before_cursor_execute", _count_queries)
-
-    result_ids = {str(h.id) for h in results}
-    assert str(host_by_insights.id) in result_ids
-    assert str(host_by_subman.id) in result_ids
-    assert str(host_by_provider.id) in result_ids
-
-    assert query_count == 1, f"Expected 1 SELECT query, got {query_count}"
