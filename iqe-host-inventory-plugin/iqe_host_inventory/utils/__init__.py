@@ -15,9 +15,11 @@ from typing import Any
 
 from iqe.base.application import Application
 from iqe.users.user import UserLike
+from iqe.utils.deprecation import deprecation_warning
 
 if TYPE_CHECKING:
     from iqe_host_inventory.modeling.wrappers import HostWrapper
+    from iqe.users.user import ExplicitUser
 from iqe_host_inventory_api.api.hosts_api import HostsApi as HostsApi
 
 logger = logging.getLogger(__name__)
@@ -57,15 +59,21 @@ def get_org_id(application: Application, given_org_id: str | None = None) -> str
     return _require_typed_user(application).attributes.org_id
 
 
-def get_username(user_data: UserLike | Mapping[str, Any]) -> str:
-    if isinstance(user_data, UserLike):
+def get_username(user_data: ExplicitUser | Mapping[str, Any]) -> str:
+    if isinstance(user_data, (ExplicitUser, UserLike)):
         return user_data.auth.username
-    username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
-        "user", {}
-    ).get("username")
+    else:
+        deprecation_warning(
+            "get_username is deprecated and will be removed in a future version. "
+            "Use ExplicitUser or UserProxy instead."
+        )
+        username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
+            "user", {}
+        ).get("username")
     if username is None:
-        raise ValueError(f"Given user doesn't have a defined username: {user_data}")
+        raise ValueError(f"Unable to identify username from user data: {user_data}")
     return username
+
 
 
 def rand_start_end(max_page: int, num_iterations: int) -> tuple[int, int]:

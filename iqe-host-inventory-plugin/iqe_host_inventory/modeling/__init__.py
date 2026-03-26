@@ -221,7 +221,8 @@ class HBIApis(BaseEntity):
         if isinstance(user, UserLike):
             return user.as_identity().model_dump()
         if isinstance(user, Mapping):
-            return user.get("identity", {}).to_dict()
+            identity = user.get("identity", {})
+            return dict(identity)
         raise TypeError(f"Unexpected user type: {type(user)}")
 
     @cached_property
