@@ -2746,14 +2746,6 @@ parameters:
   description: Whether to suspend the remove-null-values-in-workloads-fields-data job
   value: 'true'
 
-# -- Flatten per Reporter Staleness Job --
-- name: FLATTEN_PER_REPORTER_STALENESS_DRY_RUN
-  description: Whether the flatten-per-reporter-staleness script should run in dry-run mode
-  value: 'true'
-- name: FLATTEN_PER_REPORTER_STALENESS_BATCH_SIZE
-  description: Number of hosts to process per batch in the flatten-per-reporter-staleness job
-  value: '500'
-
 
 # =================================================================================
 # VI. Floorist Configuration
