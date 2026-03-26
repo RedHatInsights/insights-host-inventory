@@ -6,6 +6,7 @@ name = "rhnexus"
 [dev-packages]
 click = "*"
 faker = "*"
+iqe-bindings = "*"
 iqe-core = {version = ">=24.11.29.1", index = "rhnexus"}
 iqe-export-service-plugin = "*"
 iqe-goatee-plugin = "*"
