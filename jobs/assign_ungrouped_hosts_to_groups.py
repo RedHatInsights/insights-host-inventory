@@ -49,7 +49,7 @@ def run(logger: Logger, session: Session, application: FlaskApp):
                 with session_guard(session):
                     host_ids = (
                         session.query(Host.id)
-                        .outerjoin(HostGroupAssoc, Host.id == HostGroupAssoc.host_id)
+                        .outerjoin(HostGroupAssoc)
                         .filter(Host.org_id == org_id, HostGroupAssoc.host_id.is_(None))
                         .order_by(Host.id)
                         .limit(BATCH_SIZE)

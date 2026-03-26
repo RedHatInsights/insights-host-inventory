@@ -1765,11 +1765,109 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
             memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
+    - name: flatten-per-reporter-staleness
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/flatten_per_reporter_staleness.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: SCRIPT_CHUNK_SIZE
+            value: ${SCRIPT_CHUNK_SIZE}
+          - name: DRY_RUN
+            value: ${FLATTEN_PER_REPORTER_STALENESS_DRY_RUN}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
+            memory: ${MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
+          requests:
+            cpu: ${CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
+            memory: ${MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
     - name: run-db-migrations
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["FLASK_APP=./manage.py", "flask", "db", "upgrade"]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: MIGRATION_MODE
+            value: ${MIGRATION_MODE}
+          - name: HOSTS_TABLE_NUM_PARTITIONS
+            value: ${HOSTS_TABLE_NUM_PARTITIONS}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_LIMIT_DB_MIGRATIONS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
+            memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
+    - name: db-migration-downgrade
+      restartPolicy: OnFailure
+      suspend: ${{DB_MIGRATION_DOWNGRADE_SUSPEND}}
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            if [ -z "${DB_MIGRATION_DOWNGRADE_REVISION}" ] || [ "${DB_MIGRATION_DOWNGRADE_REVISION}" = "change-me" ]; then
+              echo "ERROR: DB_MIGRATION_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
+              exit 1
+            fi
+            FLASK_APP=./manage.py flask db downgrade "${DB_MIGRATION_DOWNGRADE_REVISION}"
         env:
           - name: PYTHONPATH
             value: '/opt/app-root/src'
@@ -1833,6 +1931,18 @@ objects:
     appName: host-inventory
     jobs:
       - run-db-migrations
+    runOnNotReady: true
+# This CJI downgrades the DB to the specified revision.
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: db-migration-downgrade-${DB_MIGRATION_DOWNGRADE_REVISION}-${DB_MIGRATION_DOWNGRADE_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - db-migration-downgrade
     runOnNotReady: true
 # this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
 - apiVersion: v1
@@ -2352,6 +2462,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
   value: 512Mi
+- name: CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS
+  value: 250m
+- name: CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS
+  value: 500m
+- name: MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS
+  value: 256Mi
+- name: MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS
+  value: 512Mi
 - name: CPU_REQUEST_DB_MIGRATIONS_JOB
   value: 250m
 - name: CPU_LIMIT_DB_MIGRATIONS_JOB
@@ -2682,6 +2800,25 @@ parameters:
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
   description: Whether to suspend the remove-null-values-in-workloads-fields-data job
   value: 'true'
+
+# -- Flatten per Reporter Staleness Job --
+- name: FLATTEN_PER_REPORTER_STALENESS_DRY_RUN
+  description: Whether the flatten-per-reporter-staleness job should run in dry-run mode
+  value: 'true'
+
+# -- Downgrade Alembic revision Job --
+- name: DB_MIGRATION_DOWNGRADE_REVISION
+  description: >-
+    Target alembic revision for downgrade. Set to the desired revision
+    in app-interface before unsuspending the job. Default value change-me
+    will cause the job to fail safely.
+  value: change-me
+- name: DB_MIGRATION_DOWNGRADE_RUN_NUMBER
+  description: The run number for the db-migration-downgrade job
+  value: '1'
+- name: DB_MIGRATION_DOWNGRADE_SUSPEND
+  description: Whether to suspend the db-migration-downgrade job
+  value: 'false'
 
 
 # =================================================================================

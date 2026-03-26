@@ -37,7 +37,6 @@ from app.serialization import serialize_host
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
-from lib.batch_cache import ThreadLocalBatchCache
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.host_repository import get_host_counts_batch
@@ -50,10 +49,6 @@ from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
-
-
-class UngroupedGroupCache(ThreadLocalBatchCache):
-    """Batch-scoped cache for ungrouped group lookups, keyed by org_id."""
 
 
 def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
@@ -145,14 +140,14 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
 
     # Filter out hosts that are already in the group
     assoc_query = HostGroupAssoc.query.filter(
-        HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
+        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id == group_id
     ).all()
     ids_already_in_this_group = [str(assoc.host_id) for assoc in assoc_query]
 
     # Delete any prior host-group associations, which should now just be to "ungrouped" group
-    HostGroupAssoc.query.filter(HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id).delete(
-        synchronize_session="fetch"
-    )
+    HostGroupAssoc.query.filter(
+        HostGroupAssoc.org_id == org_id, HostGroupAssoc.host_id.in_(host_id_list), HostGroupAssoc.group_id != group_id
+    ).delete(synchronize_session="fetch")
 
     host_group_assoc = [
         HostGroupAssoc(host_id=host_id, group_id=group_id, org_id=org_id)
@@ -306,7 +301,10 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
     ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
 
     host_ids = [
-        row[0] for row in db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group.id).all()
+        row[0]
+        for row in db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id == group.id)
+        .all()
     ]
     if not host_ids:
         return
@@ -337,7 +335,9 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
 
 def _delete_host_group_assoc(session, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
-        HostGroupAssoc.group_id == assoc.group_id, HostGroupAssoc.host_id == assoc.host_id
+        HostGroupAssoc.org_id == assoc.org_id,
+        HostGroupAssoc.group_id == assoc.group_id,
+        HostGroupAssoc.host_id == assoc.host_id,
     )
     delete_query.delete(synchronize_session="fetch")
     assoc_deleted = deleted_by_this_query(assoc)
@@ -364,8 +364,8 @@ def delete_group_list(group_id_list: list[str], identity: Identity, event_produc
         staleness = get_staleness_obj(identity.org_id)
         query = (
             select(HostGroupAssoc)
-            .join(Group, HostGroupAssoc.group_id == Group.id)
-            .filter(Group.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
+            .join(Group)
+            .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
         )
 
         assocs_to_delete = db.session.execute(query).scalars().all()
@@ -426,7 +426,9 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
         return []
 
     host_group_query = HostGroupAssoc.query.filter(
-        HostGroupAssoc.group_id == found_group.id, HostGroupAssoc.host_id.in_(host_id_list)
+        HostGroupAssoc.org_id == org_id,
+        HostGroupAssoc.group_id == found_group.id,
+        HostGroupAssoc.host_id.in_(host_id_list),
     )
     with delete_host_group_processing_time.time():
         for assoc in host_group_query.all():
@@ -461,7 +463,11 @@ def patch_group(group: Group, patch_data: dict, identity: Identity, event_produc
     new_host_ids = set(host_id_data) if host_id_data is not None else None
     removed_group_id_list = []
 
-    existing_host_uuids = db.session.query(HostGroupAssoc.host_id).filter(HostGroupAssoc.group_id == group_id).all()
+    existing_host_uuids = (
+        db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id == group_id)
+        .all()
+    )
     existing_host_ids = {str(host_id[0]) for host_id in existing_host_uuids}
     staleness = get_staleness_obj(identity.org_id)
 
@@ -546,30 +552,23 @@ def get_group_using_host_id(host_id: str, org_id: str):
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
-    cached = UngroupedGroupCache.get(identity.org_id)
-    if cached is not None:
-        return cached
-
     group = get_ungrouped_group(identity)
 
-    # If the "ungrouped" Group exists, cache and return it.
+    # If the "ungrouped" Group exists, return it.
     if group is not None:
-        UngroupedGroupCache.put(identity.org_id, group)
         return group
 
     # Otherwise, create the workspace
     workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
     # Create "ungrouped" group for this org using group ID == workspace ID
-    group = add_group(
+    return add_group(
         group_name="Ungrouped Hosts",
         org_id=identity.org_id,
         account=getattr(identity, "account_number", None),
         group_id=workspace_id,
         ungrouped=True,
     )
-    UngroupedGroupCache.put(identity.org_id, group)
-    return group
 
 
 def get_ungrouped_group(identity: Identity) -> Group:
@@ -577,9 +576,7 @@ def get_ungrouped_group(identity: Identity) -> Group:
     return ungrouped_group
 
 
-def serialize_group(
-    group: Group | dict, org_id: str, account: str | None = None, with_host_count: bool = True
-) -> dict:
+def serialize_group(group: Group | dict, org_id: str, account: str | None = None) -> dict:
     """
     Serialize a group with host count.
     Delegates to the appropriate serializer based on whether the group is from the database or RBAC v2.
@@ -588,16 +585,18 @@ def serialize_group(
         group: Either a Group ORM object (from DB) or a dict (from RBAC v2)
         org_id: The organization ID
         account: The account_number (optional, only used for RBAC v2 workspaces)
-        with_host_count: Whether to query the DB for host_count (False skips the expensive JOIN)
 
     Returns:
         Dictionary containing serialized group data with host_count
     """
     if isinstance(group, dict):
+        # RBAC v2 workspace (dict from RBAC API)
+        # Extract group_id from dict and get host count using batch function
         group_id = group["id"]
-        host_count = get_host_counts_batch(org_id, [group_id])[group_id] if with_host_count else 0
+        host_count = get_host_counts_batch(org_id, [group_id])[group_id]
         return serialize_rbac_workspace_with_host_count(group, org_id, account, host_count)
     else:
+        # Database Group (ORM object)
         group_id = str(group.id)
-        host_count = get_host_counts_batch(org_id, [group_id])[group_id] if with_host_count else 0
+        host_count = get_host_counts_batch(org_id, [group_id])[group_id]
         return serialize_db_group_with_host_count(group, host_count)

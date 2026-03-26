@@ -56,7 +56,6 @@ from app.models import db
 from app.models import host_app_data
 from app.models import schemas as model_schemas
 from app.models.system_profile_static import HostStaticSystemProfile
-from app.models.utils import StalenessCache
 from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
@@ -80,16 +79,15 @@ from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
-from lib.db import no_expire_on_commit
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
-from lib.group_repository import UngroupedGroupCache
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
 
+CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 MAX_RETRIES = 5
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
@@ -230,13 +228,6 @@ class HBIMessageConsumerBase:
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
-    def _pre_process_messages(self, messages) -> None:
-        """Hook called after consuming messages but before individual processing.
-
-        Subclasses can override to perform batch-level setup (e.g., pre-fetching
-        existing hosts from the DB).
-        """
-
     def _process_batch(self) -> None:
         """Process a single batch of messages from Kafka.
 
@@ -244,49 +235,41 @@ class HBIMessageConsumerBase:
             InvalidRequestError: When the database session is in an invalid state
             StaleDataError: When trying to update data modified by another transaction
         """
-        with no_expire_on_commit(db.session):
-            with (
-                session_guard(db.session, close=False),
-                db.session.no_autoflush,
-                StalenessCache(),
-                UngroupedGroupCache(),
-            ):
-                messages = self.consumer.consume(
-                    num_messages=inventory_config().mq_db_batch_max_messages,
-                    timeout=inventory_config().mq_db_batch_max_seconds,
-                )
+        with session_guard(db.session, close=False), db.session.no_autoflush:
+            messages = self.consumer.consume(
+                num_messages=inventory_config().mq_db_batch_max_messages,
+                timeout=inventory_config().mq_db_batch_max_seconds,
+            )
 
-                self._pre_process_messages(messages)
+            for msg in messages:
+                if msg is None:
+                    continue
+                elif msg.error():
+                    # This error is raised by the first consumer.consume() on a newly started Kafka.
+                    # msg.error() produces:
+                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    self.failure_metric.inc()
+                else:
+                    logger.debug("Message received")
 
-                for msg in messages:
-                    if msg is None:
-                        continue
-                    elif msg.error():
-                        # This error is raised by the first consumer.consume() on a newly started Kafka.
-                        # msg.error() produces:
-                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                    try:
+                        self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                        self.success_metric.inc()
+                    except OperationalError as oe:
+                        """sqlalchemy.exc.OperationalError: This error occurs when an
+                        authentication failure occurs or the DB is not accessible.
+                        Exit the process to restart the pod
+                        """
+                        logger.error(f"Could not access DB {str(oe)}")
+                        sys.exit(3)
+                    except Exception:
                         self.failure_metric.inc()
-                    else:
-                        logger.debug("Message received")
+                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
-                        try:
-                            self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
-                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                            self.success_metric.inc()
-                        except OperationalError as oe:
-                            """sqlalchemy.exc.OperationalError: This error occurs when an
-                            authentication failure occurs or the DB is not accessible.
-                            Exit the process to restart the pod
-                            """
-                            logger.error(f"Could not access DB {str(oe)}")
-                            sys.exit(3)
-                        except Exception:
-                            self.failure_metric.inc()
-                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-
-            self.post_process_rows()
+        self.post_process_rows()
         # Commit Kafka offsets after successful batch processing
         # This ensures offsets are persisted immediately after DB commit and event production,
         # preventing duplicate message processing on service restart
@@ -482,42 +465,6 @@ class HostMessageConsumer(HBIMessageConsumerBase):
 
 
 class IngressMessageConsumer(HostMessageConsumer):
-    _ID_FACT_KEYS = ("insights_id", "subscription_manager_id", "provider_id")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._prefetched_hosts: list[Host] = []
-
-    @staticmethod
-    def _extract_canonical_facts_from_raw(messages) -> list[dict[str, Any]]:
-        """Lightweight pre-parse of raw Kafka messages to extract canonical fact
-        identifiers and org_id without full Host deserialization."""
-        batch_facts: list[dict[str, Any]] = []
-        for msg in messages:
-            if msg is None or msg.error():
-                continue
-            try:
-                parsed = common_message_parser(msg.value())
-                host_data = parsed.get("data", {})
-                facts: dict[str, Any] = {}
-                if org_id := host_data.get("org_id"):
-                    facts["org_id"] = org_id
-                for key in IngressMessageConsumer._ID_FACT_KEYS:
-                    if v := host_data.get(key):
-                        facts[key] = v
-                if facts.get("org_id") and len(facts) > 1:
-                    batch_facts.append(facts)
-            except Exception:
-                logger.debug("Failed to pre-parse message for batch dedup, will process normally", exc_info=True)
-        return batch_facts
-
-    def _pre_process_messages(self, messages) -> None:
-        self._prefetched_hosts = []
-        if len(messages) > 1:
-            batch_facts = self._extract_canonical_facts_from_raw(messages)
-            if batch_facts:
-                self._prefetched_hosts = host_repository.batch_find_existing_hosts(batch_facts)
-
     def process_message(
         self,
         host_data: dict[str, Any],
@@ -549,11 +496,7 @@ class IngressMessageConsumer(HostMessageConsumer):
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
             processed_hosts = [result.row for result in self.processed_rows]
             host_row, add_result = host_repository.add_host(
-                input_host,
-                identity,
-                operation_args=operation_args,
-                existing_hosts=processed_hosts,
-                prefetched_hosts=self._prefetched_hosts,
+                input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
 
             # Set owner_id on the persisted host
@@ -1092,7 +1035,7 @@ def write_add_update_event_message(
             bootc_booted,
         )
 
-    event_producer.write_event(event, str(result.row.id), headers, wait=False)
+    event_producer.write_event(event, str(result.row.id), headers, wait=True)
 
     if result.event_type.name == HOST_EVENT_TYPE_CREATED:
         # Notifications are expected to omit null canonical facts
@@ -1132,8 +1075,6 @@ def write_message_batch(
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
-    if event_producer is not None:
-        event_producer.flush()
 
 
 def initialize_thread_local_storage(
