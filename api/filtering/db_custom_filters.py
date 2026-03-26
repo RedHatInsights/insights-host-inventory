@@ -402,9 +402,7 @@ def _build_group_filter(grouped_filter_param, *, is_workload: bool):
             return or_(*(_build_workloads_filter(f) for f in grouped_filter_param))
 
         # Standard fields: AND for arrays, OR otherwise
-        field_filter = _get_field_filter_for_deepest_param(
-            system_profile_spec(), grouped_filter_param[0]
-        )
+        field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0])
         conjunction = and_ if field_filter == "array" else or_
         return conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
 

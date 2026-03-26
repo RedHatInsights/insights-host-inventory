@@ -2776,16 +2776,19 @@ def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
             "[workloads][sap][sids][contains][]=ABC"
             "&filter[system_profile][workloads][sap][sap_system][]=true"
             "&filter[system_profile][workloads][ansible][controller_version][]=1.2.3"
+            "&filter[system_profile][workloads][mssql][version][is][]=not_nil"
         ),
         (
             "[sap_sids][contains][]=ABC"
             "&filter[system_profile][sap_system][]=true"
             "&filter[system_profile][ansible][controller_version][]=1.2.3"
+            "&filter[system_profile][mssql][version][is][]=not_nil"
         ),
         (
             "[sap_sids][contains][]=ABC"
             "&filter[system_profile][sap_system][]=true"
-            "&filter[system_profile][workloads][ansible][controller_version][]=1.2.3"
+            "&filter[system_profile][workloads][ansible][controller_version][is][]=not_nil"
+            "&filter[system_profile][workloads][mssql][version][is][]=not_nil"
         ),
     ),
 )
@@ -2795,17 +2798,21 @@ def test_query_multiple_workloads_uses_or_logic(db_create_host, api_get, sp_filt
         db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
     )
 
-    sap_sids_host_id = str(
-        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}}).id
-    )
-
-    ansible_host_id = str(
+    sap_sids_and_ansible_host_id = str(
         db_create_host(
-            extra_data={"system_profile_facts": {"workloads": {"ansible": {"controller_version": "1.2.3"}}}}
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {"sap": {"sids": ["ABC", "DEF"]}, "ansible": {"controller_version": "1.2.3"}}
+                }
+            }
         ).id
     )
 
-    db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.0"}}}})
+    mssql_host_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "not_nil"}}}}).id
+    )
+
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {}}}})
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
     response_status, response_data = api_get(url)
@@ -2814,5 +2821,27 @@ def test_query_multiple_workloads_uses_or_logic(db_create_host, api_get, sp_filt
     response_ids = [result["id"] for result in response_data["results"]]
     assert len(response_ids) == 3
     assert sap_host_id in response_ids
-    assert ansible_host_id in response_ids
-    assert sap_sids_host_id in response_ids
+    assert sap_sids_and_ansible_host_id in response_ids
+    assert mssql_host_id in response_ids
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        (
+            "[workloads][sap][sids][contains][]=NONEXISTENT_SID"
+            "&filter[system_profile][workloads][sap][sap_system][]=true"
+            "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
+        ),
+    ),
+)
+def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get, sp_filter_param):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}})
+
+    url = build_hosts_url(f"?filter[system_profile]{sp_filter_param}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
