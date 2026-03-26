@@ -6,12 +6,21 @@ from unittest.mock import Mock
 from connexion import FlaskApp
 from sqlalchemy.orm import attributes as orm_attributes
 
+import jobs.flatten_per_reporter_staleness as flatten_job
 from app.models import Host
 from app.models import db
-from jobs.flatten_per_reporter_staleness import _count_hosts_with_nested_format
-from jobs.flatten_per_reporter_staleness import _flatten_host_per_reporter_staleness
-from jobs.flatten_per_reporter_staleness import _get_hosts_with_nested_format
-from jobs.flatten_per_reporter_staleness import run
+
+
+def _run_flatten_job(
+    flask_app: FlaskApp,
+    *,
+    dry_run: bool,
+    chunk_size: int = 1000,
+    logger: Mock | None = None,
+) -> None:
+    """Invoke ``run()`` with a config mock, matching most job tests."""
+    config = Mock(dry_run=dry_run, script_chunk_size=chunk_size)
+    flatten_job.run(config=config, logger=logger or Mock(), session=db.session, application=flask_app)
 
 
 def test_flatten_nested_to_flat_format(flask_app: FlaskApp, db_create_host):
@@ -43,18 +52,7 @@ def test_flatten_nested_to_flat_format(flask_app: FlaskApp, db_create_host):
 
     db.session.commit()
 
-    # Create mock config with required attributes
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False)
 
     host = Host.query.filter_by(id=host_id).one()
 
@@ -82,18 +80,7 @@ def test_flatten_already_flat_format_unchanged(flask_app: FlaskApp, db_create_ho
 
     db.session.commit()
 
-    # Create mock config with required attributes
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False)
 
     host = Host.query.filter_by(id=host_id).one()
 
@@ -127,18 +114,7 @@ def test_flatten_mixed_reporters(flask_app: FlaskApp, db_create_host):
 
     db.session.commit()
 
-    # Create mock config with required attributes
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False)
 
     host = Host.query.filter_by(id=host_id).one()
 
@@ -165,17 +141,7 @@ def test_flatten_empty_per_reporter_staleness(flask_app: FlaskApp, db_create_hos
     orm_attributes.flag_modified(host, "per_reporter_staleness")
     db.session.commit()
 
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False)
 
     host = Host.query.filter_by(id=host_id).one()
 
@@ -205,18 +171,7 @@ def test_flatten_dry_run_mode(flask_app: FlaskApp, db_create_host):
 
     db.session.commit()
 
-    # Create mock config with dry_run=True
-    config = Mock()
-    config.dry_run = True
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=True)
 
     host = Host.query.filter_by(id=host_id).one()
 
@@ -288,7 +243,7 @@ def test_count_hosts_with_nested_format(db_create_host):
 
     db.session.commit()
 
-    count = _count_hosts_with_nested_format(db.session, org_id)
+    count = flatten_job._count_hosts_with_nested_format(db.session, org_id)
 
     # Should count only the 2 hosts in org_id with nested format
     assert count == 2
@@ -338,7 +293,7 @@ def test_get_hosts_with_nested_format(db_create_host):
 
     db.session.commit()
 
-    hosts = _get_hosts_with_nested_format(db.session, org_id, chunk_size=10)
+    hosts = flatten_job._get_hosts_with_nested_format(db.session, org_id, chunk_size=10)
 
     # Should return only the 2 hosts with nested format
     assert len(hosts) == 2
@@ -369,7 +324,7 @@ def test_flatten_host_function(db_create_host):
     db.session.commit()
 
     # Flatten it
-    result = _flatten_host_per_reporter_staleness(host, Mock(), dry_run=False)
+    result = flatten_job._flatten_host_per_reporter_staleness(host, Mock(), dry_run=False)
 
     # Should return True (was modified)
     assert result is True
@@ -392,7 +347,7 @@ def test_flatten_host_function_already_flat(db_create_host):
     db.session.commit()
 
     # Try to flatten it
-    result = _flatten_host_per_reporter_staleness(host, Mock(), dry_run=False)
+    result = flatten_job._flatten_host_per_reporter_staleness(host, Mock(), dry_run=False)
 
     # Should return False (not modified)
     assert result is False
@@ -421,7 +376,7 @@ def test_flatten_host_function_dry_run(db_create_host):
     db.session.commit()
 
     # Flatten it in dry-run
-    result = _flatten_host_per_reporter_staleness(host, Mock(), dry_run=True)
+    result = flatten_job._flatten_host_per_reporter_staleness(host, Mock(), dry_run=True)
 
     # Should return True (would be modified)
     assert result is True
@@ -468,18 +423,7 @@ def test_flatten_multiple_orgs(flask_app: FlaskApp, db_create_host):
 
     db.session.commit()
 
-    # Create mock config with required attributes
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1000
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False)
 
     # Verify both orgs were processed
     org1_host = Host.query.filter_by(id=org1_host_id).one()
@@ -514,18 +458,7 @@ def test_flatten_chunked_processing(flask_app: FlaskApp, db_create_host):
 
     db.session.commit()
 
-    # Create mock config with chunk size of 1 (forces multiple batches)
-    config = Mock()
-    config.dry_run = False
-    config.script_chunk_size = 1
-    config.org_id = None
-
-    run(
-        config=config,
-        logger=Mock(),
-        session=db.session,
-        application=flask_app,
-    )
+    _run_flatten_job(flask_app, dry_run=False, chunk_size=1)
 
     # Verify all hosts were processed
     for host_id in host_ids:
