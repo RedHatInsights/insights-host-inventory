@@ -457,21 +457,19 @@ class Host(LimitedHost):
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
     def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
-        use_flat_structure = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
-
-        if use_flat_structure:
+        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
             # Flat format: timestamps are computed on-the-fly, nothing to update
             return
 
         for reporter in self.per_reporter_staleness:
             st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=st["stale_timestamp"].isoformat(),
-                culled_timestamp=st["culled_timestamp"].isoformat(),
-                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
-                last_check_in=self.per_reporter_staleness[reporter]["last_check_in"],
-                check_in_succeeded=True,
-            )
+            self.per_reporter_staleness[reporter] = {
+                "stale_timestamp": st["stale_timestamp"].isoformat(),
+                "culled_timestamp": st["culled_timestamp"].isoformat(),
+                "stale_warning_timestamp": st["stale_warning_timestamp"].isoformat(),
+                "last_check_in": self.per_reporter_staleness[reporter]["last_check_in"],
+                "check_in_succeeded": True,
+            }
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_per_reporter_staleness(self, reporter):
@@ -484,27 +482,25 @@ class Host(LimitedHost):
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        use_flat_structure = get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS)
-
-        if use_flat_structure:
+        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
             self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
         elif should_host_stay_fresh_forever(self):
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                culled_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                stale_warning_timestamp=FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                last_check_in=self.last_check_in.isoformat(),
-                check_in_succeeded=True,
-            )
+            self.per_reporter_staleness[reporter] = {
+                "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
+                "last_check_in": self.last_check_in.isoformat(),
+                "check_in_succeeded": True,
+            }
         else:
             st = _create_staleness_timestamps_values(self, self.org_id)
-            self.per_reporter_staleness[reporter].update(
-                stale_timestamp=st["stale_timestamp"].isoformat(),
-                culled_timestamp=st["culled_timestamp"].isoformat(),
-                stale_warning_timestamp=st["stale_warning_timestamp"].isoformat(),
-                last_check_in=self.last_check_in.isoformat(),
-                check_in_succeeded=True,
-            )
+            self.per_reporter_staleness[reporter] = {
+                "stale_timestamp": st["stale_timestamp"].isoformat(),
+                "culled_timestamp": st["culled_timestamp"].isoformat(),
+                "stale_warning_timestamp": st["stale_warning_timestamp"].isoformat(),
+                "last_check_in": self.last_check_in.isoformat(),
+                "check_in_succeeded": True,
+            }
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_last_check_in_date(self):
