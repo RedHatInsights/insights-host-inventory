@@ -3373,19 +3373,19 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
     assert second_host_from_db.static_system_profile.bios_version == "1.23"
 
 
-@pytest.mark.usefixtures("flask_app")
 def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer, flask_app):
     """OOM regression test: host lookup queries must NOT eagerly load system profiles.
 
     The production OOM was caused by joinedload of HostStaticSystemProfile and
     HostDynamicSystemProfile during host lookup (multiple_canonical_facts_host_query).
-    With 50 hosts per batch, each carrying ~500 installed_packages and large
-    network_interfaces, the session identity map grew to several GiB.
+    With 50 hosts per batch, each carrying large system profiles (installed_packages,
+    network_interfaces, disk_devices, etc.), the session identity map grew to several GiB.
 
-    This test reproduces the exact scenario:
-    1. Pre-create 50 hosts in the DB with large system profiles.
+    This test detects the issue via SQL interception (not memory pressure), so
+    any system profile payload is sufficient to trigger the same JOINs:
+    1. Pre-create 50 hosts in the DB with system profiles.
     2. Send update messages for those same hosts through the consumer.
-    3. Intercept every SQL statement and assert that NONE reference the
+    3. Intercept every SQL statement and assert that NONE JOIN the
        system_profiles_static or system_profiles_dynamic tables.
     4. Also verify the identity map contains no system profile ORM objects.
 
@@ -3399,38 +3399,11 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
 
     batch_size = 50
 
-    large_system_profile = {
-        "number_of_cpus": 4,
-        "os_release": "RHEL 9.2",
-        "arch": "x86-64",
-        "installed_packages": [f"pkg-{i}-0:{i}.0.1.el9.x86_64" for i in range(500)],
-        "network_interfaces": [
-            {
-                "ipv4_addresses": [f"10.0.{i // 256}.{i % 256}"],
-                "ipv6_addresses": [f"fd00::{i:04x}"],
-                "mtu": 1500,
-                "mac_address": f"aa:bb:cc:dd:{i:02x}:ff",
-                "name": f"eth{i}",
-                "state": "UP",
-                "type": "ether",
-            }
-            for i in range(20)
-        ],
-        "disk_devices": [
-            {"device": f"/dev/sd{chr(97 + i)}", "mount_point": f"/mnt/disk{i}", "type": "ext4"} for i in range(10)
-        ],
-        "running_processes": [f"process_{i}" for i in range(200)],
-        "kernel_modules": [f"mod_{i}" for i in range(100)],
-        "cpu_flags": [f"flag_{i}" for i in range(50)],
-        "enabled_services": [f"svc_{i}" for i in range(100)],
-        "installed_services": [f"svc_{i}" for i in range(100)],
-    }
-
     insights_ids = [generate_uuid() for _ in range(batch_size)]
     stale_ts = now() + timedelta(days=7)
 
     for iid in insights_ids:
-        create_reference_host_in_db(iid, "puptoo", large_system_profile, stale_ts)
+        create_reference_host_in_db(iid, "puptoo", valid_system_profile(), stale_ts)
 
     db.session.expire_all()
 
@@ -3468,9 +3441,8 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
     finally:
         sqlevent.remove(db.engine, "before_execute", _capture_sql)
 
-    # Detect joinedload: these produce JOINs between hosts and system profile tables.
-    # Lazy-load SELECTs (safe, one-at-a-time) only reference system_profiles_* in FROM,
-    # never alongside hbi.hosts in the same query.
+    assert captured_sql, "No SQL was captured; host lookup/processing path may not have been executed"
+
     eager_load_queries = [
         sql
         for sql in captured_sql
