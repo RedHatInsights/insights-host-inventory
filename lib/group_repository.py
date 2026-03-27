@@ -37,6 +37,7 @@ from app.serialization import serialize_host
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from lib.batch_cache import ThreadLocalBatchCache
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.host_repository import get_host_counts_batch
@@ -49,6 +50,10 @@ from lib.metrics import delete_host_group_processing_time
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
+
+
+class UngroupedGroupCache(ThreadLocalBatchCache):
+    """Batch-scoped cache for ungrouped group lookups, keyed by org_id."""
 
 
 def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
@@ -552,23 +557,28 @@ def get_group_using_host_id(host_id: str, org_id: str):
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
+    cached = UngroupedGroupCache.get(identity.org_id)
+    if cached is not None:
+        return cached
+
     group = get_ungrouped_group(identity)
 
-    # If the "ungrouped" Group exists, return it.
     if group is not None:
+        UngroupedGroupCache.put(identity.org_id, group)
         return group
 
     # Otherwise, create the workspace
     workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
-    # Create "ungrouped" group for this org using group ID == workspace ID
-    return add_group(
+    group = add_group(
         group_name="Ungrouped Hosts",
         org_id=identity.org_id,
         account=getattr(identity, "account_number", None),
         group_id=workspace_id,
         ungrouped=True,
     )
+    UngroupedGroupCache.put(identity.org_id, group)
+    return group
 
 
 def get_ungrouped_group(identity: Identity) -> Group:
