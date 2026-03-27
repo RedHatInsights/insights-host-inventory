@@ -10,20 +10,11 @@ from app.logging import get_logger
 from app.staleness_serialization import build_serialized_acc_staleness_obj
 from app.staleness_serialization import build_staleness_sys_default
 from app.staleness_serialization import get_staleness_timestamps
-from lib.batch_cache import ThreadLocalBatchCache
 
 logger = get_logger(__name__)
 
 
-class StalenessCache(ThreadLocalBatchCache):
-    """Batch-scoped cache for staleness config lookups, keyed by org_id."""
-
-
 def _get_staleness_obj(org_id):
-    cached = StalenessCache.get(org_id)
-    if cached is not None:
-        return cached
-
     try:
         from app.models.staleness import Staleness
 
@@ -33,8 +24,8 @@ def _get_staleness_obj(org_id):
     except NoResultFound:
         logger.debug(f"No staleness data found for org {org_id}, using system default values for model")
         staleness = build_staleness_sys_default(org_id)
+        return staleness
 
-    StalenessCache.put(org_id, staleness)
     return staleness
 
 

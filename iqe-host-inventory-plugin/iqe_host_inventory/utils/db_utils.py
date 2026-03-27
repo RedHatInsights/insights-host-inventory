@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from typing_extensions import ParamSpec
 
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
-from iqe_host_inventory.schemas import per_reporter_staleness_from_dict
+from iqe_host_inventory.schemas import per_reporter_staleness_from_db
 from iqe_host_inventory.utils.datagen_utils import DEFAULT_INSIGHTS_ID
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -176,7 +176,7 @@ def query_hosts_ids_all(inventory_db_session: Session) -> list[str]:
 def query_host_staleness(inventory_db_session: Session, host_id: str) -> PER_REPORTER_STALENESS:
     statement = select(Host.per_reporter_staleness).filter_by(id=host_id)
     result = inventory_db_session.scalar(statement)
-    return per_reporter_staleness_from_dict(result)
+    return per_reporter_staleness_from_db(result)
 
 
 def query_hosts_by_ids(inventory_db_session: Session, host_ids: Collection[str]) -> list[Host]:

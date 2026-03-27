@@ -143,7 +143,7 @@ def get_group_list(
         org_id = identity.org_id
 
         # Feature flag check for RBAC v2 integration
-        if is_rbac_v2_groups_enabled():
+        if is_rbac_v2_groups_enabled(identity.org_id):
             # RBAC v2 path: rbac_filter is None (no RBAC v1 filter)
             # Authorization is handled by get_rbac_workspaces() which uses user's identity header
             # Query workspaces from RBAC v2 API
@@ -319,11 +319,12 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 
         if not inventory_config().bypass_kessel:
             # Validate whether the hosts can be added to the group
+            identity = get_current_identity()
             if len(host_id_list := validated_create_group_data.get("host_ids", [])) > 0:
                 validate_add_host_list_to_group_for_group_create(
                     host_id_list,
                     group_name,
-                    get_current_identity().org_id,
+                    identity.org_id,
                 )
 
             workspace_id = post_rbac_workspace(group_name)
@@ -337,7 +338,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                 wait_for_workspace_event(
                     str(workspace_id),
                     EventType.created,
-                    org_id=get_current_identity().org_id,
+                    org_id=identity.org_id,
                     timeout=inventory_config().rbac_timeout,
                 )
             except TimeoutError:
@@ -346,10 +347,10 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
             add_hosts_to_group(
                 str(workspace_id),
                 host_id_list,
-                get_current_identity(),
+                identity,
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(str(workspace_id), get_current_identity().org_id)
+            created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
@@ -379,12 +380,12 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
+    identity = get_current_identity()
+
     # RBAC v1 only: Validate group ID against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by database query (group must exist in org)
-    if not is_rbac_v2_groups_enabled():
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter or {}, {group_id})
-
-    identity = get_current_identity()
 
     # Validate all inputs
     validated_patch_group_data, group_to_update = _validate_patch_group_inputs(group_id, body, identity)
@@ -423,18 +424,20 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 @rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
+    identity = get_current_identity()
+
     # RBAC v1 only: Validate group IDs against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
-    if not is_rbac_v2_groups_enabled():
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Abort with 404 if any of the groups do not exist
-    found_groups = get_groups_by_id_list_from_db(group_id_list, get_current_identity().org_id)
+    found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
     check_all_ids_found(group_id_list, found_groups, "group")
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
-        ungrouped_group = get_ungrouped_group(get_current_identity())
+        ungrouped_group = get_ungrouped_group(identity)
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
 
         for group_id in group_id_list:
@@ -455,9 +458,9 @@ def delete_groups(group_id_list, rbac_filter=None):
                 group_ids_to_delete.append(group_id)
 
         # Attempt to delete the "not found" groups on our side
-        delete_count += delete_group_list(group_ids_to_delete, get_current_identity(), current_app.event_producer)
+        delete_count += delete_group_list(group_ids_to_delete, identity, current_app.event_producer)
     else:
-        delete_count = delete_group_list(group_id_list, get_current_identity(), current_app.event_producer)
+        delete_count = delete_group_list(group_id_list, identity, current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
@@ -476,13 +479,15 @@ def get_groups_by_id(
     order_how=None,
     rbac_filter=None,
 ):
+    identity = get_current_identity()
+
     # RBAC v1 only: Validate group IDs against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by get_rbac_workspaces_by_ids()
-    if not is_rbac_v2_groups_enabled():
+    if not is_rbac_v2_groups_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
 
     # Feature flag check for RBAC v2 integration
-    if is_rbac_v2_groups_enabled():
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Use RBAC v2 API queries
         try:
             group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
@@ -528,7 +533,8 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    if is_rbac_v2_groups_enabled():
+    # Pass org_id context for org-specific feature flag targeting
+    if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
         if requested_group_ids:

@@ -15,6 +15,8 @@ from app.culling import should_host_stay_fresh_forever
 from app.models import Host
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
+from lib.feature_flags import build_flag_context
+from lib.feature_flags import get_flag_value
 from lib.feature_flags import get_flag_value_and_fallback
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -210,3 +212,51 @@ def test_should_host_stay_fresh_forever():
         "puptoo": {"last_check_in": datetime.now(UTC).isoformat(), "check_in_succeeded": True}
     }
     assert should_host_stay_fresh_forever(host_normal) is False
+
+
+@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
+def test_get_flag_value_without_context(_enable_unleash):
+    """Test get_flag_value() without context uses empty dict."""
+    unleash_mock = MagicMock()
+    unleash_mock.is_enabled.return_value = True
+
+    with patch.object(UNLEASH, "client", unleash_mock):
+        flag_value = get_flag_value(TEST_FEATURE_FLAG)
+
+        # Verify flag value returned
+        assert flag_value is True
+
+        # Verify Unleash was called with empty context
+        unleash_mock.is_enabled.assert_called_once()
+        call_args = unleash_mock.is_enabled.call_args
+        assert call_args[1]["context"] == {}
+
+
+@patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
+@mark.parametrize(
+    ("org_id", "expected_enabled"),
+    [
+        ("3340851", True),  # Org with feature enabled
+        ("9999999", False),  # Org with feature disabled
+    ],
+)
+def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected_enabled):
+    """Test get_flag_value() with org-specific targeting via orgId context."""
+    context = build_flag_context(org_id)
+
+    unleash_mock = MagicMock()
+    # Simulate Unleash's org-specific targeting behavior
+    unleash_mock.is_enabled.return_value = expected_enabled
+
+    with patch.object(UNLEASH, "client", unleash_mock):
+        flag_value = get_flag_value(TEST_FEATURE_FLAG, context=context)
+
+        # Verify correct value based on org_id
+        assert flag_value == expected_enabled
+
+        # Verify context was passed to Unleash and that we no longer use userId
+        call_args = unleash_mock.is_enabled.call_args
+        assert call_args is not None
+
+        context = call_args[1]["context"]
+        assert context == {"orgId": org_id}

@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import Index
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
@@ -19,7 +20,6 @@ class Group(db.Model):
     __table_args__ = (
         Index("idxgrouporgid", "org_id"),
         Index("idx_groups_org_id_name_ignorecase", text("lower(name)"), "org_id", unique=False),
-        Index("idxorgidungrouped", "org_id", "ungrouped"),
         {"schema": INVENTORY_SCHEMA},
     )
 
@@ -70,3 +70,11 @@ class Group(db.Model):
     ungrouped = db.Column(db.Boolean, default=False, nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=_time_now, nullable=False)
     modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now, nullable=False)
+
+    host_group_assocs = relationship(
+        "HostGroupAssoc",
+        primaryjoin="and_(Group.id == HostGroupAssoc.group_id, Group.org_id == HostGroupAssoc.org_id)",
+        foreign_keys="[HostGroupAssoc.group_id, HostGroupAssoc.org_id]",
+        viewonly=True,
+        lazy="noload",
+    )

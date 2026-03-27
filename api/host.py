@@ -58,6 +58,7 @@ from app.serialization import serialize_uuid
 from app.utils import Tag
 from app.utils import check_all_ids_found
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
@@ -479,13 +480,13 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         Host.facts.has_key(namespace),
     )
 
-    query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+    query = Host.query.outerjoin(HostGroupAssoc).filter(*filters).group_by(Host.org_id, Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
         count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
-        query = Host.query.join(HostGroupAssoc, isouter=True).filter(*filters).group_by(Host.org_id, Host.id)
+        query = Host.query.outerjoin(HostGroupAssoc).filter(*filters).group_by(Host.org_id, Host.id)
 
         if (
             count_before_rbac_filter
@@ -598,7 +599,10 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
     # Duplicated - I wonder if this could be factored back into middleware.py
-    if (not inventory_config().bypass_kessel) and get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1):
+    # Pass org_id context for org-specific feature flag targeting
+    if (not inventory_config().bypass_kessel) and get_flag_value(
+        FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
+    ):
         kessel_client = get_kessel_client(current_app)
         allowed, kessel_data = get_kessel_filter(
             kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]

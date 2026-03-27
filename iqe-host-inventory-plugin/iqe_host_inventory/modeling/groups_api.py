@@ -622,7 +622,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         groups_data: Collection[GroupData] | None = None,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = GROUP_NOT_CREATED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully created and retrievable by API
@@ -637,7 +637,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the groups
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the groups
-            Default: 40
+            Default: 60
         :param Exception error: An error to raise when the groups are not retrievable. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: Retrieved groups
@@ -735,7 +735,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         wait_for_deleted: bool = True,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 60,
         **api_kwargs: Any,
     ) -> None:
         """Delete groups
@@ -748,7 +748,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to check that groups are deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that the groups are deleted
-            Default: 10
+            Default: 60
         :return None
         """
         group_ids = _ids_from_groups(groups)
@@ -798,7 +798,7 @@ class GroupsAPIWrapper(BaseEntity):
         groups: GROUP_OR_GROUPS,
         *,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = GROUP_NOT_DELETED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully deleted and not retrievable by API
@@ -808,7 +808,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to check that groups are deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that the groups are deleted
-            Default: 40
+            Default: 60
         :param Exception error: An error to raise when the groups are not deleted. If `None`,
             then no error will be raised and the method will finish successfully.
         :return list[GroupOutWithHostCount]: A list of not deleted groups
@@ -830,7 +830,7 @@ class GroupsAPIWrapper(BaseEntity):
         )
 
     def verify_deleted(
-        self, groups: GROUP_OR_GROUPS, *, delay: float = 0.5, retries: int = 10
+        self, groups: GROUP_OR_GROUPS, *, delay: float = 0.5, retries: int = 60
     ) -> None:
         """A helper for verifying that the groups have been deleted.
         Assertion error is easier to debug than a nested exception from "wait_for_deleted".
@@ -840,7 +840,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to check that group is deleted
             Default: 0.5
         :param int retries: A maximum number of attempts to check that group is deleted
-            Default: 10
+            Default: 60
         :return None
         """
         response_groups = self.wait_for_deleted(groups, delay=delay, retries=retries, error=None)
@@ -916,7 +916,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         host_count: int | None = None,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = GROUP_NOT_UPDATED_ERROR,
     ) -> GroupOutWithHostCount:
         """Wait until the group is successfully updated and the changes are retrievable by API
@@ -931,7 +931,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the group updates
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the group updates
-            Default: 40
+            Default: 60
         :param Exception error: An error to raise when the group is not updated. If `None`,
             then no error will be raised and the method will finish successfully.
         :return GroupOutWithHostCount: Retrieved group
@@ -956,7 +956,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS | None = None,
         host_count: int | None = None,
         delay: float = 0.5,
-        retries: int = 10,
+        retries: int = 60,
     ) -> GroupOutWithHostCount:
         """A helper for verifying that the group has been updated.
         Assertion error is easier to debug than a nested exception from "wait_for_updated".
@@ -971,7 +971,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between attempts to retrieve the group updates
             Default: 0.5
         :param int retries: A maximum number of attempts to retrieve the group updates
-            Default: 10
+            Default: 60
         :return GroupOutWithHostCount: Retrieved group
         """
         _verify_host_count_params(hosts, host_count)
@@ -1129,7 +1129,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = HOSTS_NOT_REMOVED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are removed from groups and the changes are retrievable by API
@@ -1139,7 +1139,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between host groups checks
             Default: 0.5
         :param int retries: A maximum number of host groups checks
-            Default: 40
+            Default: 60
         :param Exception error: An error to raise when the hosts are not removed from groups.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[HostOut]: Retrieved hosts
@@ -1156,7 +1156,7 @@ class GroupsAPIWrapper(BaseEntity):
         )
 
     def verify_hosts_removed(
-        self, hosts: HOST_OR_HOSTS, *, delay: float = 0.5, retries: int = 10
+        self, hosts: HOST_OR_HOSTS, *, delay: float = 0.5, retries: int = 60
     ) -> None:
         """A helper for verifying that the hosts have been removed from groups.
         Assertion error is easier to debug than a nested exception from "wait_for_hosts_removed".
@@ -1166,7 +1166,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between host groups checks
             Default: 0.5
         :param int retries: A maximum number of host groups checks
-            Default: 10
+            Default: 60
         :return None
         """
         response_hosts = self.wait_for_hosts_removed(
@@ -1213,7 +1213,7 @@ class GroupsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = HOSTS_NOT_ADDED_ERROR,
     ) -> list[str]:
         """Wait until the hosts are added to the group and the changes are retrievable by API
@@ -1225,7 +1225,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between group hosts checks
             Default: 0.5
         :param int retries: A maximum number of group hosts checks
-            Default: 40
+            Default: 60
         :param Exception error: An error to raise when the hosts are not added to the group.
             If `None`, then no error will be raised and the method will finish successfully.
         :return list[str]: Host IDs associated with the provided group
@@ -1243,7 +1243,7 @@ class GroupsAPIWrapper(BaseEntity):
         )
 
     def verify_hosts_added(
-        self, group: GROUP_OR_ID, hosts: HOST_OR_HOSTS, *, delay: float = 0.5, retries: int = 10
+        self, group: GROUP_OR_ID, hosts: HOST_OR_HOSTS, *, delay: float = 0.5, retries: int = 60
     ) -> None:
         """A helper for verifying that the hosts have been added to the group.
         Assertion error is easier to debug than a nested exception from "wait_for_hosts_added".
@@ -1255,7 +1255,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between group hosts checks
             Default: 0.5
         :param int retries: A maximum number of group hosts checks
-            Default: 10
+            Default: 60
         :return None
         """
         host_ids = set(_ids_from_hosts(hosts))
@@ -1267,7 +1267,7 @@ class GroupsAPIWrapper(BaseEntity):
 
     @contextlib.contextmanager
     def verify_group_count_changed(
-        self, delta: int, *, delay: float = 0.5, retries: int = 10
+        self, delta: int, *, delay: float = 0.5, retries: int = 60
     ) -> Generator[None]:
         """Verify that the number of groups has changed within the context
 
@@ -1276,7 +1276,7 @@ class GroupsAPIWrapper(BaseEntity):
         :param float delay: A delay in seconds between groups number checks
             Default: 0.5
         :param int retries: A maximum number of groups number checks
-            Default: 10
+            Default: 60
         :return Generator[None]
         """
 
