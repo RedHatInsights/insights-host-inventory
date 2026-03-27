@@ -388,6 +388,28 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _is_workload_filter(grouped_filter_param):
+    """Encapsulates the check for what counts as a workload."""
+    first_item = grouped_filter_param[0] if isinstance(grouped_filter_param, list) else grouped_filter_param
+    field_name = next(iter(first_item.keys()))
+    return field_name in WORKLOADS_FIELDS or field_name == "workloads"
+
+
+def _build_group_filter(grouped_filter_param, *, is_workload: bool):
+    if isinstance(grouped_filter_param, list):
+        if is_workload:
+            # Workloads: OR across values
+            return or_(*(_build_workloads_filter(f) for f in grouped_filter_param))
+
+        # Standard fields: AND for arrays, OR otherwise
+        field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0])
+        conjunction = and_ if field_filter == "array" else or_
+        return conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
+
+    # Single filter object: workloads and standard share the same builder
+    return _build_workloads_filter(grouped_filter_param)
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -449,24 +471,25 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
 # Takes a System Profile filter param and turns it into sql filters.
 def build_system_profile_filter(system_profile_param: dict) -> tuple:
-    system_profile_filter: tuple = tuple()
+    standard_filters = []
+    workload_filters = []
 
-    # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
 
     for grouped_filter_param in filter_param_list:
-        if isinstance(grouped_filter_param, list):
-            # Use AND when filtering on an array, but otherwise use OR.
-            conjunction = (
-                and_
-                if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array"
-                else or_
-            )
-            filter = conjunction(_build_workloads_filter(single_filter) for single_filter in grouped_filter_param)
-        else:
-            filter = _build_workloads_filter(grouped_filter_param)
+        is_workload = _is_workload_filter(grouped_filter_param)
+        group_filter = _build_group_filter(grouped_filter_param, is_workload=is_workload)
 
-        system_profile_filter += (filter,)
+        if is_workload:
+            workload_filters.append(group_filter)
+        else:
+            standard_filters.append(group_filter)
+
+    # Standard filters stay separate (AND), Workloads get grouped (OR)
+    system_profile_filter = tuple(standard_filters)
+    if workload_filters:
+        system_profile_filter += (or_(*workload_filters),)
+
     return system_profile_filter
 
 

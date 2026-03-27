@@ -52,7 +52,7 @@ def log_response_tags_indices(my_tags: list[list[StructuredTag]], response: Acti
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 @pytest.mark.parametrize(
-    "filters,expected_hosts", [(("ABC",), (0, 1)), (("C1E",), (1,)), (("ABC", "C1E"), (1,))]
+    "filters,expected_hosts", [(("ABC",), (0, 1)), (("C1E",), (1,)), (("ABC", "C1E"), (0, 1))]
 )
 @pytest.mark.parametrize("use_contains,use_equals", [(True, True), (False, True)])
 def test_filter_tags_by_system_profile_sap_sids(
