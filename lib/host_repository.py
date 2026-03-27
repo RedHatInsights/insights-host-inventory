@@ -269,6 +269,17 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
+def _excluded_hosts_filter():
+    """Filter matching hosts that should be excluded from active counts.
+
+    Matches culled hosts (deletion_timestamp <= now) and hosts with NULL
+    deletion_timestamp. This is the inverse of the non-culled filter used
+    by find_non_culled_hosts, kept in sync via HostStalenessStatesDbFilters.
+    """
+    staleness_filter = HostStalenessStatesDbFilters()
+    return or_(staleness_filter.culled(), Host.deletion_timestamp.is_(None))
+
+
 def find_non_culled_hosts(query: Query) -> Query:
     host_staleness_states_filters = HostStalenessStatesDbFilters()
     return query.filter(not_(host_staleness_states_filters.culled()))
@@ -403,8 +414,10 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     """
     Get host counts for multiple groups in a single efficient batch query.
 
-    This eliminates the N+1 query problem when serializing multiple groups.
-    Instead of making one query per group, this makes a single aggregated query.
+    Uses a "total minus culled" strategy: counts all members from hosts_groups
+    (cheap index-only scan, no join to the wide hosts table) and subtracts the
+    small number of culled hosts. Only culled hosts trigger a
+    join to the hosts table.
 
     Args:
         org_id: Organization ID
@@ -421,25 +434,29 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     if not group_ids:
         return {}
 
-    # Single aggregated query to get all host counts at once
-    query = (
-        db.session.query(HostGroupAssoc.group_id, func.count(Host.id).label("host_count"))
-        .join(Host)
+    # Count ALL members per group from hosts_groups only (index-only scan, no join).
+    total_query = (
+        db.session.query(HostGroupAssoc.group_id, func.count().label("total"))
         .filter(HostGroupAssoc.org_id == org_id, HostGroupAssoc.group_id.in_(group_ids))
         .group_by(HostGroupAssoc.group_id)
     )
+    total_map = {str(gid): total for gid, total in total_query.all()}
 
-    # Apply non-culled host filter
-    query = find_non_culled_hosts(query)
+    # Count EXCLUDED members: culled (deletion_timestamp <= now) OR NULL deletion_timestamp.
+    # This query joins the hosts table but matches very few rows (typically <1%).
+    excluded_query = (
+        db.session.query(HostGroupAssoc.group_id, func.count().label("excluded"))
+        .join(Host, and_(HostGroupAssoc.host_id == Host.id, HostGroupAssoc.org_id == Host.org_id))
+        .filter(
+            HostGroupAssoc.org_id == org_id,
+            HostGroupAssoc.group_id.in_(group_ids),
+            _excluded_hosts_filter(),
+        )
+        .group_by(HostGroupAssoc.group_id)
+    )
+    excluded_map = {str(gid): excluded for gid, excluded in excluded_query.all()}
 
-    # Execute query
-    results = query.all()
-
-    # Create map with explicit 0 counts for groups not in results
-    count_map = {str(gid): 0 for gid in group_ids}
-    count_map.update({str(gid): count for gid, count in results})
-
-    return count_map
+    return {str(gid): max(total_map.get(str(gid), 0) - excluded_map.get(str(gid), 0), 0) for gid in group_ids}
 
 
 def get_group_ids_ordered_by_host_count(
