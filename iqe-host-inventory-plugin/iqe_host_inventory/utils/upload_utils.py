@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-import multiprocessing
+import mimetypes
 import os
-import warnings
 from collections.abc import Sequence
 from os import getenv
 from os import remove
@@ -15,8 +14,6 @@ from iqe.utils.archive import get_insights_archive
 from iqe.utils.archive_memory import InsightsArchiveInMemory
 from iqe.utils.plugins import plugin_path
 
-from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_MULTIPLE_UPLOADS
-from iqe_host_inventory.deprecations import DEPRECATE_UPLOAD
 from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import gen_tag
@@ -24,6 +21,9 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
 from iqe_host_inventory.utils.datagen_utils import get_operating_system_string
+
+# https://redhat.atlassian.net/browse/RHCLOUD-45847
+mimetypes.add_type("application/vnd.redhat.advisor.payload+tgz", ".redhat-advisor-tgz")
 
 logger = logging.getLogger(__name__)
 
@@ -72,38 +72,6 @@ def get_archive_and_collect_method(os_name: str = "RHEL") -> tuple[str, bool]:
         base_archive = get_default_rhel_archive()
         core_collect = True
     return base_archive, core_collect
-
-
-def async_multiple_uploads(ingress_openapi_client, files: list[InsightsArchiveInMemory]):
-    warnings.warn(DEPRECATE_ASYNC_MULTIPLE_UPLOADS, stacklevel=2)
-
-    file_type = "application/vnd.redhat.advisor.payload+tgz"
-
-    ingress_openapi_client.api_client.pool_threads = multiprocessing.cpu_count()
-
-    threads = []
-    for file in files:
-        thread = ingress_openapi_client.upload_post(
-            file=file.filename, content_type=file_type, async_req=True, _preload_content=False
-        )
-        threads.append(thread)
-
-    for thread in threads:
-        thread.get()
-
-    ingress_openapi_client.api_client.pool_threads = 1
-
-
-def upload(ingress_openapi_client, filename):
-    warnings.warn(DEPRECATE_UPLOAD, stacklevel=2)
-
-    file_type = "application/vnd.redhat.advisor.payload+tgz"
-
-    return ingress_openapi_client.upload_post(
-        file=filename,
-        content_type=file_type,
-        _preload_content=False,
-    )
 
 
 def build_host_archive(
