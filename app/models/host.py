@@ -463,11 +463,13 @@ class Host(LimitedHost):
 
         for reporter in self.per_reporter_staleness:
             st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
+            existing = self.per_reporter_staleness[reporter]
+
             self.per_reporter_staleness[reporter] = {
                 "stale_timestamp": st["stale_timestamp"].isoformat(),
                 "culled_timestamp": st["culled_timestamp"].isoformat(),
                 "stale_warning_timestamp": st["stale_warning_timestamp"].isoformat(),
-                "last_check_in": self.per_reporter_staleness[reporter]["last_check_in"],
+                "last_check_in": existing if isinstance(existing, str) else existing["last_check_in"],
                 "check_in_succeeded": True,
             }
         orm.attributes.flag_modified(self, "per_reporter_staleness")
