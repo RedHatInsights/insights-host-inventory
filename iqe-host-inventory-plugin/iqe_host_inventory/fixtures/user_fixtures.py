@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_identity_field(user_data: DynaBox, user_name: str, field: str) -> str:
-    if not user_data.get("identity"):
-        pytest.fail(f"User {user_name} lacks identity credentials")
-    if not user_data.identity.get(field):
-        pytest.fail(f"User {user_name} lacks {field}")
-    return user_data.identity.get(field)
+    for section in ("attributes", "identity"):
+        value = user_data.get(section, {}).get(field)
+        if value:
+            return str(value)
+    pytest.fail(f"User {user_name} lacks {field} in attributes or identity config")
 
 
 def get_user(application: Application, name: str) -> DynaBox | None:

@@ -40,6 +40,18 @@ prod:
   frontend_user: inventory_ui_account
   users:
     insights_inventory_qe:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+        email: "insights_inventory_qe@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory"
+        locale: "en_US"
+        is_org_admin: true
       auth:
         username:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
@@ -47,24 +59,29 @@ prod:
         password:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: cert
         key:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: key
-      identity:
-        account_number:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe
-          vault_key: org_id
     insights_inventory_qe_2:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: org_id
+        email: "insights_inventory_qe_2@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory 2"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
@@ -72,24 +89,29 @@ prod:
         password:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: cert
         key:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: key
-      identity:
+    inventory_service_account:
+      attributes:
         account_number:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: account_number
         org_id:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: org_id
-    inventory_service_account:
+        email: "service@redhat.com"
+        first_name: "Service"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         jwt_grant_type: client_credentials
         client_id:
@@ -101,14 +123,21 @@ prod:
         username:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: svc_acc_all_perms_username
-      identity:
+        password: ""
+        user_id: "0"
+        cn: ""
+    inventory_service_account_2:
+      attributes:
         account_number:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: org_id
-    inventory_service_account_2:
+        email: "service2@redhat.com"
+        first_name: "Service"
+        last_name: "Account 2"
+        locale: "en_US"
       auth:
         jwt_grant_type: client_credentials
         client_id:
@@ -120,14 +149,21 @@ prod:
         username:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: svc_acc_none_perms_username
-      identity:
-        account_number:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/prod/users/insights_inventory_qe
-          vault_key: org_id
+        password: ""
+        user_id: "0"
+        cn: ""
     inventory_ui_account:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/qe-ui-inventory
+          vault_key: org_id
+        email: "qe-ui-inventory@redhat.com"
+        first_name: "UI"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/prod/users/qe-ui-inventory
@@ -135,17 +171,23 @@ prod:
         password:
           vault_path: secrets/qe/prod/users/qe-ui-inventory
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/prod/users/qe-ui-inventory
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/prod/users/qe-ui-inventory
-          vault_key: org_id
     insights_qa:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_qa
+          vault_key: org_id
+        email: "insights_qa@redhat.com"
+        first_name: "Insights"
+        last_name: "QA"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/prod/users/insights_qa
@@ -153,17 +195,11 @@ prod:
         password:
           vault_path: secrets/qe/prod/users/insights_qa
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/prod/users/insights_qa
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/prod/users/insights_qa
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/prod/users/insights_qa
-          vault_key: org_id
-
 
 
 itl_int:
@@ -174,6 +210,17 @@ itl_int:
   frontend_user: inventory_ui_account
   users:
     insights_inventory_qe:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/int/users/insights-qa
+          vault_key: org_id
+        email: "insights-qa@redhat.com"
+        first_name: "Insights"
+        last_name: "QA"
+        locale: "en_US"
       auth:
         jwt_grant_type: authorization_code
         username:
@@ -182,30 +229,42 @@ itl_int:
         password:
           vault_path: secrets/qe/int/users/insights-qa
           vault_key: password
-      identity:
-        account_number:
-          vault_path: secrets/qe/int/users/insights-qa
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/int/users/insights-qa
-          vault_key: org_id
+        user_id: "0"
+        cn: ""
     insights_inventory_qe_2:
-      auth:
-        jwt_grant_type: authorization_code
-        username:
-          vault_path: secrets/qe/int/users/insights-qe-int-2
-          vault_key: username
-        password:
-          vault_path: secrets/qe/int/users/insights-qe-int-2
-          vault_key: password
-      identity:
+      attributes:
         account_number:
           vault_path: secrets/qe/int/users/insights-qe-int-2
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/int/users/insights-qe-int-2
           vault_key: org_id
+        email: "insights-qe-int-2@redhat.com"
+        first_name: "Insights"
+        last_name: "QE Int 2"
+        locale: "en_US"
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/int/users/insights-qe-int-2
+          vault_key: password
+        user_id: "0"
+        cn: ""
     inventory_ui_account:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/int/users/qe-ui-inventory
+          vault_key: org_id
+        email: "qe-ui-inventory@redhat.com"
+        first_name: "UI"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         jwt_grant_type: authorization_code
         username:
@@ -214,16 +273,11 @@ itl_int:
         password:
           vault_path: secrets/qe/int/users/qe-ui-inventory
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/int/users/qe-ui-inventory
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/int/users/qe-ui-inventory
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/int/users/qe-ui-inventory
-          vault_key: org_id
 
 
 itl_stage:
@@ -234,6 +288,17 @@ itl_stage:
   frontend_user: inventory_ui_account
   users:
     insights_inventory_qe:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+        email: "insights_inventory_qe@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory"
+        locale: "en_US"
       auth:
         jwt_grant_type: authorization_code
         username:
@@ -242,30 +307,42 @@ itl_stage:
         password:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: password
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: org_id
+        user_id: "0"
+        cn: ""
     insights_inventory_qe_2:
-      auth:
-        jwt_grant_type: authorization_code
-        username:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
-          vault_key: username
-        password:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
-          vault_key: password
-      identity:
+      attributes:
         account_number:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: org_id
+        email: "insights_inventory_qe_2@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory 2"
+        locale: "en_US"
+      auth:
+        jwt_grant_type: authorization_code
+        username:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: password
+        user_id: "0"
+        cn: ""
     inventory_ui_account:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: org_id
+        email: "qe-ui-inventory@redhat.com"
+        first_name: "UI"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         jwt_grant_type: authorization_code
         username:
@@ -274,16 +351,11 @@ itl_stage:
         password:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory
-          vault_key: org_id
 
 stage: &stage
   legacy_hostname: "api.access.stage.redhat.com"
@@ -294,6 +366,18 @@ stage: &stage
   frontend_user: inventory_ui_account
   users:
     insights_inventory_qe:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+        email: "insights_inventory_qe@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory"
+        locale: "en_US"
+        is_org_admin: true
       auth:
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
@@ -301,24 +385,29 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: cert
         key:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: key
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: org_id
     insights_inventory_qe_2:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
+          vault_key: org_id
+        email: "insights_inventory_qe_2@redhat.com"
+        first_name: "Insights"
+        last_name: "Inventory 2"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
@@ -326,24 +415,29 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: cert
         key:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: key
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe_2
-          vault_key: org_id
     inventory_xjoin_migration:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_key: org_id
+        email: "xjoin_migration@redhat.com"
+        first_name: "XJoin"
+        last_name: "Migration"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration
@@ -351,24 +445,29 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration
           vault_key: cert
         key:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration
           vault_key: key
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
-          vault_key: org_id
     inventory_xjoin_migration_2:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_key: org_id
+        email: "xjoin_migration_2@redhat.com"
+        first_name: "XJoin"
+        last_name: "Migration 2"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
@@ -376,24 +475,29 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
           vault_key: refresh_token
-      cert_auth:
         cert:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
           vault_key: cert
         key:
           vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
           vault_key: key
-      identity:
+    inventory_service_account:
+      attributes:
         account_number:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: account_number
         org_id:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: org_id
-    inventory_service_account:
+        email: "service@redhat.com"
+        first_name: "Service"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         jwt_grant_type: client_credentials
         client_id:
@@ -405,14 +509,21 @@ stage: &stage
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: svc_acc_all_perms_username
-      identity:
+        password: ""
+        user_id: "0"
+        cn: ""
+    inventory_service_account_2:
+      attributes:
         account_number:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: org_id
-    inventory_service_account_2:
+        email: "service2@redhat.com"
+        first_name: "Service"
+        last_name: "Account 2"
+        locale: "en_US"
       auth:
         jwt_grant_type: client_credentials
         client_id:
@@ -424,14 +535,21 @@ stage: &stage
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: svc_acc_none_perms_username
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/insights_inventory_qe
-          vault_key: org_id
+        password: ""
+        user_id: "0"
+        cn: ""
     inventory_ui_account:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory
+          vault_key: org_id
+        email: "qe-ui-inventory@redhat.com"
+        first_name: "UI"
+        last_name: "Account"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
@@ -439,17 +557,23 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/qe-ui-inventory
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory
-          vault_key: org_id
     inventory_ui_account_2:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
+          vault_key: org_id
+        email: "qe-ui-inventory-1@redhat.com"
+        first_name: "UI"
+        last_name: "Account 2"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/qe-ui-inventory-1
@@ -457,17 +581,23 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/qe-ui-inventory-1
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/qe-ui-inventory-1
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/qe-ui-inventory-1
-          vault_key: org_id
     insights_qa:
+      attributes:
+        account_number:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_qa
+          vault_key: org_id
+        email: "insights_qa@redhat.com"
+        first_name: "Insights"
+        last_name: "QA"
+        locale: "en_US"
       auth:
         username:
           vault_path: secrets/qe/stage/users/insights_qa
@@ -475,16 +605,11 @@ stage: &stage
         password:
           vault_path: secrets/qe/stage/users/insights_qa
           vault_key: password
+        user_id: "0"
+        cn: ""
         refresh_token:
           vault_path: secrets/qe/stage/users/insights_qa
           vault_key: refresh_token
-      identity:
-        account_number:
-          vault_path: secrets/qe/stage/users/insights_qa
-          vault_key: account_number
-        org_id:
-          vault_path: secrets/qe/stage/users/insights_qa
-          vault_key: org_id
 
 stage_proxy: *stage
 
@@ -511,13 +636,28 @@ smoke:
   secondary_user: secondary_user
   users: &smoke-users
     insights_inventory_qe:
-      identity:
+      attributes:
         account_number: &smoke-primary-account "0369233"
         org_id: &smoke-primary-org "3340851"
+        email: insights_inventory_qe@redhat.com
+        first_name: Insights
+        last_name: Inventory
+        is_active: true
+        is_org_admin: true
+        is_internal: false
+        locale: en_US
+      auth:
+        username: &smoke-primary-username "insights_inventory_qe"
+        password: ""
+        user_id: &smoke-primary-user-id "23233"
+        cn: ""
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
         type: User
         auth_type: basic-auth
         user:
-          username: &smoke-primary-username "insights_inventory_qe"
+          username: *smoke-primary-username
           email: insights_inventory_qe@redhat.com
           first_name: Insights
           last_name: Inventory
@@ -525,7 +665,7 @@ smoke:
           is_org_admin: true
           is_internal: false
           locale: en_US
-          user_id: &smoke-primary-user-id "23233"
+          user_id: *smoke-primary-user-id
         internal:
           org_id: *smoke-primary-org
           auth_time: 6300
@@ -533,6 +673,21 @@ smoke:
         insights:
           is_entitled: true
     insights_inventory_qe_2:
+      attributes:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        email: insights_inventory_qe_2@redhat.com
+        first_name: Insights
+        last_name: Inventory 2
+        is_active: true
+        is_org_admin: false
+        is_internal: false
+        locale: en_US
+      auth:
+        username: insights_inventory_qe_2
+        password: ""
+        user_id: "98999"
+        cn: ""
       identity:
         account_number: *smoke-primary-account
         org_id: *smoke-primary-org
@@ -555,9 +710,24 @@ smoke:
         insights:
           is_entitled: true
     secondary_user:
-      identity:
+      attributes:
         account_number: "6212377"
         org_id: &smoke-secondary-org "12383032"
+        email: test@redhat.com
+        first_name: Insights
+        last_name: QA
+        is_active: true
+        is_org_admin: true
+        is_internal: false
+        locale: en_US
+      auth:
+        username: insights-qa
+        password: ""
+        user_id: "54555"
+        cn: ""
+      identity:
+        account_number: "6212377"
+        org_id: *smoke-secondary-org
         type: User
         auth_type: basic-auth
         user:
@@ -576,6 +746,9 @@ smoke:
       entitlements:
         insights:
           is_entitled: true
+    # identity_auth configs are kept in legacy format — their identity types
+    # (ServiceAccount, X509) are not supported by ExplicitUser, and tests
+    # mutate these DynaBox configs before passing to copy_using().
     identity_auth_user:
       identity:
         account_number: *smoke-primary-account

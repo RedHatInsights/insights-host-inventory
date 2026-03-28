@@ -400,7 +400,16 @@ class HBIKafkaActions(BaseEntity):
 
     @cached_property
     def identity(self) -> dict:
-        return self.application.user.identity
+        from collections.abc import Mapping
+
+        from iqe.users.user import UserLike
+
+        user = self.application.user
+        if isinstance(user, UserLike):
+            return user.as_identity().model_dump()
+        if isinstance(user, Mapping):
+            return dict(user.get("identity", {}))
+        raise TypeError(f"Unexpected user type: {type(user)}")
 
     def _produce_host_messages(
         self,

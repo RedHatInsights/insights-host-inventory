@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from collections.abc import Iterator
+from collections.abc import Mapping
 from collections.abc import Sequence
 from datetime import UTC
 from datetime import datetime
@@ -10,13 +11,15 @@ from datetime import timedelta
 from itertools import chain as _chain
 from random import randint
 from typing import TYPE_CHECKING
+from typing import Any
 
-from box import BoxKeyError
-from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
+from iqe.users.user import UserLike
+from iqe.utils.deprecation import deprecation_warning
 
 if TYPE_CHECKING:
     from iqe_host_inventory.modeling.wrappers import HostWrapper
+    from iqe.users.user import ExplicitUser
 from iqe_host_inventory_api.api.hosts_api import HostsApi as HostsApi
 
 logger = logging.getLogger(__name__)
@@ -34,39 +37,43 @@ def flatten[T](input: Sequence[Sequence[T]] | Iterator[Sequence[T]]) -> list[T]:
     return [*_chain.from_iterable(input)]
 
 
+def _require_typed_user(application: Application) -> UserLike:
+    user = application.user
+    if not isinstance(user, UserLike):
+        raise InvalidConfigurationParameterError(
+            "Expected a typed user (ExplicitUser/UserProxy) from application.user — "
+            "ensure user config has 'attributes'"
+        )
+    return user
+
+
 def get_account_number(application: Application, given_account_number: str | None = None) -> str:
     if given_account_number is not None:
         return given_account_number
-    try:
-        return str(application.user.get("identity").account_number)
-    except BoxKeyError:
-        raise InvalidConfigurationParameterError(
-            "Missing primary_user account_number in your settings.local.yaml file"
-        ) from None
+    return _require_typed_user(application).attributes.account_number
 
 
 def get_org_id(application: Application, given_org_id: str | None = None) -> str:
     if given_org_id is not None:
         return given_org_id
+    return _require_typed_user(application).attributes.org_id
 
-    identity = application.user.get("identity", {})
-    org_id = identity.get("org_id") or identity.get("internal", {}).get("org_id")
 
-    if org_id is None:
-        raise InvalidConfigurationParameterError(
-            "Missing user.identity.org_id or user.identity.internal.org_id field in the config"
+def get_username(user_data: ExplicitUser | Mapping[str, Any]) -> str:
+    if isinstance(user_data, (ExplicitUser, UserLike)):
+        return user_data.auth.username
+    else:
+        deprecation_warning(
+            "get_username is deprecated and will be removed in a future version. "
+            "Use ExplicitUser or UserProxy instead."
         )
-
-    return str(org_id)
-
-
-def get_username(user_data: DynaBox) -> str:
-    username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
-        "user", {}
-    ).get("username")
+        username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
+            "user", {}
+        ).get("username")
     if username is None:
-        raise ValueError(f"Given user doesn't have a defined username: {user_data}")
+        raise ValueError(f"Unable to identify username from user data: {user_data}")
     return username
+
 
 
 def rand_start_end(max_page: int, num_iterations: int) -> tuple[int, int]:
