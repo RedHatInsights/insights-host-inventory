@@ -2,10 +2,6 @@ from collections import namedtuple
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 __all__ = (
     "Conditions",
