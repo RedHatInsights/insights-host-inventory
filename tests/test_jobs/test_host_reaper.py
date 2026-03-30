@@ -52,13 +52,7 @@ CUSTOM_STALENESS_NO_HOSTS_TO_DELETE = {
     "is_host_grouped",
     (True, False),
 )
-@pytest.mark.parametrize(
-    "reporter,should_be_removed",
-    (
-        ("puptoo", True),
-        ("rhsm-system-profile-bridge", False),
-    ),
-)
+@pytest.mark.parametrize("reporter", ["puptoo", "rhsm-system-profile-bridge"])
 def test_culled_host_is_removed(
     flask_app: FlaskApp,
     event_producer_mock: MockEventProducer,
@@ -72,7 +66,6 @@ def test_culled_host_is_removed(
     host_type: str,
     is_host_grouped: bool,
     reporter: str,
-    should_be_removed: bool,
 ) -> None:
     with patch("app.models.utils.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=UTC)
@@ -99,21 +92,16 @@ def test_culled_host_is_removed(
         application=flask_app,
     )
 
-    if should_be_removed:
-        assert not db_get_host(created_host.id)
-        assert_delete_event_is_valid(
-            event_producer=event_producer_mock,
-            host=created_host,
-            timestamp=event_datetime_mock,
-            identity=None,
-        )
-        assert_delete_notification_is_valid(
-            notification_event_producer=notification_event_producer_mock, host=created_host
-        )
-    else:
-        assert db_get_host(created_host.id)
-        assert event_producer_mock.event is None
-        assert notification_event_producer_mock.event is None
+    assert not db_get_host(created_host.id)
+    assert_delete_event_is_valid(
+        event_producer=event_producer_mock,
+        host=created_host,
+        timestamp=event_datetime_mock,
+        identity=None,
+    )
+    assert_delete_notification_is_valid(
+        notification_event_producer=notification_event_producer_mock, host=created_host
+    )
 
 
 @pytest.mark.host_reaper
