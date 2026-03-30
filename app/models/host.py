@@ -17,11 +17,9 @@ from sqlalchemy.orm import relationship
 from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
-from app.culling import should_host_stay_fresh_forever
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.constants import NEW_TO_OLD_REPORTER_MAP
 from app.models.database import db
@@ -486,14 +484,6 @@ class Host(LimitedHost):
 
         if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
             self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
-        elif should_host_stay_fresh_forever(self):
-            self.per_reporter_staleness[reporter] = {
-                "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP.isoformat(),
-                "last_check_in": self.last_check_in.isoformat(),
-                "check_in_succeeded": True,
-            }
         else:
             st = _create_staleness_timestamps_values(self, self.org_id)
             self.per_reporter_staleness[reporter] = {
@@ -593,26 +583,16 @@ class Host(LimitedHost):
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
 
     def _update_staleness_timestamps(self):
-        if should_host_stay_fresh_forever(self):
-            self.stale_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            self.stale_warning_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-            self.deletion_timestamp = FAR_FUTURE_STALE_TIMESTAMP
-        else:
-            staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
-            self.stale_timestamp = staleness_timestamps["stale_timestamp"]
-            self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
-            self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+        staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
+        self.stale_timestamp = staleness_timestamps["stale_timestamp"]
+        self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+        self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
 
         orm.attributes.flag_modified(self, "stale_timestamp")
         orm.attributes.flag_modified(self, "stale_warning_timestamp")
         orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
-        # Hosts that should stay fresh forever are never stale
-        if should_host_stay_fresh_forever(self):
-            logger.debug("Host should stay fresh forever, reports from %s are not stale", reporter)
-            return False
-
         reporter_data = self.per_reporter_staleness.get(reporter, None)
         if not reporter_data:
             logger.debug("Reports from %s are stale (no check-in recorded)", reporter)

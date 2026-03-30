@@ -5,18 +5,9 @@ from typing import TYPE_CHECKING
 
 from app.common import inventory_config
 from app.culling import Timestamps
-from app.culling import should_host_stay_fresh_forever
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 
 if TYPE_CHECKING:
     from app.models.host import Host
-
-# Staleness timestamp dict used when host never goes stale or when reference is missing
-FAR_FUTURE_STALENESS_DICT = {
-    "stale_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-    "stale_warning_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-    "culled_timestamp": FAR_FUTURE_STALE_TIMESTAMP,
-}
 
 __all__ = ("get_staleness_timestamps",)
 
@@ -58,9 +49,6 @@ def get_staleness_timestamps(host: Host, staleness_timestamps: Timestamps, stale
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
-    if should_host_stay_fresh_forever(host):
-        return FAR_FUTURE_STALENESS_DICT.copy()
-
     return _compute_timestamps_from_date(host.last_check_in, staleness_timestamps, staleness)
 
 
@@ -80,9 +68,6 @@ def get_reporter_staleness_timestamps(
     Returns:
         dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
     """
-    if should_host_stay_fresh_forever(host):
-        return FAR_FUTURE_STALENESS_DICT.copy()
-
     if isinstance(host.per_reporter_staleness[reporter], dict):
         last_check_in = host.per_reporter_staleness[reporter]["last_check_in"]
     else:

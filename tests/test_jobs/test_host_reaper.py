@@ -20,7 +20,6 @@ from app.config import Config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
-from app.culling import should_host_stay_fresh_forever
 from app.logging import threadctx
 from app.models import Group
 from app.models import Host
@@ -33,8 +32,6 @@ from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import MockEventProducer
 from tests.helpers.mq_utils import assert_delete_event_is_valid
 from tests.helpers.mq_utils import assert_delete_notification_is_valid
-from tests.helpers.test_utils import USER_IDENTITY
-from tests.helpers.test_utils import generate_uuid
 
 CUSTOM_STALENESS_DELETE = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
@@ -289,113 +286,6 @@ def test_reaper_stops_after_kafka_producer_error(
     assert remaining_hosts.count() == 2
     assert event_producer._kafka_producer.produce.call_count == 2
     assert notification_event_producer._kafka_producer.produce.call_count == 1
-
-
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-def test_host_with_rhsm_conduit_and_other_reporters_can_be_culled(
-    db_create_host: Callable[..., Host],
-    db_get_host: Callable[[UUID | str], Host | None],
-    event_producer_mock: MockEventProducer,
-    notification_event_producer_mock: MockEventProducer,
-    event_datetime_mock: datetime,
-    inventory_config: Config,
-    flask_app: FlaskApp,
-) -> None:
-    """Test that hosts with rhsm-system-profile-bridge AND other reporters can still be culled normally."""
-
-    # Create a host with rhsm-system-profile-bridge AND other reporters
-    past_time = datetime.now(UTC) - timedelta(days=30)
-
-    mixed_reporter_host = Host(
-        subscription_manager_id=generate_uuid(),
-        insights_id=generate_uuid(),
-        display_name="mixed-reporter-host",
-        reporter="rhsm-system-profile-bridge",
-        org_id=USER_IDENTITY["org_id"],
-    )
-    mixed_reporter_host.last_check_in = past_time
-    mixed_reporter_host.stale_timestamp = past_time
-    mixed_reporter_host.stale_warning_timestamp = past_time
-    mixed_reporter_host.deletion_timestamp = past_time
-    mixed_reporter_host.per_reporter_staleness = {
-        "rhsm-system-profile-bridge": {
-            "last_check_in": past_time.isoformat(),
-            "stale_timestamp": past_time.isoformat(),
-            "stale_warning_timestamp": past_time.isoformat(),
-            "culled_timestamp": past_time.isoformat(),
-            "check_in_succeeded": True,
-        },
-        "puptoo": {
-            "last_check_in": past_time.isoformat(),
-            "stale_timestamp": past_time.isoformat(),
-            "stale_warning_timestamp": past_time.isoformat(),
-            "culled_timestamp": past_time.isoformat(),
-            "check_in_succeeded": True,
-        },
-    }
-
-    created_mixed_host = db_create_host(host=mixed_reporter_host)
-
-    # This host should be eligible for deletion since it has multiple reporters
-    assert should_host_stay_fresh_forever(created_mixed_host) is False
-
-    threadctx.request_id = None
-    host_reaper_run(
-        inventory_config,
-        mock.Mock(),
-        db.session,
-        event_producer_mock,
-        notification_event_producer_mock,
-        shutdown_handler=mock.Mock(**{"shut_down.return_value": False}),
-        application=flask_app,
-    )
-
-    assert not db_get_host(created_mixed_host.id)
-    assert_delete_event_is_valid(
-        event_producer=event_producer_mock,
-        host=created_mixed_host,
-        timestamp=event_datetime_mock,
-        identity=None,
-    )
-    assert_delete_notification_is_valid(
-        notification_event_producer=notification_event_producer_mock, host=created_mixed_host
-    )
-
-
-@pytest.mark.parametrize(
-    "reporters",
-    [
-        ["rhsm-system-profile-bridge"],  # Should be excluded
-        ["rhsm-system-profile-bridge", "puptoo"],  # Should NOT be excluded
-        ["rhsm-system-profile-bridge", "cloud-connector", "yuptoo"],  # Should NOT be excluded
-        ["puptoo"],  # Should NOT be excluded
-    ],
-)
-def test_host_reaper_filter_logic_parametrized(reporters: list[str]) -> None:
-    """Parametrized test for host reaper filter logic."""
-    host = Host(
-        subscription_manager_id=generate_uuid(),
-        display_name="test-host",
-        reporter=reporters[0],
-        stale_timestamp=datetime.now(UTC),
-        org_id=USER_IDENTITY["org_id"],
-    )
-
-    per_reporter_staleness = {
-        reporter: {
-            "last_check_in": datetime.now(UTC).isoformat(),
-            "stale_timestamp": datetime.now(UTC).isoformat(),
-            "check_in_succeeded": True,
-        }
-        for reporter in reporters
-    }
-    host.per_reporter_staleness = per_reporter_staleness
-
-    # Only hosts with ONLY rhsm-system-profile-bridge should stay fresh forever
-    if len(reporters) == 1 and reporters[0] == "rhsm-system-profile-bridge":
-        assert should_host_stay_fresh_forever(host) is True
-    else:
-        assert should_host_stay_fresh_forever(host) is False
 
 
 def test_delete_all_type_of_hosts(
