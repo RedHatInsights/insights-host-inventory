@@ -643,10 +643,8 @@ clowder_smoke:
         port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
     v7_ingress_v1:
       config:
-        module_name: iqe_bindings.v7.ingress_v1
-        path: api/ingress/v1
-        scheme: http
         hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
+        scheme: http
         port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
@@ -679,6 +677,11 @@ stage_post_deploy:
         hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+    v7_ingress_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
