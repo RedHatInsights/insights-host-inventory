@@ -109,6 +109,11 @@ class HBIUploads(BaseEntity):
     def _hosts_api(self) -> HostsAPIWrapper:
         return self._host_inventory.apis.hosts
 
+    def _reset_ingress_api(self) -> None:
+        """Clear cached ingress API client and backing service object."""
+        self.__dict__.pop("_ingress_api", None)
+        self._host_inventory._services.pop("v7_ingress_v1", None)
+
     def _upload_file(self, filepath: str, content_type: str = _FILE_TYPE) -> None:
         """Upload a file to ingress using the iqe-bindings v7 client.
 
@@ -116,14 +121,30 @@ class HBIUploads(BaseEntity):
         issues (RHCLOUD-45847).
         """
         file_data = pathlib.Path(filepath).read_bytes()
-
         file_extension = _CONTENT_TYPE_TO_EXTENSION.get(content_type, ".bin")
 
-        # https://redhat.atlassian.net/browse/RHCLOUD-45847
-        response = self._ingress_api.upload_post_without_preload_content(
-            file=(f"upload{file_extension}", file_data),
-            metadata={"content_type": content_type},
-        )
+        for attempt in range(2):
+            try:
+                response = self._ingress_api.upload_post_without_preload_content(
+                    file=(f"upload{file_extension}", file_data),
+                    metadata={"content_type": content_type},
+                )
+                break
+            except Exception as exc:
+                # WORKAROUND(iqe-core): LazyClowderJinja._lazy_frozen_once race.
+                # The first DynaBox access to hostname burns the flag without
+                # resolving, so the service URL contains a raw repr string.
+                # Clearing cached state and retrying triggers a second DynaBox
+                # access that resolves correctly.
+                # TODO: Remove once iqe-core fixes the _lazy_frozen_once race.
+                if attempt > 0 or "lazyclowderjinja" not in str(exc).lower():
+                    raise
+                logger.warning(
+                    "Ingress upload failed due to unresolved LazyClowderJinja "
+                    "hostname; clearing cached service and retrying"
+                )
+                self._reset_ingress_api()
+
         if not 200 <= response.status <= 299:
             raise ApiException(response.status, response.reason)
 
