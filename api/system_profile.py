@@ -30,9 +30,10 @@ logger = get_logger(__name__)
 def get_sap_system(
     tags=None, page=None, per_page=None, staleness=None, registered_with=None, filter=None, rbac_filter=None
 ):
+    limit, offset = pagination_params(page, per_page)
     results, total = get_sap_system_info(
-        page,
-        per_page,
+        limit,
+        offset,
         staleness=staleness,
         tags=tags,
         registered_with=registered_with,
