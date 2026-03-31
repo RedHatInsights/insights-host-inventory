@@ -33,6 +33,8 @@ class ApplicationHostInventory(ApplicationPlugin):
 
     api_v7 = RESTPluginService.declare("api_v7")
 
+    v7_ingress_v1 = RESTPluginService.declare("v7_ingress_v1")
+
     @cached_property
     def datagen(self) -> kafka_interaction.HBIKafkaDatagen:
         from .modeling import kafka_interaction
