@@ -1,16 +1,18 @@
 # mypy: disallow-untyped-defs
 
 import logging
+import mimetypes
 import multiprocessing
-from collections.abc import Generator
-from contextlib import contextmanager
+import pathlib
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
 from iqe.utils.archive_memory import InsightsArchiveInMemory
-from iqe_ingress_api import IngressApi
+from iqe_bindings.v7.ingress_v1 import ApiException
+from iqe_bindings.v7.ingress_v1 import IngressApi
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.hosts_api import HostsAPIWrapper
@@ -23,6 +25,13 @@ from iqe_host_inventory_api import HostOut
 logger = logging.getLogger(__name__)
 
 _FILE_TYPE = "application/vnd.redhat.advisor.payload+tgz"
+
+# https://redhat.atlassian.net/browse/RHCLOUD-45847
+mimetypes.add_type(_FILE_TYPE, ".redhat-advisor-tgz")
+
+_CONTENT_TYPE_TO_EXTENSION = {
+    _FILE_TYPE: ".redhat-advisor-tgz",
+}
 
 HOSTS_NOT_CREATED_ERROR = Exception("Some hosts were not created")
 
@@ -94,18 +103,50 @@ class HBIUploads(BaseEntity):
 
     @cached_property
     def _ingress_api(self) -> IngressApi:
-        return self.application.ingress.rest_client.ingress_api
+        return self._host_inventory.v7_ingress_v1.ingress_api
 
     @cached_property
     def _hosts_api(self) -> HostsAPIWrapper:
         return self._host_inventory.apis.hosts
 
-    @contextmanager
-    def async_ingress(self) -> Generator[None, None, None]:
-        """Set the number of upload threads to match the number of available CPUs."""
-        self._ingress_api.api_client.pool_threads = multiprocessing.cpu_count()
-        yield
-        self._ingress_api.api_client.pool_threads = 1
+    def _reset_ingress_api(self) -> None:
+        """Clear cached ingress API client and backing service object."""
+        self.__dict__.pop("_ingress_api", None)
+        self._host_inventory._services.pop("v7_ingress_v1", None)
+
+    def _upload_file(self, filepath: str, content_type: str = _FILE_TYPE) -> None:
+        """Upload a file to ingress using the iqe-bindings v7 client.
+
+        Uses upload_post_without_preload_content to avoid response deserialization
+        issues (RHCLOUD-45847).
+        """
+        file_data = pathlib.Path(filepath).read_bytes()
+        file_extension = _CONTENT_TYPE_TO_EXTENSION.get(content_type, ".bin")
+
+        for attempt in range(2):
+            try:
+                response = self._ingress_api.upload_post_without_preload_content(
+                    file=(f"upload{file_extension}", file_data),
+                    metadata={"content_type": content_type},
+                )
+                break
+            except Exception as exc:
+                # WORKAROUND(iqe-core): LazyClowderJinja._lazy_frozen_once race.
+                # The first DynaBox access to hostname burns the flag without
+                # resolving, so the service URL contains a raw repr string.
+                # Clearing cached state and retrying triggers a second DynaBox
+                # access that resolves correctly.
+                # TODO: Remove once iqe-core fixes the _lazy_frozen_once race.
+                if attempt > 0 or "lazyclowderjinja" not in str(exc).lower():
+                    raise
+                logger.warning(
+                    "Ingress upload failed due to unresolved LazyClowderJinja "
+                    "hostname; clearing cached service and retrying"
+                )
+                self._reset_ingress_api()
+
+        if not 200 <= response.status <= 299:
+            raise ApiException(response.status, response.reason)
 
     def upload_archive(
         self,
@@ -163,9 +204,7 @@ class HBIUploads(BaseEntity):
             archive_repo=archive_repo,
             core_collect=core_collect,
         )
-        self._ingress_api.upload_post(
-            file=archive.filename, content_type=_FILE_TYPE, _preload_content=False
-        )
+        self._upload_file(archive.filename)
         return archive
 
     def async_upload_archives(self, archives: list[InsightsArchiveInMemory]) -> None:
@@ -175,19 +214,12 @@ class HBIUploads(BaseEntity):
         :return None
         """
         logger.info("Creating/Updating hosts via Ingress/Puptoo")
-        with self.async_ingress():
-            threads = []
-            for archive in archives:
-                thread = self._ingress_api.upload_post(
-                    file=archive.filename,
-                    content_type=_FILE_TYPE,
-                    _preload_content=False,
-                    async_req=True,
-                )
-                threads.append(thread)
-
-            for thread in threads:
-                thread.get()
+        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+            futures = [
+                executor.submit(self._upload_file, archive.filename) for archive in archives
+            ]
+            for future in futures:
+                future.result()
 
     def create_host(
         self,

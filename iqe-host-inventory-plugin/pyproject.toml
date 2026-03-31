@@ -11,7 +11,6 @@ readme = "README.md"
 maintainers = [
   { name = "Adarsh Dubey", email = "addubey@redhat.com" },
   { name = "Frantisek Stavela", email = "fstavela@redhat.com" },
-  { name = "Mike Sager", email = "msager@redhat.com" },
   { name = "Zhamilya Abikenova", email = "zabikeno@redhat.com" },
 ]
 requires-python = ">=3.12"
@@ -24,6 +23,7 @@ classifiers = [
 dependencies = [
   "click",
   "faker",
+  "iqe-bindings",
   "iqe-core>=24.11.29.1",
   "iqe-export-service-plugin",
   "iqe-ingress-plugin",
