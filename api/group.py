@@ -377,7 +377,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 
 
 @api_operation
-@access(KesselResourceTypes.WORKSPACE.edit)
+@access(KesselResourceTypes.WORKSPACE.edit, id_param="group_id")
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
     identity = get_current_identity()
@@ -421,7 +421,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 
 
 @api_operation
-@access(KesselResourceTypes.WORKSPACE.delete)
+@access(KesselResourceTypes.WORKSPACE.delete, id_param="group_id_list")
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
     identity = get_current_identity()
