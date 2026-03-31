@@ -75,16 +75,22 @@ def hbi_non_org_admin_user_rbac_setup_class(
     def _rbac_inventory_user_setup(
         permissions: list[RBACInventoryPermission],
         hbi_groups: list[GROUP_OR_ID | None] | None = None,
+        expected_hbi_groups: list[GROUP_OR_ID | None] | None = None,
     ) -> None:
         group, roles = host_inventory.apis.rbac.setup_rbac_user(
             hbi_non_org_admin_user_username, permissions, hbi_groups=hbi_groups
         )
         to_delete.append((group.uuid, [role.uuid for role in roles]))
 
+        # If we set up permissions for a group/workspace that has child workspaces, then RBAC is
+        # going to return all child workspaces as well
+        if expected_hbi_groups is None:
+            expected_hbi_groups = hbi_groups
+
         host_inventory.apis.rbac.check_inventory_user_permission(
             hbi_non_org_admin_user_username,
             permissions,
-            hbi_groups=hbi_groups,
+            hbi_groups=expected_hbi_groups,
         )
 
     yield _rbac_inventory_user_setup
