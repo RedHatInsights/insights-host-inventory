@@ -56,6 +56,7 @@ from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import access
+from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
@@ -516,14 +517,12 @@ def get_groups_by_id(
 
 
 @api_operation
-@access(KesselResourceTypes.WORKSPACE.move_host)
 @metrics.api_request_time.time()
-def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
+def delete_hosts_from_different_groups(host_id_list):
     identity = get_current_identity()
     hosts_per_group = {}
-    groups_by_id = {}  # Cache group objects to avoid duplicate lookups
+    groups_by_id = {}
 
-    # Separate hosts per group (lookup from local DB)
     for host_id in host_id_list:
         if group := get_group_using_host_id(host_id, identity.org_id):
             group_id_str = str(group.id)
@@ -532,7 +531,10 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    # Pass org_id context for org-specific feature flag targeting
+    # Inline access check: the @access decorator can't be used here because the group IDs
+    # are derived from host→group DB lookups, not available as URL parameters.
+    rbac_filter = check_access(KesselResourceTypes.WORKSPACE.move_host, list(requested_group_ids))
+
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
