@@ -691,6 +691,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
     mock_mw_config.bypass_rbac = False
     mock_mw_config.rbac_endpoint = "http://rbac.test"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware.get_rbac_filter", return_value=(True, None))
 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
