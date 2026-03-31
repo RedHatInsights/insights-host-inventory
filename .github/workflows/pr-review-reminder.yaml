@@ -1,0 +1,88 @@
+# Posts a daily Slack reminder listing open PRs that have received no reviews.
+
+name: PR Review Reminder
+
+on:
+  schedule:
+    # Every weekday (Mon-Fri) at 14:00 UTC (~9 AM US Eastern)
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Fetch and post unreviewed PRs to Slack
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          NOW=$(date -u +%s)
+          ONE_DAY=86400
+
+          # Fetch all open, non-draft PRs with review info
+          PRS=$(gh pr list \
+            --state open \
+            --json number,title,author,createdAt,url,isDraft,reviewDecision,reviews \
+            --limit 100)
+
+          # Filter: not draft, older than 1 day, zero reviews
+          # Sort: oldest first (highest priority)
+          FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" '
+            [ .[]
+              | select(.isDraft == false)
+              | select((.reviews | length) == 0)
+              | select(.reviewDecision != "APPROVED")
+              | (.createdAt | fromdateiso8601) as $created
+              | select(($now - $created) > $day)
+              | . + { age_days: (($now - $created) / $day | floor) }
+            ]
+            | sort_by(-.age_days)
+          ')
+
+          COUNT=$(echo "$FILTERED" | jq 'length')
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No unreviewed PRs older than 1 day. Skipping Slack notification."
+            exit 0
+          fi
+
+          DAY_NAME=$(date -u +%A)
+
+          escape_mrkdwn() { echo "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+
+          # Build the Slack message body
+          LINES=""
+          INDEX=1
+          while IFS= read -r pr; do
+            NUMBER=$(echo "$pr" | jq -r '.number')
+            TITLE=$(escape_mrkdwn "$(echo "$pr" | jq -r '.title')")
+            AUTHOR=$(escape_mrkdwn "$(echo "$pr" | jq -r '.author.login')")
+            URL=$(echo "$pr" | jq -r '.url')
+            AGE=$(echo "$pr" | jq -r '.age_days')
+            LINES="${LINES}${INDEX}. <${URL}|#${NUMBER} — ${TITLE}> (by @${AUTHOR}) — *${AGE} days old*\n"
+            INDEX=$((INDEX + 1))
+          done < <(echo "$FILTERED" | jq -c '.[]')
+
+          # Post to Slack via Incoming Webhook
+          PAYLOAD=$(jq -n \
+            --arg header ":eyes: *PR Review Reminder ($DAY_NAME)* — $COUNT PR(s) awaiting review" \
+            --arg body "$LINES" \
+            '{
+              blocks: [
+                { type: "section", text: { type: "mrkdwn", text: $header } },
+                { type: "divider" },
+                { type: "section", text: { type: "mrkdwn", text: $body } }
+              ]
+            }')
+
+          curl -sf -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$SLACK_WEBHOOK_URL"
+
+          echo "Slack reminder sent with $COUNT PR(s)."
