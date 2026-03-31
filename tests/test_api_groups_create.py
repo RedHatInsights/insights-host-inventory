@@ -262,6 +262,42 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
     assert_response_status(response_status, 403)
 
 
+@pytest.mark.usefixtures("enable_kessel", "enable_rbac", "event_producer")
+def test_create_group_filtered_rbac_write_succeeds_when_kessel_not_bypassed(
+    mocker: MockerFixture,
+    flask_client: TestClient,
+    db_create_group: Callable[..., Group],
+    mock_pg_listen_connection: MagicMock,
+) -> None:
+    """Filtered groups:write (attributeFilter) must not block create when Kessel is active.
+
+    The guard that requires an unfiltered permission applies only when using RBAC v1.
+    When ``bypass_kessel`` is true, unfiltered permissions are required.
+    With Kessel enabled, the check is skipped.
+    """
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    mock_rbac_response[0]["resourceDefinitions"][0]["attributeFilter"]["value"] = [generate_uuid(), generate_uuid()]
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    existing_group = db_create_group("filtered_rbac_kessel_group")
+    workspace_id = str(existing_group.id)
+    mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    group_data = {"name": "filtered_rbac_kessel_group", "host_ids": []}
+    response = flask_client.post(
+        "/api/inventory/v1/groups",
+        data=json.dumps(group_data),
+        headers={"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 201, response.text
+    mock_pg_listen_connection.poll.assert_not_called()
+
+
 @pytest.mark.usefixtures("event_producer")
 def test_create_group_same_name_kessel_phase1_enabled(api_create_group, db_get_group_by_name):
     """Test that groups with the same name can be created when FLAG_INVENTORY_KESSEL_PHASE_1 is True."""

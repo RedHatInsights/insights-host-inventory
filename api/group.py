@@ -299,7 +299,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
     # RBAC v1 only: If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     # RBAC v2: rbac_filter is None, so this check is skipped
-    if rbac_filter is not None:
+    if rbac_filter is not None and inventory_config().bypass_kessel:
         log_create_group_not_allowed(logger)
         abort(
             HTTPStatus.FORBIDDEN,
