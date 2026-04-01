@@ -545,7 +545,7 @@ Refresh tokens grant access to your test environment:
 
 ### Q: My token expired, what do I do?
 
-**A:** Go to https://ACCESS_STAGE_SERVER_ADDRESS/management/api, login with your test user, generate a new token, and update `host_inventory.local.yaml`.
+**A:** Go to https://ACCESS_STAGE_SERVER_ADDRESS/management/api, log in with your test user, generate a new token, and update `host_inventory.local.yaml`.
 
 ### Q: Can I use this for Production environment?
 
