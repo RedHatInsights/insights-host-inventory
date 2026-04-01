@@ -22,7 +22,8 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           NOW=$(date -u +%s)
-          ONE_DAY=86400
+          # Set to 3600 (1 hour) temporarily for testing; revert to 86400 (1 day) after
+          ONE_DAY=3600
 
           # Fetch all open, non-draft PRs with review info
           PRS=$(gh pr list \
