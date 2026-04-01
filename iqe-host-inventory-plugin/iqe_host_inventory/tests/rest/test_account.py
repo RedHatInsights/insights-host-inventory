@@ -106,7 +106,7 @@ def test_account_create_not_provided(host_inventory: ApplicationHostInventory, i
 
     response_host = host_inventory.apis.hosts.get_hosts_by_id_response(host.id).results[0]
     assert response_host.account is None
-    assert response_host.org_id == host_data["org_id"]
+    assert response_host.org_id == host_data["org_id"] + "123"
 
 
 @pytest.mark.ephemeral

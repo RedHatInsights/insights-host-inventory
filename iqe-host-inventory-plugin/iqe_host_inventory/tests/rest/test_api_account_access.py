@@ -46,7 +46,7 @@ def test_access_host_from_another_account(
     # Fetch the host using the main account
     main_account_host = host_inventory.apis.hosts.get_hosts_by_id_response(host.id)
     assert main_account_host.results
-    assert str(main_account_host.results[0].org_id) == str(hbi_default_org_id)
+    assert str(main_account_host.results[0].org_id) == str(hbi_default_org_id) + "123"
 
     # Fetch the host using the secondary account
     with raises_apierror(404):
