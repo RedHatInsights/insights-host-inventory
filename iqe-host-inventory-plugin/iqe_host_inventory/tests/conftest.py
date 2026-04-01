@@ -65,7 +65,7 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
         "test_kessel_ungrouped.py",
     )
     for item in items:
-        if item.parent is not None and item.parent.name in SKIPPED_MODULES:
+        if item.path.name in SKIPPED_MODULES:
             item.add_marker(skip_kessel)
 
 

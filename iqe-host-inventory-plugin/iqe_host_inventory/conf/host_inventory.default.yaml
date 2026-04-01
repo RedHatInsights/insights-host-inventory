@@ -26,6 +26,10 @@ default:
         module_name: iqe_host_inventory_api_v7
         path: api/inventory/v1
         generator_version: 7.6.0
+    v7_ingress_v1:
+      config:
+        module_name: iqe_bindings.v7.ingress_v1
+        path: api/ingress/v1
   metadata:
     default_fields:
       component: host_inventory
@@ -500,6 +504,13 @@ smoke:
         hostname: insights-inventory
         scheme: http
         port: 8080
+    v7_ingress_v1:
+      config:
+        # TODO: if this is used with local testing this hostname might need adjusting.
+        # this is the clowdenv key for the ingress service, but in CJI/Clowder we use env_parser
+        hostname: ingress-service
+        scheme: http
+        port: 8080
   db:
     hostname: "inventory-db"
     database: "insights"
@@ -630,6 +641,11 @@ clowder_smoke:
         hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+    v7_ingress_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
@@ -661,6 +677,11 @@ stage_post_deploy:
         hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
+    v7_ingress_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"

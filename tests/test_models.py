@@ -25,7 +25,6 @@ from app.models import InputGroupSchema
 from app.models import LimitedHost
 from app.models import _create_staleness_timestamps_values
 from app.models import db
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.utils import Tag
@@ -1275,87 +1274,6 @@ def test_create_host_with_missing_canonical_facts(db_create_host, db_get_host):
     assert retrieved_host.provider_type == host_data["provider_type"]
     assert retrieved_host.ip_addresses is None
     assert retrieved_host.mac_addresses is None
-
-
-def test_create_host_rhsm_only_sets_far_future_timestamps(db_create_host, mocker):
-    """Test that creating a host with only rhsm-system-profile-bridge reporter sets far-future staleness timestamps."""
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
-    stale_timestamp = datetime.now() + timedelta(days=1)
-
-    input_host = Host(
-        subscription_manager_id=generate_uuid(),
-        display_name="display_name",
-        reporter="rhsm-system-profile-bridge",
-        stale_timestamp=stale_timestamp,
-        org_id=USER_IDENTITY["org_id"],
-    )
-    created_host = db_create_host(host=input_host)
-
-    # Check that main staleness timestamps are set to far future
-    assert created_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert created_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert created_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-
-    # Check per_reporter_staleness
-    assert "rhsm-system-profile-bridge" in created_host.per_reporter_staleness
-    prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
-    assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-    assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-    assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-
-
-def test_create_host_rhsm_only_sets_far_future_timestamps_flattened(db_create_host, models_datetime_mock, mocker):
-    """RHSM-only host with flattened format: flat per_reporter_staleness and reporter_stale False."""
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
-
-    input_host = Host(
-        subscription_manager_id=generate_uuid(),
-        display_name="display_name",
-        reporter="rhsm-system-profile-bridge",
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
-        org_id=USER_IDENTITY["org_id"],
-    )
-    created_host = db_create_host(host=input_host)
-
-    # Host-level timestamps still far future for RHSM-only
-    assert created_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert created_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert created_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-
-    # Flattened format: value is last_check_in ISO string only
-    assert "rhsm-system-profile-bridge" in created_host.per_reporter_staleness
-    prs_value = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
-    assert isinstance(prs_value, str)
-    assert prs_value == models_datetime_mock.isoformat()
-
-    # RHSM-only reporter should never be considered stale
-    assert created_host.reporter_stale("rhsm-system-profile-bridge") is False
-
-
-def test_host_with_rhsm_and_other_reporters_normal_behavior(db_create_host, models_datetime_mock, mocker):
-    """Test that hosts with rhsm-system-profile-bridge AND other reporters behave normally."""
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)
-    stale_timestamp = models_datetime_mock + timedelta(days=1)
-
-    input_host = Host(
-        subscription_manager_id=generate_uuid(),
-        display_name="display_name",
-        reporter="puptoo",
-        stale_timestamp=stale_timestamp,
-        org_id=USER_IDENTITY["org_id"],
-    )
-
-    created_host = db_create_host(host=input_host)
-
-    # Should NOT have far-future timestamps since it has multiple reporters
-    assert created_host.stale_timestamp != FAR_FUTURE_STALE_TIMESTAMP
-
-    # Update per_reporter_staleness for rhsm-system-profile-bridge - should behave normally
-    created_host._update_per_reporter_staleness("rhsm-system-profile-bridge")
-
-    # Should still not have far-future timestamps
-    prs = created_host.per_reporter_staleness["rhsm-system-profile-bridge"]
-    assert datetime.fromisoformat(prs["stale_timestamp"]) != FAR_FUTURE_STALE_TIMESTAMP
 
 
 def test_create_host_static_system_profile(db_create_host):
@@ -2741,43 +2659,6 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "legacy_count=2" in call_args
     assert "workloads.sap" in call_args  # Shows SAP is migrated
     assert "sending_both_formats=True" in call_args  # Mixed state
-
-
-def test_compute_staleness_stay_fresh_forever_shared(db_create_host, models_datetime_mock, mocker):
-    """Shared staleness timestamps should propagate far-future values for 'stay fresh forever' hosts."""
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=False)  # nested format so prs is a dict
-    insights_id = generate_uuid()
-    reporter = "rhsm-system-profile-bridge"
-    input_host = Host(
-        insights_id=insights_id,
-        display_name="rhsm-only-host",
-        reporter=reporter,
-        subscription_manager_id=generate_uuid(),
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
-        org_id=USER_IDENTITY["org_id"],
-    )
-    existing_host = db_create_host(host=input_host)
-
-    update_host = Host(
-        insights_id=insights_id,
-        display_name="rhsm-only-host",
-        reporter=reporter,
-        subscription_manager_id=str(existing_host.subscription_manager_id),
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
-        org_id=USER_IDENTITY["org_id"],
-    )
-    existing_host.update(update_host)
-
-    assert existing_host.stale_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert existing_host.stale_warning_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-    assert existing_host.deletion_timestamp == FAR_FUTURE_STALE_TIMESTAMP
-
-    # Nested format: per_reporter_staleness[reporter] is a dict with timestamp keys
-    prs = existing_host.per_reporter_staleness[reporter]
-    assert isinstance(prs, dict), "Test uses nested format (use_flat=False)"
-    assert prs["stale_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-    assert prs["stale_warning_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-    assert prs["culled_timestamp"] == FAR_FUTURE_STALE_TIMESTAMP.isoformat()
 
 
 def test_update_display_name_skips_when_unchanged(db_create_host, models_datetime_mock):

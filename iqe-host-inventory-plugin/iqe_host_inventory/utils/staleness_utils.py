@@ -273,10 +273,7 @@ def create_hosts_in_state(
     hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data, cleanup_scope=cleanup_scope)
     for host in hosts:
         retrieved_host = host_inventory.apis.hosts.get_host_by_id(host.id)
-        if host.reporter != "rhsm-system-profile-bridge":
-            validate_host_timestamps(
-                host_inventory, HostWrapper(retrieved_host.to_dict()), host_type
-            )
+        validate_host_timestamps(host_inventory, HostWrapper(retrieved_host.to_dict()), host_type)
 
     if delay:
         logger.info(f"Waiting {delay} second(s) for host(s) to become {host_state}")

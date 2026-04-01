@@ -3,48 +3,6 @@ from iqe.deprecations import deprecator
 deprecated = deprecator(plugin_package_name="iqe_host_inventory_plugin")
 
 
-# Upload fixtures
-
-DEPRECATE_UPLOAD_CREATE_OR_UPDATE_HOST = deprecated(
-    "upload_create_or_update_host will be removed.",
-    "app.host_inventory.upload.create_host",
-    "v25.3.1.0",
-)
-
-DEPRECATE_UPLOAD_CREATE_OR_UPDATE_HOST_MODULE = deprecated(
-    "upload_create_or_update_host_module will be removed.",
-    "app.host_inventory.upload.create_host",
-    "v25.3.1.0",
-)
-
-DEPRECATE_UPLOAD_CREATE_OR_UPDATE_EDGE_HOST = deprecated(
-    "upload_create_or_update_edge_host will be removed.",
-    "app.host_inventory.upload.create_host",
-    "v25.3.1.0",
-)
-
-DEPRECATE_UPLOAD_CREATE_MULTIPLE_HOSTS = deprecated(
-    "upload_create_multiple_hosts will be removed.",
-    "app.host_inventory.upload.create_hosts",
-    "v25.3.1.0",
-)
-
-
-# Upload utils
-
-DEPRECATE_ASYNC_MULTIPLE_UPLOADS = deprecated(
-    "async_multiple_uploads will be removed.",
-    "app.host_inventory.upload.async_upload_archives",
-    "v25.3.1.0",
-)
-
-DEPRECATE_UPLOAD = deprecated(
-    "upload will be removed.",
-    "app.host_inventory.upload.upload_archive",
-    "v25.3.1.0",
-)
-
-
 # API utils
 
 DEPRECATE_ASYNC_GET_MULTIPLE_HOSTS = deprecated(

@@ -21,6 +21,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
 from app.auth import get_current_identity
+from app.auth.rbac import KesselResourceTypes
 from app.auth.rbac import RbacPermission
 from app.auth.rbac import RbacResourceType
 from app.common import inventory_config
@@ -41,6 +42,9 @@ from app.queue.events import EventType
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import build_flag_context
+from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -56,6 +60,7 @@ from lib.host_repository import get_group_ids_ordered_by_host_count
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
+from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
@@ -299,7 +304,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
     # RBAC v1 only: If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     # RBAC v2: rbac_filter is None, so this check is skipped
-    if rbac_filter is not None:
+    if rbac_filter is not None and inventory_config().bypass_kessel:
         log_create_group_not_allowed(logger)
         abort(
             HTTPStatus.FORBIDDEN,
@@ -398,6 +403,12 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
         if group_to_update.ungrouped and new_name:
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
+
+        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+            if new_name:
+                check_access(KesselResourceTypes.WORKSPACE.edit, [group_id])
+            if validated_patch_group_data.get("host_ids") is not None:
+                check_access(KesselResourceTypes.WORKSPACE.move_host, [group_id])
 
         if new_name and new_name != group_to_update.name and not inventory_config().bypass_kessel:
             patch_rbac_workspace(group_id, name=new_name)
@@ -533,7 +544,12 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    # Pass org_id context for org-specific feature flag targeting
+    # Inline access check: the @access decorator can't be used here because the group IDs
+    # are derived from host→group DB lookups, not available as URL parameters.
+    # This should only apply when Kessel phase 1 is enabled.
+    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+        rbac_filter = check_access(KesselResourceTypes.WORKSPACE.move_host, list(requested_group_ids))
+
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions

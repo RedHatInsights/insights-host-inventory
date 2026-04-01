@@ -574,6 +574,46 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
+def check_access(permission: KesselPermission, ids: list[str] | None = None) -> dict[str, Any] | None:
+    """
+    Callable access check for endpoints where resource IDs aren't available at decoration time.
+
+    Performs the same authorization as the @access decorator but can be called from handler
+    bodies after resolving resource IDs via business logic (e.g., host→group lookups).
+
+    Returns the rbac_filter dict if access is allowed (may be None for unfiltered access).
+    Aborts with HTTP 403 if denied, or HTTP 503 if in read-only mode.
+    """
+    if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+        abort(503, "Inventory API is currently in read-only mode.")
+
+    if inventory_config().bypass_rbac:
+        return None
+
+    current_identity = get_current_identity()
+
+    if ids is None:
+        ids = []
+
+    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)):
+        kessel_client = get_kessel_client(current_app)
+        allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
+    else:
+        request_headers = _build_rbac_request_headers()
+        allowed, rbac_filter = get_rbac_filter(
+            permission.resource_type.v1_type,
+            permission.v1_permission,
+            current_identity,
+            request_headers,
+            permission.resource_type.v1_app,
+        )
+
+    if not allowed:
+        abort(HTTPStatus.FORBIDDEN)
+
+    return rbac_filter
+
+
 def is_rbac_v2_groups_enabled(org_id: str) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
@@ -863,7 +903,7 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param})
+    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "limit": len(workspace_ids)})
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(

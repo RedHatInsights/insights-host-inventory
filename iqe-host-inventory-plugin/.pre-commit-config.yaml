@@ -1,3 +1,4 @@
+files: ^iqe-host-inventory-plugin/
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v6.0.0
@@ -7,7 +8,7 @@ repos:
   - id: check-yaml
   - id: debug-statements
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.20.0
+  rev: v2.21.0
   hooks:
   - id: pyproject-fmt
 - repo: https://github.com/pre-commit/mirrors-mypy
@@ -18,7 +19,7 @@ repos:
     - types-requests
     - types-python-dateutil
     - attrs
-    - iqe-core>=24.0
+    - iqe-core
     - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
 - repo: https://github.com/asottile/pyupgrade
   rev: v3.21.2
@@ -27,7 +28,7 @@ repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.15.7
   hooks:
-  - id: ruff
+  - id: ruff-check
     args: [--fix, --exit-non-zero-on-fix]
   - id: ruff-format
 

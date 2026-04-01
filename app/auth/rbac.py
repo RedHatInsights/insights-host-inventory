@@ -73,6 +73,7 @@ class WorkspaceKesselResourceType(KesselResourceType):
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.GROUPS, "inventory")
         self.move_host = KesselPermission(self, "inventory_host_move", "inventory_host_move", RbacPermission.WRITE)
+        self.edit = KesselPermission(self, "rbac_workspace_edit", "edit", RbacPermission.WRITE)
 
 
 class StalenessKesselResourceType(KesselResourceType):

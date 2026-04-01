@@ -15,8 +15,6 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query_db import get_host_list
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
-from app.auth.rbac import RbacPermission
-from app.auth.rbac import RbacResourceType
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -28,7 +26,6 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
 from lib.middleware import is_rbac_v2_groups_enabled
-from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -129,7 +126,7 @@ def get_host_list_by_group(
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(KesselResourceTypes.WORKSPACE.move_host, id_param="group_id")
 @metrics.api_request_time.time()
 def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data
@@ -171,7 +168,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(KesselResourceTypes.WORKSPACE.move_host, id_param="group_id")
 @metrics.api_request_time.time()
 def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Validate host ID list input data

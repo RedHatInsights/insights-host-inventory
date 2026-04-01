@@ -18,8 +18,7 @@ Usage:
 
 Environment variables:
     DRY_RUN=true - Run in dry-run mode (default: true)
-    SCRIPT_CHUNK_SIZE=1000 - Number of hosts to process per batch (default: 1000)
-    ORG_ID=<org_id> - Process specific org only (optional, for testing)
+    SCRIPT_CHUNK_SIZE=500 - Hosts per batch (default: 500)
 """
 
 import sys
@@ -264,9 +263,9 @@ def run(config: Config, logger: Logger, session: Session, application: FlaskApp)
             logger.info("This was a dry run - no actual changes were made to the database.")
 
 
-if __name__ == "__main__":
+def main() -> None:
     logger = get_logger(LOGGER_NAME)
-    job_type = "Flatten per-reporter staleness"
+    job_type = "Flatten per Reporter Staleness"
     sys.excepthook = partial(excepthook, logger, job_type)
 
     config, session, _, _, _, application = job_setup((), PROMETHEUS_JOB)
@@ -278,3 +277,7 @@ if __name__ == "__main__":
         sys.exit(1)
     finally:
         session.close()
+
+
+if __name__ == "__main__":
+    main()
