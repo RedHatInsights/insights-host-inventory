@@ -130,10 +130,10 @@ Account Number: 7654321
 
 The IQE framework uses refresh tokens for authentication to Stage environment.
 
-### 3.1 Login to Stage Access Management API
+### 3.1 Log in to Stage Access Management API
 
 1. Go to: **https://ACCESS_STAGE_SERVER_ADDRESS/management/api**
-2. Login with your newly created user (`your-test-user-01`)
+2. Log in with your newly created user (`your-test-user-01`)
 3. Complete any 2FA/MFA prompts if required
 
 ### 3.2 Generate Refresh Token
@@ -362,7 +362,7 @@ This allows you to:
 
 **Solution:**
 1. Go to https://ACCESS_STAGE_SERVER_ADDRESS/management/api
-2. Login with your test user
+2. Log in with your test user
 3. Generate a new refresh token
 4. Update the `refresh_token` field in `host_inventory.local.yaml`
 5. Tokens typically last 30-90 days depending on what you set during generation
@@ -605,7 +605,7 @@ Here's a complete example from start to finish:
 - Org ID: `1234567` (same as admin)
 
 ### 3. Generate Refresh Token
-- Login to: https://ACCESS_STAGE_SERVER_ADDRESS/management/api
+- Log in to: https://ACCESS_STAGE_SERVER_ADDRESS/management/api
 - Generate token, set 60-day expiration
 - Copy token: `YOUR_REFRESH_TOKEN_HERE`
 
