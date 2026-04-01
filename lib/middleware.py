@@ -903,7 +903,7 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param})
+    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "limit": len(workspace_ids)})
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
