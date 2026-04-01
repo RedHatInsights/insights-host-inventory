@@ -4,7 +4,6 @@ from functools import partial
 
 from sqlalchemy import ColumnElement
 from sqlalchemy import and_
-from sqlalchemy import func
 from sqlalchemy import or_
 
 from app.environment import RuntimeEnvironment
@@ -79,21 +78,14 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
     with application.app.app_context():
         filter_hosts_to_delete = find_hosts_in_state(logger, session, ["culled"])
 
-        # Apply the main filter and exclude hosts that should stay fresh forever
         query = session.query(Host).filter(
-            and_(
-                or_(False, *filter_hosts_to_delete),
-                Host.per_reporter_staleness
-                != func.jsonb_build_object(
-                    "rhsm-system-profile-bridge", Host.per_reporter_staleness["rhsm-system-profile-bridge"]
-                ),
-            )
+            or_(False, *filter_hosts_to_delete),
         )
 
         hosts_processed = config.host_delete_chunk_size
         deletions_remaining = query.count()
 
-        logger.info(f"Found {deletions_remaining} hosts to potentially delete (excluding rhsm-only hosts)")
+        logger.info(f"Found {deletions_remaining} hosts to potentially delete")
 
         while hosts_processed == config.host_delete_chunk_size:
             logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")

@@ -15,7 +15,6 @@ from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.models import Host
 from app.models import db
-from app.models.constants import FAR_FUTURE_STALE_TIMESTAMP
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
@@ -597,63 +596,6 @@ def test_registered_with_filter_missing_last_check_in(
     assert other_host_id in returned_ids
 
 
-def test_rhsm_only_hosts_get_far_future_timestamp_in_sql_queries(
-    db_create_staleness_culling: Callable[..., object],
-    db_create_host: Callable[..., Host],
-    api_get: Callable[..., tuple[int, dict]],
-) -> None:
-    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-
-    _now = now()
-    # Create an RHSM-only host
-    rhsm_only_host_id = str(
-        db_create_host(
-            extra_data={
-                "reporter": "rhsm-system-profile-bridge",
-                "per_reporter_staleness": {
-                    "rhsm-system-profile-bridge": create_reporter_data(
-                        _now - timedelta(days=100),  # Very old check-in, but should stay fresh forever
-                        CUSTOM_STALENESS_HOST_BECAME_STALE,
-                    )
-                },
-            },
-        ).id
-    )
-
-    # Create a host with RHSM + other reporter
-    rhsm_with_other_id = str(
-        db_create_host(
-            extra_data={
-                "reporter": "rhsm-system-profile-bridge",
-                "per_reporter_staleness": {
-                    "rhsm-system-profile-bridge": create_reporter_data(_now, CUSTOM_STALENESS_HOST_BECAME_STALE),
-                    "puptoo": create_reporter_data(_now, CUSTOM_STALENESS_HOST_BECAME_STALE),
-                },
-            },
-        ).id
-    )
-
-    old_check_in = _now - timedelta(days=100)
-    create_host_with_reporter(
-        db_create_host,
-        "puptoo",
-        old_check_in,
-        CUSTOM_STALENESS_HOST_BECAME_STALE,
-    )
-
-    _, fresh_hosts = api_get(build_hosts_url(query="?staleness=fresh"))
-
-    assert rhsm_only_host_id in {h["id"] for h in fresh_hosts["results"]}
-    assert rhsm_with_other_id in {h["id"] for h in fresh_hosts["results"]}
-
-    # RHSM-only host does NOT appear in "stale" or "stale_warning" staleness
-    _, stale_hosts = api_get(build_hosts_url(query="?staleness=stale"))
-    _, stale_warning_hosts = api_get(build_hosts_url(query="?staleness=stale_warning"))
-
-    assert rhsm_only_host_id not in {h["id"] for h in stale_hosts["results"]}
-    assert rhsm_only_host_id not in {h["id"] for h in stale_warning_hosts["results"]}
-
-
 def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
     """Test that the per-reporter staleness serialization works with the datetime string format."""
     with flask_app.app.app_context():
@@ -676,34 +618,6 @@ def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
         assert "stale_timestamp" in puptoo
         assert "stale_warning_timestamp" in puptoo
         assert "culled_timestamp" in puptoo
-
-
-def test_serialize_per_reporter_staleness_stay_fresh_forever_string_format(flask_app):
-    """
-    When should_host_stay_fresh_forever(host) is True and per_reporter_staleness uses string format,
-    the output has far-future timestamps.
-    """
-    with flask_app.app.app_context():
-        last_check_in_str = "2024-06-15T10:00:00+00:00"
-        host = Host(
-            subscription_manager_id=generate_uuid(),
-            reporter="rhsm-system-profile-bridge",
-            stale_timestamp=datetime.now(UTC),
-            org_id=USER_IDENTITY["org_id"],
-        )
-        host.per_reporter_staleness = {"rhsm-system-profile-bridge": last_check_in_str}
-        staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
-
-        result = _serialize_per_reporter_staleness(host, staleness, st)
-
-        bridge = result["rhsm-system-profile-bridge"]
-        assert isinstance(bridge, dict)
-        assert bridge["last_check_in"] == last_check_in_str
-        far_future_str = FAR_FUTURE_STALE_TIMESTAMP.isoformat()
-        assert bridge["stale_timestamp"] == far_future_str
-        assert bridge["stale_warning_timestamp"] == far_future_str
-        assert bridge["culled_timestamp"] == far_future_str
 
 
 def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):

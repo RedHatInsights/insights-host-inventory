@@ -334,20 +334,6 @@ inv-host-reaper:
   summary: Host reaper should run periodically and delete all hosts that are in culled staleness state
   priority: high
 
-inv-host-reaper-rhsm-sp-bridge-bandaid:
-  summary: rhsm-system-profile-bridge hosts shouldn't get culled and the reaper shouldn't delete them
-  description: >
-    There is an issue in the rhsm-system-profile-bridge workflow where hosts reported only by this
-    reporter are not checking-in regularly and they get purged from Inventory by the reaper. As a
-    band-aid, Inventory implemented a workaround for hosts which are reported only by
-    rhsm-system-profile-bridge. These hosts should not be deleted by the reaper, instead their
-    "updated" and "last_check_in" timestamps should get updated to make them fresh again.
-    This workaround is temporary until the rhsm-system-profile-bridge workflow gets fixed.
-  links:
-    - https://issues.redhat.com/browse/RHINENG-16901
-    - https://issues.redhat.com/browse/CHAINSAW-408
-  priority: high
-
 inv-per-reporter-staleness:
   summary: Store staleness data for each reporter
   description: >
