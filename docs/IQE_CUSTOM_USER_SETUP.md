@@ -335,7 +335,7 @@ This allows you to:
 **Cause:** Refresh token expired or password is incorrect.
 
 **Solution:**
-1. Re-login to https://ACCESS_STAGE_SERVER_ADDRESS/management/api with your user
+1. Log in again to https://ACCESS_STAGE_SERVER_ADDRESS/management/api with your user
 2. Generate a new refresh token (Step 3.2)
 3. Update `host_inventory.local.yaml` with the new token
 
