@@ -738,24 +738,9 @@ def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, ti
     }
 
 
-def create_reporter_data(
-    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
-) -> dict[str, object]:
-    """Helper to create per_reporter_staleness data for a reporter."""
-    deltas = calculate_staleness_deltas(staleness_config)
-    data = {
-        "last_check_in": last_check_in.isoformat(),
-        "check_in_succeeded": True,
-    }
-    if include_timestamps:
-        data.update(
-            {
-                "stale_timestamp": (last_check_in + deltas["stale"]).isoformat(),
-                "stale_warning_timestamp": (last_check_in + deltas["stale_warning"]).isoformat(),
-                "culled_timestamp": (last_check_in + deltas["culled"]).isoformat(),
-            }
-        )
-    return data
+def create_reporter_data(last_check_in: datetime) -> str:
+    """ISO last_check_in string as stored in per_reporter_staleness (flat JSONB)."""
+    return last_check_in.isoformat()
 
 
 def create_host_with_reporter(
@@ -763,15 +748,15 @@ def create_host_with_reporter(
     reporter: str,
     last_check_in: datetime,
     staleness_config: dict[str, int],
-    include_timestamps: bool = True,
+    *,
     stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
+    """Create a host with flat per_reporter_staleness and host-level stale_timestamp."""
     host = db_create_host(
         extra_data={
             "reporter": reporter,
             "per_reporter_staleness": {
-                reporter: create_reporter_data(last_check_in, staleness_config, include_timestamps),
+                reporter: create_reporter_data(last_check_in),
             },
         },
     )
