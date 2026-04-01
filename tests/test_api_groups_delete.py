@@ -639,7 +639,6 @@ def test_delete_hosts_from_diff_groups_rbac_v2_success(
     # Enable RBAC v2 for groups
     mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
     mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("lib.middleware.get_rbac_filter", return_value=(True, None))
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -692,7 +691,6 @@ def test_delete_hosts_from_diff_groups_rbac_v2_workspace_not_accessible(
     # Enable RBAC v2 for groups
     mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
     mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("lib.middleware.get_rbac_filter", return_value=(True, None))
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -746,7 +744,6 @@ def test_delete_hosts_from_diff_groups_rbac_v2_ungrouped_workspace(
     # Enable RBAC v2 for groups
     mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
     mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("lib.middleware.get_rbac_filter", return_value=(True, None))
 
     # Create a normal group and an ungrouped group
     normal_group = db_create_group_with_hosts("test_group", 2)
