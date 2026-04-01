@@ -803,6 +803,33 @@ def test_patch_group_assign_hosts_succeeds_with_workspace_move_host(
     assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
 
 
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_rename_and_move_hosts_succeeds_with_workspace_permissions(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    event_producer,
+):
+    """Assigning hosts and renaming should succeed when the user has both permissions."""
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("api.group.patch_rbac_workspace")
+
+    group = db_create_group("test_group")
+    db_create_group("ungrouped", ungrouped=True)
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
+
+    assert_response_status(response_status, 200)
+    assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
+
+
 def test_patch_group_no_permission_checks_when_kessel_phase1_disabled(
     mocker,
     api_patch_group,
