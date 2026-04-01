@@ -729,17 +729,8 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     return response
 
 
-def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
-    """Helper to calculate staleness deltas from config."""
-    return {
-        "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
-        "stale_warning": timedelta(seconds=staleness_config["conventional_time_to_stale_warning"]),
-        "culled": timedelta(seconds=staleness_config["conventional_time_to_delete"]),
-    }
-
-
-def create_reporter_data(last_check_in: datetime) -> str:
-    """ISO last_check_in string as stored in per_reporter_staleness (flat JSONB)."""
+def per_reporter_last_check_in_iso(last_check_in: datetime) -> str:
+    """Value stored in flat ``per_reporter_staleness`` for one reporter: ISO-8601 ``last_check_in`` only."""
     return last_check_in.isoformat()
 
 
@@ -747,16 +738,18 @@ def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    staleness_config: dict[str, int],
-    *,
     stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Create a host with flat per_reporter_staleness and host-level stale_timestamp."""
+    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
+
+    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
+    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
+    """
     host = db_create_host(
         extra_data={
             "reporter": reporter,
             "per_reporter_staleness": {
-                reporter: create_reporter_data(last_check_in),
+                reporter: per_reporter_last_check_in_iso(last_check_in),
             },
         },
     )
@@ -764,7 +757,6 @@ def create_host_with_reporter(
     if stale_timestamp is not None:
         host.stale_timestamp = stale_timestamp
     else:
-        deltas = calculate_staleness_deltas(staleness_config)
-        host.stale_timestamp = last_check_in + deltas["stale"]
+        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host

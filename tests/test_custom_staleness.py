@@ -4,6 +4,8 @@ from collections.abc import Callable
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -13,15 +15,19 @@ from api.host_query import staleness_timestamps
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.culling import Timestamps
 from app.models import Host
 from app.models import db
 from app.serialization import _serialize_per_reporter_staleness
+from app.staleness_serialization import AttrDict
+from app.staleness_serialization import build_staleness_sys_default
 from app.staleness_serialization import get_reporter_staleness_timestamps
+from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
-from tests.helpers.api_utils import create_reporter_data
+from tests.helpers.api_utils import per_reporter_last_check_in_iso
 from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -44,6 +50,57 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
+
+
+def _utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
+
+
+def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
+    """Match keys used by ``_compute_timestamps_from_date`` for account custom staleness."""
+    return AttrDict(
+        {
+            "conventional_time_to_stale": config["conventional_time_to_stale"],
+            "conventional_time_to_stale_warning": config["conventional_time_to_stale_warning"],
+            "conventional_time_to_delete": config["conventional_time_to_delete"],
+        }
+    )
+
+
+def _assert_host_level_staleness_matches(host: Host, st_obj: Timestamps, staleness: AttrDict) -> None:
+    """Host row timestamps must match ``get_staleness_timestamps`` for its ``last_check_in`` and config."""
+    expected = get_staleness_timestamps(host, st_obj, staleness)
+    assert _utc(host.stale_timestamp) == _utc(expected["stale_timestamp"])
+    assert _utc(host.stale_warning_timestamp) == _utc(expected["stale_warning_timestamp"])
+    assert _utc(host.deletion_timestamp) == _utc(expected["culled_timestamp"])
+
+
+@patch("tests.helpers.api_utils.db.session.commit")
+def test_create_host_with_reporter_defaults_stale_timestamp_to_last_check_in_plus_conventional_delay(
+    _mock_commit,
+) -> None:
+    """When ``stale_timestamp`` is omitted, derive it from ``last_check_in`` and the conventional stale delay."""
+    last_check_in = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_db_create_host(**kwargs):
+        captured_kwargs.update(kwargs)
+        return SimpleNamespace()
+
+    host = create_host_with_reporter(
+        db_create_host=fake_db_create_host,
+        reporter="some-reporter",
+        last_check_in=last_check_in,
+    )
+
+    expected_stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
+
+    extra = captured_kwargs["extra_data"]
+    assert extra["reporter"] == "some-reporter"
+    assert host.last_check_in == last_check_in
+    assert host.stale_timestamp == expected_stale_timestamp
 
 
 @pytest.mark.parametrize("num_hosts", [1, 2, 3])
@@ -76,10 +133,18 @@ def test_async_update_host_create_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
+            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 v = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(v, str)
                 assert v == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_before_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
+            )
+            stale_timestamp_before = hosts_before_update[0].stale_timestamp
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
@@ -93,6 +158,13 @@ def test_async_update_host_create_custom_staleness(
                 v = hosts_after_update[0].per_reporter_staleness[reporter]
                 assert isinstance(v, str)
                 assert v == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_after_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
+            )
+            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
 
             assert event_producer.write_event.call_count == num_hosts
 
@@ -126,10 +198,18 @@ def test_async_update_host_delete_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
+            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_before_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
+            )
+            stale_before = hosts_before_update[0].stale_timestamp
 
             status, _ = api_delete_staleness()
             assert status == 204
@@ -142,6 +222,10 @@ def test_async_update_host_delete_custom_staleness(
                 prs = hosts_after_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
+
+            sys_staleness = build_staleness_sys_default(hosts_after_update[0].org_id)
+            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, sys_staleness)
+            assert hosts_after_update[0].stale_timestamp != stale_before
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -176,10 +260,18 @@ def test_async_update_host_update_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
+            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_before_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
+            )
+            stale_timestamp_before = hosts_before_update[0].stale_timestamp
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -193,6 +285,13 @@ def test_async_update_host_update_custom_staleness(
                 prs = hosts_after_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_after_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
+            )
+            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -219,11 +318,20 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             mock_datetime.now.return_value = _now
             mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             hosts_before_update = db_create_multiple_hosts(how_many=num_hosts)
+            st_obj = staleness_timestamps()
 
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
+
+            _assert_host_level_staleness_matches(
+                hosts_before_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
+            )
+            stale_timestamp_before = hosts_before_update[0].stale_timestamp
+            modified_on_before = hosts_before_update[0].modified_on
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -239,7 +347,13 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
                 prs = hosts_after_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
-            assert hosts_after_update[0].modified_on == hosts_before_update[0].modified_on
+            _assert_host_level_staleness_matches(
+                hosts_after_update[0],
+                st_obj,
+                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
+            )
+            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
+            assert hosts_after_update[0].modified_on == modified_on_before
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -317,7 +431,7 @@ def test_registered_with_filter_with_only_last_check_in(
 
     _now = now()
     fresh_last_check_in = _now
-    puptoo_data = create_reporter_data(fresh_last_check_in)
+    puptoo_data = per_reporter_last_check_in_iso(fresh_last_check_in)
 
     fresh_host = db_create_host(
         extra_data={"reporter": "puptoo", "per_reporter_staleness": {"puptoo": puptoo_data}},
@@ -330,7 +444,7 @@ def test_registered_with_filter_with_only_last_check_in(
     other_host = db_create_host(
         extra_data={
             "reporter": "rhsm-conduit",
-            "per_reporter_staleness": {"rhsm-conduit": create_reporter_data(fresh_last_check_in)},
+            "per_reporter_staleness": {"rhsm-conduit": per_reporter_last_check_in_iso(fresh_last_check_in)},
         },
     )
     other_host.last_check_in = fresh_last_check_in
@@ -371,7 +485,7 @@ def test_registered_with_staleness_filter_flat_format(
     host_b = db_create_host(
         extra_data={
             "reporter": "puptoo",
-            "per_reporter_staleness": {"puptoo": create_reporter_data(future_dt)},
+            "per_reporter_staleness": {"puptoo": per_reporter_last_check_in_iso(future_dt)},
         },
     )
     id_a, id_b = str(host_a.id), str(host_b.id)
@@ -397,7 +511,7 @@ def test_calculated_timestamps_match_stored_timestamps(
     host = db_create_host(
         extra_data={
             "reporter": "puptoo",
-            "per_reporter_staleness": {"puptoo": create_reporter_data(last_check_in)},
+            "per_reporter_staleness": {"puptoo": per_reporter_last_check_in_iso(last_check_in)},
         },
     )
     host.last_check_in = last_check_in
@@ -454,20 +568,25 @@ def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
         db_create_host(
             extra_data={
                 "reporter": "puptoo",
-                "per_reporter_staleness": {"yupana": create_reporter_data(_now)},
+                "per_reporter_staleness": {"yupana": per_reporter_last_check_in_iso(_now)},
             },
         ).id
     )
 
     normal_host_id = str(
-        create_host_with_reporter(db_create_host, "puptoo", _now, CUSTOM_STALENESS_HOST_BECAME_STALE).id
+        create_host_with_reporter(
+            db_create_host,
+            "puptoo",
+            _now,
+            stale_timestamp=_now + timedelta(seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]),
+        ).id
     )
 
     other_host_id = str(
         db_create_host(
             extra_data={
                 "reporter": "yupana",
-                "per_reporter_staleness": {"yupana": create_reporter_data(_now)},
+                "per_reporter_staleness": {"yupana": per_reporter_last_check_in_iso(_now)},
             },
         ).id
     )
