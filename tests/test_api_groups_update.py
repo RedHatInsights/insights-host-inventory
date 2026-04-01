@@ -612,3 +612,211 @@ def test_patch_group_with_invalid_hosts(
 
     # Verify that no events were produced
     assert event_producer.write_event.call_count == 0
+
+
+# ============================================================================
+# Kessel Phase 1 permission check tests for patch_group_by_id
+# ============================================================================
+
+
+def _deny_permission(denied_permission):
+    """Return a side_effect for check_access that denies a specific permission and allows all others."""
+    from http import HTTPStatus
+
+    from flask import abort
+
+    def _side_effect(permission, ids=None):  # noqa: ARG001
+        if permission is denied_permission:
+            abort(HTTPStatus.FORBIDDEN)
+        return None
+
+    return _side_effect
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_rename_forbidden_without_workspace_edit(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_get_group_by_id,
+    event_producer,
+):
+    """Renaming a group should return 403 when the user lacks workspace edit permission."""
+    mocker.patch.object(event_producer, "write_event")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("old_name")
+    group_id = str(group.id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name"})
+
+    assert_response_status(response_status, 403)
+    assert db_get_group_by_id(group_id).name == "old_name"
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_assign_hosts_forbidden_without_workspace_move_host(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    event_producer,
+):
+    """Assigning hosts to a group should return 403 when the user lacks workspace move_host permission."""
+    mocker.patch.object(event_producer, "write_event")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("test_group")
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
+
+    response_status, _ = api_patch_group(group_id, {"host_ids": [host_id]})
+
+    assert_response_status(response_status, 403)
+    assert len(db_get_hosts_for_group(group_id)) == 0
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_rename_and_hosts_forbidden_without_workspace_edit(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    db_get_group_by_id,
+    db_get_hosts_for_group,
+    event_producer,
+):
+    """Patching both name and hosts should return 403 when the user lacks edit permission,
+    even if they have move_host permission, because edit is checked first."""
+    mocker.patch.object(event_producer, "write_event")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("old_name")
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
+
+    assert_response_status(response_status, 403)
+    assert db_get_group_by_id(group_id).name == "old_name"
+    assert len(db_get_hosts_for_group(group_id)) == 0
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_rename_and_hosts_forbidden_without_workspace_move_host(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    db_get_group_by_id,
+    db_get_hosts_for_group,
+    event_producer,
+):
+    """Patching both name and hosts should return 403 when the user has edit but lacks move_host."""
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("api.group.patch_rbac_workspace")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("old_name")
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
+
+    assert_response_status(response_status, 403)
+    assert db_get_group_by_id(group_id).name == "old_name"
+    assert len(db_get_hosts_for_group(group_id)) == 0
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_rename_succeeds_with_workspace_edit(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_get_group_by_id,
+    event_producer,
+):
+    """Renaming a group should succeed when the user has workspace edit permission."""
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("api.group.patch_rbac_workspace")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("old_name")
+    group_id = str(group.id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name"})
+
+    assert_response_status(response_status, 200)
+    assert db_get_group_by_id(group_id).name == "new_name"
+
+
+@pytest.mark.usefixtures("enable_kessel")
+def test_patch_group_assign_hosts_succeeds_with_workspace_move_host(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    db_get_hosts_for_group,
+    event_producer,
+):
+    """Assigning hosts should succeed when the user has workspace move_host permission."""
+    mocker.patch.object(event_producer, "write_event")
+
+    from app.auth.rbac import KesselResourceTypes
+
+    group = db_create_group("test_group")
+    db_create_group("ungrouped", ungrouped=True)
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
+
+    response_status, _ = api_patch_group(group_id, {"host_ids": [host_id]})
+
+    assert_response_status(response_status, 200)
+    assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
+
+
+def test_patch_group_no_permission_checks_when_kessel_phase1_disabled(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_get_group_by_id,
+    event_producer,
+):
+    """When Kessel Phase 1 is disabled, renaming should succeed without any Kessel permission checks."""
+    mocker.patch.object(event_producer, "write_event")
+
+    group = db_create_group("old_name")
+    group_id = str(group.id)
+
+    response_status, _ = api_patch_group(group_id, {"name": "new_name"})
+
+    assert_response_status(response_status, 200)
+    assert db_get_group_by_id(group_id).name == "new_name"
