@@ -25,7 +25,7 @@ POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh)
 
 ```bash
 # Deploy with custom markers
-POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh ephemeral-abc123 "backend and groups"
+POD=$(.claude/scripts/hbi-deploy-iqe-pod.sh ephemeral-abc123 "backend and groups")
 
 # View logs later
 .claude/scripts/view-iqe-logs.sh $POD

@@ -66,15 +66,19 @@ fi
 echo "$USERS" | jq -c '.[]' | while IFS= read -r USER_JSON; do
   echo "Creating user: $(echo "$USER_JSON" | jq -r '.username')"
 
-  CREATE_USER_RESPONSE=$(curl -s -X POST \
+  # Capture response body and HTTP status code separately
+  HTTP_RESPONSE=$(mktemp)
+  HTTP_CODE=$(curl -s -w '%{http_code}' -o "$HTTP_RESPONSE" -X POST \
     "${KEYCLOAK_ADMIN_ROUTE}/admin/realms/${REALM_NAME}/users" \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
     -H 'Content-Type: application/json' \
     -d "$USER_JSON")
 
-  HTTP_CODE=$?
+  CREATE_USER_RESPONSE=$(cat "$HTTP_RESPONSE")
+  rm -f "$HTTP_RESPONSE"
 
-  if [ "$HTTP_CODE" -eq 0 ]; then
+  # Check for successful HTTP response (2xx status codes)
+  if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
     if echo "$CREATE_USER_RESPONSE" | jq -e '.id'; then
       echo "User '$(echo "$USER_JSON" | jq -r '.username')' created successfully."
       USER_ID=$(echo "$CREATE_USER_RESPONSE" | jq -r '.id')
@@ -88,23 +92,20 @@ echo "$USERS" | jq -c '.[]' | while IFS= read -r USER_JSON; do
       echo "Request for user '$(echo "$USER_JSON" | jq -r '.username')' successful, but unable to determine outcome from response."
       echo "Response: $CREATE_USER_RESPONSE"
     fi
-  elif [ "$HTTP_CODE" -eq 22 ]; then
-    echo "Error: Invalid user data format for user '$(echo "$USER_JSON" | jq -r '.username')'."
-    echo "$CREATE_USER_RESPONSE"
   elif [ "$HTTP_CODE" -eq 401 ]; then
     echo "Error: Unauthorized for user '$(echo "$USER_JSON" | jq -r '.username')'. Check your ACCESS_TOKEN."
   elif [ "$HTTP_CODE" -eq 403 ]; then
     echo "Error: Forbidden for user '$(echo "$USER_JSON" | jq -r '.username')'. Your token might not have the necessary permissions."
   elif [ "$HTTP_CODE" -eq 409 ]; then
     echo "User '$(echo "$USER_JSON" | jq -r '.username')' already exists."
-  elif [ "$HTTP_CODE" -ge 400 ]; then
-    echo "Error: Client error for user '$(echo "$USER_JSON" | jq -r '.username')'. HTTP Status Code: $HTTP_CODE"
-    echo "Response: $CREATE_USER_RESPONSE"
   elif [ "$HTTP_CODE" -ge 500 ]; then
     echo "Error: Server error for user '$(echo "$USER_JSON" | jq -r '.username')'. HTTP Status Code: $HTTP_CODE"
     echo "Response: $CREATE_USER_RESPONSE"
+  elif [ "$HTTP_CODE" -ge 400 ]; then
+    echo "Error: Client error for user '$(echo "$USER_JSON" | jq -r '.username')'. HTTP Status Code: $HTTP_CODE"
+    echo "Response: $CREATE_USER_RESPONSE"
   else
-    echo "Error: Curl request failed for user '$(echo "$USER_JSON" | jq -r '.username')' with exit code: $HTTP_CODE"
+    echo "Error: Unexpected HTTP status code for user '$(echo "$USER_JSON" | jq -r '.username')': $HTTP_CODE"
     echo "Response: $CREATE_USER_RESPONSE"
   fi
 done

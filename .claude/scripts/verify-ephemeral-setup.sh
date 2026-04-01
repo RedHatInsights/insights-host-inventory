@@ -89,7 +89,7 @@ echo ""
 echo -e "${YELLOW}4. Testing API Health...${NC}"
 
 # HBI API
-HBI_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
+HBI_HEALTH=$(curl -s --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
 if [ "$HBI_HEALTH" = "200" ]; then
     echo -e "${CHECK_MARK} ${GREEN}HBI API: Healthy (HTTP $HBI_HEALTH)${NC}"
 else
@@ -203,7 +203,7 @@ echo ""
 echo -e "${YELLOW}7. Checking Feature Flags...${NC}"
 
 # Login to Unleash
-LOGIN_RESULT=$(curl -s -X POST http://localhost:4242/auth/simple/login \
+LOGIN_RESULT=$(curl -s --connect-timeout 3 --max-time 5 -X POST http://localhost:4242/auth/simple/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "unleash4all"}' \
   -c /tmp/unleash-cookies-verify.txt 2>/dev/null)
@@ -215,7 +215,7 @@ if [ $? -eq 0 ] && echo "$LOGIN_RESULT" | grep -q "username"; then
     FLAGS=("hbi.api.kessel-phase-1" "hbi.api.kessel-groups" "hbi.api.kessel-force-single-checks-for-bulk")
 
     for flag in "${FLAGS[@]}"; do
-        FLAG_STATUS=$(curl -s "http://localhost:4242/api/admin/projects/default/features/$flag" \
+        FLAG_STATUS=$(curl -s --connect-timeout 3 --max-time 5 "http://localhost:4242/api/admin/projects/default/features/$flag" \
           -b /tmp/unleash-cookies-verify.txt 2>/dev/null)
 
         if [ $? -eq 0 ] && echo "$FLAG_STATUS" | grep -q "environments"; then
