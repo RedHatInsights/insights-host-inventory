@@ -732,6 +732,12 @@ inv-kessel-rbac-ungrouped:
     Users can set permissions for ungrouped hosts using the ungrouped group id in a role's resource definition
   priority: high
 
+inv-kessel-rbac-nested-workspaces:
+  summary: RBAC permissions should be inherited by child workspaces
+  description: >
+    User can set permissions on a parent workspace, and these permissions should be propagated to
+    all of its children and the hosts in those children workspaces.
+
 inv-kessel-workspaces:
   summary: Kessel workspace updates should propagate to Inventory
   description: >

@@ -21,8 +21,7 @@ from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
 from app.auth import get_current_identity
-from app.auth.rbac import RbacPermission
-from app.auth.rbac import RbacResourceType
+from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
 from app.config import MAX_GROUPS_FOR_HOST_COUNT_SORTING
 from app.exceptions import InventoryException
@@ -56,13 +55,14 @@ from lib.host_repository import get_group_ids_ordered_by_host_count
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
+from lib.middleware import access
+from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import is_rbac_v2_groups_enabled
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
-from lib.middleware import rbac
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -126,7 +126,7 @@ def _build_group_list_response(total: int, page: int, per_page: int, results: li
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@access(KesselResourceTypes.WORKSPACE.view)
 @metrics.api_request_time.time()
 def get_group_list(
     name=None,
@@ -293,13 +293,13 @@ def get_group_list(
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(KesselResourceTypes.WORKSPACE.create)
 @metrics.api_request_time.time()
 def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
     # RBAC v1 only: If there is an attribute filter on the RBAC permissions,
     # the user should not be allowed to create a group.
     # RBAC v2: rbac_filter is None, so this check is skipped
-    if rbac_filter is not None:
+    if rbac_filter is not None and inventory_config().bypass_kessel:
         log_create_group_not_allowed(logger)
         abort(
             HTTPStatus.FORBIDDEN,
@@ -377,7 +377,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(KesselResourceTypes.WORKSPACE.edit, id_param="group_id")
 @metrics.api_request_time.time()
 def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str, Any] | None = None) -> Response:
     identity = get_current_identity()
@@ -421,7 +421,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
+@access(KesselResourceTypes.WORKSPACE.delete, id_param="group_id_list")
 @metrics.api_request_time.time()
 def delete_groups(group_id_list, rbac_filter=None):
     identity = get_current_identity()
@@ -469,7 +469,7 @@ def delete_groups(group_id_list, rbac_filter=None):
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@access(KesselResourceTypes.WORKSPACE.view, id_param="group_id_list")
 @metrics.api_request_time.time()
 def get_groups_by_id(
     group_id_list,
@@ -517,14 +517,12 @@ def get_groups_by_id(
 
 
 @api_operation
-@rbac(RbacResourceType.GROUPS, RbacPermission.WRITE)
 @metrics.api_request_time.time()
-def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
+def delete_hosts_from_different_groups(host_id_list):
     identity = get_current_identity()
     hosts_per_group = {}
-    groups_by_id = {}  # Cache group objects to avoid duplicate lookups
+    groups_by_id = {}
 
-    # Separate hosts per group (lookup from local DB)
     for host_id in host_id_list:
         if group := get_group_using_host_id(host_id, identity.org_id):
             group_id_str = str(group.id)
@@ -533,7 +531,10 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     requested_group_ids = set(hosts_per_group.keys())
 
-    # Pass org_id context for org-specific feature flag targeting
+    # Inline access check: the @access decorator can't be used here because the group IDs
+    # are derived from host→group DB lookups, not available as URL parameters.
+    rbac_filter = check_access(KesselResourceTypes.WORKSPACE.move_host, list(requested_group_ids))
+
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
