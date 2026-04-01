@@ -19,6 +19,28 @@ The existing IQE test users (like `insights_inventory_qe`, `insights_qa`) are **
 
 ---
 
+## Placeholder Reference
+
+This guide uses placeholder constants for server addresses and sensitive information. You **must** replace these with actual values from your team or internal Red Hat documentation:
+
+| Placeholder | What It Represents | Where to Get Real Value |
+|------------|-------------------|------------------------|
+| `ETHEL_SERVER_ADDRESS` | Ethel user management URL | Ask your QE team or check internal wiki |
+| `ACCESS_STAGE_SERVER_ADDRESS` | Stage access management API | Ask your QE team or check internal wiki |
+| `API_ACCESS_STAGE_SERVER_ADDRESS` | Stage API hostname | Ask your QE team or check internal wiki |
+| `MTLS_CONSOLE_SERVER_ADDRESS` | mTLS console for RBAC | Ask your QE team or check internal wiki |
+| `CONSOLE_STAGE_SERVER_ADDRESS` | Stage console URL | Ask your QE team or check internal wiki |
+| `YOUR_EMAIL_ADDRESS` | Your Red Hat email | Your actual Red Hat email |
+| `your-password-here` | Secure password | Create a strong, unique password |
+| `YOUR_REFRESH_TOKEN_HERE` | Authentication token | Generated in Step 3 from access management |
+
+> ⚠️ **Security Notice**:
+> - Never use placeholder values in real configurations
+> - Do not share server addresses publicly or in unsecured documentation
+> - Contact your team lead or QE team for actual server addresses
+
+---
+
 ## Prerequisites
 
 - Access to Ethel: https://ETHEL_SERVER_ADDRESS/#create
@@ -170,6 +192,15 @@ stage: &stage
 
 stage_proxy: *stage
 ```
+
+> ⚠️ **Important**: Replace ALL placeholder values above with your actual credentials:
+> - Server addresses: Get from your QE team (see Placeholder Reference section)
+> - `username`: Your actual Ethel username (with hyphens)
+> - `password`: Your actual password from Step 2
+> - `refresh_token`: Your actual token from Step 3
+> - `account_number` and `org_id`: Your actual values from Ethel
+>
+> Never commit this file to git - it's protected by `.gitignore`.
 
 ### 4.3 Field Explanations
 
@@ -556,6 +587,8 @@ If you encounter issues not covered in this guide:
 ---
 
 ## Appendix: Example Complete Workflow
+
+**Note:** This is a condensed quick-reference guide. All values shown are placeholders - see the main sections above for detailed explanations and security warnings.
 
 Here's a complete example from start to finish:
 
