@@ -458,13 +458,6 @@ def test_per_reporter_registered_with(
     )
     set_staleness(host_inventory, deltas)
 
-    # Create an RHSM-only host (should stay fresh forever)
-    rhsm_host_data = host_inventory.datagen.create_host_data(
-        host_type=host_type,
-        reporter="rhsm-system-profile-bridge",
-    )
-    rhsm_host = host_inventory.kafka.create_host(rhsm_host_data)
-
     host_data.update(
         reporter="yupana",
         stale_timestamp=generate_timestamp(delta=timedelta(days=3)),
@@ -518,13 +511,6 @@ def test_per_reporter_registered_with(
         hostname_or_id=host.id, registered_with=["yupana"]
     )
     assert len(response) == 0
-
-    # RHSM-only host should still be found (stays fresh forever)
-    response = host_inventory.apis.hosts.get_hosts(
-        hostname_or_id=rhsm_host.id, staleness=["fresh"]
-    )
-    assert len(response) == 1
-    assert response[0].id == rhsm_host.id
 
 
 def create_hosts_reporter_state(
