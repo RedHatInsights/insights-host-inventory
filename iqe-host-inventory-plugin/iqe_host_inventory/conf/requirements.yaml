@@ -737,6 +737,7 @@ inv-kessel-rbac-nested-workspaces:
   description: >
     User can set permissions on a parent workspace, and these permissions should be propagated to
     all of its children and the hosts in those children workspaces.
+  priority: high
 
 inv-kessel-workspaces:
   summary: Kessel workspace updates should propagate to Inventory
