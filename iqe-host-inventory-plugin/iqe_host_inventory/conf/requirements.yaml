@@ -795,3 +795,7 @@ inv-host-apps-topic:
 inv-host-views-filter:
   summary: Users can filter data through the `GET /beta/hosts-view` endpoint
   priority: high
+
+inv-host-views-sparse-fields:
+  summary: Users can request specific fields through the `GET /beta/hosts-view` endpoint using sparse fieldsets
+  priority: high
