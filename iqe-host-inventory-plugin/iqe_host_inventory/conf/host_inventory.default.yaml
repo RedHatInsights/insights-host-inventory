@@ -347,55 +347,55 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: org_id
-    inventory_xjoin_migration:
+    insights_inventory_test:  # Temp account simulating insights_inventory_qe
       auth:
         username:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: username
         password:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: refresh_token
       cert_auth:
         cert:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: cert
         key:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: key
       identity:
         account_number:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: account_number
         org_id:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: org_id
-    inventory_xjoin_migration_2:
+    insights_inventory_test_2:  # Temp account simulating insights_inventory_qe_2
       auth:
         username:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: username
         password:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: password
         refresh_token:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: refresh_token
       cert_auth:
         cert:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: cert
         key:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: key
       identity:
         account_number:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: account_number
         org_id:
-          vault_path: secrets/qe/stage/users/inventory_xjoin_migration_2
+          vault_path: secrets/qe/stage/users/insights_inventory_test_2
           vault_key: org_id
     inventory_service_account:
       auth:
