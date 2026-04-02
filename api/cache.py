@@ -142,12 +142,16 @@ def _deserialize_staleness_dict(data: dict):
 
 def get_cached_staleness(org_id: str):
     if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
+        logger.debug("Staleness cache disabled (cache type is not RedisCache)")
         return None
     try:
         client = _get_redis_client()
-        raw = client.get(f"{STALENESS_CACHE_KEY_PREFIX}{org_id}")
+        key = f"{STALENESS_CACHE_KEY_PREFIX}{org_id}"
+        raw = client.get(key)
         if raw is None:
+            logger.debug("Staleness cache miss for org_id=%s (key=%s)", org_id, key)
             return None
+        logger.debug("Staleness cache hit for org_id=%s (key=%s)", org_id, key)
         return _deserialize_staleness_dict(json.loads(raw))
     except Exception as exc:
         logger.warning("Failed to get cached staleness", exc_info=exc)
@@ -156,20 +160,26 @@ def get_cached_staleness(org_id: str):
 
 def set_cached_staleness(org_id: str, staleness_obj, timeout: int):
     if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
+        logger.debug("Staleness cache disabled; skipping set for org_id=%s", org_id)
         return
     try:
         client = _get_redis_client()
+        key = f"{STALENESS_CACHE_KEY_PREFIX}{org_id}"
         serialized = json.dumps(dict(staleness_obj), default=_staleness_json_default)
-        client.set(f"{STALENESS_CACHE_KEY_PREFIX}{org_id}", serialized, ex=timeout)
+        client.set(key, serialized, ex=timeout)
+        logger.debug("Staleness cache set for org_id=%s (key=%s, timeout=%ds)", org_id, key, timeout)
     except Exception as exc:
         logger.exception("Failed to set cached staleness", exc_info=exc)
 
 
 def delete_cached_staleness(org_id: str):
     if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
+        logger.debug("Staleness cache disabled; skipping delete for org_id=%s", org_id)
         return
     try:
         client = _get_redis_client()
-        client.delete(f"{STALENESS_CACHE_KEY_PREFIX}{org_id}")
+        key = f"{STALENESS_CACHE_KEY_PREFIX}{org_id}"
+        client.delete(key)
+        logger.debug("Staleness cache deleted for org_id=%s (key=%s)", org_id, key)
     except Exception as exc:
         logger.exception("Failed to delete cached staleness", exc_info=exc)
