@@ -275,16 +275,15 @@ def _excluded_hosts_filter():
     """Filter matching hosts that should be excluded from active counts.
 
     Matches culled hosts (deletion_timestamp <= now) and hosts with NULL
-    deletion_timestamp. This is the inverse of the non-culled filter used
-    by find_non_culled_hosts, kept in sync via HostStalenessStatesDbFilters.
+    deletion_timestamp. Used by both find_non_culled_hosts (negated) and
+    get_host_counts_batch so the definition stays in one place.
     """
     staleness_filter = HostStalenessStatesDbFilters()
     return or_(staleness_filter.culled(), Host.deletion_timestamp.is_(None))
 
 
 def find_non_culled_hosts(query: Query) -> Query:
-    host_staleness_states_filters = HostStalenessStatesDbFilters()
-    return query.filter(not_(host_staleness_states_filters.culled()))
+    return query.filter(not_(_excluded_hosts_filter()))
 
 
 @metrics.new_host_commit_processing_time.time()
