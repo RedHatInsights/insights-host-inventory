@@ -2719,3 +2719,46 @@ def test_update_display_name_writes_when_reporter_changed(db_create_host, models
 
     assert existing_host.display_name == "my-host"
     assert existing_host.display_name_reporter == "yupana"
+
+
+def test_serialize_group_with_host_count_false(flask_app, mocker):  # noqa: ARG001
+    """serialize_group(with_host_count=False) should skip the host count query."""
+    from lib.group_repository import serialize_group
+
+    mock_group = mocker.Mock()
+    mock_group.id = "test-group-id"
+    mock_group.name = "Test Group"
+    mock_group.org_id = "test_org"
+
+    count_spy = mocker.patch("lib.group_repository.get_host_counts_batch")
+    mocker.patch(
+        "lib.group_repository.serialize_db_group_with_host_count",
+        return_value={"id": "test-group-id", "name": "Test Group", "host_count": 0},
+    )
+
+    result = serialize_group(mock_group, "test_org", with_host_count=False)
+
+    count_spy.assert_not_called()
+    assert result["host_count"] == 0
+
+
+def test_serialize_group_with_host_count_true(flask_app, mocker):  # noqa: ARG001
+    """serialize_group(with_host_count=True) should query for host count (default behavior)."""
+    from lib.group_repository import serialize_group
+
+    mock_group = mocker.Mock()
+    mock_group.id = "test-group-id"
+
+    count_spy = mocker.patch(
+        "lib.group_repository.get_host_counts_batch",
+        return_value={"test-group-id": 42},
+    )
+    mocker.patch(
+        "lib.group_repository.serialize_db_group_with_host_count",
+        return_value={"id": "test-group-id", "host_count": 42},
+    )
+
+    result = serialize_group(mock_group, "test_org")
+
+    count_spy.assert_called_once()
+    assert result["host_count"] == 42
