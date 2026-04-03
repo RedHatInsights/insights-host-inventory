@@ -360,7 +360,7 @@ def serialize_rbac_workspace_with_host_count(
         "org_id": org_id,
         "account": account or None,
         "name": workspace.get("name"),
-        "ungrouped": workspace.get("type") == "ungrouped",
+        "ungrouped": workspace.get("type") == "ungrouped-hosts",
         "created": _serialize_datetime(created_dt) if created_dt else "",
         "updated": _serialize_datetime(updated_dt) if updated_dt else "",
         "host_count": host_count,

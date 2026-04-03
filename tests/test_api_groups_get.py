@@ -610,7 +610,7 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         {
             "id": group3_id,
             "name": "ungrouped_workspace",
-            "type": "ungrouped",  # Maps to ungrouped=True (not "ungrouped-hosts")
+            "type": "ungrouped-hosts",  # Maps to ungrouped=True
             "created": group3.created_on.isoformat(),
             "modified": group3.modified_on.isoformat(),
             "description": "Test workspace",
