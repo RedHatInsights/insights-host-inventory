@@ -403,6 +403,8 @@ def _find_hosts_entities_query(
     identity: Any = None,
     order_by: str | None = None,
 ) -> Query:
+    if columns is None:
+        columns = []
     identity = identity or get_current_identity()
 
     if query is None:
@@ -416,7 +418,7 @@ def _find_hosts_entities_query(
     return update_query_for_owner_id(identity, query)
 
 
-def _find_hosts_model_query(columns: list[ColumnElement] | None = None, identity: Any = None) -> Query:
+def _find_hosts_model_query(columns: list[ColumnElement], identity: Any = None) -> Query:
     query = db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group)
 
     # In this case, return a list of Hosts

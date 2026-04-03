@@ -21,7 +21,7 @@ class RBACInventoryPermission(Enum):
     GROUPS_WRITE = "inventory:groups:write"
     GROUPS_ALL = "inventory:groups:*"
     ALL_READ = "inventory:*:read"
-    # ALL_WRITE = "inventory:*:write"  # This doesn't exist: https://github.com/RedHatInsights/rbac-config/blob/master/configs/stage/permissions/inventory.json  # noqa
+    # ALL_WRITE = "inventory:*:write"  # This doesn't exist: https://github.com/RedHatInsights/rbac-config/blob/master/configs/stage/permissions/inventory.json
     ADMIN = "inventory:*:*"
     RBAC_ADMIN = "rbac:*:*"
     STALENESS_READ = "staleness:staleness:read"
