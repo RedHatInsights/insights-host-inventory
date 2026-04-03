@@ -918,6 +918,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     # Extract workspaces from response
     workspaces = response.get("data", []) if response else []
 
+    logger.debug(f"Workspaces retrieved from RBAC v2 API: {workspaces}")
+
     return workspaces
 
 
