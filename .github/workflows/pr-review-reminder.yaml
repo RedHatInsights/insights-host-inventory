@@ -31,7 +31,7 @@ jobs:
             --limit 100)
 
           # Filter: not draft, older than 1 day, no human reviews or comments
-          # Bot reviews/comments (logins matching "bot", "sourcery", or "github-actions") are ignored
+          # Bot interactions (logins matching "bot", "sourcery", or "github-actions") are ignored
           # Sort: oldest first (highest priority)
           FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" '
             [ .[]
@@ -66,7 +66,7 @@ jobs:
             AUTHOR=$(escape_mrkdwn "$(echo "$pr" | jq -r '.author.login')")
             URL=$(echo "$pr" | jq -r '.url')
             AGE=$(echo "$pr" | jq -r '.age_days')
-            LINES="${LINES}${INDEX}. <${URL}|#${NUMBER} — ${TITLE}> (by @${AUTHOR}) — *${AGE} days old*\n"
+            LINES+="${INDEX}. <${URL}|#${NUMBER} — ${TITLE}> (by @${AUTHOR}) — *${AGE} days old*"$'\n'
             INDEX=$((INDEX + 1))
           done < <(echo "$FILTERED" | jq -c '.[]')
 
