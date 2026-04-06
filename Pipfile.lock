@@ -3073,12 +3073,12 @@
         },
         "types-requests": {
             "hashes": [
-                "sha256:33a2a9ccb1de7d4e4da36e347622c35418f6761269014cc32857acabd5df739e",
-                "sha256:f83ef2deb284fe99a249b8b0b0a3e4b9809e01ff456063c4df0aac7670c07ab9"
+                "sha256:1bdd3ada9b869741c5c4b887d2c8b4e38284a1449751823b5ebbccba3eefd9da",
+                "sha256:c98372d7124dd5d10af815ee25c013897592ff92af27b27e22c98984102c3254"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==2.32.4.20260324"
+            "version": "==2.33.0.20260402"
         },
         "types-setuptools": {
             "hashes": [
