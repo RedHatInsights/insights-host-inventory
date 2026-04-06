@@ -1,0 +1,48 @@
+# Manages PR labels based on check suite results:
+# - All checks pass  → add "ready for review", remove "ci-failing"
+# - Any check fails  → add "ci-failing", remove "ready for review"
+
+name: Label PR by CI Status
+
+on:
+  check_suite:
+    types: [completed]
+
+jobs:
+  update-labels:
+    if: github.event.check_suite.pull_requests[0] != null
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      checks: read
+    steps:
+      - name: Update PR labels based on CI status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.check_suite.pull_requests[0].number }}
+        run: |
+          echo "Checking PR #$PR_NUMBER..."
+
+          CONCLUSION=$(gh api \
+            "repos/${{ github.repository }}/commits/${{ github.event.check_suite.head_sha }}/check-suites" \
+            --jq '[.check_suites[].conclusion] | if any(. == null) then "pending" elif all(. == "success") then "all_passed" else "not_all_passed" end')
+
+          CURRENT_LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels --jq '.labels[].name')
+
+          if [ "$CONCLUSION" = "all_passed" ]; then
+            echo "All checks passed for PR #$PR_NUMBER."
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label "ready for review"
+            if echo "$CURRENT_LABELS" | grep -Fxq "ci-failing"; then
+              gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "ci-failing"
+            fi
+
+          elif [ "$CONCLUSION" = "not_all_passed" ]; then
+            echo "Checks failed for PR #$PR_NUMBER."
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label "ci-failing"
+            if echo "$CURRENT_LABELS" | grep -Fxq "ready for review"; then
+              gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "ready for review"
+            fi
+
+          else
+            echo "Checks still pending for PR #$PR_NUMBER. No label changes."
+          fi
