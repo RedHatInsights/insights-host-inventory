@@ -394,8 +394,8 @@ def test_shutdown_handler(handle_message_mock, mocker, flask_app):
     fake_consumer = mocker.Mock()
     fake_consumer.consume.return_value = [FakeMessage(), FakeMessage()]
 
-    fake_event_producer = None
-    fake_notification_event_producer = None
+    fake_event_producer = mocker.Mock()
+    fake_notification_event_producer = mocker.Mock()
     consumer = IngressMessageConsumer(fake_consumer, flask_app, fake_event_producer, fake_notification_event_producer)
     consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
     fake_consumer.consume.assert_called_once()
