@@ -74,13 +74,13 @@ arches:
     name: glibc-headers
     evr: 2.34-231.el9_7.10
     sourcerpm: glibc-2.34-231.el9_7.10.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.45.1.el9_7.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/kernel-headers-5.14.0-611.47.1.el9_7.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 3025189
-    checksum: sha256:eb6aafff64717dc24622c8990dfd50c2a5778b6ec71fac8360d28a524d22bc41
+    size: 3025981
+    checksum: sha256:551f1d5cb5981a364fd119aaeacaad54e69c886308a7aaba3b4fa2e507b58d5d
     name: kernel-headers
-    evr: 5.14.0-611.45.1.el9_7
-    sourcerpm: kernel-5.14.0-611.45.1.el9_7.src.rpm
+    evr: 5.14.0-611.47.1.el9_7
+    sourcerpm: kernel-5.14.0-611.47.1.el9_7.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/keyutils-libs-devel-1.6.3-1.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 66082
@@ -1463,12 +1463,12 @@ arches:
     checksum: sha256:a05f582ec42e89258ee5e10af96dee4300bcb2a6a69a76bfb5b46f79e6a6a47b
     name: gzip
     evr: 1.12-1.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.45.1.el9_7.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/kernel-5.14.0-611.47.1.el9_7.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 150930237
-    checksum: sha256:435296a68bbec141b00753c03f3a955f3091ad6d1f21ff1e76f419adb1ccd896
+    size: 150935108
+    checksum: sha256:3aae2a7b4923827ce54bf895d2cd458f2904db6fd277ccc49587caea01e20760
     name: kernel
-    evr: 5.14.0-611.45.1.el9_7
+    evr: 5.14.0-611.47.1.el9_7
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/keyutils-1.6.3-1.el9.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
     size: 150790
@@ -1674,7 +1674,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/a032645388568fd7bbc68fc2b31e676525382eb75eb7eacacf064792e71e0d57-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/1c6062c50fc14f99b0501b351ae8f93fcff53e305771683846b5ba573fe8c55a-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 44899
-    checksum: sha256:a032645388568fd7bbc68fc2b31e676525382eb75eb7eacacf064792e71e0d57
+    checksum: sha256:1c6062c50fc14f99b0501b351ae8f93fcff53e305771683846b5ba573fe8c55a
