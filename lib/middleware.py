@@ -12,6 +12,8 @@ from flask import abort
 from flask import current_app
 from flask import g
 from flask import request
+from kessel.auth import OAuth2ClientCredentials
+from kessel.auth import fetch_oidc_discovery
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
@@ -84,11 +86,94 @@ def get_rbac_private_url() -> str:
     return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
 
-def _build_rbac_request_headers(identity_header: str | None = None, request_id_header: str | None = None) -> dict:
+# Global singleton for RBAC v2 OAuth2 client
+_rbac_oauth_client = None
+
+
+def _get_rbac_oauth_client() -> OAuth2ClientCredentials:
+    """
+    Get or create the OAuth2 client for RBAC v2 API.
+
+    Returns:
+        OAuth2ClientCredentials: Configured OAuth2 client for token fetching
+
+    Note:
+        Uses the same service account credentials as Kessel integration
+        (KESSEL_AUTH_CLIENT_ID, KESSEL_AUTH_CLIENT_SECRET).
+    """
+    global _rbac_oauth_client
+    if _rbac_oauth_client is None:
+        config = inventory_config()
+        discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
+        _rbac_oauth_client = OAuth2ClientCredentials(
+            client_id=config.kessel_auth_client_id,
+            client_secret=config.kessel_auth_client_secret,
+            token_endpoint=discovery.token_endpoint,
+        )
+        logger.info(
+            "RBAC OAuth2 client initialized",
+            extra={
+                "client_id": config.kessel_auth_client_id,
+                "token_endpoint": discovery.token_endpoint,
+            },
+        )
+    return _rbac_oauth_client
+
+
+def _get_rbac_access_token() -> str:
+    """
+    Get a valid OAuth2 access token for RBAC v2 API calls.
+
+    Returns:
+        str: Valid OAuth2 access token
+
+    Raises:
+        Exception: If token fetch fails
+
+    Note:
+        OAuth2ClientCredentials.get_token() may implement internal caching.
+        The token is fetched from the same OIDC provider used by Kessel.
+    """
+    oauth_client = _get_rbac_oauth_client()
+    try:
+        token_response = oauth_client.get_token()
+        return token_response["access_token"]
+    except Exception as e:
+        logger.error("Failed to get RBAC access token", extra={"error": str(e)})
+        raise
+
+
+def _build_rbac_request_headers(
+    identity_header: str | None = None,
+    request_id_header: str | None = None,
+    use_service_account: bool = True,
+) -> dict:
+    """
+    Build request headers for RBAC API calls.
+
+    Args:
+        identity_header: Base64-encoded x-rh-identity (defaults to current request)
+        request_id_header: Request ID for tracing (defaults to current request)
+        use_service_account: If True, add OAuth2 service account authorization (default: True)
+
+    Returns:
+        dict: Request headers with authentication
+
+    Note:
+        When use_service_account=True, adds dual authentication:
+        - Authorization: Bearer <token> (service account proves HBI is authorized caller)
+        - x-rh-identity: <user_jwt> (user context for permission scoping)
+    """
     request_headers = {
         IDENTITY_HEADER: identity_header or request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request_id_header or request.headers.get(REQUEST_ID_HEADER),
     }
+
+    if use_service_account:
+        # Add OAuth2 service account authentication
+        access_token = _get_rbac_access_token()
+        request_headers["Authorization"] = f"Bearer {access_token}"
+
     return request_headers
 
 
@@ -672,18 +757,32 @@ def post_rbac_workspace(name) -> UUID | None:
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
-    # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
-    # If not using Kessel, returns None, so the DB will automatically generate the group ID.
+    """
+    Create a new "ungrouped" workspace via the RBAC API and return its ID.
+
+    Args:
+        identity: User identity (used for org_id context)
+
+    Returns:
+        UUID: Workspace ID from RBAC v2 API, or None if bypass_kessel is enabled
+
+    Note:
+        Uses OAuth2 service account for authentication instead of PSK.
+        If not using Kessel, returns None so the DB will automatically generate the group ID.
+    """
     if inventory_config().bypass_kessel:
         return None
 
-    # Get HBI's RBAC PSK from the config
-    psk = inventory_config().rbac_psk
-    request_headers = {
-        "X-RH-RBAC-PSK": psk,
-        "X-RH-RBAC-ORG-ID": identity.org_id,
-        "X-RH-RBAC-CLIENT-ID": "inventory",
-    }
+    # Use service account authentication (OAuth2) instead of PSK
+    request_headers = _build_rbac_request_headers(
+        identity_header=request.headers.get(IDENTITY_HEADER),
+        request_id_header=threadctx.request_id,
+        use_service_account=True,  # Adds Authorization: Bearer <token>
+    )
+
+    # Add additional headers required by ungrouped workspace creation
+    request_headers["X-RH-RBAC-ORG-ID"] = identity.org_id
+    request_headers["X-RH-RBAC-CLIENT-ID"] = "inventory"
 
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_private_url(), request_headers)
 
