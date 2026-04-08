@@ -62,6 +62,7 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspace_by_id
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import is_rbac_v2_groups_enabled
@@ -355,12 +356,16 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                 identity,
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+            if is_rbac_v2_groups_enabled(identity.org_id):
+                created_group = get_rbac_workspace_by_id(str(workspace_id))
+            else:
+                created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
 
-        log_create_group_succeeded(logger, created_group.id)
+        created_group_id = str(created_group["id"]) if isinstance(created_group, dict) else str(created_group.id)
+        log_create_group_succeeded(logger, created_group_id)
     except IntegrityError as inte:
         group_name = validated_create_group_data.get("name")
         host_id_list = validated_create_group_data.get("host_ids")
@@ -426,7 +431,11 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
-    updated_group = get_group_by_id_from_db(group_id, identity.org_id)
+    if is_rbac_v2_groups_enabled(identity.org_id):
+        updated_group = get_rbac_workspace_by_id(group_id)
+    else:
+        updated_group = get_group_by_id_from_db(group_id, identity.org_id)
+
     log_patch_group_success(logger, group_id)
     return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
 

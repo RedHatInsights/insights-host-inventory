@@ -8,6 +8,8 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.serialization import _deserialize_datetime
+from app.serialization import _serialize_datetime
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -847,3 +849,43 @@ def test_patch_group_no_permission_checks_when_kessel_phase1_disabled(
 
     assert_response_status(response_status, 200)
     assert db_get_group_by_id(group_id).name == "new_name"
+
+
+@pytest.mark.usefixtures("enable_kessel", "event_producer")
+def test_patch_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
+    mocker,
+    api_patch_group,
+    db_create_group,
+    db_create_host,
+    event_producer,
+):
+    """PATCH response should use RBAC workspace metadata when RBAC v2 groups are enabled."""
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.get_flag_value", return_value=False)
+
+    # Ungrouped workspace must exist in DB so patch_group does not call the RBAC ungrouped-creation API.
+    db_create_group("ungrouped_for_patch_rbac_v2", ungrouped=True)
+    group = db_create_group("patch_rbac_v2_response")
+    group_id = str(group.id)
+    host_id = str(db_create_host().id)
+
+    rbac_modified = "2030-05-05T10:20:30+00:00"
+    workspace_payload = {
+        "id": group_id,
+        "name": "patch_rbac_v2_response",
+        "created": "2020-01-01T00:00:00+00:00",
+        "modified": rbac_modified,
+        "type": "standard",
+    }
+    # Patch at middleware layer so the handler uses the same binding as production (import-time reference).
+    mocker.patch(
+        "lib.middleware.get_rbac_workspaces_by_ids",
+        return_value=[workspace_payload],
+    )
+
+    response_status, response_data = api_patch_group(group_id, {"host_ids": [host_id]})
+
+    assert_response_status(response_status, 200)
+    expected_updated = _serialize_datetime(_deserialize_datetime(rbac_modified))
+    assert response_data["updated"] == expected_updated
