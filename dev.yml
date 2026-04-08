@@ -151,6 +151,18 @@ services:
         exit 0;
         "
 
+    redis:
+      container_name: hbi-redis
+      image: docker.io/library/redis:7
+      restart: always
+      ports:
+        - "6379:6379"
+      healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 2s
+        timeout: 5s
+        retries: 5
+
     hbi-web:
       container_name: hbi-web
       build: .
@@ -180,10 +192,16 @@ services:
         - BYPASS_RBAC=${BYPASS_RBAC:-false}
         - BYPASS_KESSEL=${BYPASS_KESSEL:-false}
         - BYPASS_UNLEASH=${BYPASS_UNLEASH}
+        - INVENTORY_API_CACHE_TYPE=${INVENTORY_API_CACHE_TYPE:-RedisCache}
+        - INVENTORY_API_CACHE_TIMEOUT_SECONDS=${INVENTORY_API_CACHE_TIMEOUT_SECONDS:-300}
+        - CACHE_HOST=redis
+        - CACHE_PORT=6379
       depends_on:
         db:
           condition: service_healthy
         kafka:
+          condition: service_healthy
+        redis:
           condition: service_healthy
       volumes:
         - .:/opt/app-root/src
@@ -204,10 +222,16 @@ services:
         - KAFKA_EVENT_TOPIC=platform.inventory.events
         - PAYLOAD_TRACKER_SERVICE_NAME=inventory-mq-service
         - BYPASS_KESSEL=${BYPASS_KESSEL:-false}
+        - INVENTORY_API_CACHE_TYPE=${INVENTORY_API_CACHE_TYPE:-RedisCache}
+        - INVENTORY_API_CACHE_TIMEOUT_SECONDS=${INVENTORY_API_CACHE_TIMEOUT_SECONDS:-300}
+        - CACHE_HOST=redis
+        - CACHE_PORT=6379
       depends_on:
         db:
           condition: service_healthy
         kafka:
+          condition: service_healthy
+        redis:
           condition: service_healthy
       volumes:
         - .:/opt/app-root/src

@@ -38,6 +38,12 @@ class ThreadLocalBatchCache:
             cache[key] = value
 
     @classmethod
+    def delete(cls, key):
+        cache = getattr(cls._local, cls._cache_attr(), None)
+        if cache is not None:
+            cache.pop(key, None)
+
+    @classmethod
     def _create(cls):
         setattr(cls._local, cls._cache_attr(), {})
 
