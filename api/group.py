@@ -17,6 +17,7 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
+from api.group_query import build_rbac_v2_workspace_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
@@ -383,7 +384,12 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
         logger.exception(inve.detail)
         return json_error_response(inve.title, inve.detail, HTTPStatus.BAD_REQUEST)
 
-    return flask_json_response(build_group_response(created_group), HTTPStatus.CREATED)
+    response_body = (
+        build_rbac_v2_workspace_response(created_group)
+        if isinstance(created_group, dict)
+        else build_group_response(created_group)
+    )
+    return flask_json_response(response_body, HTTPStatus.CREATED)
 
 
 @api_operation
@@ -432,12 +438,14 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
         )
 
     if is_rbac_v2_groups_enabled(identity.org_id):
-        updated_group = get_rbac_workspace_by_id(group_id)
+        updated_workspace = get_rbac_workspace_by_id(group_id)
+        response_body = build_rbac_v2_workspace_response(updated_workspace)
     else:
         updated_group = get_group_by_id_from_db(group_id, identity.org_id)
+        response_body = build_group_response(updated_group)
 
     log_patch_group_success(logger, group_id)
-    return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
+    return flask_json_response(response_body, HTTPStatus.OK)
 
 
 @api_operation
