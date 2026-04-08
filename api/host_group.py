@@ -15,6 +15,7 @@ from api.host_query import build_paginated_host_list_response
 from api.host_query_db import get_host_list
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
+from app.exceptions import ResourceNotFoundException
 from app.instrumentation import log_host_group_add_succeeded
 from app.instrumentation import log_patch_group_failed
 from app.logging import get_logger
@@ -77,8 +78,9 @@ def get_host_list_by_group(
     # Otherwise, use database validation
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace exists
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
+        try:
+            get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
         # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
@@ -143,10 +145,11 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Feature flag check for RBAC v2 workspace validation
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
+        try:
+            get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
             log_patch_group_failed(logger, str(group_id))
-            return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
     else:
         # RBAC v1 path: Validate group via database
         group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
@@ -185,8 +188,9 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     # Feature flag check for RBAC v2 workspace validation
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
+        try:
+            workspace = get_rbac_workspace_by_id(str(group_id))
+        except ResourceNotFoundException:
             abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
         # Check if workspace is ungrouped type

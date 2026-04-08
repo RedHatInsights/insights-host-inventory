@@ -8,6 +8,7 @@ from datetime import timedelta
 import pytest
 from dateutil.parser import parse
 
+from app.exceptions import ResourceNotFoundException
 from app.models import Host
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
@@ -57,7 +58,7 @@ def test_add_host_to_group_RBAC_denied_missing_group(subtests, mocker, db_create
     # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
     mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
     mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
     group_id = str(generate_uuid())
 
     for response_file in GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
@@ -454,7 +455,7 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
     mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
 
     # Try to remove hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
@@ -567,7 +568,7 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
     mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
 
     # Try to remove valid hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
@@ -642,7 +643,7 @@ def test_get_hosts_from_missing_group(
     # Mock RBAC workspace API for Kessel-enabled path
     if expect_rbac_call:
         mock_get_workspace = mocker.patch("api.host_group.get_rbac_workspace_by_id")
-        mock_get_workspace.return_value = None  # Workspace not found
+        mock_get_workspace.side_effect = ResourceNotFoundException("")
 
     # Mock database call for non-Kessel paths
     if expect_db_call:
