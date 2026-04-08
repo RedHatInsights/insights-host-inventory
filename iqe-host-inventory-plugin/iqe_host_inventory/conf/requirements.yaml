@@ -796,6 +796,14 @@ inv-host-views-filter:
   summary: Users can filter data through the `GET /beta/hosts-view` endpoint
   priority: high
 
+inv-host-views-sorting:
+  summary: Users can sort results by app data fields on the `GET /beta/hosts-view` endpoint
+  description: >
+    Users should be able to sort hosts by application data fields (e.g. advisor:recommendations,
+    vulnerability:critical_cves) in ASC or DESC order. Hosts without app data should appear
+    last (NULLS LAST semantics). Sorting and filtering can target different applications independently.
+  priority: high
+
 inv-host-views-sparse-fields:
   summary: Users can request specific fields through the `GET /beta/hosts-view` endpoint using sparse fieldsets
   priority: high
