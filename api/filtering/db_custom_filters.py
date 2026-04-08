@@ -528,14 +528,13 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
 
     # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
-
     workload_null_check_filters, standard_filters = _organize_filter_params(filter_param_list)
 
     filters: list = []
 
     if workload_null_check_filters:
-        presence_expr = or_(*(_build_workloads_filter(f) for f in workload_null_check_filters))
-        filters.append(presence_expr)
+        workload_presence_expr = or_(*(_build_workloads_filter(f) for f in workload_null_check_filters))
+        filters.append(workload_presence_expr)
 
     filters.extend(standard_filters)
 
