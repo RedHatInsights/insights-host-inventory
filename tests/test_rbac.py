@@ -175,3 +175,288 @@ def test_access_decorator_patch_nonexistent_host_with_permission_denied(mocker, 
 
     # Should return 404, not 403
     assert_response_status(response_status, 404)
+
+
+# ============================================================================
+# RBAC v2 Service Account Authentication Tests (RHINENG-25611)
+# ============================================================================
+
+
+def test_get_rbac_oauth_client_singleton(mocker):
+    """
+    Test that OAuth2 client is created once and reused (singleton pattern).
+
+    JIRA: RHINENG-25611
+    """
+    # Mock OIDC discovery
+    mock_discovery = mocker.Mock()
+    mock_discovery.token_endpoint = "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+    mock_fetch_discovery = mocker.patch("lib.middleware.fetch_oidc_discovery", return_value=mock_discovery)
+
+    # Mock OAuth2ClientCredentials constructor
+    mock_oauth_client = mocker.Mock()
+    mock_oauth2_class = mocker.patch("lib.middleware.OAuth2ClientCredentials", return_value=mock_oauth_client)
+
+    # Reset global singleton for test
+    import lib.middleware
+
+    lib.middleware._rbac_oauth_client = None
+
+    # Call twice
+    client1 = lib.middleware._get_rbac_oauth_client()
+    client2 = lib.middleware._get_rbac_oauth_client()
+
+    # Should be same instance
+    assert client1 is client2
+    assert client1 is mock_oauth_client
+
+    # Discovery and OAuth2ClientCredentials should only be called once
+    mock_fetch_discovery.assert_called_once()
+    mock_oauth2_class.assert_called_once()
+
+
+def test_get_rbac_oauth_client_initialization(mocker):
+    """
+    Test that OAuth2 client is initialized with correct credentials.
+
+    JIRA: RHINENG-25611
+    """
+    # Mock OIDC discovery
+    mock_discovery = mocker.Mock()
+    mock_discovery.token_endpoint = "https://sso.redhat.com/token"
+    mocker.patch("lib.middleware.fetch_oidc_discovery", return_value=mock_discovery)
+
+    # Mock config
+    mock_config = mocker.Mock()
+    mock_config.kessel_auth_client_id = "test-client-id"
+    mock_config.kessel_auth_client_secret = "test-client-secret"
+    mock_config.kessel_auth_oidc_issuer = "https://sso.redhat.com/auth/realms/redhat-external"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    # Mock OAuth2ClientCredentials
+    mock_oauth2_class = mocker.patch("lib.middleware.OAuth2ClientCredentials")
+
+    # Reset global singleton
+    import lib.middleware
+
+    lib.middleware._rbac_oauth_client = None
+
+    # Call function
+    lib.middleware._get_rbac_oauth_client()
+
+    # Verify OAuth2ClientCredentials was called with correct parameters
+    mock_oauth2_class.assert_called_once_with(
+        client_id="test-client-id",
+        client_secret="test-client-secret",
+        token_endpoint="https://sso.redhat.com/token",
+    )
+
+
+def test_get_rbac_access_token_success(mocker):
+    """
+    Test that access token is fetched successfully from OAuth2 client.
+
+    JIRA: RHINENG-25611
+    """
+    # Mock OAuth2 client
+    mock_oauth_client = mocker.Mock()
+    mock_oauth_client.get_token.return_value = {
+        "access_token": "test_token_12345",
+        "expires_in": 3600,
+        "token_type": "Bearer",
+    }
+    mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
+
+    # Call function
+    import lib.middleware
+
+    token = lib.middleware._get_rbac_access_token()
+
+    # Verify token is returned correctly
+    assert token == "test_token_12345"
+    mock_oauth_client.get_token.assert_called_once()
+
+
+def test_get_rbac_access_token_failure(mocker):
+    """
+    Test that token fetch failures are properly handled with logging.
+
+    JIRA: RHINENG-25611
+    """
+    # Mock OAuth2 client to raise exception
+    mock_oauth_client = mocker.Mock()
+    mock_oauth_client.get_token.side_effect = Exception("Token fetch failed")
+    mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
+
+    # Call function and expect exception
+    import lib.middleware
+
+    with pytest.raises(Exception, match="Token fetch failed"):
+        lib.middleware._get_rbac_access_token()
+
+
+def test_build_rbac_request_headers_with_service_account(mocker, flask_client):
+    """
+    Test that Authorization header is added when use_service_account=True.
+
+    JIRA: RHINENG-25611
+    """
+    # Mock token fetching
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token_12345")
+
+    # Create a test request context
+    with flask_client.application.test_request_context(
+        headers={
+            "x-rh-identity": "test_identity_header",
+            "x-rh-insights-request-id": "test_request_id",
+        }
+    ):
+        import lib.middleware
+
+        headers = lib.middleware._build_rbac_request_headers(use_service_account=True)
+
+        # Verify headers
+        assert headers["x-rh-identity"] == "test_identity_header"
+        assert headers["x-rh-insights-request-id"] == "test_request_id"
+        assert headers["Authorization"] == "Bearer mock_access_token_12345"
+
+
+def test_build_rbac_request_headers_without_service_account(flask_client):
+    """
+    Test that Authorization header is NOT added when use_service_account=False.
+
+    JIRA: RHINENG-25611
+    """
+    # Create a test request context
+    with flask_client.application.test_request_context(
+        headers={
+            "x-rh-identity": "test_identity_header",
+            "x-rh-insights-request-id": "test_request_id",
+        }
+    ):
+        import lib.middleware
+
+        headers = lib.middleware._build_rbac_request_headers(use_service_account=False)
+
+        # Verify headers
+        assert headers["x-rh-identity"] == "test_identity_header"
+        assert headers["x-rh-insights-request-id"] == "test_request_id"
+        assert "Authorization" not in headers
+
+
+def test_build_rbac_request_headers_custom_identity(mocker, flask_client):
+    """
+    Test that custom identity header can be provided.
+
+    JIRA: RHINENG-25611
+    """
+    # Mock token fetching
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
+
+    # Create a test request context
+    with flask_client.application.test_request_context(
+        headers={
+            "x-rh-identity": "default_identity",
+            "x-rh-insights-request-id": "default_request_id",
+        }
+    ):
+        import lib.middleware
+
+        headers = lib.middleware._build_rbac_request_headers(
+            identity_header="custom_identity",
+            request_id_header="custom_request_id",
+            use_service_account=True,
+        )
+
+        # Verify custom headers are used
+        assert headers["x-rh-identity"] == "custom_identity"
+        assert headers["x-rh-insights-request-id"] == "custom_request_id"
+        assert headers["Authorization"] == "Bearer mock_token"
+
+
+def test_rbac_create_ungrouped_workspace_uses_service_account(mocker, flask_client):
+    """
+    Test that ungrouped workspace creation uses service account instead of PSK.
+
+    JIRA: RHINENG-25611 - PSK removal
+    """
+    # Mock token fetching
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_service_account_token")
+
+    # Mock RBAC response
+    mock_rbac_response = {"id": "workspace-uuid-12345"}
+    mocker.patch("lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value=mock_rbac_response)
+
+    # Mock config
+    mock_config = mocker.Mock()
+    mock_config.bypass_kessel = False
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    # Create test identity
+    from app.auth.identity import Identity
+
+    test_identity = Identity(org_id="test-org-123")
+
+    # Create request context with identity header
+    with flask_client.application.test_request_context(
+        headers={
+            "x-rh-identity": "test_identity_b64",
+            "x-rh-insights-request-id": "test_request_id",
+        }
+    ):
+        import lib.middleware
+
+        workspace_id = lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
+
+        # Verify workspace ID is returned
+        assert workspace_id == "workspace-uuid-12345"
+
+
+def test_rbac_create_ungrouped_workspace_no_psk_header(mocker, flask_client):
+    """
+    Test that PSK header is NOT present in ungrouped workspace creation.
+
+    JIRA: RHINENG-25611 - PSK removal verification
+    """
+    # Mock token fetching
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
+
+    # Mock RBAC request to capture headers
+    mock_rbac_request = mocker.patch("lib.middleware.rbac_get_request_using_endpoint_and_headers")
+    mock_rbac_request.return_value = {"id": "workspace-uuid"}
+
+    # Mock config
+    mock_config = mocker.Mock()
+    mock_config.bypass_kessel = False
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    # Create test identity
+    from app.auth.identity import Identity
+
+    test_identity = Identity(org_id="test-org-123")
+
+    # Create request context
+    with flask_client.application.test_request_context(
+        headers={
+            "x-rh-identity": "test_identity_b64",
+            "x-rh-insights-request-id": "test_request_id",
+        }
+    ):
+        import lib.middleware
+
+        lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
+
+        # Get the headers that were passed to the RBAC request
+        call_args = mock_rbac_request.call_args
+        headers_used = call_args[0][1]  # Second argument is request_headers
+
+        # Verify PSK header is NOT present
+        assert "X-RH-RBAC-PSK" not in headers_used
+
+        # Verify service account header IS present
+        assert "Authorization" in headers_used
+        assert headers_used["Authorization"] == "Bearer mock_token"
+
+        # Verify other required headers are present
+        assert headers_used["X-RH-RBAC-ORG-ID"] == "test-org-123"
+        assert headers_used["X-RH-RBAC-CLIENT-ID"] == "inventory"
