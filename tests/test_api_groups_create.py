@@ -14,8 +14,8 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.config import Config
 from app.models import Group
-from app.serialization import _deserialize_datetime
-from app.serialization import _serialize_datetime
+from app.serialization import serialize_rbac_workspace_with_host_count
+from lib.host_repository import get_host_counts_batch
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
@@ -452,15 +452,16 @@ def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
 
     rbac_modified = "2026-04-08T18:45:12.345678+00:00"
+    workspace_from_rbac = {
+        "id": workspace_id,
+        "name": "existing_group",
+        "created": "2026-01-01T00:00:00+00:00",
+        "modified": rbac_modified,
+        "type": "standard",
+    }
     mock_get_workspace = mocker.patch(
         "api.group.get_rbac_workspace_by_id",
-        return_value={
-            "id": workspace_id,
-            "name": "existing_group",
-            "created": "2026-01-01T00:00:00+00:00",
-            "modified": rbac_modified,
-            "type": "standard",
-        },
+        return_value=workspace_from_rbac,
     )
 
     group_data = {"name": "existing_group", "host_ids": []}
@@ -473,5 +474,13 @@ def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     assert response.status_code == 201
     mock_get_workspace.assert_called_once_with(workspace_id)
     body = json.loads(response.text)
-    expected_updated = _serialize_datetime(_deserialize_datetime(rbac_modified))
-    assert body["updated"] == expected_updated
+    org_id = USER_IDENTITY["org_id"]
+    account = USER_IDENTITY["account_number"]
+    host_counts = get_host_counts_batch(org_id, [workspace_id])
+    expected = serialize_rbac_workspace_with_host_count(
+        workspace_from_rbac,
+        org_id,
+        account,
+        host_counts.get(workspace_id, 0),
+    )
+    assert body == expected

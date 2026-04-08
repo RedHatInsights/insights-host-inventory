@@ -8,8 +8,8 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
-from app.serialization import _deserialize_datetime
-from app.serialization import _serialize_datetime
+from app.serialization import serialize_rbac_workspace_with_host_count
+from lib.host_repository import get_host_counts_batch
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -887,5 +887,13 @@ def test_patch_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     response_status, response_data = api_patch_group(group_id, {"host_ids": [host_id]})
 
     assert_response_status(response_status, 200)
-    expected_updated = _serialize_datetime(_deserialize_datetime(rbac_modified))
-    assert response_data["updated"] == expected_updated
+    org_id = USER_IDENTITY["org_id"]
+    account = USER_IDENTITY["account_number"]
+    host_counts = get_host_counts_batch(org_id, [group_id])
+    expected = serialize_rbac_workspace_with_host_count(
+        workspace_payload,
+        org_id,
+        account,
+        host_counts.get(group_id, 0),
+    )
+    assert response_data == expected
