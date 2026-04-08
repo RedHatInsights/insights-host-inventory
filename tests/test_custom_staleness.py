@@ -27,7 +27,6 @@ from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
-from tests.helpers.api_utils import per_reporter_last_check_in_iso
 from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
@@ -431,7 +430,7 @@ def test_registered_with_filter_with_only_last_check_in(
 
     _now = now()
     fresh_last_check_in = _now
-    puptoo_data = per_reporter_last_check_in_iso(fresh_last_check_in)
+    puptoo_data = fresh_last_check_in.isoformat()
 
     fresh_host = db_create_host(
         extra_data={"reporter": "puptoo", "per_reporter_staleness": {"puptoo": puptoo_data}},
@@ -444,7 +443,7 @@ def test_registered_with_filter_with_only_last_check_in(
     other_host = db_create_host(
         extra_data={
             "reporter": "rhsm-conduit",
-            "per_reporter_staleness": {"rhsm-conduit": per_reporter_last_check_in_iso(fresh_last_check_in)},
+            "per_reporter_staleness": {"rhsm-conduit": fresh_last_check_in.isoformat()},
         },
     )
     other_host.last_check_in = fresh_last_check_in
@@ -485,7 +484,7 @@ def test_registered_with_staleness_filter_flat_format(
     host_b = db_create_host(
         extra_data={
             "reporter": "puptoo",
-            "per_reporter_staleness": {"puptoo": per_reporter_last_check_in_iso(future_dt)},
+            "per_reporter_staleness": {"puptoo": future_dt.isoformat()},
         },
     )
     id_a, id_b = str(host_a.id), str(host_b.id)
@@ -511,7 +510,7 @@ def test_calculated_timestamps_match_stored_timestamps(
     host = db_create_host(
         extra_data={
             "reporter": "puptoo",
-            "per_reporter_staleness": {"puptoo": per_reporter_last_check_in_iso(last_check_in)},
+            "per_reporter_staleness": {"puptoo": last_check_in.isoformat()},
         },
     )
     host.last_check_in = last_check_in
@@ -568,7 +567,7 @@ def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
         db_create_host(
             extra_data={
                 "reporter": "puptoo",
-                "per_reporter_staleness": {"yupana": per_reporter_last_check_in_iso(_now)},
+                "per_reporter_staleness": {"yupana": _now.isoformat()},
             },
         ).id
     )
@@ -586,7 +585,7 @@ def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
         db_create_host(
             extra_data={
                 "reporter": "yupana",
-                "per_reporter_staleness": {"yupana": per_reporter_last_check_in_iso(_now)},
+                "per_reporter_staleness": {"yupana": _now.isoformat()},
             },
         ).id
     )

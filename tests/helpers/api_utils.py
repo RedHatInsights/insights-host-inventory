@@ -729,11 +729,6 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     return response
 
 
-def per_reporter_last_check_in_iso(last_check_in: datetime) -> str:
-    """Value stored in flat ``per_reporter_staleness`` for one reporter: ISO-8601 ``last_check_in`` only."""
-    return last_check_in.isoformat()
-
-
 def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
@@ -749,7 +744,7 @@ def create_host_with_reporter(
         extra_data={
             "reporter": reporter,
             "per_reporter_staleness": {
-                reporter: per_reporter_last_check_in_iso(last_check_in),
+                reporter: last_check_in.isoformat(),
             },
         },
     )
