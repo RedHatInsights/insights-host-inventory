@@ -455,7 +455,7 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
     mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Group not found"))
 
     # Try to remove hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
@@ -568,7 +568,7 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
     mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
-    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
+    mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Group not found"))
 
     # Try to remove valid hosts from non-existent group
     response_status, response_data = api_remove_hosts_from_group(invalid_group_id, [str(host1_id), str(host2_id)])
