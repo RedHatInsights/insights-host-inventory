@@ -53,6 +53,7 @@ venv
 # prevent accidental push of local settings
 # (override with `git add -f <file>`)
 iqe_host_inventory/conf/settings.local.yaml
+iqe_host_inventory/conf/host_inventory.local.yaml
 
 # For now, ignore package lock
 package-lock.json

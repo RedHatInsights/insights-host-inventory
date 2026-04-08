@@ -903,7 +903,9 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "limit": len(workspace_ids)})
+    rbac_endpoint = _get_rbac_workspace_url(
+        query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
+    )
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
@@ -915,6 +917,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     # Extract workspaces from response
     workspaces = response.get("data", []) if response else []
+
+    logger.debug(f"Workspaces retrieved from RBAC v2 API: {[w['id'] for w in workspaces]}")
 
     return workspaces
 

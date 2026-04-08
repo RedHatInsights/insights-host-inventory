@@ -91,6 +91,54 @@ Change `ENV_FOR_DYNACONF` to test different environments:
 
 [See more in Full IQE docs](#further_reading) section below including also `fedramp_stage_proxy`.
 
+## Custom IQE Users
+
+By default, IQE tests use shared test users defined in `iqe_host_inventory/conf/host_inventory.default.yaml`. For isolated testing with your own org_id and feature flag configuration, you can create custom users.
+
+### Using Custom Users
+
+**1. Create a local configuration file:**
+```bash
+# This file is gitignored and contains your credentials
+iqe-host-inventory-plugin/iqe_host_inventory/conf/host_inventory.local.yaml
+```
+
+**2. Basic structure:**
+```yaml
+stage: &stage
+  legacy_hostname: "YOUR_STAGE_API_HOST"
+  turnpike_base_url: "YOUR_RBAC_URL"
+  default_user: your_custom_user
+  users:
+    your_custom_user:
+      auth:
+        username: "your-username"
+        password: "your-password"
+        refresh_token: "YOUR_REFRESH_TOKEN"
+      identity:
+        account_number: "YOUR_ACCOUNT_NUMBER"
+        org_id: "YOUR_ORG_ID"
+
+stage_proxy: *stage
+```
+
+**3. Run tests with your custom user:**
+```bash
+ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory --user your_custom_user -m smoke
+```
+
+### Full Setup Guide
+
+For complete instructions on creating custom users (including user creation, token generation, and configuration):
+
+📘 **[Internal Documentation: Creating Custom IQE Users](https://redhat.atlassian.net/wiki/spaces/~70121821d7ad2679b4fd7ab4a5dabf625c5a0/pages/384305391/Creating+Custom+IQE+Users+for+Stage+Cluster)**
+
+**Benefits of custom users:**
+- Isolated org_id for testing (no conflicts with other teams)
+- Control your own feature flags
+- Test with specific RBAC configurations
+- Debug without affecting shared test data
+
 ## Troubleshooting
 
 **Certificate errors during install:**
