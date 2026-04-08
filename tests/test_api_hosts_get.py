@@ -2742,3 +2742,142 @@ def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "filter[system_profile][workloads][sap][is]=not_nil&filter[system_profile][workloads][ansible][is]=not_nil",
+        "filter[system_profile][workloads][rhel_ai][is]=nil&filter[system_profile][workloads][ansible][is]=not_nil",
+        "filter[system_profile][workloads][mssql][]=not_nil&filter[system_profile][workloads][sap][]=not_nil",
+    ),
+)
+def test_query_workload_top_level_presence_filters_use_or_logic(db_create_host, api_get, sp_filter_param):
+    """
+    Verifies that filtering by top-level workload types (existence)
+    broadens the results using OR logic.
+    """
+    sap_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {"sap": {"sap_system": True}, "rhel_ai": {"rhel_ai_version_id": "v1.1.3"}}
+                }
+            }
+        ).id
+    )
+    ansible_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {
+                        "ansible": {"controller_version": "1.2"},
+                        "rhel_ai": {"rhel_ai_version_id": "v1.1.3"},
+                    }
+                }
+            }
+        ).id
+    )
+    mssql_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {"mssql": {"version": "2022"}, "rhel_ai": {"rhel_ai_version_id": "v1.1.3"}}
+                }
+            }
+        ).id
+    )
+
+    no_rhel_host_id = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {}}}).id)
+
+    url = build_hosts_url(query=f"?{sp_filter_param}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    assert len(response_ids) == 2
+
+    if "sap" in sp_filter_param:
+        assert sap_host_id in response_ids
+    if "ansible" in sp_filter_param:
+        assert ansible_host_id in response_ids
+    if "mssql" in sp_filter_param:
+        assert mssql_host_id in response_ids
+    if "rhel_ai" in sp_filter_param:
+        assert no_rhel_host_id in response_ids
+
+
+def test_query_workload_specific_properties_across_workloads_still_use_and_logic(db_create_host, api_get):
+    """Drill-down filters on different workloads remain AND (Case 2)."""
+    sap_ver = "1.00.122.04.1478575636"
+    mssql_ver = "15.2.0"
+
+    both = {
+        "system_profile_facts": {
+            "workloads": {
+                "sap": {"sap_system": True, "version": sap_ver},
+                "mssql": {"version": mssql_ver},
+            }
+        }
+    }
+    sap_only = {
+        "system_profile_facts": {
+            "workloads": {"sap": {"sap_system": True, "version": sap_ver}},
+        }
+    }
+    mssql_only = {
+        "system_profile_facts": {
+            "workloads": {"mssql": {"version": mssql_ver}},
+        }
+    }
+
+    both_id = str(db_create_host(extra_data=both).id)
+    sap_only_id = str(db_create_host(extra_data=sap_only).id)
+    mssql_only_id = str(db_create_host(extra_data=mssql_only).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][workloads][sap][version]={sap_ver}"
+        f"&filter[system_profile][workloads][mssql][version]={mssql_ver}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert both_id in response_ids
+    assert sap_only_id not in response_ids
+    assert mssql_only_id not in response_ids
+
+
+def test_mixed_workload_property_and_type_no_matches(db_create_host, api_get):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["H2O"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"rhel_ai": {"variant": "RHEL AI"}}}})
+
+    query = "?filter[system_profile][sap_sids][contains][]=H2O&filter[system_profile][rhel_ai][is][]=not_nil"
+
+    url = build_hosts_url(query)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        (
+            "[workloads][sap][sids][contains][]=NONEXISTENT_SID"
+            "&filter[system_profile][workloads][sap][sap_system][]=true"
+            "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
+        ),
+    ),
+)
+def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get, sp_filter_param):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}})
+
+    url = build_hosts_url(f"?filter[system_profile]{sp_filter_param}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
