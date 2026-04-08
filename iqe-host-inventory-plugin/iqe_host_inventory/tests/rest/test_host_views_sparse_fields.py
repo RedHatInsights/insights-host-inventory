@@ -18,29 +18,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from iqe_host_inventory.utils.datagen_utils import generate_host_app_data
+from iqe_host_inventory.fixtures.host_views_fixtures import add_app_data_to_host
 
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 
 logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend, pytest.mark.ephemeral]
-
-
-def _add_app_data_to_host(host_inventory, host, app_name: str, data_overrides: dict | None = None):
-    """Helper to add app data to an existing host."""
-    app_data = generate_host_app_data(app_name)
-    if data_overrides:
-        app_data.update(data_overrides)
-
-    host_inventory.kafka.produce_host_app_message(
-        application=app_name,
-        org_id=host.org_id,
-        hosts_app_data=[{"id": host.id, "data": app_data}],
-    )
-    host_inventory.apis.host_views.wait_for_host_view_app_data(
-        insights_id=host.insights_id, app_name=app_name
-    )
 
 
 class TestSparseFieldsSingleApp:
@@ -60,7 +44,7 @@ class TestSparseFieldsSingleApp:
             title: Test sparse fields - single app all fields
         """
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
-        _add_app_data_to_host(host_inventory, host, "vulnerability")
+        add_app_data_to_host(host_inventory, host, "vulnerability")
 
         response = host_inventory.apis.host_views.get_host_views_response(
             insights_id=host.insights_id,
@@ -129,10 +113,10 @@ class TestSparseFieldsMultipleApps:
             title: Test sparse fields - multiple apps all fields
         """
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host, "vulnerability", {"total_cves": 10, "critical_cves": 2}
         )
-        _add_app_data_to_host(host_inventory, host, "patch")
+        add_app_data_to_host(host_inventory, host, "patch")
 
         response = host_inventory.apis.host_views.get_host_views_response(
             insights_id=host.insights_id,
@@ -160,7 +144,7 @@ class TestSparseFieldsMultipleApps:
             title: Test sparse fields - multiple apps specific fields
         """
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host, "vulnerability", {"total_cves": 10, "critical_cves": 2}
         )
 
@@ -204,7 +188,7 @@ class TestSparseFieldsMetaKey:
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
 
         for app_name in ["vulnerability", "remediations"]:
-            _add_app_data_to_host(host_inventory, host, app_name)
+            add_app_data_to_host(host_inventory, host, app_name)
 
         response = host_inventory.apis.host_views.get_host_views_response(
             insights_id=host.insights_id,
@@ -238,7 +222,7 @@ class TestSparseFieldsMetaKey:
             title: Test sparse fields - app_data meta-key with app-specific fields
         """
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host, "vulnerability", {"total_cves": 10, "critical_cves": 2}
         )
 
@@ -477,12 +461,12 @@ class TestSparseFieldsWithFiltering:
             title: Test filter on one app with sparse fields on another
         """
         host1 = setup_host_with_app_data("advisor", {"recommendations": 10, "incidents": 5})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host1, "vulnerability", {"total_cves": 20, "critical_cves": 3}
         )
 
         host2 = setup_host_with_app_data("advisor", {"recommendations": 2, "incidents": 1})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host2, "vulnerability", {"total_cves": 5, "critical_cves": 1}
         )
 
@@ -603,7 +587,7 @@ class TestSparseFieldsDefaultBehavior:
             title: Test default behavior without fields parameter
         """
         host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
-        _add_app_data_to_host(
+        add_app_data_to_host(
             host_inventory, host, "vulnerability", {"total_cves": 10, "critical_cves": 2}
         )
 
