@@ -226,9 +226,7 @@ class RBACAPIWrapper(BaseEntity):
 
         In RBAC V2 a group cannot be deleted while role bindings reference it.
         There is no "delete role binding" API, so the only way to remove
-        bindings is to delete the roles they reference.  Only IQE-created roles
-        (name prefix ``iqe-hbi-role_``) are deleted; system/pre-configured
-        roles are left untouched.
+        bindings is to delete the roles they reference.
         """
         response = self.raw_api_v2.role_bindings_api.role_bindings_list(
             subject_type=RoleBindingsSubjectType.GROUP,
@@ -249,8 +247,6 @@ class RBACAPIWrapper(BaseEntity):
                 # This is a platform_default group and principal assignments can't be modified
                 continue
             if delete_groups:
-                if self._host_inventory.unleash.is_rbac_workspaces_enabled:
-                    self.reset_role_bindings(group.uuid)
                 self.delete_group(group.uuid)
             else:
                 self.remove_user_from_group(username, group.uuid)
