@@ -483,14 +483,6 @@ def _is_workload_existence_check(filter_item: dict) -> bool:
     return _workload_presence_nil_not_nil_token(workload_name, criteria) is not None
 
 
-def _format_workload_existence_filter(filter_item: dict) -> dict:
-    """Normalize workload existence filter to {'is': value} form."""
-    workload_name, criteria = next(iter(filter_item["workloads"].items()))
-    token = _workload_presence_nil_not_nil_token(workload_name, criteria)
-
-    return {"workloads": {workload_name: {"is": token}}}
-
-
 def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
     """Return AND for array filters, otherwise OR for grouped filters."""
     field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), group[0])
@@ -527,7 +519,7 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
             # Special case:
             # A single-item list that represents a workload existence check
             if len(grouped_filter_param) == 1 and _is_workload_existence_check(grouped_filter_param[0]):
-                workload_null_check_filters.append(_format_workload_existence_filter(grouped_filter_param[0]))
+                workload_null_check_filters.append(grouped_filter_param[0])
                 continue
 
             # General grouped filters:
@@ -543,7 +535,7 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
         # Single filter (not grouped)
         # Check if it's a workload existence filter (nil / not_nil)
         if _is_workload_existence_check(grouped_filter_param):
-            workload_null_check_filters.append(_format_workload_existence_filter(grouped_filter_param))
+            workload_null_check_filters.append(grouped_filter_param)
         else:
             # Regular filter -> convert to SQLAlchemy expression
             standard_filters.append(_build_workloads_filter(grouped_filter_param))
