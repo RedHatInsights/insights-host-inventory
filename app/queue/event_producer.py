@@ -47,6 +47,9 @@ class NullEventProducer:
             "NullEventProducer: Skipping event production in replica cluster. Topic: %s, key: %s", self.mq_topic, key
         )
 
+    def flush(self):
+        pass
+
     def close(self):
         logger.debug("NullEventProducer: Closing (no-op)")
 
@@ -72,7 +75,7 @@ class EventProducer:
             if wait:
                 self._kafka_producer.flush()
             else:
-                self._kafka_producer.poll()
+                self._kafka_producer.poll(0)
 
         except KafkaException as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
@@ -80,6 +83,9 @@ class EventProducer:
         except Exception as error:
             message_not_produced(logger, error, topic, event=v, key=k, headers=h)
             raise error
+
+    def flush(self):
+        self._kafka_producer.flush()
 
     def close(self):
         self._kafka_producer.flush()

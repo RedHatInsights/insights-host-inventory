@@ -43,7 +43,7 @@ class OutboxSaveException(InventoryException):
 
 class ResourceNotFoundException(InventoryException):
     def __init__(self, detail: str):
-        InventoryException.__init__(self, title="RBAC Resource Not Found", detail=detail)
+        InventoryException.__init__(self, status=404, title="RBAC Resource Not Found", detail=detail)
 
 
 class IdsNotFoundError(InventoryException):
