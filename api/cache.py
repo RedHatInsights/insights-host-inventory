@@ -14,6 +14,7 @@ CACHE_PREFIX = "flask_cache_"
 CACHE_TYPE_REDIS_CACHE = "RedisCache"
 CACHE_EXECUTOR = None
 REDIS_CLIENT = None
+STALENESS_L2_CACHE_ENABLED = False
 logger = get_logger("cache")
 
 
@@ -22,6 +23,7 @@ def init_cache(app_config, flask_app):
     global CACHE_CONFIG
     global CACHE_EXECUTOR
     global REDIS_CLIENT
+    global STALENESS_L2_CACHE_ENABLED
     cache_type = "NullCache"
     logger.info("Initializing Cache")
 
@@ -38,6 +40,18 @@ def init_cache(app_config, flask_app):
             socket_connect_timeout=app_config.redis_socket_connect_timeout,
         )
         logger.info("Instantiated Redis client")
+
+    STALENESS_L2_CACHE_ENABLED = (
+        CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and app_config.api_staleness_cache_enabled
+    )
+    if STALENESS_L2_CACHE_ENABLED:
+        logger.info("Staleness L2 (Redis) cache is enabled")
+    else:
+        logger.info(
+            "Staleness L2 (Redis) cache is disabled "
+            "(requires INVENTORY_API_CACHE_TYPE=RedisCache, Redis host/port, and "
+            "INVENTORY_API_STALENESS_CACHE_ENABLED=true)"
+        )
 
     if not CACHE:
         logger.info(f"Cache is unset; using config={CACHE_CONFIG}")
@@ -141,8 +155,8 @@ def _deserialize_staleness_dict(data: dict):
 
 
 def get_cached_staleness(org_id: str):
-    if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
-        logger.debug("Staleness cache disabled (cache type is not RedisCache)")
+    if not STALENESS_L2_CACHE_ENABLED:
+        logger.debug("Staleness L2 cache disabled (Redis API cache off or staleness cache flag off)")
         return None
     try:
         client = _get_redis_client()
@@ -159,8 +173,8 @@ def get_cached_staleness(org_id: str):
 
 
 def set_cached_staleness(org_id: str, staleness_obj, timeout: int):
-    if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
-        logger.debug(f"Staleness cache disabled; skipping set for org_id={org_id}")
+    if not STALENESS_L2_CACHE_ENABLED:
+        logger.debug(f"Staleness L2 cache disabled; skipping set for org_id={org_id}")
         return
     try:
         client = _get_redis_client()
@@ -173,8 +187,8 @@ def set_cached_staleness(org_id: str, staleness_obj, timeout: int):
 
 
 def delete_cached_staleness(org_id: str):
-    if CACHE_CONFIG.get("CACHE_TYPE") != CACHE_TYPE_REDIS_CACHE:
-        logger.debug(f"Staleness cache disabled; skipping delete for org_id={org_id}")
+    if not STALENESS_L2_CACHE_ENABLED:
+        logger.debug(f"Staleness L2 cache disabled; skipping delete for org_id={org_id}")
         return
     try:
         client = _get_redis_client()
