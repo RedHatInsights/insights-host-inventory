@@ -775,6 +775,70 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     assert parsed["limit"] == [str(per_page + 2)]
 
 
+@pytest.mark.parametrize(
+    "group_type,workspace_type",
+    [
+        ("standard", "standard"),
+        ("ungrouped-hosts", "ungrouped-hosts"),
+    ],
+)
+def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get, group_type, workspace_type):
+    """
+    When the caller filters on a specific group_type (standard or ungrouped-hosts),
+    that type is passed straight to the RBAC API, since root/default workspaces are never
+    returned. The middleware should NOT apply the extra-limit or post-filter stripping
+    that it does for group_type=all.
+    """
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+
+    ws_ids = [str(generate_uuid()) for _ in range(3)]
+    rbac_payload = {
+        "data": [
+            _create_mock_workspace(workspace_id=ws_ids[0], name="ws_a", workspace_type=workspace_type),
+            _create_mock_workspace(workspace_id=ws_ids[1], name="ws_b", workspace_type=workspace_type),
+            _create_mock_workspace(workspace_id=ws_ids[2], name="ws_c", workspace_type=workspace_type),
+        ],
+        "meta": {"count": 3},
+    }
+    mock_rbac_http = mocker.patch(
+        "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
+        return_value=rbac_payload,
+    )
+
+    mocker.patch(
+        "api.group.get_host_counts_batch",
+        return_value={wid: 0 for wid in ws_ids},
+    )
+
+    per_page = 3
+    response_status, response_data = api_get(
+        build_groups_url(query=f"?group_type={group_type}&order_by=name&per_page={per_page}")
+    )
+
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 3
+    assert len(response_data["results"]) == 3
+    returned_ids = {r["id"] for r in response_data["results"]}
+    assert returned_ids == set(ws_ids)
+
+    # The RBAC request should include type=<group_type> and limit=per_page+2
+    # (the extra limit is always applied, but no post-filter stripping happens)
+    rbac_endpoint = mock_rbac_http.call_args[0][1]
+    parsed = parse_qs(urlparse(rbac_endpoint).query)
+    assert parsed["type"] == [group_type]
+    assert parsed["limit"] == [str(per_page + 2)]
+    # meta.count is returned as-is (no subtraction) since no stripping occurred
+    assert response_data["total"] == 3
+
+
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     """
