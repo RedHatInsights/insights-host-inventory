@@ -717,6 +717,62 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
         assert "order_how" not in parsed
 
 
+def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_get):
+    """
+    RBAC may return root/default workspaces mixed with standard and ungrouped-hosts workspaces.
+    get_rbac_workspaces() requests per_page + len(HIDE_WORKSPACE_TYPES) items from RBAC,
+    strips root/default types, then caps at per_page so the caller always gets a full page.
+
+    Scenario: user has 5 workspaces total (3 standard, 1 root, 1 default).
+    per_page=3 -> limit sent to RBAC is 5 -> after stripping, exactly 3 standard remain.
+    """
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+
+    standard_ids = [str(generate_uuid()) for _ in range(3)]
+    rbac_payload = {
+        "data": [
+            _create_mock_workspace(workspace_id=standard_ids[0], name="group_a", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=str(generate_uuid()), name="root_ws", workspace_type="root"),
+            _create_mock_workspace(workspace_id=standard_ids[1], name="group_b", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=str(generate_uuid()), name="default_ws", workspace_type="default"),
+            _create_mock_workspace(workspace_id=standard_ids[2], name="group_c", workspace_type="standard"),
+        ],
+        "meta": {"count": 5},
+    }
+    mock_rbac_http = mocker.patch(
+        "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
+        return_value=rbac_payload,
+    )
+
+    mocker.patch(
+        "api.group.get_host_counts_batch",
+        return_value={sid: 0 for sid in standard_ids},
+    )
+
+    per_page = 3
+    response_status, response_data = api_get(build_groups_url(query=f"?order_by=name&per_page={per_page}"))
+
+    assert_response_status(response_status, 200)
+    # All 3 standard workspaces returned despite root/default being in the RBAC response
+    assert response_data["count"] == per_page
+    assert len(response_data["results"]) == per_page
+    returned_ids = {r["id"] for r in response_data["results"]}
+    assert returned_ids == set(standard_ids)
+
+    # RBAC was asked for per_page + 2 (len(HIDE_WORKSPACE_TYPES)) to compensate for stripping
+    rbac_endpoint = mock_rbac_http.call_args[0][1]
+    parsed = parse_qs(urlparse(rbac_endpoint).query)
+    assert parsed["limit"] == [str(per_page + 2)]
+
+
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     """

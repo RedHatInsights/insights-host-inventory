@@ -51,6 +51,7 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
+HIDE_WORKSPACE_TYPES = ["root", "default"]
 
 
 def get_rbac_url(app: str) -> str:
@@ -793,7 +794,8 @@ def get_rbac_workspaces(
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        query_params["limit"] = str(per_page)
+        # Add to the limit in case we need to strip out root and default workspaces
+        query_params["limit"] = str(per_page + len(HIDE_WORKSPACE_TYPES))
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -831,6 +833,10 @@ def get_rbac_workspaces(
         error_msg = f"RBAC service returned malformed response: expected 'data' to be a list, got {type(data)}"
         logger.error(error_msg)
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
+
+    # Strip out root and default workspaces
+    data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+    data = data[:per_page]
 
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
