@@ -7,6 +7,9 @@ from time import sleep
 from iqe.base.application import Application
 from iqe.base.application.implementations.rest import ViaREST
 from iqe_rbac.entities.group import Group
+from iqe_rbac_api import RoleWithAccess
+from iqe_rbac_v2_api import Permission as RBACV2Permission
+from iqe_rbac_v2_api import Role as RBACV2Role
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -40,6 +43,17 @@ class RBACRoles:
     STALENESS_VIEWER = "Organization Staleness and Deletion Viewer"
     STALENESS_ADMIN = "Organization Staleness and Deletion Administrator"
     USER_ACCESS = "User Access administrator"
+
+
+def get_role_id(role: RoleWithAccess | RBACV2Role) -> str:
+    """Get role ID from either V1 (RoleWithAccess.uuid) or V2 (Role.id) role object."""
+    return getattr(role, "uuid", None) or role.id
+
+
+def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2Permission:
+    """Convert an RBACInventoryPermission enum to a V2 Permission model."""
+    app, resource_type, operation = permission.value.split(":")
+    return RBACV2Permission(application=app, resource_type=resource_type, operation=operation)
 
 
 def update_group_with_roles(app: Application, group: Group, roles: list[str]) -> None:
