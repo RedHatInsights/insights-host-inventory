@@ -14,6 +14,9 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.config import Config
 from app.models import Group
+from app.serialization import serialize_rbac_workspace_with_host_count
+from lib.host_repository import get_host_counts_batch
+from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
@@ -433,3 +436,51 @@ def test_wait_for_workspace_event_times_out_when_both_checks_fail(
     assert response.status_code == 503
     # poll() SHOULD have been called (we tried to wait for notifications)
     mock_pg_listen_connection.poll.assert_called()
+
+
+@pytest.mark.usefixtures("enable_kessel", "event_producer", "mock_pg_listen_connection")
+def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
+    flask_client: TestClient,
+    db_create_group: Callable[..., Group],
+    mocker: MockerFixture,
+) -> None:
+    """201 response should use RBAC workspace metadata when RBAC v2 groups are enabled (not stale DB row)."""
+    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    existing_group = db_create_group("existing_group")
+    workspace_id = str(existing_group.id)
+    mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+
+    rbac_modified = "2026-04-08T18:45:12.345678+00:00"
+    workspace_from_rbac = {
+        "id": workspace_id,
+        "name": "existing_group",
+        "created": "2026-01-01T00:00:00+00:00",
+        "modified": rbac_modified,
+        "type": "standard",
+    }
+    mock_get_workspace = mocker.patch(
+        "api.group.get_rbac_workspace_by_id",
+        return_value=workspace_from_rbac,
+    )
+
+    group_data = {"name": "existing_group", "host_ids": []}
+    response = flask_client.post(
+        GROUP_URL,
+        data=json.dumps(group_data),
+        headers={"x-rh-identity": to_auth_header(Identity(obj=USER_IDENTITY)), "Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 201
+    mock_get_workspace.assert_called_once_with(workspace_id)
+    body = json.loads(response.text)
+    org_id = USER_IDENTITY["org_id"]
+    account = USER_IDENTITY["account_number"]
+    host_counts = get_host_counts_batch(org_id, [workspace_id])
+    expected = serialize_rbac_workspace_with_host_count(
+        workspace_from_rbac,
+        org_id,
+        account,
+        host_counts.get(workspace_id, 0),
+    )
+    assert body == expected
