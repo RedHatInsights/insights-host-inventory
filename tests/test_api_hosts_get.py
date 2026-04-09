@@ -2808,6 +2808,109 @@ def test_query_workload_top_level_presence_filters_use_or_logic(db_create_host, 
         assert no_rhel_host_id in response_ids
 
 
+def test_query_operating_system_and_sap_workload_presence_not_nil(db_create_host, api_get):
+    """OS filter AND SAP workload presence (not_nil) narrow results; both must match."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    match_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    same_os_no_sap = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+    sap_wrong_os = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+        "&filter[system_profile][workloads][sap][is]=not_nil"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {match_id}
+    assert same_os_no_sap not in response_ids
+    assert sap_wrong_os not in response_ids
+
+
+def test_query_workload_presence_or_logic_combined_with_operating_system_filter(db_create_host, api_get):
+    """Top-level workload existence filters use OR among themselves; OS remains AND (narrowing)."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    sap_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    ansible_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"ansible": {"controller_version": "1.2"}},
+                }
+            }
+        ).id
+    )
+    sap_on_rhel77 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    neither_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][is]=not_nil"
+        "&filter[system_profile][workloads][ansible][is]=not_nil"
+        "&filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {sap_on_rhel86, ansible_on_rhel86}
+    assert sap_on_rhel77 not in response_ids
+    assert neither_on_rhel86 not in response_ids
+
+
 def test_query_workload_specific_properties_across_workloads_still_use_and_logic(db_create_host, api_get):
     """Drill-down filters on different workloads remain AND (Case 2)."""
     sap_ver = "1.00.122.04.1478575636"
