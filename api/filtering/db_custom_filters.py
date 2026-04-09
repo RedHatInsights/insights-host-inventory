@@ -449,6 +449,23 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         return target_field.operate(pg_op, value)
 
 
+def _workload_presence_nil_not_nil_token(workload_name: str, criteria) -> str | None:
+    """If {workload_name: criteria} is workload JSONB presence (nil/not_nil), return 'nil' or 'not_nil'.
+
+    Uses the same path walk as _convert_dict_to_json_path_and_value: any single-segment path
+    under the workload (e.g. scalar leaf, [is]=nil, [eq]=nil) counts; nested field paths do not.
+    """
+    jsonb_path, _pg_op, value = _convert_dict_to_json_path_and_value({workload_name: criteria})
+    if len(jsonb_path) != 1:
+        return None
+    if isinstance(value, list) and len(value) == 1:
+        value = value[0]
+    if isinstance(value, bool):
+        return None
+    token = str(value).lower()
+    return token if token in ("nil", "not_nil") else None
+
+
 def _is_workload_existence_check(filter_item: dict) -> bool:
     """Return True if filter checks workload existence via 'nil'/'not_nil'."""
     if set(filter_item) != {"workloads"}:
@@ -463,17 +480,7 @@ def _is_workload_existence_check(filter_item: dict) -> bool:
     wl_children = system_profile_spec().get("workloads", {}).get("children") or {}
     _check_field_in_spec(wl_children, workload_name, "workloads")
 
-    if isinstance(criteria, dict):
-        if set(criteria) != {"is"}:
-            return False
-        value = criteria["is"]
-    else:
-        value = criteria
-
-    if isinstance(value, bool):
-        return False
-
-    return str(value).lower() in ("nil", "not_nil")
+    return _workload_presence_nil_not_nil_token(workload_name, criteria) is not None
 
 
 def _format_workload_existence_filter(filter_item: dict) -> dict:
@@ -483,11 +490,11 @@ def _format_workload_existence_filter(filter_item: dict) -> dict:
         return filter_item
 
     workload_name, criteria = next(iter(workloads_node.items()))
+    token = _workload_presence_nil_not_nil_token(workload_name, criteria)
+    if token is None:
+        return filter_item
 
-    if isinstance(criteria, str) and criteria.lower() in ("nil", "not_nil"):
-        return {"workloads": {workload_name: {"is": criteria}}}
-
-    return filter_item
+    return {"workloads": {workload_name: {"is": token}}}
 
 
 def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
