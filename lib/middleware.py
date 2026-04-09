@@ -794,8 +794,9 @@ def get_rbac_workspaces(
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        # Add to the limit in case we need to strip out root and default workspaces
-        query_params["limit"] = str(per_page + len(HIDE_WORKSPACE_TYPES))
+        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
+        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
+        query_params["limit"] = str(limit)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names

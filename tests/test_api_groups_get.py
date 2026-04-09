@@ -835,7 +835,7 @@ def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
     assert parsed["type"] == [group_type]
-    assert parsed["limit"] == [str(per_page + len(HIDE_WORKSPACE_TYPES))]
+    assert parsed["limit"] == [str(per_page)]
     # meta.count is returned as-is (no subtraction) since no stripping occurred
     assert response_data["total"] == 3
 
