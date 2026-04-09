@@ -834,16 +834,19 @@ def get_rbac_workspaces(
         logger.error(error_msg)
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
-    # Strip out root and default workspaces
-    data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+    count = response.get("meta", {}).get("count", 0)
+
+    # If group_type is "all", account for root and default workspaces
+    if group_type == "all":
+        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+        count -= 2
+
     data = data[:per_page]
 
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
     # workspaces they have permission to access. Applying an additional RBAC v1 filter
     # would be redundant and could cause inconsistencies during the RBAC v1 to v2 migration.
-
-    count = response.get("meta", {}).get("count", 0)
 
     return data, count
 

@@ -758,7 +758,9 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     )
 
     per_page = 3
-    response_status, response_data = api_get(build_groups_url(query=f"?order_by=name&per_page={per_page}"))
+    response_status, response_data = api_get(
+        build_groups_url(query=f"?group_type=all&order_by=name&per_page={per_page}")
+    )
 
     assert_response_status(response_status, 200)
     # All 3 standard workspaces returned despite root/default being in the RBAC response
