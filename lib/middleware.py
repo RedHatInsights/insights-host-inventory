@@ -842,7 +842,7 @@ def get_rbac_workspaces(
     return data, count
 
 
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
@@ -851,7 +851,6 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
 
     Returns:
         dict: Workspace object from RBAC v2 API
-        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
@@ -861,12 +860,10 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
         # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
-    if inventory_config().bypass_kessel:
-        return None
-
-    # Delegate to batch API with single ID
-    workspaces = get_rbac_workspaces_by_ids([workspace_id])
-    return workspaces[0] if workspaces else None
+    if workspaces := get_rbac_workspaces_by_ids([workspace_id]):
+        return workspaces[0]
+    else:
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
 def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
@@ -897,9 +894,6 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
         # Caller should use check_all_ids_found() to validate all were found
     """
-    if inventory_config().bypass_kessel:
-        return []
-
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
