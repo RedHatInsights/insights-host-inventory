@@ -2964,22 +2964,16 @@ def test_mixed_workload_property_and_type_no_matches(db_create_host, api_get):
     assert response_data["results"] == []
 
 
-@pytest.mark.parametrize(
-    "sp_filter_param",
-    (
-        (
-            "[workloads][sap][sids][contains][]=NONEXISTENT_SID"
-            "&filter[system_profile][workloads][sap][sap_system][]=true"
-            "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
-        ),
-    ),
-)
-def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get, sp_filter_param):
+def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
     db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}})
     db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}})
     db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}})
 
-    url = build_hosts_url(f"?filter[system_profile]{sp_filter_param}")
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][sids][contains][]=NONEXISTENT_SID"
+        "&filter[system_profile][workloads][sap][sap_system][]=true"
+        "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
+    )
     response_status, response_data = api_get(url)
 
     assert response_status == 200
