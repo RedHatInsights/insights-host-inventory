@@ -5,6 +5,7 @@ import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
 
+from lib.middleware import HIDE_WORKSPACE_TYPES
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import assert_response_status
@@ -769,10 +770,10 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     returned_ids = {r["id"] for r in response_data["results"]}
     assert returned_ids == set(standard_ids)
 
-    # RBAC was asked for per_page + 2 (len(HIDE_WORKSPACE_TYPES)) to compensate for stripping
+    # RBAC was asked for per_page + len(HIDE_WORKSPACE_TYPES) to compensate for stripping
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
-    assert parsed["limit"] == [str(per_page + 2)]
+    assert parsed["limit"] == [str(per_page + len(HIDE_WORKSPACE_TYPES))]
 
 
 @pytest.mark.parametrize(
@@ -829,12 +830,12 @@ def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get
     returned_ids = {r["id"] for r in response_data["results"]}
     assert returned_ids == set(ws_ids)
 
-    # The RBAC request should include type=<group_type> and limit=per_page+2
+    # The RBAC request includes type=<group_type> and limit=per_page+len(HIDE_WORKSPACE_TYPES)
     # (the extra limit is always applied, but no post-filter stripping happens)
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
     assert parsed["type"] == [group_type]
-    assert parsed["limit"] == [str(per_page + 2)]
+    assert parsed["limit"] == [str(per_page + len(HIDE_WORKSPACE_TYPES))]
     # meta.count is returned as-is (no subtraction) since no stripping occurred
     assert response_data["total"] == 3
 
