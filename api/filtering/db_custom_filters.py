@@ -498,26 +498,54 @@ def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
 
 
 def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
-    """Split filters into workload existence checks and standard SQL filters."""
+    """
+    Split filters into workload existence checks and standard SQL filters.
+    Each grouped_filter_param can be:
+
+    - dict: single filter
+      e.g. {"cpu_cores": {"gte": "4"}}
+
+    - list[dict]: grouped filters (same field, multiple values)
+      e.g. [{"hostname": "server1"}, {"hostname": "server2"}]
+      → OR (most fields) / AND (array fields)
+
+    - list with 1 item: special case (e.g. workload existence)
+      e.g. [{"workloads": {"sap": {"is": "not_nil"}}}]
+
+    Returns:
+        - workload_null_check_filters: filters checking workload presence (nil/not_nil)
+        - standard_filters: all other SQLAlchemy filter expressions
+    """
     workload_null_check_filters: list[dict] = []
     standard_filters: list = []
 
     for grouped_filter_param in filter_param_list:
-        # grouped filters (list)
+        # grouped_filter_param can be:
+        # - dict: a single filter
+        # - list[dict]: multiple filters for the same field (OR / AND group)
         if isinstance(grouped_filter_param, list):
+            # Special case:
+            # A single-item list that represents a workload existence check
             if len(grouped_filter_param) == 1 and _is_workload_existence_check(grouped_filter_param[0]):
                 workload_null_check_filters.append(_format_workload_existence_filter(grouped_filter_param[0]))
                 continue
 
+            # General grouped filters:
+            # - OR for most fields
+            # - AND for array fields
             conjunction = _get_group_conjunction(grouped_filter_param)
+
+            # Build SQLAlchemy expressions for each filter and combine them
             conjunction_filter = conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
             standard_filters.append(conjunction_filter)
             continue
 
-        # single fragment
+        # Single filter (not grouped)
+        # Check if it's a workload existence filter (nil / not_nil)
         if _is_workload_existence_check(grouped_filter_param):
             workload_null_check_filters.append(_format_workload_existence_filter(grouped_filter_param))
         else:
+            # Regular filter -> convert to SQLAlchemy expression
             standard_filters.append(_build_workloads_filter(grouped_filter_param))
 
     return workload_null_check_filters, standard_filters
