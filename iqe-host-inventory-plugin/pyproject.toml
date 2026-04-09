@@ -124,3 +124,43 @@ lint.extend-safe-fixes = [
   "UP032",
 ]
 lint.isort.force-single-line = true
+
+[tool.mypy]
+check_untyped_defs = true
+python_version = "3.12"
+
+[[tool.mypy.overrides]]
+# undo after upstream fixes
+module = "pytest_lazyfixture"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "iqe_host_inventory.tests.rest.rbac.staleness.*",
+  "iqe_host_inventory.tests.rest.staleness.*",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# undo asap
+module = [
+  "iqe_rbac.*",
+  "iqe_bindings.*",
+  "ocdeployer.*",
+  "sqlalchemy.*",
+  "box.*",
+  "sentaku.*",
+  "dynaconf.*",
+  "wait_for.*",
+  "confluent_kafka.*",
+  "iqe_export_service_api.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "iqe_host_inventory_api.*",
+  "iqe_host_inventory_api_v7.*",
+]
+ignore_missing_imports = true
+ignore_errors = true

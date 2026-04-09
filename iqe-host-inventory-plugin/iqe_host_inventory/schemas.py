@@ -4,9 +4,9 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
-from iqe_rbac_api import AccessApi
-from iqe_rbac_api import GroupApi
-from iqe_rbac_api import RoleApi
+from iqe_bindings.v7.rbac_v1.api.access_api import AccessApi
+from iqe_bindings.v7.rbac_v1.api.group_api import GroupApi
+from iqe_bindings.v7.rbac_v1.api.role_api import RoleApi
 
 from iqe_host_inventory_api.models import PerReporterStaleness
 

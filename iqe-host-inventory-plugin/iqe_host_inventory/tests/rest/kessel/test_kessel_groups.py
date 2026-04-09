@@ -2,8 +2,8 @@ import logging
 from time import sleep
 
 import pytest
-from iqe_rbac_v2_api import ApiException as rbac_v2_exception
-from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesCreateWorkspaceResponse
+from iqe_bindings.v7.rbac_v2.exceptions import ApiException as rbac_v2_exception
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.api_utils import raises_apierror

@@ -10,12 +10,14 @@ from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_rbac import ApplicationRBAC
-from iqe_rbac_api import ApiException as RBACApiException
-from iqe_rbac_api import GroupOut as RBACGroupOut
-from iqe_rbac_api import GroupWithPrincipalsAndRoles
-from iqe_rbac_api import RoleWithAccess
+from iqe_bindings.v7.rbac_v1.exceptions import ApiException as RBACApiException
+from iqe_bindings.v7.rbac_v1.models.group_out import GroupOut as RBACGroupOut
+from iqe_bindings.v7.rbac_v1.models.group_with_principals_and_roles import (
+    GroupWithPrincipalsAndRoles,
+)
+from iqe_bindings.v7.rbac_v1.models.role_with_access import RoleWithAccess
 
+from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
 from iqe_host_inventory.modeling.groups_api import _ids_from_groups
 from iqe_host_inventory.schemas import RBACRestClient
@@ -44,12 +46,12 @@ def _hbi_groups_to_ids(hbi_groups: Sequence[GROUP_OR_ID | None] | None) -> Seque
 @attr.s
 class RBACAPIWrapper(BaseEntity):
     @cached_property
-    def _rbac(self) -> ApplicationRBAC:
-        return self.application.rbac
+    def _host_inventory(self) -> ApplicationHostInventory:
+        return self.application.host_inventory
 
     @cached_property
     def raw_api(self) -> RBACRestClient:
-        return self._rbac.rest_client
+        return self._host_inventory.v7_rbac_v1
 
     def create_group(
         self,
