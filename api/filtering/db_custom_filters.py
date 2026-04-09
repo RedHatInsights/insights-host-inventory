@@ -485,14 +485,8 @@ def _is_workload_existence_check(filter_item: dict) -> bool:
 
 def _format_workload_existence_filter(filter_item: dict) -> dict:
     """Normalize workload existence filter to {'is': value} form."""
-    workloads_node = filter_item.get("workloads", {})
-    if not isinstance(workloads_node, dict) or len(workloads_node) != 1:
-        return filter_item
-
-    workload_name, criteria = next(iter(workloads_node.items()))
+    workload_name, criteria = next(iter(filter_item["workloads"].items()))
     token = _workload_presence_nil_not_nil_token(workload_name, criteria)
-    if token is None:
-        return filter_item
 
     return {"workloads": {workload_name: {"is": token}}}
 
