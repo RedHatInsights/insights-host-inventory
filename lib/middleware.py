@@ -839,7 +839,7 @@ def get_rbac_workspaces(
     # If group_type is "all", account for root and default workspaces
     if group_type == "all":
         data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
-        count -= 2
+        count -= len(HIDE_WORKSPACE_TYPES)
 
     data = data[:per_page]
 
