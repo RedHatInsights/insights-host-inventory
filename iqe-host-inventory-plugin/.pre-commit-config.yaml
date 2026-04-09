@@ -46,4 +46,8 @@ repos:
   rev: v25.10.17.0
   hooks:
   - id: iqe-checks
+  # Temporary: ignore M767/M769 until iqe-metadata-linting resolves the plugin
+  # directory and loads conf/*.default.yaml (component/automation_status defaults
+  # and requirements valid_values). Remove when that fix ships.
   - id: iqe-tests-metadata
+    args: [--extend-ignore=M767,M769]
