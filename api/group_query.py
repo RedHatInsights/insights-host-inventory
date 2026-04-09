@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import func
@@ -70,6 +72,7 @@ GROUP_TYPE_MAPPING = {
 __all__ = (
     "build_paginated_group_list_response",
     "build_group_response",
+    "build_rbac_v2_workspace_response",
     "get_group_list_by_id_list_db",
     "get_group_list_by_id_list_rbac_v2",
     "get_filtered_group_list_db",
@@ -196,6 +199,23 @@ def get_group_list_by_id_list_rbac_v2(
     paginated_group_list = group_list[start_index:end_index]
 
     return paginated_group_list, total
+
+
+def build_rbac_v2_workspace_response(workspace: dict[str, Any]) -> dict[str, Any]:
+    """
+    Serialize a single RBAC v2 workspace the same way as get_group_list_by_id_list_rbac_v2
+    (used by get_groups_by_id): batch host count from DB + serialize_rbac_workspace_with_host_count.
+    """
+    identity = get_current_identity()
+    org_id = identity.org_id
+    ws_id = workspace["id"]
+    host_counts = get_host_counts_batch(org_id, [ws_id])
+    return serialize_rbac_workspace_with_host_count(
+        workspace,
+        org_id,
+        getattr(identity, "account_number", None),
+        host_counts.get(ws_id, 0),
+    )
 
 
 def does_group_with_name_exist(group_name: str, org_id: str):
