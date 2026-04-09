@@ -461,8 +461,7 @@ def _is_workload_existence_check(filter_item: dict) -> bool:
     workload_name, criteria = next(iter(workloads_node.items()))
 
     wl_children = system_profile_spec().get("workloads", {}).get("children") or {}
-    if workload_name not in wl_children:
-        return False
+    _check_field_in_spec(wl_children, workload_name, "workloads")
 
     if isinstance(criteria, dict):
         if set(criteria) != {"is"}:
