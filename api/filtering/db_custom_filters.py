@@ -460,8 +460,6 @@ def _workload_presence_nil_not_nil_token(workload_name: str, criteria) -> str | 
         return None
     if isinstance(value, list) and len(value) == 1:
         value = value[0]
-    if isinstance(value, bool):
-        return None
     token = str(value).lower()
     return token if token in ("nil", "not_nil") else None
 
