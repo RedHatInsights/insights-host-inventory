@@ -55,8 +55,15 @@ def _mock_redis():
     return patch("api.cache._get_redis_client", return_value=mock_client), mock_client
 
 
-def _redis_config(cache_type="RedisCache"):
-    return patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": cache_type})
+def _staleness_l2_patches(cache_type: str = "RedisCache", staleness_l2: bool | None = None):
+    """Match api.cache init: L2 staleness Redis only when cache type is Redis and flag is on."""
+    if staleness_l2 is None:
+        staleness_l2 = cache_type == "RedisCache"
+    return patch.multiple(
+        "api.cache",
+        CACHE_CONFIG={"CACHE_TYPE": cache_type},
+        STALENESS_L2_CACHE_ENABLED=staleness_l2,
+    )
 
 
 # --- Redis layer (L2) tests ---
@@ -74,7 +81,7 @@ def test_datetime_serialization_roundtrip():
 
 def test_get_and_set_cached_staleness():
     redis_patch, mock_client = _mock_redis()
-    with redis_patch, _redis_config():
+    with redis_patch, _staleness_l2_patches():
         set_cached_staleness(SAMPLE_ORG_ID, SAMPLE_STALENESS, 3600)
         assert mock_client.set.call_args[1]["ex"] == 3600
         mock_client.get.return_value = mock_client.set.call_args[0][1]
@@ -87,14 +94,14 @@ def test_get_and_set_cached_staleness():
 
 def test_redis_down_degrades_gracefully():
     redis_patch, mock_client = _mock_redis()
-    with redis_patch, _redis_config():
+    with redis_patch, _staleness_l2_patches():
         mock_client.get.side_effect = ConnectionError("Redis unavailable")
         assert get_cached_staleness(SAMPLE_ORG_ID) is None
 
 
 def test_get_cached_staleness_skips_redis_when_cache_disabled():
     redis_patch, mock_client = _mock_redis()
-    with redis_patch, _redis_config(cache_type="NullCache"):
+    with redis_patch, _staleness_l2_patches(cache_type="NullCache"):
         result = get_cached_staleness(SAMPLE_ORG_ID)
     assert result is None
     mock_client.get.assert_not_called()
@@ -102,15 +109,27 @@ def test_get_cached_staleness_skips_redis_when_cache_disabled():
 
 def test_set_cached_staleness_skips_redis_when_cache_disabled():
     redis_patch, mock_client = _mock_redis()
-    with redis_patch, _redis_config(cache_type="NullCache"):
+    with redis_patch, _staleness_l2_patches(cache_type="NullCache"):
         set_cached_staleness(SAMPLE_ORG_ID, SAMPLE_STALENESS, 3600)
     mock_client.set.assert_not_called()
 
 
 def test_delete_cached_staleness_skips_redis_when_cache_disabled():
     redis_patch, mock_client = _mock_redis()
-    with redis_patch, _redis_config(cache_type="NullCache"):
+    with redis_patch, _staleness_l2_patches(cache_type="NullCache"):
         delete_cached_staleness(SAMPLE_ORG_ID)
+    mock_client.delete.assert_not_called()
+
+
+def test_staleness_l2_skipped_when_api_redis_but_staleness_flag_disabled():
+    """INVENTORY_API_STALENESS_CACHE_ENABLED=false keeps L2 off even if INVENTORY_API_CACHE_TYPE=RedisCache."""
+    redis_patch, mock_client = _mock_redis()
+    with redis_patch, _staleness_l2_patches(cache_type="RedisCache", staleness_l2=False):
+        assert get_cached_staleness(SAMPLE_ORG_ID) is None
+        set_cached_staleness(SAMPLE_ORG_ID, SAMPLE_STALENESS, 3600)
+        delete_cached_staleness(SAMPLE_ORG_ID)
+    mock_client.get.assert_not_called()
+    mock_client.set.assert_not_called()
     mock_client.delete.assert_not_called()
 
 
