@@ -15,6 +15,7 @@ from iqe_rbac_api import GroupOut as RBACGroupOut
 from iqe_rbac_api import GroupWithPrincipalsAndRoles
 from iqe_rbac_api import RoleWithAccess
 from iqe_rbac_v2_api import ApiException as RBACV2ApiException
+from iqe_rbac_v2_api import ResourceType
 from iqe_rbac_v2_api import Role as RBACV2Role
 from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsRequest
 from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsResponse
@@ -23,6 +24,7 @@ from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestResource
 from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestRole
 from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestSubject
 from iqe_rbac_v2_api import RoleBindingsSubjectType
+from iqe_rbac_v2_api import RoleBindingsUpdateRoleBindingsRequest
 from iqe_rbac_v2_api import RolesBatchDeleteRolesRequest
 from iqe_rbac_v2_api import RolesCreateOrUpdateRoleRequest
 
@@ -220,20 +222,31 @@ class RBACAPIWrapper(BaseEntity):
             self.delete_role_v1(role_id)
 
     def reset_role_bindings(self, group_uuid: str) -> None:
-        """Remove all role bindings for a group by deleting the bound IQE-created roles.
+        """Remove all role bindings for a group.
 
         In RBAC V2 a group cannot be deleted while role bindings reference it.
-        There is no "delete role binding" API, so the only way to remove
-        bindings is to delete the roles they reference.
+        Uses PUT /role-bindings/by-subject/ with an empty roles list to clear
+        bindings for each (resource, subject) combination.
         """
         response = self.raw_api_v2.role_bindings_api.role_bindings_list(
             subject_type=RoleBindingsSubjectType.GROUP,
             subject_id=group_uuid,
             limit=10000,
         )
-        role_ids_to_delete = {binding.role.id for binding in response.data}
-        for role_id in role_ids_to_delete:
-            self.delete_role_v2(role_id)
+        logger.info(response.data)
+        # Clear bindings for each unique resource by sending an empty roles list.
+        # model_construct bypasses the client-side min_length=1 validation;
+        # the API itself accepts an empty list and removes all bindings.
+        empty_request = RoleBindingsUpdateRoleBindingsRequest.model_construct(roles=[])
+        for binding in response.data:
+            resource = binding.resource
+            self.raw_api_v2.role_bindings_api.role_bindings_update_without_preload_content(
+                resource_id=resource.id,
+                resource_type=ResourceType.WORKSPACE,
+                subject_id=group_uuid,
+                subject_type=RoleBindingsSubjectType.GROUP,
+                role_bindings_update_role_bindings_request=empty_request,
+            )
 
     def reset_user_groups(
         self, username: str, group_name: str | None = "iqe-hbi", delete_groups: bool = True
