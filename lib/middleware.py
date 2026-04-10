@@ -51,6 +51,7 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
+HIDE_WORKSPACE_TYPES = ["root", "default"]
 
 
 def get_rbac_url(app: str) -> str:
@@ -793,7 +794,9 @@ def get_rbac_workspaces(
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        query_params["limit"] = str(per_page)
+        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
+        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
+        query_params["limit"] = str(limit)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -832,12 +835,19 @@ def get_rbac_workspaces(
         logger.error(error_msg)
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
+    count = response.get("meta", {}).get("count", 0)
+
+    # If group_type is "all", account for root and default workspaces
+    if group_type == "all":
+        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+        count -= len(HIDE_WORKSPACE_TYPES)
+
+    data = data[:per_page]
+
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
     # workspaces they have permission to access. Applying an additional RBAC v1 filter
     # would be redundant and could cause inconsistencies during the RBAC v1 to v2 migration.
-
-    count = response.get("meta", {}).get("count", 0)
 
     return data, count
 
