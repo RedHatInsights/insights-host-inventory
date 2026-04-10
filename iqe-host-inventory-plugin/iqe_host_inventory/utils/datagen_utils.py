@@ -928,14 +928,9 @@ def generate_reporter() -> str:
     return choice(_CORRECT_REGISTERED_WITH_VALUES)
 
 
-def generate_per_reporter_staleness(reporter: str = "iqe-hbi") -> dict[str, dict[str, bool | str]]:
-    return {
-        reporter: {
-            "check_in_succeeded": True,
-            "last_check_in": datetime.datetime.now(datetime.UTC).isoformat(),
-            "stale_timestamp": generate_timestamp(),
-        }
-    }
+def generate_per_reporter_staleness(reporter: str = "iqe-hbi") -> dict[str, str]:
+    """Flat DB shape: reporter -> ISO last_check_in string."""
+    return {reporter: datetime.datetime.now(datetime.UTC).isoformat()}
 
 
 def generate_yum_repo() -> dict[str, str | bool]:
