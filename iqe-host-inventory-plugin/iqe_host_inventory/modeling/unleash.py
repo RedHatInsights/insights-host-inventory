@@ -95,6 +95,21 @@ class HBIUnleash(BaseEntity):
 
         return feature_flag
 
+    @cached_property
+    def rbac_workspaces_flag(self) -> str:
+        feature_flag = "platform.rbac.workspaces"
+
+        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
+            flag_request = UnleashFlagRequest(
+                name=feature_flag,
+                description="RBAC v2 toggle",
+                type=_RequestType.RELEASE,
+                impressionData=False,
+            )
+            self._unleash.admin.create_flag(flag_request=flag_request)
+
+        return feature_flag
+
     def is_flag_enabled(self, flag: str) -> bool:
         return self._unleash.is_enabled(flag, context={"orgId": get_org_id(self.application)})
 
@@ -103,3 +118,7 @@ class HBIUnleash(BaseEntity):
 
     def is_kessel_groups_enabled(self) -> bool:
         return self.is_flag_enabled(self.kessel_groups_flag)
+
+    @cached_property
+    def is_rbac_workspaces_enabled(self) -> bool:
+        return self.is_flag_enabled(self.rbac_workspaces_flag)
