@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from box import BoxKeyError
 from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
+from iqe.users.user import ExplicitUser
 
 if TYPE_CHECKING:
     from iqe_host_inventory.modeling.wrappers import HostWrapper
@@ -38,7 +39,13 @@ def get_account_number(application: Application, given_account_number: str | Non
     if given_account_number is not None:
         return given_account_number
     try:
-        return str(application.user.identity.account_number)
+        user = application.user
+        if isinstance(user, ExplicitUser):
+            identity = user.identity
+            if identity is None:
+                raise BoxKeyError("identity")
+            return str(identity.account_number)
+        return str(user["identity"].account_number)
     except BoxKeyError:
         raise InvalidConfigurationParameterError(
             "Missing primary_user account_number in your settings.local.yaml file"
@@ -49,8 +56,13 @@ def get_org_id(application: Application, given_org_id: str | None = None) -> str
     if given_org_id is not None:
         return given_org_id
 
-    identity = application.user.get("identity", {})
-    org_id = identity.get("org_id") or identity.get("internal", {}).get("org_id")
+    user = application.user
+    if isinstance(user, ExplicitUser):
+        identity = user.identity
+        org_id: str | None = identity.org_id if identity is not None else None
+    else:
+        identity_data = user.get("identity", {})
+        org_id = identity_data.get("org_id") or identity_data.get("internal", {}).get("org_id")
 
     if org_id is None:
         raise InvalidConfigurationParameterError(
