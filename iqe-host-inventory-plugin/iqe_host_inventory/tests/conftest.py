@@ -180,6 +180,8 @@ def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None, No
 def enable_kessel_backend_flags(
     request: FixtureRequest,
     host_inventory: ApplicationHostInventory,
+    # https://redhat.atlassian.net/browse/IQE-3975
+    hbi_setup_ephemeral_accounts: None,  # ensure accounts are set up first
 ) -> None:
     if request.config.getoption("--kessel"):
         host_inventory.unleash.toggle_feature_flag(
