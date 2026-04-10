@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -447,27 +449,114 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         return target_field.operate(pg_op, value)
 
 
+def _workload_presence_nil_not_nil_token(workload_name: str, criteria) -> str | None:
+    """If {workload_name: criteria} is workload JSONB presence (nil/not_nil), return 'nil' or 'not_nil'.
+
+    Uses the same path walk as _convert_dict_to_json_path_and_value: any single-segment path
+    under the workload (e.g. scalar leaf, [is]=nil, [eq]=nil) counts; nested field paths do not.
+    """
+    jsonb_path, _pg_op, value = _convert_dict_to_json_path_and_value({workload_name: criteria})
+    if len(jsonb_path) != 1:
+        return None
+    if isinstance(value, list) and len(value) == 1:
+        value = value[0]
+    token = str(value).lower()
+    return token if token in ("nil", "not_nil") else None
+
+
+def _is_workload_existence_check(filter_item: dict) -> bool:
+    """Return True if filter checks workload existence via 'nil'/'not_nil'."""
+    if set(filter_item) != {"workloads"}:
+        return False
+
+    workloads_node = filter_item["workloads"]
+    if not isinstance(workloads_node, dict) or len(workloads_node) != 1:
+        return False
+
+    workload_name, criteria = next(iter(workloads_node.items()))
+
+    wl_children = system_profile_spec().get("workloads", {}).get("children") or {}
+    _check_field_in_spec(wl_children, workload_name, "workloads")
+
+    return _workload_presence_nil_not_nil_token(workload_name, criteria) is not None
+
+
+def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
+    """Return AND for array filters, otherwise OR for grouped filters."""
+    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), group[0])
+    return and_ if field_filter == "array" else or_
+
+
+def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
+    """
+    Split filters into workload existence checks and standard SQL filters.
+    Each grouped_filter_param can be:
+
+    - dict: single filter
+      e.g. {"cpu_cores": {"gte": "4"}}
+
+    - list[dict]: grouped filters (same field, multiple values)
+      e.g. [{"hostname": "server1"}, {"hostname": "server2"}]
+      → OR (most fields) / AND (array fields)
+
+    - list with 1 item: special case (e.g. workload existence)
+      e.g. [{"workloads": {"sap": {"is": "not_nil"}}}]
+
+    Returns:
+        - workload_null_check_filters: filters checking workload presence (nil/not_nil)
+        - standard_filters: all other SQLAlchemy filter expressions
+    """
+    workload_null_check_filters: list[dict] = []
+    standard_filters: list = []
+
+    for grouped_filter_param in filter_param_list:
+        # grouped_filter_param can be:
+        # - dict: a single filter
+        # - list[dict]: multiple filters for the same field (OR / AND group)
+        if isinstance(grouped_filter_param, list):
+            # Special case:
+            # A single-item list that represents a workload existence check
+            if len(grouped_filter_param) == 1 and _is_workload_existence_check(grouped_filter_param[0]):
+                workload_null_check_filters.append(grouped_filter_param[0])
+                continue
+
+            # General grouped filters:
+            # - OR for most fields
+            # - AND for array fields
+            conjunction = _get_group_conjunction(grouped_filter_param)
+
+            # Build SQLAlchemy expressions for each filter and combine them
+            conjunction_filter = conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
+            standard_filters.append(conjunction_filter)
+            continue
+
+        # Single filter (not grouped)
+        # Check if it's a workload existence filter (nil / not_nil)
+        if _is_workload_existence_check(grouped_filter_param):
+            workload_null_check_filters.append(grouped_filter_param)
+        else:
+            # Regular filter -> convert to SQLAlchemy expression
+            standard_filters.append(_build_workloads_filter(grouped_filter_param))
+
+    return workload_null_check_filters, standard_filters
+
+
 # Takes a System Profile filter param and turns it into sql filters.
 def build_system_profile_filter(system_profile_param: dict) -> tuple:
-    system_profile_filter: tuple = tuple()
 
     # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
+    workload_null_check_filters, standard_filters = _organize_filter_params(filter_param_list)
 
-    for grouped_filter_param in filter_param_list:
-        if isinstance(grouped_filter_param, list):
-            # Use AND when filtering on an array, but otherwise use OR.
-            conjunction = (
-                and_
-                if _get_field_filter_for_deepest_param(system_profile_spec(), grouped_filter_param[0]) == "array"
-                else or_
-            )
-            filter = conjunction(_build_workloads_filter(single_filter) for single_filter in grouped_filter_param)
-        else:
-            filter = _build_workloads_filter(grouped_filter_param)
+    filters: list = []
 
-        system_profile_filter += (filter,)
-    return system_profile_filter
+    if workload_null_check_filters:
+        workload_presence_expr = or_(*(_build_workloads_filter(f) for f in workload_null_check_filters))
+        filters.append(workload_presence_expr)
+
+    filters.extend(standard_filters)
+
+    return tuple(filters)
 
 
 def check_valid_os_name(name):

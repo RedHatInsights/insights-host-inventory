@@ -503,6 +503,8 @@ def check_all_ids_found(
     if effective_found_count == len(requested_ids_set):
         return
 
+    logger.debug(f"Found IDs ({effective_found_count}) != requested IDs ({len(requested_ids_set)}); returning 404")
+
     raise IdsNotFoundError(
         resource_name, find_missing_ids(requested_ids, found_objects, id_attr) if have_all_results else None
     )

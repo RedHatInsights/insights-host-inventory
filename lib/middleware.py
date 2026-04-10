@@ -51,6 +51,7 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
+HIDE_WORKSPACE_TYPES = ["root", "default"]
 
 
 def get_rbac_url(app: str) -> str:
@@ -793,7 +794,9 @@ def get_rbac_workspaces(
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        query_params["limit"] = str(per_page)
+        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
+        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
+        query_params["limit"] = str(limit)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -832,17 +835,24 @@ def get_rbac_workspaces(
         logger.error(error_msg)
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
+    count = response.get("meta", {}).get("count", 0)
+
+    # If group_type is "all", account for root and default workspaces
+    if group_type == "all":
+        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+        count -= len(HIDE_WORKSPACE_TYPES)
+
+    data = data[:per_page]
+
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
     # workspaces they have permission to access. Applying an additional RBAC v1 filter
     # would be redundant and could cause inconsistencies during the RBAC v1 to v2 migration.
 
-    count = response.get("meta", {}).get("count", 0)
-
     return data, count
 
 
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
@@ -851,7 +861,6 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
 
     Returns:
         dict: Workspace object from RBAC v2 API
-        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
@@ -861,12 +870,10 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
         # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
-    if inventory_config().bypass_kessel:
-        return None
-
-    # Delegate to batch API with single ID
-    workspaces = get_rbac_workspaces_by_ids([workspace_id])
-    return workspaces[0] if workspaces else None
+    if workspaces := get_rbac_workspaces_by_ids([workspace_id]):
+        return workspaces[0]
+    else:
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
 def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
@@ -897,13 +904,12 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
         # Caller should use check_all_ids_found() to validate all were found
     """
-    if inventory_config().bypass_kessel:
-        return []
-
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "limit": len(workspace_ids)})
+    rbac_endpoint = _get_rbac_workspace_url(
+        query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
+    )
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
@@ -915,6 +921,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     # Extract workspaces from response
     workspaces = response.get("data", []) if response else []
+
+    logger.debug(f"Workspaces retrieved from RBAC v2 API: {[w['id'] for w in workspaces]}")
 
     return workspaces
 

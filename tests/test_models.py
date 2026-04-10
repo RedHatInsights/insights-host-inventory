@@ -34,7 +34,6 @@ from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_sample_profile_data
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import patch_flattened_per_reporter_staleness_flag
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -490,9 +489,7 @@ def test_host_model_constraints(field, value, db_create_host):
         db_create_host(host=host)
 
 
-def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
-
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
@@ -508,9 +505,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     assert created_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
 
-def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
-
+def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     subman_id = generate_uuid()
@@ -559,19 +554,8 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, moc
     }
 
 
-@pytest.mark.parametrize(
-    "new_reporter,use_flat_format",
-    (
-        ("satellite", True),
-        ("discovery", True),
-        ("satellite", False),  # Test legacy nested format
-    ),
-)
-def test_update_per_reporter_staleness_yupana_replacement(
-    db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker
-):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
-
+@pytest.mark.parametrize("new_reporter", ("satellite", "discovery"))
+def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
@@ -583,12 +567,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
     )
     existing_host = db_create_host(host=input_host)
 
-    if use_flat_format:
-        assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
-    else:
-        assert list(existing_host.per_reporter_staleness) == ["yupana"]
-        assert isinstance(existing_host.per_reporter_staleness["yupana"], dict)
-        assert "stale_timestamp" in existing_host.per_reporter_staleness["yupana"]
+    assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
 
     yupana_stale_timestamp += timedelta(days=1)
 
@@ -603,12 +582,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
 
     # datetime will not change because the datetime.now() method is patched
     # yupana should be removed and replaced with new_reporter
-    if use_flat_format:
-        assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
-    else:
-        assert list(existing_host.per_reporter_staleness) == [new_reporter]
-        assert isinstance(existing_host.per_reporter_staleness[new_reporter], dict)
-        assert "stale_timestamp" in existing_host.per_reporter_staleness[new_reporter]
+    assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
 
 
 def test_canonical_facts_version_default():
@@ -2762,3 +2736,104 @@ def test_serialize_group_with_host_count_true(flask_app, mocker):  # noqa: ARG00
 
     count_spy.assert_called_once()
     assert result["host_count"] == 42
+
+
+def test_staleness_cache_context_manager():
+    """StalenessCache context manager should create and clear cache."""
+    from app.models.utils import StalenessCache
+
+    assert StalenessCache.get("org1") is None
+
+    with StalenessCache():
+        StalenessCache.put("org1", {"test": True})
+        assert StalenessCache.get("org1") == {"test": True}
+
+    assert StalenessCache.get("org1") is None
+
+
+def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
+    """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
+    from app.models.utils import StalenessCache
+    from app.models.utils import _get_staleness_obj
+
+    with StalenessCache():
+        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        assert first_result is not None
+
+        mocker.patch("app.models.staleness.Staleness.query")
+        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+
+        assert second_result is first_result
+        from app.models.staleness import Staleness
+
+        Staleness.query.filter.assert_not_called()
+
+    assert StalenessCache.get(USER_IDENTITY["org_id"]) is None
+
+
+def test_ungrouped_group_cache_context_manager(flask_app, mocker):  # noqa: ARG001
+    """UngroupedGroupCache should prevent duplicate Group DB queries."""
+    from lib.group_repository import UngroupedGroupCache
+
+    assert UngroupedGroupCache.get("org1") is None
+
+    with UngroupedGroupCache():
+        mock_group = mocker.Mock()
+        UngroupedGroupCache.put("org1", mock_group)
+        assert UngroupedGroupCache.get("org1") is mock_group
+
+    assert UngroupedGroupCache.get("org1") is None
+
+
+def test_ungrouped_group_cache_deduplicates_existing_group_lookup(flask_app, mocker):  # noqa: ARG001
+    """When ungrouped group exists, a second call within the same cache context should skip DB."""
+    from lib.group_repository import UngroupedGroupCache
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
+    mock_identity = mocker.Mock()
+    mock_identity.org_id = "test_org"
+    mock_identity.account_number = "test_account"
+
+    mock_group = mocker.Mock(name="existing_ungrouped_group")
+    get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=mock_group)
+    mock_add = mocker.patch("lib.group_repository.add_group")
+
+    with UngroupedGroupCache():
+        first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+        second = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+
+    assert first is mock_group
+    assert second is mock_group
+    get_ungrouped.assert_called_once_with(mock_identity)
+    mock_add.assert_not_called()
+
+
+def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  # noqa: ARG001
+    """When ungrouped group must be created, a second call within the same cache context should skip DB."""
+    from lib.group_repository import UngroupedGroupCache
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
+    mock_identity = mocker.Mock()
+    mock_identity.org_id = "test_org"
+    mock_identity.account_number = "test_account"
+
+    mock_created_group = mocker.Mock(name="created_ungrouped_group")
+    get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
+    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value="ws-id")
+    mock_add = mocker.patch("lib.group_repository.add_group", return_value=mock_created_group)
+
+    with UngroupedGroupCache():
+        first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+        second = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+
+    assert first is mock_created_group
+    assert second is mock_created_group
+    get_ungrouped.assert_called_once_with(mock_identity)
+    mock_rbac.assert_called_once_with(mock_identity)
+    mock_add.assert_called_once_with(
+        group_name="Ungrouped Hosts",
+        org_id="test_org",
+        account="test_account",
+        group_id="ws-id",
+        ungrouped=True,
+    )

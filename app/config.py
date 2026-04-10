@@ -226,10 +226,16 @@ class Config:
             self.db_lock_timeout = int(os.getenv("INVENTORY_DB_LOCK_TIMEOUT", "90000"))
         self.api_cache_timeout = int(os.getenv("INVENTORY_API_CACHE_TIMEOUT_SECONDS", "0"))
         self.api_cache_type = os.getenv("INVENTORY_API_CACHE_TYPE", "NullCache")
+        self.api_staleness_cache_enabled = (
+            os.environ.get("INVENTORY_API_STALENESS_CACHE_ENABLED", "true").lower() == "true"
+        )
         self.cache_insights_client_system_timeout_sec = int(
             os.getenv("INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC", "129600")
         )
         self.api_cache_max_thread_pool_workers = int(os.getenv("INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS", "5"))
+        self.staleness_cache_timeout = int(os.getenv("STALENESS_CACHE_TIMEOUT_SECONDS", "3600"))
+        self.redis_socket_timeout = float(os.getenv("REDIS_SOCKET_TIMEOUT_SECONDS", "3"))
+        self.redis_socket_connect_timeout = float(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS", "3"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
 

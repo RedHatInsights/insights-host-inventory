@@ -31,6 +31,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import Staleness
 from app.models import StalenessSchema
+from app.models.utils import StalenessCache
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import extract_system_profile_fields_for_headers
@@ -123,7 +124,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
 
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
-                            host._update_all_per_reporter_staleness(staleness_dict, st)
                             host._update_staleness_timestamps()
                             serialized_host = serialize_host(
                                 host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
@@ -257,6 +257,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
+        StalenessCache.delete(org_id)
         _async_update_host_staleness(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
@@ -279,6 +280,7 @@ def delete_staleness():
     request_id = threadctx.request_id
     try:
         remove_staleness()
+        StalenessCache.delete(org_id)
         staleness = get_sys_default_staleness_api(identity)
         _async_update_host_staleness(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
@@ -306,6 +308,7 @@ def update_staleness(body):
     org_id = identity.org_id
     try:
         updated_staleness = patch_staleness(validated_data)
+        StalenessCache.delete(org_id)
         if updated_staleness is None:
             # since update only return None with no record instead of exception.
             raise NoResultFound
