@@ -2,6 +2,8 @@ import json
 import uuid
 
 from marshmallow import ValidationError
+from sqlalchemy import delete
+from sqlalchemy import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -189,3 +191,74 @@ def write_event_to_outbox(
 
         # Re-raise the exception so caller can handle rollback
         raise OutboxSaveException("Failed to save event to outbox") from db_error
+
+
+def write_events_to_outbox_batch(
+    ops: list[tuple[EventType, str, "Host | None"]],
+    session: Session,
+) -> int:
+    """
+    Batch-write multiple outbox entries in a single transaction.
+
+    Uses SQLAlchemy Core insert()/delete() to produce exactly 2 SQL statements
+    (one multi-row INSERT, one bulk DELETE) regardless of the number of entries,
+    instead of N+2 statements from the ORM add_all/flush path.
+
+    The number of entries per call is naturally controlled by
+    MQ_DB_BATCH_MAX_MESSAGES, which limits how many Kafka messages are
+    consumed per transaction.
+
+    Returns the count of successfully written entries.
+    Raises OutboxSaveException if any entry fails to build or validate.
+    """
+    if not ops:
+        return 0
+
+    schema = OutboxSchema()
+    values_dicts: list[dict] = []
+    generated_ids: list[uuid.UUID] = []
+
+    for event, host_id, host in ops:
+        if not event:
+            _report_error(f"Missing required field 'event': {event}")
+        if not host_id:
+            _report_error(f"Missing required field 'host_id': {host_id}")
+
+        try:
+            outbox_entry = _build_outbox_entry(event, host_id, host)
+            validated = schema.load(outbox_entry)
+        except ValidationError as ve:
+            raise OutboxSaveException("Invalid host or event was provided") from ve
+
+        row_id = uuid.uuid4()
+        generated_ids.append(row_id)
+        values_dicts.append(
+            {
+                "id": row_id,
+                "aggregateid": validated["aggregateid"],
+                "aggregatetype": validated["aggregatetype"],
+                "operation": validated["operation"],
+                "version": validated["version"],
+                "payload": validated["payload"],
+            }
+        )
+
+    try:
+        session.execute(insert(Outbox), values_dicts)
+        session.flush()
+    except SQLAlchemyError as db_error:
+        logger.error("Database error during batch outbox INSERT: %s", str(db_error))
+        outbox_save_failure.inc()
+        raise OutboxSaveException("Failed to batch-insert outbox entries") from db_error
+
+    try:
+        session.execute(delete(Outbox).where(Outbox.id.in_(generated_ids)))
+    except SQLAlchemyError as db_error:
+        logger.error("Database error during batch outbox DELETE: %s", str(db_error))
+        outbox_save_failure.inc()
+        raise OutboxSaveException("Failed to batch-delete outbox entries") from db_error
+
+    count = len(values_dicts)
+    outbox_save_success.inc(count)
+    logger.debug("Batch-wrote %d outbox entries", count)
+    return count
