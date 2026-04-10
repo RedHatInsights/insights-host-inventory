@@ -124,7 +124,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
 
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
-                            host._update_all_per_reporter_staleness(staleness_dict, st)
                             host._update_staleness_timestamps()
                             serialized_host = serialize_host(
                                 host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
