@@ -233,7 +233,6 @@ class RBACAPIWrapper(BaseEntity):
             subject_id=group_uuid,
             limit=10000,
         )
-        logger.info(response.data)
         # Clear bindings for each unique resource by sending an empty roles list.
         # model_construct bypasses the client-side min_length=1 validation;
         # the API itself accepts an empty list and removes all bindings.
@@ -242,7 +241,9 @@ class RBACAPIWrapper(BaseEntity):
             resource = binding.resource
             self.raw_api_v2.role_bindings_api.role_bindings_update_without_preload_content(
                 resource_id=resource.id,
-                resource_type=ResourceType.WORKSPACE,
+                resource_type=(
+                    ResourceType(resource.type) if resource.type else ResourceType.WORKSPACE
+                ),
                 subject_id=group_uuid,
                 subject_type=RoleBindingsSubjectType.GROUP,
                 role_bindings_update_role_bindings_request=empty_request,
