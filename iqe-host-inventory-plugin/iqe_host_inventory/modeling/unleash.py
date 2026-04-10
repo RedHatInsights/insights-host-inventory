@@ -118,3 +118,7 @@ class HBIUnleash(BaseEntity):
 
     def is_kessel_groups_enabled(self) -> bool:
         return self.is_flag_enabled(self.kessel_groups_flag)
+
+    @cached_property
+    def is_rbac_workspaces_enabled(self) -> bool:
+        return self.is_flag_enabled(self.rbac_workspaces_flag)

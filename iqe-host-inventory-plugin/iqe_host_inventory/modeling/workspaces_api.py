@@ -300,6 +300,13 @@ class WorkspacesAPIWrapper(BaseEntity):
             type=WorkspacesWorkspaceTypesQueryParam.ROOT,
         )[0]
 
+    @cached_property
+    def root_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the root workspace.
+        """
+        return self.get_root_workspace()
+
     def get_ungrouped_workspace(self) -> WorkspacesWorkspace:
         """
         Get the ungrouped workspace.  This is a special pre-defined workspace per account.
@@ -307,6 +314,13 @@ class WorkspacesAPIWrapper(BaseEntity):
         return self.get_workspaces(
             type=WorkspacesWorkspaceTypesQueryParam.UNGROUPED_MINUS_HOSTS,
         )[0]
+
+    @cached_property
+    def ungrouped_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the ungrouped workspace.
+        """
+        return self.get_ungrouped_workspace()
 
     def get_default_workspace(self) -> WorkspacesWorkspace:
         """

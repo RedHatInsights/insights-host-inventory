@@ -7,6 +7,9 @@ from typing import Protocol
 from iqe_rbac_api import AccessApi
 from iqe_rbac_api import GroupApi
 from iqe_rbac_api import RoleApi
+from iqe_rbac_v2_api import RoleBindingsApi
+from iqe_rbac_v2_api import RolesApi
+from iqe_rbac_v2_api import WorkspacesApi
 
 from iqe_host_inventory_api.models import PerReporterStaleness
 
@@ -17,6 +20,12 @@ class RBACRestClient(Protocol):
     access_api: AccessApi
     group_api: GroupApi
     role_api: RoleApi
+
+
+class RBACRestClientV2(Protocol):
+    roles_api: RolesApi
+    role_bindings_api: RoleBindingsApi
+    workspaces_api: WorkspacesApi
 
 
 def reporter_staleness_from_db(
