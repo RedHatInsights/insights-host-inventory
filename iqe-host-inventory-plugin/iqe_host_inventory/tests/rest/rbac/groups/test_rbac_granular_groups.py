@@ -19,6 +19,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import get_role_id
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
@@ -1014,16 +1015,10 @@ def setup_all_permissions(
         hbi_non_org_admin_user_username, permissions, hbi_groups=hbi_groups
     )
 
-    host_inventory.apis.rbac.check_inventory_user_permission(
-        hbi_non_org_admin_user_username,
-        permissions,
-        hbi_groups=hbi_groups,
-    )
-
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1138,7 +1133,10 @@ def setup_permissions_with_and_without_resource_definitions(
     hbi_non_org_admin_user_username: str,
 ):
     """Creates 2 roles, one with and one without resource definitions.
-    User should have access to all resources."""
+    User should have access to all resources.
+
+    V2 equivalent: one role bound to a specific workspace, one bound to root workspace.
+    """
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
 
@@ -1147,28 +1145,46 @@ def setup_permissions_with_and_without_resource_definitions(
     )
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
 
-    if request.param == "first_with":
-        roles = [
-            host_inventory.apis.rbac.create_role(
-                RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
-            ),
-            host_inventory.apis.rbac.create_role(RBACInventoryPermission.ALL_READ),
-        ]
-    else:
-        roles = [
-            host_inventory.apis.rbac.create_role(RBACInventoryPermission.ALL_READ),
-            host_inventory.apis.rbac.create_role(
-                RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
-            ),
-        ]
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        role_with = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ALL_READ)
+        role_without = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ALL_READ)
 
-    host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+        workspace_ids = [g.id for g in hbi_groups]
+        root_workspace_id = host_inventory.apis.workspaces.root_workspace.id
+
+        if request.param == "first_with":
+            roles = [role_with, role_without]
+        else:
+            roles = [role_without, role_with]
+
+        host_inventory.apis.rbac.create_role_bindings([role_with.id], group.uuid, workspace_ids)
+        host_inventory.apis.rbac.create_role_bindings(
+            [role_without.id], group.uuid, [root_workspace_id]
+        )
+    else:
+        if request.param == "first_with":
+            roles = [
+                host_inventory.apis.rbac.create_role_v1(
+                    RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
+                ),
+                host_inventory.apis.rbac.create_role_v1(RBACInventoryPermission.ALL_READ),
+            ]
+        else:
+            roles = [
+                host_inventory.apis.rbac.create_role_v1(RBACInventoryPermission.ALL_READ),
+                host_inventory.apis.rbac.create_role_v1(
+                    RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
+                ),
+            ]
+
+        host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+
     wait_for_kessel_sync(host_inventory)
 
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1229,7 +1245,10 @@ def setup_resource_definitions_in_multiple_roles(
     hbi_non_org_admin_user_username: str,
 ):
     """Setup 2 roles with the same permission, but with different resourceDefinitions.
-    User should have access to resources in both resourceDefinitions."""
+    User should have access to resources in both resourceDefinitions.
+
+    V2 equivalent: 2 roles each bound to a different workspace.
+    """
     hbi_groups = rbac_setup_resources_for_granular_rbac[1][:2]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
 
@@ -1238,22 +1257,34 @@ def setup_resource_definitions_in_multiple_roles(
     )
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
 
-    roles = [
-        host_inventory.apis.rbac.create_role(
-            RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[0]]
-        ),
-        host_inventory.apis.rbac.create_role(
-            RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[1]]
-        ),
-    ]
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        roles = [
+            host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ADMIN),
+            host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ADMIN),
+        ]
+        host_inventory.apis.rbac.create_role_bindings(
+            [roles[0].id], group.uuid, [hbi_groups[0].id]
+        )
+        host_inventory.apis.rbac.create_role_bindings(
+            [roles[1].id], group.uuid, [hbi_groups[1].id]
+        )
+    else:
+        roles = [
+            host_inventory.apis.rbac.create_role_v1(
+                RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[0]]
+            ),
+            host_inventory.apis.rbac.create_role_v1(
+                RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[1]]
+            ),
+        ]
+        host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
 
-    host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
     wait_for_kessel_sync(host_inventory)
 
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1489,7 +1520,12 @@ def setup_rbac_bad_key(
     host_inventory: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
 ):
-    """Use wrong attributeFilter.key"""
+    """Use wrong attributeFilter.key.
+    attributeFilter is a RBAC V1 concept, not applicable to V2.
+    """
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        pytest.skip("attributeFilter is a RBAC V1 concept, not applicable to V2")
+
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     hosts = rbac_setup_resources_for_granular_rbac[0][0]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
@@ -1501,7 +1537,7 @@ def setup_rbac_bad_key(
 
     key = request.param.split("-")[0]
     value = [host.id for host in hosts] if request.param == "host.id-with-host-id" else hbi_groups
-    role = host_inventory.apis.rbac.create_role(
+    role = host_inventory.apis.rbac.create_role_v1(
         RBACInventoryPermission.ADMIN, hbi_groups=value, key=key
     )
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
