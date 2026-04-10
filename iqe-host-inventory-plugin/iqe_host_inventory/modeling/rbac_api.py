@@ -70,6 +70,8 @@ class RBACAPIWrapper(BaseEntity):
 
     @cached_property
     def raw_api_v2(self) -> RBACRestClientV2:
+        if not self._host_inventory.unleash.is_rbac_workspaces_enabled:
+            raise RuntimeError("RBAC v2 can be used only on v2 enabled accounts")
         return self._rbac.rest_client_v2
 
     def create_group(
@@ -158,11 +160,7 @@ class RBACAPIWrapper(BaseEntity):
         permission_v = permission.value
 
         name = f"iqe-hbi-role_{generate_uuid()}" if name is None else name
-        description = (
-            f"Inventory role for {permission_v} permission tests"
-            if description is None
-            else description
-        )
+        description = description or f"Inventory role for {permission_v} permission tests"
 
         v2_permission = permission_to_v2(permission)
         return self.raw_api_v2.roles_api.roles_create(
