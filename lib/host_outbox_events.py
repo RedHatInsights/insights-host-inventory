@@ -30,6 +30,8 @@ from lib import outbox_repository
 
 logger = get_logger(__name__)
 
+OUTBOX_USE_BATCHED_QUERIES = False
+
 # Fields that trigger outbox entries when changed
 OUTBOX_TRIGGER_FIELDS = {
     "satellite_id",
@@ -196,6 +198,16 @@ def _track_host_deleted(mapper, connection, host: Host):  # noqa: ARG001
     _track_operation(session, "delete", str(host.id))
 
 
+def init_outbox_event_processing(app_config):
+    """Initialize outbox event processing settings from application config."""
+    global OUTBOX_USE_BATCHED_QUERIES
+    OUTBOX_USE_BATCHED_QUERIES = app_config.outbox_use_batched_queries
+    if OUTBOX_USE_BATCHED_QUERIES:
+        logger.info("Outbox batched queries enabled (OUTBOX_USE_BATCHED_QUERIES=true)")
+    else:
+        logger.info("Outbox batched queries disabled (using per-item path)")
+
+
 def _process_outbox_ops_list(session, ops):
     """Process a list of pending outbox operations."""
     for event_type_str, host_id in ops:
@@ -239,6 +251,63 @@ def _process_outbox_ops_list(session, ops):
             raise OutboxSaveException(f"Unexpected error creating outbox entry: {str(e)}") from e
 
 
+def _process_outbox_ops_batched(session, ops):
+    """Process outbox operations using batched queries (optimized path)."""
+    # Phase 1: Batch SELECT — reload all non-delete hosts in a single query
+    non_delete_host_ids = set()
+    for event_type_str, host_id in ops:
+        if event_type_str != "delete":
+            non_delete_host_ids.add(host_id)
+
+    hosts_by_id = {}
+    if non_delete_host_ids:
+        try:
+            hosts = session.query(Host).filter(Host.id.in_(non_delete_host_ids)).all()
+            hosts_by_id = {str(h.id): h for h in hosts}
+            logger.debug(f"Batch-loaded {len(hosts)} hosts for outbox processing")
+        except Exception as e:
+            error_str = str(e).lower()
+            if "already flushing" in error_str:
+                logger.warning("Skipping outbox ops - session is flushing")
+                return
+            logger.error(f"Could not batch-load hosts for outbox entries: {str(e)}")
+            raise OutboxSaveException(f"Failed to batch-load hosts for outbox: {str(e)}") from e
+
+    # Phase 2: Build batch ops list, resolving hosts from the pre-fetched dict
+    batch_ops = []
+    for event_type_str, host_id in ops:
+        try:
+            event_type = EventType[event_type_str]
+        except KeyError:
+            logger.error(f"Unknown event type: {event_type_str}")
+            continue
+
+        host = None
+        if event_type != EventType.delete:
+            host = hosts_by_id.get(host_id)
+            if host is None:
+                logger.debug(f"Host {host_id} was deleted, skipping outbox entry for {event_type_str}")
+                continue
+
+        batch_ops.append((event_type, host_id, host))
+
+    # Phase 3: Batch write — single INSERT + single DELETE
+    if batch_ops:
+        try:
+            count = outbox_repository.write_events_to_outbox_batch(batch_ops, session)
+            logger.debug(f"Successfully batch-wrote {count} outbox entries")
+        except OutboxSaveException:
+            logger.error(f"Failed to batch-write {len(batch_ops)} outbox entries")
+            raise
+        except Exception as e:
+            error_str = str(e).lower()
+            if "already flushing" in error_str:
+                logger.warning("Skipping outbox batch write - session is flushing")
+                return
+            logger.error(f"Unexpected error in batch outbox write: {str(e)}")
+            raise OutboxSaveException(f"Unexpected error in batch outbox write: {str(e)}") from e
+
+
 def _collect_pending_ops_for_session(session):
     """
     Collect pending ops for the CURRENT session only.
@@ -268,10 +337,12 @@ def _process_pending_outbox_ops_before_commit(session):
     ops_to_process = _collect_pending_ops_for_session(session)
 
     if ops_to_process:
-        logger.debug(f"before_commit for session with {len(ops_to_process)} pending ops")
         logger.debug(f"Processing {len(ops_to_process)} pending outbox operations for current session")
         try:
-            _process_outbox_ops_list(session, ops_to_process)
+            if OUTBOX_USE_BATCHED_QUERIES:
+                _process_outbox_ops_batched(session, ops_to_process)
+            else:
+                _process_outbox_ops_list(session, ops_to_process)
             # Clear the current session's ops after processing
             session.info.pop("pending_ops", None)
         except Exception as e:
