@@ -1373,49 +1373,16 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     _now = now()
     registered_with_data = [
+        {"puptoo": _now.isoformat(), "yupana": (_now - timedelta(days=3)).isoformat()},
         {
-            "puptoo": {
-                "last_check_in": _now.isoformat(),
-                "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "yupana": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
+            "puptoo": (_now - timedelta(days=1)).isoformat(),
+            "satellite": (_now - timedelta(days=3)).isoformat(),
         },
         {
-            "puptoo": {
-                "last_check_in": (_now - timedelta(days=1)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "satellite": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
+            "puptoo": (_now - timedelta(days=30)).isoformat(),
+            "discovery": (_now - timedelta(days=3)).isoformat(),
         },
-        {
-            "puptoo": {
-                "last_check_in": (_now - timedelta(days=30)).isoformat(),
-                "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "discovery": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
-        },
-        {
-            "rhsm-conduit": {
-                "last_check_in": (_now - timedelta(days=1)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
-                "check_in_succeeded": True,
-            },
-        },
+        {"rhsm-conduit": (_now - timedelta(days=1)).isoformat()},
     ]
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
 

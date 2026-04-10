@@ -729,49 +729,22 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     return response
 
 
-def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
-    """Helper to calculate staleness deltas from config."""
-    return {
-        "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
-        "stale_warning": timedelta(seconds=staleness_config["conventional_time_to_stale_warning"]),
-        "culled": timedelta(seconds=staleness_config["conventional_time_to_delete"]),
-    }
-
-
-def create_reporter_data(
-    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
-) -> dict[str, object]:
-    """Helper to create per_reporter_staleness data for a reporter."""
-    deltas = calculate_staleness_deltas(staleness_config)
-    data = {
-        "last_check_in": last_check_in.isoformat(),
-        "check_in_succeeded": True,
-    }
-    if include_timestamps:
-        data.update(
-            {
-                "stale_timestamp": (last_check_in + deltas["stale"]).isoformat(),
-                "stale_warning_timestamp": (last_check_in + deltas["stale_warning"]).isoformat(),
-                "culled_timestamp": (last_check_in + deltas["culled"]).isoformat(),
-            }
-        )
-    return data
-
-
 def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    staleness_config: dict[str, int],
-    include_timestamps: bool = True,
     stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
+    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
+
+    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
+    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
+    """
     host = db_create_host(
         extra_data={
             "reporter": reporter,
             "per_reporter_staleness": {
-                reporter: create_reporter_data(last_check_in, staleness_config, include_timestamps),
+                reporter: last_check_in.isoformat(),
             },
         },
     )
@@ -779,7 +752,6 @@ def create_host_with_reporter(
     if stale_timestamp is not None:
         host.stale_timestamp = stale_timestamp
     else:
-        deltas = calculate_staleness_deltas(staleness_config)
-        host.stale_timestamp = last_check_in + deltas["stale"]
+        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host
