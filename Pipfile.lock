@@ -3044,12 +3044,12 @@
         },
         "types-pytz": {
             "hashes": [
-                "sha256:0d9a60ed1c6ad4fce7c6395b5bd2d9827db41d4b83de7c0322cf85869c2bfda3",
-                "sha256:79209aa51dc003a4a6a764234d92b14e5c09a1b7f24e0f00c493929fd33618e8"
+                "sha256:89b6a34b9198ea2a4b98a9d15cbca987053f52a105fd44f7ce3789cae4349408",
+                "sha256:c7e4dec76221fb7d0c97b91ad8561d689bebe39b6bcb7b728387e7ffd8cde788"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==2026.1.1.20260402"
+            "version": "==2026.1.1.20260408"
         },
         "types-pyyaml": {
             "hashes": [
