@@ -34,7 +34,6 @@ from tests.helpers.test_utils import base_host
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import get_sample_profile_data
 from tests.helpers.test_utils import now
-from tests.helpers.test_utils import patch_flattened_per_reporter_staleness_flag
 
 """
 These tests are for testing the db model classes outside of the api.
@@ -490,9 +489,7 @@ def test_host_model_constraints(field, value, db_create_host):
         db_create_host(host=host)
 
 
-def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
-
+def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
     stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     input_host = Host(
@@ -508,9 +505,7 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
     assert created_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
 
-def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, mocker):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat=True)
-
+def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
 
     subman_id = generate_uuid()
@@ -559,19 +554,8 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock, moc
     }
 
 
-@pytest.mark.parametrize(
-    "new_reporter,use_flat_format",
-    (
-        ("satellite", True),
-        ("discovery", True),
-        ("satellite", False),  # Test legacy nested format
-    ),
-)
-def test_update_per_reporter_staleness_yupana_replacement(
-    db_create_host, models_datetime_mock, new_reporter, use_flat_format, mocker
-):
-    patch_flattened_per_reporter_staleness_flag(mocker, use_flat_format)
-
+@pytest.mark.parametrize("new_reporter", ("satellite", "discovery"))
+def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
     yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
@@ -583,12 +567,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
     )
     existing_host = db_create_host(host=input_host)
 
-    if use_flat_format:
-        assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
-    else:
-        assert list(existing_host.per_reporter_staleness) == ["yupana"]
-        assert isinstance(existing_host.per_reporter_staleness["yupana"], dict)
-        assert "stale_timestamp" in existing_host.per_reporter_staleness["yupana"]
+    assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
 
     yupana_stale_timestamp += timedelta(days=1)
 
@@ -603,12 +582,7 @@ def test_update_per_reporter_staleness_yupana_replacement(
 
     # datetime will not change because the datetime.now() method is patched
     # yupana should be removed and replaced with new_reporter
-    if use_flat_format:
-        assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
-    else:
-        assert list(existing_host.per_reporter_staleness) == [new_reporter]
-        assert isinstance(existing_host.per_reporter_staleness[new_reporter], dict)
-        assert "stale_timestamp" in existing_host.per_reporter_staleness[new_reporter]
+    assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
 
 
 def test_canonical_facts_version_default():

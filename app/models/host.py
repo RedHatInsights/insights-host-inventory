@@ -29,10 +29,7 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -454,45 +451,14 @@ class Host(LimitedHost):
             for input_namespace, input_facts in facts_dict.items():
                 self.replace_facts_in_namespace(input_namespace, input_facts)
 
-    def _update_all_per_reporter_staleness(self, staleness, staleness_ts):
-        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
-            # Flat format: timestamps are computed on-the-fly, nothing to update
-            return
-
-        for reporter in self.per_reporter_staleness:
-            st = get_reporter_staleness_timestamps(self, staleness_ts, staleness, reporter)
-            existing = self.per_reporter_staleness[reporter]
-
-            self.per_reporter_staleness[reporter] = {
-                "stale_timestamp": st["stale_timestamp"].isoformat(),
-                "culled_timestamp": st["culled_timestamp"].isoformat(),
-                "stale_warning_timestamp": st["stale_warning_timestamp"].isoformat(),
-                "last_check_in": existing if isinstance(existing, str) else existing["last_check_in"],
-                "check_in_succeeded": True,
-            }
-        orm.attributes.flag_modified(self, "per_reporter_staleness")
-
     def _update_per_reporter_staleness(self, reporter):
         if not self.per_reporter_staleness:
             self.per_reporter_staleness = {}
 
-        if not self.per_reporter_staleness.get(reporter):
-            self.per_reporter_staleness[reporter] = {}
-
         if old_reporter := NEW_TO_OLD_REPORTER_MAP.get(reporter):
             self.per_reporter_staleness.pop(old_reporter, None)
 
-        if get_flag_value(FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS):
-            self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
-        else:
-            st = _create_staleness_timestamps_values(self, self.org_id)
-            self.per_reporter_staleness[reporter] = {
-                "stale_timestamp": st["stale_timestamp"].isoformat(),
-                "culled_timestamp": st["culled_timestamp"].isoformat(),
-                "stale_warning_timestamp": st["stale_warning_timestamp"].isoformat(),
-                "last_check_in": self.last_check_in.isoformat(),
-                "check_in_succeeded": True,
-            }
+        self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
         orm.attributes.flag_modified(self, "per_reporter_staleness")
 
     def _update_last_check_in_date(self):
