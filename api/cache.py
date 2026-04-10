@@ -27,24 +27,25 @@ def init_cache(app_config, flask_app):
     cache_type = "NullCache"
     logger.info("Initializing Cache")
 
-    CACHE_EXECUTOR = ThreadPoolExecutor(app_config.api_cache_max_thread_pool_workers)
+    if not CACHE_EXECUTOR:
+        CACHE_EXECUTOR = ThreadPoolExecutor(app_config.api_cache_max_thread_pool_workers)
     CACHE_CONFIG = {"CACHE_TYPE": cache_type, "CACHE_DEFAULT_TIMEOUT": app_config.api_cache_timeout}
     if app_config.api_cache_type == CACHE_TYPE_REDIS_CACHE and app_config._cache_host and app_config._cache_port:
         CACHE_CONFIG["CACHE_TYPE"] = app_config.api_cache_type
         CACHE_CONFIG["CACHE_REDIS_HOST"] = app_config._cache_host
         CACHE_CONFIG["CACHE_REDIS_PORT"] = app_config._cache_port
-        REDIS_CLIENT = Redis(
-            host=app_config._cache_host,
-            port=app_config._cache_port,
-            socket_timeout=app_config.redis_socket_timeout,
-            socket_connect_timeout=app_config.redis_socket_connect_timeout,
-        )
-        logger.info("Instantiated Redis client")
+        if not REDIS_CLIENT:
+            REDIS_CLIENT = Redis(
+                host=app_config._cache_host,
+                port=app_config._cache_port,
+                socket_timeout=app_config.redis_socket_timeout,
+                socket_connect_timeout=app_config.redis_socket_connect_timeout,
+            )
+            logger.info("Instantiated Redis client")
 
-    STALENESS_L2_CACHE_ENABLED = (
+    if STALENESS_L2_CACHE_ENABLED := (
         CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and app_config.api_staleness_cache_enabled
-    )
-    if STALENESS_L2_CACHE_ENABLED:
+    ):
         logger.info("Staleness L2 (Redis) cache is enabled")
     else:
         logger.info(
