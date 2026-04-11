@@ -46,3 +46,24 @@ def setup_host_with_app_data(host_inventory: ApplicationHostInventory):
         return host
 
     return _setup
+
+
+def add_app_data_to_host(
+    host_inventory: ApplicationHostInventory,
+    host,
+    app_name: str,
+    data_overrides: dict[str, Any] | None = None,
+):
+    """Add app data to an existing host via Kafka and wait for it to appear."""
+    app_data = generate_host_app_data(app_name)
+    if data_overrides:
+        app_data.update(data_overrides)
+
+    host_inventory.kafka.produce_host_app_message(
+        application=app_name,
+        org_id=host.org_id,
+        hosts_app_data=[{"id": host.id, "data": app_data}],
+    )
+    host_inventory.apis.host_views.wait_for_host_view_app_data(
+        insights_id=host.insights_id, app_name=app_name
+    )
