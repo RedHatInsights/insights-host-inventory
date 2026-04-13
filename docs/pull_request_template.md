@@ -12,3 +12,11 @@
 
 ## Testing
 <!-- How was this tested? -->
+
+## PR Guideline
+
+You can find the documentation of the guideline [here](https://redhat.atlassian.net/wiki/spaces/RHIN/pages/384311342/HBI+PR+Guideline)
+
+## PR Guideline checks
+
+- [ ] Keep PRs under 400 lines of meaningful changes, including tests, excluding auto-generated files, config, etc.
