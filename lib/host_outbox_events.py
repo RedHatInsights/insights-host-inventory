@@ -254,10 +254,7 @@ def _process_outbox_ops_list(session, ops):
 def _process_outbox_ops_batched(session, ops):
     """Process outbox operations using batched queries (optimized path)."""
     # Phase 1: Batch SELECT — reload all non-delete hosts in a single query
-    non_delete_host_ids = set()
-    for event_type_str, host_id in ops:
-        if event_type_str != "delete":
-            non_delete_host_ids.add(host_id)
+    non_delete_host_ids = {host_id for event_type_str, host_id in ops if event_type_str != "delete"}
 
     hosts_by_id = {}
     if non_delete_host_ids:
