@@ -111,16 +111,8 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {
-        "puptoo": {
-            "last_check_in": _now.isoformat(),
-            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-            "check_in_succeeded": True,
-        },
-        "yupana": {
-            "last_check_in": (_now - timedelta(days=3)).isoformat(),
-            "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-            "check_in_succeeded": True,
-        },
+        "puptoo": _now.isoformat(),
+        "yupana": (_now - timedelta(days=3)).isoformat(),
     }
     db_create_multiple_hosts(
         how_many=1,
