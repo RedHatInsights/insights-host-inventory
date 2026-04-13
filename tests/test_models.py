@@ -1,5 +1,6 @@
 import uuid
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
@@ -583,6 +584,71 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     # datetime will not change because the datetime.now() method is patched
     # yupana should be removed and replaced with new_reporter
     assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
+
+
+def test_reporter_stale_nested_per_reporter_value_raises(db_create_host):
+    host = db_create_host()
+    reporter = host.reporter
+    host.per_reporter_staleness[reporter] = {"legacy_nested": "2020-01-01T00:00:00+00:00"}
+    with pytest.raises(ValidationException, match="nested object is no longer supported"):
+        host.reporter_stale(reporter)
+
+
+def test_reporter_stale_non_string_scalar_is_stale(db_create_host):
+    host = db_create_host()
+    reporter = host.reporter
+    host.per_reporter_staleness[reporter] = 42
+    assert host.reporter_stale(reporter) is True
+
+
+def test_host_constructor_coerces_per_reporter_staleness_datetime_and_str(models_datetime_mock):
+    stale_timestamp = models_datetime_mock + timedelta(days=1)
+    subman_id = generate_uuid()
+    iso = models_datetime_mock.isoformat()
+
+    from_dt = Host(
+        subscription_manager_id=subman_id,
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+        per_reporter_staleness={"puptoo": models_datetime_mock},
+    )
+    assert from_dt.per_reporter_staleness == {"puptoo": iso}
+
+    from_str = Host(
+        subscription_manager_id=generate_uuid(),
+        display_name="display_name",
+        reporter="puptoo",
+        stale_timestamp=stale_timestamp,
+        org_id=USER_IDENTITY["org_id"],
+        per_reporter_staleness={"puptoo": iso},
+    )
+    assert from_str.per_reporter_staleness == {"puptoo": iso}
+
+
+def test_host_constructor_per_reporter_staleness_rejects_nested_dict():
+    with pytest.raises(ValidationException, match="nested value"):
+        Host(
+            subscription_manager_id=generate_uuid(),
+            display_name="display_name",
+            reporter="puptoo",
+            stale_timestamp=datetime.now(UTC) + timedelta(days=1),
+            org_id=USER_IDENTITY["org_id"],
+            per_reporter_staleness={"puptoo": {"stale_timestamp": "2020-01-01T00:00:00+00:00"}},
+        )
+
+
+def test_host_constructor_per_reporter_staleness_rejects_unsupported_type():
+    with pytest.raises(ValidationException, match="not list"):
+        Host(
+            subscription_manager_id=generate_uuid(),
+            display_name="display_name",
+            reporter="puptoo",
+            stale_timestamp=datetime.now(UTC) + timedelta(days=1),
+            org_id=USER_IDENTITY["org_id"],
+            per_reporter_staleness={"puptoo": []},
+        )
 
 
 def test_canonical_facts_version_default():
@@ -2754,14 +2820,14 @@ def test_staleness_cache_context_manager():
 def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
     """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
     from app.models.utils import StalenessCache
-    from app.models.utils import _get_staleness_obj
+    from app.models.utils import get_staleness_obj
 
     with StalenessCache():
-        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        first_result = get_staleness_obj(USER_IDENTITY["org_id"])
         assert first_result is not None
 
         mocker.patch("app.models.staleness.Staleness.query")
-        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        second_result = get_staleness_obj(USER_IDENTITY["org_id"])
 
         assert second_result is first_result
         from app.models.staleness import Staleness

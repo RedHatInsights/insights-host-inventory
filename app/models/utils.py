@@ -52,7 +52,7 @@ class StalenessCache(ThreadLocalBatchCache):
         delete_cached_staleness(key)
 
 
-def _get_staleness_obj(org_id):
+def get_staleness_obj(org_id):
     cached = StalenessCache.get(org_id)
     if cached is not None:
         return cached
@@ -82,7 +82,7 @@ def _time_now():
 
 
 def _create_staleness_timestamps_values(host, org_id):
-    staleness = _get_staleness_obj(org_id)
+    staleness = get_staleness_obj(org_id)
     staleness_ts = Timestamps.from_config(inventory_config())
     return get_staleness_timestamps(host, staleness_ts, staleness)
 

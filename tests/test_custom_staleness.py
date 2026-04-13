@@ -21,7 +21,6 @@ from app.models import db
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import build_staleness_sys_default
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
@@ -58,7 +57,7 @@ def _utc(dt: datetime) -> datetime:
 
 
 def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
-    """Match keys used by ``_compute_timestamps_from_date`` for account custom staleness."""
+    """Match ``conventional_time_to_*`` keys read by ``get_staleness_timestamps`` for custom staleness."""
     return AttrDict(
         {
             "conventional_time_to_stale": config["conventional_time_to_stale"],
@@ -521,14 +520,24 @@ def test_calculated_timestamps_match_stored_timestamps(
     db_host = db_get_hosts([str(host.id)]).first()
     staleness = get_sys_default_staleness()
     staleness_timestamps_obj = staleness_timestamps()
-    calculated = get_reporter_staleness_timestamps(db_host, staleness_timestamps_obj, staleness, "puptoo")
 
-    # Calculate expected timestamps
-    from datetime import datetime as dt
-
-    date_to_use = dt.fromisoformat(db_host.per_reporter_staleness["puptoo"])
+    date_to_use = datetime.fromisoformat(db_host.per_reporter_staleness["puptoo"])
     date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
 
+    # Explicit last_check_in path (reporter-specific reference instant)
+    calculated = get_staleness_timestamps(
+        db_host,
+        staleness_timestamps_obj,
+        staleness,
+        last_check_in=date_to_use,
+    )
+
+    # Default path: rely on host.last_check_in internally (no last_check_in argument)
+    db_host.last_check_in = date_to_use
+    calculated_from_host = get_staleness_timestamps(db_host, staleness_timestamps_obj, staleness)
+    assert calculated_from_host == calculated
+
+    # Calculate expected timestamps
     expected = {
         "stale_timestamp": staleness_timestamps_obj.stale_timestamp(
             date_to_use, staleness["conventional_time_to_stale"]

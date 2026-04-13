@@ -1,5 +1,6 @@
 import uuid
 from contextlib import suppress
+from datetime import datetime
 
 from dateutil.parser import isoparse
 from flask import current_app
@@ -13,10 +14,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
 
+from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -29,9 +33,11 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
+from app.models.utils import get_staleness_obj
 from app.utils import Tag
 
 logger = get_logger(__name__)
+
 
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
@@ -563,31 +569,23 @@ class Host(LimitedHost):
         if not reporter_data:
             logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
             return True
-        # Support both flat (string) and nested (dict with "last_check_in" / "stale_timestamp") formats
+
         if isinstance(reporter_data, dict):
-            if "stale_timestamp" in reporter_data:
-                pr_stale_timestamp = isoparse(reporter_data["stale_timestamp"])
-            else:
-                last_check_in_str = reporter_data.get("last_check_in")
-                if not last_check_in_str:
-                    logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
-                    return True
-                from api.staleness_query import get_staleness_obj
-
-        # Handle both flat (str) and nested (dict) formats
-        if isinstance(reporter_data, str):
-            # Flat format: compute stale_timestamp on-the-fly from stored last_check_in
-            from api.staleness_query import get_staleness_obj
-            from app.common import inventory_config
-            from app.culling import Timestamps
-
-            staleness_ts = Timestamps.from_config(inventory_config())
-            staleness = get_staleness_obj(self.org_id)
+            raise ValidationException(
+                f"Invalid per_reporter_staleness for reporter {reporter!r}: nested object is no longer supported; "
+                "use a flat ISO-8601 last_check_in string."
+            )
+        if not isinstance(reporter_data, str):
+            logger.debug("Reports from %s are stale (invalid per_reporter_staleness type)", reporter)
+            return True
+        try:
             last_check_in = isoparse(reporter_data)
-            pr_stale_timestamp = staleness_ts.stale_timestamp(last_check_in, staleness["conventional_time_to_stale"])
-        else:
-            # Nested format: use stored stale_timestamp from dict
-            pr_stale_timestamp = isoparse(reporter_data["stale_timestamp"])
+        except ValueError as e:
+            raise ValidationException(str(e)) from e
+
+        staleness_ts = Timestamps.from_config(inventory_config())
+        staleness = get_staleness_obj(self.org_id)
+        pr_stale_timestamp = staleness_ts.stale_timestamp(last_check_in, staleness["conventional_time_to_stale"])
 
         logger.debug("per_reporter_staleness[%s] stale_timestamp: %s", reporter, pr_stale_timestamp)
         if _time_now() > pr_stale_timestamp:
@@ -596,6 +594,28 @@ class Host(LimitedHost):
 
         logger.debug("Reports from %s are not stale", reporter)
         return False
+
+    @validates("per_reporter_staleness")
+    def _validate_per_reporter_staleness(self, _key, value):
+        out: dict[str, str] = {}
+        if not value:
+            return out
+        for reporter, raw in dict(value).items():
+            if isinstance(raw, dict):
+                raise ValidationException(
+                    f"Invalid per_reporter_staleness: reporter {reporter!r} has nested value; "
+                    "flat ISO string required."
+                )
+            if isinstance(raw, datetime):
+                out[reporter] = raw.isoformat()
+            elif isinstance(raw, str):
+                out[reporter] = raw
+            else:
+                raise ValidationException(
+                    f"Invalid per_reporter_staleness: reporter {reporter!r} value must be str or datetime, "
+                    f"not {type(raw).__name__}."
+                )
+        return out
 
     def __repr__(self):
         return (
