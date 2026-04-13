@@ -240,9 +240,19 @@ def add_group(
     group_id: UUID | None = None,
     ungrouped: bool = False,
     session: Session | None = None,
+    created_on=None,
+    modified_on=None,
 ) -> Group:
     session = session or db.session
-    new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
+    new_group = Group(
+        org_id=org_id,
+        name=group_name,
+        account=account,
+        id=group_id,
+        ungrouped=ungrouped,
+        created_on=created_on,
+        modified_on=modified_on,
+    )
     session.add(new_group)
     session.flush()
 
