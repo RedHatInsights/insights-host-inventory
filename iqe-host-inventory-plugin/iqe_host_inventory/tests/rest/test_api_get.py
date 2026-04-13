@@ -1260,7 +1260,7 @@ def test_get_hosts_by_group_name(host_inventory: ApplicationHostInventory, case_
     assert len(response) == 1
     assert response[0].id == hosts[0].id
     assert len(response[0].groups) == 1
-    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group)
+    assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(group)
 
 
 @pytest.mark.ephemeral
@@ -1283,7 +1283,7 @@ def test_get_hosts_by_group_id(host_inventory: ApplicationHostInventory):
     assert len(response) == 1
     assert response[0].id == hosts[0].id
     assert len(response[0].groups) == 1
-    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group)
+    assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(group)
 
 
 @pytest.mark.ephemeral
@@ -1383,7 +1383,7 @@ def test_get_hosts_by_group_name_not_contains(host_inventory: ApplicationHostInv
     assert len(response) == 1
     assert response[0].id == hosts[0].id
     assert len(response[0].groups) == 1
-    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group)
+    assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(group)
 
 
 @pytest.mark.ephemeral
@@ -1406,7 +1406,7 @@ def test_get_hosts_by_group_name_multiple_hosts_in_group(host_inventory: Applica
     assert {host.id for host in response} == {host.id for host in hosts[:2]}
     for response_host in response:
         assert len(response_host.groups) == 1
-        assert response_host.groups[0].to_dict() == group_to_hosts_api_dict(group)
+        assert group_to_hosts_api_dict(response_host.groups[0]) == group_to_hosts_api_dict(group)
 
 
 @pytest.mark.ephemeral
@@ -1436,13 +1436,15 @@ def test_get_hosts_by_group_name_different_account(
     assert len(response) == 1
     assert response[0].id == host_primary.id
     assert len(response[0].groups) == 1
-    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group_primary)
+    assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(group_primary)
 
     response = host_inventory_secondary.apis.hosts.get_hosts(group_name=[group_name])
     assert len(response) == 1
     assert response[0].id == host_secondary.id
     assert len(response[0].groups) == 1
-    assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group_secondary)
+    assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(
+        group_secondary
+    )
 
 
 @pytest.mark.ephemeral
