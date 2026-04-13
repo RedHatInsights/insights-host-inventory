@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC
-from datetime import datetime
 from typing import Any
 from typing import TypedDict
 from uuid import UUID
@@ -699,42 +698,13 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _normalize_per_reporter_value(value: Any) -> datetime:
-    """
-    Parse a stored per_reporter_staleness entry for serialization.
-    Should be used for read path only.
-
-    Accepts:
-      - Legacy dict: {"last_check_in": <str|datetime>, "check_in_succeeded": bool, ...}
-      - Flat DB format: last_check_in as ISO string or datetime
-
-    Returns last_check_in as timezone-aware datetime.
-    """
-    if isinstance(value, dict):
-        raw_li = value.get("last_check_in")
-        if isinstance(raw_li, str):
-            return _deserialize_datetime(raw_li)
-        if isinstance(raw_li, datetime):
-            return raw_li
-        raise ValueError(f"per_reporter_staleness dict missing valid last_check_in: {value!r}")
-
-    if isinstance(value, str):
-        return _deserialize_datetime(value)
-    if isinstance(value, datetime):
-        return value
-
-    raise ValueError(f"Unsupported per_reporter_staleness storage value: {type(value).__name__}")
-
-
-def _legacy_per_reporter_staleness_dict(
+def _full_per_reporter_staleness_dict(
     host: Host,
     staleness: Any,
     staleness_timestamps: Timestamps,
-    _reporter: str,
-    stored_value: Any,
+    stored_value: str,
 ) -> dict[str, Any]:
-    """Single reporter: full legacy API/MQ dict."""
-    last_check_in_dt = _normalize_per_reporter_value(stored_value)
+    last_check_in_dt = _deserialize_datetime(stored_value)
     ts = get_staleness_timestamps(host, staleness_timestamps, staleness, last_check_in=last_check_in_dt)
     return {
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
@@ -752,7 +722,7 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     Staleness timestamps are computed from org staleness + host.
     """
     return {
-        reporter: _legacy_per_reporter_staleness_dict(host, staleness, staleness_timestamps, reporter, stored)
+        reporter: _full_per_reporter_staleness_dict(host, staleness, staleness_timestamps, stored)
         for reporter, stored in host.per_reporter_staleness.items()
     }
 

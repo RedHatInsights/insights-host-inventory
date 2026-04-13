@@ -26,33 +26,26 @@ def get_staleness_timestamps(
     last_check_in: datetime | None = None,
 ) -> dict:
     """
-    Calculates the single set of staleness timestamps used at host level
+    Compute stale / stale_warning / culled timestamps from a reference check-in instant.
+    By default uses ``host.last_check_in`` (host-level serialization).
+    Pass ``last_check_in`` for a different reference instant (e.g. one reporter's stored check-in).
 
     Args:
         host: Host row (used for default reference time when ``last_check_in`` is omitted).
-        staleness_timestamps: Retained for call-site compatibility; arithmetic uses ``timedelta`` only.
+        staleness_timestamps: Culling offset helpers.
         staleness: Org staleness configuration (conventional_time_to_*).
         last_check_in: Optional reference instant.
 
     Returns:
         dict with keys ``stale_timestamp``, ``stale_warning_timestamp``, ``culled_timestamp``.
-
-    Raises:
-        ValueError: If both ``last_check_in`` and ``host.last_check_in`` are missing (no reference instant).
     """
-    _ = staleness_timestamps  # API compatibility; Phase 1 compute-on-read uses offsets only.
     reference = last_check_in if last_check_in is not None else host.last_check_in
-    if reference is None:
-        raise ValueError("last_check_in is required (pass last_check_in= or set host.last_check_in).")
-
-    stale_seconds = int(staleness["conventional_time_to_stale"])
-    warning_seconds = int(staleness["conventional_time_to_stale_warning"])
-    delete_seconds = int(staleness["conventional_time_to_delete"])
-
     return {
-        "stale_timestamp": reference + timedelta(seconds=stale_seconds),
-        "stale_warning_timestamp": reference + timedelta(seconds=warning_seconds),
-        "culled_timestamp": reference + timedelta(seconds=delete_seconds),
+        "stale_timestamp": staleness_timestamps.stale_timestamp(reference, staleness["conventional_time_to_stale"]),
+        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
+            reference, staleness["conventional_time_to_stale_warning"]
+        ),
+        "culled_timestamp": staleness_timestamps.culled_timestamp(reference, staleness["conventional_time_to_delete"]),
     }
 
 
