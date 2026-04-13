@@ -274,6 +274,10 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     init_cache(app_config, app)
 
+    from api.profiling import init_profiling
+
+    init_profiling(app)
+
     # Configure Unleash (feature flags)
     if not app_config.bypass_unleash and app_config.unleash_token:
         flask_app.config["UNLEASH_APP_NAME"] = "host-inventory-api"
