@@ -41,9 +41,7 @@ def test_groups_add_hosts_response(
     hosts = host_inventory.upload.create_hosts(3)
 
     group_name = generate_display_name()
-    time1 = datetime.now(tz=UTC)
     group = host_inventory.apis.groups.create_group(group_name, hosts=hosts[0])
-    time2 = datetime.now(tz=UTC)
 
     data = [host.id for host in hosts[1:]]
     response = (
@@ -51,7 +49,6 @@ def test_groups_add_hosts_response(
             group.id, data
         )
     )
-    time3 = datetime.now(tz=UTC)
 
     assert response[1] == 200
     updated_group: GroupOutWithHostCount = response[0]
@@ -64,8 +61,6 @@ def test_groups_add_hosts_response(
     # See https://redhat-internal.slack.com/archives/C08T01AK7U6/p1753117255488139
     # assert updated_group.account == hbi_default_account_number
     assert updated_group.ungrouped is False
-    assert time1 < updated_group.created < time2
-    assert time2 < updated_group.updated < time3
 
 
 @pytest.mark.ephemeral
@@ -93,7 +88,9 @@ def test_groups_add_hosts_check_timestamps(host_inventory: ApplicationHostInvent
 
     assert updated_group.id == group.id
     assert time1 < updated_group.created < time2
-    assert time2 < updated_group.updated < time3
+    # Using time1 instead of time2 because RBAC v2 doesn't update the workspace
+    # timestamp when hosts are added to it.
+    assert time1 < updated_group.updated < time3
 
 
 @pytest.mark.ephemeral

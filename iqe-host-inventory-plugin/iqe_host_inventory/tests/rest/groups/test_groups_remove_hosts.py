@@ -75,7 +75,9 @@ def test_groups_remove_hosts_check_timestamps(host_inventory: ApplicationHostInv
     logger.info(f"created: {updated_group.created}")
     logger.info(f"updated: {updated_group.updated}")
     assert time1 < updated_group.created < time2
-    assert time2 < updated_group.updated < time3
+    # Using time1 instead of time2 because RBAC v2 doesn't update the workspace
+    # timestamp when hosts are removed from it.
+    assert time1 < updated_group.updated < time3
 
 
 @pytest.mark.ephemeral

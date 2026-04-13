@@ -48,9 +48,7 @@ def test_groups_patch_response(
     hosts = host_inventory.kafka.create_random_hosts(3)
 
     group_name = generate_display_name()
-    time1 = datetime.now(tz=UTC)
     group = host_inventory.apis.groups.create_group(group_name, hosts=hosts[0])
-    time2 = datetime.now(tz=UTC)
 
     expected_name = generate_display_name() if "name" in fields else group_name
     expected_host_ids = [host.id for host in hosts] if "host_ids" in fields else [hosts[0].id]
@@ -62,7 +60,6 @@ def test_groups_patch_response(
     response = host_inventory.apis.groups.raw_api.api_group_patch_group_by_id_with_http_info(
         group.id, data
     )
-    time3 = datetime.now(tz=UTC)
 
     assert response[1] == 200
     updated_group: GroupOutWithHostCount = response[0]
@@ -73,8 +70,6 @@ def test_groups_patch_response(
     assert updated_group.org_id == hbi_default_org_id
     assert updated_group.account == hbi_default_account_number
     assert updated_group.ungrouped is False
-    assert time1 < updated_group.created < time2
-    assert time2 < updated_group.updated < time3
 
 
 @pytest.mark.ephemeral
@@ -351,7 +346,9 @@ def test_groups_patch_check_timestamps(
 
     assert updated_group.id == group.id
     assert time1 < updated_group.created < time2
-    assert time2 < updated_group.updated < time3
+    # Using time1 instead of time2 because RBAC v2 doesn't update the workspace
+    # timestamp when hosts are added/removed.
+    assert time1 < updated_group.updated < time3
 
 
 @pytest.mark.ephemeral
