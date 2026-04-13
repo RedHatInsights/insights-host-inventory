@@ -51,9 +51,9 @@ def hbi_non_org_admin_user_rbac_setup(
     yield _rbac_inventory_user_setup
 
     for rbac_setup in to_delete:
-        host_inventory.apis.rbac.delete_group(rbac_setup[0])
         for role_id in rbac_setup[1]:
             host_inventory.apis.rbac.delete_role(role_id)
+        host_inventory.apis.rbac.delete_group(rbac_setup[0])
 
 
 @pytest.fixture(scope="class")
@@ -80,9 +80,9 @@ def hbi_non_org_admin_user_rbac_setup_class(
     yield _rbac_inventory_user_setup
 
     for rbac_setup in to_delete:
-        host_inventory.apis.rbac.delete_group(rbac_setup[0])
         for role_id in rbac_setup[1]:
             host_inventory.apis.rbac.delete_role(role_id)
+        host_inventory.apis.rbac.delete_group(rbac_setup[0])
 
 
 @pytest.fixture(scope="class")
