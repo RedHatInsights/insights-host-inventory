@@ -13,9 +13,9 @@
 ## Testing
 <!-- How was this tested? -->
 
-## PR Guideline
+## PR Guidelines
 
-You can find the documentation of the guideline [here](https://redhat.atlassian.net/wiki/spaces/RHIN/pages/384311342/HBI+PR+Guideline)
+You can find the documentation of the guidelines [here](https://redhat.atlassian.net/wiki/spaces/RHIN/pages/384311342/HBI+PR+Guideline)
 
 ## PR Guideline checks
 
