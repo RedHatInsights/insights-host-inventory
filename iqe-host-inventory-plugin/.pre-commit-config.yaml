@@ -43,7 +43,8 @@ repos:
   - id: rh-pre-commit
   - id: rh-pre-commit.commit-msg # Optional for commit-msg attestation
 - repo: https://gitlab.cee.redhat.com/insights-qe/iqe-pre-commit-hooks
-  rev: v25.10.17.0
+  rev: v26.04.07.0
   hooks:
   - id: iqe-checks
   - id: iqe-tests-metadata
+    args: [--iqe-plugin-root=iqe-host-inventory-plugin]

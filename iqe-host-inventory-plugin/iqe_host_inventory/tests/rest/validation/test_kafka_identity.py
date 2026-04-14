@@ -1,3 +1,9 @@
+"""
+metadata:
+  requirements:
+    - inv-mq-identity-validation
+"""
+
 from __future__ import annotations
 
 import logging
@@ -224,7 +230,9 @@ def test_mq_create_system_host_all_correct(
 ):
     """Test creating host via kafka with "system" identity and correct owner_id
     metadata:
-        requirements: inv-host-create, inv-mq-identity-validation
+        requirements:
+          - inv-host-create
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Create host via kafka with "system" identity and correct owner_id
@@ -246,7 +254,9 @@ def test_mq_update_system_host_all_correct(
 ):
     """Test updating host via kafka with "system" identity and correct owner_id
     metadata:
-        requirements: inv-host-update, inv-mq-identity-validation
+        requirements:
+          - inv-host-update
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Update host via kafka with "system" identity and correct owner_id
@@ -273,7 +283,9 @@ def test_mq_create_non_system_host_all_correct(
 ):
     """Test creating host via kafka with "user" identity
     metadata:
-        requirements: inv-host-create, inv-mq-identity-validation
+        requirements:
+          - inv-host-create
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Create host via kafka with "user" identity
@@ -303,7 +315,9 @@ def test_mq_update_non_system_host_all_correct(
 ):
     """Test updating host via kafka with "user" identity
     metadata:
-        requirements: inv-host-update, inv-mq-identity-validation
+        requirements:
+          - inv-host-update
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Update host via kafka with "user" identity
@@ -350,7 +364,9 @@ def test_mq_create_system_host_rhsm_reporter(
     inventory should transform it to the canonical form (with dashes) when setting owner_id
 
     metadata:
-        requirements: inv-host-create, inv-mq-identity-exception-rhsm
+        requirements:
+          - inv-host-create
+          - inv-mq-identity-exception-rhsm
         importance: high
         assignee: fstavela
         title: Create host via kafka as rhsm reporter
@@ -381,7 +397,9 @@ def test_mq_update_system_host_rhsm_reporter(
     inventory should transform it to the canonical form (with dashes) when setting owner_id
 
     metadata:
-        requirements: inv-host-update, inv-mq-identity-exception-rhsm
+        requirements:
+          - inv-host-update
+          - inv-mq-identity-exception-rhsm
         importance: high
         assignee: fstavela
         title: Update host via kafka as rhsm reporter
@@ -422,7 +440,10 @@ def test_mq_create_system_host_rhsm_reporter_without_subscription_manager_id(
     """Test creating host via kafka as rhsm reporter without subscription_manager_id
 
     metadata:
-        requirements: inv-host-create, inv-mq-identity-exception-rhsm, inv-mq-identity-validation
+        requirements:
+          - inv-host-create
+          - inv-mq-identity-exception-rhsm
+          - inv-mq-identity-validation
         importance: medium
         assignee: fstavela
         negative: true
@@ -448,7 +469,9 @@ def test_mq_create_system_host_without_owner_id(
     """Test creating host via kafka with "system" identity without owner_id in host data
     The host should be successfully created with owner_id == identity.system.cn
     metadata:
-        requirements: inv-host-create, inv-mq-identity-validation
+        requirements:
+          - inv-host-create
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Create host via kafka without owner_id in host data
@@ -475,7 +498,9 @@ def test_mq_update_system_host_different_owner_id(
     """Test updating host via kafka with "system" identity with wrong owner_id
     The host should be successfully created and the owner_id should be updated
     metadata:
-        requirements: inv-host-update, inv-mq-identity-validation
+        requirements:
+          - inv-host-update
+          - inv-mq-identity-validation
         importance: high
         assignee: fstavela
         title: Update host via kafka with wrong owner_id
@@ -513,7 +538,6 @@ def test_mq_create_system_host_wrong_cn(
     """Test creating host via kafka with "system" identity with different owner_id in
     identity and host data
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -542,7 +566,6 @@ def test_mq_update_system_host_wrong_cn(
     """Test updating host via kafka with "system" identity with different owner_id in
     identity and host data
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -588,7 +611,6 @@ def test_mq_create_host_wrong_org_id(
 ):
     """Test creating host via kafka with identity with wrong org_id
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -625,7 +647,6 @@ def test_mq_update_host_wrong_org_id(
 ):
     """Test updating host via kafka with identity with wrong org_id
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -661,7 +682,6 @@ def test_mq_create_host_without_metadata(
 ):
     """Test creating host via kafka without metadata
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -688,7 +708,6 @@ def test_mq_update_host_without_metadata(
 ):
     """Test updating host via kafka without metadata
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -718,7 +737,6 @@ def test_mq_create_host_without_identity(
 ):
     """Test creating host via kafka without identity
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -745,7 +763,6 @@ def test_mq_update_host_without_identity(
 ):
     """Test updating host via kafka without identity
     metadata:
-        requirements: inv-mq-identity-validation
         importance: high
         assignee: fstavela
         negative: true
@@ -877,7 +894,6 @@ def test_mq_create_host_wrong_identity(
 ):
     """Test creating host via kafka with wrong identity
     metadata:
-        requirements: inv-mq-identity-validation
         importance: medium
         assignee: fstavela
         negative: true
@@ -916,7 +932,6 @@ def test_mq_update_host_wrong_identity(
 ):
     """Test updating host via kafka with wrong identity
     metadata:
-        requirements: inv-mq-identity-validation
         importance: medium
         assignee: fstavela
         negative: true
