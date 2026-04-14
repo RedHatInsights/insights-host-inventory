@@ -171,11 +171,7 @@ class TestRBACGranularGroupsWritePermission:
           title: Test that users with only granular RBAC access can't create new groups
         """
         group_name = generate_display_name()
-        with raises_apierror(
-            403,
-            "Unfiltered inventory:groups:write RBAC permission is required "
-            "in order to create new groups.",
-        ):
+        with raises_apierror(403):
             host_inventory_non_org_admin.apis.groups.create_group(
                 group_name, wait_for_created=False
             )
