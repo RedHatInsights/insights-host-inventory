@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -240,8 +241,8 @@ def add_group(
     group_id: UUID | None = None,
     ungrouped: bool = False,
     session: Session | None = None,
-    created_on=None,
-    modified_on=None,
+    created_on: datetime | None = None,
+    modified_on: datetime | None = None,
 ) -> Group:
     session = session or db.session
     new_group = Group(
