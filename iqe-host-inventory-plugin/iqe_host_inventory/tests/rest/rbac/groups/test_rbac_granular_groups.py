@@ -54,7 +54,8 @@ def read_permission_user_setup(request: pytest.FixtureRequest):
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_groups_write_granular_user_setup_class"),
+        # TODO: Uncomment this when https://redhat.atlassian.net/browse/RHINENG-25822 is fixed
+        # lf("rbac_inventory_groups_write_granular_user_setup_class"),
         lf("rbac_inventory_groups_all_granular_user_setup_class"),
         lf("rbac_inventory_admin_granular_user_setup_class"),
     ],
@@ -660,7 +661,8 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         self,
         wrong_permission_setup_read_endpoints,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory: ApplicationHostInventory,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -672,12 +674,16 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
           negative: true
           title: Test that users with granular RBAC on wrong permission can't get a list of groups
         """
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
-            host_inventory_non_org_admin.apis.groups.get_groups()
+        if host_inventory.unleash.is_kessel_groups_enabled():
+            response = host_inventory_non_org_admin.apis.groups.get_groups()
+            assert len(response) == 0
+        else:
+            with raises_apierror(
+                403,
+                "You don't have the permission to access the requested resource. "
+                "It is either read-protected or not readable by the server.",
+            ):
+                host_inventory_non_org_admin.apis.groups.get_groups()
 
     def test_rbac_granular_groups_wrong_permission_get_groups_by_id(
         self,
@@ -698,11 +704,7 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         groups = rbac_setup_resources_for_granular_rbac[1][:2]
 
         for group in groups:
-            with raises_apierror(
-                403,
-                "You don't have the permission to access the requested resource. "
-                "It is either read-protected or not readable by the server.",
-            ):
+            with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
                 host_inventory_non_org_admin.apis.groups.get_groups_by_id(group)
 
 

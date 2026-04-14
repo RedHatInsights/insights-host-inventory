@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_groups_write_user_setup_class"),
+        # TODO: Uncomment this when https://redhat.atlassian.net/browse/RHINENG-25822 is fixed
+        # lf("rbac_inventory_groups_write_user_setup_class"),
         lf("rbac_inventory_groups_all_user_setup_class"),
         lf("rbac_inventory_admin_user_setup_class"),
     ],
