@@ -105,7 +105,8 @@ class RBACAPIWrapper(BaseEntity):
         try:
             self.raw_api.group_api.delete_principal_from_group(group_uuid, usernames=username)
         except RBACApiException as exc:
-            assert exc.status == 404
+            if exc.status != 404:
+                raise
 
     def delete_group(self, group_uuid: str) -> None:
         if self._host_inventory.unleash.is_rbac_workspaces_enabled:
@@ -113,7 +114,8 @@ class RBACAPIWrapper(BaseEntity):
         try:
             self.raw_api.group_api.delete_group(group_uuid)
         except RBACApiException as exc:
-            assert exc.status == 404
+            if exc.status != 404:
+                raise
 
     def create_role_v1(
         self,
@@ -205,7 +207,8 @@ class RBACAPIWrapper(BaseEntity):
         try:
             self.raw_api.role_api.delete_role(role_uuid)
         except RBACApiException as exc:
-            assert exc.status == 404
+            if exc.status != 404:
+                raise
 
     def delete_role_v2(self, role_id: str) -> None:
         try:
@@ -213,7 +216,8 @@ class RBACAPIWrapper(BaseEntity):
                 RolesBatchDeleteRolesRequest(ids=[role_id])
             )
         except RBACV2ApiException as exc:
-            assert exc.status == 404
+            if exc.status != 404:
+                raise
 
     def delete_role(self, role_id: str) -> None:
         if self._host_inventory.unleash.is_rbac_workspaces_enabled:
@@ -228,7 +232,7 @@ class RBACAPIWrapper(BaseEntity):
         Uses PUT /role-bindings/by-subject/ with an empty roles list to clear
         bindings for each (resource, subject) combination.
         """
-        response = self.raw_api_v2.role_bindings_api.role_bindings_list(
+        get_response = self.raw_api_v2.role_bindings_api.role_bindings_list(
             subject_type=RoleBindingsSubjectType.GROUP,
             subject_id=group_uuid,
             limit=10000,
@@ -237,17 +241,24 @@ class RBACAPIWrapper(BaseEntity):
         # model_construct bypasses the client-side min_length=1 validation;
         # the API itself accepts an empty list and removes all bindings.
         empty_request = RoleBindingsUpdateRoleBindingsRequest.model_construct(roles=[])
-        for binding in response.data:
+        for binding in get_response.data:
             resource = binding.resource
-            self.raw_api_v2.role_bindings_api.role_bindings_update_without_preload_content(
-                resource_id=resource.id,
-                resource_type=(
-                    ResourceType(resource.type) if resource.type else ResourceType.WORKSPACE
-                ),
-                subject_id=group_uuid,
-                subject_type=RoleBindingsSubjectType.GROUP,
-                role_bindings_update_role_bindings_request=empty_request,
+            put_response = (
+                self.raw_api_v2.role_bindings_api.role_bindings_update_without_preload_content(
+                    resource_id=resource.id,
+                    resource_type=(
+                        ResourceType(resource.type) if resource.type else ResourceType.WORKSPACE
+                    ),
+                    subject_id=group_uuid,
+                    subject_type=RoleBindingsSubjectType.GROUP,
+                    role_bindings_update_role_bindings_request=empty_request,
+                )
             )
+            # Remove these logs when https://redhat.atlassian.net/browse/RHCLOUD-46719 is fixed
+            logger.info(f"{put_response.status}: {put_response.data}")
+
+            # Enable this assert when https://redhat.atlassian.net/browse/RHCLOUD-46719 is fixed
+            # assert 200 <= put_response.status <= 299, f"{put_response.status}: {put_response.data}"  # noqa: E501
 
     def reset_user_groups(
         self, username: str, group_name: str | None = "iqe-hbi", delete_groups: bool = True
@@ -259,7 +270,17 @@ class RBACAPIWrapper(BaseEntity):
                 # This is a platform_default group and principal assignments can't be modified
                 continue
             if delete_groups:
-                self.delete_group(group.uuid)
+                # Remove the try/except workaround when
+                # https://redhat.atlassian.net/browse/RHCLOUD-46719 is fixed
+                try:
+                    self.delete_group(group.uuid)
+                except RBACApiException as exc:
+                    if exc.status == 400:
+                        logger.info(f"Wasn't able to delete RBAC group: {exc.status}: {exc.body}")
+                        logger.info("Removing user from the RBAC group")
+                        self.remove_user_from_group(username, group.uuid)
+                    else:
+                        raise
             else:
                 self.remove_user_from_group(username, group.uuid)
 
