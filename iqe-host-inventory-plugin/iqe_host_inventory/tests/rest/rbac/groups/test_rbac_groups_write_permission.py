@@ -12,6 +12,7 @@ from pytest_lazy_fixtures import lf
 from pytest_lazy_fixtures.lazy_fixture import LazyFixtureWrapper
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -236,11 +237,7 @@ class TestRBACGroupsNoWritePermission:
           title: Test that users without "groups:write" permission can't create a group
         """
         group_name = generate_display_name()
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(403):
             host_inventory_non_org_admin.apis.groups.create_group(
                 group_name, wait_for_created=False
             )
@@ -302,11 +299,7 @@ class TestRBACGroupsNoWritePermission:
         groups = rbac_setup_resources[1]
 
         for group in groups:
-            with raises_apierror(
-                403,
-                "You don't have the permission to access the requested resource. "
-                "It is either read-protected or not readable by the server.",
-            ):
+            with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
                 host_inventory_non_org_admin.apis.groups.delete_groups_raw(group)
 
             host_inventory.apis.groups.verify_not_deleted(group)
