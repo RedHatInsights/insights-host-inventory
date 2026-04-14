@@ -243,43 +243,83 @@ def rbac_staleness_all_hosts_write_user_setup(hbi_non_org_admin_user_rbac_setup)
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_hosts_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.HOSTS_READ])
+def rbac_inventory_hosts_read_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_READ], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_groups_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.GROUPS_READ])
+def rbac_inventory_groups_read_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.GROUPS_READ], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_all_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.ALL_READ])
+def rbac_inventory_all_read_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.ALL_READ], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_hosts_write_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.HOSTS_WRITE])
+def rbac_inventory_hosts_write_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_WRITE], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_groups_write_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.GROUPS_WRITE])
+def rbac_inventory_groups_write_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_hosts_all_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.HOSTS_ALL])
+def rbac_inventory_hosts_all_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_ALL], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_groups_all_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.GROUPS_ALL])
+def rbac_inventory_groups_all_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.GROUPS_ALL], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
-def rbac_inventory_admin_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
-    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.ADMIN])
+def rbac_inventory_admin_user_setup_class(
+    hbi_non_org_admin_user_rbac_setup_class, rbac_setup_resources
+):
+    groups = rbac_setup_resources[1]
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.ADMIN], hbi_groups=groups
+    )
 
 
 @pytest.fixture(scope="class")
