@@ -15,6 +15,8 @@ objects:
         "gunicorn",
         "--workers=${GUNICORN_WORKERS}",
         "--threads=${GUNICORN_THREADS}",
+        "--max-requests=${GUNICORN_MAX_REQUESTS}",
+        "--max-requests-jitter=${GUNICORN_MAX_REQUESTS_JITTER}",
         "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
         "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
         "--worker-tmp-dir=/gunicorn",
@@ -2468,6 +2470,10 @@ parameters:
   value: '4'
 - name: GUNICORN_THREADS
   value: '8'
+- name: GUNICORN_MAX_REQUESTS
+  value: '0' # (disabled)
+- name: GUNICORN_MAX_REQUESTS_JITTER
+  value: '0' # (disabled)
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
 - name: GUNICORN_REQUEST_LINE_LIMIT
