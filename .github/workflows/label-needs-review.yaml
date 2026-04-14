@@ -1,48 +1,69 @@
-# Manages PR labels based on check suite results:
-# - All checks pass  → add "ready for review", remove "ci-failing"
-# - Any check fails  → add "ci-failing", remove "ready for review"
+# Labels PRs based on combined CI status (GitHub Actions + Konflux):
+#   All pass → "ready for review" | Any fail → "ci-failing" | Pending → no change
 
 name: Label PR by CI Status
 
 on:
   check_suite:
     types: [completed]
+  status:
+  workflow_dispatch:
 
 jobs:
   update-labels:
-    if: github.event.check_suite.pull_requests[0] != null
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       checks: read
+      statuses: read
     steps:
-      - name: Update PR labels based on CI status
+      - name: Update PR labels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.check_suite.pull_requests[0].number }}
+          REPO: ${{ github.repository }}
         run: |
-          echo "Checking PR #$PR_NUMBER..."
+          # --- Resolve PR number and HEAD SHA ---
+          if [ "${{ github.event_name }}" = "check_suite" ]; then
+            PR="${{ github.event.check_suite.pull_requests[0].number }}"
+            SHA="${{ github.event.check_suite.head_sha }}"
+          elif [ "${{ github.event_name }}" = "status" ]; then
+            SHA="${{ github.event.commit.sha }}"
+            PR=$(gh api "repos/${REPO}/commits/${SHA}/pulls" \
+              --jq '[.[] | select(.state == "open")][0].number // empty' 2>/dev/null || true)
+          fi
 
-          CONCLUSION=$(gh api \
-            "repos/${{ github.repository }}/commits/${{ github.event.check_suite.head_sha }}/check-suites" \
-            --jq '[.check_suites[].conclusion] | if any(. == null) then "pending" elif all(. == "success") then "all_passed" else "not_all_passed" end')
+          if [ -z "$PR" ]; then echo "No open PR. Skipping."; exit 0; fi
+          echo "PR #${PR}, SHA ${SHA}"
 
-          CURRENT_LABELS=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json labels --jq '.labels[].name')
+          # --- Query check runs (GitHub Actions) — exclude own job ---
+          CHECKS=$(gh api "repos/${REPO}/commits/${SHA}/check-runs" --jq '
+            [.check_runs[] | select(.name != "update-labels") | .conclusion]
+            | if length == 0 then "none"
+              elif any(. == null) then "pending"
+              elif all(. == "success") then "pass" else "fail" end')
 
-          if [ "$CONCLUSION" = "all_passed" ]; then
-            echo "All checks passed for PR #$PR_NUMBER."
-            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label "ready for review"
-            if echo "$CURRENT_LABELS" | grep -Fxq "ci-failing"; then
-              gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "ci-failing"
-            fi
+          # --- Query commit statuses (Konflux) ---
+          STATUSES=$(gh api "repos/${REPO}/commits/${SHA}/status" --jq '
+            if (.statuses | length) == 0 then "none"
+            elif .state == "success" then "pass"
+            elif .state == "pending" then "pending" else "fail" end')
 
-          elif [ "$CONCLUSION" = "not_all_passed" ]; then
-            echo "Checks failed for PR #$PR_NUMBER."
-            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --add-label "ci-failing"
-            if echo "$CURRENT_LABELS" | grep -Fxq "ready for review"; then
-              gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "ready for review"
-            fi
+          echo "Checks=${CHECKS} Statuses=${STATUSES}"
 
+          # --- Combine: pending > fail > pass ---
+          if [ "$CHECKS" = "pending" ] || [ "$STATUSES" = "pending" ]; then
+            echo "Still pending. No label changes."; exit 0
+          elif [ "$CHECKS" = "fail" ] || [ "$STATUSES" = "fail" ]; then
+            ADD="ci-failing"; REMOVE="ready for review"
+          elif [ "$CHECKS" = "pass" ] || [ "$STATUSES" = "pass" ]; then
+            ADD="ready for review"; REMOVE="ci-failing"
           else
-            echo "Checks still pending for PR #$PR_NUMBER. No label changes."
+            echo "No results yet. Skipping."; exit 0
+          fi
+
+          # --- Apply labels ---
+          gh pr edit "$PR" --repo "$REPO" --add-label "$ADD"
+          LABELS=$(gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -Fxq "$REMOVE"; then
+            gh pr edit "$PR" --repo "$REPO" --remove-label "$REMOVE"
           fi
