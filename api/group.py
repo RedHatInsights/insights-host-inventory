@@ -463,6 +463,8 @@ def delete_groups(group_id_list, rbac_filter=None):
     found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
     check_all_ids_found(group_id_list, found_groups, "group")
 
+    delete_count = 0
+
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(identity)
@@ -471,8 +473,6 @@ def delete_groups(group_id_list, rbac_filter=None):
         for group_id in group_id_list:
             if ungrouped_group_id == group_id:
                 abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
-
-        delete_count = 0
 
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
