@@ -494,6 +494,39 @@ def test_delete_existing_group_missing_workspace(api_delete_groups_kessel, db_cr
 @pytest.mark.usefixtures("event_producer")
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.usefixtures("enable_rbac")
+def test_delete_group_not_deleted_from_hbi_when_rbac_returns_404(
+    api_delete_groups_kessel, db_create_group, db_get_group_by_id, mocker
+):
+    """When RBAC returns 404 for a workspace, HBI must NOT delete the group from its own DB.
+
+    RBAC v2 returns 404 both when a workspace doesn't exist and when the user lacks
+    permission to delete it. Deleting from HBI on 404 would bypass permission checks.
+    """
+    from app.exceptions import ResourceNotFoundException
+
+    group_id = db_create_group("test group").id
+
+    # Enable RBAC v2 for groups so the @rbac decorator skips v1 permission checks
+    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+
+    # Mock delete_rbac_workspace to raise ResourceNotFoundException (RBAC returns 404)
+    mocker.patch(
+        "api.group.delete_rbac_workspace",
+        side_effect=ResourceNotFoundException("Workspace not found"),
+    )
+
+    response_status, _ = api_delete_groups_kessel([group_id])
+
+    # The API should NOT return 204 — the workspace was not deleted
+    assert_response_status(response_status, expected_status=404)
+
+    # The group must still exist in HBI's database
+    assert db_get_group_by_id(group_id) is not None
+
+
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
 @mock.patch("requests.Session.delete", new=mocked_delete_workspace_empty_response)
 def test_delete_existing_group_kessel_empty_response(api_delete_groups_kessel, db_create_group, mocker):
     """
