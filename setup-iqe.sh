@@ -9,7 +9,7 @@ export PIPENV_PIPFILE=Pipfile.iqe
 
 # Install IQE dependencies
 echo "Installing IQE dependencies from Pipfile.iqe..."
-pipenv install --dev -v
+pipenv sync --dev -v
 
 pipenv run pip install --editable ./iqe-host-inventory-plugin
 
