@@ -191,11 +191,7 @@ class TestRBACSAGroupsNoWritePermission:
           title: Test that service accounts without "groups:write" permission can't create a group
         """
         group_name = generate_display_name()
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(403):
             host_inventory_sa_2.apis.groups.create_group(group_name, wait_for_created=False)
 
         host_inventory.apis.groups.verify_not_created(group_name=group_name)

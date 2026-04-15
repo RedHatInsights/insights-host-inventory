@@ -333,8 +333,10 @@ def test_legacy_paths(
     if "cert" not in legacy_hostname:  # These endpoints are forbidden with cert auth (HTTP 403)
         host_inventory.apis.groups.create_n_empty_groups(1)
         check_legacy_get_groups(session, base_url)
-        check_legacy_get_resource_types(session, base_url)
         check_legacy_get_staleness_defaults(session, base_url)
+        if not host_inventory.unleash.is_rbac_workspaces_enabled:
+            # Resource-types endpoints are not supported with rbac v2
+            check_legacy_get_resource_types(session, base_url)
 
 
 @pytest.mark.ephemeral
@@ -384,8 +386,10 @@ def test_legacy_paths_ephemeral(
     if not sys_conf:  # These endpoints are forbidden with cert auth (HTTP 403)
         test_host_inventory.apis.groups.create_n_empty_groups(1)
         check_legacy_get_groups(session, base_url)
-        check_legacy_get_resource_types(session, base_url)
         check_legacy_get_staleness_defaults(session, base_url)
+        if not test_host_inventory.unleash.is_rbac_workspaces_enabled:
+            # Resource-types endpoints are not supported with rbac v2
+            check_legacy_get_resource_types(session, base_url)
 
     check_legacy_patch_facts(test_host_inventory, session, base_url, host)
     check_legacy_put_facts(test_host_inventory, session, base_url, host)
