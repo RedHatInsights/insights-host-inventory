@@ -4,9 +4,6 @@ import logging
 from enum import Enum
 from time import sleep
 
-from iqe.base.application import Application
-from iqe.base.application.implementations.rest import ViaREST
-from iqe_rbac.entities.group import Group
 from iqe_rbac_api import RoleWithAccess
 from iqe_rbac_v2_api import Permission as RBACV2Permission
 from iqe_rbac_v2_api import Role as RBACV2Role
@@ -32,7 +29,7 @@ class RBACInventoryPermission(Enum):
     STALENESS_ALL = "staleness:staleness:*"
 
 
-class RBACRoles:
+class RBACRoles(Enum):
     HOSTS_VIEWER = "Inventory Hosts viewer"
     HOSTS_ADMIN = "Inventory Hosts administrator"
     GROUPS_VIEWER = "Inventory Groups viewer"
@@ -54,14 +51,6 @@ def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2Permission:
     """Convert an RBACInventoryPermission enum to a V2 Permission model."""
     app, resource_type, operation = permission.value.split(":")
     return RBACV2Permission(application=app, resource_type=resource_type, operation=operation)
-
-
-def update_group_with_roles(app: Application, group: Group, roles: list[str]) -> None:
-    """Help function to update RBAC group with roles (which assign permissions)"""
-    with app.context.use(ViaREST):
-        group.update(
-            roles=[app.rbac.collections.roles.instantiate(role) for role in roles],
-        )
 
 
 def wait_for_kessel_sync(host_inventory: ApplicationHostInventory) -> None:
