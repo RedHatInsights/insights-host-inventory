@@ -31,6 +31,7 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
+from app.exceptions import IdsNotFoundError
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -61,7 +62,7 @@ from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
-from lib.middleware import check_access
+from lib.middleware import resolve_permission
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -593,7 +594,11 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
 
-    check_access(KesselResourceTypes.HOST.view, [host_id])
+    if not inventory_config().bypass_kessel:
+        allowed, filter_data = resolve_permission(get_current_identity(), KesselResourceTypes.HOST.view, [host_id])
+        if not allowed:
+            unauthorized_ids = filter_data.get("unauthorized_ids") if filter_data else None
+            raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})
