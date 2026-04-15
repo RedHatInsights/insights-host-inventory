@@ -193,6 +193,36 @@ def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, 
                 assert resp is False
 
 
+@mock.patch("requests.Session.post", autospec=True)
+@mock.patch("app.queue.export_service.get_kessel_filter", return_value=(True, None))
+@mock.patch("app.queue.export_service.get_flag_value", return_value=True)
+def test_handle_kessel_allowed(
+    _mock_flag, mock_kessel_filter, mock_post, flask_app, db_create_host, export_service_consumer_mock
+):
+    with flask_app.app.app_context():
+        db_create_host()
+        export_message = es_utils.create_export_message_mock()
+        mock_post.return_value.status_code = 202
+        resp = export_service_consumer_mock.handle_message(export_message)
+        assert resp is True
+        mock_kessel_filter.assert_called_once()
+
+
+@mock.patch("requests.Session.post", autospec=True)
+@mock.patch("app.queue.export_service.get_kessel_filter", return_value=(False, None))
+@mock.patch("app.queue.export_service.get_flag_value", return_value=True)
+def test_handle_kessel_prohibited(
+    _mock_flag, mock_kessel_filter, mock_post, flask_app, db_create_host, export_service_consumer_mock
+):
+    with flask_app.app.app_context():
+        db_create_host()
+        export_message = es_utils.create_export_message_mock()
+        mock_post.return_value.status_code = 202
+        resp = export_service_consumer_mock.handle_message(export_message)
+        assert resp is False
+        mock_kessel_filter.assert_called_once()
+
+
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):
     with flask_app.app.app_context():
         CUSTOM_STALENESS_DELETE = {
