@@ -891,7 +891,7 @@ class HostsAPIWrapper(BaseEntity):
         hosts: HOST_OR_HOSTS,
         *,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
         error: Exception | None = HOST_NOT_CREATED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully created and retrievable by API
@@ -1076,7 +1076,7 @@ class HostsAPIWrapper(BaseEntity):
         insights_ids: list[str],
         *,
         delay: float = 0.5,
-        retries: int = 40,
+        retries: int = 60,
     ) -> list[HostIdOut]:
         host_ids = []
 

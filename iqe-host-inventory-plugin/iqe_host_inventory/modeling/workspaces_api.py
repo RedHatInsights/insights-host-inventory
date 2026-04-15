@@ -114,7 +114,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         Use high level API wrapper methods instead of this raw API client.
         Outside this class, this should be used only for negative validation testing.
         """
-        return self._rbac.rest_client_v2.workspaces_api
+        return self._rbac.rbac_v2_api.workspaces_api
 
     def create_workspace(
         self,

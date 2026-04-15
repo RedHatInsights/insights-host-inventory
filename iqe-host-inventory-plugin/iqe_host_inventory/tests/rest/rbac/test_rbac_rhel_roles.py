@@ -1,7 +1,6 @@
 import logging
 
 import pytest
-from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -17,26 +16,24 @@ pytestmark = [
 ]
 
 
-@pytest.mark.parametrize(
-    "role",
-    [
-        lf("rbac_setup_user_with_rhel_admin_role"),
-        lf("rbac_setup_user_with_rhel_viewer_role"),
-        lf("rbac_setup_user_with_rhel_operator_role"),
-    ],
-    scope="function",
-)
+@pytest.fixture(autouse=True, scope="module")
+def _skip_if_rbac_workspaces(host_inventory: ApplicationHostInventory):
+    """The RHEL roles are not supported with RBAC v2.
+    https://redhat-internal.slack.com/archives/C0233N2MBU6/p1776248880616269"""
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        pytest.skip("The RHEL roles are not supported with RBAC v2")
+
+
 def test_rbac_inventory_with_rhel_roles(
     host_inventory: ApplicationHostInventory,
-    hbi_non_org_admin_user_org_id: str,
     host_inventory_non_org_admin: ApplicationHostInventory,
     rbac_setup_resources,
     hbi_staleness_defaults: dict[str, int],
-    role: str,
+    rbac_setup_user_with_rhel_role: str,
 ):
     """
     Test that user with RHEL roles has required inventory permissions.
-    RHEL admin and RHEL operator roles have inventory read and wrrite permissions.
+    RHEL admin and RHEL operator roles have inventory read and write permissions.
     RHEL viewer has only inventory read permissions.
 
     https://issues.redhat.com/browse/RHINENG-16109
@@ -48,10 +45,11 @@ def test_rbac_inventory_with_rhel_roles(
         assignee: zabikeno
         title: Test that user with RHEL roles has required inventory permissions
     """
+    role = rbac_setup_user_with_rhel_role
     role_with_write_permissions = role in ["RHEL operator", "RHEL admin"]
 
     # Hosts
-    # check RHEL viewer's inventory read permission
+    # check RHEL viewer's inventory read access
     hosts = rbac_setup_resources[0]
     expected_hosts_ids = {host.id for host in hosts}
 
@@ -61,7 +59,7 @@ def test_rbac_inventory_with_rhel_roles(
     assert len(response.results) >= 2
     assert expected_hosts_ids.issubset(response_hosts_ids)
 
-    # check at least one hosts CRUD function to make sure user got RHEL admin/operator role
+    # check at least one hosts edit operation to make sure user has write access
     if role_with_write_permissions:
         new_display_name = generate_display_name()
         host_inventory_non_org_admin.apis.hosts.patch_hosts(
@@ -69,27 +67,27 @@ def test_rbac_inventory_with_rhel_roles(
         )
 
     # Groups
-    # check RHEL viewer's inventory read permission
+    # check RHEL viewer's inventory read access
     groups = rbac_setup_resources[1]
     expected_groups_ids = {group.id for group in groups}
 
     response = host_inventory_non_org_admin.apis.groups.get_groups()
-    expected_groups_ids = {group.id for group in response}
+    response_groups_ids = {group.id for group in response}
 
     assert len(response) >= 2
-    assert expected_groups_ids.issubset(expected_groups_ids)
+    assert expected_groups_ids.issubset(response_groups_ids)
 
-    # check at least one groups CRUD function to make sure user got RHEL admin/operator role
+    # check at least one groups edit operation to make sure user has write access
     if role_with_write_permissions:
         new_group_name = generate_display_name()
         host_inventory_non_org_admin.apis.groups.patch_group(groups[0], name=new_group_name)
 
     # Staleness
-    # check RHEL viewer's inventory read permission
+    # check RHEL viewer's inventory read access
     response = host_inventory_non_org_admin.apis.account_staleness.get_staleness_response()
     validate_staleness_response(response.to_dict(), hbi_staleness_defaults)
 
-    # check at least one staleness CRUD function to make sure user got RHEL admin/operator role
+    # check at least one staleness edit operation to make sure user has write access
     if role_with_write_permissions:
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
         original = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
