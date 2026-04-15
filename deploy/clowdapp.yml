@@ -526,6 +526,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -615,6 +617,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -702,6 +706,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -785,6 +791,8 @@ objects:
             value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
@@ -914,6 +922,8 @@ objects:
             value: ${KAFKA_HOST_APP_DATA_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
@@ -2579,6 +2589,8 @@ parameters:
   value: 'host-inventory-read-only-db'
 
 # -- Batch & Processing Sizes --
+- name: OUTBOX_USE_BATCHED_QUERIES
+  value: 'false'
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
