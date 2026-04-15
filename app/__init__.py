@@ -42,6 +42,7 @@ from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
+from lib.host_outbox_events import init_outbox_event_processing
 from lib.kessel import init_kessel
 
 logger = get_logger(__name__)
@@ -273,6 +274,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
     init_cache(app_config, app)
+    init_outbox_event_processing(app_config)
 
     # Configure Unleash (feature flags)
     if not app_config.bypass_unleash and app_config.unleash_token:

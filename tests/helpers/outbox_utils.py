@@ -4,17 +4,22 @@ from contextlib import contextmanager
 from typing import Any
 from unittest.mock import patch
 
+from sqlalchemy import event
+
 from app.models.outbox import Outbox
 
 
 @contextmanager
 def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Generator[list[dict[str, Any]], None, None]:
     """
-    Context manager to capture calls to write_event_to_outbox.
+    Context manager to capture calls to outbox write functions.
+
+    Captures both single-entry (write_event_to_outbox) and batch
+    (write_events_to_outbox_batch) calls by patching at the same module path.
 
     Args:
         target: fully-qualified patch target where write_event_to_outbox is imported
-        (e.g. "api.host.write_event_to_outbox").
+        (e.g. "lib.outbox_repository.write_event_to_outbox").
         capture_groups: if True and host_obj is provided, also capture host_obj.groups on each call.
 
     Yields:
@@ -23,19 +28,34 @@ def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Genera
 
     calls: list[dict[str, Any]] = []
 
-    def side_effect(event_type, host_id, host_obj=None, session=None):  # noqa: ARG001
+    def single_side_effect(event_type, host_id, host_obj=None, session=None):  # noqa: ARG001
         entry: dict[str, Any] = {
             "event_type": event_type,
             "host_id": host_id,
             "host": host_obj,
         }
         if capture_groups and host_obj is not None:
-            # Capture while still attached to a session
             entry["groups"] = host_obj.groups
         calls.append(entry)
         return True
 
-    with patch(target, side_effect=side_effect):
+    def batch_side_effect(ops, session):  # noqa: ARG001
+        for event_type, host_id, host_obj in ops:
+            entry: dict[str, Any] = {
+                "event_type": event_type,
+                "host_id": host_id,
+                "host": host_obj,
+            }
+            if capture_groups and host_obj is not None:
+                entry["groups"] = host_obj.groups
+            calls.append(entry)
+        return len(ops)
+
+    # Derive the batch target from the single target
+    assert "write_event_to_outbox" in target, f"target must reference 'write_event_to_outbox', got: {target}"
+    batch_target = target.replace("write_event_to_outbox", "write_events_to_outbox_batch")
+
+    with patch(target, side_effect=single_side_effect), patch(batch_target, side_effect=batch_side_effect):
         yield calls
 
 
@@ -65,6 +85,30 @@ def wait_for_all_events(
     # Assert that we got the expected number of calls
     assert event_producer.write_event.call_count >= expected_count, (
         f"Expected {expected_count} events, but only got {event_producer.write_event.call_count} after {elapsed:.2f}s"
+    )
+
+
+@contextmanager
+def assert_query_count(session, expected: int) -> Generator[list[str], None, None]:
+    """Assert that exactly `expected` SQL statements are emitted within the block.
+
+    Hooks into SQLAlchemy's before_cursor_execute event to record every statement.
+    The captured list of SQL strings is yielded for further inspection.
+    """
+    queries: list[str] = []
+
+    def _record(conn, cursor, statement, parameters, context, executemany):  # noqa: ARG001
+        queries.append(statement)
+
+    engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", _record)
+    try:
+        yield queries
+    finally:
+        event.remove(engine, "before_cursor_execute", _record)
+
+    assert len(queries) == expected, f"Expected {expected} queries, got {len(queries)}:\n" + "\n".join(
+        f"  [{i}] {q[:200]}" for i, q in enumerate(queries)
     )
 
 

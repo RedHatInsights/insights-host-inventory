@@ -33,10 +33,12 @@ from lib.host_outbox_events import _collect_pending_ops_for_session
 from lib.outbox_repository import _create_update_event_payload
 from lib.outbox_repository import remove_event_from_outbox
 from lib.outbox_repository import write_event_to_outbox
+from lib.outbox_repository import write_events_to_outbox_batch
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.mq_utils import generate_kessel_workspace_message
 from tests.helpers.mq_utils import wrap_message
 from tests.helpers.outbox_utils import assert_outbox_empty
+from tests.helpers.outbox_utils import assert_query_count
 from tests.helpers.outbox_utils import build_delete_payload
 from tests.helpers.outbox_utils import build_updated_payload
 from tests.helpers.outbox_utils import capture_outbox_calls
@@ -460,21 +462,24 @@ class TestOutboxE2ECases:
 
         # The success of the operation indicates the outbox entry was created, validated, and processed
 
-    def test_transaction_rollback_behavior(self, db_create_host, db_get_host):
-        """Test that outbox entries are committed immediately and not subject to external rollback."""
+    def test_outbox_writes_discarded_on_session_rollback(self, db_create_host, db_get_host):
+        """Outbox writes use the caller's session/transaction; rollback must not leave durable outbox rows."""
         created_host = db_create_host(SYSTEM_IDENTITY)
         host_id = str(created_host.id)
+
+        db.session.rollback()
+
         host = db_get_host(created_host.id)
-
-        # The outbox implementation now commits immediately within the function
-        # This test verifies that the function handles its own transaction
-        result = write_event_to_outbox(EventType.created, host_id, host)
-        assert result is True
-
-        # Verify entry was created and immediately deleted (new behavior)
+        assert write_event_to_outbox(EventType.updated, host_id, host) is True
+        db.session.rollback()
         assert_outbox_empty(db, host_id)
 
-        # The success of the operation indicates the outbox entry was created, validated, and processed
+        db.session.rollback()
+
+        host = db_get_host(created_host.id)
+        assert write_events_to_outbox_batch([(EventType.updated, host_id, host)], db.session) == 1
+        db.session.rollback()
+        assert_outbox_empty(db, host_id)
 
     def test_concurrent_outbox_writes(self, db_create_host, db_get_host):
         """Test that multiple outbox writes for different hosts work correctly."""
@@ -990,34 +995,36 @@ class TestOutboxE2ECases:
 
         # Use patch to capture outbox payload and verify the actual content
         outbox_payloads = []
-        original_write_event_to_outbox = write_event_to_outbox
+        original_write_events_batch = write_events_to_outbox_batch
 
-        def capture_outbox_payload(event_type, host_id_param, host_obj, session=None):
-            # Capture groups information while host is still attached to session
-            groups_info = None
-            if host_obj is not None:
-                groups_info = host_obj.groups
+        def capture_outbox_batch(ops, session):
+            # Capture groups information while hosts are still attached to session
+            for event_type, host_id_param, host_obj in ops:
+                groups_info = None
+                if host_obj is not None:
+                    groups_info = host_obj.groups
+
+                if host_obj is not None:
+                    payload = _create_update_event_payload(host_obj)
+                    outbox_payloads.append(
+                        {
+                            "event_type": event_type,
+                            "host_id": host_id_param,
+                            "payload": payload,
+                            "host": host_obj,
+                            "groups": groups_info,
+                        }
+                    )
 
             # Call the original function to ensure real outbox functionality
-            result = original_write_event_to_outbox(event_type, host_id_param, host_obj, session=session)
+            return original_write_events_batch(ops, session)
 
-            # Capture the payload for validation by building it the same way
-            if host_obj is not None:
-                payload = _create_update_event_payload(host_obj)
-                outbox_payloads.append(
-                    {
-                        "event_type": event_type,
-                        "host_id": host_id_param,
-                        "payload": payload,
-                        "host": host_obj,
-                        "groups": groups_info,
-                    }
-                )
-
-            return result
-
-        with patch(
-            "lib.host_outbox_events.outbox_repository.write_event_to_outbox", side_effect=capture_outbox_payload
+        with (
+            patch("lib.host_outbox_events.OUTBOX_USE_BATCHED_QUERIES", True),
+            patch(
+                "lib.host_outbox_events.outbox_repository.write_events_to_outbox_batch",
+                side_effect=capture_outbox_batch,
+            ),
         ):
             # Make POST request to add host to group
             response_status, _ = api_add_hosts_to_group(group_id, [host_id])
@@ -1634,3 +1641,53 @@ class TestOutboxE2ECases:
         # Verify session_b ops are not in session_a results
         for _op_type, host_id in ops_b:
             assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
+
+    def test_batch_outbox_edge_cases(self, db_create_host, db_get_host):  # noqa: ARG002
+        """Verify write_events_to_outbox_batch handles empty ops and validation failures."""
+        # Empty ops returns 0 without touching the DB
+        assert write_events_to_outbox_batch([], db.session) == 0
+
+        # Missing host for a created event raises OutboxSaveException
+        host = db_create_host(SYSTEM_IDENTITY)
+        with pytest.raises(OutboxSaveException):
+            write_events_to_outbox_batch([(EventType.created, str(host.id), None)], db.session)
+
+        # Missing host_id raises OutboxSaveException
+        with pytest.raises(OutboxSaveException):
+            write_events_to_outbox_batch([(EventType.delete, "", None)], db.session)
+
+    def test_batch_outbox_emits_expected_query_count(self, db_create_host, db_get_host):
+        """
+        Verify that write_events_to_outbox_batch emits exactly 2 SQL statements
+        (1 multi-row INSERT + 1 bulk DELETE) regardless of batch size, instead of
+        N+2 statements from the old ORM add_all/flush path.
+        """
+        num_hosts = 5
+
+        # Phase 1: Create all hosts (each commit expires prior instances)
+        created_hosts = []
+        for _ in range(num_hosts):
+            host_data = {
+                "insights_id": generate_uuid(),
+                "subscription_manager_id": generate_uuid(),
+                "system_profile_facts": {"owner_id": SYSTEM_IDENTITY["system"]["cn"]},
+            }
+            created_hosts.append(db_create_host(SYSTEM_IDENTITY, extra_data=host_data))
+
+        # Phase 2: Load all hosts AFTER the last commit so none are expired
+        ops = []
+        for created in created_hosts:
+            host = db_get_host(created.id)
+            ops.append((EventType.created, str(host.id), host))
+
+        with patch("lib.outbox_repository.outbox_save_success"):
+            with assert_query_count(db.session, expected=2) as queries:
+                write_events_to_outbox_batch(ops, db.session)
+
+        # Confirm the INSERT is a single multi-row statement
+        insert_stmts = [q for q in queries if "INSERT" in q.upper()]
+        assert len(insert_stmts) == 1, f"Expected 1 INSERT statement, got {len(insert_stmts)}"
+
+        # Confirm the DELETE is a single statement
+        delete_stmts = [q for q in queries if "DELETE" in q.upper()]
+        assert len(delete_stmts) == 1, f"Expected 1 DELETE statement, got {len(delete_stmts)}"
