@@ -64,7 +64,6 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.kessel import get_kessel_client
 from lib.middleware import access
 from lib.middleware import get_kessel_filter
 
@@ -603,10 +602,7 @@ def get_host_exists(insights_id, rbac_filter=None):
     if (not inventory_config().bypass_kessel) and get_flag_value(
         FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
     ):
-        kessel_client = get_kessel_client(current_app)
-        allowed, kessel_data = get_kessel_filter(
-            kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
-        )
+        allowed, kessel_data = get_kessel_filter(current_identity, KesselResourceTypes.HOST.view, [host_id])
         if not allowed:
             unauthorized_ids = kessel_data.get("unauthorized_ids") if kessel_data else None
             raise IdsNotFoundError("host", unauthorized_ids)

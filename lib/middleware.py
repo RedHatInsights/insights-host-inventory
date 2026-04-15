@@ -41,7 +41,6 @@ from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
 from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
-from lib.kessel import Kessel
 from lib.kessel import get_kessel_client
 
 logger = get_logger(__name__)
@@ -346,7 +345,7 @@ def kessel_verb(perm) -> str:
 
 
 def get_kessel_filter(
-    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
+    current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
     """
     Check Kessel permissions and return filter information.
@@ -370,6 +369,7 @@ def get_kessel_filter(
         },
     )
 
+    kessel_client = get_kessel_client(current_app)
     if current_identity.identity_type not in CHECKED_TYPES:
         logger.debug(
             "get_kessel_filter: identity_type not in CHECKED_TYPES, bypassing check",
@@ -545,8 +545,7 @@ def access(permission: KesselPermission, id_param: str = ""):
             if get_flag_value(
                 FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
             ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
-                kessel_client = get_kessel_client(current_app)
-                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
+                allowed, rbac_filter = get_kessel_filter(current_identity, permission, ids)
             else:
                 allowed, rbac_filter = get_rbac_filter(
                     permission.resource_type.v1_type,
@@ -597,8 +596,7 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
         ids = []
 
     if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)):
-        kessel_client = get_kessel_client(current_app)
-        allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
+        allowed, rbac_filter = get_kessel_filter(current_identity, permission, ids)
     else:
         request_headers = _build_rbac_request_headers()
         allowed, rbac_filter = get_rbac_filter(
