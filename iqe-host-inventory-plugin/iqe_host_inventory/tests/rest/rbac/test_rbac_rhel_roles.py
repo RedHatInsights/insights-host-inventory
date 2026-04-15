@@ -16,6 +16,14 @@ pytestmark = [
 ]
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _skip_if_rbac_workspaces(host_inventory: ApplicationHostInventory):
+    """The RHEL roles are not supported with RBAC v2.
+    https://redhat-internal.slack.com/archives/C0233N2MBU6/p1776248880616269"""
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        pytest.skip("The RHEL roles are not supported with RBAC v2")
+
+
 def test_rbac_inventory_with_rhel_roles(
     host_inventory: ApplicationHostInventory,
     host_inventory_non_org_admin: ApplicationHostInventory,
@@ -25,7 +33,7 @@ def test_rbac_inventory_with_rhel_roles(
 ):
     """
     Test that user with RHEL roles has required inventory permissions.
-    RHEL admin and RHEL operator roles have inventory read and wrrite permissions.
+    RHEL admin and RHEL operator roles have inventory read and write permissions.
     RHEL viewer has only inventory read permissions.
 
     https://issues.redhat.com/browse/RHINENG-16109
