@@ -532,28 +532,11 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             current_identity = get_current_identity()
 
-            request_headers = _build_rbac_request_headers()
-
-            allowed = None
-            rbac_filter = None
             ids = []
-            # Extract resource IDs if an id_param is provided
             if id_param:
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-            # Pass org_id context for org-specific feature flag targeting
-            if get_flag_value(
-                FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
-            ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
-                allowed, rbac_filter = get_kessel_filter(current_identity, permission, ids)
-            else:
-                allowed, rbac_filter = get_rbac_filter(
-                    permission.resource_type.v1_type,
-                    permission.v1_permission,
-                    current_identity,
-                    request_headers,
-                    permission.resource_type.v1_app,
-                )
+            allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
             if allowed:
                 if rbac_filter and "rbac_filter" in sig.parameters:
@@ -574,6 +557,40 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
+def resolve_permission(
+    identity: Identity,
+    permission: KesselPermission,
+    ids: list[str] | None = None,
+    rbac_request_headers: dict | None = None,
+) -> tuple[bool, dict[str, Any] | None]:
+    """
+    Resolve authorization by checking Kessel (if enabled) or falling back to RBAC v1.
+
+    This centralizes the flag-check-and-branch pattern used across the codebase.
+
+    Args:
+        identity: The current user identity
+        permission: A KesselPermission that carries both Kessel and RBAC v1 type/permission mappings
+        ids: Optional resource IDs to check permissions against
+        rbac_request_headers: Optional pre-built RBAC request headers; built automatically if not provided
+    """
+    if ids is None:
+        ids = []
+
+    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+        return get_kessel_filter(identity, permission, ids)
+    else:
+        if rbac_request_headers is None:
+            rbac_request_headers = _build_rbac_request_headers()
+        return get_rbac_filter(
+            permission.resource_type.v1_type,
+            permission.v1_permission,
+            identity,
+            rbac_request_headers,
+            permission.resource_type.v1_app,
+        )
+
+
 def check_access(permission: KesselPermission, ids: list[str] | None = None) -> dict[str, Any] | None:
     """
     Callable access check for endpoints where resource IDs aren't available at decoration time.
@@ -592,20 +609,7 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
 
     current_identity = get_current_identity()
 
-    if ids is None:
-        ids = []
-
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)):
-        allowed, rbac_filter = get_kessel_filter(current_identity, permission, ids)
-    else:
-        request_headers = _build_rbac_request_headers()
-        allowed, rbac_filter = get_rbac_filter(
-            permission.resource_type.v1_type,
-            permission.v1_permission,
-            current_identity,
-            request_headers,
-            permission.resource_type.v1_app,
-        )
+    allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
     if not allowed:
         abort(HTTPStatus.FORBIDDEN)

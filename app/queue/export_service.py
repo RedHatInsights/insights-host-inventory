@@ -14,17 +14,11 @@ from app import REQUEST_ID_HEADER
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
 from app.auth.rbac import KesselResourceTypes
-from app.auth.rbac import RbacPermission
-from app.auth.rbac import RbacResourceType
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from lib import metrics
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import build_flag_context
-from lib.feature_flags import get_flag_value
-from lib.middleware import get_kessel_filter
-from lib.middleware import get_rbac_filter
+from lib.middleware import resolve_permission
 from utils.json_to_csv import json_arr_to_csv
 
 logger = get_logger(__name__)
@@ -93,12 +87,9 @@ def create_export(
 
     rbac_request_headers, request_headers = build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat)
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
-        allowed, rbac_filter = get_kessel_filter(identity, KesselResourceTypes.HOST.view, [resourceUUID])
-    else:
-        allowed, rbac_filter = get_rbac_filter(
-            RbacResourceType.HOSTS, RbacPermission.READ, identity=identity, rbac_request_headers=rbac_request_headers
-        )
+    allowed, rbac_filter = resolve_permission(
+        identity, KesselResourceTypes.HOST.view, [resourceUUID], rbac_request_headers
+    )
 
     export_service_endpoint = inventory_config.export_service_endpoint
 
