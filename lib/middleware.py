@@ -577,18 +577,20 @@ def resolve_permission(
     if ids is None:
         ids = []
 
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+    if (
+        get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id))
+        and not inventory_config().bypass_kessel
+    ):
         return get_kessel_filter(identity, permission, ids)
-    else:
-        if rbac_request_headers is None:
-            rbac_request_headers = _build_rbac_request_headers()
-        return get_rbac_filter(
-            permission.resource_type.v1_type,
-            permission.v1_permission,
-            identity,
-            rbac_request_headers,
-            permission.resource_type.v1_app,
-        )
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
+    return get_rbac_filter(
+        permission.resource_type.v1_type,
+        permission.v1_permission,
+        identity,
+        rbac_request_headers,
+        permission.resource_type.v1_app,
+    )
 
 
 def check_access(permission: KesselPermission, ids: list[str] | None = None) -> dict[str, Any] | None:
