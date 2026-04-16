@@ -85,6 +85,7 @@ from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import UngroupedGroupCache
+from lib.host_repository import host_exists
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -1036,6 +1037,10 @@ def write_add_update_event_message(
             os_name,
             bootc_booted,
         )
+
+    if not host_exists(result.row.id, org_id=result.row.org_id, session=db.session):
+        logger.warning(f"Skipping event for host {result.row.id}: host no longer exists")
+        return
 
     event_producer.write_event(event, str(result.row.id), headers, wait=False)
 
