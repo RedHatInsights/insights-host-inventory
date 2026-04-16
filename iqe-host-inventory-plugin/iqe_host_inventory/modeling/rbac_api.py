@@ -9,24 +9,22 @@ from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_rbac import ApplicationRBAC
-from iqe_rbac_api import ApiException as RBACApiException
-from iqe_rbac_api import GroupOut as RBACGroupOut
-from iqe_rbac_api import GroupWithPrincipalsAndRoles
-from iqe_rbac_api import RoleWithAccess
-from iqe_rbac_v2_api import ApiException as RBACV2ApiException
-from iqe_rbac_v2_api import ResourceType
-from iqe_rbac_v2_api import Role as RBACV2Role
-from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsRequest
-from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsResponse
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequest
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestResource
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestRole
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestSubject
-from iqe_rbac_v2_api import RoleBindingsSubjectType
-from iqe_rbac_v2_api import RoleBindingsUpdateRoleBindingsRequest
-from iqe_rbac_v2_api import RolesBatchDeleteRolesRequest
-from iqe_rbac_v2_api import RolesCreateOrUpdateRoleRequest
+from iqe_bindings.v7.rbac_v1 import ApiException as RBACApiException
+from iqe_bindings.v7.rbac_v1 import GroupOut as RBACGroupOut
+from iqe_bindings.v7.rbac_v1 import GroupWithPrincipalsAndRoles
+from iqe_bindings.v7.rbac_v1 import RoleWithAccess
+from iqe_bindings.v7.rbac_v2 import ApiException as RBACV2ApiException
+from iqe_bindings.v7.rbac_v2 import ResourceType
+from iqe_bindings.v7.rbac_v2 import Role as RBACV2Role
+from iqe_bindings.v7.rbac_v2 import RoleBindingsBatchCreateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RoleBindingsBatchCreateRoleBindingsResponse
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestResource
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestRole
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestSubject
+from iqe_bindings.v7.rbac_v2 import RoleBindingsUpdateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RolesBatchDeleteRolesRequest
+from iqe_bindings.v7.rbac_v2 import RolesCreateOrUpdateRoleRequest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
@@ -64,18 +62,14 @@ class RBACAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def _rbac(self) -> ApplicationRBAC:
-        return self.application.rbac
-
-    @cached_property
     def raw_api(self) -> RBACRestClient:
-        return self._rbac.rest_client
+        return self._host_inventory.v7_rbac_v1
 
     @cached_property
     def raw_api_v2(self) -> RBACRestClientV2:
         if not self._host_inventory.unleash.is_rbac_workspaces_enabled:
             raise RuntimeError("RBAC v2 can be used only on v2 enabled accounts")
-        return self._rbac.rbac_v2_api
+        return self._host_inventory.v7_rbac_v2
 
     def create_group(
         self,
@@ -195,7 +189,7 @@ class RBACAPIWrapper(BaseEntity):
                             id=workspace_id, type="workspace"
                         ),
                         subject=RoleBindingsCreateRoleBindingsRequestSubject(
-                            id=group_uuid, type=RoleBindingsSubjectType.GROUP
+                            id=group_uuid, type="group"
                         ),
                         role=RoleBindingsCreateRoleBindingsRequestRole(id=role_id),
                     )
@@ -234,7 +228,7 @@ class RBACAPIWrapper(BaseEntity):
         bindings for each (resource, subject) combination.
         """
         get_response = self.raw_api_v2.role_bindings_api.role_bindings_list(
-            subject_type=RoleBindingsSubjectType.GROUP,
+            subject_type="group",
             subject_id=group_uuid,
             limit=10000,
         )
@@ -251,7 +245,7 @@ class RBACAPIWrapper(BaseEntity):
                         ResourceType(resource.type) if resource.type else ResourceType.WORKSPACE
                     ),
                     subject_id=group_uuid,
-                    subject_type=RoleBindingsSubjectType.GROUP,
+                    subject_type="group",
                     role_bindings_update_role_bindings_request=empty_request,
                 )
             )

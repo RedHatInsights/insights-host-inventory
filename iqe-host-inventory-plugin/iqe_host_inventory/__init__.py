@@ -30,10 +30,11 @@ class ApplicationHostInventory(ApplicationPlugin):
     plugin_title = "HostInventory"
     plugin_package_name = "iqe-host-inventory-plugin"
     rest_client = RESTPluginService.declare("api")
-
     api_v7 = RESTPluginService.declare("api_v7")
 
     v7_ingress_v1 = RESTPluginService.declare("v7_ingress_v1")
+    v7_rbac_v1 = RESTPluginService.declare("v7_rbac_v1")
+    v7_rbac_v2 = RESTPluginService.declare("v7_rbac_v2")
 
     v7_notifications_v1 = RESTPluginService.declare("v7_notifications_v1")
     v7_integrations_v1 = RESTPluginService.declare("v7_integrations_v1")
