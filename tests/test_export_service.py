@@ -207,14 +207,11 @@ def test_handle_kessel_allowed(mock_resolve, mock_post, flask_app, db_create_hos
         mock_resolve.assert_called_once()
 
         args, kwargs = mock_resolve.call_args
-        assert kwargs == {}
-        assert len(args) == 4
+        assert len(args) == 2
+        assert isinstance(kwargs["rbac_request_headers"], dict)
 
-        _, permission, ids, rbac_headers = args
-
+        _, permission = args
         assert permission is not None
-        assert ids is None
-        assert isinstance(rbac_headers, dict)
 
 
 @mock.patch("requests.Session.post", autospec=True)

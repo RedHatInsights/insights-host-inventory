@@ -87,7 +87,9 @@ def create_export(
 
     rbac_request_headers, request_headers = build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat)
 
-    allowed, rbac_filter = resolve_permission(identity, KesselResourceTypes.HOST.view, None, rbac_request_headers)
+    allowed, rbac_filter = resolve_permission(
+        identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
+    )
 
     export_service_endpoint = inventory_config.export_service_endpoint
 
