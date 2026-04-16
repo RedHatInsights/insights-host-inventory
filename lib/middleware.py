@@ -577,9 +577,8 @@ def resolve_permission(
     if ids is None:
         ids = []
 
-    if (
-        get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id))
-        and not inventory_config().bypass_kessel
+    if not inventory_config().bypass_kessel and get_flag_value(
+        FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)
     ):
         return get_kessel_filter(identity, permission, ids)
     if rbac_request_headers is None:

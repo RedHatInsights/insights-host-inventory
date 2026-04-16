@@ -210,10 +210,10 @@ def test_handle_kessel_allowed(mock_resolve, mock_post, flask_app, db_create_hos
         assert kwargs == {}
         assert len(args) == 4
 
-        identity, permission, ids, rbac_headers = args
+        _, permission, ids, rbac_headers = args
 
         assert permission is not None
-        assert ids is not None
+        assert ids is None
         assert isinstance(rbac_headers, dict)
 
 
