@@ -86,9 +86,14 @@ def hbi_secondary_upload_prepare_host_module(
 
 @pytest.fixture()
 def hbi_cert_auth_upload_prepare_host(
+    host_inventory: ApplicationHostInventory,
     host_inventory_cert_auth: ApplicationHostInventory,
 ) -> Generator[HostOut]:
     host = host_inventory_cert_auth.upload.create_host(register_for_cleanup=False)
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host)
+
     yield host
 
     # Explicit cleanup needed if this fixture is used by other plugins
@@ -97,9 +102,14 @@ def hbi_cert_auth_upload_prepare_host(
 
 @pytest.fixture(scope="class")
 def hbi_cert_auth_upload_prepare_host_class(
+    host_inventory: ApplicationHostInventory,
     host_inventory_cert_auth: ApplicationHostInventory,
 ) -> Generator[HostOut]:
     host = host_inventory_cert_auth.upload.create_host(register_for_cleanup=False)
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host)
+
     yield host
 
     # Explicit cleanup needed if this fixture is used by other plugins
@@ -108,9 +118,14 @@ def hbi_cert_auth_upload_prepare_host_class(
 
 @pytest.fixture(scope="module")
 def hbi_cert_auth_upload_prepare_host_module(
+    host_inventory: ApplicationHostInventory,
     host_inventory_cert_auth: ApplicationHostInventory,
 ) -> Generator[HostOut]:
     host = host_inventory_cert_auth.upload.create_host(register_for_cleanup=False)
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host)
+
     yield host
 
     # Explicit cleanup needed if this fixture is used by other plugins
