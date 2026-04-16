@@ -146,11 +146,7 @@ class TestRBACGranularGroupsReadPermission:
         """
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
 
@@ -791,7 +787,8 @@ def test_rbac_granular_groups_write_permission_single_group(
     # Setup
     groups = rbac_setup_resources_for_granular_rbac[1]
     hbi_non_org_admin_user_rbac_setup(
-        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=[groups[0]]
+        permissions=[RBACInventoryPermission.GROUPS_READ, RBACInventoryPermission.GROUPS_WRITE],
+        hbi_groups=[groups[0]],
     )
 
     # Test
@@ -831,11 +828,7 @@ def test_rbac_granular_groups_read_permission_null_group(
     )
 
     # Test
-    with raises_apierror(
-        403,
-        "You don't have the permission to access the requested resource. "
-        "It is either read-protected or not readable by the server.",
-    ):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(groups)
 
 
@@ -911,11 +904,7 @@ def test_rbac_granular_groups_read_permission_null_and_normal_group(
     assert response.results[0].id == groups[0].id
 
     for group in groups[1:]:
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
 
@@ -941,7 +930,8 @@ def test_rbac_granular_groups_write_permission_null_and_normal_group(
     hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]  # type: ignore[index]
 
     hbi_non_org_admin_user_rbac_setup(
-        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=hbi_groups
+        permissions=[RBACInventoryPermission.GROUPS_READ, RBACInventoryPermission.GROUPS_WRITE],
+        hbi_groups=hbi_groups,
     )
 
     # Test
@@ -1333,11 +1323,7 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         """
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
     def test_rbac_granular_groups_multiple_roles_patch_group(
