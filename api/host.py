@@ -594,11 +594,10 @@ def get_host_exists(insights_id, rbac_filter=None):
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
 
-    if not inventory_config().bypass_kessel:
-        allowed, filter_data = resolve_permission(get_current_identity(), KesselResourceTypes.HOST.view, [host_id])
-        if not allowed:
-            unauthorized_ids = filter_data.get("unauthorized_ids") if filter_data else None
-            raise IdsNotFoundError("host", unauthorized_ids)
+    allowed, filter_data = resolve_permission(get_current_identity(), KesselResourceTypes.HOST.view, [host_id])
+    if not allowed:
+        unauthorized_ids = filter_data.get("unauthorized_ids") if filter_data else None
+        raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})
