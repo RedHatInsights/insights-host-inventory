@@ -35,6 +35,7 @@ from iqe_host_inventory.schemas import RBACRestClient
 from iqe_host_inventory.schemas import RBACRestClientV2
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import RBACRoles
 from iqe_host_inventory.utils.rbac_utils import permission_to_v2
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
@@ -74,11 +75,11 @@ class RBACAPIWrapper(BaseEntity):
     def raw_api_v2(self) -> RBACRestClientV2:
         if not self._host_inventory.unleash.is_rbac_workspaces_enabled:
             raise RuntimeError("RBAC v2 can be used only on v2 enabled accounts")
-        return self._rbac.rest_client_v2
+        return self._rbac.rbac_v2_api
 
     def create_group(
         self,
-        permission: RBACInventoryPermission,
+        permission: RBACInventoryPermission | RBACRoles,
         *,
         hbi_groups: Sequence[GROUP_OR_ID | None] | None = None,
         name: str | None = None,
@@ -318,8 +319,11 @@ class RBACAPIWrapper(BaseEntity):
 
         return group, roles
 
+    def get_role_by_name(self, name: str) -> RoleWithAccess:
+        return self.raw_api.role_api.list_roles(name=name).data[0]
+
     def get_rbac_admin_role(self) -> RoleWithAccess:
-        return self.raw_api.role_api.list_roles(name="User Access Administrator").data[0]
+        return self.get_role_by_name("User Access Administrator")
 
     def get_group_by_name(self, name: str) -> RBACGroupOut:
         response = self.raw_api.group_api.list_groups(name=name)
