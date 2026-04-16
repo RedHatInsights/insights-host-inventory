@@ -474,15 +474,19 @@ def delete_groups(group_id_list, rbac_filter=None):
             if ungrouped_group_id == group_id:
                 abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
+        groups_to_delete = []
+
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
                 delete_rbac_workspace(group_id)
-                delete_count += 1
+                groups_to_delete.append(group_id)
             except ResourceNotFoundException:
                 continue
     else:
-        delete_count = delete_group_list(group_id_list, identity, current_app.event_producer)
+        groups_to_delete = group_id_list
+
+    delete_count = delete_group_list(groups_to_delete, identity, current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
