@@ -27,23 +27,37 @@ default:
         path: api/inventory/v1
         generator_version: 7.6.0
     v7_ingress_v1:
+      type: rest
       config:
         module_name: iqe_bindings.v7.ingress_v1
         path: api/ingress/v1
     v7_notifications_v1:
+      type: rest
       config:
         module_name: iqe_bindings.v7.notifications_v1
         path: api/notifications/v1.0
     v7_integrations_v1:
+      type: rest
       config:
         module_name: iqe_bindings.v7.integrations_v1
         path: api/integrations/v1.0
+    v7_rbac_v1:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.rbac_v1
+        path: api/rbac/v1
+    v7_rbac_v2:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.rbac_v2
+        path: api/rbac/v2
   email_account:
     insights-qe:
       username: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: username}
       password: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: password}
       credentials: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: credentials}
       token: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: token}
+
   metadata:
     default_fields:
       component: host_inventory
@@ -525,6 +539,16 @@ smoke:
         hostname: ingress-service
         scheme: http
         port: 8080
+    v7_rbac_v1:
+      config:
+        hostname: rbac-service
+        scheme: http
+        port: 8080
+    v7_rbac_v2:
+      config:
+        hostname: rbac-service
+        scheme: http
+        port: 8080
   db:
     hostname: "inventory-db"
     database: "insights"
@@ -660,6 +684,16 @@ clowder_smoke:
         hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
+    v7_rbac_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_rbac_v2:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
@@ -696,6 +730,16 @@ stage_post_deploy:
         hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
+    v7_rbac_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_rbac_v2:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
