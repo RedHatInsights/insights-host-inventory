@@ -31,7 +31,6 @@ from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.common import inventory_config
-from app.exceptions import IdsNotFoundError
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_host_exists_succeeded
 from app.instrumentation import log_get_host_list_failed
@@ -57,16 +56,11 @@ from app.serialization import serialize_host_with_params
 from app.serialization import serialize_uuid
 from app.utils import Tag
 from app.utils import check_all_ids_found
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import build_flag_context
-from lib.feature_flags import get_flag_value
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
-from lib.kessel import get_kessel_client
 from lib.middleware import access
-from lib.middleware import get_kessel_filter
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
 TAG_OPERATIONS = ("apply", "remove")
@@ -593,23 +587,10 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
 @access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
 def get_host_exists(insights_id, rbac_filter=None):
-    current_identity = get_current_identity()
     host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
 
     if not host_id:
         flask.abort(404, f"No host found for Insights ID '{insights_id}'.")
-    # Duplicated - I wonder if this could be factored back into middleware.py
-    # Pass org_id context for org-specific feature flag targeting
-    if (not inventory_config().bypass_kessel) and get_flag_value(
-        FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
-    ):
-        kessel_client = get_kessel_client(current_app)
-        allowed, kessel_data = get_kessel_filter(
-            kessel_client, current_identity, KesselResourceTypes.HOST.view, [host_id]
-        )
-        if not allowed:
-            unauthorized_ids = kessel_data.get("unauthorized_ids") if kessel_data else None
-            raise IdsNotFoundError("host", unauthorized_ids)
 
     log_get_host_exists_succeeded(logger, host_id)
     return flask_json_response({"id": host_id})
