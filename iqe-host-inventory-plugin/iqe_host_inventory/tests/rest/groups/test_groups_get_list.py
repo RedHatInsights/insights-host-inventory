@@ -363,7 +363,14 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
     assert len(response.results) == 3
     assert {group.id for group in response.results} == set(wanted_groups_dict.keys())
     for group in response.results:
-        assert group == wanted_groups_dict[group.id]
+        # Compare key fields only (timestamps may differ due to RBAC v2 workspace updates)
+        wanted = wanted_groups_dict[group.id]
+        assert group.id == wanted.id
+        assert group.name == wanted.name
+        assert group.org_id == wanted.org_id
+        assert group.account == wanted.account
+        assert group.host_count == wanted.host_count
+        assert group.ungrouped == wanted.ungrouped
 
 
 @pytest.mark.ephemeral

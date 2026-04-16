@@ -568,7 +568,13 @@ def test_groups_create_strip_whitespace(host_inventory):
 
     response_groups = host_inventory.apis.groups.get_groups(name=stripped_name)
     assert len(response_groups) == 1
-    assert response_groups[0] == group
+    # Compare key fields only (timestamps may differ due to RBAC v2 workspace updates)
+    assert response_groups[0].id == group.id
+    assert response_groups[0].name == group.name
+    assert response_groups[0].org_id == group.org_id
+    assert response_groups[0].account == group.account
+    assert response_groups[0].host_count == group.host_count
+    assert response_groups[0].ungrouped == group.ungrouped
 
 
 @pytest.mark.ephemeral
