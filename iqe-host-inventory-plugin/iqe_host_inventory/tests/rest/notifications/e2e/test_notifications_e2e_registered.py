@@ -102,7 +102,7 @@ def test_notifications_e2e_registered(
     """
     tags = generate_tags()
     host = host_inventory_test_app.upload.create_host(tags=tags)
-    sp = host_inventory.apis.hosts.get_hosts_system_profile(host)[0].system_profile
+    sp = host_inventory_test_app.apis.hosts.get_hosts_system_profile(host)[0].system_profile
 
     check_instant_email(
         host_inventory.application,
