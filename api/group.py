@@ -463,8 +463,6 @@ def delete_groups(group_id_list, rbac_filter=None):
     found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
     check_all_ids_found(group_id_list, found_groups, "group")
 
-    delete_count = 0
-
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(identity)
