@@ -103,7 +103,7 @@ def build_host_archive(
     if not base_archive:
         base_archive = get_default_rhel_archive()
     if not archive_repo:
-        archive_repo = "ingress"
+        archive_repo = "host_inventory"
 
     base_archive_file_path = get_upload_file_path(base_archive, archive_repo)
 
@@ -162,7 +162,7 @@ def delete_files(files_to_delete: Sequence[InsightsArchive | InsightsArchiveInMe
             remove(file_name)
 
 
-def get_upload_file_path(tarball_name, plugin_name="ingress"):
+def get_upload_file_path(tarball_name, plugin_name="host_inventory"):
     upload_root_dir = plugin_path(f"iqe_{plugin_name}")
 
     possible_archives_paths = [
