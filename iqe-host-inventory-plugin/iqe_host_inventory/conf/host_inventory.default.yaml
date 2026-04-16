@@ -30,6 +30,20 @@ default:
       config:
         module_name: iqe_bindings.v7.ingress_v1
         path: api/ingress/v1
+    v7_notifications_v1:
+      config:
+        module_name: iqe_bindings.v7.notifications_v1
+        path: api/notifications/v1.0
+    v7_integrations_v1:
+      config:
+        module_name: iqe_bindings.v7.integrations_v1
+        path: api/integrations/v1.0
+  email_account:
+    insights-qe:
+      username: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: username}
+      password: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: password}
+      credentials: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: credentials}
+      token: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: token}
   metadata:
     default_fields:
       component: host_inventory
