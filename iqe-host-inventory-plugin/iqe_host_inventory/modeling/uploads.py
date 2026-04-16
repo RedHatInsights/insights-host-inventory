@@ -48,7 +48,7 @@ class HostData:
     tags: list[TagDict] | None = None
     operating_system: OperatingSystem | None = None
     base_archive: str | None = None
-    archive_repo: str = "ingress"
+    archive_repo: str = "host_inventory"
     core_collect: bool = True
 
 
@@ -159,7 +159,7 @@ class HBIUploads(BaseEntity):
         tags: list[TagDict] | None = None,
         operating_system: OperatingSystem | None = None,
         base_archive: str | None = None,
-        archive_repo: str = "ingress",
+        archive_repo: str = "host_inventory",
         core_collect: bool = True,
     ) -> InsightsArchiveInMemory:
         """Create a new host by uploading an insights archive to ingress.
@@ -180,12 +180,12 @@ class HBIUploads(BaseEntity):
         :param list[TagDict] tags: Set the host's tags.
             Default: 5 random tags
         :param OperatingSystem operating_system: Set the host's operating system.
-            Default: RHEL 8.7
+            Default: RHEL 9.4
         :param str base_archive: Name of the pre-collected insights archive file to be used as a
             base for the new host.
-            Default: "rhel87_core_collect.tar.gz"
+            Default: "rhel94_core_collect.tar.gz"
         :param str archive_repo: IQE plugin where we can find the 'base_archive' file
-            Default: "ingress" (iqe-ingress-plugin)
+            Default: "host_inventory"
         :param bool core_collect: Whether the archive structure should follow the newer core
             collection style.
             Default: True
@@ -232,7 +232,7 @@ class HBIUploads(BaseEntity):
         tags: list[TagDict] | None = None,
         operating_system: OperatingSystem | None = None,
         base_archive: str | None = None,
-        archive_repo: str = "ingress",
+        archive_repo: str = "host_inventory",
         core_collect: bool = True,
         register_for_cleanup: bool = True,
         cleanup_scope: str = "function",
@@ -256,12 +256,12 @@ class HBIUploads(BaseEntity):
         :param list[TagDict] tags: Set the host's tags.
             Default: 5 random tags
         :param OperatingSystem operating_system: Set the host's operating system.
-            Default: RHEL 8.7
+            Default: RHEL 9.4
         :param str base_archive: Name of the pre-collected insights archive file to be used as a
             base for the new host.
-            Default: "rhel87_core_collect.tar.gz"
+            Default: "rhel94_core_collect.tar.gz"
         :param str archive_repo: IQE plugin where we can find the 'base_archive' file
-            Default: "ingress" (iqe-ingress-plugin)
+            Default: "host_inventory"
         :param bool core_collect: Whether the archive structure should follow the newer core
             collection style.
             Default: True
