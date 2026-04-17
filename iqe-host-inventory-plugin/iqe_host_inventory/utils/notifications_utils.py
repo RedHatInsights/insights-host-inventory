@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from iqe.base.application import Application
 from iqe.base.datafiles import get_data_path_for_plugin
-from iqe_notifications_api import EventLogEntry
+from iqe_bindings.v7.notifications_v1 import EventLogEntry
 from ocdeployer.utils import oc
 
 from iqe_host_inventory import ApplicationHostInventory
@@ -243,7 +243,7 @@ def check_stale_notifications_data(
 
 
 def get_events(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     *,
     event_type: str | None = None,
     include_actions: bool = True,
@@ -255,7 +255,7 @@ def get_events(
     Propagation of events is occasionally slow in Stage and Prod for some services. I didn't notice
     it with Inventory, but we may need to add polling if it becomes an issue.
     """
-    return application.notifications.rest_client_notifications.default_api.event_resource_v1_get_events(  # noqa: E501
+    return host_inventory.v7_notifications_v1.default_api.event_resource_v1_get_events(
         event_type_display_name=event_type,
         include_actions=include_actions,
         include_details=include_details,
@@ -276,7 +276,7 @@ def filter_events_by_inventory_id(
 
 
 def check_event_log(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     *,
     inventory_id: str,
     event_type: str,
@@ -307,7 +307,7 @@ def check_event_log(
       ]
     }
     """
-    all_events = get_events(application, event_type=event_type)
+    all_events = get_events(host_inventory, event_type=event_type)
     filtered_events = filter_events_by_inventory_id(all_events, inventory_id)
     assert len(filtered_events) == 1
     my_event = filtered_events[0]
@@ -334,9 +334,12 @@ def check_event_log(
 
 
 def check_event_log_delete(
-    application: Application, host: HostOut, tags: list[TagDict], system_profile: SystemProfile
+    host_inventory: ApplicationHostInventory,
+    host: HostOut,
+    tags: list[TagDict],
+    system_profile: SystemProfile,
 ) -> None:
-    event = check_event_log(application, inventory_id=host.id, event_type="System deleted")
+    event = check_event_log(host_inventory, inventory_id=host.id, event_type="System deleted")
 
     event_payload = loads(event.payload)
     notification_wrapper = DeleteNotificationWrapper.from_json_event(event_payload)
@@ -349,13 +352,15 @@ def check_event_log_delete(
 
 
 def check_event_log_registered(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     host: HostOut,
     tags: list[TagDict],
     system_profile: SystemProfile,
     base_url: str,
 ) -> None:
-    event = check_event_log(application, inventory_id=host.id, event_type="New system registered")
+    event = check_event_log(
+        host_inventory, inventory_id=host.id, event_type="New system registered"
+    )
 
     event_payload = loads(event.payload)
     notification_wrapper = RegisteredNotificationWrapper.from_json_event(event_payload)
@@ -368,13 +373,13 @@ def check_event_log_registered(
 
 
 def check_event_log_stale(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     host: HostOut,
     tags: list[TagDict],
     system_profile: SystemProfile,
     base_url: str,
 ) -> None:
-    event = check_event_log(application, inventory_id=host.id, event_type="System became stale")
+    event = check_event_log(host_inventory, inventory_id=host.id, event_type="System became stale")
 
     event_payload = loads(event.payload)
     notification_wrapper = StaleNotificationWrapper.from_json_event(event_payload)

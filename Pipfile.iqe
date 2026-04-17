@@ -4,22 +4,28 @@ verify_ssl = true
 name = "rhnexus"
 
 [dev-packages]
+beautifulsoup4 = "*"
 click = "*"
+crc-bonfire = "*"
 faker = "*"
+google-api-python-client = "*"
+google-auth = "*"
 iqe-bindings = "*"
 iqe-core = {version = ">=24.11.29.1", index = "rhnexus"}
 iqe-export-service-plugin = "*"
 iqe-goatee-plugin = "*"
-iqe-ingress-plugin = "*"
 iqe-kessel-sync-plugin = "*"
-iqe-turnpike-plugin = "*"
 iqe-mq-plugin = ">=24.11.29"
-iqe-notifications-plugin = "*"
 iqe-rbac-plugin = "*"
+iqe-turnpike-plugin = "*"
+lxml = "*"
 ocdeployer = "*"
+psycopg2-binary = "*"
+pytest = "*"
 pytest-html = "*"
 pytest-lazy-fixtures = "*"
-crc-bonfire = "*"
+requests = "*"
+sqlalchemy = "*"
 
 [requires]
 python_version = "3.12"
