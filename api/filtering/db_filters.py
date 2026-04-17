@@ -208,11 +208,8 @@ def _stale_timestamp_per_reporter_filter(
     """
     Filter hosts by reporter staleness.
 
-    Handles both database formats until RHINENG-21703 is completed:
-    - Flat format: {"reporter": "ISO timestamp"}
-    - Nested format: {"reporter": {"last_check_in": "...", "culled_timestamp": "...", ...}}
-
-    Uses PostgreSQL's jsonb_typeof() to detect format and apply appropriate logic.
+    Expects flat JSONB storage: ``{"reporter": "<ISO last_check_in>"}`` per key.
+    Uses ``jsonb_typeof`` so non-string values do not match culled / range logic.
 
     Args:
         reporter: Reporter name to filter by (required, can start with '!' for negation)
@@ -238,28 +235,14 @@ def _stale_timestamp_per_reporter_filter(
         and_conditions = []
 
         for rep in reporter_list:
-            # For flat format: reporter is culled if computed_culled < now
             flat_format_culled = and_(
                 func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
                 Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval < current_time,
             )
 
-            # For nested format: reporter is culled if culled_timestamp is in the past
-            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
-            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
-            nested_format_culled = and_(
-                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                func.coalesce(
-                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
-                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
-                )
-                < current_time,
-            )
-
             rep_condition = or_(
                 not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
-                flat_format_culled,  # Flat format and culled
-                nested_format_culled,  # Nested format and culled
+                flat_format_culled,
             )
             and_conditions.append(rep_condition)
 
@@ -270,49 +253,28 @@ def _stale_timestamp_per_reporter_filter(
         for rep in reporter_list:
             conditions = [Host.per_reporter_staleness.has_key(rep)]
 
-            # For flat format: not culled if computed_culled >= now
             flat_format_not_culled = and_(
                 func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
                 Host.per_reporter_staleness[rep].astext.cast(DateTime) + culled_interval >= current_time,
             )
 
-            # For nested format: not culled if culled_timestamp >= now
-            # If culled_timestamp is missing, calculate it from last_check_in + culled_interval
-            # Use COALESCE to use culled_timestamp if present, otherwise calculate from last_check_in
-            nested_format_not_culled = and_(
-                func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                func.coalesce(
-                    Host.per_reporter_staleness[rep]["culled_timestamp"].astext.cast(DateTime),
-                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) + culled_interval,
-                )
-                >= current_time,
-            )
+            conditions.append(flat_format_not_culled)
 
-            # Either format is acceptable as long as not culled
-            conditions.append(or_(flat_format_not_culled, nested_format_not_culled))
-
-            # Time range filters - handle both formats
             if gt:
-                flat_gt = and_(
-                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
-                    Host.per_reporter_staleness[rep].astext.cast(DateTime) > gt,
+                conditions.append(
+                    and_(
+                        func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                        Host.per_reporter_staleness[rep].astext.cast(DateTime) > gt,
+                    )
                 )
-                nested_gt = and_(
-                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) > gt,
-                )
-                conditions.append(or_(flat_gt, nested_gt))
 
             if lte:
-                flat_lte = and_(
-                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
-                    Host.per_reporter_staleness[rep].astext.cast(DateTime) <= lte,
+                conditions.append(
+                    and_(
+                        func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
+                        Host.per_reporter_staleness[rep].astext.cast(DateTime) <= lte,
+                    )
                 )
-                nested_lte = and_(
-                    func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "object",
-                    Host.per_reporter_staleness[rep]["last_check_in"].astext.cast(DateTime) <= lte,
-                )
-                conditions.append(or_(flat_lte, nested_lte))
 
             or_filter.append(and_(*conditions))
 
