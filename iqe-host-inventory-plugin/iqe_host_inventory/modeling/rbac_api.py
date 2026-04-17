@@ -9,9 +9,20 @@ from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
+from iqe_bindings.v7.rbac_v1 import Access
 from iqe_bindings.v7.rbac_v1 import ApiException as RBACApiException
+from iqe_bindings.v7.rbac_v1 import Group as RBACGroup
 from iqe_bindings.v7.rbac_v1 import GroupOut as RBACGroupOut
+from iqe_bindings.v7.rbac_v1 import GroupPrincipalIn
+from iqe_bindings.v7.rbac_v1 import GroupPrincipalInPrincipalsInner
+from iqe_bindings.v7.rbac_v1 import GroupRoleIn
 from iqe_bindings.v7.rbac_v1 import GroupWithPrincipalsAndRoles
+from iqe_bindings.v7.rbac_v1 import PrincipalIn
+from iqe_bindings.v7.rbac_v1 import ResourceDefinition
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilter
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilterOperationEqual
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilterOperationIn
+from iqe_bindings.v7.rbac_v1 import RoleIn
 from iqe_bindings.v7.rbac_v1 import RoleWithAccess
 from iqe_bindings.v7.rbac_v2 import ApiException as RBACV2ApiException
 from iqe_bindings.v7.rbac_v2 import ResourceType
@@ -89,12 +100,13 @@ class RBACAPIWrapper(BaseEntity):
             else description
         )
 
-        return self.raw_api.group_api.create_group({"name": name, "description": description})
+        return self.raw_api.group_api.create_group(RBACGroup(name=name, description=description))
 
     def add_user_to_a_group(self, username: str, group_uuid: str) -> GroupWithPrincipalsAndRoles:
-        return self.raw_api.group_api.add_principal_to_group(
-            group_uuid, {"principals": [{"username": username}]}
+        body = GroupPrincipalIn(
+            principals=[GroupPrincipalInPrincipalsInner(PrincipalIn(username=username))]
         )
+        return self.raw_api.group_api.add_principal_to_group(group_uuid, body)
 
     def remove_user_from_group(self, username: str, group_uuid: str) -> None:
         try:
@@ -134,20 +146,27 @@ class RBACAPIWrapper(BaseEntity):
         )
 
         if hbi_group_ids:
-            definitions = [
-                {"attributeFilter": {"key": key, "value": hbi_group_ids, "operation": operation}}
-            ]
+            if operation == "in":
+                attr_filter = ResourceDefinitionFilter(
+                    ResourceDefinitionFilterOperationIn(
+                        key=key, operation=operation, value=hbi_group_ids
+                    )
+                )
+            else:
+                attr_filter = ResourceDefinitionFilter(
+                    ResourceDefinitionFilterOperationEqual(
+                        key=key, operation=operation, value=hbi_group_ids
+                    )
+                )
+            resource_defs = [ResourceDefinition(attribute_filter=attr_filter)]
         else:
-            definitions = []
+            resource_defs = []
 
-        permissions = [{"permission": permission_v, "resourceDefinitions": definitions}]
+        access = [Access(permission=permission_v, resource_definitions=resource_defs)]
 
-        return self.raw_api.role_api.create_role({
-            "name": name,
-            "description": description,
-            "access": permissions,
-            "applications": [application],
-        })
+        return self.raw_api.role_api.create_role(
+            RoleIn(name=name, description=description, access=access)
+        )
 
     def create_role_v2(
         self,
@@ -172,7 +191,7 @@ class RBACAPIWrapper(BaseEntity):
 
     def add_roles_to_a_group(self, roles: list[RoleWithAccess], group_uuid: str) -> None:
         role_uuids = [role.uuid for role in roles]
-        self.raw_api.group_api.add_role_to_group(group_uuid, {"roles": role_uuids})
+        self.raw_api.group_api.add_role_to_group(group_uuid, GroupRoleIn(roles=role_uuids))
 
     def create_role_bindings(
         self,
