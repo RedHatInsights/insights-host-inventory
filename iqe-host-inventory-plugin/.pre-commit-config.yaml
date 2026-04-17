@@ -11,16 +11,17 @@ repos:
   rev: v2.21.1
   hooks:
   - id: pyproject-fmt
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: 'v1.20.1'
-  hooks:
-  - id: mypy
-    additional_dependencies:
-    - types-requests
-    - types-python-dateutil
-    - attrs
-    - iqe-core
-    - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
+# align with root level mypy config or remove
+# - repo: https://github.com/pre-commit/mirrors-mypy
+#   rev: 'v1.20.1'
+#   hooks:
+#   - id: mypy
+#     additional_dependencies:
+#     - types-requests
+#     - types-python-dateutil
+#     - attrs
+#     - iqe-core
+#     - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
 - repo: https://github.com/asottile/pyupgrade
   rev: v3.21.2
   hooks:
