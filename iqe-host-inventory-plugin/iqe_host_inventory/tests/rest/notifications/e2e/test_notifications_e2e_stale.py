@@ -5,12 +5,12 @@ import os
 from collections.abc import Generator
 
 import pytest
-from iqe.base.application import Application
-from iqe_notifications.utils.email_alert import NotificationsEmailAlert
-from iqe_notifications.utils.email_utils import FindEmailOptions
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import generate_tags
+from iqe_host_inventory.utils.email_utils import Email
+from iqe_host_inventory.utils.email_utils import FindEmailOptions
+from iqe_host_inventory.utils.notifications_alert import NotificationsEmailAlert
 from iqe_host_inventory.utils.notifications_utils import check_event_log_stale
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 
@@ -26,14 +26,13 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def setup_stale_notifications(application: Application) -> Generator[None]:
+def setup_stale_notifications(host_inventory: ApplicationHostInventory) -> Generator[None]:
     """
     Creates Behavior Group (BG) in Notifications service.
-    Check iqe-notifications-plugin README for more information.
     """
 
     email_alert = NotificationsEmailAlert(
-        application, event_name="System became stale", bundle_name="rhel"
+        host_inventory, event_name="System became stale", bundle_name="rhel"
     )
     email_alert.notification_setup_before_trigger_event()
 
@@ -43,7 +42,7 @@ def setup_stale_notifications(application: Application) -> Generator[None]:
 
 
 def check_instant_email(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     display_name: str,
     host_id: str,
     base_url: str,
@@ -54,9 +53,9 @@ def check_instant_email(
     """
     Finds an email notification and checks the email content.
 
-    The `Notifications.email.find_email()` utility goes through all the emails in the inbox
-    from newest to oldest and checks if the email subject and body contain the required data.
-    If yes, it returns the email. If no, it returns `None`.
+    The `Email.find_email()` utility goes through all the emails in the inbox from newest to
+    oldest and checks if the email subject and body contain the required data. If yes, it returns
+    the email. If no, it returns `None`.
 
     We can limit the number of emails it goes through via the `email_amount` parameter.  This
     parameter is set to a fairly small value because we expect that our notification will be
@@ -68,7 +67,7 @@ def check_instant_email(
 
     The email is not deleted after it is fetched and is kept in the inbox.
     """
-    email = application.notifications.email.find_email(
+    email = Email(host_inventory).find_email(
         options=FindEmailOptions(
             subject_token="Instant notification - System became stale - Inventory - "
             "Red Hat Enterprise Linux",
@@ -117,14 +116,14 @@ def test_notifications_e2e_stale(
     host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale")
 
     check_instant_email(
-        host_inventory.application,
+        host_inventory,
         display_name=host.display_name,
         host_id=host.id,
         base_url=hbi_base_url,
         retry=20,
         retry_timeout=180,
     )
-    check_event_log_stale(host_inventory.application, host, tags, sp, base_url=hbi_base_url)
+    check_event_log_stale(host_inventory, host, tags, sp, base_url=hbi_base_url)
 
 
 @pytest.mark.skipif(
@@ -133,7 +132,7 @@ def test_notifications_e2e_stale(
 )
 @pytest.mark.usefixtures("setup_stale_notifications")
 def test_notifications_e2e_stale_digest(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     hbi_base_url: str,
 ):
     """
@@ -154,7 +153,7 @@ def test_notifications_e2e_stale_digest(
         importance: high
         title: Test email notification digest when hosts become stale
     """
-    email = application.notifications.email.find_email(
+    email = Email(host_inventory).find_email(
         options=FindEmailOptions(
             subject_token="Daily Digest - Red Hat Enterprise Linux",
             body_token="Stale systems",

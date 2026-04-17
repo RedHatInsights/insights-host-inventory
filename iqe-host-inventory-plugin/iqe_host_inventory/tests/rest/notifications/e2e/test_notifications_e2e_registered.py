@@ -5,13 +5,13 @@ import os
 from collections.abc import Generator
 
 import pytest
-from iqe.base.application import Application
-from iqe_notifications.utils.email_alert import NotificationsEmailAlert
-from iqe_notifications.utils.email_utils import FindEmailOptions
 from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import generate_tags
+from iqe_host_inventory.utils.email_utils import Email
+from iqe_host_inventory.utils.email_utils import FindEmailOptions
+from iqe_host_inventory.utils.notifications_alert import NotificationsEmailAlert
 from iqe_host_inventory.utils.notifications_utils import check_event_log_registered
 from iqe_host_inventory.utils.notifications_utils import get_email_recipient
 
@@ -27,14 +27,13 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def setup_registered_notifications(application: Application) -> Generator[None]:
+def setup_registered_notifications(host_inventory: ApplicationHostInventory) -> Generator[None]:
     """
     Creates Behavior Group (BG) in Notifications service.
-    Check iqe-notifications-plugin README for more information.
     """
 
     email_alert = NotificationsEmailAlert(
-        application, event_name="New system registered", bundle_name="rhel"
+        host_inventory, event_name="New system registered", bundle_name="rhel"
     )
     email_alert.notification_setup_before_trigger_event()
 
@@ -44,21 +43,21 @@ def setup_registered_notifications(application: Application) -> Generator[None]:
 
 
 def check_instant_email(
-    application: Application, display_name: str, host_id: str, base_url: str
+    host_inventory: ApplicationHostInventory, display_name: str, host_id: str, base_url: str
 ) -> None:
     """
     Finds an email notification and checks the email content.
-    `Notifications.email.find_email()` utility goes through all the emails in the inbox from newest
-    to oldest and checks if the email subject and body contain the required data. If yes, it
-    returns the email. If it can't find the email, it returns `None`. We can limit the number of
-    emails it goes through via `email_amount` parameter. Also, we can set the number of retries and
-    the timeout between the retries. I set the `email_amount` to a fairly small value, because we
+    `Email.find_email()` utility goes through all the emails in the inbox from newest to oldest
+    and checks if the email subject and body contain the required data. If yes, it returns the
+    email. If it can't find the email, it returns `None`. We can limit the number of emails it
+    goes through via `email_amount` parameter. Also, we can set the number of retries and the
+    timeout between the retries. I set the `email_amount` to a fairly small value, because we
     expect that our notification will be among the newest emails. Also, I set `retry_timeout` to 0,
     because the utility behaves in a weird way and if the timeout is non-zero, it adds 30 seconds
     to it on each retry and finding the emails takes a long time then. The email is not deleted
     after it is fetched and it is kept in the inbox.
     """
-    email = application.notifications.email.find_email(
+    email = Email(host_inventory).find_email(
         options=FindEmailOptions(
             subject_token="Instant notification - New system registered - Inventory - "
             "Red Hat Enterprise Linux",
@@ -105,16 +104,16 @@ def test_notifications_e2e_registered(
     sp = host_inventory_test_app.apis.hosts.get_hosts_system_profile(host)[0].system_profile
 
     check_instant_email(
-        host_inventory.application,
+        host_inventory,
         display_name=host.display_name,
         host_id=host.id,
         base_url=hbi_base_url,
     )
-    check_event_log_registered(host_inventory.application, host, tags, sp, base_url=hbi_base_url)
+    check_event_log_registered(host_inventory, host, tags, sp, base_url=hbi_base_url)
 
 
 def test_notifications_e2e_registered_digest(
-    application: Application,
+    host_inventory: ApplicationHostInventory,
     hbi_base_url: str,
 ):
     """
@@ -135,11 +134,11 @@ def test_notifications_e2e_registered_digest(
         importance: high
         title: Test email notification digest after creating hosts
     """
-    email = application.notifications.email.find_email(
+    email = Email(host_inventory).find_email(
         options=FindEmailOptions(
             subject_token="Daily Digest - Red Hat Enterprise Linux",
             body_token="New systems registered",
-            recipient_token=get_email_recipient(application, digest=True),
+            recipient_token=get_email_recipient(host_inventory.application, digest=True),
             email_amount=100,
             retry=1,
             retry_timeout=0,
