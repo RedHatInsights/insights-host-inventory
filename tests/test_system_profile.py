@@ -23,6 +23,7 @@ from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -77,35 +78,10 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    url = build_system_profile_sap_system_url()
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 200)
-
-
-@pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    url = build_system_profile_sap_sids_url()
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 200)
+@pytest.mark.parametrize("url_builder", [build_system_profile_sap_system_url, build_system_profile_sap_sids_url])
+def test_get_system_profile_endpoints_with_RBAC_allowed(subtests, mocker, api_get, url_builder):
+    url = url_builder()
+    run_rbac_test(subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [url])
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -145,18 +121,8 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_system_profile_RBAC_allowed(mocker, subtests, db_create_host, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
     host_id = str(db_create_host().id)
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, _ = api_get(f"{HOST_URL}/{host_id}/system_profile")
-
-            assert_response_status(response_status, 200)
+    run_rbac_test(subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [f"{HOST_URL}/{host_id}/system_profile"])
 
 
 @pytest.mark.usefixtures("enable_rbac")

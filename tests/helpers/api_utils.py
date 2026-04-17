@@ -605,6 +605,32 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
+def run_rbac_test(subtests, mocker, api_operation, rbac_response_files, expected_status, operation_args=None, operation_kwargs=None):
+    """
+    Generic RBAC test helper that tests an API operation with multiple RBAC permission files.
+
+    Args:
+        subtests: pytest subtests fixture
+        mocker: pytest-mock mocker fixture
+        api_operation: API fixture function to call (e.g., api_create_staleness, api_delete_staleness)
+        rbac_response_files: tuple of RBAC mock response file paths to test
+        expected_status: expected HTTP status code (e.g., 201, 403, 200)
+        operation_args: optional list of positional arguments to pass to api_operation
+        operation_kwargs: optional dict of keyword arguments to pass to api_operation
+    """
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    operation_args = operation_args or []
+    operation_kwargs = operation_kwargs or {}
+
+    for response_file in rbac_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, _ = api_operation(*operation_args, **operation_kwargs)
+            assert_response_status(response_status, expected_status)
+
+
 class RBACFilterOperation(StrEnum):
     EQUAL = "equal"
     IN = "in"
