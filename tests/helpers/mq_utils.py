@@ -107,7 +107,13 @@ class MockFuture:
 
 
 def generate_kessel_workspace_message(
-    operation: str, id: str, name: str, type: str = "standard", identity: dict = SYSTEM_IDENTITY
+    operation: str,
+    id: str,
+    name: str,
+    type: str = "standard",
+    identity: dict = SYSTEM_IDENTITY,
+    created: str | None = None,
+    modified: str | None = None,
 ):
     now = datetime.now().isoformat()
 
@@ -119,8 +125,8 @@ def generate_kessel_workspace_message(
             "id": id,
             "name": name,
             "type": type,
-            "created": now,
-            "modified": now,
+            "created": created or now,
+            "modified": modified or now,
         },
     }
 

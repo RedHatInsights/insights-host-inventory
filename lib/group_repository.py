@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -40,6 +41,9 @@ from app.staleness_serialization import AttrDict
 from lib.batch_cache import ThreadLocalBatchCache
 from lib.db import raw_db_connection
 from lib.db import session_guard
+from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
+from lib.feature_flags import build_flag_context
+from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.host_repository import host_query
@@ -161,7 +165,8 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     ]
     db.session.add_all(host_group_assoc)
 
-    _update_group_update_time(group_id, org_id)
+    if not get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)):
+        _update_group_update_time(group_id, org_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -240,9 +245,19 @@ def add_group(
     group_id: UUID | None = None,
     ungrouped: bool = False,
     session: Session | None = None,
+    created_on: datetime | None = None,
+    modified_on: datetime | None = None,
 ) -> Group:
     session = session or db.session
-    new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
+    new_group = Group(
+        org_id=org_id,
+        name=group_name,
+        account=account,
+        id=group_id,
+        ungrouped=ungrouped,
+        created_on=created_on,
+        modified_on=modified_on,
+    )
     session.add(new_group)
     session.flush()
 
@@ -444,7 +459,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
-    _update_group_update_time(group_id, org_id)
+    if not get_flag_value(FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)):
+        _update_group_update_time(group_id, org_id)
 
     return removed_host_ids
 

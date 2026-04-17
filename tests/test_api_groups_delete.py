@@ -388,6 +388,39 @@ def test_remove_hosts_from_existing_group(
         assert event["platform_metadata"] == {"b64_identity": to_auth_header(Identity(obj=USER_IDENTITY))}
 
 
+@pytest.mark.parametrize("kessel_groups_enabled", [True, False])
+def test_remove_hosts_from_group_timestamp_with_kessel_groups_flag(
+    db_create_group,
+    db_create_host,
+    db_get_group_by_id,
+    db_create_host_group_assoc,
+    api_remove_hosts_from_group,
+    event_producer,
+    mocker,
+    kessel_groups_enabled,
+):
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("lib.group_repository.get_flag_value", return_value=kessel_groups_enabled)
+
+    group = db_create_group("test_group")
+    group_id = group.id
+    host_id_list = [str(db_create_host().id) for _ in range(3)]
+
+    for host_id in host_id_list:
+        db_create_host_group_assoc(host_id, group_id)
+
+    orig_modified_on = db_get_group_by_id(group_id).modified_on
+
+    response_status, _ = api_remove_hosts_from_group(group_id, host_id_list[:1])
+    assert response_status == 204
+
+    updated_group = db_get_group_by_id(group_id)
+    if kessel_groups_enabled:
+        assert updated_group.modified_on == orig_modified_on
+    else:
+        assert updated_group.modified_on > orig_modified_on
+
+
 @pytest.mark.usefixtures("enable_rbac")
 def test_delete_hosts_from_diff_groups_post_kessel_migration(
     mocker,

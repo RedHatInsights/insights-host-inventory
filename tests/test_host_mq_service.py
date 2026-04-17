@@ -2815,13 +2815,24 @@ def test_workspace_mq_event_loop(handle_message_mock, post_process_rows_mock, fl
 def test_workspace_mq_create(workspace_message_consumer_mock, workspace_type, db_get_group_by_id):
     workspace_id = generate_uuid()
     workspace_name = "test-kessel-workspace"
-    message = generate_kessel_workspace_message("create", str(workspace_id), workspace_name, workspace_type)
+    workspace_created = "2025-01-15T12:00:00+00:00"
+    workspace_modified = "2025-01-15T13:00:00+00:00"
+    message = generate_kessel_workspace_message(
+        "create",
+        str(workspace_id),
+        workspace_name,
+        workspace_type,
+        created=workspace_created,
+        modified=workspace_modified,
+    )
 
     workspace_message_consumer_mock.handle_message(json.dumps(message))
     found_group = db_get_group_by_id(workspace_id)
 
     assert found_group.name == workspace_name
     assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
+    assert found_group.created_on == datetime.fromisoformat(workspace_created)
+    assert found_group.modified_on == datetime.fromisoformat(workspace_modified)
 
 
 @pytest.mark.parametrize(
@@ -2877,7 +2888,8 @@ def test_workspace_mq_update(
     host_id_list = [str(host.id) for host in db_get_hosts_for_group(workspace_id)]
 
     new_name = "test-kessel-workspace"
-    message = generate_kessel_workspace_message("update", workspace_id, new_name)
+    workspace_modified = "2025-06-01T10:30:00+00:00"
+    message = generate_kessel_workspace_message("update", workspace_id, new_name, modified=workspace_modified)
     mock_event_producer = mocker.Mock()
     consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mock_event_producer, mocker.Mock())
 
@@ -2885,6 +2897,7 @@ def test_workspace_mq_update(
     found_group = db_get_group_by_id(workspace_id)
 
     assert found_group.name == new_name
+    assert found_group.modified_on == datetime.fromisoformat(workspace_modified)
 
     # Assert that hosts in group were updated and events were produced
     assert len(mock_event_producer.write_event.call_args_list) == 3
