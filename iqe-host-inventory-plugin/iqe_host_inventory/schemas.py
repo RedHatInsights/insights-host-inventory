@@ -4,12 +4,12 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
-from iqe_rbac_api import AccessApi
-from iqe_rbac_api import GroupApi
-from iqe_rbac_api import RoleApi
-from iqe_rbac_v2_api import RoleBindingsApi
-from iqe_rbac_v2_api import RolesApi
-from iqe_rbac_v2_api import WorkspacesApi
+from iqe_bindings.v7.rbac_v1 import AccessApi
+from iqe_bindings.v7.rbac_v1 import GroupApi
+from iqe_bindings.v7.rbac_v1 import RoleApi
+from iqe_bindings.v7.rbac_v2 import RoleBindingsApi
+from iqe_bindings.v7.rbac_v2 import RolesApi
+from iqe_bindings.v7.rbac_v2 import WorkspacesApi
 
 from iqe_host_inventory_api.models import PerReporterStaleness
 

@@ -31,7 +31,6 @@ dependencies = [
   "iqe-export-service-plugin",
   "iqe-kessel-sync-plugin",
   "iqe-mq-plugin>=24.11.29",
-  "iqe-rbac-plugin",
   "lxml",
   "ocdeployer",
   "psycopg2-binary",
