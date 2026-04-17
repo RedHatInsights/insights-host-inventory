@@ -40,3 +40,13 @@ iqe-host-inventory-plugin/**/host_inventory.local.yaml
 
 # worktrees
 worktrees/
+
+# Unleash
+.unleash/
+/tmp/unleash-cookies-test.txt
+/tmp/unleash-cookies-verify.txt
+.env
+.env.local
+.env.backup_*
+.claude/settings.local.json
+tmp/ephemeral_db_credentials_*.log
