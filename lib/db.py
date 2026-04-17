@@ -20,6 +20,24 @@ def session_guard(session, close=True):
 
 
 @contextmanager
+def no_expire_on_commit(session):
+    """Temporarily disable expire_on_commit so ORM objects retain their
+    loaded state after commit, avoiding lazy-reload queries.
+
+    Used during MQ batch processing where post_process_rows() needs to
+    serialize Host objects into event payloads after the session commits.
+    Without this, each attribute access triggers a SELECT per host.
+    """
+    actual_session = session() if callable(session) else session
+    original = actual_session.expire_on_commit
+    actual_session.expire_on_commit = False
+    try:
+        yield
+    finally:
+        actual_session.expire_on_commit = original
+
+
+@contextmanager
 def multi_session_guard(session_list):
     yield session_list
     for session in session_list:
