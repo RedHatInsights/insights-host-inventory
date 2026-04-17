@@ -82,7 +82,6 @@ from app.telemetry import get_tracer
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
-from lib.db import no_expire_on_commit
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
@@ -266,45 +265,43 @@ class HBIMessageConsumerBase:
                 "messaging.batch.message_count": len(valid_messages),
             },
         ):
-            with no_expire_on_commit(db.session):
-                with (
-                    session_guard(db.session, close=False),
-                    db.session.no_autoflush,
-                    StalenessCache(),
-                    UngroupedGroupCache(),
-                ):
-                    for msg in valid_messages:
-                        logger.debug("Message received")
+            with (
+                session_guard(db.session, close=False),
+                db.session.no_autoflush,
+                StalenessCache(),
+                UngroupedGroupCache(),
+            ):
+                for msg in valid_messages:
+                    logger.debug("Message received")
 
-                        with tracer.start_as_current_span(
-                            f"mq.process {msg.topic()}",
-                            attributes={
-                                "messaging.operation": "process",
-                                "messaging.destination.name": msg.topic() or "",
-                                "messaging.kafka.partition": msg.partition() or 0,
-                            },
-                        ) as span:
-                            try:
-                                self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
-                                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                                self.success_metric.inc()
-                            except OperationalError as oe:
-                                """sqlalchemy.exc.OperationalError: This error occurs when an
-                                authentication failure occurs or the DB is not accessible.
-                                Exit the process to restart the pod
-                                """
-                                span.set_status(StatusCode.ERROR, str(oe))
-                                span.record_exception(oe)
-                                logger.error(f"Could not access DB {str(oe)}")
-                                sys.exit(3)
-                            except Exception as exc:
-                                span.set_status(StatusCode.ERROR, str(exc))
-                                span.record_exception(exc)
-                                self.failure_metric.inc()
-                                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
-                # session_guard exits here — flush/commit are inside mq.batch span
+                    with tracer.start_as_current_span(
+                        f"mq.process {msg.topic()}",
+                        attributes={
+                            "messaging.operation": "process",
+                            "messaging.destination.name": msg.topic() or "",
+                            "messaging.kafka.partition": msg.partition() or 0,
+                        },
+                    ) as span:
+                        try:
+                            self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                            self.success_metric.inc()
+                        except OperationalError as oe:
+                            """sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                            """
+                            span.set_status(StatusCode.ERROR, str(oe))
+                            span.record_exception(oe)
+                            logger.error(f"Could not access DB {str(oe)}")
+                            sys.exit(3)
+                        except Exception as exc:
+                            span.set_status(StatusCode.ERROR, str(exc))
+                            span.record_exception(exc)
+                            self.failure_metric.inc()
+                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
-                self.post_process_rows()
+            self.post_process_rows()
 
             # Commit Kafka offsets after successful batch processing
             # This ensures offsets are persisted immediately after DB commit and event production,

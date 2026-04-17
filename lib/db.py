@@ -19,22 +19,6 @@ def session_guard(session, close=True):
             session.close()
 
 
-@contextmanager
-def no_expire_on_commit(session):
-    """Temporarily disable expire_on_commit so ORM objects retain their
-    loaded state after commit, avoiding lazy-reload queries.
-
-    Uses session() to get the underlying Session because Flask-SQLAlchemy's
-    scoped_session proxy does not forward __setattr__.
-    """
-    actual_session = session() if callable(session) else session
-    original = actual_session.expire_on_commit
-    actual_session.expire_on_commit = False
-    try:
-        yield
-    finally:
-        actual_session.expire_on_commit = original
-
 
 @contextmanager
 def multi_session_guard(session_list):
