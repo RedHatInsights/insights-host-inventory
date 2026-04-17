@@ -60,6 +60,7 @@ from lib.host_delete import delete_hosts
 from lib.host_repository import find_existing_host
 from lib.host_repository import find_non_culled_hosts
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import host_exists
 from lib.middleware import access
 
 FactOperations = Enum("FactOperations", ("merge", "replace"))
@@ -407,6 +408,9 @@ def _emit_patch_event(serialized_host, host):
     )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
     event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
+    if not host_exists(host.id, org_id=host.org_id, session=db.session):
+        logger.warning(f"Skipping update event for host {host.id}: host no longer exists")
+        return
     current_app.event_producer.write_event(event, str(host.id), headers, wait=True)
 
 

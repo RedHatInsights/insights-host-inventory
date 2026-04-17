@@ -536,3 +536,9 @@ def host_query(
     org_id: str,
 ) -> Query:
     return Host.query.filter(Host.org_id == org_id)
+
+
+def host_exists(host_id, org_id, session=None):
+    """Return True when a specific host row still exists in the database."""
+    session = session or db.session
+    return session.query(Host.id).filter(Host.id == host_id, Host.org_id == org_id).first() is not None
