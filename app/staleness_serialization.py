@@ -37,8 +37,14 @@ def get_staleness_timestamps(
 
     Returns:
         dict with keys ``stale_timestamp``, ``stale_warning_timestamp``, ``culled_timestamp``.
+
+    Raises:
+        ValueError: If both ``last_check_in`` and ``host.last_check_in`` are missing.
     """
     reference = last_check_in if last_check_in is not None else host.last_check_in
+    if reference is None:
+        raise ValueError("last_check_in is required (pass last_check_in= or set host.last_check_in).")
+
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(reference, staleness["conventional_time_to_stale"]),
         "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
