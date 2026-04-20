@@ -16,7 +16,7 @@ markupsafe = "==3.0.3"
 openapi-schema-validator = "==0.6.3"
 openapi-spec-validator = "==0.7.2"
 pyyaml = "~=6.0.3"
-prometheus-client = "~=0.24.1"
+prometheus-client = "~=0.25.0"
 logstash-formatter = "~=0.5.17"
 validators = "~=0.35.0"
 marshmallow = "~=4.3.0"
@@ -38,7 +38,7 @@ setuptools = "~=82.0.1"
 certifi = "~=2026.2.25"
 ratelimit = "*"
 confluent-kafka = "==2.14.0"
-kessel-sdk = {version = "~=2.4.0", extras = ["auth"]}
+kessel-sdk = {version = "~=2.5.0", extras = ["auth"]}
 googleapis-common-protos = "*"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==6.7.0"

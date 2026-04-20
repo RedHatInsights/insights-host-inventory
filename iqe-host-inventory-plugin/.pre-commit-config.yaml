@@ -8,25 +8,26 @@ repos:
   - id: check-yaml
   - id: debug-statements
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.21.0
+  rev: v2.21.1
   hooks:
   - id: pyproject-fmt
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: 'v1.20.0'
-  hooks:
-  - id: mypy
-    additional_dependencies:
-    - types-requests
-    - types-python-dateutil
-    - attrs
-    - iqe-core
-    - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
+# align with root level mypy config or remove
+# - repo: https://github.com/pre-commit/mirrors-mypy
+#   rev: 'v1.20.1'
+#   hooks:
+#   - id: mypy
+#     additional_dependencies:
+#     - types-requests
+#     - types-python-dateutil
+#     - attrs
+#     - iqe-core
+#     - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
 - repo: https://github.com/asottile/pyupgrade
   rev: v3.21.2
   hooks:
   - id: pyupgrade
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.15.10
+  rev: v0.15.11
   hooks:
   - id: ruff-check
     args: [--fix, --exit-non-zero-on-fix]
@@ -43,7 +44,8 @@ repos:
   - id: rh-pre-commit
   - id: rh-pre-commit.commit-msg # Optional for commit-msg attestation
 - repo: https://gitlab.cee.redhat.com/insights-qe/iqe-pre-commit-hooks
-  rev: v25.10.17.0
+  rev: v26.04.07.0
   hooks:
   - id: iqe-checks
   - id: iqe-tests-metadata
+    args: [--iqe-plugin-root=iqe-host-inventory-plugin]

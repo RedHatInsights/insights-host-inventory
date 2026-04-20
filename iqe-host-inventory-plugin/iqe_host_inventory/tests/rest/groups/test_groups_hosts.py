@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 def group_to_hosts_api_dict(group: GroupOut | GroupOutWithHostCount) -> dict:
     group_dict = group.to_dict()
     group_dict.pop("host_count", None)
+    group_dict.pop("created", None)
+    group_dict.pop("updated", None)
     return group_dict
 
 
@@ -110,7 +112,7 @@ def test_groups_get_host_by_id_response(host_inventory: ApplicationHostInventory
     assert isinstance(response.groups, list)
     if in_group:
         assert len(response.groups) == 1
-        assert response.groups[0].to_dict() == group_to_hosts_api_dict(group)
+        assert group_to_hosts_api_dict(response.groups[0]) == group_to_hosts_api_dict(group)
     else:
         assert is_ungrouped_host(response)
 
@@ -136,7 +138,7 @@ def test_groups_get_hosts_list(host_inventory: ApplicationHostInventory, in_grou
     assert isinstance(response[0].groups, list)
     if in_group:
         assert len(response[0].groups) == 1
-        assert response[0].groups[0].to_dict() == group_to_hosts_api_dict(group)
+        assert group_to_hosts_api_dict(response[0].groups[0]) == group_to_hosts_api_dict(group)
     else:
         assert is_ungrouped_host(response[0])
 

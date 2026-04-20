@@ -85,6 +85,7 @@ from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import UngroupedGroupCache
+from lib.host_repository import host_exists
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -1022,7 +1023,7 @@ def write_add_update_event_message(
         processing_status_message="host operation complete",
         current_operation="write_message_batch",
         inventory_id=result.row.id,
-    ):
+    ) as tracker_ctx:
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
         insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
@@ -1037,32 +1038,37 @@ def write_add_update_event_message(
             bootc_booted,
         )
 
-    event_producer.write_event(event, str(result.row.id), headers, wait=False)
+        if not host_exists(result.row.id, org_id=result.row.org_id, session=db.session):
+            logger.warning(f"Skipping event for host {result.row.id}: host no longer exists")
+            tracker_ctx._success_status_msg = "skipped – host deleted before event production"
+            return
 
-    if result.event_type.name == HOST_EVENT_TYPE_CREATED:
-        # Notifications are expected to omit null canonical facts
-        remove_null_canonical_facts(output_host)
-        send_notification(
-            notification_event_producer,
-            notification_type=NotificationType.new_system_registered,
-            host=output_host,
-        )
-    result.success_logger(output_host)
+        event_producer.write_event(event, str(result.row.id), headers, wait=False)
 
-    org_id = output_host.get("org_id")
-    try:
-        owner_id = output_host.get("system_profile", {}).get("owner_id")
-        if owner_id and insights_id and org_id:
-            system_key = make_system_cache_key(insights_id, org_id, owner_id)
-            if "tags" in output_host:
-                del output_host["tags"]
-            if "system_profile" in output_host:
-                del output_host["system_profile"]
-            # Set full group details before caching
-            output_host["groups"] = result.row.groups or []
-            set_cached_system(system_key, output_host, inventory_config())
-    except Exception as ex:
-        logger.error("Error during set cache", ex)
+        if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+            # Notifications are expected to omit null canonical facts
+            remove_null_canonical_facts(output_host)
+            send_notification(
+                notification_event_producer,
+                notification_type=NotificationType.new_system_registered,
+                host=output_host,
+            )
+        result.success_logger(output_host)
+
+        org_id = output_host.get("org_id")
+        try:
+            owner_id = output_host.get("system_profile", {}).get("owner_id")
+            if owner_id and insights_id and org_id:
+                system_key = make_system_cache_key(insights_id, org_id, owner_id)
+                if "tags" in output_host:
+                    del output_host["tags"]
+                if "system_profile" in output_host:
+                    del output_host["system_profile"]
+                # Set full group details before caching
+                output_host["groups"] = result.row.groups or []
+                set_cached_system(system_key, output_host, inventory_config())
+        except Exception as ex:
+            logger.error("Error during set cache", ex)
 
 
 def write_message_batch(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from app.common import inventory_config
@@ -18,62 +19,41 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-def _compute_timestamps_from_date(
-    date_to_use: datetime,
+def get_staleness_timestamps(
+    host: Host,
     staleness_timestamps: Timestamps,
     staleness: AttrDict,
+    last_check_in: datetime | None = None,
 ) -> dict:
-    """Compute stale, stale_warning, and culled timestamps from a reference datetime."""
+    """
+    Calculates the single set of staleness timestamps used at host level
+
+    Args:
+        host: Host row (used for default reference time when ``last_check_in`` is omitted).
+        staleness_timestamps: Retained for call-site compatibility; arithmetic uses ``timedelta`` only.
+        staleness: Org staleness configuration (conventional_time_to_*).
+        last_check_in: Optional reference instant.
+
+    Returns:
+        dict with keys ``stale_timestamp``, ``stale_warning_timestamp``, ``culled_timestamp``.
+
+    Raises:
+        ValueError: If both ``last_check_in`` and ``host.last_check_in`` are missing (no reference instant).
+    """
+    _ = staleness_timestamps  # API compatibility; Phase 1 compute-on-read uses offsets only.
+    reference = last_check_in if last_check_in is not None else host.last_check_in
+    if reference is None:
+        raise ValueError("last_check_in is required (pass last_check_in= or set host.last_check_in).")
+
+    stale_seconds = int(staleness["conventional_time_to_stale"])
+    warning_seconds = int(staleness["conventional_time_to_stale_warning"])
+    delete_seconds = int(staleness["conventional_time_to_delete"])
+
     return {
-        "stale_timestamp": staleness_timestamps.stale_timestamp(date_to_use, staleness["conventional_time_to_stale"]),
-        "stale_warning_timestamp": staleness_timestamps.stale_warning_timestamp(
-            date_to_use, staleness["conventional_time_to_stale_warning"]
-        ),
-        "culled_timestamp": staleness_timestamps.culled_timestamp(
-            date_to_use, staleness["conventional_time_to_delete"]
-        ),
+        "stale_timestamp": reference + timedelta(seconds=stale_seconds),
+        "stale_warning_timestamp": reference + timedelta(seconds=warning_seconds),
+        "culled_timestamp": reference + timedelta(seconds=delete_seconds),
     }
-
-
-# Determine staleness timestamps
-def get_staleness_timestamps(host: Host, staleness_timestamps: Timestamps, staleness: AttrDict) -> dict:
-    """
-    Calculates the single set of staleness timestamps used at host level (top-level
-    stale_timestamp, stale_warning_timestamp, culled_timestamp in serialized output).
-
-    Args:
-        host: The host object for which to calculate staleness timestamps.
-        staleness_timestamps: An object providing methods to compute timestamps.
-        staleness: A dictionary containing staleness configuration values.
-
-    Returns:
-        dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
-    """
-    return _compute_timestamps_from_date(host.last_check_in, staleness_timestamps, staleness)
-
-
-def get_reporter_staleness_timestamps(
-    host, staleness_timestamps: Timestamps, staleness: AttrDict, reporter: str
-) -> dict:
-    """
-    Calculates staleness timestamps for a specific reporter of a host.
-    Returns a dictionary containing the stale, stale warning, and culled timestamps for the reporter.
-
-    Args:
-        host: The host object for which to calculate staleness timestamps.
-        staleness_timestamps: An object providing methods to compute timestamps.
-        staleness: A dictionary containing staleness configuration values.
-        reporter: The reporter identifier for which to calculate timestamps.
-
-    Returns:
-        dict: A dictionary with keys 'stale_timestamp', 'stale_warning_timestamp', and 'culled_timestamp'.
-    """
-    if isinstance(host.per_reporter_staleness[reporter], dict):
-        last_check_in = host.per_reporter_staleness[reporter]["last_check_in"]
-    else:
-        last_check_in = host.per_reporter_staleness[reporter]
-    date_to_use = datetime.fromisoformat(last_check_in) if isinstance(last_check_in, str) else last_check_in
-    return _compute_timestamps_from_date(date_to_use, staleness_timestamps, staleness)
 
 
 def get_sys_default_staleness(config=None):

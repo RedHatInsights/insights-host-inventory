@@ -23,6 +23,14 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _skip_if_rbac_workspaces(host_inventory: ApplicationHostInventory):
+    """Resource-types endpoints access checks are made through RBAC v1,
+    which is not available when v2 is enabled."""
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        pytest.skip("resource-types endpoints are not supported with RBAC v2 workspaces")
+
+
 def check_resource_types_list_response(
     response: ResourceTypesQueryOutput,
     groups_count: int,

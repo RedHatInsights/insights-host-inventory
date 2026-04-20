@@ -27,7 +27,6 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import WORKLOADS_FIELDS
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -731,12 +730,12 @@ def _legacy_per_reporter_staleness_dict(
     host: Host,
     staleness: Any,
     staleness_timestamps: Timestamps,
-    reporter: str,
+    _reporter: str,
     stored_value: Any,
 ) -> dict[str, Any]:
     """Single reporter: full legacy API/MQ dict."""
     last_check_in_dt = _normalize_per_reporter_value(stored_value)
-    ts = get_reporter_staleness_timestamps(host, staleness_timestamps, staleness, reporter)
+    ts = get_staleness_timestamps(host, staleness_timestamps, staleness, last_check_in=last_check_in_dt)
     return {
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
         "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),

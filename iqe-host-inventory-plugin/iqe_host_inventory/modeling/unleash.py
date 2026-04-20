@@ -110,6 +110,21 @@ class HBIUnleash(BaseEntity):
 
         return feature_flag
 
+    @cached_property
+    def rbac_workspace_access_check_v2_flag(self) -> str:
+        feature_flag = "rbac.workspace-access-check-v2.enabled"
+
+        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
+            flag_request = UnleashFlagRequest(
+                name=feature_flag,
+                description="RBAC workspaces v2 access checks toggle",
+                type=_RequestType.RELEASE,
+                impressionData=False,
+            )
+            self._unleash.admin.create_flag(flag_request=flag_request)
+
+        return feature_flag
+
     def is_flag_enabled(self, flag: str) -> bool:
         return self._unleash.is_enabled(flag, context={"orgId": get_org_id(self.application)})
 

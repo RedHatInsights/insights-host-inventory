@@ -15,6 +15,8 @@ objects:
         "gunicorn",
         "--workers=${GUNICORN_WORKERS}",
         "--threads=${GUNICORN_THREADS}",
+        "--max-requests=${GUNICORN_MAX_REQUESTS}",
+        "--max-requests-jitter=${GUNICORN_MAX_REQUESTS_JITTER}",
         "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
         "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
         "--worker-tmp-dir=/gunicorn",
@@ -524,6 +526,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -613,6 +617,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -700,6 +706,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -783,6 +791,8 @@ objects:
             value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
@@ -912,6 +922,8 @@ objects:
             value: ${KAFKA_HOST_APP_DATA_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
@@ -2531,6 +2543,10 @@ parameters:
   value: '4'
 - name: GUNICORN_THREADS
   value: '8'
+- name: GUNICORN_MAX_REQUESTS
+  value: '0' # (disabled)
+- name: GUNICORN_MAX_REQUESTS_JITTER
+  value: '0' # (disabled)
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
 - name: GUNICORN_REQUEST_LINE_LIMIT
@@ -2573,6 +2589,8 @@ parameters:
   value: 'host-inventory-read-only-db'
 
 # -- Batch & Processing Sizes --
+- name: OUTBOX_USE_BATCHED_QUERIES
+  value: 'false'
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
