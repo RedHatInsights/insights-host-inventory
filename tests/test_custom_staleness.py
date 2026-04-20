@@ -21,7 +21,6 @@ from app.models import db
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import build_staleness_sys_default
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers.api_utils import build_hosts_url
@@ -49,6 +48,13 @@ CUSTOM_STALENESS_HOST_BECAME_STALE = {
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
 }
+
+# ``get_staleness_timestamps`` still accepts ``Timestamps`` for API compatibility; these
+# unit tests only need a minimal config for ``Timestamps.from_config``.
+_MINIMAL_TS_CONFIG = SimpleNamespace(
+    culling_stale_warning_offset_delta=timedelta(hours=1),
+    culling_culled_offset_delta=timedelta(days=30),
+)
 
 
 def _utc(dt: datetime) -> datetime:
@@ -521,13 +527,13 @@ def test_calculated_timestamps_match_stored_timestamps(
     db_host = db_get_hosts([str(host.id)]).first()
     staleness = get_sys_default_staleness()
     staleness_timestamps_obj = staleness_timestamps()
-    calculated = get_reporter_staleness_timestamps(db_host, staleness_timestamps_obj, staleness, "puptoo")
+
+    date_to_use = datetime.fromisoformat(db_host.per_reporter_staleness["puptoo"])
+    date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
+
+    calculated = get_staleness_timestamps(db_host, staleness_timestamps_obj, staleness, last_check_in=date_to_use)
 
     # Calculate expected timestamps
-    from datetime import datetime as dt
-
-    date_to_use = dt.fromisoformat(db_host.per_reporter_staleness["puptoo"])
-    date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
 
     expected = {
         "stale_timestamp": staleness_timestamps_obj.stale_timestamp(
@@ -550,6 +556,50 @@ def test_calculated_timestamps_match_stored_timestamps(
             calculated_ts = calculated_ts.astimezone(UTC)
         diff_seconds = abs((calculated_ts - expected[key]).total_seconds())
         assert diff_seconds <= 2
+
+
+def test_get_staleness_timestamps_last_check_in_arg_overrides_host_last_check_in(
+    db_create_host: Callable[..., Host],
+) -> None:
+    """
+    ``last_check_in=`` must win over ``host.last_check_in``.
+
+    ``test_calculated_timestamps_match_stored_timestamps`` only checks the explicit
+    argument and host field when they match after assignment; this covers divergent values.
+    """
+    host_last = datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC)
+    override = datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
+    host = db_create_host()
+    host.last_check_in = host_last
+    db.session.commit()
+
+    staleness = _attrdict_from_custom_staleness(
+        {"conventional_time_to_stale": 10, "conventional_time_to_stale_warning": 20, "conventional_time_to_delete": 30}
+    )
+    ts_helper = Timestamps.from_config(_MINIMAL_TS_CONFIG)
+
+    result = get_staleness_timestamps(host, ts_helper, staleness, last_check_in=override)
+
+    assert result["stale_timestamp"] == override + timedelta(seconds=10)
+    assert result["stale_warning_timestamp"] == override + timedelta(seconds=20)
+    assert result["culled_timestamp"] == override + timedelta(seconds=30)
+
+
+def test_get_staleness_timestamps_raises_when_reference_instant_missing(
+    db_create_host: Callable[..., Host],
+) -> None:
+    """No ``last_check_in`` argument and ``host.last_check_in`` is None."""
+    host = db_create_host()
+    host.last_check_in = None
+    db.session.commit()
+
+    staleness = _attrdict_from_custom_staleness(
+        {"conventional_time_to_stale": 1, "conventional_time_to_stale_warning": 2, "conventional_time_to_delete": 3}
+    )
+    ts_helper = Timestamps.from_config(_MINIMAL_TS_CONFIG)
+
+    with pytest.raises(ValueError, match="last_check_in is required"):
+        get_staleness_timestamps(host, ts_helper, staleness)
 
 
 def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
