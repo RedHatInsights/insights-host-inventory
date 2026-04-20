@@ -47,6 +47,7 @@ def setup_delete_notifications(host_inventory: ApplicationHostInventory) -> Gene
 
 @pytest.fixture()
 def prepare_host_for_delete_notification(
+    host_inventory: ApplicationHostInventory,
     host_inventory_cert_auth: ApplicationHostInventory,
 ) -> tuple[HostOut, list[TagDict], SystemProfile]:
     tags = generate_tags()
@@ -54,6 +55,10 @@ def prepare_host_for_delete_notification(
         tags=tags
     )  # Using cert auth so the host has owner_id
     sp = host_inventory_cert_auth.apis.hosts.get_hosts_system_profile(host)[0].system_profile
+
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host)
     return host, tags, sp
 
 
