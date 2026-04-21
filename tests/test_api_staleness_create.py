@@ -55,12 +55,16 @@ def test_create_staleness_with_wrong_input(api_create_staleness):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_create_staleness_rbac_allowed(subtests, mocker, api_create_staleness):
-    run_rbac_test(subtests, mocker, api_create_staleness, STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES, 201, [_INPUT_DATA])
+    run_rbac_test(
+        subtests, mocker, api_create_staleness, STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES, 201, [_INPUT_DATA]
+    )
 
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
-    run_rbac_test(subtests, mocker, api_create_staleness, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403, [_INPUT_DATA])
+    run_rbac_test(
+        subtests, mocker, api_create_staleness, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403, [_INPUT_DATA]
+    )
 
 
 @pytest.mark.parametrize(

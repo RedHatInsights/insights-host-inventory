@@ -122,7 +122,9 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get):
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_system_profile_RBAC_allowed(mocker, subtests, db_create_host, api_get):
     host_id = str(db_create_host().id)
-    run_rbac_test(subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [f"{HOST_URL}/{host_id}/system_profile"])
+    run_rbac_test(
+        subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [f"{HOST_URL}/{host_id}/system_profile"]
+    )
 
 
 @pytest.mark.usefixtures("enable_rbac")

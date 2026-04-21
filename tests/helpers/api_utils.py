@@ -605,7 +605,9 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
-def run_rbac_test(subtests, mocker, api_operation, rbac_response_files, expected_status, operation_args=None, operation_kwargs=None):
+def run_rbac_test(
+    subtests, mocker, api_operation, rbac_response_files, expected_status, operation_args=None, operation_kwargs=None
+):
     """
     Generic RBAC test helper that tests an API operation with multiple RBAC permission files.
 
