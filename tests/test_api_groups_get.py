@@ -673,8 +673,10 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         # Baseline updated->modified mapping with standard ASC/DESC
         ("updated", "ASC", "modified"),
         ("updated", "DESC", "-modified"),
-        # No order_how: should default to ascending, with the mapped field name and no hyphen
-        ("updated", None, "modified"),
+        # No order_how: should default to ascending on "name", with the mapped field name and no hyphen
+        ("name", None, "name"),
+        # No order_how: should default to descending on "updated", with the mapped field name and hyphen
+        ("updated", None, "-modified"),
         # Different order_how casing: should still be treated as DESC and apply a leading hyphen
         ("updated", "desc", "-modified"),
         ("updated", "Desc", "-modified"),
