@@ -289,9 +289,9 @@ class TestCheckMethodIntegration:
         # Mock feature flag as enabled
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
 
-        # Mock _build_subject_reference
+        # Mock principal_from_rh_identity
         mock_subject_ref = Mock()
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
+        mocker.patch("lib.kessel.principal_from_rh_identity", return_value=mock_subject_ref)
 
         # Mock _check_single_resource to track calls
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
@@ -330,8 +330,8 @@ class TestCheckMethodIntegration:
         # Mock feature flag as disabled
         mocker.patch("lib.kessel.get_flag_value", return_value=False)
 
-        # Mock _build_subject_reference
-        mocker.patch.object(kessel_client, "_build_subject_reference", return_value=mock_subject_ref)
+        # Mock principal_from_rh_identity
+        mocker.patch("lib.kessel.principal_from_rh_identity", return_value=mock_subject_ref)
 
         # Mock _check_single_resource to verify it's NOT called
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource")
@@ -388,6 +388,9 @@ class TestCheckBulkResourcesEdgeCases:
         """
         # Mock feature flag (shouldn't matter for single resource)
         mocker.patch("lib.kessel.get_flag_value", return_value=True)
+
+        # Mock principal_from_rh_identity
+        mocker.patch("lib.kessel.principal_from_rh_identity", return_value=Mock())
 
         # Mock _check_single_resource
         mock_check_single = mocker.patch.object(kessel_client, "_check_single_resource", return_value=True)
