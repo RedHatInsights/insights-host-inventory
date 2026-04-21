@@ -209,7 +209,7 @@ def test_groups_get_list_ordering(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("order_by", ["name", "host_count"])
+@pytest.mark.parametrize("order_by", ["name", "host_count", "updated"])
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
