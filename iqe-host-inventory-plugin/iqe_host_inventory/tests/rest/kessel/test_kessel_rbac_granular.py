@@ -73,7 +73,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if host_inventory.unleash.is_rbac_workspaces_enabled():
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
@@ -180,7 +180,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if host_inventory.unleash.is_rbac_workspaces_enabled():
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)

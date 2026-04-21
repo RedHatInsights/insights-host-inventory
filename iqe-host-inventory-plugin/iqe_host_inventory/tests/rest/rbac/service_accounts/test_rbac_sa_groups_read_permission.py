@@ -86,7 +86,7 @@ class TestRBACSAGroupsNoReadPermission:
           title: Test that service accounts users without "groups:read" permission
                  can't get a list of groups
         """
-        if host_inventory.unleash.is_rbac_workspaces_enabled():
+        if host_inventory.unleash.is_rbac_workspaces_enabled:
             response = host_inventory_sa_2.apis.groups.get_groups()
             assert len(response) == 0
         else:

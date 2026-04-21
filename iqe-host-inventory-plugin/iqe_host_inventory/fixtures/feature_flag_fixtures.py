@@ -28,7 +28,7 @@ def _ensure_ungrouped_group_exists(host_inventory: ApplicationHostInventory):
 
 
 @pytest.fixture
-def enable_platform_rbac_workspaces(
+def enable_rbac_workspaces(
     host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
     host_inventory.unleash.toggle_feature_flag(
@@ -43,7 +43,7 @@ def enable_platform_rbac_workspaces(
 
 
 @pytest.fixture(scope="module")
-def enable_platform_rbac_workspaces_module(
+def enable_rbac_workspaces_module(
     host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
     host_inventory.unleash.toggle_feature_flag(
@@ -58,7 +58,7 @@ def enable_platform_rbac_workspaces_module(
 
 
 @pytest.fixture(scope="session")
-def enable_platform_rbac_workspaces_session(
+def enable_rbac_workspaces_session(
     host_inventory: ApplicationHostInventory,
 ) -> Generator[None, None, None]:
     host_inventory.unleash.toggle_feature_flag(
@@ -73,5 +73,5 @@ def enable_platform_rbac_workspaces_session(
 
 
 @pytest.fixture(scope="session")
-def is_platform_rbac_workspaces_enabled_session(host_inventory: ApplicationHostInventory):
-    return host_inventory.unleash.is_rbac_workspaces_enabled()
+def is_rbac_workspaces_enabled_session(host_inventory: ApplicationHostInventory):
+    return host_inventory.unleash.is_rbac_workspaces_enabled

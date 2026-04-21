@@ -784,7 +784,7 @@ class GroupsAPIWrapper(BaseEntity):
         # If the env is stage or prod, or kessel phase 1 is enabled, delete all workspaces first
         if (
             self.application.config.current_env.lower() in ("stage", "prod")
-            or self._host_inventory.unleash.is_rbac_workspaces_enabled()
+            or self._host_inventory.unleash.is_rbac_workspaces_enabled
         ):
             self._host_inventory.apis.workspaces.delete_all_workspaces()
 
