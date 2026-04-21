@@ -445,7 +445,7 @@ def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     mocker: MockerFixture,
 ) -> None:
     """201 response should use RBAC workspace metadata when RBAC v2 groups are enabled (not stale DB row)."""
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     existing_group = db_create_group("existing_group")
     workspace_id = str(existing_group.id)
     mocker.patch("api.group.post_rbac_workspace", return_value=workspace_id)

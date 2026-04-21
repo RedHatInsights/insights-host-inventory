@@ -25,7 +25,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
-from lib.middleware import is_rbac_v2_groups_enabled
+from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -75,7 +75,7 @@ def get_host_list_by_group(
     # Validate group exists
     # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
     # Otherwise, use database validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace exists
         get_rbac_workspace_by_id(str(group_id))
     else:
@@ -139,7 +139,7 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         get_rbac_workspace_by_id(str(group_id))
     else:
@@ -178,7 +178,7 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
 

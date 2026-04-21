@@ -493,7 +493,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(current_identity.org_id):
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_enabled(current_identity.org_id):
                 return func(*args, **kwargs)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -576,9 +576,7 @@ def resolve_permission(
     if ids is None:
         ids = []
 
-    if not inventory_config().bypass_kessel and get_flag_value(
-        FLAG_RBAC_WORKSPACES, context=build_flag_context(identity.org_id)
-    ):
+    if is_rbac_v2_enabled(identity.org_id):
         return get_kessel_filter(identity, permission, ids)
     if rbac_request_headers is None:
         rbac_request_headers = _build_rbac_request_headers()
@@ -617,18 +615,21 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
     return rbac_filter
 
 
-def is_rbac_v2_groups_enabled(org_id: str) -> bool:
+def is_rbac_v2_enabled(org_id: str) -> bool:
     """
-    Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
+    Check if RBAC v2 (workspace-based) authorization is enabled.
 
-    When True: RBAC v2 workspace API handles all authorization
-    When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
+    Single source of truth for the platform.rbac.workspaces feature flag.
+    Used to gate both Kessel permission checks and RBAC v2 workspace API calls.
+
+    When True: Kessel/RBAC v2 workspace API handles all authorization
+    When False: RBAC v1 rbac_filter applies
 
     Args:
         org_id: Organization ID for org-specific feature flag targeting
 
     Returns:
-        True if RBAC v2 should be used for groups, False if RBAC v1 should be used
+        True if RBAC v2 should be used, False if RBAC v1 should be used
     """
     return (not inventory_config().bypass_kessel) and get_flag_value(
         FLAG_RBAC_WORKSPACES, context=build_flag_context(org_id)
