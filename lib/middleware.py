@@ -815,7 +815,9 @@ def get_rbac_workspaces(
 
         # RBAC v2 API expects descending order to be prefixed with a hyphen
         # Example: To sort by updated date in descending order, use "-modified"
-        if order_how and order_how.lower() == "desc":
+        # Also, RBAC v2 uses ascending order by default on all `order_by` types.
+        # HBI uses desc order by default when order_by == "updated", so we need to use the hyphen.
+        if (order_how and order_how.lower() == "desc") or (order_by == "updated" and order_how is None):
             rbac_order_by = f"-{rbac_order_by}"
 
         query_params["order_by"] = rbac_order_by

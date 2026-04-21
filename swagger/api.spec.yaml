@@ -1232,7 +1232,7 @@ components:
         $ref:  '#/components/schemas/OrderHow'
       description: >-
         Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
-        for host_count
+        for host_count and updated
     workspaceTypeParam:
       in: query
       name: group_type
