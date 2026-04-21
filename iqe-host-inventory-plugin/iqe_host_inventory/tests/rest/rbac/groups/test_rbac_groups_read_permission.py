@@ -116,7 +116,7 @@ class TestRBACGroupsNoReadPermission:
           negative: true
           title: Test that users without "groups:read" permission can't get a list of groups
         """
-        if host_inventory.unleash.is_kessel_groups_enabled():
+        if host_inventory.unleash.is_rbac_workspaces_enabled:
             response = host_inventory_non_org_admin.apis.groups.get_groups()
             assert len(response) == 0
         else:

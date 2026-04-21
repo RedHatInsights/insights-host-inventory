@@ -106,8 +106,8 @@ def test_remove_hosts_from_group_RBAC_denied_missing_group(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
     group_id = str(generate_uuid())
 
@@ -506,8 +506,8 @@ def test_delete_group_not_deleted_from_hbi_when_rbac_returns_404(
     group_id = db_create_group("test group").id
 
     # Enable RBAC v2 for groups so the @rbac decorator skips v1 permission checks
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock delete_rbac_workspace to raise ResourceNotFoundException (RBAC returns 404)
     mocker.patch(
@@ -643,8 +643,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_success(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -695,8 +696,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_workspace_not_accessible(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -748,8 +750,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_ungrouped_workspace(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create a normal group and an ungrouped group
     normal_group = db_create_group_with_hosts("test_group", 2)

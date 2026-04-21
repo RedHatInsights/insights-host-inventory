@@ -182,7 +182,7 @@ def test_groups_get_list_pagination_only_my_groups(
 def test_groups_get_list_ordering(
     host_inventory,
     setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
+    is_rbac_workspaces_enabled_session,
     order_by,
     order_how,
 ):
@@ -214,7 +214,7 @@ def test_groups_get_list_ordering(
 def test_groups_get_list_ordering_and_pagination(
     host_inventory,
     setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
+    is_rbac_workspaces_enabled_session,
     order_by,
     order_how,
 ):
@@ -252,7 +252,7 @@ def test_groups_get_list_ordering_and_pagination(
 def test_groups_get_list_order_how_default(
     host_inventory,
     setup_groups_for_ordering,
-    is_kessel_phase_1_enabled_session,
+    is_rbac_workspaces_enabled_session,
     order_by,
 ):
     """
