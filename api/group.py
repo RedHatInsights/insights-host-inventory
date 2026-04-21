@@ -505,11 +505,6 @@ def get_groups_by_id(
 ):
     identity = get_current_identity()
 
-    # RBAC v1 only: Validate group IDs against RBAC v1 filter
-    # RBAC v2: Skip this check - authorization handled by get_rbac_workspaces_by_ids()
-    if not is_rbac_v2_groups_enabled(identity.org_id):
-        rbac_group_id_check(rbac_filter, set(group_id_list))
-
     # Feature flag check for RBAC v2 integration
     if is_rbac_v2_groups_enabled(identity.org_id):
         # RBAC v2 path: Use RBAC v2 API queries
@@ -526,6 +521,8 @@ def get_groups_by_id(
             {"total": total, "count": len(group_list), "page": page, "per_page": per_page, "results": group_list}
         )
     else:
+        # RBAC v1 only: Validate group IDs against RBAC v1 filter
+        rbac_group_id_check(rbac_filter, set(group_id_list))
         # RBAC v1 path: Use database queries
         try:
             group_list, total = get_group_list_by_id_list_db(
