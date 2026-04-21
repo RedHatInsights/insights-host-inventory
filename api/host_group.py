@@ -54,7 +54,7 @@ def get_host_list_by_group(
     """
     Get the list of hosts in a specific group.
 
-    Behind feature flag: hbi.api.kessel-groups
+    Behind feature flag: platform.rbac.workspaces
     - If enabled: Validates group via RBAC v2 workspace API
     - If disabled: Validates group via database
 

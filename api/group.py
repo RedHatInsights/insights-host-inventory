@@ -43,7 +43,7 @@ from app.queue.events import EventType
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
@@ -415,7 +415,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+        if get_flag_value(FLAG_RBAC_WORKSPACES, context=build_flag_context(identity.org_id)):
             if new_name:
                 check_access(KesselResourceTypes.WORKSPACE.edit, [group_id])
             if validated_patch_group_data.get("host_ids") is not None:
@@ -560,7 +560,7 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
     # Inline access check: the @access decorator can't be used here because the group IDs
     # are derived from host→group DB lookups, not available as URL parameters.
     # This should only apply when Kessel phase 1 is enabled.
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+    if get_flag_value(FLAG_RBAC_WORKSPACES, context=build_flag_context(identity.org_id)):
         rbac_filter = check_access(KesselResourceTypes.WORKSPACE.move_host, list(requested_group_ids))
 
     if is_rbac_v2_groups_enabled(identity.org_id):

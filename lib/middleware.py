@@ -37,8 +37,7 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
@@ -578,7 +577,7 @@ def resolve_permission(
         ids = []
 
     if not inventory_config().bypass_kessel and get_flag_value(
-        FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)
+        FLAG_RBAC_WORKSPACES, context=build_flag_context(identity.org_id)
     ):
         return get_kessel_filter(identity, permission, ids)
     if rbac_request_headers is None:
@@ -632,7 +631,7 @@ def is_rbac_v2_groups_enabled(org_id: str) -> bool:
         True if RBAC v2 should be used for groups, False if RBAC v1 should be used
     """
     return (not inventory_config().bypass_kessel) and get_flag_value(
-        FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)
+        FLAG_RBAC_WORKSPACES, context=build_flag_context(org_id)
     )
 
 

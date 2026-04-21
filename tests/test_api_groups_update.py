@@ -832,14 +832,14 @@ def test_patch_group_rename_and_move_hosts_succeeds_with_workspace_permissions(
     assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
 
 
-def test_patch_group_no_permission_checks_when_kessel_phase1_disabled(
+def test_patch_group_no_permission_checks_when_platform_rbac_workspaces_disabled(
     mocker,
     api_patch_group,
     db_create_group,
     db_get_group_by_id,
     event_producer,
 ):
-    """When Kessel Phase 1 is disabled, renaming should succeed without any Kessel permission checks."""
+    """When platform.rbac.workspaces is disabled, renaming should succeed without any Kessel permission checks."""
     mocker.patch.object(event_producer, "write_event")
 
     group = db_create_group("old_name")

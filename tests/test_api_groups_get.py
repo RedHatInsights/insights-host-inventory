@@ -548,7 +548,7 @@ def test_get_groups_by_id_feature_flag_disabled(
 # ============================================================================
 # RBAC v2 (Kessel) Integration Tests
 # ============================================================================
-# These tests verify the RBAC v2 code path when FLAG_INVENTORY_KESSEL_PHASE_1
+# These tests verify the RBAC v2 code path when FLAG_RBAC_WORKSPACES
 # feature flag is enabled, ensuring get_rbac_workspaces() is called correctly
 # with proper parameters including ordering support.
 # ============================================================================
