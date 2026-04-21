@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0e225ed836b4f38de73507f6f0b4288ddd9d8a5f6ebab7643fda624358ae4442"
+            "sha256": "cae4c2ad750ddba2d40d164979224aaa29c8f2eaa417128511756ad59bc050ab"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -880,11 +880,11 @@
                 "console"
             ],
             "hashes": [
-                "sha256:d980192487dd44edaf62b78d31d6892c86df163ccd4518ef373d5812e00ba49b",
-                "sha256:e4b6ccfe4180522eb6eb24751cb28635716ff731a627f399d0683798de605ef9"
+                "sha256:8812cdfeb5ccedae331c5be0d5b84545136fc715ab02d9a6bfe078b8c33330b0",
+                "sha256:d510d6a76fdc0869bbd6dace629b885fc576f6cfab9001bb47aa40fe768812bc"
             ],
             "markers": "python_version >= '3.11'",
-            "version": "==2.5.0"
+            "version": "==2.6.0"
         },
         "launchdarkly-eventsource": {
             "hashes": [
