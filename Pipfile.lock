@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "9fd55a810cf456245ff7920bdfc8028ff06bf4a58a733d0b8a4494a9a7852c43"
+            "sha256": "82e74b31eb5db11ea58a1797cb39d7d42b70859842fab568f9be4423e1d3f26d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -757,11 +757,11 @@
         },
         "idna": {
             "hashes": [
-                "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea",
-                "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902"
+                "sha256:60ffaa1858fac94c9c124728c24fcde8160f3fb4a7f79aa8cdd33a9d1af60a67",
+                "sha256:724e9952cc9e2bd7550ea784adb098d837ab5267ef67a1ab9cf7846bdbdd8254"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==3.11"
+            "version": "==3.12"
         },
         "importlib-metadata": {
             "hashes": [
@@ -839,11 +839,11 @@
                 "auth"
             ],
             "hashes": [
-                "sha256:d980192487dd44edaf62b78d31d6892c86df163ccd4518ef373d5812e00ba49b",
-                "sha256:e4b6ccfe4180522eb6eb24751cb28635716ff731a627f399d0683798de605ef9"
+                "sha256:8812cdfeb5ccedae331c5be0d5b84545136fc715ab02d9a6bfe078b8c33330b0",
+                "sha256:d510d6a76fdc0869bbd6dace629b885fc576f6cfab9001bb47aa40fe768812bc"
             ],
             "markers": "python_version >= '3.11'",
-            "version": "==2.5.0"
+            "version": "==2.6.0"
         },
         "launchdarkly-eventsource": {
             "hashes": [
