@@ -455,10 +455,9 @@ def delete_groups(group_id_list, rbac_filter=None):
     # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
     if not is_rbac_v2_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
-
-    # Abort with 404 if any of the groups do not exist
-    found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
-    check_all_ids_found(group_id_list, found_groups, "group")
+        # Abort with 404 if any of the groups do not exist
+        found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
+        check_all_ids_found(group_id_list, found_groups, "group")
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
