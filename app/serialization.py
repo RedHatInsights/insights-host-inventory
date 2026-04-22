@@ -234,7 +234,7 @@ def serialize_host(
 
         # Add backward compatibility for workload fields
         if serialized_host["system_profile"] and get_flag_value(
-            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
+            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, host.org_id
         ):
             serialized_host["system_profile"] = _add_workloads_backward_compatibility(
                 serialized_host["system_profile"]

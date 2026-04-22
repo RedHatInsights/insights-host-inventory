@@ -17,7 +17,7 @@ from app.queue.metrics import event_serialization_time
 from jobs.common import excepthook
 from jobs.common import job_setup as host_reaper_job_setup
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import get_flag_value
+from lib.feature_flags import get_flag_value_and_fallback
 from lib.host_delete import delete_hosts
 from lib.host_repository import find_hosts_by_staleness_job
 from lib.host_repository import find_hosts_sys_default_staleness
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     )
 
     with application.app.app_context():
-        if get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+        if get_flag_value_and_fallback(FLAG_INVENTORY_API_READ_ONLY, {})[0]:
             logger.info("Inventory API is currently in read-only mode. Exiting.")
             sys.exit(0)
 

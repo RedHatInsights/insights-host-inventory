@@ -98,7 +98,9 @@ class TestCheckBulkResourcesFeatureFlag:
         kessel_client.inventory_svc.CheckBulk = Mock(return_value=mock_response)
 
         # Call the method
-        result, unauthorized_ids = kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        result, unauthorized_ids = kessel_client._check_bulk_resources(
+            mock_subject_ref, test_permission, resource_ids, "test"
+        )
 
         # Verify bulk API was called once
         assert kessel_client.inventory_svc.CheckBulk.call_count == 1
@@ -128,7 +130,9 @@ class TestCheckBulkResourcesFeatureFlag:
         resource_ids = ["host-1", "host-2", "host-3"]
 
         # Call the method
-        result, unauthorized_ids = kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        result, unauthorized_ids = kessel_client._check_bulk_resources(
+            mock_subject_ref, test_permission, resource_ids, "test"
+        )
 
         # Verify single check was called for each resource
         assert mock_check_single.call_count == len(resource_ids)
@@ -166,7 +170,9 @@ class TestCheckBulkResourcesFeatureFlag:
         mocker.patch.object(kessel_client, "_check_single_resource", side_effect=mock_check_single_fn)
 
         # Call the method
-        result, unauthorized_ids = kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        result, unauthorized_ids = kessel_client._check_bulk_resources(
+            mock_subject_ref, test_permission, resource_ids, "test"
+        )
 
         # Verify result
         assert result is False  # Not all allowed
@@ -205,7 +211,9 @@ class TestCheckBulkResourcesFeatureFlag:
         kessel_client.inventory_svc.CheckBulk = Mock(return_value=mock_response)
 
         # Call the method
-        result, unauthorized_ids = kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        result, unauthorized_ids = kessel_client._check_bulk_resources(
+            mock_subject_ref, test_permission, resource_ids, "test"
+        )
 
         # Verify bulk API was called
         assert kessel_client.inventory_svc.CheckBulk.call_count == 1
@@ -236,7 +244,9 @@ class TestCheckBulkResourcesFeatureFlag:
         mocker.patch.object(kessel_client, "_check_single_resource", return_value=False)
 
         # Call the method
-        result, unauthorized_ids = kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        result, unauthorized_ids = kessel_client._check_bulk_resources(
+            mock_subject_ref, test_permission, resource_ids, "test"
+        )
 
         # Verify result
         assert result is False
@@ -266,7 +276,7 @@ class TestCheckBulkResourcesFeatureFlag:
         resource_ids = ["host-1", "host-2"]
 
         # Call the method
-        kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids)
+        kessel_client._check_bulk_resources(mock_subject_ref, test_permission, resource_ids, "test")
 
         # Verify debug log was called with expected message
         mock_logger.debug.assert_any_call(
@@ -375,7 +385,7 @@ class TestCheckBulkResourcesEdgeCases:
         JIRA: RHINENG-24544
         """
         with pytest.raises(ValueError, match="resource_ids can't be empty"):
-            kessel_client._check_bulk_resources(mock_subject_ref, test_permission, [])
+            kessel_client._check_bulk_resources(mock_subject_ref, test_permission, [], "test")
 
     def test_bulk_check_single_resource_not_affected_by_flag(
         self, kessel_client: Kessel, test_identity: Identity, test_permission: KesselPermission, mocker
