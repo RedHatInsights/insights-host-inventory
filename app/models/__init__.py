@@ -49,10 +49,10 @@ from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
-from app.models.utils import _get_staleness_obj
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import deleted_by_this_query
+from app.models.utils import get_staleness_obj
 
 logger = get_logger(__name__)
 
@@ -102,7 +102,7 @@ __all__ = [
     "PatchHostSchema",
     "InputGroupSchema",
     "StalenessSchema",
-    "_get_staleness_obj",
+    "get_staleness_obj",
     "_set_display_name_on_save",
     "_time_now",
     "_create_staleness_timestamps_values",
