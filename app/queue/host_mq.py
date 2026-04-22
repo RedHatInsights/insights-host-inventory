@@ -416,7 +416,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
             try:
                 host = validated_operation_msg["data"]
                 if host.get("reporter") in ["rhsm-conduit", "rhsm-system-profile-bridge"] and get_flag_value(
-                    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS, host.get("org_id", "")
+                    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS, host["org_id"]
                 ):
                     raise ValidationException(
                         """
