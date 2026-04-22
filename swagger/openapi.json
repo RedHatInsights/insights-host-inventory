@@ -2049,7 +2049,7 @@
         "schema": {
           "$ref": "#/components/schemas/OrderHow"
         },
-        "description": "Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+        "description": "Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
       },
       "workspaceTypeParam": {
         "in": "query",

@@ -651,7 +651,7 @@ def test_patch_group_rename_forbidden_without_workspace_edit(
     group = db_create_group("old_name")
     group_id = str(group.id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
 
     response_status, _ = api_patch_group(group_id, {"name": "new_name"})
@@ -679,7 +679,7 @@ def test_patch_group_assign_hosts_forbidden_without_workspace_move_host(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
 
     response_status, _ = api_patch_group(group_id, {"host_ids": [host_id]})
@@ -709,7 +709,7 @@ def test_patch_group_rename_and_hosts_forbidden_without_workspace_edit(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
 
     response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
@@ -740,7 +740,7 @@ def test_patch_group_rename_and_hosts_forbidden_without_workspace_move_host(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
 
     response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
@@ -768,8 +768,18 @@ def test_patch_group_rename_succeeds_with_workspace_edit(
     group = db_create_group("old_name")
     group_id = str(group.id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
+    mocker.patch(
+        "api.group.get_rbac_workspace_by_id",
+        return_value={
+            "id": group_id,
+            "name": "new_name",
+            "type": "standard",
+            "created": "2020-01-01T00:00:00+00:00",
+            "modified": "2020-01-01T00:00:00+00:00",
+        },
+    )
 
     response_status, _ = api_patch_group(group_id, {"name": "new_name"})
 
@@ -796,8 +806,18 @@ def test_patch_group_assign_hosts_succeeds_with_workspace_move_host(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
+    mocker.patch(
+        "api.group.get_rbac_workspace_by_id",
+        return_value={
+            "id": group_id,
+            "name": "test_group",
+            "type": "standard",
+            "created": "2020-01-01T00:00:00+00:00",
+            "modified": "2020-01-01T00:00:00+00:00",
+        },
+    )
 
     response_status, _ = api_patch_group(group_id, {"host_ids": [host_id]})
 
@@ -823,8 +843,18 @@ def test_patch_group_rename_and_move_hosts_succeeds_with_workspace_permissions(
     group_id = str(group.id)
     host_id = str(db_create_host().id)
 
-    mocker.patch("api.group.get_flag_value", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", return_value=None)
+    mocker.patch(
+        "api.group.get_rbac_workspace_by_id",
+        return_value={
+            "id": group_id,
+            "name": "new_name",
+            "type": "standard",
+            "created": "2020-01-01T00:00:00+00:00",
+            "modified": "2020-01-01T00:00:00+00:00",
+        },
+    )
 
     response_status, _ = api_patch_group(group_id, {"name": "new_name", "host_ids": [host_id]})
 
@@ -832,14 +862,14 @@ def test_patch_group_rename_and_move_hosts_succeeds_with_workspace_permissions(
     assert str(db_get_hosts_for_group(group_id)[0].id) == host_id
 
 
-def test_patch_group_no_permission_checks_when_kessel_phase1_disabled(
+def test_patch_group_no_permission_checks_when_platform_rbac_workspaces_disabled(
     mocker,
     api_patch_group,
     db_create_group,
     db_get_group_by_id,
     event_producer,
 ):
-    """When Kessel Phase 1 is disabled, renaming should succeed without any Kessel permission checks."""
+    """When platform.rbac.workspaces is disabled, renaming should succeed without any Kessel permission checks."""
     mocker.patch.object(event_producer, "write_event")
 
     group = db_create_group("old_name")
@@ -861,8 +891,7 @@ def test_patch_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
 ):
     """PATCH response should use RBAC workspace metadata when RBAC v2 groups are enabled."""
     mocker.patch.object(event_producer, "write_event")
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.get_flag_value", return_value=False)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Ungrouped workspace must exist in DB so patch_group does not call the RBAC ungrouped-creation API.
     db_create_group("ungrouped_for_patch_rbac_v2", ungrouped=True)
