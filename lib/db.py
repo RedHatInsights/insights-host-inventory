@@ -27,6 +27,11 @@ def no_expire_on_commit(session):
     Used during MQ batch processing where post_process_rows() needs to
     serialize Host objects into event payloads after the session commits.
     Without this, each attribute access triggers a SELECT per host.
+
+    On exit, expire_all() is called to purge stale objects from the identity
+    map. Without this, objects committed while expire_on_commit was False
+    would persist across subsequent batches and could return stale data on
+    queries that hit the identity map instead of the DB.
     """
     actual_session = session() if callable(session) else session
     original = actual_session.expire_on_commit
@@ -35,6 +40,7 @@ def no_expire_on_commit(session):
         yield
     finally:
         actual_session.expire_on_commit = original
+        actual_session.expire_all()
 
 
 @contextmanager
