@@ -179,7 +179,7 @@ def test_add_hosts_to_group_timestamp_with_kessel_groups_flag(
     kessel_groups_enabled,
 ):
     mocker.patch.object(event_producer, "write_event")
-    mocker.patch("lib.group_repository.get_flag_value", return_value=kessel_groups_enabled)
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=kessel_groups_enabled)
 
     group = db_create_group("test_group")
     group_id = group.id
