@@ -56,8 +56,8 @@ def test_add_host_to_group_RBAC_denied(
 def test_add_host_to_group_RBAC_denied_missing_group(subtests, mocker, db_create_host, api_add_hosts_to_group):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException(""))
     group_id = str(generate_uuid())
 
@@ -407,7 +407,7 @@ def test_remove_hosts_rbac_v2_workspace_validation_success(
     assert len(hosts_before) == 3
 
     # Mock feature flag enabled (RBAC v2 path)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
 
     # Mock workspace fetch to return valid workspace
     mock_workspace = {
@@ -452,7 +452,7 @@ def test_remove_hosts_rbac_v2_workspace_not_found(mocker, event_producer, db_cre
     invalid_group_id = generate_uuid()
 
     # Mock feature flag enabled (RBAC v2 path)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Group not found"))
@@ -486,7 +486,7 @@ def test_remove_hosts_from_ungrouped_workspace_rbac_v2(
     mocker.patch.object(event_producer, "write_event")
 
     # Mock RBAC v2 enabled (this function is imported from lib.middleware)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
 
     # Mock workspace fetch to return ungrouped workspace
     mock_workspace = {
@@ -520,7 +520,7 @@ def test_remove_invalid_hosts_from_group_rbac_v2(mocker, event_producer, db_crea
     mocker.patch.object(event_producer, "write_event")
 
     # Mock feature flag enabled (RBAC v2 path)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
 
     # Mock workspace fetch to return valid workspace
     mock_workspace = {
@@ -565,7 +565,7 @@ def test_remove_valid_hosts_from_invalid_group_rbac_v2(
     invalid_group_id = generate_uuid()
 
     # Mock feature flag enabled (RBAC v2 path)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return None (not found)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", side_effect=ResourceNotFoundException("Group not found"))
@@ -638,7 +638,7 @@ def test_get_hosts_from_missing_group(
     # Always mock configuration to make test deterministic
     # RBAC v2 enabled when: not bypass_kessel and flag_enabled
     rbac_v2_enabled = not bypass_kessel and flag_enabled
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=rbac_v2_enabled)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=rbac_v2_enabled)
 
     # Mock RBAC workspace API for Kessel-enabled path
     if expect_rbac_call:
@@ -830,7 +830,7 @@ def test_get_hosts_from_group_with_kessel_feature_flag(
     db_create_host_group_assoc(host.id, group_id)
 
     # Mock RBAC v2 feature flag (when bypass_kessel=False, flag determines RBAC v2 state)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=flag_enabled)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=flag_enabled)
 
     if flag_enabled:
         # Mock the RBAC workspace API to return a valid workspace

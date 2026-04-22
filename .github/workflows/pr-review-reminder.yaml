@@ -36,8 +36,9 @@ jobs:
           FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" '
             [ .[]
               | select(.isDraft == false)
-              | select(([.reviews[] | select(.author.login | test("bot|sourcery|github-actions") | not)] | length) == 0)
-              | select(([.comments[] | select(.author.login | test("bot|sourcery|github-actions") | not)] | length) == 0)
+              | .author.login as $pr_author
+              | select(([.reviews[] | select(.author.login != $pr_author and (.author.login | test("bot|sourcery|github-actions") | not))] | length) == 0)
+              | select(([.comments[] | select(.author.login != $pr_author and (.author.login | test("bot|sourcery|github-actions") | not))] | length) == 0)
               | select(.reviewDecision != "APPROVED")
               | (.createdAt | fromdateiso8601) as $created
               | select(($now - $created) > $day)
@@ -72,7 +73,7 @@ jobs:
 
           # Post to Slack via Incoming Webhook
           PAYLOAD=$(jq -n \
-            --arg header ":eyes: *PR Review Reminder ($DAY_NAME)* — $COUNT PR(s) awaiting review" \
+            --arg header ":eyes: *Backend PR Review Reminder ($DAY_NAME)* — $COUNT PR(s) awaiting review" \
             --arg body "$LINES" \
             '{
               blocks: [
