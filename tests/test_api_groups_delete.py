@@ -6,6 +6,7 @@ import pytest
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.exceptions import ResourceNotFoundException
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -49,6 +50,58 @@ def test_delete_with_missing_group_id_response_includes_only_missing_ids(db_crea
     assert "not_found_ids" in response_data
     assert response_data["not_found_ids"] == [missing_group_id]
     assert valid_group_id not in response_data["not_found_ids"]
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_rbac_v1_aborts_before_deletion(
+    db_create_group, db_get_group_by_id, api_delete_groups, mocker
+):
+    """In the RBAC v1 path, the DB existence check fires before any deletion.
+
+    If any requested group ID is missing, the entire request is aborted with 404
+    and no groups (including valid ones in the same request) are deleted.
+    This check is exclusive to the RBAC v1 path; RBAC v2 skips it and relies on
+    delete_rbac_workspace() to handle missing workspaces per-group.
+    """
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=False)
+
+    valid_group_id = str(db_create_group("valid_group").id)
+    missing_group_id = generate_uuid()
+
+    response_status, _ = api_delete_groups([valid_group_id, missing_group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    # The valid group must NOT have been deleted — the check aborts before any deletion
+    assert db_get_group_by_id(valid_group_id) is not None
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_rbac_v2_skips_db_check(
+    db_create_group, db_get_group_by_id, api_delete_groups, mocker
+):
+    """In the RBAC v2 path, the DB existence check is skipped entirely.
+
+    A missing workspace ID does not abort the whole request — delete_rbac_workspace()
+    raises ResourceNotFoundException which is caught per-group. Valid groups in the
+    same request are still deleted successfully.
+    """
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+
+    valid_group_id = str(db_create_group("valid_group").id)
+    missing_group_id = generate_uuid()
+
+    def delete_workspace(workspace_id):
+        if workspace_id == missing_group_id:
+            raise ResourceNotFoundException("Workspace not found")
+
+    mocker.patch("api.group.delete_rbac_workspace", side_effect=delete_workspace)
+
+    response_status, _ = api_delete_groups([valid_group_id, missing_group_id])
+
+    # Request succeeds — the missing workspace ID did not abort the whole request
+    assert_response_status(response_status, expected_status=204)
+    # The valid group was still deleted
+    assert db_get_group_by_id(valid_group_id) is None
 
 
 def test_delete_with_invalid_group_id(api_delete_groups):
@@ -105,8 +158,8 @@ def test_remove_hosts_from_group_RBAC_denied_missing_group(
 ):
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     # Must mock in lib.middleware (for the @rbac decorator) AND api.host_group (for the function body)
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.host_group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.host_group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.host_group.get_rbac_workspace_by_id", return_value=None)
     group_id = str(generate_uuid())
 
@@ -535,12 +588,11 @@ def test_delete_group_not_deleted_from_hbi_when_rbac_returns_404(
     RBAC v2 returns 404 both when a workspace doesn't exist and when the user lacks
     permission to delete it. Deleting from HBI on 404 would bypass permission checks.
     """
-    from app.exceptions import ResourceNotFoundException
-
     group_id = db_create_group("test group").id
 
     # Enable RBAC v2 for groups so the @rbac decorator skips v1 permission checks
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock delete_rbac_workspace to raise ResourceNotFoundException (RBAC returns 404)
     mocker.patch(
@@ -557,6 +609,33 @@ def test_delete_group_not_deleted_from_hbi_when_rbac_returns_404(
     assert db_get_group_by_id(group_id) is not None
 
 
+@pytest.mark.usefixtures("event_producer", "enable_kessel")
+def test_delete_groups_kessel_partial_when_rbac_workspace_missing(
+    api_delete_groups_kessel, db_create_group, db_get_group_by_id, mocker
+):
+    """
+    Groups whose workspace delete failed are skipped; others are still removed from HBI.
+    """
+    db_create_group("ungrouped_hosts", ungrouped=True)
+
+    group_kept = db_create_group("kept")
+    group_removed = db_create_group("removed")
+    kept_id = str(group_kept.id)
+    removed_id = str(group_removed.id)
+
+    def delete_workspace(workspace_id):
+        if workspace_id == kept_id:
+            raise ResourceNotFoundException("Workspace not found")
+
+    mocker.patch("api.group.delete_rbac_workspace", side_effect=delete_workspace)
+
+    response_status, _ = api_delete_groups_kessel([kept_id, removed_id])
+    assert_response_status(response_status, expected_status=204)
+
+    assert db_get_group_by_id(kept_id) is not None
+    assert db_get_group_by_id(removed_id) is None
+
+
 @pytest.mark.usefixtures("event_producer")
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.usefixtures("enable_rbac")
@@ -567,6 +646,7 @@ def test_delete_existing_group_kessel_empty_response(api_delete_groups_kessel, d
     Before the fix, an empty response body would cause a JSONDecodeError, resulting in HTTP 503.
     After the fix, the API should handle this gracefully and return HTTP 204.
     """
+    db_create_group("ungrouped_hosts", ungrouped=True)
     group_id = db_create_group("test group").id
 
     get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
@@ -648,8 +728,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_success(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -700,8 +781,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_workspace_not_accessible(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create groups with hosts
     group1 = db_create_group_with_hosts("test_group1", 2)
@@ -753,8 +835,9 @@ def test_delete_hosts_from_diff_groups_rbac_v2_ungrouped_workspace(
     mocker.patch.object(event_producer, "write_event")
 
     # Enable RBAC v2 for groups
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.check_access", return_value=None)
 
     # Create a normal group and an ungrouped group
     normal_group = db_create_group_with_hosts("test_group", 2)

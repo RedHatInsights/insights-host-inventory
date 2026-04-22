@@ -46,6 +46,7 @@ from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
@@ -93,8 +94,14 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
 def _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=None):
     metadata = {"b64_identity": to_auth_header(identity)}  # Note: This should be moved to an API file
 
-    # Send messages
+    if not host_list:
+        return
+
     for host in host_list:
+        if not host_exists(host.id, org_id=identity.org_id, session=db.session):
+            logger.warning(f"Skipping group update event for host {host.id}: host no longer exists")
+            continue
+
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
         host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
