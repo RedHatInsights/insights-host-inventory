@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import update
 from sqlalchemy.exc import DataError
 from sqlalchemy.exc import IntegrityError
 
@@ -583,6 +584,27 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     # datetime will not change because the datetime.now() method is patched
     # yupana should be removed and replaced with new_reporter
     assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
+
+
+def test_reporter_stale_non_string_scalar_errors(db_create_host):
+    """Non-string JSONB values must not be treated as stale; reject with ValidationException."""
+    stale_timestamp = now() + timedelta(days=1)
+    host = db_create_host(
+        host=Host(
+            subscription_manager_id=generate_uuid(),
+            display_name="display_name",
+            reporter="puptoo",
+            stale_timestamp=stale_timestamp,
+            org_id=USER_IDENTITY["org_id"],
+        )
+    )
+
+    db.session.execute(update(Host).where(Host.id == host.id).values(per_reporter_staleness={"puptoo": 42}))
+    db.session.commit()
+    db.session.refresh(host)
+
+    with pytest.raises(ValidationException, match="expected ISO-8601 string"):
+        host.reporter_stale("puptoo")
 
 
 def test_canonical_facts_version_default():
@@ -2754,14 +2776,14 @@ def test_staleness_cache_context_manager():
 def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
     """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
     from app.models.utils import StalenessCache
-    from app.models.utils import _get_staleness_obj
+    from app.models.utils import get_staleness_obj
 
     with StalenessCache():
-        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        first_result = get_staleness_obj(USER_IDENTITY["org_id"])
         assert first_result is not None
 
         mocker.patch("app.models.staleness.Staleness.query")
-        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        second_result = get_staleness_obj(USER_IDENTITY["org_id"])
 
         assert second_result is first_result
         from app.models.staleness import Staleness
