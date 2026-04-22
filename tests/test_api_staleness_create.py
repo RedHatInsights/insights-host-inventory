@@ -7,7 +7,7 @@ from tests.helpers.api_utils import _INPUT_DATA
 from tests.helpers.api_utils import STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
-from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import run_rbac_test
 
 
 def test_create_staleness(api_create_staleness, db_get_staleness_culling):
@@ -55,32 +55,16 @@ def test_create_staleness_with_wrong_input(api_create_staleness):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_create_staleness_rbac_allowed(subtests, mocker, api_create_staleness):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    for response_file in STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_create_staleness(_INPUT_DATA)
-
-            assert_response_status(response_status, 201)
+    run_rbac_test(
+        subtests, mocker, api_create_staleness, STALENESS_WRITE_ALLOWED_RBAC_RESPONSE_FILES, 201, [_INPUT_DATA]
+    )
 
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    for response_file in STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_create_staleness(_INPUT_DATA)
-
-            assert_response_status(response_status, 403)
+    run_rbac_test(
+        subtests, mocker, api_create_staleness, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403, [_INPUT_DATA]
+    )
 
 
 @pytest.mark.parametrize(

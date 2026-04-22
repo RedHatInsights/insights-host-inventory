@@ -541,57 +541,31 @@ def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, s
     assert len(response_data["results"]) == 1
 
 
-def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
+@pytest.mark.parametrize(
+    "param_name,value_getter",
+    [
+        ("hostname_or_id", lambda h: h[0].id),
+        ("insights_id", lambda h: h[0].insights_id.upper()),
+        ("subscription_manager_id", lambda h: h[0].subscription_manager_id),
+    ],
+)
+def test_query_using_single_field(mq_create_three_specific_hosts, api_get, subtests, param_name, value_getter):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
-
+    url = build_hosts_url(query=f"?{param_name}={value_getter(created_hosts)}")
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=1)
-
     assert response_status == 200
     assert len(response_data["results"]) == 1
 
 
-def test_query_using_non_existent_hostname(api_get, subtests):
-    url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
-
+@pytest.mark.parametrize("value", ["NotGonnaFindMe", lambda: generate_uuid()])
+def test_query_using_non_existent_host(api_get, subtests, value):
+    query_value = value() if callable(value) else value
+    url = build_hosts_url(query=f"?hostname_or_id={query_value}")
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=0)
-
     assert response_status == 200
     assert len(response_data["results"]) == 0
-
-
-def test_query_using_non_existent_id(api_get, subtests):
-    url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=0)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
-
-
-def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id.upper()}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=1)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-
-
-def test_query_using_subscription_manager_id(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?subscription_manager_id={created_hosts[0].subscription_manager_id}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=1)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
