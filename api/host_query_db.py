@@ -769,8 +769,9 @@ def get_sparse_system_profile(
     requested_sp_fields_dict: dict[str, bool] = fields.get("system_profile", {}) if fields else {}  # type: ignore[assignment]
     requested_sp_fields = list(requested_sp_fields_dict.keys()) if isinstance(requested_sp_fields_dict, dict) else []
     workloads_requested = "workloads" in requested_sp_fields
+    workloads_compat_enabled = get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id)
     workloads_needed_for_compat = (
-        get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id)
+        workloads_compat_enabled
         and requested_sp_fields
         and any(field in legacy_workload_fields for field in requested_sp_fields)
     )
@@ -829,7 +830,7 @@ def get_sparse_system_profile(
         result_list.append({"id": str(item[0]), "system_profile": system_profile})
 
     # Apply backward compatibility logic if the flag is enabled
-    if get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id):
+    if workloads_compat_enabled:
         for host_data in result_list:
             if host_data["system_profile"]:
                 # Apply backward compatibility to populate legacy fields from workloads.*
