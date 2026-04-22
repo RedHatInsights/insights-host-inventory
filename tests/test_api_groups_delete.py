@@ -52,6 +52,58 @@ def test_delete_with_missing_group_id_response_includes_only_missing_ids(db_crea
     assert valid_group_id not in response_data["not_found_ids"]
 
 
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_rbac_v1_aborts_before_deletion(
+    db_create_group, db_get_group_by_id, api_delete_groups, mocker
+):
+    """In the RBAC v1 path, the DB existence check fires before any deletion.
+
+    If any requested group ID is missing, the entire request is aborted with 404
+    and no groups (including valid ones in the same request) are deleted.
+    This check is exclusive to the RBAC v1 path; RBAC v2 skips it and relies on
+    delete_rbac_workspace() to handle missing workspaces per-group.
+    """
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=False)
+
+    valid_group_id = str(db_create_group("valid_group").id)
+    missing_group_id = generate_uuid()
+
+    response_status, _ = api_delete_groups([valid_group_id, missing_group_id])
+
+    assert_response_status(response_status, expected_status=404)
+    # The valid group must NOT have been deleted — the check aborts before any deletion
+    assert db_get_group_by_id(valid_group_id) is not None
+
+
+@pytest.mark.usefixtures("event_producer")
+def test_delete_non_existent_group_rbac_v2_skips_db_check(
+    db_create_group, db_get_group_by_id, api_delete_groups, mocker
+):
+    """In the RBAC v2 path, the DB existence check is skipped entirely.
+
+    A missing workspace ID does not abort the whole request — delete_rbac_workspace()
+    raises ResourceNotFoundException which is caught per-group. Valid groups in the
+    same request are still deleted successfully.
+    """
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+
+    valid_group_id = str(db_create_group("valid_group").id)
+    missing_group_id = generate_uuid()
+
+    def delete_workspace(workspace_id):
+        if workspace_id == missing_group_id:
+            raise ResourceNotFoundException("Workspace not found")
+
+    mocker.patch("api.group.delete_rbac_workspace", side_effect=delete_workspace)
+
+    response_status, _ = api_delete_groups([valid_group_id, missing_group_id])
+
+    # Request succeeds — the missing workspace ID did not abort the whole request
+    assert_response_status(response_status, expected_status=204)
+    # The valid group was still deleted
+    assert db_get_group_by_id(valid_group_id) is None
+
+
 def test_delete_with_invalid_group_id(api_delete_groups):
     group_id = "notauuid"
 
