@@ -32,6 +32,15 @@ class KesselResourceType:
 
         return [str(value)]
 
+    def _get_default_workspace_id(self) -> list[str]:
+        from lib.middleware import get_rbac_default_workspace
+
+        workspace_id = get_rbac_default_workspace()
+        if workspace_id:
+            return [str(workspace_id)]
+        else:
+            return []
+
     def __init__(self, namespace: str, name: str, v1_type: RbacResourceType, v1_app: str) -> None:
         self.namespace = namespace
         self.name = name
@@ -78,13 +87,7 @@ class WorkspaceKesselResourceType(KesselResourceType):
 
 class StalenessKesselResourceType(KesselResourceType):
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:  # noqa: ARG002, overrides get_resource_id from KesselResourceType
-        from lib.middleware import get_rbac_default_workspace
-
-        workspace_id = get_rbac_default_workspace()
-        if workspace_id:
-            return [str(workspace_id)]
-        else:
-            return []
+        return self._get_default_workspace_id()
 
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.STALENESS, "staleness")
@@ -95,9 +98,12 @@ class StalenessKesselResourceType(KesselResourceType):
 
 
 class AllKesselResourceType(KesselResourceType):
+    def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:  # noqa: ARG002, overrides get_resource_id from KesselResourceType
+        return self._get_default_workspace_id()
+
     def __init__(self) -> None:
-        super().__init__("hbi", "all", RbacResourceType.ALL, "inventory")
-        self.admin = KesselPermission(self, "inventory_admin", "admin", RbacPermission.ADMIN)
+        super().__init__("rbac", "workspace", RbacResourceType.ALL, "rbac")
+        self.admin = KesselPermission(self, "inventory_host_view", "inventory_host_view", RbacPermission.ADMIN)
 
 
 # Add more resource types as subclasses of KesselResourceType

@@ -7,21 +7,20 @@ from api.group_query import get_filtered_group_list_db
 from api.resource_query import build_paginated_resource_list_response
 from api.resource_query import get_resources_types
 from app.auth import get_current_identity
-from app.auth.rbac import RbacPermission
-from app.auth.rbac import RbacResourceType
+from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_group_list_failed
 from app.instrumentation import log_get_group_list_succeeded
 from app.instrumentation import log_get_resource_type_list_failed
 from app.instrumentation import log_get_resource_type_list_succeeded
 from app.logging import get_logger
 from lib.group_repository import serialize_group
-from lib.middleware import rbac
+from lib.middleware import access
 
 logger = get_logger(__name__)
 
 
 @api_operation
-@rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
+@access(KesselResourceTypes.ALL.admin)
 @metrics.api_request_time.time()
 def get_resource_type_list(
     page=1,
@@ -40,7 +39,7 @@ def get_resource_type_list(
 
 
 @api_operation
-@rbac(RbacResourceType.ALL, RbacPermission.ADMIN, "rbac")
+@access(KesselResourceTypes.ALL.admin)
 @metrics.api_request_time.time()
 def get_resource_type_groups_list(
     name=None,

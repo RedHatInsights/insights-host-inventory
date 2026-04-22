@@ -531,9 +531,7 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             current_identity = get_current_identity()
 
-            ids = []
-            if id_param:
-                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+            ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
             allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
