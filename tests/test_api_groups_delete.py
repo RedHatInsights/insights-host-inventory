@@ -435,7 +435,6 @@ def test_delete_ungrouped_group_post_kessel_migration(
     subtests,
 ):
     mocker.patch.object(event_producer, "write_event")
-    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Create an ungrouped group and a standard group
     ungrouped_group_id = str(db_create_group("ungrouped group", ungrouped=True).id)
@@ -532,8 +531,6 @@ def test_delete_groups_kessel_partial_when_rbac_workspace_missing(
     """
     Groups whose workspace delete failed are skipped; others are still removed from HBI.
     """
-    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
-
     db_create_group("ungrouped_hosts", ungrouped=True)
 
     group_kept = db_create_group("kept")

@@ -451,17 +451,16 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 def delete_groups(group_id_list, rbac_filter=None):
     identity = get_current_identity()
 
+    # RBAC v1 only: Validate group IDs against RBAC v1 filter
+    # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
     if not is_rbac_v2_enabled(identity.org_id):
-        # RBAC v1 only: Validate group IDs against RBAC v1 filter
         rbac_group_id_check(rbac_filter, set(group_id_list))
 
-        # Abort with 404 if any of the groups do not exist (RBAC v1 only)
-        found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
-        check_all_ids_found(group_id_list, found_groups, "group")
-        groups_to_delete = group_id_list
+    # Abort with 404 if any of the groups do not exist
+    found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
+    check_all_ids_found(group_id_list, found_groups, "group")
 
-    else:
-        # RBAC v2 path
+    if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
         ungrouped_group = get_ungrouped_group(identity)
         ungrouped_group_id = str(ungrouped_group.id) if ungrouped_group else None
@@ -479,6 +478,8 @@ def delete_groups(group_id_list, rbac_filter=None):
                 groups_to_delete.append(group_id)
             except ResourceNotFoundException:
                 continue
+    else:
+        groups_to_delete = group_id_list
 
     delete_count = delete_group_list(groups_to_delete, identity, current_app.event_producer)
 
