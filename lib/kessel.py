@@ -312,54 +312,10 @@ class Kessel:
             },
         )
 
-        # Resolve user_id based on identity type
-        user_id = None
-        if getattr(current_identity, "user", None):
-            user_id = current_identity.user.get("user_id")
-            logger.debug(
-                "ListAllowedWorkspaces: resolved user_id from user identity",
-                extra={"user_id": user_id},
-            )
-        elif getattr(current_identity, "service_account", None):
-            user_id = current_identity.service_account.get("user_id")
-            logger.debug(
-                "ListAllowedWorkspaces: resolved user_id from service_account identity",
-                extra={"user_id": user_id, "service_account": current_identity.service_account},
-            )
-        else:
-            logger.error(
-                "ListAllowedWorkspaces: unable to resolve user_id - no user or service_account in identity",
-                extra={
-                    "identity_type": current_identity.identity_type,
-                    "identity_dict": current_identity._asdict() if hasattr(current_identity, "_asdict") else None,
-                },
-            )
-
-        if not user_id:
-            logger.error(
-                "ListAllowedWorkspaces: user_id is None or empty, returning empty workspace list",
-                extra={"identity_type": current_identity.identity_type},
-            )
-            return []
-
-        resource_id = f"redhat/{user_id}"
-        logger.debug(
-            "ListAllowedWorkspaces: building subject reference",
-            extra={"resource_id": resource_id, "relation": relation},
-        )
-
-        subject_ref = resource_reference_pb2.ResourceReference(
-            resource_type="principal",
-            resource_id=resource_id,
-            reporter=reporter_reference_pb2.ReporterReference(type="rbac"),
-        )
-
-        subject = subject_reference_pb2.SubjectReference(
-            resource=subject_ref,
-        )
+        subject_ref = principal_from_rh_identity(current_identity._asdict())
 
         try:
-            stream = list_workspaces(self.inventory_svc, subject=subject, relation=relation)
+            stream = list_workspaces(self.inventory_svc, subject=subject_ref, relation=relation)
             workspaces = [workspace.object.resource_id for workspace in stream]
             logger.debug(
                 "ListAllowedWorkspaces: successfully retrieved workspaces",
@@ -372,7 +328,6 @@ class Kessel:
                 extra={
                     "error_code": e.code().name if hasattr(e, "code") else None,
                     "error_details": e.details() if hasattr(e, "details") else str(e),
-                    "user_id": user_id,
                     "relation": relation,
                 },
             )
@@ -380,7 +335,7 @@ class Kessel:
         except Exception as e:
             logger.error(
                 f"ListAllowedWorkspaces: unexpected error: {str(e)}",
-                extra={"user_id": user_id, "relation": relation},
+                extra={"relation": relation},
                 exc_info=True,
             )
             return []
