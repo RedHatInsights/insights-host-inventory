@@ -28,6 +28,7 @@ from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.queue.events import EventType
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -2857,7 +2858,12 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
     assert second is mock_created_group
     get_ungrouped.assert_called_once_with(mock_identity)
     mock_rbac.assert_called_once_with(mock_identity)
-    mock_wait.assert_called_once()
+    mock_wait.assert_called_once_with(
+        str(workspace_id),
+        EventType.created,
+        org_id=mock_identity.org_id,
+        timeout=mock_config.return_value.rbac_timeout,
+    )
     mock_get_by_id.assert_called_once_with(str(workspace_id), "test_org")
 
 
