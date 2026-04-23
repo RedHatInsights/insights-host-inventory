@@ -341,6 +341,34 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 
 @pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_kessel")
+def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consumer_mock):
+    """TimeoutError from wait_for_workspace_event is logged with context and re-raised with a clear metric label."""
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers",
+        return_value={"id": str(generate_uuid())},
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            rbac_psk="psk",
+            bypass_kessel=False,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+        ),
+    )
+    mocker.patch(
+        "lib.group_repository.wait_for_workspace_event",
+        side_effect=TimeoutError("No workspace creation message consumed in time."),
+    )
+
+    host = minimal_host()
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+
+    with pytest.raises(TimeoutError):
+        ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+
+@pytest.mark.usefixtures("flask_app")
 def test_handle_message_existing_ungrouped_workspace(mocker, db_create_group):
     expected_insights_id = generate_uuid()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
