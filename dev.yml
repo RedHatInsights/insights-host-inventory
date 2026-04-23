@@ -163,6 +163,29 @@ services:
         timeout: 5s
         retries: 5
 
+    tempo:
+      container_name: tempo
+      image: grafana/tempo:2.7.1
+      command: ["-config.file=/etc/tempo.yaml"]
+      volumes:
+        - ./.otel/tempo.yaml:/etc/tempo.yaml
+      ports:
+        - "4318:4318"
+        - "3200:3200"
+
+    grafana:
+      container_name: grafana
+      image: grafana/grafana:11.5.2
+      ports:
+        - "3000:3000"
+      environment:
+        - GF_AUTH_ANONYMOUS_ENABLED=true
+        - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      volumes:
+        - ./.otel/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      depends_on:
+        - tempo
+
     hbi-web:
       container_name: hbi-web
       build: .
@@ -197,6 +220,8 @@ services:
         - INVENTORY_API_STALENESS_CACHE_ENABLED=${INVENTORY_API_STALENESS_CACHE_ENABLED:-true}
         - CACHE_HOST=redis
         - CACHE_PORT=6379
+        - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
       depends_on:
         db:
           condition: service_healthy
@@ -229,6 +254,9 @@ services:
         - OUTBOX_USE_BATCHED_QUERIES=${OUTBOX_USE_BATCHED_QUERIES:-false}
         - CACHE_HOST=redis
         - CACHE_PORT=6379
+        - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+        - MQ_DB_BATCH_MAX_MESSAGES=${MQ_DB_BATCH_MAX_MESSAGES:-10}
       depends_on:
         db:
           condition: service_healthy
