@@ -2839,10 +2839,15 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
     mock_identity.org_id = "test_org"
     mock_identity.account_number = "test_account"
 
+    workspace_id = generate_uuid()
     mock_created_group = mocker.Mock(name="created_ungrouped_group")
+    mock_config = mocker.patch("lib.group_repository.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
-    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value="ws-id")
-    mock_add = mocker.patch("lib.group_repository.add_group", return_value=mock_created_group)
+    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=workspace_id)
+    mock_wait = mocker.patch("lib.group_repository.wait_for_workspace_event")
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=False)
+    mock_get_by_id = mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=mock_created_group)
 
     with UngroupedGroupCache():
         first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
@@ -2852,10 +2857,5 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
     assert second is mock_created_group
     get_ungrouped.assert_called_once_with(mock_identity)
     mock_rbac.assert_called_once_with(mock_identity)
-    mock_add.assert_called_once_with(
-        group_name="Ungrouped Hosts",
-        org_id="test_org",
-        account="test_account",
-        group_id="ws-id",
-        ungrouped=True,
-    )
+    mock_wait.assert_called_once()
+    mock_get_by_id.assert_called_once_with(str(workspace_id), "test_org")

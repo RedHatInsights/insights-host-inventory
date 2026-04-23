@@ -303,10 +303,13 @@ def test_handle_message_happy_path(
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
+def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock, db_create_group):
+    from uuid import UUID
+
     mock_psk = "1234567890"
+    workspace_uuid = generate_uuid()
     get_rbac_mock = mocker.patch(
-        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
     )
     mocker.patch(
         "lib.middleware.inventory_config",
@@ -316,6 +319,13 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+
+    # Simulate the MQ consumer creating the group in the DB while we wait.
+    def wait_and_create(workspace_id_str, *args, **kwargs):
+        db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True, group_id=UUID(workspace_id_str))
+
+    mocker.patch("lib.group_repository.wait_for_workspace_event", side_effect=wait_and_create)
+
     host = minimal_host(org_id=identity["org_id"])
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
