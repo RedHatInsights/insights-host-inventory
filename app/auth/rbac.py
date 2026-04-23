@@ -22,10 +22,9 @@ class KesselResourceType:
     v1_app: str
 
     def get_resource_id(self, kwargs: dict[str, Any], id_param: str) -> list[str]:
-        if id_param == "":
+        value = kwargs.get(id_param) if id_param else None
+        if value is None:
             return []
-
-        value = kwargs.get(id_param)
 
         if isinstance(value, list):
             return list(value)
@@ -103,6 +102,10 @@ class AllKesselResourceType(KesselResourceType):
 
     def __init__(self) -> None:
         super().__init__("rbac", "workspace", RbacResourceType.ALL, "rbac")
+        # Uses inventory_host_view as the Kessel permission because the .zed schema has no
+        # admin-level permission on rbac/workspace. The RbacPermission.ADMIN maps to the
+        # RBAC v1 wildcard (rbac:*:*) for the fallback path, while inventory_host_view is
+        # the closest equivalent in Kessel for org-wide read access.
         self.admin = KesselPermission(self, "inventory_host_view", "inventory_host_view", RbacPermission.ADMIN)
 
 
