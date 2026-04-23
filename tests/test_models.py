@@ -2859,3 +2859,39 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
         group_id="ws-id",
         ungrouped=True,
     )
+
+
+def test_ungrouped_group_handles_race_condition(flask_app, mocker):  # noqa: ARG001
+    """When two threads try to create ungrouped group simultaneously, handle UniqueViolation gracefully."""
+    from psycopg2.errors import UniqueViolation
+    from sqlalchemy.exc import IntegrityError
+
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
+    mock_identity = mocker.Mock()
+    mock_identity.org_id = "test_org"
+    mock_identity.account_number = "test_account"
+
+    mock_existing_group = mocker.Mock(name="existing_ungrouped_group")
+    mock_existing_group.id = "existing-group-id"
+
+    # Simulate race condition: first get_ungrouped_group returns None, then add_group fails with UniqueViolation
+    get_ungrouped_calls = [None, mock_existing_group]
+    get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", side_effect=get_ungrouped_calls)
+
+    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value="ws-id")
+
+    # Simulate UniqueViolation on add_group
+    unique_violation = UniqueViolation()
+    integrity_error = IntegrityError("statement", "params", unique_violation)
+    mock_add = mocker.patch("lib.group_repository.add_group", side_effect=integrity_error)
+
+    mock_rollback = mocker.patch("lib.group_repository.db.session.rollback")
+
+    result = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+
+    assert result is mock_existing_group
+    assert get_ungrouped.call_count == 2
+    mock_rbac.assert_called_once_with(mock_identity)
+    mock_add.assert_called_once()
+    mock_rollback.assert_called_once()

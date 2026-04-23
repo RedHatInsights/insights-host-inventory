@@ -1,6 +1,7 @@
 import time
 from uuid import UUID
 
+from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -577,13 +578,33 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
     # Otherwise, create the workspace
     workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
-    group = add_group(
-        group_name="Ungrouped Hosts",
-        org_id=identity.org_id,
-        account=getattr(identity, "account_number", None),
-        group_id=workspace_id,
-        ungrouped=True,
-    )
+    try:
+        group = add_group(
+            group_name="Ungrouped Hosts",
+            org_id=identity.org_id,
+            account=getattr(identity, "account_number", None),
+            group_id=workspace_id,
+            ungrouped=True,
+        )
+    except IntegrityError as e:
+        # Handle race condition: another thread may have created the group
+        if isinstance(e.orig, UniqueViolation):
+            logger.debug(
+                "Ungrouped group creation failed with UniqueViolation, retrying fetch",
+                extra={"org_id": identity.org_id, "workspace_id": str(workspace_id)},
+            )
+            db.session.rollback()
+            group = get_ungrouped_group(identity)
+            if group is None:
+                # Still not found after retry, something else is wrong
+                logger.error(
+                    "Ungrouped group not found after UniqueViolation retry",
+                    extra={"org_id": identity.org_id, "workspace_id": str(workspace_id)},
+                )
+                raise
+        else:
+            raise
+
     UngroupedGroupCache.put(identity.org_id, group)
     return group
 
