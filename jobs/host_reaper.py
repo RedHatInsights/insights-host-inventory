@@ -117,6 +117,7 @@ if __name__ == "__main__":
     )
 
     with application.app.app_context():
+        # The reaper runs across all orgs, so there is no org to scope this check to.
         if get_flag_value_and_fallback(FLAG_INVENTORY_API_READ_ONLY, {})[0]:
             logger.info("Inventory API is currently in read-only mode. Exiting.")
             sys.exit(0)

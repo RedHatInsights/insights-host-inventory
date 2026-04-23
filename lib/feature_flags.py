@@ -65,7 +65,7 @@ def custom_fallback(feature_name: str, context: dict) -> bool:  # noqa: ARG001, 
     raise ConnectionError(f"Could not contact Unleash server, or feature toggle {feature_name} not found.")
 
 
-def build_flag_context(org_id: str) -> dict[str, str]:
+def _build_flag_context(org_id: str) -> dict[str, str]:
     """
     Build a feature flag context for org-specific targeting.
 
@@ -109,4 +109,4 @@ def get_flag_value_and_fallback(flag_name: str, context: Mapping[str, str]) -> t
 # Accepts a string with the name of the feature flag.
 # Returns the value of the feature flag, whether it's the fallback or real value.
 def get_flag_value(flag_name: str, org_id: str) -> bool:
-    return get_flag_value_and_fallback(flag_name, build_flag_context(org_id))[0]
+    return get_flag_value_and_fallback(flag_name, _build_flag_context(org_id))[0]
