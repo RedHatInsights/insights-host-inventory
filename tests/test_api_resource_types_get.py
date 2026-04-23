@@ -118,6 +118,20 @@ def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests):
 
 
 @pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize(
+    "url_builder",
+    [build_resource_types_url, build_resource_types_groups_url],
+)
+def test_get_resource_types_v2_org_returns_error(mocker, api_get, url_builder):
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    response_status, response_data = api_get(url_builder())
+
+    assert_response_status(response_status, 400)
+    assert "The resource_types endpoint is for RBAC v1 only and is not needed for RBAC v2." in response_data["detail"]
+
+
+@pytest.mark.usefixtures("enable_rbac")
 def test_get_resource_types_ungrouped_is_not_returned(
     mocker,
     api_get,

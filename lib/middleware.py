@@ -496,6 +496,14 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             if resource_type == RbacResourceType.GROUPS and is_rbac_v2_enabled(current_identity.org_id):
                 return func(*args, **kwargs)
 
+            # Resource-types endpoints are not supported for v2 orgs.
+            # In v2, resource-types are managed via RBAC v2 Role Bindings.
+            if resource_type == RbacResourceType.ALL and is_rbac_v2_enabled(current_identity.org_id):
+                abort(
+                    HTTPStatus.BAD_REQUEST,
+                    "The resource_types endpoint is for RBAC v1 only and is not needed for RBAC v2.",
+                )
+
             # RBAC v1 path: Check permissions via RBAC v1 API
             request_headers = _build_rbac_request_headers()
 
