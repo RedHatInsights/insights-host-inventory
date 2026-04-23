@@ -185,10 +185,23 @@ def serialize_host(
     staleness=None,
     system_profile_fields=None,
 ):
+    """
+    Serialize a host for API and MQ consumers.
+
+    Args:
+        host: Host object to serialize.
+        staleness_timestamps: Timestamps object to use for staleness calculations.
+        for_mq: Whether to serialize for MQ consumers.
+        additional_fields: Additional fields to serialize.
+        staleness: Staleness configuration to use for staleness calculations.
+        system_profile_fields: System profile fields to serialize.
+    """
     # Ensure additional_fields is a tuple
     additional_fields = additional_fields or ()
 
-    timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
+    # Keep the ``staleness_timestamps`` param as the culling ``Timestamps`` helper; the computed
+    # dict must use another name or per-reporter serialization would receive a dict.
+    st_timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
     fields = DEFAULT_FIELDS + additional_fields
 
@@ -208,17 +221,17 @@ def serialize_host(
         "facts": lambda: serialize_facts(host.facts),
         "reporter": lambda: host.reporter,
         "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
-        "stale_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_timestamp"]),
-        "stale_warning_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_warning_timestamp"]),
-        "culled_timestamp": lambda: _serialize_staleness_to_string(timestamps["culled_timestamp"]),
+        "stale_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_timestamp"]),
+        "stale_warning_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_warning_timestamp"]),
+        "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["culled_timestamp"]),
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
         "last_check_in": lambda: _serialize_datetime(host.last_check_in),
         "tags": lambda: _serialize_tags(host.tags),
         "tags_alt": lambda: host.tags_alt,
         "state": lambda: Conditions.find_host_state(
-            stale_timestamp=timestamps["stale_timestamp"],
-            stale_warning_timestamp=timestamps["stale_warning_timestamp"],
+            stale_timestamp=st_timestamps["stale_timestamp"],
+            stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
