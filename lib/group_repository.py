@@ -12,6 +12,7 @@ from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
@@ -48,6 +49,8 @@ from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
+from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
@@ -574,16 +577,30 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
         UngroupedGroupCache.put(identity.org_id, group)
         return group
 
-    # Otherwise, create the workspace
-    workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
+    if inventory_config().bypass_kessel:
+        group = add_group(
+            group_name="Ungrouped Hosts",
+            org_id=identity.org_id,
+            account=getattr(identity, "account_number", None),
+            ungrouped=True,
+        )
+    else:
+        # Wait for the MQ flow to create the workspace to avoid a race condition
+        # where we try to create the group before the MQ event arrives.
+        workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
-    group = add_group(
-        group_name="Ungrouped Hosts",
-        org_id=identity.org_id,
-        account=getattr(identity, "account_number", None),
-        group_id=workspace_id,
-        ungrouped=True,
-    )
+        wait_for_workspace_event(
+            str(workspace_id),
+            EventType.created,
+            org_id=identity.org_id,
+            timeout=inventory_config().rbac_timeout,
+        )
+
+        if is_rbac_v2_enabled(identity.org_id):
+            group = get_rbac_workspace_by_id(str(workspace_id))
+        else:
+            group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+
     UngroupedGroupCache.put(identity.org_id, group)
     return group
 

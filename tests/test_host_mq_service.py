@@ -8,6 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
+from unittest.mock import ANY
 from unittest.mock import patch
 
 import marshmallow
@@ -303,10 +304,13 @@ def test_handle_message_happy_path(
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
+def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock, db_create_group):
+    from uuid import UUID
+
     mock_psk = "1234567890"
+    workspace_uuid = generate_uuid()
     get_rbac_mock = mocker.patch(
-        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
     )
     mocker.patch(
         "lib.middleware.inventory_config",
@@ -316,6 +320,13 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+
+    # Simulate the MQ consumer creating the group in the DB while we wait.
+    def wait_and_create(workspace_id_str, *args, **kwargs):
+        db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True, group_id=UUID(workspace_id_str))
+
+    wait_mock = mocker.patch("lib.group_repository.wait_for_workspace_event", side_effect=wait_and_create)
+
     host = minimal_host(org_id=identity["org_id"])
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
@@ -328,6 +339,51 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
         "X-RH-RBAC-ORG-ID": "test",
         "X-RH-RBAC-PSK": mock_psk,
     }
+    wait_mock.assert_called_once_with(
+        str(workspace_uuid),
+        EventType.created,
+        org_id=identity["org_id"],
+        timeout=ANY,
+    )
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_kessel")
+def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consumer_mock, caplog):
+    """TimeoutError from wait_for_workspace_event is logged with context and re-raised with a clear metric label."""
+    import logging
+
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers",
+        return_value={"id": str(generate_uuid())},
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            rbac_psk="psk",
+            bypass_kessel=False,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+        ),
+    )
+    mocker.patch(
+        "lib.group_repository.wait_for_workspace_event",
+        side_effect=TimeoutError("No workspace creation message consumed in time."),
+    )
+    mock_add_host_failure = mocker.patch("app.queue.host_mq.metrics.add_host_failure")
+
+    host = minimal_host(reporter="test_reporter")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+
+    with caplog.at_level(logging.ERROR), pytest.raises(TimeoutError):
+        ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert any(
+        "Timed out waiting for RBAC workspace creation while adding host" in record.message
+        for record in caplog.records
+        if record.levelno == logging.ERROR
+    )
+    mock_add_host_failure.labels.assert_called_once_with("TimeoutError", "test_reporter")
+    mock_add_host_failure.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.usefixtures("flask_app")
