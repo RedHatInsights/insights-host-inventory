@@ -35,6 +35,7 @@ from app.config import Config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.culling import Conditions
 from app.culling import Timestamps
 from app.culling import _Config as CullingConfig
 from app.environment import RuntimeEnvironment
@@ -64,6 +65,7 @@ from app.serialization import serialize_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_system_profile
 from app.serialization import serialize_uuid
+from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from app.utils import Tag
 from lib import host_kafka
@@ -1808,6 +1810,44 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
                 _timestamp_to_str(_add_seconds(host.last_check_in, culled_offset_seconds))
                 == serialized["culled_timestamp"]
             )
+
+
+def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flask_app):
+    """Serialize API lifecycle timestamps from last_check_in + org offsets, not ORM staleness columns."""
+    with flask_app.app.app_context():
+        ref = datetime(2019, 6, 15, 8, 30, 0, tzinfo=UTC)
+        host = Host(
+            subscription_manager_id=generate_uuid(),
+            facts={},
+            reporter="test-reporter",
+            org_id=USER_IDENTITY["org_id"],
+        )
+        host.id = uuid4()
+        host.created_on = now()
+        host.modified_on = now()
+        host.last_check_in = ref
+        bogus = now() + timedelta(days=365 * 12)
+        host.stale_timestamp = bogus
+        host.stale_warning_timestamp = bogus + timedelta(days=1)
+        host.deletion_timestamp = bogus + timedelta(days=2)
+
+        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=30))
+        staleness = get_sys_default_staleness()
+        st_helper = Timestamps(config)
+        expected = get_staleness_timestamps(host, st_helper, staleness)
+        assert host.stale_timestamp != expected["stale_timestamp"]
+        assert host.stale_warning_timestamp != expected["stale_warning_timestamp"]
+        assert host.deletion_timestamp != expected["culled_timestamp"]
+
+        expected_state = Conditions.find_host_state(
+            expected["stale_timestamp"],
+            expected["stale_warning_timestamp"],
+        )
+        serialized = serialize_host(host, st_helper, False, additional_fields=("state",), staleness=staleness)
+        assert serialized["stale_timestamp"] == _timestamp_to_str(expected["stale_timestamp"])
+        assert serialized["stale_warning_timestamp"] == _timestamp_to_str(expected["stale_warning_timestamp"])
+        assert serialized["culled_timestamp"] == _timestamp_to_str(expected["culled_timestamp"])
+        assert serialized["state"] == expected_state
 
 
 @patch("app.serialization._serialize_tags")
