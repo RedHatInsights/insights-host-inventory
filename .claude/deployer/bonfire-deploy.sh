@@ -18,7 +18,7 @@ deploy() {
 
   NAMESPACE=$(oc project -q)
 
-  HBI_CUSTOM_IMAGE="quay.io/cloudservices/insights-inventory"
+  HBI_CUSTOM_IMAGE="quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/insights-host-inventory"
   HBI_CUSTOM_IMAGE_TAG=latest
   HBI_CUSTOM_IMAGE_PARAMETER=""
   LOCAL_SCHEMA_FILE=""
@@ -89,7 +89,8 @@ idmsvc" \
     -p host-inventory/KESSEL_TARGET_URL=kessel-inventory-api.$NAMESPACE.svc.cluster.local:9000 \
     --set-image-tag "${HBI_CUSTOM_IMAGE}=${HBI_CUSTOM_IMAGE_TAG}" \
     --set-image-tag quay.io/redhat-services-prod/rh-platform-experien-tenant/service-accounts="e187df2" \
-    --set-image-tag quay.io/cloudservices/insights-inventory-frontend="${HOST_FRONTEND_GIT_COMMIT}" \
+    --set-image-tag quay.io/redhat-services-prod/insights-management-tenant/insights-host-inventory/host-inventory-frontend="${HOST_FRONTEND_GIT_COMMIT}" \
+    --set-image-tag quay.io/cloudservices/unleash-proxy=latest \
     --set-image-tag quay.io/redhat-services-prod/hcc-platex-services/chrome-service=latest \
     --set-image-tag quay.io/redhat-services-prod/hcc-accessmanagement-tenant/insights-rbac=latest \
     --set-image-tag quay.io/redhat-services-prod/rh-platform-experien-tenant/insights-rbac-ui=latest \
