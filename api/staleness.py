@@ -1,5 +1,6 @@
 from http import HTTPStatus
 from threading import Thread
+from typing import Any
 
 import sqlalchemy as sa
 from flask import Flask
@@ -29,7 +30,6 @@ from app.instrumentation import log_patch_staleness_succeeded
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models import Host
-from app.models import Staleness
 from app.models import StalenessSchema
 from app.models.utils import StalenessCache
 from app.queue.events import EventType
@@ -45,8 +45,10 @@ from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.middleware import access
 from lib.staleness import add_staleness
+from lib.staleness import org_has_custom_staleness
 from lib.staleness import patch_staleness
 from lib.staleness import remove_staleness
+from lib.staleness import staleness_equivalent_to_system_defaults
 
 logger = get_logger(__name__)
 
@@ -99,7 +101,7 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
         orm.attributes.flag_modified(host, "modified_on")
 
 
-def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Staleness, request_id):
+def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict: dict, request_id):
     with app.app_context():
         threadctx.request_id = request_id
         logger.debug("Starting host staleness update thread")
@@ -108,7 +110,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
             hosts_query = host_query(identity.org_id)
             num_hosts = hosts_query.count()
             st = staleness_timestamps()
-            staleness_dict = serialize_staleness_to_dict(staleness)
             if num_hosts > 0:
                 logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
 
@@ -171,17 +172,20 @@ def _build_host_updated_event_params(serialized_host: dict, host: Host, identity
     return event, headers
 
 
-def _async_update_host_staleness(identity: Identity, created_staleness: Staleness, request_id):
+def _async_update_host_staleness(identity: Identity, created_staleness: Any, request_id):
     """
     This method starts a new thread to update the host staleness.
     """
+    # Serialize in the request thread while ORM objects are still session-bound; the
+    # worker must not access Staleness rows that may be detached or deleted.
+    staleness_dict = serialize_staleness_to_dict(created_staleness)
     update_hosts_thread = Thread(
         target=_update_hosts_staleness_async,
         daemon=True,
         args=(
             identity,
             current_app._get_current_object(),
-            created_staleness,
+            staleness_dict,
             request_id,
         ),
     )
@@ -231,6 +235,13 @@ def create_staleness(body):
     except ValidationError as e:
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+
+    if staleness_equivalent_to_system_defaults(validated_data, identity):
+        if org_has_custom_staleness(org_id):
+            remove_staleness()
+            StalenessCache.delete(org_id)
+            _async_update_host_staleness(identity, get_sys_default_staleness_api(identity), request_id)
+        return flask_json_response(serialize_staleness_response(get_staleness_obj(org_id)), HTTPStatus.CREATED)
 
     try:
         # Create account staleness with validated data
@@ -284,6 +295,14 @@ def update_staleness(body):
 
     identity = get_current_identity()
     org_id = identity.org_id
+
+    if staleness_equivalent_to_system_defaults(validated_data, identity):
+        if org_has_custom_staleness(org_id):
+            remove_staleness()
+            StalenessCache.delete(org_id)
+            _async_update_host_staleness(identity, get_sys_default_staleness_api(identity), request_id)
+        return flask_json_response(serialize_staleness_response(get_staleness_obj(org_id)), HTTPStatus.OK)
+
     try:
         updated_staleness = patch_staleness(validated_data)
         StalenessCache.delete(org_id)

@@ -1,10 +1,35 @@
 from app.auth import get_current_identity
+from app.auth.identity import Identity
 from app.logging import get_logger
 from app.models import Staleness
 from app.models import db
 from lib.db import session_guard
 
 logger = get_logger(__name__)
+
+# If submitted staleness is within this many seconds of system defaults for all
+# three conventional fields, treat it as "default" and do not keep a custom row.
+DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS = 60 * 60
+
+_STALENESS_CONVENTIONAL_KEYS = (
+    "conventional_time_to_stale",
+    "conventional_time_to_stale_warning",
+    "conventional_time_to_delete",
+)
+
+
+def staleness_equivalent_to_system_defaults(staleness_data: dict, identity: Identity) -> bool:
+    from app.staleness_serialization import get_sys_default_staleness_api
+
+    default = get_sys_default_staleness_api(identity)
+    return all(
+        abs(staleness_data[k] - default[k]) <= DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS
+        for k in _STALENESS_CONVENTIONAL_KEYS
+    )
+
+
+def org_has_custom_staleness(org_id: str) -> bool:
+    return Staleness.query.filter_by(org_id=org_id).first() is not None
 
 
 def add_staleness(staleness_data) -> Staleness:
