@@ -8,6 +8,7 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory_api import GroupOut
@@ -71,6 +72,7 @@ class TestRBACSAGroupsNoReadPermission:
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_sa_groups_no_read_permission_get_groups_list(
         self,
+        host_inventory: ApplicationHostInventory,
         host_inventory_sa_2: ApplicationHostInventory,
     ):
         """
@@ -84,12 +86,16 @@ class TestRBACSAGroupsNoReadPermission:
           title: Test that service accounts users without "groups:read" permission
                  can't get a list of groups
         """
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
-            host_inventory_sa_2.apis.groups.get_groups()
+        if host_inventory.unleash.is_rbac_workspaces_enabled:
+            response = host_inventory_sa_2.apis.groups.get_groups()
+            assert len(response) == 0
+        else:
+            with raises_apierror(
+                403,
+                "You don't have the permission to access the requested resource. "
+                "It is either read-protected or not readable by the server.",
+            ):
+                host_inventory_sa_2.apis.groups.get_groups()
 
     def test_rbac_sa_groups_no_read_permission_get_groups_by_id(
         self,
@@ -109,9 +115,5 @@ class TestRBACSAGroupsNoReadPermission:
         groups = rbac_setup_resources[1]
 
         for group in groups:
-            with raises_apierror(
-                403,
-                "You don't have the permission to access the requested resource. "
-                "It is either read-protected or not readable by the server.",
-            ):
+            with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
                 host_inventory_sa_2.apis.groups.get_groups_by_id(group)

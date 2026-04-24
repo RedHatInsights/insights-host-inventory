@@ -17,6 +17,7 @@ from api import json_error_response
 from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
+from api.group_query import build_rbac_v2_workspace_response
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
@@ -42,9 +43,6 @@ from app.queue.events import EventType
 from app.serialization import serialize_group_with_host_count
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.utils import check_all_ids_found
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
-from lib.feature_flags import build_flag_context
-from lib.feature_flags import get_flag_value
 from lib.group_repository import add_hosts_to_group
 from lib.group_repository import create_group_from_payload
 from lib.group_repository import delete_group_list
@@ -62,9 +60,10 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
+from lib.middleware import get_rbac_workspace_by_id
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
-from lib.middleware import is_rbac_v2_groups_enabled
+from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import patch_rbac_workspace
 from lib.middleware import post_rbac_workspace
 from lib.middleware import rbac
@@ -148,7 +147,7 @@ def get_group_list(
         org_id = identity.org_id
 
         # Feature flag check for RBAC v2 integration
-        if is_rbac_v2_groups_enabled(identity.org_id):
+        if is_rbac_v2_enabled(identity.org_id):
             # RBAC v2 path: rbac_filter is None (no RBAC v1 filter)
             # Authorization is handled by get_rbac_workspaces() which uses user's identity header
             # Query workspaces from RBAC v2 API
@@ -355,12 +354,16 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                 identity,
                 current_app.event_producer,
             )
-            created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+            if is_rbac_v2_enabled(identity.org_id):
+                created_group = get_rbac_workspace_by_id(str(workspace_id))
+            else:
+                created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
         else:
             created_group = create_group_from_payload(validated_create_group_data, current_app.event_producer, None)
             create_group_count.inc()
 
-        log_create_group_succeeded(logger, created_group.id)
+        created_group_id = str(created_group["id"]) if isinstance(created_group, dict) else str(created_group.id)
+        log_create_group_succeeded(logger, created_group_id)
     except IntegrityError as inte:
         group_name = validated_create_group_data.get("name")
         host_id_list = validated_create_group_data.get("host_ids")
@@ -378,7 +381,12 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
         logger.exception(inve.detail)
         return json_error_response(inve.title, inve.detail, HTTPStatus.BAD_REQUEST)
 
-    return flask_json_response(build_group_response(created_group), HTTPStatus.CREATED)
+    response_body = (
+        build_rbac_v2_workspace_response(created_group)
+        if isinstance(created_group, dict)
+        else build_group_response(created_group)
+    )
+    return flask_json_response(response_body, HTTPStatus.CREATED)
 
 
 @api_operation
@@ -389,7 +397,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
 
     # RBAC v1 only: Validate group ID against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by database query (group must exist in org)
-    if not is_rbac_v2_groups_enabled(identity.org_id):
+    if not is_rbac_v2_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter or {}, {group_id})
 
     # Validate all inputs
@@ -404,7 +412,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
             log_patch_group_failed(logger, group_id)
             abort(HTTPStatus.BAD_REQUEST, "The 'ungrouped' group can not be modified.")
 
-        if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+        if is_rbac_v2_enabled(identity.org_id):
             if new_name:
                 check_access(KesselResourceTypes.WORKSPACE.edit, [group_id])
             if validated_patch_group_data.get("host_ids") is not None:
@@ -426,9 +434,15 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
             f"Group with name '{validated_patch_group_data.get('name')}' already exists.",
         )
 
-    updated_group = get_group_by_id_from_db(group_id, identity.org_id)
+    if is_rbac_v2_enabled(identity.org_id):
+        updated_workspace = get_rbac_workspace_by_id(group_id)
+        response_body = build_rbac_v2_workspace_response(updated_workspace)
+    else:
+        updated_group = get_group_by_id_from_db(group_id, identity.org_id)
+        response_body = build_group_response(updated_group)
+
     log_patch_group_success(logger, group_id)
-    return flask_json_response(build_group_response(updated_group), HTTPStatus.OK)
+    return flask_json_response(response_body, HTTPStatus.OK)
 
 
 @api_operation
@@ -439,12 +453,11 @@ def delete_groups(group_id_list, rbac_filter=None):
 
     # RBAC v1 only: Validate group IDs against RBAC v1 filter
     # RBAC v2: Skip this check - authorization handled by delete_rbac_workspace() for each group
-    if not is_rbac_v2_groups_enabled(identity.org_id):
+    if not is_rbac_v2_enabled(identity.org_id):
         rbac_group_id_check(rbac_filter, set(group_id_list))
-
-    # Abort with 404 if any of the groups do not exist
-    found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
-    check_all_ids_found(group_id_list, found_groups, "group")
+        # Abort with 404 if any of the groups do not exist
+        found_groups = get_groups_by_id_list_from_db(group_id_list, identity.org_id)
+        check_all_ids_found(group_id_list, found_groups, "group")
 
     if not inventory_config().bypass_kessel:
         # Write is not allowed for the ungrouped through API requests
@@ -455,23 +468,19 @@ def delete_groups(group_id_list, rbac_filter=None):
             if ungrouped_group_id == group_id:
                 abort(HTTPStatus.BAD_REQUEST, f"Ungrouped workspace {group_id} can not be deleted.")
 
-        group_ids_to_delete = []
-        delete_count = 0
+        groups_to_delete = []
 
         # Attempt to delete the RBAC workspaces
         for group_id in group_id_list:
             try:
                 delete_rbac_workspace(group_id)
-                delete_count += 1
+                groups_to_delete.append(group_id)
             except ResourceNotFoundException:
-                # For workspaces that are missing from RBAC,
-                # we'll attempt to delete the groups on our side
-                group_ids_to_delete.append(group_id)
-
-        # Attempt to delete the "not found" groups on our side
-        delete_count += delete_group_list(group_ids_to_delete, identity, current_app.event_producer)
+                continue
     else:
-        delete_count = delete_group_list(group_id_list, identity, current_app.event_producer)
+        groups_to_delete = group_id_list
+
+    delete_count = delete_group_list(groups_to_delete, identity, current_app.event_producer)
 
     if delete_count == 0:
         log_get_group_list_failed(logger)
@@ -492,13 +501,8 @@ def get_groups_by_id(
 ):
     identity = get_current_identity()
 
-    # RBAC v1 only: Validate group IDs against RBAC v1 filter
-    # RBAC v2: Skip this check - authorization handled by get_rbac_workspaces_by_ids()
-    if not is_rbac_v2_groups_enabled(identity.org_id):
-        rbac_group_id_check(rbac_filter, set(group_id_list))
-
     # Feature flag check for RBAC v2 integration
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Use RBAC v2 API queries
         try:
             group_list, total = get_group_list_by_id_list_rbac_v2(group_id_list, page, per_page, order_by, order_how)
@@ -513,6 +517,8 @@ def get_groups_by_id(
             {"total": total, "count": len(group_list), "page": page, "per_page": per_page, "results": group_list}
         )
     else:
+        # RBAC v1 only: Validate group IDs against RBAC v1 filter
+        rbac_group_id_check(rbac_filter, set(group_id_list))
         # RBAC v1 path: Use database queries
         try:
             group_list, total = get_group_list_by_id_list_db(
@@ -546,11 +552,10 @@ def delete_hosts_from_different_groups(host_id_list, rbac_filter=None):
 
     # Inline access check: the @access decorator can't be used here because the group IDs
     # are derived from host→group DB lookups, not available as URL parameters.
-    # This should only apply when Kessel phase 1 is enabled.
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(identity.org_id)):
+    if is_rbac_v2_enabled(identity.org_id):
         rbac_filter = check_access(KesselResourceTypes.WORKSPACE.move_host, list(requested_group_ids))
 
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspaces via RBAC v2 API
         # The API automatically filters based on user permissions
         if requested_group_ids:

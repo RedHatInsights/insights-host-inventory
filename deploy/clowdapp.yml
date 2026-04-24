@@ -15,6 +15,8 @@ objects:
         "gunicorn",
         "--workers=${GUNICORN_WORKERS}",
         "--threads=${GUNICORN_THREADS}",
+        "--max-requests=${GUNICORN_MAX_REQUESTS}",
+        "--max-requests-jitter=${GUNICORN_MAX_REQUESTS_JITTER}",
         "--limit-request-field_size=${GUNICORN_REQUEST_FIELD_LIMIT}",
         "--limit-request-line=${GUNICORN_REQUEST_LINE_LIMIT}",
         "--worker-tmp-dir=/gunicorn",
@@ -291,6 +293,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -400,6 +404,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -490,6 +496,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -518,6 +526,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -577,6 +587,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -605,6 +617,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_HOST_INGRESS_P1_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -662,6 +676,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -690,6 +706,8 @@ objects:
             value: 'true'
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: KAFKA_CONSUMER_TOPIC
             value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
           - name: KAFKA_HOST_INGRESS_TOPIC
@@ -745,6 +763,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -771,6 +791,8 @@ objects:
             value: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: CONSUMER_MQ_BROKER
             value: ${CONSUMER_MQ_BROKER}
           - <<: *rbacPsks
@@ -900,6 +922,8 @@ objects:
             value: ${KAFKA_HOST_APP_DATA_TOPIC}
           - name: MQ_DB_BATCH_MAX_MESSAGES
             value: ${MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         resources:
@@ -972,6 +996,8 @@ objects:
             value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
           - name: INVENTORY_API_CACHE_TYPE
             value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
           - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
@@ -1590,63 +1616,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
             memory: ${MEMORY_REQUEST_REMOVE_NULL_VALUES_WORKLOADS_FIELDS_JOB}
-    - name: backfill-per-reporter-culled-timestamps
-      restartPolicy: Never
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/backfill_per_reporter_culled_timestamps.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - <<: *namespaceFieldRef
-            name: NAMESPACE
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: DRY_RUN
-            value: ${BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN}
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
-            memory: ${MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
-          requests:
-            cpu: ${CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
-            memory: ${MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB}
     - name: populate-host-type
       restartPolicy: Never
       podSpec:
@@ -1708,61 +1677,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
             memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
-    - name: flatten-per-reporter-staleness
-      restartPolicy: Never
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/flatten_per_reporter_staleness.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - <<: *namespaceFieldRef
-            name: NAMESPACE
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: DRY_RUN
-            value: ${FLATTEN_PER_REPORTER_STALENESS_DRY_RUN}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
-            memory: ${MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
-          requests:
-            cpu: ${CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
-            memory: ${MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
     - name: run-db-migrations
       restartPolicy: OnFailure
       podSpec:
@@ -2381,14 +2295,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_DUPLICATE_HOSTS_REMOVER_JOB
   value: 512Mi
-- name: CPU_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
-  value: 250m
-- name: CPU_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
-  value: 500m
-- name: MEMORY_REQUEST_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
-  value: 256Mi
-- name: MEMORY_LIMIT_BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_JOB
-  value: 512Mi
 - name: CPU_REQUEST_POPULATE_HOST_TYPE_JOB
   value: 250m
 - name: CPU_LIMIT_POPULATE_HOST_TYPE_JOB
@@ -2396,14 +2302,6 @@ parameters:
 - name: MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB
   value: 256Mi
 - name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
-  value: 512Mi
-- name: CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS
-  value: 250m
-- name: CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS
-  value: 500m
-- name: MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS
-  value: 256Mi
-- name: MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS
   value: 512Mi
 - name: CPU_REQUEST_DB_MIGRATIONS_JOB
   value: 250m
@@ -2582,6 +2480,10 @@ parameters:
   value: '4'
 - name: GUNICORN_THREADS
   value: '8'
+- name: GUNICORN_MAX_REQUESTS
+  value: '0' # (disabled)
+- name: GUNICORN_MAX_REQUESTS_JITTER
+  value: '0' # (disabled)
 - name: GUNICORN_REQUEST_FIELD_LIMIT
   value: '16380'
 - name: GUNICORN_REQUEST_LINE_LIMIT
@@ -2608,6 +2510,8 @@ parameters:
 # -- Caching --
 - name: INVENTORY_API_CACHE_TYPE
   value: 'NullCache'
+- name: INVENTORY_API_STALENESS_CACHE_ENABLED
+  value: 'true'
 - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
   value: '0'
 - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
@@ -2622,6 +2526,8 @@ parameters:
   value: 'host-inventory-read-only-db'
 
 # -- Batch & Processing Sizes --
+- name: OUTBOX_USE_BATCHED_QUERIES
+  value: 'false'
 - name: MQ_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
@@ -2704,11 +2610,6 @@ parameters:
   description: The batch size to use for the assign-ungrouped-hosts script.
   value: '10'
 
-# -- Backfill per-reporter culled timestamps Job --
-- name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_DRY_RUN
-  description: Whether the backfill-per-reporter-culled-timestamps script should run in dry-run mode
-  value: 'true'
-
 # -- Populate host_type Job --
 - name: POPULATE_HOST_TYPE_DRY_RUN
   description: Whether the populate-host-type script should run in dry-run mode
@@ -2729,11 +2630,6 @@ parameters:
   value: '500'
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
   description: Whether to suspend the remove-null-values-in-workloads-fields-data job
-  value: 'true'
-
-# -- Flatten per Reporter Staleness Job --
-- name: FLATTEN_PER_REPORTER_STALENESS_DRY_RUN
-  description: Whether the flatten-per-reporter-staleness job should run in dry-run mode
   value: 'true'
 
 # -- Downgrade Alembic revision Job --

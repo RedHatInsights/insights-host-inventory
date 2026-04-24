@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC
-from datetime import datetime
 from typing import Any
 from typing import TypedDict
 from uuid import UUID
@@ -27,7 +26,6 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import WORKLOADS_FIELDS
-from app.staleness_serialization import get_reporter_staleness_timestamps
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -187,10 +185,23 @@ def serialize_host(
     staleness=None,
     system_profile_fields=None,
 ):
+    """
+    Serialize a host for API and MQ consumers.
+
+    Args:
+        host: Host object to serialize.
+        staleness_timestamps: Timestamps object to use for staleness calculations.
+        for_mq: Whether to serialize for MQ consumers.
+        additional_fields: Additional fields to serialize.
+        staleness: Staleness configuration to use for staleness calculations.
+        system_profile_fields: System profile fields to serialize.
+    """
     # Ensure additional_fields is a tuple
     additional_fields = additional_fields or ()
 
-    timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
+    # Keep the ``staleness_timestamps`` param as the culling ``Timestamps`` helper; the computed
+    # dict must use another name or per-reporter serialization would receive a dict.
+    st_timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
 
     fields = DEFAULT_FIELDS + additional_fields
 
@@ -210,17 +221,17 @@ def serialize_host(
         "facts": lambda: serialize_facts(host.facts),
         "reporter": lambda: host.reporter,
         "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
-        "stale_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_timestamp"]),
-        "stale_warning_timestamp": lambda: _serialize_staleness_to_string(timestamps["stale_warning_timestamp"]),
-        "culled_timestamp": lambda: _serialize_staleness_to_string(timestamps["culled_timestamp"]),
+        "stale_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_timestamp"]),
+        "stale_warning_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_warning_timestamp"]),
+        "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["culled_timestamp"]),
         "created": lambda: _serialize_datetime(host.created_on),
         "updated": lambda: _serialize_datetime(host.modified_on),
         "last_check_in": lambda: _serialize_datetime(host.last_check_in),
         "tags": lambda: _serialize_tags(host.tags),
         "tags_alt": lambda: host.tags_alt,
         "state": lambda: Conditions.find_host_state(
-            stale_timestamp=timestamps["stale_timestamp"],
-            stale_warning_timestamp=timestamps["stale_warning_timestamp"],
+            stale_timestamp=st_timestamps["stale_timestamp"],
+            stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
         ),
         "host_type": lambda: host.host_type,
         "os_release": lambda: host.static_system_profile.os_release if host.static_system_profile else None,
@@ -700,43 +711,14 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
     return system_profile
 
 
-def _normalize_per_reporter_value(value: Any) -> datetime:
-    """
-    Parse a stored per_reporter_staleness entry for serialization.
-    Should be used for read path only.
-
-    Accepts:
-      - Legacy dict: {"last_check_in": <str|datetime>, "check_in_succeeded": bool, ...}
-      - Flat DB format: last_check_in as ISO string or datetime
-
-    Returns last_check_in as timezone-aware datetime.
-    """
-    if isinstance(value, dict):
-        raw_li = value.get("last_check_in")
-        if isinstance(raw_li, str):
-            return _deserialize_datetime(raw_li)
-        if isinstance(raw_li, datetime):
-            return raw_li
-        raise ValueError(f"per_reporter_staleness dict missing valid last_check_in: {value!r}")
-
-    if isinstance(value, str):
-        return _deserialize_datetime(value)
-    if isinstance(value, datetime):
-        return value
-
-    raise ValueError(f"Unsupported per_reporter_staleness storage value: {type(value).__name__}")
-
-
-def _legacy_per_reporter_staleness_dict(
+def _full_per_reporter_staleness_dict(
     host: Host,
     staleness: Any,
     staleness_timestamps: Timestamps,
-    reporter: str,
-    stored_value: Any,
+    stored_value: str,
 ) -> dict[str, Any]:
-    """Single reporter: full legacy API/MQ dict."""
-    last_check_in_dt = _normalize_per_reporter_value(stored_value)
-    ts = get_reporter_staleness_timestamps(host, staleness_timestamps, staleness, reporter)
+    last_check_in_dt = _deserialize_datetime(stored_value)
+    ts = get_staleness_timestamps(host, staleness_timestamps, staleness, last_check_in=last_check_in_dt)
     return {
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
         "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
@@ -753,7 +735,7 @@ def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
     Staleness timestamps are computed from org staleness + host.
     """
     return {
-        reporter: _legacy_per_reporter_staleness_dict(host, staleness, staleness_timestamps, reporter, stored)
+        reporter: _full_per_reporter_staleness_dict(host, staleness, staleness_timestamps, stored)
         for reporter, stored in host.per_reporter_staleness.items()
     }
 

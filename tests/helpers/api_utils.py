@@ -605,6 +605,34 @@ def create_mock_rbac_response(permissions_response_file):
         return resp_data["data"]
 
 
+def run_rbac_test(
+    subtests, mocker, api_operation, rbac_response_files, expected_status, operation_args=None, operation_kwargs=None
+):
+    """
+    Generic RBAC test helper that tests an API operation with multiple RBAC permission files.
+
+    Args:
+        subtests: pytest subtests fixture
+        mocker: pytest-mock mocker fixture
+        api_operation: API fixture function to call (e.g., api_create_staleness, api_delete_staleness)
+        rbac_response_files: tuple of RBAC mock response file paths to test
+        expected_status: expected HTTP status code (e.g., 201, 403, 200)
+        operation_args: optional list of positional arguments to pass to api_operation
+        operation_kwargs: optional dict of keyword arguments to pass to api_operation
+    """
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    operation_args = operation_args or []
+    operation_kwargs = operation_kwargs or {}
+
+    for response_file in rbac_response_files:
+        mock_rbac_response = create_mock_rbac_response(response_file)
+
+        with subtests.test():
+            get_rbac_permissions_mock.return_value = mock_rbac_response
+            response_status, _ = api_operation(*operation_args, **operation_kwargs)
+            assert_response_status(response_status, expected_status)
+
+
 class RBACFilterOperation(StrEnum):
     EQUAL = "equal"
     IN = "in"
@@ -729,49 +757,22 @@ def mocked_patch_workspace_name_exists(kessel_response_status: int, _self: Any, 
     return response
 
 
-def calculate_staleness_deltas(staleness_config: dict[str, int]) -> dict[str, timedelta]:
-    """Helper to calculate staleness deltas from config."""
-    return {
-        "stale": timedelta(seconds=staleness_config["conventional_time_to_stale"]),
-        "stale_warning": timedelta(seconds=staleness_config["conventional_time_to_stale_warning"]),
-        "culled": timedelta(seconds=staleness_config["conventional_time_to_delete"]),
-    }
-
-
-def create_reporter_data(
-    last_check_in: datetime, staleness_config: dict[str, int], include_timestamps: bool = False
-) -> dict[str, object]:
-    """Helper to create per_reporter_staleness data for a reporter."""
-    deltas = calculate_staleness_deltas(staleness_config)
-    data = {
-        "last_check_in": last_check_in.isoformat(),
-        "check_in_succeeded": True,
-    }
-    if include_timestamps:
-        data.update(
-            {
-                "stale_timestamp": (last_check_in + deltas["stale"]).isoformat(),
-                "stale_warning_timestamp": (last_check_in + deltas["stale_warning"]).isoformat(),
-                "culled_timestamp": (last_check_in + deltas["culled"]).isoformat(),
-            }
-        )
-    return data
-
-
 def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    staleness_config: dict[str, int],
-    include_timestamps: bool = True,
     stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Helper to create a host with a reporter and set last_check_in and stale_timestamp."""
+    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
+
+    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
+    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
+    """
     host = db_create_host(
         extra_data={
             "reporter": reporter,
             "per_reporter_staleness": {
-                reporter: create_reporter_data(last_check_in, staleness_config, include_timestamps),
+                reporter: last_check_in.isoformat(),
             },
         },
     )
@@ -779,7 +780,6 @@ def create_host_with_reporter(
     if stale_timestamp is not None:
         host.stale_timestamp = stale_timestamp
     else:
-        deltas = calculate_staleness_deltas(staleness_config)
-        host.stale_timestamp = last_check_in + deltas["stale"]
+        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host

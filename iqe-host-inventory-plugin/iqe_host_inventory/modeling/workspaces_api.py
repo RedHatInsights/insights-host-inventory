@@ -24,6 +24,7 @@ from iqe_rbac_v2_api import WorkspacesWorkspace
 from iqe_rbac_v2_api import WorkspacesWorkspaceListResponse
 from iqe_rbac_v2_api import WorkspacesWorkspaceTypes
 from iqe_rbac_v2_api import WorkspacesWorkspaceTypesQueryParam
+from iqe_rbac_v2_api.exceptions import NotFoundException
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import is_global_account
@@ -35,7 +36,7 @@ WORKSPACE_NOT_CREATED_ERROR = Exception("Workspace wasn't successfully created")
 WORKSPACE_NOT_UPDATED_ERROR = Exception("Workspace wasn't successfully updated")
 WORKSPACE_NOT_DELETED_ERROR = Exception("Workspace wasn't successfully deleted")
 
-type WORKSPACE_OR_ID = WorkspacesWorkspace | str
+type WORKSPACE_OR_ID = WorkspacesWorkspace | WorkspacesCreateWorkspaceResponse | str
 type WORKSPACE_OR_WORKSPACES = WORKSPACE_OR_ID | Collection[WORKSPACE_OR_ID]
 
 
@@ -114,7 +115,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         Use high level API wrapper methods instead of this raw API client.
         Outside this class, this should be used only for negative validation testing.
         """
-        return self._rbac.rest_client_v2.workspaces_api
+        return self._rbac.rbac_v2_api.workspaces_api
 
     def create_workspace(
         self,
@@ -245,7 +246,10 @@ class WorkspacesAPIWrapper(BaseEntity):
         workspace_ids = set(_ids_from_workspaces(workspaces))
 
         def get_workspaces() -> list[WorkspacesWorkspace]:
-            return self.get_workspaces_by_id(workspaces)
+            try:
+                return self.get_workspaces_by_id(workspaces)
+            except NotFoundException:
+                return []
 
         def found_all(response_workspaces: list[WorkspacesWorkspace]) -> bool:
             found_ids = {workspace.id for workspace in response_workspaces}
@@ -300,6 +304,13 @@ class WorkspacesAPIWrapper(BaseEntity):
             type=WorkspacesWorkspaceTypesQueryParam.ROOT,
         )[0]
 
+    @cached_property
+    def root_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the root workspace.
+        """
+        return self.get_root_workspace()
+
     def get_ungrouped_workspace(self) -> WorkspacesWorkspace:
         """
         Get the ungrouped workspace.  This is a special pre-defined workspace per account.
@@ -307,6 +318,13 @@ class WorkspacesAPIWrapper(BaseEntity):
         return self.get_workspaces(
             type=WorkspacesWorkspaceTypesQueryParam.UNGROUPED_MINUS_HOSTS,
         )[0]
+
+    @cached_property
+    def ungrouped_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the ungrouped workspace.
+        """
+        return self.get_ungrouped_workspace()
 
     def get_default_workspace(self) -> WorkspacesWorkspace:
         """

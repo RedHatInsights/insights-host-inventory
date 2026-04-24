@@ -34,8 +34,8 @@
             "createdAt": "2025-02-14T16:29:19.146Z"
         },
         {
-            "name": "hbi.api.kessel-phase-1",
-            "description": "Gates the functionality for Phase 1 of the HBI Kessel migration (RHCLOUD-39540).",
+            "name": "platform.rbac.workspaces",
+            "description": "Gates Kessel/RBAC v2 workspace-based authorization for HBI (consolidates kessel-phase-1 and kessel-groups).",
             "type": "release",
             "project": "default",
             "stale": false,
@@ -47,23 +47,7 @@
                 }
             ],
             "variants": [],
-            "createdAt": "2025-04-25T16:32:16.409Z"
-        },
-        {
-            "name": "hbi.api.kessel-groups",
-            "description": "Gates the groups API functionality for Kessel (RHINENG-21397).",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2025-11-18T20:58:51.167Z"
+            "createdAt": "2026-04-21T00:00:00.000Z"
         },
         {
             "name": "hbi.api.kessel-force-single-checks-for-bulk",
@@ -128,22 +112,6 @@
             ],
             "variants": [],
             "createdAt": "2025-10-14T08:30:19.146Z"
-        },
-        {
-            "name": "hbi.flattened_per_reporter_staleness",
-            "description": "When turned ON, HBI will use the flattened per_reporter_staleness structure.",
-            "type": "release",
-            "project": "default",
-            "stale": false,
-            "enabled": false,
-            "strategies": [
-                {
-                    "name": "default",
-                    "parameters": {}
-                }
-            ],
-            "variants": [],
-            "createdAt": "2026-03-04T08:30:19.146Z"
         }
     ],
     "strategies": [

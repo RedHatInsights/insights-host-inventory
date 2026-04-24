@@ -31,6 +31,7 @@ from app.logging import threadctx
 from app.models import Host
 from app.models import Staleness
 from app.models import StalenessSchema
+from app.models.utils import StalenessCache
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import extract_system_profile_fields_for_headers
@@ -40,6 +41,7 @@ from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness_api
 from lib.db import session_guard
+from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.middleware import access
 from lib.staleness import add_staleness
@@ -123,7 +125,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
 
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
-                            host._update_all_per_reporter_staleness(staleness_dict, st)
                             host._update_staleness_timestamps()
                             serialized_host = serialize_host(
                                 host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
@@ -141,41 +142,18 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness: Sta
                     # events for hosts that were deleted between our DB commit and the
                     # event production, which would cause downstream consumers to see
                     # an update after a delete (ghost host race condition).
-                    existing_host_ids = _get_existing_host_ids(
-                        identity.org_id, [host_id for _, _, host_id in list_of_events_params]
-                    )
-
                     for event, headers, host_id in list_of_events_params:
-                        if host_id in existing_host_ids:
+                        if host_exists(host_id, org_id=identity.org_id, session=hosts_query.session):
                             app.event_producer.write_event(event, host_id, headers, wait=True)
                         else:
                             logger.warning(
-                                "Skipping staleness update event for host %s: "
-                                "host no longer exists (likely deleted concurrently)",
-                                host_id,
+                                f"Skipping staleness update event for host {host_id}: host no longer exists"
                             )
 
                 delete_cached_system_keys(org_id=identity.org_id, spawn=True)
             logger.debug("Leaving host staleness update thread")
         except Exception as e:
             raise e
-
-
-def _get_existing_host_ids(org_id, host_ids):
-    """
-    Query the database to determine which hosts from a batch still exist.
-
-    This is used after committing staleness updates to prevent producing
-    "updated" Kafka events for hosts that were concurrently deleted by
-    another pod or thread. Without this check, downstream consumers could
-    see an "updated" event after a "delete" event, causing ghost hosts.
-
-    Returns a set of host ID strings that are still present in the database.
-    """
-    if not host_ids:
-        return set()
-    existing = Host.query.filter(Host.org_id == org_id, Host.id.in_(host_ids)).with_entities(Host.id).all()
-    return {str(row[0]) for row in existing}
 
 
 def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
@@ -257,6 +235,7 @@ def create_staleness(body):
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
+        StalenessCache.delete(org_id)
         _async_update_host_staleness(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
@@ -279,6 +258,7 @@ def delete_staleness():
     request_id = threadctx.request_id
     try:
         remove_staleness()
+        StalenessCache.delete(org_id)
         staleness = get_sys_default_staleness_api(identity)
         _async_update_host_staleness(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
@@ -306,6 +286,7 @@ def update_staleness(body):
     org_id = identity.org_id
     try:
         updated_staleness = patch_staleness(validated_data)
+        StalenessCache.delete(org_id)
         if updated_staleness is None:
             # since update only return None with no record instead of exception.
             raise NoResultFound

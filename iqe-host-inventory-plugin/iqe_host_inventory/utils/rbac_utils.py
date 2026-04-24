@@ -4,9 +4,9 @@ import logging
 from enum import Enum
 from time import sleep
 
-from iqe.base.application import Application
-from iqe.base.application.implementations.rest import ViaREST
-from iqe_rbac.entities.group import Group
+from iqe_rbac_api import RoleWithAccess
+from iqe_rbac_v2_api import Permission as RBACV2Permission
+from iqe_rbac_v2_api import Role as RBACV2Role
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -29,7 +29,7 @@ class RBACInventoryPermission(Enum):
     STALENESS_ALL = "staleness:staleness:*"
 
 
-class RBACRoles:
+class RBACRoles(Enum):
     HOSTS_VIEWER = "Inventory Hosts viewer"
     HOSTS_ADMIN = "Inventory Hosts administrator"
     GROUPS_VIEWER = "Inventory Groups viewer"
@@ -42,19 +42,22 @@ class RBACRoles:
     USER_ACCESS = "User Access administrator"
 
 
-def update_group_with_roles(app: Application, group: Group, roles: list[str]) -> None:
-    """Help function to update RBAC group with roles (which assign permissions)"""
-    with app.context.use(ViaREST):
-        group.update(
-            roles=[app.rbac.collections.roles.instantiate(role) for role in roles],
-        )
+def get_role_id(role: RoleWithAccess | RBACV2Role) -> str:
+    """Get role ID from either V1 (RoleWithAccess.uuid) or V2 (Role.id) role object."""
+    return getattr(role, "uuid", None) or role.id
+
+
+def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2Permission:
+    """Convert an RBACInventoryPermission enum to a V2 Permission model."""
+    app, resource_type, operation = permission.value.split(":")
+    return RBACV2Permission(application=app, resource_type=resource_type, operation=operation)
 
 
 def wait_for_kessel_sync(host_inventory: ApplicationHostInventory) -> None:
     """
-    Wait for RBAC -> Kessel synchronization if the Kessel Phase 1 feature flag is enabled.
+    Wait for RBAC -> Kessel sync if the platform.rbac.workspaces feature flag is enabled.
     """
     wait_seconds = 3 if host_inventory.application.config.current_env == "clowder_smoke" else 21
-    if host_inventory.unleash.is_kessel_phase_1_enabled():
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
         logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
         sleep(wait_seconds)

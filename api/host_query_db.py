@@ -631,8 +631,8 @@ def get_os_info(
 
 
 def get_sap_system_info(
-    page: int,
-    per_page: int,
+    limit: int,
+    offset: int,
     staleness: list[str],
     tags: list[str],
     registered_with: list[str],
@@ -640,15 +640,12 @@ def get_sap_system_info(
     rbac_filter: dict,
     identity: Identity,
 ):
-    # Use the new system_profiles_dynamic table for SAP data
     dynamic_sap_system = HostDynamicSystemProfile.workloads["sap"]["sap_system"]
 
     columns = [
         dynamic_sap_system.label("value"),
     ]
 
-    # Request dynamic profile join since we need workloads data
-    # query_filters will automatically add the join
     filters, query_base = query_filters(
         tags=tags,
         staleness=staleness,
@@ -656,12 +653,11 @@ def get_sap_system_info(
         filter=filter,
         rbac_filter=rbac_filter,
         identity=identity,
-        join_dynamic_profile=True,  # Explicitly request HostDynamicSystemProfile join
+        join_dynamic_profile=True,
     )
 
     sap_query = _find_hosts_entities_query(query=query_base, columns=columns)
 
-    # Filter for existing SAP system data
     sap_filter = [
         func.jsonb_typeof(dynamic_sap_system) == "boolean",
         dynamic_sap_system.astext.cast(Boolean) != None,  # noqa:E711
@@ -671,10 +667,13 @@ def get_sap_system_info(
 
     subquery = sap_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("value")
-    query_results = agg_query.paginate(page=page, per_page=per_page, error_out=True)
+    query_results = agg_query.all()
     db.session.close()
-    result = [{"value": qr[0], "count": qr[1]} for qr in query_results.items]
-    return result, query_results.total
+
+    result = [{"value": qr[0], "count": qr[1]} for qr in query_results]
+    total = len(result)
+    result = list(islice(islice(result, offset, None), limit))
+    return result, total
 
 
 def get_sap_sids_info(

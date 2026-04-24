@@ -10,22 +10,20 @@ UNLEASH = Unleash()
 logger = get_logger(__name__)
 
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
-FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
+FLAG_RBAC_WORKSPACES = "platform.rbac.workspaces"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
-FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
 FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK = "hbi.api.kessel-force-single-checks-for-bulk"
 FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS = "hbi.flattened_per_reporter_staleness"
 
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
-    FLAG_INVENTORY_KESSEL_PHASE_1: False,
+    FLAG_RBAC_WORKSPACES: False,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
     FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
     FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY: True,
-    FLAG_INVENTORY_KESSEL_GROUPS: False,
     FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK: False,
     FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS: False,
 }

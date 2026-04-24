@@ -37,11 +37,9 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
-from lib.kessel import Kessel
 from lib.kessel import get_kessel_client
 
 logger = get_logger(__name__)
@@ -51,6 +49,10 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
+HIDE_WORKSPACE_TYPES = ["root", "default"]
+RESOURCE_TYPES_V2_ERROR_MESSAGE = (
+    "The resource_types endpoints are only used for RBAC v1, and are not allowed for RBAC v2."
+)
 
 
 def get_rbac_url(app: str) -> str:
@@ -345,7 +347,7 @@ def kessel_verb(perm) -> str:
 
 
 def get_kessel_filter(
-    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
+    current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
     """
     Check Kessel permissions and return filter information.
@@ -369,6 +371,7 @@ def get_kessel_filter(
         },
     )
 
+    kessel_client = get_kessel_client(current_app)
     if current_identity.identity_type not in CHECKED_TYPES:
         logger.debug(
             "get_kessel_filter: identity_type not in CHECKED_TYPES, bypassing check",
@@ -493,8 +496,15 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(current_identity.org_id):
+            is_v2 = is_rbac_v2_enabled(current_identity.org_id)
+
+            if resource_type == RbacResourceType.GROUPS and is_v2:
                 return func(*args, **kwargs)
+
+            # Resource-types endpoints are not supported for v2 orgs.
+            # In v2, resource-types are managed via RBAC v2 Role Bindings.
+            if resource_type == RbacResourceType.ALL and is_v2:
+                abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
             request_headers = _build_rbac_request_headers()
@@ -531,29 +541,11 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             current_identity = get_current_identity()
 
-            request_headers = _build_rbac_request_headers()
-
-            allowed = None
-            rbac_filter = None
             ids = []
-            # Extract resource IDs if an id_param is provided
             if id_param:
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-            # Pass org_id context for org-specific feature flag targeting
-            if get_flag_value(
-                FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
-            ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
-                kessel_client = get_kessel_client(current_app)
-                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
-            else:
-                allowed, rbac_filter = get_rbac_filter(
-                    permission.resource_type.v1_type,
-                    permission.v1_permission,
-                    current_identity,
-                    request_headers,
-                    permission.resource_type.v1_app,
-                )
+            allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
             if allowed:
                 if rbac_filter and "rbac_filter" in sig.parameters:
@@ -574,6 +566,39 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
+def resolve_permission(
+    identity: Identity,
+    permission: KesselPermission,
+    ids: list[str] | None = None,
+    rbac_request_headers: dict | None = None,
+) -> tuple[bool, dict[str, Any] | None]:
+    """
+    Resolve authorization by checking Kessel (if enabled) or falling back to RBAC v1.
+
+    This centralizes the flag-check-and-branch pattern used across the codebase.
+
+    Args:
+        identity: The current user identity
+        permission: A KesselPermission that carries both Kessel and RBAC v1 type/permission mappings
+        ids: Optional resource IDs to check permissions against
+        rbac_request_headers: Optional pre-built RBAC request headers; built automatically if not provided
+    """
+    if ids is None:
+        ids = []
+
+    if is_rbac_v2_enabled(identity.org_id):
+        return get_kessel_filter(identity, permission, ids)
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
+    return get_rbac_filter(
+        permission.resource_type.v1_type,
+        permission.v1_permission,
+        identity,
+        rbac_request_headers,
+        permission.resource_type.v1_app,
+    )
+
+
 def check_access(permission: KesselPermission, ids: list[str] | None = None) -> dict[str, Any] | None:
     """
     Callable access check for endpoints where resource IDs aren't available at decoration time.
@@ -592,21 +617,7 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
 
     current_identity = get_current_identity()
 
-    if ids is None:
-        ids = []
-
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)):
-        kessel_client = get_kessel_client(current_app)
-        allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
-    else:
-        request_headers = _build_rbac_request_headers()
-        allowed, rbac_filter = get_rbac_filter(
-            permission.resource_type.v1_type,
-            permission.v1_permission,
-            current_identity,
-            request_headers,
-            permission.resource_type.v1_app,
-        )
+    allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
     if not allowed:
         abort(HTTPStatus.FORBIDDEN)
@@ -614,21 +625,24 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
     return rbac_filter
 
 
-def is_rbac_v2_groups_enabled(org_id: str) -> bool:
+def is_rbac_v2_enabled(org_id: str) -> bool:
     """
-    Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
+    Check if RBAC v2 (workspace-based) authorization is enabled.
 
-    When True: RBAC v2 workspace API handles all authorization
-    When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
+    Single source of truth for the platform.rbac.workspaces feature flag.
+    Used to gate both Kessel permission checks and RBAC v2 workspace API calls.
+
+    When True: Kessel/RBAC v2 workspace API handles all authorization
+    When False: RBAC v1 rbac_filter applies
 
     Args:
         org_id: Organization ID for org-specific feature flag targeting
 
     Returns:
-        True if RBAC v2 should be used for groups, False if RBAC v1 should be used
+        True if RBAC v2 should be used, False if RBAC v1 should be used
     """
     return (not inventory_config().bypass_kessel) and get_flag_value(
-        FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)
+        FLAG_RBAC_WORKSPACES, context=build_flag_context(org_id)
     )
 
 
@@ -793,7 +807,9 @@ def get_rbac_workspaces(
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        query_params["limit"] = str(per_page)
+        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
+        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
+        query_params["limit"] = str(limit)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -809,7 +825,9 @@ def get_rbac_workspaces(
 
         # RBAC v2 API expects descending order to be prefixed with a hyphen
         # Example: To sort by updated date in descending order, use "-modified"
-        if order_how and order_how.lower() == "desc":
+        # Also, RBAC v2 uses ascending order by default on all `order_by` types.
+        # HBI uses desc order by default when order_by == "updated", so we need to use the hyphen.
+        if (order_how and order_how.lower() == "desc") or (order_by == "updated" and order_how is None):
             rbac_order_by = f"-{rbac_order_by}"
 
         query_params["order_by"] = rbac_order_by
@@ -832,17 +850,24 @@ def get_rbac_workspaces(
         logger.error(error_msg)
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
+    count = response.get("meta", {}).get("count", 0)
+
+    # If group_type is "all", account for root and default workspaces
+    if group_type == "all":
+        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+        count -= len(HIDE_WORKSPACE_TYPES)
+
+    data = data[:per_page]
+
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
     # workspaces they have permission to access. Applying an additional RBAC v1 filter
     # would be redundant and could cause inconsistencies during the RBAC v1 to v2 migration.
 
-    count = response.get("meta", {}).get("count", 0)
-
     return data, count
 
 
-def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
+def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
     """
     Fetch a single workspace from RBAC v2 API by ID.
 
@@ -851,7 +876,6 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
 
     Returns:
         dict: Workspace object from RBAC v2 API
-        None: Only when bypass_kessel is enabled
 
     Raises:
         ResourceNotFoundException: If workspace not found (404)
@@ -861,12 +885,10 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any] | None:
         workspace = get_rbac_workspace_by_id("019a5ae6-69bf-7323-bc60-f075715034c8")
         # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
-    if inventory_config().bypass_kessel:
-        return None
-
-    # Delegate to batch API with single ID
-    workspaces = get_rbac_workspaces_by_ids([workspace_id])
-    return workspaces[0] if workspaces else None
+    if workspaces := get_rbac_workspaces_by_ids([workspace_id]):
+        return workspaces[0]
+    else:
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
 def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
@@ -897,13 +919,12 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
         # Caller should use check_all_ids_found() to validate all were found
     """
-    if inventory_config().bypass_kessel:
-        return []
-
     # Build query parameter string with multiple IDs
     # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "limit": len(workspace_ids)})
+    rbac_endpoint = _get_rbac_workspace_url(
+        query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
+    )
     request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
@@ -915,6 +936,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     # Extract workspaces from response
     workspaces = response.get("data", []) if response else []
+
+    logger.debug(f"Workspaces retrieved from RBAC v2 API: {[w['id'] for w in workspaces]}")
 
     return workspaces
 

@@ -12,6 +12,7 @@ from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
@@ -37,18 +38,26 @@ from app.serialization import serialize_host
 from app.serialization import serialize_rbac_workspace_with_host_count
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from lib.batch_cache import ThreadLocalBatchCache
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.host_repository import get_host_counts_batch
 from lib.host_repository import get_host_list_by_id_list_from_db
+from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
+from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
 logger = get_logger(__name__)
+
+
+class UngroupedGroupCache(ThreadLocalBatchCache):
+    """Batch-scoped cache for ungrouped group lookups, keyed by org_id."""
 
 
 def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list[str], identity: Identity):
@@ -84,8 +93,14 @@ def _update_hosts_for_group_changes(host_id_list: list[str], group_id_list: list
 def _produce_host_update_events(event_producer, serialized_groups, host_list, identity, staleness=None):
     metadata = {"b64_identity": to_auth_header(identity)}  # Note: This should be moved to an API file
 
-    # Send messages
+    if not host_list:
+        return
+
     for host in host_list:
+        if not host_exists(host.id, org_id=identity.org_id, session=db.session):
+            logger.warning(f"Skipping group update event for host {host.id}: host no longer exists")
+            continue
+
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
         host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
@@ -552,23 +567,42 @@ def get_group_using_host_id(host_id: str, org_id: str):
 
 
 def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Group:
+    cached = UngroupedGroupCache.get(identity.org_id)
+    if cached is not None:
+        return cached
+
     group = get_ungrouped_group(identity)
 
-    # If the "ungrouped" Group exists, return it.
     if group is not None:
+        UngroupedGroupCache.put(identity.org_id, group)
         return group
 
-    # Otherwise, create the workspace
-    workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
+    if inventory_config().bypass_kessel:
+        group = add_group(
+            group_name="Ungrouped Hosts",
+            org_id=identity.org_id,
+            account=getattr(identity, "account_number", None),
+            ungrouped=True,
+        )
+    else:
+        # Wait for the MQ flow to create the workspace to avoid a race condition
+        # where we try to create the group before the MQ event arrives.
+        workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
-    # Create "ungrouped" group for this org using group ID == workspace ID
-    return add_group(
-        group_name="Ungrouped Hosts",
-        org_id=identity.org_id,
-        account=getattr(identity, "account_number", None),
-        group_id=workspace_id,
-        ungrouped=True,
-    )
+        wait_for_workspace_event(
+            str(workspace_id),
+            EventType.created,
+            org_id=identity.org_id,
+            timeout=inventory_config().rbac_timeout,
+        )
+
+        if is_rbac_v2_enabled(identity.org_id):
+            group = get_rbac_workspace_by_id(str(workspace_id))
+        else:
+            group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+
+    UngroupedGroupCache.put(identity.org_id, group)
+    return group
 
 
 def get_ungrouped_group(identity: Identity) -> Group:

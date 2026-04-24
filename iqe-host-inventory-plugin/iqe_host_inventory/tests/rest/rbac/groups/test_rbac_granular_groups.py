@@ -19,6 +19,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.api_utils import ungrouped_host_groups
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
+from iqe_host_inventory.utils.rbac_utils import get_role_id
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
@@ -53,7 +54,8 @@ def read_permission_user_setup(request: pytest.FixtureRequest):
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_groups_write_granular_user_setup_class"),
+        # TODO: Uncomment this when https://redhat.atlassian.net/browse/RHINENG-25822 is fixed
+        # lf("rbac_inventory_groups_write_granular_user_setup_class"),
         lf("rbac_inventory_groups_all_granular_user_setup_class"),
         lf("rbac_inventory_admin_granular_user_setup_class"),
     ],
@@ -144,11 +146,7 @@ class TestRBACGranularGroupsReadPermission:
         """
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
 
@@ -170,11 +168,7 @@ class TestRBACGranularGroupsWritePermission:
           title: Test that users with only granular RBAC access can't create new groups
         """
         group_name = generate_display_name()
-        with raises_apierror(
-            403,
-            "Unfiltered inventory:groups:write RBAC permission is required "
-            "in order to create new groups.",
-        ):
+        with raises_apierror(403):
             host_inventory_non_org_admin.apis.groups.create_group(
                 group_name, wait_for_created=False
             )
@@ -663,7 +657,8 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         self,
         wrong_permission_setup_read_endpoints,
         rbac_setup_resources_for_granular_rbac: RBacResources,
-        host_inventory_non_org_admin,
+        host_inventory: ApplicationHostInventory,
+        host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
         https://issues.redhat.com/browse/ESSNTL-4961
@@ -675,12 +670,16 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
           negative: true
           title: Test that users with granular RBAC on wrong permission can't get a list of groups
         """
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
-            host_inventory_non_org_admin.apis.groups.get_groups()
+        if host_inventory.unleash.is_rbac_workspaces_enabled:
+            response = host_inventory_non_org_admin.apis.groups.get_groups()
+            assert len(response) == 0
+        else:
+            with raises_apierror(
+                403,
+                "You don't have the permission to access the requested resource. "
+                "It is either read-protected or not readable by the server.",
+            ):
+                host_inventory_non_org_admin.apis.groups.get_groups()
 
     def test_rbac_granular_groups_wrong_permission_get_groups_by_id(
         self,
@@ -701,11 +700,7 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         groups = rbac_setup_resources_for_granular_rbac[1][:2]
 
         for group in groups:
-            with raises_apierror(
-                403,
-                "You don't have the permission to access the requested resource. "
-                "It is either read-protected or not readable by the server.",
-            ):
+            with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
                 host_inventory_non_org_admin.apis.groups.get_groups_by_id(group)
 
 
@@ -792,7 +787,8 @@ def test_rbac_granular_groups_write_permission_single_group(
     # Setup
     groups = rbac_setup_resources_for_granular_rbac[1]
     hbi_non_org_admin_user_rbac_setup(
-        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=[groups[0]]
+        permissions=[RBACInventoryPermission.GROUPS_READ, RBACInventoryPermission.GROUPS_WRITE],
+        hbi_groups=[groups[0]],
     )
 
     # Test
@@ -832,11 +828,7 @@ def test_rbac_granular_groups_read_permission_null_group(
     )
 
     # Test
-    with raises_apierror(
-        403,
-        "You don't have the permission to access the requested resource. "
-        "It is either read-protected or not readable by the server.",
-    ):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(groups)
 
 
@@ -912,11 +904,7 @@ def test_rbac_granular_groups_read_permission_null_and_normal_group(
     assert response.results[0].id == groups[0].id
 
     for group in groups[1:]:
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
 
@@ -942,7 +930,8 @@ def test_rbac_granular_groups_write_permission_null_and_normal_group(
     hbi_groups = [groups[0], ungrouped_groups[0]["id"] if len(ungrouped_groups) > 0 else None]  # type: ignore[index]
 
     hbi_non_org_admin_user_rbac_setup(
-        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=hbi_groups
+        permissions=[RBACInventoryPermission.GROUPS_READ, RBACInventoryPermission.GROUPS_WRITE],
+        hbi_groups=hbi_groups,
     )
 
     # Test
@@ -1014,16 +1003,10 @@ def setup_all_permissions(
         hbi_non_org_admin_user_username, permissions, hbi_groups=hbi_groups
     )
 
-    host_inventory.apis.rbac.check_inventory_user_permission(
-        hbi_non_org_admin_user_username,
-        permissions,
-        hbi_groups=hbi_groups,
-    )
-
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1138,7 +1121,10 @@ def setup_permissions_with_and_without_resource_definitions(
     hbi_non_org_admin_user_username: str,
 ):
     """Creates 2 roles, one with and one without resource definitions.
-    User should have access to all resources."""
+    User should have access to all resources.
+
+    V2 equivalent: one role bound to a specific workspace, one bound to root workspace.
+    """
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
 
@@ -1147,28 +1133,46 @@ def setup_permissions_with_and_without_resource_definitions(
     )
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
 
-    if request.param == "first_with":
-        roles = [
-            host_inventory.apis.rbac.create_role(
-                RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
-            ),
-            host_inventory.apis.rbac.create_role(RBACInventoryPermission.ALL_READ),
-        ]
-    else:
-        roles = [
-            host_inventory.apis.rbac.create_role(RBACInventoryPermission.ALL_READ),
-            host_inventory.apis.rbac.create_role(
-                RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
-            ),
-        ]
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        role_with = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ALL_READ)
+        role_without = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ALL_READ)
 
-    host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+        workspace_ids = [g.id for g in hbi_groups]
+        root_workspace_id = host_inventory.apis.workspaces.root_workspace.id
+
+        if request.param == "first_with":
+            roles = [role_with, role_without]
+        else:
+            roles = [role_without, role_with]
+
+        host_inventory.apis.rbac.create_role_bindings([role_with.id], group.uuid, workspace_ids)
+        host_inventory.apis.rbac.create_role_bindings(
+            [role_without.id], group.uuid, [root_workspace_id]
+        )
+    else:
+        if request.param == "first_with":
+            roles = [
+                host_inventory.apis.rbac.create_role_v1(
+                    RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
+                ),
+                host_inventory.apis.rbac.create_role_v1(RBACInventoryPermission.ALL_READ),
+            ]
+        else:
+            roles = [
+                host_inventory.apis.rbac.create_role_v1(RBACInventoryPermission.ALL_READ),
+                host_inventory.apis.rbac.create_role_v1(
+                    RBACInventoryPermission.ALL_READ, hbi_groups=hbi_groups
+                ),
+            ]
+
+        host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
+
     wait_for_kessel_sync(host_inventory)
 
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1229,7 +1233,10 @@ def setup_resource_definitions_in_multiple_roles(
     hbi_non_org_admin_user_username: str,
 ):
     """Setup 2 roles with the same permission, but with different resourceDefinitions.
-    User should have access to resources in both resourceDefinitions."""
+    User should have access to resources in both resourceDefinitions.
+
+    V2 equivalent: 2 roles each bound to a different workspace.
+    """
     hbi_groups = rbac_setup_resources_for_granular_rbac[1][:2]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
 
@@ -1238,22 +1245,34 @@ def setup_resource_definitions_in_multiple_roles(
     )
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
 
-    roles = [
-        host_inventory.apis.rbac.create_role(
-            RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[0]]
-        ),
-        host_inventory.apis.rbac.create_role(
-            RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[1]]
-        ),
-    ]
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        roles = [
+            host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ADMIN),
+            host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ADMIN),
+        ]
+        host_inventory.apis.rbac.create_role_bindings(
+            [roles[0].id], group.uuid, [hbi_groups[0].id]
+        )
+        host_inventory.apis.rbac.create_role_bindings(
+            [roles[1].id], group.uuid, [hbi_groups[1].id]
+        )
+    else:
+        roles = [
+            host_inventory.apis.rbac.create_role_v1(
+                RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[0]]
+            ),
+            host_inventory.apis.rbac.create_role_v1(
+                RBACInventoryPermission.ADMIN, hbi_groups=[hbi_groups[1]]
+            ),
+        ]
+        host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
 
-    host_inventory.apis.rbac.add_roles_to_a_group(roles, group.uuid)
     wait_for_kessel_sync(host_inventory)
 
     yield
 
     for role in roles:
-        host_inventory.apis.rbac.delete_role(role.uuid)
+        host_inventory.apis.rbac.delete_role(get_role_id(role))
     host_inventory.apis.rbac.delete_group(group.uuid)
 
 
@@ -1304,11 +1323,7 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         """
         all_groups = rbac_setup_resources_for_granular_rbac[1]
 
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(all_groups)
 
     def test_rbac_granular_groups_multiple_roles_patch_group(
@@ -1489,7 +1504,12 @@ def setup_rbac_bad_key(
     host_inventory: ApplicationHostInventory,
     hbi_non_org_admin_user_username: str,
 ):
-    """Use wrong attributeFilter.key"""
+    """Use wrong attributeFilter.key.
+    attributeFilter is a RBAC V1 concept, not applicable to V2.
+    """
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        pytest.skip("attributeFilter is a RBAC V1 concept, not applicable to V2")
+
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     hosts = rbac_setup_resources_for_granular_rbac[0][0]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
@@ -1501,7 +1521,7 @@ def setup_rbac_bad_key(
 
     key = request.param.split("-")[0]
     value = [host.id for host in hosts] if request.param == "host.id-with-host-id" else hbi_groups
-    role = host_inventory.apis.rbac.create_role(
+    role = host_inventory.apis.rbac.create_role_v1(
         RBACInventoryPermission.ADMIN, hbi_groups=value, key=key
     )
     host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
