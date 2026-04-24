@@ -19,13 +19,22 @@ _STALENESS_CONVENTIONAL_KEYS = (
 
 
 def staleness_equivalent_to_system_defaults(staleness_data: dict, identity: Identity) -> bool:
+    """Return True if every conventional field is within the tolerance of system defaults.
+
+    API validation merges PATCH/POST input with the current org view so
+    :class:`StalenessSchema` always supplies all three keys. If a key is missing
+    or not an int, treat the payload as not equivalent to defaults.
+    """
     from app.staleness_serialization import get_sys_default_staleness_api
 
     default = get_sys_default_staleness_api(identity)
-    return all(
-        abs(staleness_data[k] - default[k]) <= DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS
-        for k in _STALENESS_CONVENTIONAL_KEYS
-    )
+    for k in _STALENESS_CONVENTIONAL_KEYS:
+        v = staleness_data.get(k)
+        if v is None or not isinstance(v, int):
+            return False
+        if abs(v - default[k]) > DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS:
+            return False
+    return True
 
 
 def org_has_custom_staleness(org_id: str) -> bool:

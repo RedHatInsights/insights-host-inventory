@@ -16,6 +16,20 @@ _CUSTOM_STALENESS = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 5000,
 }
 
+# Exactly at +1h on every field — still “near default”, no row
+_AT_TOLERANCE_STALENESS = {
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3600,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3600,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3600,
+}
+
+# Beyond 1h on every field — must persist a custom row
+_BEYOND_TOLERANCE_STALENESS = {
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3601,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3601,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3601,
+}
+
 
 def test_create_staleness(api_create_staleness, db_get_staleness_culling):
     response_status, response_data = api_create_staleness(_CUSTOM_STALENESS)
@@ -37,6 +51,24 @@ def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness,
     assert response_data["id"] == "system_default"
     org_id = response_data["org_id"]
     assert db_get_staleness_culling(org_id) is None
+
+
+def test_create_staleness_at_plus_one_hour_tolerance_no_row(api_create_staleness, db_get_staleness_culling):
+    """POST with each field offset by +3600s (still within tolerance) does not insert."""
+    response_status, response_data = api_create_staleness(_AT_TOLERANCE_STALENESS)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] == "system_default"
+    assert db_get_staleness_culling(response_data["org_id"]) is None
+
+
+def test_create_staleness_beyond_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):
+    """POST with each field offset by +3601s from defaults persists custom staleness."""
+    response_status, response_data = api_create_staleness(_BEYOND_TOLERANCE_STALENESS)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] != "system_default"
+    row = db_get_staleness_culling(response_data["org_id"])
+    assert row is not None
+    assert row.conventional_time_to_stale == _BEYOND_TOLERANCE_STALENESS["conventional_time_to_stale"]
 
 
 def test_create_staleness_at_defaults_replaces_custom_row(
