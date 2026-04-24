@@ -10,7 +10,7 @@ This directory contains scripts extracted from `insights-service-deployer` to en
 
 ```
 .claude/deployer/
-├── deploy-ephemeral.sh      # Main orchestration script
+├── deploy-hbi-and-dependencies.sh      # Main orchestration script
 ├── bonfire-deploy.sh         # Bonfire deployment logic
 ├── scripts/
 │   ├── rbac_load_users.sh   # Load users into Keycloak
@@ -33,8 +33,8 @@ This directory contains scripts extracted from `insights-service-deployer` to en
 
 ```bash
 cd .claude/deployer
-./deploy-ephemeral.sh --duration 335h
-./deploy-ephemeral.sh --force
+./deploy-hbi-and-dependencies.sh --duration 335h
+./deploy-hbi-and-dependencies.sh --force
 ```
 
 ## What It Does
@@ -44,10 +44,6 @@ cd .claude/deployer
 3. **Reserve Namespace** - Creates or uses existing ephemeral namespace
 4. **Deploy Services** - Deploys HBI, Kessel, RBAC with bonfire
 5. **Setup Demo Data** - Creates connectors, users, and sample hosts
-6. **Port Forwarding** - Sets up local port forwards for all services
-7. **Get Credentials** - Retrieves database credentials
-8. **Update .env** - Updates HBI .env file with new credentials
-9. **Update /etc/hosts** - Updates Kafka bootstrap server entry
 
 ## Prerequisites
 
@@ -59,7 +55,6 @@ cd .claude/deployer
 
 **Required Configuration:**
 - Ephemeral cluster access (token + server URL)
-- Passwordless sudo (for /etc/hosts updates)
 
 **Environment Variables:**
 - `EPHEMERAL_TOKEN` - Auth token (or use `oc whoami -t`)
@@ -67,7 +62,7 @@ cd .claude/deployer
 
 ## Components
 
-### deploy-ephemeral.sh
+### deploy-hbi-and-dependencies.sh
 
 Main orchestration script that:
 - Manages the deployment workflow
@@ -112,30 +107,6 @@ Test data:
 - Kafka connectors (migration + outbox)
 - SpiceDB schema
 
-## Port Forwards
-
-After deployment, these services are available locally:
-
-| Service | Local Port | Description |
-|---------|-----------|-------------|
-| HBI API | 8000 | Host Inventory REST API |
-| RBAC Service | 8111 | RBAC v2 API |
-| Kessel Inventory | 8222 | Kessel Inventory API |
-| Kessel Relations | 8333 | SpiceDB gRPC API |
-| Kafka Bootstrap | 9092, 29092 | Kafka brokers |
-| Kafka Connect | 8083 | Kafka Connect REST API |
-| Feature Flags | 4242 | Unleash API |
-| HBI Database | 5432 | PostgreSQL |
-| RBAC Database | 5433 | PostgreSQL |
-| Kessel Database | 5434 | PostgreSQL |
-
-## Files Modified
-
-- `$HBI_DIR/.env` - Database credentials updated
-- `$HBI_DIR/tmp/ephemeral_ports_*.log` - Port forwarding log
-- `$HBI_DIR/tmp/ephemeral_db_credentials_*.log` - Database credentials
-- `/etc/hosts` - Kafka bootstrap server entry
-
 ## Options
 
 ```bash
@@ -156,22 +127,22 @@ After deployment, these services are available locally:
 
 **Basic deployment:**
 ```bash
-./deploy-ephemeral.sh
+./deploy-hbi-and-dependencies.sh
 ```
 
 **With custom duration:**
 ```bash
-./deploy-ephemeral.sh --duration 48h
+./deploy-hbi-and-dependencies.sh --duration 48h
 ```
 
 **Force use existing namespace:**
 ```bash
-./deploy-ephemeral.sh --force
+./deploy-hbi-and-dependencies.sh --force
 ```
 
 **With custom image:**
 ```bash
-./deploy-ephemeral.sh --force main quay.io/myrepo/inventory v1.0
+./deploy-hbi-and-dependencies.sh --force main quay.io/myrepo/inventory v1.0
 ```
 
 ## Cleanup
@@ -179,11 +150,7 @@ After deployment, these services are available locally:
 When done with the ephemeral environment:
 
 ```bash
-# Release namespace
 bonfire namespace release <namespace>
-
-# Stop port forwards
-kudis  # Alias that kills all kubectl port-forward processes
 ```
 
 ## Troubleshooting
@@ -195,11 +162,6 @@ kudis  # Alias that kills all kubectl port-forward processes
 **"Failed to reserve namespace"**
 - Check bonfire is installed: `bonfire --version`
 - Check cluster access: `oc whoami`
-
-**"Port forwarding failed"**
-- Check pods are running: `oc get pods`
-- Check existing port forwards: `kuports`
-- Kill existing forwards: `kudis`
 
 **"Deployment failed"**
 - Check bonfire namespace: `bonfire namespace describe`
@@ -243,12 +205,10 @@ To update scripts when insights-service-deployer changes:
 
 The `/hbi-deploy` slash command uses these scripts:
 - Defined in: `.claude/commands/hbi-deploy.md`
-- Executes: `.claude/deployer/deploy-ephemeral.sh`
+- Executes: `.claude/deployer/deploy-hbi-and-dependencies.sh`
 - Provides: Interactive deployment with progress tracking
 
 ## Related Documentation
 
 - `/hbi-deploy` command: `.claude/commands/hbi-deploy.md`
-- HBI port forwarding: `docs/set_hbi_rbac_ports.sh`
-- HBI credentials: `docs/get_hbi_rbac_db_creds.sh`
 - Main project README: `README.md`

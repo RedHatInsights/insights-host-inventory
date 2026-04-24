@@ -11,8 +11,6 @@ Deploy Host Inventory with Kessel, RBAC v2, and all dependencies to an ephemeral
 5. **Setup Demo Data** - Creates connectors, users, and sample hosts
 6. **Verify Deployment** - Checks that all pods are running
 
-**Note:** This command ONLY deploys services. For local development setup (port-forwarding, credentials, .env file), run `/hbi-setup-for-dev` after deployment completes.
-
 ## Usage
 
 ```bash
@@ -62,26 +60,12 @@ Get token from: https://oauth-openshift.apps.crc-eph.r9lp.p1.openshiftapps.com/o
 - Kafka connectors (migration + outbox)
 - SpiceDB schema
 
-## After Deployment
-
-Once deployment completes, run `/hbi-setup-for-dev` to:
-- Setup port forwarding to all services
-- Retrieve database credentials
-- Update .env file with credentials
-- Update /etc/hosts for Kafka
-
-See `/hbi-setup-for-dev` documentation for details on local development setup.
-
 ## Cleanup
 
 When done with the ephemeral environment:
 
 ```bash
-# Release namespace
 bonfire namespace release <namespace>
-
-# Stop port forwards
-kudis  # Alias that kills all kubectl port-forward processes
 ```
 
 ## Troubleshooting
@@ -94,25 +78,13 @@ kudis  # Alias that kills all kubectl port-forward processes
 - Check bonfire is installed: `bonfire --version`
 - Check cluster access: `oc whoami`
 
-**"Port forwarding failed"**
-- Check pods are running: `oc get pods`
-- Check existing port forwards: `kuports`
-- Kill existing forwards: `kudis`
-
 **"Deployment failed"**
 - Check bonfire namespace: `bonfire namespace describe`
 - Check pod logs: `oc logs <pod-name>`
 - Release and retry: `bonfire namespace release <namespace>`
 
-## Related Commands
-
-- `/hbi-setup-for-dev` - Setup local dev environment after deployment
-- `/hbi-verify-setup` - Verify deployment is healthy
-- `/hbi-cleanup` - Cleanup ephemeral environment
-- `/hbi-doctor` - Health check your dev environment
-
 ## Implementation
 
 This command uses:
-- `.claude/deployer/deploy-ephemeral.sh` - Main deployment script
+- `.claude/deployer/deploy-hbi-and-dependencies.sh` - Main deployment script
 - `.claude/deployer/bonfire-deploy.sh` - Bonfire deployment logic

@@ -8,9 +8,6 @@
 # 2. Reserve a new namespace
 # 3. Deploy host-inventory with its dependencies (Kessel, RBAC)
 # 4. Verify deployment is successful
-#
-# For local development setup (port-forwarding, credentials, etc.),
-# run setup-for-dev.sh after this completes.
 #############################################################################
 
 set -e
@@ -26,8 +23,6 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HBI_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DEPLOYER_DIR="$SCRIPT_DIR"
-TMP_DIR="$HBI_DIR/tmp"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Log functions
 log() {
@@ -44,17 +39,6 @@ log_error() {
 
 log_warning() {
     echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] ⚠${NC} $1"
-}
-
-# Portable sed in-place editing for macOS and Linux
-sed_inplace() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS requires empty string after -i
-        sed -i '' "$@"
-    else
-        # Linux uses -i without argument
-        sed -i "$@"
-    fi
 }
 
 # Function to check prerequisites
@@ -196,37 +180,6 @@ deploy_services() {
     fi
 }
 
-# Function to display summary
-display_summary() {
-    echo ""
-    echo "========================================================================"
-    echo -e "${GREEN}Deployment Complete!${NC}"
-    echo "========================================================================"
-    echo ""
-    echo "Namespace: $PROJECT_NAMESPACE"
-    echo ""
-    echo "Services Deployed:"
-    echo "  - Host Inventory (API + MQ service)"
-    echo "  - Kessel Inventory API"
-    echo "  - Kessel Relations API (SpiceDB)"
-    echo "  - RBAC v2 Service"
-    echo "  - Kafka + Zookeeper"
-    echo "  - PostgreSQL (HBI, RBAC, Kessel databases)"
-    echo "  - Unleash (Feature Flags)"
-    echo ""
-    echo "View deployment status:"
-    echo "  bonfire namespace describe"
-    echo "  kubectl get pods -n $PROJECT_NAMESPACE"
-    echo ""
-    echo "View namespace in console:"
-    bonfire namespace describe | grep "console url" || true
-    echo ""
-    echo "To release namespace when done:"
-    echo "  bonfire namespace release $PROJECT_NAMESPACE"
-    echo ""
-    echo "========================================================================"
-}
-
 # Function to handle cleanup on error
 cleanup_on_error() {
     log_error "Script failed. Cleaning up..."
@@ -297,14 +250,9 @@ main() {
     login_to_cluster
     reserve_namespace "$NAMESPACE_DURATION"
     deploy_services "${DEPLOY_ARGS[@]}"
-    display_summary
 
     log_success "Deployment completed successfully!"
-    echo ""
-    echo "Next Steps:"
-    echo "  Run '/hbi-setup-for-dev' or './claude/deployer/setup-for-dev.sh'"
-    echo "  to configure local development environment (port-forwards, .env, etc.)"
-    echo ""
+    log "Namespace: $PROJECT_NAMESPACE"
 }
 
 # Run main function
