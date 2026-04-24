@@ -8,6 +8,7 @@ from datetime import datetime
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
+from unittest.mock import ANY
 from unittest.mock import patch
 
 import marshmallow
@@ -303,10 +304,13 @@ def test_handle_message_happy_path(
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
-def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock):
+def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock, db_create_group):
+    from uuid import UUID
+
     mock_psk = "1234567890"
+    workspace_uuid = generate_uuid()
     get_rbac_mock = mocker.patch(
-        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(generate_uuid())}
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
     )
     mocker.patch(
         "lib.middleware.inventory_config",
@@ -316,6 +320,13 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+
+    # Simulate the MQ consumer creating the group in the DB while we wait.
+    def wait_and_create(workspace_id_str, *args, **kwargs):
+        db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True, group_id=UUID(workspace_id_str))
+
+    wait_mock = mocker.patch("lib.group_repository.wait_for_workspace_event", side_effect=wait_and_create)
+
     host = minimal_host(org_id=identity["org_id"])
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
@@ -328,6 +339,51 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
         "X-RH-RBAC-ORG-ID": "test",
         "X-RH-RBAC-PSK": mock_psk,
     }
+    wait_mock.assert_called_once_with(
+        str(workspace_uuid),
+        EventType.created,
+        org_id=identity["org_id"],
+        timeout=ANY,
+    )
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_kessel")
+def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consumer_mock, caplog):
+    """TimeoutError from wait_for_workspace_event is logged with context and re-raised with a clear metric label."""
+    import logging
+
+    mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers",
+        return_value={"id": str(generate_uuid())},
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            rbac_psk="psk",
+            bypass_kessel=False,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+        ),
+    )
+    mocker.patch(
+        "lib.group_repository.wait_for_workspace_event",
+        side_effect=TimeoutError("No workspace creation message consumed in time."),
+    )
+    mock_add_host_failure = mocker.patch("app.queue.host_mq.metrics.add_host_failure")
+
+    host = minimal_host(reporter="test_reporter")
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(SYSTEM_IDENTITY))
+
+    with caplog.at_level(logging.ERROR), pytest.raises(TimeoutError):
+        ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert any(
+        "Timed out waiting for RBAC workspace creation while adding host" in record.message
+        for record in caplog.records
+        if record.levelno == logging.ERROR
+    )
+    mock_add_host_failure.labels.assert_called_once_with("TimeoutError", "test_reporter")
+    mock_add_host_failure.labels.return_value.inc.assert_called_once()
 
 
 @pytest.mark.usefixtures("flask_app")
@@ -3052,6 +3108,7 @@ def test_write_add_update_event_message(mocker):
         },
     )
     mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
+    mock_host_exists = mocker.patch("app.queue.host_mq.host_exists", return_value=True)
 
     serialized_group = {
         "id": str(generate_uuid()),
@@ -3131,6 +3188,51 @@ def test_write_add_update_event_message(mocker):
     # Assert that all group fields were present when calling mock_set_cached_system
     cached_group = mock_set_cached_system.call_args[0][1]["groups"][0]
     assert cached_group == serialized_group
+    mock_host_exists.assert_called_once_with("host-id", org_id="org-id", session=db.session)
+
+
+@pytest.mark.usefixtures("flask_app")
+def test_write_add_update_event_message_skips_deleted_host(mocker):
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
+    mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
+    mocker.patch(
+        "app.queue.host_mq.serialize_host",
+        return_value={"id": "host-id", "org_id": "org-id", "reporter": "puptoo"},
+    )
+    mocker.patch("app.queue.host_mq.build_event", return_value="event")
+    mocker.patch(
+        "app.queue.host_mq.extract_system_profile_fields_for_headers",
+        return_value=(None, None, "False"),
+    )
+    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+    mock_send_notification = mocker.patch("app.queue.host_mq.send_notification")
+    mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
+    mocker.patch("app.queue.host_mq.host_exists", return_value=False)
+
+    host_row = mocker.Mock()
+    host_row.id = generate_uuid()
+    host_row.org_id = "org-id"
+    host_row.account = "acct"
+    host_row.insights_id = generate_uuid()
+
+    result = OperationResult(
+        row=host_row,
+        pm={"request_id": "abc"},
+        st=None,
+        so=None,
+        et=EventType.created,
+        sl=mock_success_logger,
+    )
+
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+
+    mock_event_producer.write_event.assert_not_called()
+    mock_send_notification.assert_not_called()
+    mock_success_logger.assert_not_called()
+    mock_set_cached_system.assert_not_called()
 
 
 def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, mocker, db_create_host):
@@ -3405,6 +3507,8 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
 
 def test_write_message_batch_flushes_once(mocker):
     """Kafka events should be produced with wait=False and flushed once at the end of the batch."""
+    from uuid import uuid4
+
     from app.queue.host_mq import write_message_batch
 
     mock_event_producer = mocker.Mock()
@@ -3414,7 +3518,11 @@ def test_write_message_batch_flushes_once(mocker):
         "app.queue.host_mq.write_add_update_event_message",
     )
 
-    mock_results = [mocker.Mock(spec=OperationResult) for _ in range(5)]
+    mock_results = []
+    for _ in range(5):
+        result = mocker.Mock()
+        result.row.id = uuid4()
+        mock_results.append(result)
 
     write_message_batch(mock_event_producer, notification_producer, mock_results)
 

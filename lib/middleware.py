@@ -37,11 +37,9 @@ from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_GROUPS
-from lib.feature_flags import FLAG_INVENTORY_KESSEL_PHASE_1
+from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
-from lib.kessel import Kessel
 from lib.kessel import get_kessel_client
 
 logger = get_logger(__name__)
@@ -346,7 +344,7 @@ def kessel_verb(perm) -> str:
 
 
 def get_kessel_filter(
-    kessel_client: Kessel, current_identity: Identity, permission: KesselPermission, ids: list[str]
+    current_identity: Identity, permission: KesselPermission, ids: list[str]
 ) -> tuple[bool, dict[str, Any] | None]:
     """
     Check Kessel permissions and return filter information.
@@ -370,6 +368,7 @@ def get_kessel_filter(
         },
     )
 
+    kessel_client = get_kessel_client(current_app)
     if current_identity.identity_type not in CHECKED_TYPES:
         logger.debug(
             "get_kessel_filter: identity_type not in CHECKED_TYPES, bypassing check",
@@ -494,7 +493,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_groups_enabled(current_identity.org_id):
+            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_enabled(current_identity.org_id):
                 return func(*args, **kwargs)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -532,29 +531,11 @@ def access(permission: KesselPermission, id_param: str = ""):
 
             current_identity = get_current_identity()
 
-            request_headers = _build_rbac_request_headers()
-
-            allowed = None
-            rbac_filter = None
             ids = []
-            # Extract resource IDs if an id_param is provided
             if id_param:
                 ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
-            # Pass org_id context for org-specific feature flag targeting
-            if get_flag_value(
-                FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)
-            ):  # Workspace permissions aren't part of HBI in V2, fallback to rbac for now.
-                kessel_client = get_kessel_client(current_app)
-                allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
-            else:
-                allowed, rbac_filter = get_rbac_filter(
-                    permission.resource_type.v1_type,
-                    permission.v1_permission,
-                    current_identity,
-                    request_headers,
-                    permission.resource_type.v1_app,
-                )
+            allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
             if allowed:
                 if rbac_filter and "rbac_filter" in sig.parameters:
@@ -575,6 +556,39 @@ def access(permission: KesselPermission, id_param: str = ""):
     return other_func
 
 
+def resolve_permission(
+    identity: Identity,
+    permission: KesselPermission,
+    ids: list[str] | None = None,
+    rbac_request_headers: dict | None = None,
+) -> tuple[bool, dict[str, Any] | None]:
+    """
+    Resolve authorization by checking Kessel (if enabled) or falling back to RBAC v1.
+
+    This centralizes the flag-check-and-branch pattern used across the codebase.
+
+    Args:
+        identity: The current user identity
+        permission: A KesselPermission that carries both Kessel and RBAC v1 type/permission mappings
+        ids: Optional resource IDs to check permissions against
+        rbac_request_headers: Optional pre-built RBAC request headers; built automatically if not provided
+    """
+    if ids is None:
+        ids = []
+
+    if is_rbac_v2_enabled(identity.org_id):
+        return get_kessel_filter(identity, permission, ids)
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
+    return get_rbac_filter(
+        permission.resource_type.v1_type,
+        permission.v1_permission,
+        identity,
+        rbac_request_headers,
+        permission.resource_type.v1_app,
+    )
+
+
 def check_access(permission: KesselPermission, ids: list[str] | None = None) -> dict[str, Any] | None:
     """
     Callable access check for endpoints where resource IDs aren't available at decoration time.
@@ -593,21 +607,7 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
 
     current_identity = get_current_identity()
 
-    if ids is None:
-        ids = []
-
-    if get_flag_value(FLAG_INVENTORY_KESSEL_PHASE_1, context=build_flag_context(current_identity.org_id)):
-        kessel_client = get_kessel_client(current_app)
-        allowed, rbac_filter = get_kessel_filter(kessel_client, current_identity, permission, ids)
-    else:
-        request_headers = _build_rbac_request_headers()
-        allowed, rbac_filter = get_rbac_filter(
-            permission.resource_type.v1_type,
-            permission.v1_permission,
-            current_identity,
-            request_headers,
-            permission.resource_type.v1_app,
-        )
+    allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
     if not allowed:
         abort(HTTPStatus.FORBIDDEN)
@@ -615,21 +615,24 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
     return rbac_filter
 
 
-def is_rbac_v2_groups_enabled(org_id: str) -> bool:
+def is_rbac_v2_enabled(org_id: str) -> bool:
     """
-    Check if RBAC v2 (workspace-based) authorization is enabled for groups endpoints.
+    Check if RBAC v2 (workspace-based) authorization is enabled.
 
-    When True: RBAC v2 workspace API handles all authorization
-    When False: RBAC v1 rbac_filter and rbac_group_id_check() apply
+    Single source of truth for the platform.rbac.workspaces feature flag.
+    Used to gate both Kessel permission checks and RBAC v2 workspace API calls.
+
+    When True: Kessel/RBAC v2 workspace API handles all authorization
+    When False: RBAC v1 rbac_filter applies
 
     Args:
         org_id: Organization ID for org-specific feature flag targeting
 
     Returns:
-        True if RBAC v2 should be used for groups, False if RBAC v1 should be used
+        True if RBAC v2 should be used, False if RBAC v1 should be used
     """
     return (not inventory_config().bypass_kessel) and get_flag_value(
-        FLAG_INVENTORY_KESSEL_GROUPS, context=build_flag_context(org_id)
+        FLAG_RBAC_WORKSPACES, context=build_flag_context(org_id)
     )
 
 
@@ -812,7 +815,9 @@ def get_rbac_workspaces(
 
         # RBAC v2 API expects descending order to be prefixed with a hyphen
         # Example: To sort by updated date in descending order, use "-modified"
-        if order_how and order_how.lower() == "desc":
+        # Also, RBAC v2 uses ascending order by default on all `order_by` types.
+        # HBI uses desc order by default when order_by == "updated", so we need to use the hyphen.
+        if (order_how and order_how.lower() == "desc") or (order_by == "updated" and order_how is None):
             rbac_order_by = f"-{rbac_order_by}"
 
         query_params["order_by"] = rbac_order_by

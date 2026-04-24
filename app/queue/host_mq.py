@@ -80,11 +80,13 @@ from app.staleness_serialization import AttrDict
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
+from lib.db import no_expire_on_commit
 from lib.db import raw_db_connection
 from lib.db import session_guard
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import UngroupedGroupCache
+from lib.host_repository import host_exists
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -237,50 +239,56 @@ class HBIMessageConsumerBase:
             InvalidRequestError: When the database session is in an invalid state
             StaleDataError: When trying to update data modified by another transaction
         """
-        with session_guard(db.session, close=False), db.session.no_autoflush, StalenessCache(), UngroupedGroupCache():
-            messages = self.consumer.consume(
-                num_messages=inventory_config().mq_db_batch_max_messages,
-                timeout=inventory_config().mq_db_batch_max_seconds,
-            )
+        with no_expire_on_commit(db.session):
+            with (
+                session_guard(db.session, close=False),
+                db.session.no_autoflush,
+                StalenessCache(),
+                UngroupedGroupCache(),
+            ):
+                messages = self.consumer.consume(
+                    num_messages=inventory_config().mq_db_batch_max_messages,
+                    timeout=inventory_config().mq_db_batch_max_seconds,
+                )
 
-            for msg in messages:
-                if msg is None:
-                    continue
-                elif msg.error():
-                    # This error is raised by the first consumer.consume() on a newly started Kafka.
-                    # msg.error() produces:
-                    # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                    #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                    logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                    self.failure_metric.inc()
-                else:
-                    logger.debug("Message received")
-
-                    try:
-                        self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
-                        metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                        self.success_metric.inc()
-                    except OperationalError as oe:
-                        """sqlalchemy.exc.OperationalError: This error occurs when an
-                        authentication failure occurs or the DB is not accessible.
-                        Exit the process to restart the pod
-                        """
-                        logger.error(f"Could not access DB {str(oe)}")
-                        sys.exit(3)
-                    except Exception:
+                for msg in messages:
+                    if msg is None:
+                        continue
+                    elif msg.error():
+                        # This error is raised by the first consumer.consume() on a newly started Kafka.
+                        # msg.error() produces:
+                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
+                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
+                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
                         self.failure_metric.inc()
-                        logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+                    else:
+                        logger.debug("Message received")
 
-        self.post_process_rows()
-        # Commit Kafka offsets after successful batch processing
-        # This ensures offsets are persisted immediately after DB commit and event production,
-        # preventing duplicate message processing on service restart
-        if len(self.processed_rows) > 0:
-            try:
-                self.consumer.commit(asynchronous=False)
-                logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
-            except Exception as e:
-                logger.exception(f"Failed to commit Kafka offsets: {e}")
+                        try:
+                            self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                            self.success_metric.inc()
+                        except OperationalError as oe:
+                            """sqlalchemy.exc.OperationalError: This error occurs when an
+                            authentication failure occurs or the DB is not accessible.
+                            Exit the process to restart the pod
+                            """
+                            logger.error(f"Could not access DB {str(oe)}")
+                            sys.exit(3)
+                        except Exception:
+                            self.failure_metric.inc()
+                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
+            self.post_process_rows()
+            # Commit Kafka offsets after successful batch processing
+            # This ensures offsets are persisted immediately after DB commit and event production,
+            # preventing duplicate message processing on service restart
+            if len(self.processed_rows) > 0:
+                try:
+                    self.consumer.commit(asynchronous=False)
+                    logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+                except Exception as e:
+                    logger.exception(f"Failed to commit Kafka offsets: {e}")
 
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
@@ -520,6 +528,13 @@ class IngressMessageConsumer(HostMessageConsumer):
         except OperationalError as oe:
             log_db_access_failure(logger, f"Could not access DB {str(oe)}", host_data)
             raise oe
+        except TimeoutError:
+            logger.error(
+                "Timed out waiting for RBAC workspace creation while adding host",
+                extra={"host": host_data, "system_profile": sp_fields_to_log},
+            )
+            metrics.add_host_failure.labels("TimeoutError", host_data.get("reporter", "null")).inc()
+            raise
         except Exception:
             logger.exception("Error while adding host", extra={"host": host_data, "system_profile": sp_fields_to_log})
             metrics.add_host_failure.labels("Exception", host_data.get("reporter", "null")).inc()
@@ -1022,7 +1037,7 @@ def write_add_update_event_message(
         processing_status_message="host operation complete",
         current_operation="write_message_batch",
         inventory_id=result.row.id,
-    ):
+    ) as tracker_ctx:
         output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
         insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
@@ -1037,32 +1052,37 @@ def write_add_update_event_message(
             bootc_booted,
         )
 
-    event_producer.write_event(event, str(result.row.id), headers, wait=False)
+        if not host_exists(result.row.id, org_id=result.row.org_id, session=db.session):
+            logger.warning(f"Skipping event for host {result.row.id}: host no longer exists")
+            tracker_ctx._success_status_msg = "skipped – host deleted before event production"
+            return
 
-    if result.event_type.name == HOST_EVENT_TYPE_CREATED:
-        # Notifications are expected to omit null canonical facts
-        remove_null_canonical_facts(output_host)
-        send_notification(
-            notification_event_producer,
-            notification_type=NotificationType.new_system_registered,
-            host=output_host,
-        )
-    result.success_logger(output_host)
+        event_producer.write_event(event, str(result.row.id), headers, wait=False)
 
-    org_id = output_host.get("org_id")
-    try:
-        owner_id = output_host.get("system_profile", {}).get("owner_id")
-        if owner_id and insights_id and org_id:
-            system_key = make_system_cache_key(insights_id, org_id, owner_id)
-            if "tags" in output_host:
-                del output_host["tags"]
-            if "system_profile" in output_host:
-                del output_host["system_profile"]
-            # Set full group details before caching
-            output_host["groups"] = result.row.groups or []
-            set_cached_system(system_key, output_host, inventory_config())
-    except Exception as ex:
-        logger.error("Error during set cache", ex)
+        if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+            # Notifications are expected to omit null canonical facts
+            remove_null_canonical_facts(output_host)
+            send_notification(
+                notification_event_producer,
+                notification_type=NotificationType.new_system_registered,
+                host=output_host,
+            )
+        result.success_logger(output_host)
+
+        org_id = output_host.get("org_id")
+        try:
+            owner_id = output_host.get("system_profile", {}).get("owner_id")
+            if owner_id and insights_id and org_id:
+                system_key = make_system_cache_key(insights_id, org_id, owner_id)
+                if "tags" in output_host:
+                    del output_host["tags"]
+                if "system_profile" in output_host:
+                    del output_host["system_profile"]
+                # Set full group details before caching
+                output_host["groups"] = result.row.groups or []
+                set_cached_system(system_key, output_host, inventory_config())
+        except Exception as ex:
+            logger.error("Error during set cache", ex)
 
 
 def write_message_batch(

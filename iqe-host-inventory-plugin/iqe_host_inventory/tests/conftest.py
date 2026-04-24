@@ -185,16 +185,13 @@ def enable_kessel_backend_flags(
 ) -> None:
     if request.config.getoption("--kessel"):
         host_inventory.unleash.toggle_feature_flag(
-            host_inventory.unleash.kessel_phase_1_flag, enable=True
-        )
-        host_inventory.unleash.toggle_feature_flag(
-            host_inventory.unleash.kessel_groups_flag, enable=True
-        )
-        host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.kessel_force_single_checks_flag, enable=True
         )
         host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.rbac_workspaces_flag, enable=True
+        )
+        host_inventory.unleash.toggle_feature_flag(
+            host_inventory.unleash.rbac_workspace_access_check_v2_flag, enable=True
         )
         _ensure_ungrouped_group_exists(host_inventory)
 

@@ -73,7 +73,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_group(
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if host_inventory.unleash.is_kessel_phase_1_enabled():
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
@@ -180,7 +180,7 @@ def test_kessel_rbac_granular_hosts_read_permission_ungrouped_and_normal_group(
     assert response.total == len(correct_hosts_ids)
     assert response_hosts_ids == correct_hosts_ids
 
-    if host_inventory.unleash.is_kessel_phase_1_enabled():
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
         for host_id in other_hosts_ids:
             with raises_apierror(403):
                 host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(host_id)
@@ -281,11 +281,7 @@ def test_rbac_granular_groups_read_permission_ungrouped_group(
     )
 
     # Test
-    with raises_apierror(
-        403,
-        "You don't have the permission to access the requested resource. "
-        "It is either read-protected or not readable by the server.",
-    ):
+    with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
         host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(groups)
 
 
@@ -353,11 +349,7 @@ def test_rbac_granular_groups_read_permission_ungrouped_and_normal_group(
     assert response.results[0].id == groups[0].id
 
     for group in groups[1:]:
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
+        with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin.apis.groups.get_groups_by_id_response(group)
 
 
@@ -379,7 +371,8 @@ def test_rbac_granular_groups_write_permission_ungrouped_and_normal_group(
     groups = rbac_setup_resources_for_granular_rbac[1]
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
     hbi_non_org_admin_user_rbac_setup(
-        permissions=[RBACInventoryPermission.GROUPS_WRITE], hbi_groups=[groups[0], ungrouped_group]
+        permissions=[RBACInventoryPermission.GROUPS_READ, RBACInventoryPermission.GROUPS_WRITE],
+        hbi_groups=[groups[0], ungrouped_group],
     )
 
     # Test
