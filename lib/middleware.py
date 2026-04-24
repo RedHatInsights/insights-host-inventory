@@ -50,7 +50,9 @@ RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 HIDE_WORKSPACE_TYPES = ["root", "default"]
-RESOURCE_TYPES_V2_ERROR_MESSAGE = "The resource_types endpoint is for RBAC v1 only and is not needed for RBAC v2."
+RESOURCE_TYPES_V2_ERROR_MESSAGE = (
+    "The resource_types endpoints are only used for RBAC v1, and are not allowed for RBAC v2."
+)
 
 
 def get_rbac_url(app: str) -> str:
