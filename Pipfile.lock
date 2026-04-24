@@ -91,20 +91,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:56d53bce75629cc7c78a32da8b62de74cee3e2a3d54a2b60ba1a65f9f1b129da",
-                "sha256:5b6056a661c19e974aaea3cb97690ddbe30d10c31e4f887df3bff06574f34510"
+                "sha256:2f4566da2c209a98bdbfc874d813ef231c84ad24e4f815e9bc91de5f63351a24",
+                "sha256:b38a9e4a3fbbee9017252576f1379780d0a5814768676c08df2f539d31fcdd68"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.94"
+            "version": "==1.42.96"
         },
         "botocore": {
             "hashes": [
-                "sha256:41c6b3b11b073221a41f52b222ba387be34459fb77cdc506e8b74cdaf24bdcce",
-                "sha256:a2143742132ed0f6cdb90204d667b89d0301068b1045e8bc099efa267bf1b348"
+                "sha256:75b3b841ffacaa944f645196655a21ca777591dd8911e732bfb6614545af0250",
+                "sha256:db2c3e2006628be6fde81a24124a6563c363d6982fb92728837cf174bad9d98a"
             ],
             "markers": "python_version >= '3.9'",
-            "version": "==1.42.94"
+            "version": "==1.42.96"
         },
         "cachelib": {
             "hashes": [
