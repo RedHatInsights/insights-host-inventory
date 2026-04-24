@@ -111,8 +111,8 @@ idmsvc" \
     wait_time=$((wait_time + 5))
   done
 
-  setup_kessel
-  setup_rbac_consumer
+  setup_rbac_debezium
+  apply_schema "$4"
 }
 
 # Setup Kessel Inventory and Relations
@@ -124,6 +124,76 @@ setup_kessel() {
     --set-image-tag quay.io/redhat-services-prod/project-kessel-tenant/kessel-inventory/inventory-api=latest \
     -p kessel-relations/SPICEDB_QUANTIZATION_INTERVAL=2.5s \
     -p kessel-relations/SPICEDB_QUANTIZATION_STALENESS_PERCENT=0
+}
+
+# Setup RBAC Debezium connector and Kafka topic for workspace events
+setup_rbac_debezium() {
+  echo "Setting up RBAC Debezium..."
+
+  # Download debezium connector template from rbac repo
+  local DEPLOY_DIR="$SCRIPT_DIR/deploy"
+  local SCRIPTS_DIR="$SCRIPT_DIR/scripts"
+  mkdir -p "$DEPLOY_DIR" "$SCRIPTS_DIR"
+
+  if [ ! -f "$DEPLOY_DIR/debezium-connector.yml" ]; then
+    echo "Downloading debezium-connector.yml..."
+    curl -sSL -o "$DEPLOY_DIR/debezium-connector.yml" \
+      "https://raw.githubusercontent.com/RedHatInsights/insights-rbac/master/deploy/debezium-connector.yml"
+  fi
+
+  if [ ! -f "$SCRIPTS_DIR/connector-params.env" ]; then
+    echo "Creating connector-params.env..."
+    cat > "$SCRIPTS_DIR/connector-params.env" <<'ENVEOF'
+DB_SERVERNAME=rbac-db
+DB_NAME=${secrets:rbac-db:db.name}
+DB_HOSTNAME=${secrets:rbac-db:db.host}
+DB_PORT=${secrets:rbac-db:db.port}
+DB_USER=${secrets:rbac-db:db.user}
+DB_PASSWORD=${secrets:rbac-db:db.password}
+TOPIC_PREFIX=rbac
+CONNECTOR_NAME=rbac-connector
+ENVEOF
+  fi
+
+  NAMESPACE=env-$(oc project -q)
+  oc process -f "$DEPLOY_DIR/debezium-connector.yml" \
+    -p KAFKA_CONNECT_INSTANCE="$NAMESPACE" \
+    --param-file="$SCRIPTS_DIR/connector-params.env" | oc apply -f -
+
+  # Create outbox.event.workspace Kafka topic
+  KAFKA_POD="$NAMESPACE"-kafka-0
+  oc wait pod "$KAFKA_POD" --for=condition=Ready --timeout=60s
+  KAFKA_BOOTSTRAP="$NAMESPACE"-kafka-bootstrap
+  oc rsh "$KAFKA_POD" /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server="$KAFKA_BOOTSTRAP":9092 \
+    --create --if-not-exists --topic outbox.event.workspace --partitions 3 --replication-factor 1
+
+  force_seed_rbac_data_in_relations
+}
+
+# Force re-seed RBAC permissions/roles/groups after debezium replication slot is created
+force_seed_rbac_data_in_relations() {
+  echo "Force re-seeding of rbac permissions, roles and groups in kessel..."
+  echo "Wait for rbac debezium connector to be ready to ensure replication slot has been created..."
+  oc wait kafkaconnector/rbac-connector --for=condition=Ready --timeout=300s
+  echo "Wait for rbac service deployment..."
+  oc rollout status deployment/rbac-service -w
+  RBAC_SERVICE_POD=$(oc get pods -l pod=rbac-service -o json | jq -r '.items[] | select(.status.phase == "Running" and .metadata.deletionTimestamp == null) | .metadata.name' | head -n 1)
+  while true; do
+    OUTPUT=$(oc exec "$RBAC_SERVICE_POD" --container=rbac-service -- /bin/bash -c "./rbac/manage.py seeds --force-create-relationships" 2>&1 | grep -E 'INFO: \*\*\*|ERROR:')
+    EXIT_STATUS=$?
+    if [ $EXIT_STATUS -ne 0 ]; then
+      echo "Rbac service pod was OOMKilled or was otherwise unavailable when attempting to run the seed script. Trying again..."
+      oc rollout status deployment/rbac-service -w
+      RBAC_SERVICE_POD=$(oc get pods -l pod=rbac-service -o json | jq -r '.items[] | select(.status.phase == "Running" and .metadata.deletionTimestamp == null) | .metadata.name' | head -n 1)
+    else
+      break
+    fi
+  done
+  echo "$OUTPUT"
+
+  setup_kessel
+  setup_rbac_consumer
 }
 
 # Setup RBAC Consumer (Kafka consumer for relations replication)
@@ -329,7 +399,6 @@ main() {
 
   add_users
   add_hosts_to_hbi
-  apply_schema "$4"
   show_bonfire_namespace
 
   echo "✓ Deployment with demo data completed successfully!"
