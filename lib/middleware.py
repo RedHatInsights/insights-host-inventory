@@ -49,6 +49,9 @@ RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
 HIDE_WORKSPACE_TYPES = ["root", "default"]
+RESOURCE_TYPES_V2_ERROR_MESSAGE = (
+    "The resource_types endpoints are only used for RBAC v1, and are not allowed for RBAC v2."
+)
 
 
 def get_rbac_url(app: str) -> str:
@@ -495,8 +498,15 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # RBAC v2 for Groups: Skip RBAC v1 authorization when feature flag is enabled
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
-            if resource_type == RbacResourceType.GROUPS and is_rbac_v2_enabled(current_identity.org_id):
+            is_v2 = is_rbac_v2_enabled(current_identity.org_id)
+
+            if resource_type == RbacResourceType.GROUPS and is_v2:
                 return func(*args, **kwargs)
+
+            # Resource-types endpoints are not supported for v2 orgs.
+            # In v2, resource-types are managed via RBAC v2 Role Bindings.
+            if resource_type == RbacResourceType.ALL and is_v2:
+                abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
             request_headers = _build_rbac_request_headers()
