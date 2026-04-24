@@ -600,6 +600,7 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
                 logger.error(
                     "Ungrouped group not found after UniqueViolation retry",
                     extra={"org_id": identity.org_id, "workspace_id": str(workspace_id)},
+                    exc_info=True,
                 )
                 raise
         else:
