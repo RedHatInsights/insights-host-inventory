@@ -1,5 +1,6 @@
 import pytest
 
+from lib.middleware import RESOURCE_TYPES_V2_ERROR_MESSAGE
 from tests.helpers.api_utils import RBAC_ADMIN_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_resource_types_pagination
 from tests.helpers.api_utils import assert_response_status
@@ -115,6 +116,20 @@ def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests):
             response_status, _ = api_get(url_builder())
 
             assert_response_status(response_status, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.parametrize(
+    "url_builder",
+    [build_resource_types_url, build_resource_types_groups_url],
+)
+def test_get_resource_types_v2_org_returns_error(mocker, api_get, url_builder):
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    response_status, response_data = api_get(url_builder())
+
+    assert_response_status(response_status, 400)
+    assert RESOURCE_TYPES_V2_ERROR_MESSAGE in response_data["detail"]
 
 
 @pytest.mark.usefixtures("enable_rbac")
