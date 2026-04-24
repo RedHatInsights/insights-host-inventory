@@ -45,8 +45,10 @@ from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.middleware import access
 from lib.staleness import add_staleness
+from lib.staleness import is_staleness_near_default
 from lib.staleness import patch_staleness
 from lib.staleness import remove_staleness
+from lib.staleness import remove_staleness_if_exists
 
 logger = get_logger(__name__)
 
@@ -232,6 +234,14 @@ def create_staleness(body):
         logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
+    if is_staleness_near_default(validated_data):
+        logger.debug("Incoming staleness data for org_id %s is near defaults; removing any existing record", org_id)
+        remove_staleness_if_exists()
+        StalenessCache.delete(org_id)
+        staleness = get_sys_default_staleness_api(identity)
+        _async_update_host_staleness(identity, staleness, request_id)
+        return flask_json_response(None, HTTPStatus.NO_CONTENT)
+
     try:
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
@@ -284,6 +294,17 @@ def update_staleness(body):
 
     identity = get_current_identity()
     org_id = identity.org_id
+
+    if is_staleness_near_default(validated_data):
+        logger.debug("Patched staleness data for org_id %s is near defaults; removing existing record", org_id)
+        deleted = remove_staleness_if_exists()
+        if not deleted:
+            abort(HTTPStatus.NOT_FOUND, f"Staleness record for org_id {org_id} does not exist.")
+        StalenessCache.delete(org_id)
+        staleness = get_sys_default_staleness_api(identity)
+        _async_update_host_staleness(identity, staleness, request_id)
+        return flask_json_response(None, HTTPStatus.NO_CONTENT)
+
     try:
         updated_staleness = patch_staleness(validated_data)
         StalenessCache.delete(org_id)
