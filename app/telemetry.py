@@ -27,6 +27,7 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+_otel_initialized_pid = None
 
 
 def get_tracer(name: str):
@@ -41,13 +42,23 @@ def get_tracer(name: str):
 
 
 def init_otel(service_name: str, service_version: str = "unknown"):
-    """Initialize OpenTelemetry tracing. Call once per process.
+    """Initialize OpenTelemetry tracing. Safe to call multiple times.
 
-    For Gunicorn workers, call this from the post_fork hook (BatchSpanProcessor is not fork-safe).
-    For MQ/export services, call this from main().
+    Uses the current PID to detect fork boundaries: if run.py initializes
+    in the Gunicorn master process and then post_fork calls again in a
+    worker, the PID will differ and the worker will re-initialize with a
+    fresh (fork-safe) TracerProvider and BatchSpanProcessor.
+
+    For single-process services (MQ, export), the second call is a no-op.
     """
+    global _otel_initialized_pid
+
+    if _otel_initialized_pid == os.getpid():
+        return
+
     if not OTEL_ENABLED:
         logger.info("OpenTelemetry is disabled (OTEL_ENABLED != 'true')")
+        _otel_initialized_pid = os.getpid()
         return
 
     from opentelemetry import trace
@@ -74,6 +85,7 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     provider.add_span_processor(BatchSpanProcessor(exporter))
 
     trace.set_tracer_provider(provider)
+    _otel_initialized_pid = os.getpid()
     logger.info("OpenTelemetry initialized for service=%s version=%s", service_name, service_version)
 
 
