@@ -40,7 +40,7 @@ cd .claude/deployer
 ## What It Does
 
 1. **Prerequisites Check** - Validates oc, bonfire, kubectl installed
-2. **Login to Cluster** - Authenticates to ephemeral cluster
+2. **Log in to Cluster** - Authenticates to ephemeral cluster
 3. **Reserve Namespace** - Creates or uses existing ephemeral namespace
 4. **Deploy Services** - Deploys HBI, Kessel, RBAC with bonfire
 5. **Setup Demo Data** - Creates connectors, users, and sample hosts

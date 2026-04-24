@@ -143,8 +143,6 @@ setup_rbac_consumer() {
     -p rbac/V2_BOOTSTRAP_TENANT=True \
     -p rbac/REPLICATION_TO_RELATION_ENABLED=True \
     -p rbac/KAFKA_ENABLED=True \
-    -p rbac/RBAC_KAFKA_CONSUMER_TOPIC=outbox.event.relations-replication-event \
-    -p rbac/RBAC_KAFKA_CONSUMER_GROUP_ID=connect-relations-sink-connector \
     -p rbac/NOTIFICATONS_ENABLED=False \
     -p rbac/NOTIFICATIONS_RH_ENABLED=False \
     -p rbac/ROLE_CREATE_ALLOW_LIST="remediations,\
@@ -269,12 +267,12 @@ add_hosts_to_hbi() {
   HOST_INVENTORY_DB_POD=$(oc get pods -l app=host-inventory,service=db,sub=local_db --no-headers -o custom-columns=":metadata.name" --field-selector=status.phase==Running | head -1)
   HBI_BOOTSTRAP_SERVERS=$(oc get svc -o json | jq -r '.items[] | select(.metadata.name | test("^env-ephemeral.*-kafka-bootstrap")) | "\(.metadata.name).\(.metadata.namespace).svc"')
 
-  BEFORE_COUNT=$(oc exec -it "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
+  BEFORE_COUNT=$(oc exec "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
   TARGET_COUNT=$((BEFORE_COUNT + NUM_HOSTS))
   AFTER_COUNT=$BEFORE_COUNT
 
   echo "Sending ${NUM_HOSTS} hosts to HBI using kafka producer..."
-  oc exec -it -c host-inventory-service-reads "$HOST_INVENTORY_READ_POD" -- /bin/bash -c \
+  oc exec -c host-inventory-service-reads "$HOST_INVENTORY_READ_POD" -- /bin/bash -c \
     'NUM_HOSTS="$1" INVENTORY_HOST_ACCOUNT="$2" KAFKA_BOOTSTRAP_SERVERS="$3" python3 utils/kafka_producer.py' \
     _ "$NUM_HOSTS" "$ORG_ID" "$HBI_BOOTSTRAP_SERVERS"
 
@@ -285,10 +283,10 @@ add_hosts_to_hbi() {
     echo "Waiting for ${NUM_HOSTS} hosts added via kafka to sync to the hbi db... [AFTER_COUNT: ${AFTER_COUNT}, TARGET_COUNT: ${TARGET_COUNT}]"
     sleep 2
     wait_time=$((wait_time + 2))
-    AFTER_COUNT=$(oc exec -it "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
+    AFTER_COUNT=$(oc exec "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
   done
 
-  AFTER_COUNT=$(oc exec -it "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
+  AFTER_COUNT=$(oc exec "$HOST_INVENTORY_DB_POD" -- /bin/bash -c "psql -d host-inventory -c \"select count(*) from hbi.hosts;\"" | head -3 | tail -1 | tr -d '[:space:]')
   echo "✓ Done. [AFTER_COUNT: ${AFTER_COUNT}, TARGET_COUNT: ${TARGET_COUNT}]"
 }
 

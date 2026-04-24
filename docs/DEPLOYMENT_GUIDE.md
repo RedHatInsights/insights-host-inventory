@@ -38,7 +38,7 @@ Install these tools before starting:
    - Visit: https://oauth-openshift.apps.crc-eph.r9lp.p1.openshiftapps.com/oauth/token/request
    - Copy the token
 
-2. **Login to cluster**:
+2. **Log in to cluster**:
    ```bash
    oc login --token=<your-token> --server=https://api.crc-eph.r9lp.p1.openshiftapps.com:6443
    ```
