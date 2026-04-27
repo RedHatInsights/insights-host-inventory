@@ -95,7 +95,9 @@ class Kessel:
                 return result, unauthorized_ids
             elif len(ids) > 1:
                 # Bulk check - all resources must be accessible
-                result, unauthorized_ids = self._check_bulk_resources(subject_ref, permission, [str(id) for id in ids])
+                result, unauthorized_ids = self._check_bulk_resources(
+                    subject_ref, permission, [str(id) for id in ids], current_identity.org_id
+                )
                 logger.debug(
                     f"Kessel.check: bulk resource check result={result}",
                     extra={"ids_count": len(ids), "unauthorized_ids": unauthorized_ids},
@@ -196,6 +198,7 @@ class Kessel:
         subject_ref: subject_reference_pb2.SubjectReference,
         permission: KesselPermission,
         resource_ids: list[str],
+        org_id: str,
     ) -> tuple[bool, list[str]]:
         """Check permissions for multiple resources. All must be accessible.
 
@@ -206,7 +209,7 @@ class Kessel:
             raise ValueError("resource_ids can't be empty")
 
         # Check if feature flag forces single-resource checks instead of bulk
-        if get_flag_value(FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK):
+        if get_flag_value(FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK, org_id):
             logger.debug(
                 "Using single-resource checks instead of bulk (forced by feature flag)",
                 extra={"resource_ids_count": len(resource_ids)},

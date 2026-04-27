@@ -763,12 +763,15 @@ def get_sparse_system_profile(
         "third_party_services",
     }
 
+    identity = get_current_identity()
+
     # Track if we need to fetch workloads for backward compatibility
     requested_sp_fields_dict: dict[str, bool] = fields.get("system_profile", {}) if fields else {}  # type: ignore[assignment]
     requested_sp_fields = list(requested_sp_fields_dict.keys()) if isinstance(requested_sp_fields_dict, dict) else []
     workloads_requested = "workloads" in requested_sp_fields
+    workloads_compat_enabled = get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id)
     workloads_needed_for_compat = (
-        get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY)
+        workloads_compat_enabled
         and requested_sp_fields
         and any(field in legacy_workload_fields for field in requested_sp_fields)
     )
@@ -801,7 +804,6 @@ def get_sparse_system_profile(
 
     all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
 
-    identity = get_current_identity()
     query_base = (
         db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group).filter(Host.org_id == identity.org_id)
     )
@@ -828,7 +830,7 @@ def get_sparse_system_profile(
         result_list.append({"id": str(item[0]), "system_profile": system_profile})
 
     # Apply backward compatibility logic if the flag is enabled
-    if get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY):
+    if workloads_compat_enabled:
         for host_data in result_list:
             if host_data["system_profile"]:
                 # Apply backward compatibility to populate legacy fields from workloads.*
