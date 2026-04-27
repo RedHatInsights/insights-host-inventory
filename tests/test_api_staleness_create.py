@@ -76,6 +76,8 @@ def test_create_staleness_at_exactly_one_hour_creates_row(api_create_staleness, 
     row = db_get_staleness_culling(response_data["org_id"])
     assert row is not None
     assert row.conventional_time_to_stale == _AT_EXACTLY_ONE_HOUR["conventional_time_to_stale"]
+    assert row.conventional_time_to_stale_warning == _AT_EXACTLY_ONE_HOUR["conventional_time_to_stale_warning"]
+    assert row.conventional_time_to_delete == _AT_EXACTLY_ONE_HOUR["conventional_time_to_delete"]
 
 
 def test_create_staleness_beyond_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):
@@ -86,6 +88,8 @@ def test_create_staleness_beyond_one_hour_creates_row(api_create_staleness, db_g
     row = db_get_staleness_culling(response_data["org_id"])
     assert row is not None
     assert row.conventional_time_to_stale == _BEYOND_TOLERANCE_STALENESS["conventional_time_to_stale"]
+    assert row.conventional_time_to_stale_warning == _BEYOND_TOLERANCE_STALENESS["conventional_time_to_stale_warning"]
+    assert row.conventional_time_to_delete == _BEYOND_TOLERANCE_STALENESS["conventional_time_to_delete"]
 
 
 def test_create_staleness_at_defaults_replaces_custom_row(

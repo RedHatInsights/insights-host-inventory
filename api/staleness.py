@@ -49,9 +49,9 @@ from lib.host_repository import host_exists
 from lib.host_repository import host_query
 from lib.middleware import access
 from lib.staleness import add_staleness
-from lib.staleness import org_has_custom_staleness
 from lib.staleness import patch_staleness
 from lib.staleness import remove_staleness
+from lib.staleness import remove_staleness_if_exists
 from lib.staleness import staleness_equivalent_to_system_defaults
 
 logger = get_logger(__name__)
@@ -65,12 +65,12 @@ def _response_if_staleness_equivalent_to_system_defaults(
     success_status: HTTPStatus,
 ) -> Response | None:
     """If validated data is strictly under 1h from system defaults, drop custom row and return JSON."""
-    if not staleness_equivalent_to_system_defaults(validated_data, identity):
+    sys_defaults = get_sys_default_staleness_api(identity)
+    if not staleness_equivalent_to_system_defaults(validated_data, identity, sys_defaults=sys_defaults):
         return None
-    if org_has_custom_staleness(org_id):
-        remove_staleness()
+    if remove_staleness_if_exists():
         StalenessCache.delete(org_id)
-        _async_update_host_staleness(identity, get_sys_default_staleness_api(identity), request_id)
+        _async_update_host_staleness(identity, sys_defaults, request_id)
     return flask_json_response(serialize_staleness_response(get_staleness_obj(org_id)), success_status)
 
 
