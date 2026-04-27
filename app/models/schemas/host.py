@@ -1,10 +1,8 @@
-import contextlib
 from copy import deepcopy
+from functools import lru_cache
 
 from jsonschema import ValidationError as JsonSchemaValidationError
-from jsonschema import validate as jsonschema_validate
 from jsonschema.validators import Draft4Validator
-from marshmallow import EXCLUDE
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import ValidationError as MarshmallowValidationError
 from marshmallow import fields
@@ -14,8 +12,6 @@ from marshmallow import validate as marshmallow_validate
 from marshmallow import validates
 from marshmallow import validates_schema
 
-from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
-from app.logging import get_logger
 from app.models.constants import MAX_CANONICAL_FACTS_VERSION
 from app.models.constants import MIN_CANONICAL_FACTS_VERSION
 from app.models.constants import TAG_KEY_VALIDATION
@@ -23,8 +19,7 @@ from app.models.constants import TAG_NAMESPACE_VALIDATION
 from app.models.constants import TAG_VALUE_VALIDATION
 from app.models.constants import ZERO_MAC_ADDRESS
 from app.models.constants import ProviderType
-from app.models.host import Host
-from app.models.host import LimitedHost
+from app.models.schemas.common import BaseSchemaWithExclude
 from app.models.system_profile_normalizer import SystemProfileNormalizer
 from app.validators import check_empty_keys
 from app.validators import verify_ip_address_format
@@ -32,65 +27,13 @@ from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
 
-logger = get_logger(__name__)
 
+@lru_cache(maxsize=1)
+def _get_schemas_package():
+    """Lazy import of the schemas package (tests patch names on `app.models.schemas`)."""
+    import app.models.schemas as pkg
 
-def verify_uuid_format_not_empty_dict(value):
-    """Validate UUID format and reject empty dict."""
-    if isinstance(value, dict) and len(value) == 0:
-        raise MarshmallowValidationError("Value cannot be an empty dictionary")
-    return verify_uuid_format(value)
-
-
-class DiskDeviceSchema(MarshmallowSchema):
-    device = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    label = fields.Str(validate=marshmallow_validate.Length(max=1024))
-    options = fields.Dict(validate=check_empty_keys)
-    mount_point = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    type = fields.Str(validate=marshmallow_validate.Length(max=256))
-
-
-class RhsmSchema(MarshmallowSchema):
-    version = fields.Str(validate=marshmallow_validate.Length(max=256))
-    environment_ids = fields.List(fields.Str(validate=marshmallow_validate.Length(max=256)))
-
-
-class OperatingSystemSchema(MarshmallowSchema):
-    major = fields.Int()
-    minor = fields.Int()
-    name = fields.Str(validate=marshmallow_validate.Length(max=256))
-
-
-class YumRepoSchema(MarshmallowSchema):
-    id = fields.Str(validate=marshmallow_validate.Length(max=256))
-    name = fields.Str(validate=marshmallow_validate.Length(max=1024))
-    gpgcheck = fields.Bool()
-    enabled = fields.Bool()
-    base_url = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    mirrorlist = fields.Str(validate=marshmallow_validate.Length(max=2048))
-
-
-class DnfModuleSchema(MarshmallowSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(max=128))
-    stream = fields.Str(validate=marshmallow_validate.Length(max=2048))
-    status = fields.List(fields.Str(validate=marshmallow_validate.Length(max=64)))
-
-
-class InstalledProductSchema(MarshmallowSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(max=512))
-    id = fields.Str(validate=marshmallow_validate.Length(max=64))
-    status = fields.Str(validate=marshmallow_validate.Length(max=256))
-
-
-class NetworkInterfaceSchema(MarshmallowSchema):
-    ipv4_addresses = fields.List(fields.Str())
-    ipv6_addresses = fields.List(fields.Str())
-    state = fields.Str(validate=marshmallow_validate.Length(max=25))
-    mtu = fields.Int()
-    mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
-    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
-    state = fields.Str(validate=marshmallow_validate.Length(max=25))
-    type = fields.Str(validate=marshmallow_validate.Length(max=18))
+    return pkg
 
 
 class FactsSchema(MarshmallowSchema):
@@ -98,19 +41,13 @@ class FactsSchema(MarshmallowSchema):
     facts = fields.Dict(validate=check_empty_keys)
 
 
-class TagsSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
+class TagsSchema(BaseSchemaWithExclude):
     namespace = fields.Str(required=False, allow_none=True, validate=TAG_NAMESPACE_VALIDATION)
     key = fields.Str(required=True, allow_none=False, validate=TAG_KEY_VALIDATION)
     value = fields.Str(required=False, allow_none=True, validate=TAG_VALUE_VALIDATION)
 
 
-class CanonicalFactsSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
+class CanonicalFactsSchema(BaseSchemaWithExclude):
     canonical_facts_version = fields.Integer(
         required=False,
         load_default=MIN_CANONICAL_FACTS_VERSION,
@@ -176,9 +113,6 @@ class CanonicalFactsSchema(MarshmallowSchema):
 
 
 class LimitedHostSchema(CanonicalFactsSchema):
-    class Meta:
-        unknown = EXCLUDE
-
     display_name = fields.Str(validate=marshmallow_validate.Length(min=1, max=200))
     ansible_host = fields.Str(validate=marshmallow_validate.Length(min=0, max=255))
     account = fields.Str(validate=marshmallow_validate.Length(min=0, max=10))
@@ -248,7 +182,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, facts, tags, tags_alt=None):
-        return LimitedHost(
+        _p = _get_schemas_package()
+
+        return _p.LimitedHost(
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -477,8 +413,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
         # Log if we detected any legacy fields
         if legacy_fields_detected:
+            _p = _get_schemas_package()
             workloads_str = ", ".join(original_workloads_present) if original_workloads_present else "none"
-            logger.info(
+            _p.logger.info(
                 f"Legacy workloads fields detected: reporter={data.get('reporter', 'unknown')}, "
                 f"org_id={data.get('org_id', 'unknown')}, "
                 f"display_name={data.get('display_name', 'unknown')}, "
@@ -508,8 +445,10 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        _p = _get_schemas_package()
+
         try:
-            jsonschema_validate(
+            _p.jsonschema_validate(
                 system_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
             )
         except JsonSchemaValidationError as error:
@@ -521,17 +460,15 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
 
 class HostSchema(LimitedHostSchema):
-    class Meta:
-        unknown = EXCLUDE
-
     stale_timestamp = fields.AwareDateTime(required=False)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
     def build_model(data, facts, tags, tags_alt=None):
+        _p = _get_schemas_package()
         if tags_alt is None:
             tags_alt = []
-        host = Host(
+        host = _p.Host(
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -564,254 +501,3 @@ class PatchHostSchema(MarshmallowSchema):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-
-class HostIdListSchema(MarshmallowSchema):
-    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=False)
-
-    @validates("host_ids")
-    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
-        if host_ids is not None and len(host_ids) != len(set(host_ids)):
-            raise MarshmallowValidationError("Host IDs must be unique.")
-
-
-class RequiredHostIdListSchema(HostIdListSchema):
-    host_ids = fields.List(fields.Str(validate=verify_uuid_format), required=True)
-
-    @validates("host_ids")
-    def validate_host_ids(self, host_ids, data_key):  # noqa: ARG002, required for marshmallow validator functions
-        if len(host_ids) == 0:
-            raise MarshmallowValidationError("Body content must be an array with system UUIDs, not an empty array")
-        # Call parent validation for duplicate checking
-        super().validate_host_ids(host_ids, data_key)
-
-
-class InputGroupSchema(HostIdListSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
-
-    @pre_load
-    def strip_whitespace_from_name(self, in_data, **kwargs):
-        if "name" in in_data:
-            in_data["name"] = in_data["name"].strip()
-
-        return in_data
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class StalenessSchema(MarshmallowSchema):
-    conventional_time_to_stale = fields.Integer(
-        validate=marshmallow_validate.Range(min=1, max=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
-    )
-    conventional_time_to_stale_warning = fields.Integer(validate=marshmallow_validate.Range(min=1, max=15552000))
-    conventional_time_to_delete = fields.Integer(validate=marshmallow_validate.Range(min=1, max=63072000))
-
-    @validates_schema
-    def validate_staleness(self, data, **kwargs):
-        staleness_fields = ["time_to_stale", "time_to_stale_warning", "time_to_delete"]
-        for i in range(len(staleness_fields) - 1):
-            for j in range(i + 1, len(staleness_fields)):
-                if (
-                    data[(field_1 := f"conventional_{staleness_fields[i]}")]
-                    >= data[(field_2 := f"conventional_{staleness_fields[j]}")]
-                ):
-                    raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class OutboxEventMetadataSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    local_resource_id = fields.Raw(validate=verify_uuid_format, required=True)
-    api_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
-    console_href = fields.Str(validate=marshmallow_validate.Length(min=1, max=2048), required=True)
-    reporter_version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
-    transaction_id = fields.UUID(required=True)
-
-
-class OutboxEventCommonSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    workspace_id = fields.Raw(validate=verify_uuid_format_not_empty_dict, allow_none=False, required=True)
-
-
-class OutboxEventReporterSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    satellite_id = fields.Str(validate=verify_satellite_id, allow_none=True)
-    subscription_manager_id = fields.Str(validate=verify_uuid_format, allow_none=True)
-    insights_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
-    ansible_host = fields.Str(validate=marshmallow_validate.Length(max=255), allow_none=True)
-
-    @validates_schema
-    def validate_at_least_one_field(self, data, **kwargs):
-        """Ensure at least one field has a non-none value."""
-        fields_to_check = ["satellite_id", "subscription_manager_id", "insights_id", "ansible_host"]
-        if all(data.get(field) is None for field in fields_to_check):
-            raise MarshmallowValidationError("At least one field must have a non-none value")
-
-
-class OutboxEventRepresentationsSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    metadata = fields.Nested(OutboxEventMetadataSchema, required=True)
-    common = fields.Nested(OutboxEventCommonSchema, required=True)
-    reporter = fields.Nested(OutboxEventReporterSchema, required=True)
-
-
-class OutboxCreateUpdatePayloadSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
-    reporter_type = fields.Str(validate=marshmallow_validate.OneOf(["hbi"]), required=True)
-    reporter_instance_id = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
-    representations = fields.Nested(OutboxEventRepresentationsSchema, required=True)
-
-
-class OutboxDeleteReporterSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    type = fields.Str(validate=marshmallow_validate.OneOf(["HBI"]), required=True)
-
-
-class OutboxDeleteReferenceSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    resource_type = fields.Str(validate=marshmallow_validate.OneOf(["host"]), required=True)
-    resource_id = fields.Raw(validate=verify_uuid_format, allow_none=True)
-    reporter = fields.Nested(OutboxDeleteReporterSchema, required=True)
-
-
-class OutboxDeletePayloadSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    reference = fields.Nested(OutboxDeleteReferenceSchema, required=True)
-
-
-class OutboxSchema(MarshmallowSchema):
-    class Meta:
-        unknown = EXCLUDE
-
-    id = fields.Raw(validate=verify_uuid_format, dump_only=True)
-    aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
-    aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
-    operation = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), required=True)
-    version = fields.Str(validate=marshmallow_validate.Length(min=1, max=50), required=True)
-    payload = fields.Raw(required=True)
-
-    @validates_schema
-    def validate_payload_with_operation(self, data, **kwargs):
-        operation = data.get("operation")
-        payload = data.get("payload")
-
-        if operation and payload:
-            if operation in ["created", "updated"]:
-                OutboxCreateUpdatePayloadSchema().load(payload)
-            elif operation == "delete":
-                OutboxDeletePayloadSchema().load(payload)
-            else:
-                # Allow other operation types but still validate payload structure if it matches known patterns
-                with contextlib.suppress(MarshmallowValidationError):
-                    OutboxCreateUpdatePayloadSchema().load(payload)
-                with contextlib.suppress(MarshmallowValidationError):
-                    OutboxDeletePayloadSchema().load(payload)
-                # If payload doesn't match either schema, that's okay for unknown operations
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-# Generate HostStaticSystemProfileSchema dynamically from x-dynamic markers
-_normalizer = SystemProfileNormalizer()
-HostStaticSystemProfileSchema = _normalizer.create_static_schema()
-
-# Generate HostDynamicSystemProfileSchema dynamically from x-dynamic markers
-HostDynamicSystemProfileSchema = _normalizer.create_dynamic_schema()
-
-
-# Application-specific data schemas for host app data (Unified Inventory Views)
-# Based on host_app_events.spec.yaml OpenAPI specification
-class AdvisorDataSchema(MarshmallowSchema):
-    """Schema for Advisor application data."""
-
-    recommendations = fields.Int(allow_none=True)
-    incidents = fields.Int(allow_none=True)
-    critical = fields.Int(allow_none=True)
-    important = fields.Int(allow_none=True)
-    moderate = fields.Int(allow_none=True)
-    low = fields.Int(allow_none=True)
-
-
-class VulnerabilityDataSchema(MarshmallowSchema):
-    """Schema for Vulnerability application data."""
-
-    total_cves = fields.Int(allow_none=True)
-    critical_cves = fields.Int(allow_none=True)
-    high_severity_cves = fields.Int(allow_none=True)
-    cves_with_security_rules = fields.Int(allow_none=True)
-    cves_with_known_exploits = fields.Int(allow_none=True)
-
-
-class PatchDataSchema(MarshmallowSchema):
-    """Schema for Patch application data."""
-
-    # Advisory counts by type (applicable)
-    advisories_rhsa_applicable = fields.Int(allow_none=True)
-    advisories_rhba_applicable = fields.Int(allow_none=True)
-    advisories_rhea_applicable = fields.Int(allow_none=True)
-    advisories_other_applicable = fields.Int(allow_none=True)
-
-    # Advisory counts by type (installable)
-    advisories_rhsa_installable = fields.Int(allow_none=True)
-    advisories_rhba_installable = fields.Int(allow_none=True)
-    advisories_rhea_installable = fields.Int(allow_none=True)
-    advisories_other_installable = fields.Int(allow_none=True)
-
-    # Package counts
-    packages_applicable = fields.Int(allow_none=True)
-    packages_installable = fields.Int(allow_none=True)
-    packages_installed = fields.Int(allow_none=True)
-
-    # Template info
-    template_name = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=255))
-    template_uuid = fields.UUID(allow_none=True)
-
-
-class RemediationsDataSchema(MarshmallowSchema):
-    """Schema for Remediations application data."""
-
-    remediations_plans = fields.Int(allow_none=True)
-
-
-class ComplianceDataPolicySchema(MarshmallowSchema):
-    """Schema for a compliance policy entry."""
-
-    id = fields.Str(validate=verify_uuid_format, allow_none=False)
-    name = fields.Str(allow_none=False, validate=marshmallow_validate.Length(max=255))
-
-
-class ComplianceDataSchema(MarshmallowSchema):
-    """Schema for Compliance application data."""
-
-    policies = fields.List(fields.Nested(ComplianceDataPolicySchema), allow_none=True)
-    last_scan = fields.DateTime(allow_none=True)
-
-
-class MalwareDataSchema(MarshmallowSchema):
-    """Schema for Malware application data."""
-
-    last_status = fields.Str(allow_none=True, validate=marshmallow_validate.Length(max=50))
-    last_matches = fields.Int(allow_none=True)
-    total_matches = fields.Int(allow_none=True)
-    last_scan = fields.DateTime(allow_none=True)
