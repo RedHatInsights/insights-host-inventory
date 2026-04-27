@@ -11,13 +11,6 @@ CUSTOM_STALENESS = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 5000,
 }
 
-# Slightly off defaults; strictly < 1h per field (equivalent to system defaults, no row)
-NEAR_DEFAULT_STALENESS = {
-    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 100,
-    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 100,
-    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 100,
-}
-
 # +3599s on every field — still equivalent to defaults
 JUST_UNDER_ONE_HOUR = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3599,
@@ -32,9 +25,9 @@ AT_EXACTLY_ONE_HOUR = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3600,
 }
 
-# +3601s on every field — not default-equivalent
-BEYOND_TOLERANCE_STALENESS = {
-    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3601,
-    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3601,
-    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3601,
-}
+
+def assert_staleness_row_matches_triple(row, triple: dict[str, int]) -> None:
+    """Assert a persisted ``Staleness`` row matches a conventional triple dict."""
+    assert row.conventional_time_to_stale == triple["conventional_time_to_stale"]
+    assert row.conventional_time_to_stale_warning == triple["conventional_time_to_stale_warning"]
+    assert row.conventional_time_to_delete == triple["conventional_time_to_delete"]

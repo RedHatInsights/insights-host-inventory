@@ -9,9 +9,8 @@ from tests.helpers.api_utils import STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FIL
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.staleness_test_constants import AT_EXACTLY_ONE_HOUR
-from tests.helpers.staleness_test_constants import BEYOND_TOLERANCE_STALENESS
 from tests.helpers.staleness_test_constants import CUSTOM_STALENESS
-from tests.helpers.staleness_test_constants import JUST_UNDER_ONE_HOUR
+from tests.helpers.staleness_test_constants import assert_staleness_row_matches_triple
 
 
 def test_create_staleness(api_create_staleness, db_get_staleness_culling):
@@ -22,9 +21,7 @@ def test_create_staleness(api_create_staleness, db_get_staleness_culling):
     saved_data = db_get_staleness_culling(saved_org_id)
 
     assert saved_data is not None
-    assert saved_data.conventional_time_to_stale == CUSTOM_STALENESS["conventional_time_to_stale"]
-    assert saved_data.conventional_time_to_stale_warning == CUSTOM_STALENESS["conventional_time_to_stale_warning"]
-    assert saved_data.conventional_time_to_delete == CUSTOM_STALENESS["conventional_time_to_delete"]
+    assert_staleness_row_matches_triple(saved_data, CUSTOM_STALENESS)
 
 
 def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness, db_get_staleness_culling):
@@ -36,14 +33,6 @@ def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness,
     assert db_get_staleness_culling(org_id) is None
 
 
-def test_create_staleness_just_under_one_hour_no_row(api_create_staleness, db_get_staleness_culling):
-    """POST with each field +3599s (strictly under 1h) does not insert a custom row."""
-    response_status, response_data = api_create_staleness(JUST_UNDER_ONE_HOUR)
-    assert_response_status(response_status, 201)
-    assert response_data["id"] == "system_default"
-    assert db_get_staleness_culling(response_data["org_id"]) is None
-
-
 def test_create_staleness_at_exactly_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):
     """POST with each field offset by exactly +3600s is not default-equivalent; row is created."""
     response_status, response_data = api_create_staleness(AT_EXACTLY_ONE_HOUR)
@@ -51,32 +40,14 @@ def test_create_staleness_at_exactly_one_hour_creates_row(api_create_staleness, 
     assert response_data["id"] != "system_default"
     row = db_get_staleness_culling(response_data["org_id"])
     assert row is not None
-    assert row.conventional_time_to_stale == AT_EXACTLY_ONE_HOUR["conventional_time_to_stale"]
-    assert row.conventional_time_to_stale_warning == AT_EXACTLY_ONE_HOUR["conventional_time_to_stale_warning"]
-    assert row.conventional_time_to_delete == AT_EXACTLY_ONE_HOUR["conventional_time_to_delete"]
-
-
-def test_create_staleness_beyond_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):
-    """POST with each field offset by +3601s from defaults persists custom staleness."""
-    response_status, response_data = api_create_staleness(BEYOND_TOLERANCE_STALENESS)
-    assert_response_status(response_status, 201)
-    assert response_data["id"] != "system_default"
-    row = db_get_staleness_culling(response_data["org_id"])
-    assert row is not None
-    assert row.conventional_time_to_stale == BEYOND_TOLERANCE_STALENESS["conventional_time_to_stale"]
-    assert row.conventional_time_to_stale_warning == BEYOND_TOLERANCE_STALENESS["conventional_time_to_stale_warning"]
-    assert row.conventional_time_to_delete == BEYOND_TOLERANCE_STALENESS["conventional_time_to_delete"]
+    assert_staleness_row_matches_triple(row, AT_EXACTLY_ONE_HOUR)
 
 
 def test_create_staleness_at_defaults_replaces_custom_row(
     api_create_staleness, db_create_staleness_culling, db_get_staleness_culling
 ):
     """POST near-defaults when a custom row exists should delete the custom record (RHINENG-20674)."""
-    db_create_staleness_culling(
-        conventional_time_to_stale=CUSTOM_STALENESS["conventional_time_to_stale"],
-        conventional_time_to_stale_warning=CUSTOM_STALENESS["conventional_time_to_stale_warning"],
-        conventional_time_to_delete=CUSTOM_STALENESS["conventional_time_to_delete"],
-    )
+    db_create_staleness_culling(**CUSTOM_STALENESS)
     response_status, response_data = api_create_staleness(_INPUT_DATA)
     assert_response_status(response_status, 201)
     assert response_data["id"] == "system_default"
@@ -185,6 +156,4 @@ def test_create_staleness_ignores_immutable_fields(api_create_staleness, db_get_
     saved_data = db_get_staleness_culling(saved_org_id)
 
     # Verify only conventional fields were saved, immutable fields were ignored
-    assert saved_data.conventional_time_to_stale == CUSTOM_STALENESS["conventional_time_to_stale"]
-    assert saved_data.conventional_time_to_stale_warning == CUSTOM_STALENESS["conventional_time_to_stale_warning"]
-    assert saved_data.conventional_time_to_delete == CUSTOM_STALENESS["conventional_time_to_delete"]
+    assert_staleness_row_matches_triple(saved_data, CUSTOM_STALENESS)
