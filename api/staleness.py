@@ -311,9 +311,13 @@ def update_staleness(body):
     identity = get_current_identity()
     org_id = identity.org_id
 
-    early = _response_if_staleness_equivalent_to_system_defaults(
-        validated_data, identity, org_id, request_id, HTTPStatus.OK
-    )
+    # PATCH must only update an existing custom row. If there is no row, return 404
+    # (pre-RHINENG-20674 behavior), even when the payload is default-equivalent.
+    early = None
+    if Staleness.query.filter(Staleness.org_id == org_id).first() is not None:
+        early = _response_if_staleness_equivalent_to_system_defaults(
+            validated_data, identity, org_id, request_id, HTTPStatus.OK
+        )
     if early is not None:
         return early
 
