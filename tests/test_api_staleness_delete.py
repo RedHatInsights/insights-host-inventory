@@ -13,12 +13,13 @@ def test_delete_existing_staleness(db_create_staleness_culling, api_delete_stale
         conventional_time_to_stale_warning=7,
         conventional_time_to_delete=30,
     )
+    org_id = saved_staleness.org_id
 
     response_status, _ = api_delete_staleness()
     assert_response_status(response_status, 204)
 
     # checking if the record was really removed
-    deleted_staleness = db_get_staleness_culling(saved_staleness.org_id)
+    deleted_staleness = db_get_staleness_culling(org_id)
     assert deleted_staleness is None
 
 
