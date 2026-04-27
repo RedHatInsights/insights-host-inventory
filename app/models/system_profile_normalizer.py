@@ -362,11 +362,11 @@ class SystemProfileNormalizer:
         }
 
         if ref_name in schema_map:
-            from app.models.schemas import DiskDeviceSchema
-            from app.models.schemas import DnfModuleSchema
-            from app.models.schemas import InstalledProductSchema
-            from app.models.schemas import NetworkInterfaceSchema
-            from app.models.schemas import YumRepoSchema
+            from app.models.schemas.system_profile import DiskDeviceSchema
+            from app.models.schemas.system_profile import DnfModuleSchema
+            from app.models.schemas.system_profile import InstalledProductSchema
+            from app.models.schemas.system_profile import NetworkInterfaceSchema
+            from app.models.schemas.system_profile import YumRepoSchema
 
             schema_classes = {
                 "NetworkInterfaceSchema": NetworkInterfaceSchema,
@@ -399,12 +399,12 @@ class SystemProfileNormalizer:
             properties = field_def["properties"]
             if all(key in properties for key in ["major", "minor", "name"]):
                 # This looks like OperatingSystem schema
-                from app.models.schemas import OperatingSystemSchema
+                from app.models.schemas.system_profile import OperatingSystemSchema
 
                 return fields.Nested(OperatingSystemSchema, **field_kwargs)
             elif all(key in properties for key in ["version", "environment_ids"]):
                 # This looks like Rhsm schema
-                from app.models.schemas import RhsmSchema
+                from app.models.schemas.system_profile import RhsmSchema
 
                 return fields.Nested(RhsmSchema, **field_kwargs)
 
