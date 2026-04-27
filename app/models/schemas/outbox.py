@@ -70,11 +70,6 @@ class OutboxSchema(BaseSchemaWithExclude):
         "updated": OutboxCreateUpdatePayloadSchema,
         "delete": OutboxDeletePayloadSchema,
     }
-    # Distinct classes for best-effort validation of unknown `operation` values
-    _UNIQUE_KNOWN_PAYLOAD_SCHEMAS = (
-        OutboxCreateUpdatePayloadSchema,
-        OutboxDeletePayloadSchema,
-    )
 
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
     aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
@@ -96,8 +91,8 @@ class OutboxSchema(BaseSchemaWithExclude):
             schema_cls().load(payload)
             return
 
-        # Unknown operation: best-effort validation against each known schema once
-        for known_schema in self._UNIQUE_KNOWN_PAYLOAD_SCHEMAS:
+        # Unknown operation: best-effort validation against each distinct payload schema
+        for known_schema in dict.fromkeys(self._OPERATION_PAYLOAD_SCHEMAS.values()):
             with contextlib.suppress(MarshmallowValidationError):
                 known_schema().load(payload)
 

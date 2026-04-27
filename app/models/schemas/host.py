@@ -1,4 +1,5 @@
 from copy import deepcopy
+from functools import lru_cache
 
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema.validators import Draft4Validator
@@ -25,6 +26,14 @@ from app.validators import verify_ip_address_format
 from app.validators import verify_mac_address_format
 from app.validators import verify_satellite_id
 from app.validators import verify_uuid_format
+
+
+@lru_cache(maxsize=1)
+def _get_schemas_package():
+    """Lazy import of the schemas package (tests patch names on `app.models.schemas`)."""
+    import app.models.schemas as pkg
+
+    return pkg
 
 
 class FactsSchema(MarshmallowSchema):
@@ -173,9 +182,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def build_model(data, facts, tags, tags_alt=None):
-        import app.models.schemas as _schemas
+        _p = _get_schemas_package()
 
-        return _schemas.LimitedHost(
+        return _p.LimitedHost(
             display_name=data.get("display_name"),
             ansible_host=data.get("ansible_host"),
             account=data.get("account"),
@@ -404,10 +413,9 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
         # Log if we detected any legacy fields
         if legacy_fields_detected:
-            import app.models.schemas as _schemas
-
+            _p = _get_schemas_package()
             workloads_str = ", ".join(original_workloads_present) if original_workloads_present else "none"
-            _schemas.logger.info(
+            _p.logger.info(
                 f"Legacy workloads fields detected: reporter={data.get('reporter', 'unknown')}, "
                 f"org_id={data.get('org_id', 'unknown')}, "
                 f"display_name={data.get('display_name', 'unknown')}, "
@@ -437,10 +445,10 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile, data_key):  # noqa: ARG002, required for marshmallow validator functions
-        import app.models.schemas as _schemas
+        _p = _get_schemas_package()
 
         try:
-            _schemas.jsonschema_validate(
+            _p.jsonschema_validate(
                 system_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
             )
         except JsonSchemaValidationError as error:
@@ -457,11 +465,10 @@ class HostSchema(LimitedHostSchema):
 
     @staticmethod
     def build_model(data, facts, tags, tags_alt=None):
-        import app.models.schemas as _schemas
-
+        _p = _get_schemas_package()
         if tags_alt is None:
             tags_alt = []
-        host = _schemas.Host(
+        host = _p.Host(
             data.get("display_name"),
             data.get("ansible_host"),
             data.get("account"),
