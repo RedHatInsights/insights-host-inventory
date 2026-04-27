@@ -38,7 +38,6 @@ from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
-from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
 
@@ -479,8 +478,12 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
     def other_func(func):
         @wraps(func)
         def modified_func(*args, **kwargs):
+            current_identity = get_current_identity()
+
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
-            if required_permission == RbacPermission.WRITE and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+            if required_permission == RbacPermission.WRITE and get_flag_value(
+                FLAG_INVENTORY_API_READ_ONLY, current_identity.org_id
+            ):
                 abort(503, "Inventory API is currently in read-only mode.")
 
             if inventory_config().bypass_rbac:
@@ -489,7 +492,6 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # Cert auth / system identities are only allowed to access HOSTS resources.
             # For all other resources (e.g., GROUPS), deny access with 403 Forbidden.
             # This check must happen BEFORE any RBAC v2 bypass to maintain security.
-            current_identity = get_current_identity()
             if current_identity.identity_type not in CHECKED_TYPES and resource_type != RbacResourceType.HOSTS:
                 abort(HTTPStatus.FORBIDDEN)
 
@@ -532,14 +534,14 @@ def access(permission: KesselPermission, id_param: str = ""):
 
         @wraps(func)
         def modified_func(*args, **kwargs):
+            current_identity = get_current_identity()
+
             # If the API is in read-only mode and this is a Write endpoint, abort with HTTP 503.
-            if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+            if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY, current_identity.org_id):
                 abort(503, "Inventory API is currently in read-only mode.")
 
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
-
-            current_identity = get_current_identity()
 
             ids = []
             if id_param:
@@ -609,13 +611,13 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
     Returns the rbac_filter dict if access is allowed (may be None for unfiltered access).
     Aborts with HTTP 403 if denied, or HTTP 503 if in read-only mode.
     """
-    if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY):
+    current_identity = get_current_identity()
+
+    if permission.write_operation and get_flag_value(FLAG_INVENTORY_API_READ_ONLY, current_identity.org_id):
         abort(503, "Inventory API is currently in read-only mode.")
 
     if inventory_config().bypass_rbac:
         return None
-
-    current_identity = get_current_identity()
 
     allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
@@ -641,9 +643,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     Returns:
         True if RBAC v2 should be used, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(
-        FLAG_RBAC_WORKSPACES, context=build_flag_context(org_id)
-    )
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_WORKSPACES, org_id)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
