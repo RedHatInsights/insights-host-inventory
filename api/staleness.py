@@ -255,11 +255,7 @@ def create_staleness(body):
     identity = get_current_identity()
     org_id = identity.org_id
     request_id = threadctx.request_id
-    try:
-        validated_data = _validate_input_data(body)
-    except ValidationError as e:
-        logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+    validated_data = _validate_input_data(body)
 
     early = _response_if_staleness_equivalent_to_system_defaults(
         validated_data, identity, org_id, request_id, HTTPStatus.CREATED
@@ -310,13 +306,8 @@ def delete_staleness():
 @metrics.api_request_time.time()
 def update_staleness(body):
     # Validate account staleness input data
-    try:
-        validated_data = _validate_input_data(body)
-        request_id = threadctx.request_id
-    except ValidationError as e:
-        logger.exception(f'Input validation error, "{str(e.messages)}", while creating account staleness: {body}')
-        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
-
+    validated_data = _validate_input_data(body)
+    request_id = threadctx.request_id
     identity = get_current_identity()
     org_id = identity.org_id
 
