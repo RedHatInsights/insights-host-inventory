@@ -7,8 +7,9 @@ from lib.db import session_guard
 
 logger = get_logger(__name__)
 
-# If submitted staleness is within this many seconds of system defaults for all
-# three conventional fields, treat it as "default" and do not keep a custom row.
+# If every conventional field differs from system defaults by **strictly less** than
+# this many seconds, treat the payload as "default" and do not keep a custom row.
+# A difference of exactly this many seconds (e.g. one hour) is not equivalent.
 DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS = 60 * 60
 
 _STALENESS_CONVENTIONAL_KEYS = (
@@ -19,11 +20,12 @@ _STALENESS_CONVENTIONAL_KEYS = (
 
 
 def staleness_equivalent_to_system_defaults(staleness_data: dict, identity: Identity) -> bool:
-    """Return True if every conventional field is within the tolerance of system defaults.
+    """Return True if every conventional field is **strictly less than** one hour from system defaults.
 
-    API validation merges PATCH/POST input with the current org view so
-    :class:`StalenessSchema` always supplies all three keys. If a key is missing
-    or not an int, treat the payload as not equivalent to defaults.
+    Differences of exactly 3600 seconds (one hour) or more for any field are not
+    considered equivalent. API validation merges PATCH/POST with the org view so
+    :class:`StalenessSchema` supplies all three keys. If a key is missing or not
+    an int, treat the payload as not equivalent to defaults.
     """
     from app.staleness_serialization import get_sys_default_staleness_api
 
@@ -32,7 +34,7 @@ def staleness_equivalent_to_system_defaults(staleness_data: dict, identity: Iden
         v = staleness_data.get(k)
         if v is None or not isinstance(v, int):
             return False
-        if abs(v - default[k]) > DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS:
+        if abs(v - default[k]) >= DEFAULT_STALENESS_EQUIVALENCE_TOLERANCE_SECONDS:
             return False
     return True
 

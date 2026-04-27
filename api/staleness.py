@@ -64,7 +64,7 @@ def _response_if_staleness_equivalent_to_system_defaults(
     request_id: str,
     success_status: HTTPStatus,
 ) -> Response | None:
-    """If validated data is within 1h of system defaults, drop custom row and return JSON."""
+    """If validated data is strictly under 1h from system defaults, drop custom row and return JSON."""
     if not staleness_equivalent_to_system_defaults(validated_data, identity):
         return None
     if org_has_custom_staleness(org_id):

@@ -16,11 +16,18 @@ _CUSTOM_STALENESS = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 5000,
 }
 
-# Exactly at +1h on every field — still “near default”, no row
-_AT_TOLERANCE_STALENESS = {
+# Exactly +1h on every field from defaults — not equivalent; custom row is created
+_AT_EXACTLY_ONE_HOUR = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3600,
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3600,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3600,
+}
+
+# Just under 1h on every field — equivalent to defaults, no row
+_JUST_UNDER_ONE_HOUR = {
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3599,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3599,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3599,
 }
 
 # Beyond 1h on every field — must persist a custom row
@@ -45,7 +52,7 @@ def test_create_staleness(api_create_staleness, db_get_staleness_culling):
 
 
 def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness, db_get_staleness_culling):
-    """POST with values within 1h of system defaults should not add a custom staleness row (RHINENG-20674)."""
+    """POST with default triple should not add a custom staleness row (RHINENG-20674)."""
     response_status, response_data = api_create_staleness(_INPUT_DATA)
     assert_response_status(response_status, 201)
     assert response_data["id"] == "system_default"
@@ -53,12 +60,22 @@ def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness,
     assert db_get_staleness_culling(org_id) is None
 
 
-def test_create_staleness_at_plus_one_hour_tolerance_no_row(api_create_staleness, db_get_staleness_culling):
-    """POST with each field offset by +3600s (still within tolerance) does not insert."""
-    response_status, response_data = api_create_staleness(_AT_TOLERANCE_STALENESS)
+def test_create_staleness_just_under_one_hour_no_row(api_create_staleness, db_get_staleness_culling):
+    """POST with each field +3599s (strictly under 1h) does not insert a custom row."""
+    response_status, response_data = api_create_staleness(_JUST_UNDER_ONE_HOUR)
     assert_response_status(response_status, 201)
     assert response_data["id"] == "system_default"
     assert db_get_staleness_culling(response_data["org_id"]) is None
+
+
+def test_create_staleness_at_exactly_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):
+    """POST with each field offset by exactly +3600s is not default-equivalent; row is created."""
+    response_status, response_data = api_create_staleness(_AT_EXACTLY_ONE_HOUR)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] != "system_default"
+    row = db_get_staleness_culling(response_data["org_id"])
+    assert row is not None
+    assert row.conventional_time_to_stale == _AT_EXACTLY_ONE_HOUR["conventional_time_to_stale"]
 
 
 def test_create_staleness_beyond_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):

@@ -18,15 +18,22 @@ _CUSTOM_STALENESS = {
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 5000,
 }
 
-# Within 1h of system defaults
+# Within 1h of system defaults (strictly < 3600s per field)
 _NEAR_DEFAULT_STALENESS = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 100,
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 100,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 100,
 }
 
-# Exactly at ±1h tolerance on every field (still equivalent)
-_AT_TOLERANCE_STALENESS = {
+# +3599s on every field — still equivalent to defaults, custom row removed
+_JUST_UNDER_ONE_HOUR = {
+    "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3599,
+    "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3599,
+    "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3599,
+}
+
+# Exactly +1h on every field — not equivalent; patch updates the custom row
+_AT_EXACTLY_ONE_HOUR = {
     "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 3600,
     "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 3600,
     "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3600,
@@ -95,17 +102,36 @@ def test_patch_staleness_at_defaults_without_custom_returns_200(api_patch, db_ge
     assert db_get_staleness_culling(response_data["org_id"]) is None
 
 
-def test_patch_staleness_at_tolerance_deletes_custom(api_patch, db_create_staleness_culling, db_get_staleness_culling):
-    """All three fields exactly ±3600s from defaults removes the custom row."""
+def test_patch_staleness_just_under_one_hour_deletes_custom(
+    api_patch, db_create_staleness_culling, db_get_staleness_culling
+):
+    """All three fields +3599s from defaults (strictly < 1h) removes the custom row."""
     db_create_staleness_culling(
         conventional_time_to_stale=_CUSTOM_STALENESS["conventional_time_to_stale"],
         conventional_time_to_stale_warning=_CUSTOM_STALENESS["conventional_time_to_stale_warning"],
         conventional_time_to_delete=_CUSTOM_STALENESS["conventional_time_to_delete"],
     )
-    response_status, response_data = api_patch(build_staleness_url(), host_data=_AT_TOLERANCE_STALENESS)
+    response_status, response_data = api_patch(build_staleness_url(), host_data=_JUST_UNDER_ONE_HOUR)
     assert_response_status(response_status, 200)
     assert response_data["id"] == "system_default"
     assert db_get_staleness_culling(response_data["org_id"]) is None
+
+
+def test_patch_staleness_at_exactly_one_hour_keeps_custom(
+    api_patch, db_create_staleness_culling, db_get_staleness_culling
+):
+    """All three fields exactly +3600s from defaults should keep a custom row (not default-equivalent)."""
+    db_create_staleness_culling(
+        conventional_time_to_stale=_CUSTOM_STALENESS["conventional_time_to_stale"],
+        conventional_time_to_stale_warning=_CUSTOM_STALENESS["conventional_time_to_stale_warning"],
+        conventional_time_to_delete=_CUSTOM_STALENESS["conventional_time_to_delete"],
+    )
+    response_status, response_data = api_patch(build_staleness_url(), host_data=_AT_EXACTLY_ONE_HOUR)
+    assert_response_status(response_status, 200)
+    assert response_data["id"] != "system_default"
+    row = db_get_staleness_culling(response_data["org_id"])
+    assert row is not None
+    assert row.conventional_time_to_stale == _AT_EXACTLY_ONE_HOUR["conventional_time_to_stale"]
 
 
 def test_patch_staleness_beyond_tolerance_keeps_custom(

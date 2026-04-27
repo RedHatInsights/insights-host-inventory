@@ -14,8 +14,10 @@ from tests.helpers.test_utils import USER_IDENTITY
     "offset_seconds, expect_equivalent",
     [
         (0, True),
-        (3600, True),
-        (-3600, True),
+        (3599, True),
+        (-3599, True),
+        (3600, False),
+        (-3600, False),
         (3601, False),
         (-3601, False),
     ],
