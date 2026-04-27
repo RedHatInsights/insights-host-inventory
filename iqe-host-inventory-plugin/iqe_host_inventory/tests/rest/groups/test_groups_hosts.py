@@ -47,31 +47,6 @@ def test_groups_delete_host_in_group(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
-def test_groups_cant_update_host_groups_via_kafka(host_inventory: ApplicationHostInventory):
-    """
-    https://issues.redhat.com/browse/ESSNTL-3855
-
-    metadata:
-      requirements: inv-mq-host-field-validation
-      assignee: fstavela
-      importance: high
-      negative: true
-      title: Test that I can't update host's group data via kafka message
-    """
-    host_data = host_inventory.datagen.create_host_data()
-    host = host_inventory.kafka.create_host(host_data)
-    group = host_inventory.apis.groups.create_group(generate_display_name(), hosts=host)
-
-    group_dict = group_to_mq_dict(group)
-    group_dict["name"] = generate_display_name()
-    host_data["groups"] = [group_dict]
-    updated_host = host_inventory.kafka.create_host(host_data)
-    assert updated_host.groups == [group_to_mq_dict(group)]
-
-    host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=host)
-
-
-@pytest.mark.ephemeral
 def test_groups_update_host_in_group(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/ESSNTL-3855

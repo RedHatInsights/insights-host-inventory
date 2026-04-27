@@ -19,6 +19,7 @@ from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
@@ -77,6 +78,7 @@ from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from app.telemetry import get_tracer
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
@@ -90,6 +92,7 @@ from lib.host_repository import host_exists
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 MAX_RETRIES = 5
@@ -232,6 +235,33 @@ class HBIMessageConsumerBase:
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
+    def _process_single_message(self, msg) -> None:
+        """Process a single Kafka message within a tracing span."""
+        logger.debug("Message received")
+
+        with tracer.start_as_current_span(
+            f"mq.process {msg.topic()}",
+            attributes={
+                "messaging.operation": "process",
+                "messaging.destination.name": msg.topic() or "",
+                "messaging.kafka.partition": msg.partition() or 0,
+            },
+        ) as span:
+            try:
+                self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+                self.success_metric.inc()
+            except OperationalError as oe:
+                span.set_status(StatusCode.ERROR, str(oe))
+                span.record_exception(oe)
+                logger.error(f"Could not access DB {str(oe)}")
+                sys.exit(3)
+            except Exception as exc:
+                span.set_status(StatusCode.ERROR, str(exc))
+                span.record_exception(exc)
+                self.failure_metric.inc()
+                logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+
     def _process_batch(self) -> None:
         """Process a single batch of messages from Kafka.
 
@@ -239,45 +269,42 @@ class HBIMessageConsumerBase:
             InvalidRequestError: When the database session is in an invalid state
             StaleDataError: When trying to update data modified by another transaction
         """
-        with no_expire_on_commit(db.session):
+        messages = self.consumer.consume(
+            num_messages=inventory_config().mq_db_batch_max_messages,
+            timeout=inventory_config().mq_db_batch_max_seconds,
+        )
+
+        valid_messages = []
+        for msg in messages:
+            if msg is None:
+                continue
+            if msg.error():
+                logger.error(f"Message received but has an error, which is {str(msg.error())}")
+                self.failure_metric.inc()
+            else:
+                valid_messages.append(msg)
+
+        if not valid_messages:
+            return
+
+        with (
+            tracer.start_as_current_span(
+                "mq.batch",
+                attributes={
+                    "messaging.system": "kafka",
+                    "messaging.batch.message_count": len(valid_messages),
+                },
+            ),
+            no_expire_on_commit(db.session),
+        ):
             with (
                 session_guard(db.session, close=False),
                 db.session.no_autoflush,
                 StalenessCache(),
                 UngroupedGroupCache(),
             ):
-                messages = self.consumer.consume(
-                    num_messages=inventory_config().mq_db_batch_max_messages,
-                    timeout=inventory_config().mq_db_batch_max_seconds,
-                )
-
-                for msg in messages:
-                    if msg is None:
-                        continue
-                    elif msg.error():
-                        # This error is raised by the first consumer.consume() on a newly started Kafka.
-                        # msg.error() produces:
-                        # KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available:
-                        #   platform.inventory.host-ingress: Broker: Unknown topic or partition"}
-                        logger.error(f"Message received but has an error, which is {str(msg.error())}")
-                        self.failure_metric.inc()
-                    else:
-                        logger.debug("Message received")
-
-                        try:
-                            self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
-                            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
-                            self.success_metric.inc()
-                        except OperationalError as oe:
-                            """sqlalchemy.exc.OperationalError: This error occurs when an
-                            authentication failure occurs or the DB is not accessible.
-                            Exit the process to restart the pod
-                            """
-                            logger.error(f"Could not access DB {str(oe)}")
-                            sys.exit(3)
-                        except Exception:
-                            self.failure_metric.inc()
-                            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+                for msg in valid_messages:
+                    self._process_single_message(msg)
 
             self.post_process_rows()
             # Commit Kafka offsets after successful batch processing
@@ -423,7 +450,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
             try:
                 host = validated_operation_msg["data"]
                 if host.get("reporter") in ["rhsm-conduit", "rhsm-system-profile-bridge"] and get_flag_value(
-                    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
+                    FLAG_INVENTORY_REJECT_RHSM_PAYLOADS, host["org_id"]
                 ):
                     raise ValidationException(
                         """
