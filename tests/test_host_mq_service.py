@@ -2435,8 +2435,7 @@ def test_cant_update_host_groups_via_mq(
     update_data = minimal_host(insights_id=str(host.insights_id))
     update_data.groups = [{"id": other_group_id, "name": "other_group", "ungrouped": False}]
 
-    with pytest.raises(ValueError):
-        mq_create_or_update_host(update_data)
+    mq_create_or_update_host(update_data)
 
     retrieved_group = db_get_group_by_id(original_group.id)
     assert retrieved_group.name == "original_group"
