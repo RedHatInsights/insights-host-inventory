@@ -71,7 +71,7 @@ def _response_if_staleness_equivalent_to_system_defaults(
     if remove_staleness_if_exists():
         StalenessCache.delete(org_id)
         _async_update_host_staleness(identity, sys_defaults, request_id)
-    return flask_json_response(serialize_staleness_response(get_staleness_obj(org_id)), success_status)
+    return flask_json_response(serialize_staleness_response(sys_defaults), success_status)
 
 
 def _validate_input_data(body):

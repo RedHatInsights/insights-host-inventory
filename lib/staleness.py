@@ -92,12 +92,19 @@ def patch_staleness(staleness_data) -> Staleness:
 
 
 def remove_staleness_if_exists() -> bool:
-    """Delete custom staleness for the current org if present. Returns True if a row was removed."""
+    """Delete custom staleness for the current org if present. Returns True if a row was removed.
+
+    Uses ORM ``delete`` so session lifecycle is consistent; custom staleness has no
+    after-delete sidecar listeners, so a bulk SQL delete is not required.
+    """
     org_id = get_current_identity().org_id
     logger.debug("Removing AccountStaleness for org_id: %s (if present)", org_id)
-    n = Staleness.query.filter(Staleness.org_id == org_id).delete(synchronize_session="fetch")
-    db.session.commit()
-    return n > 0
+    row = Staleness.query.filter(Staleness.org_id == org_id).one_or_none()
+    if row is None:
+        return False
+    with session_guard(db.session):
+        db.session.delete(row)
+    return True
 
 
 def remove_staleness() -> None:

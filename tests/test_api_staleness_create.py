@@ -10,6 +10,7 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.staleness_test_constants import AT_EXACTLY_ONE_HOUR
 from tests.helpers.staleness_test_constants import CUSTOM_STALENESS
+from tests.helpers.staleness_test_constants import JUST_UNDER_ONE_HOUR
 from tests.helpers.staleness_test_constants import assert_staleness_row_matches_triple
 
 
@@ -31,6 +32,25 @@ def test_create_staleness_at_defaults_does_not_persist_row(api_create_staleness,
     assert response_data["id"] == "system_default"
     org_id = response_data["org_id"]
     assert db_get_staleness_culling(org_id) is None
+
+
+def test_create_staleness_just_under_one_hour_does_not_persist_row(api_create_staleness, db_get_staleness_culling):
+    """POST with all fields +3599s (strictly under 1h) is default-equivalent: no custom row (matches PATCH)."""
+    response_status, response_data = api_create_staleness(JUST_UNDER_ONE_HOUR)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] == "system_default"
+    assert db_get_staleness_culling(response_data["org_id"]) is None
+
+
+def test_create_staleness_just_under_one_hour_replaces_custom_row(
+    api_create_staleness, db_create_staleness_culling, db_get_staleness_culling
+):
+    """POST at +3599s when a custom row exists removes it (symmetric to PATCH, RHINENG-20674)."""
+    db_create_staleness_culling(**CUSTOM_STALENESS)
+    response_status, response_data = api_create_staleness(JUST_UNDER_ONE_HOUR)
+    assert_response_status(response_status, 201)
+    assert response_data["id"] == "system_default"
+    assert db_get_staleness_culling(response_data["org_id"]) is None
 
 
 def test_create_staleness_at_exactly_one_hour_creates_row(api_create_staleness, db_get_staleness_culling):

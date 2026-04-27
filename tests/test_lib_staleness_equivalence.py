@@ -34,6 +34,30 @@ def test_staleness_equivalent_to_system_defaults_boundaries(flask_app, offset_se
         assert staleness_equivalent_to_system_defaults(triple, identity) is expect_equivalent
 
 
+def test_staleness_equivalent_mixed_offsets_one_field_outside_tolerance_is_false(flask_app):
+    """If any one conventional field is outside the one-hour window, the triple is not equivalent."""
+    identity = Identity(USER_IDENTITY)
+    with flask_app.app.app_context():
+        triple = {
+            "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS + 100,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS + 4000,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS + 100,
+        }
+        assert not staleness_equivalent_to_system_defaults(triple, identity)
+
+
+@pytest.mark.parametrize("bad_stale", ("not-an-int", None))
+def test_staleness_equivalent_rejects_non_int_field(flask_app, bad_stale):
+    identity = Identity(USER_IDENTITY)
+    with flask_app.app.app_context():
+        triple = {
+            "conventional_time_to_stale": bad_stale,
+            "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        }
+        assert not staleness_equivalent_to_system_defaults(triple, identity)
+
+
 def test_staleness_equivalent_incomplete_payload_returns_false(flask_app):
     """Missing keys are not treated as matching defaults (defensive, pre-merge callers)."""
     with flask_app.app.app_context():
