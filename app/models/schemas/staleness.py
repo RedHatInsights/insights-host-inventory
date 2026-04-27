@@ -29,6 +29,3 @@ class StalenessSchema(MarshmallowSchema):
                 field_1 = f"conventional_{prev_name}"
                 field_2 = f"conventional_{curr_name}"
                 raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)

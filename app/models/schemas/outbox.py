@@ -95,6 +95,3 @@ class OutboxSchema(BaseSchemaWithExclude):
         for known_schema in dict.fromkeys(self._OPERATION_PAYLOAD_SCHEMAS.values()):
             with contextlib.suppress(MarshmallowValidationError):
                 known_schema().load(payload)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
