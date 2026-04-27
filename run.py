@@ -2,7 +2,11 @@
 import os
 
 from app import create_app
+from app.common import get_build_version
 from app.environment import RuntimeEnvironment
+from app.telemetry import init_otel
+
+init_otel(service_name="host-inventory", service_version=get_build_version())
 
 app = create_app(RuntimeEnvironment.SERVER)
 

@@ -38,6 +38,9 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
+from app.telemetry import instrument_flask_app
+from app.telemetry import instrument_outbound_http
+from app.telemetry import instrument_sqlalchemy
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
@@ -361,5 +364,14 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     # Register automatic outbox event listeners for Host model
     # This must be imported after db.init_app() is called
     from lib import host_outbox_events  # noqa: F401
+
+    # OpenTelemetry instrumentation
+    instrument_flask_app(flask_app)
+    try:
+        with flask_app.app_context():
+            instrument_sqlalchemy(db.engine)
+    except RuntimeError:
+        logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
+    instrument_outbound_http()
 
     return app

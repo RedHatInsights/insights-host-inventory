@@ -4,6 +4,7 @@ from prometheus_client import start_http_server
 
 from api.cache import init_cache
 from app import create_app
+from app.common import get_build_version
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import create_event_producer
@@ -13,6 +14,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import create_consumer
+from app.telemetry import init_otel
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -20,6 +22,8 @@ logger = get_logger("host_mq_service")
 
 
 def main():
+    init_otel(service_name="host-inventory-mq", service_version=get_build_version())
+
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
     init_cache(config, application)
