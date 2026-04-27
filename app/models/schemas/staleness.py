@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 from marshmallow import Schema as MarshmallowSchema
 from marshmallow import ValidationError as MarshmallowValidationError
 from marshmallow import fields
@@ -16,14 +18,17 @@ class StalenessSchema(MarshmallowSchema):
 
     @validates_schema
     def validate_staleness(self, data, **kwargs):
-        staleness_fields = ["time_to_stale", "time_to_stale_warning", "time_to_delete"]
-        for i in range(len(staleness_fields) - 1):
-            for j in range(i + 1, len(staleness_fields)):
-                if (
-                    data[(field_1 := f"conventional_{staleness_fields[i]}")]
-                    >= data[(field_2 := f"conventional_{staleness_fields[j]}")]
-                ):
-                    raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
+        fields_in_order = [
+            "time_to_stale",
+            "time_to_stale_warning",
+            "time_to_delete",
+        ]
+        present = [(name, data[f"conventional_{name}"]) for name in fields_in_order if f"conventional_{name}" in data]
+        for (prev_name, prev_value), (curr_name, curr_value) in pairwise(present):
+            if prev_value >= curr_value:
+                field_1 = f"conventional_{prev_name}"
+                field_2 = f"conventional_{curr_name}"
+                raise MarshmallowValidationError(f"{field_1} must be lower than {field_2}")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

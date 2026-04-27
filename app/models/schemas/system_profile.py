@@ -54,7 +54,6 @@ class NetworkInterfaceSchema(MarshmallowSchema):
     mtu = fields.Int()
     mac_address = fields.Str(validate=marshmallow_validate.Length(max=59))
     name = fields.Str(validate=marshmallow_validate.Length(min=1, max=50))
-    state = fields.Str(validate=marshmallow_validate.Length(max=25))
     type = fields.Str(validate=marshmallow_validate.Length(max=18))
 
 

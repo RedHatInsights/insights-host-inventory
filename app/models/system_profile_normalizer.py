@@ -17,6 +17,34 @@ from app.models.constants import SPECIFICATION_DIR
 from app.models.constants import SYSTEM_PROFILE_SPECIFICATION_FILE
 from app.validators import verify_uuid_format
 
+# Lazy: importing app.models.schemas.system_profile at import time can deadlock with this module
+# (see HostStatic/HostDynamic schema build at the end of that module).
+_system_profile_schemas: Any = None
+_nested_array_ref_name_to_class: dict[str, Any] | None = None
+
+
+def _get_system_profile_schemas_module() -> Any:
+    global _system_profile_schemas
+    if _system_profile_schemas is None:
+        from app.models.schemas import system_profile as m
+
+        _system_profile_schemas = m
+    return _system_profile_schemas
+
+
+def _nested_array_ref_name_to_class_map() -> dict[str, Any]:
+    global _nested_array_ref_name_to_class
+    if _nested_array_ref_name_to_class is None:
+        m = _get_system_profile_schemas_module()
+        _nested_array_ref_name_to_class = {
+            "NetworkInterface": m.NetworkInterfaceSchema,
+            "InstalledProduct": m.InstalledProductSchema,
+            "DiskDevice": m.DiskDeviceSchema,
+            "DnfModule": m.DnfModuleSchema,
+            "YumRepo": m.YumRepoSchema,
+        }
+    return _nested_array_ref_name_to_class
+
 
 class SystemProfileNormalizer:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
@@ -352,32 +380,9 @@ class SystemProfileNormalizer:
             Marshmallow nested field instance or None if not a known schema
         """
         ref_name = ref_path.split("/")[-1]
-
-        schema_map = {
-            "NetworkInterface": "NetworkInterfaceSchema",
-            "InstalledProduct": "InstalledProductSchema",
-            "DiskDevice": "DiskDeviceSchema",
-            "DnfModule": "DnfModuleSchema",
-            "YumRepo": "YumRepoSchema",
-        }
-
-        if ref_name in schema_map:
-            from app.models.schemas.system_profile import DiskDeviceSchema
-            from app.models.schemas.system_profile import DnfModuleSchema
-            from app.models.schemas.system_profile import InstalledProductSchema
-            from app.models.schemas.system_profile import NetworkInterfaceSchema
-            from app.models.schemas.system_profile import YumRepoSchema
-
-            schema_classes = {
-                "NetworkInterfaceSchema": NetworkInterfaceSchema,
-                "InstalledProductSchema": InstalledProductSchema,
-                "DiskDeviceSchema": DiskDeviceSchema,
-                "DnfModuleSchema": DnfModuleSchema,
-                "YumRepoSchema": YumRepoSchema,
-            }
-
-            schema_class = schema_classes[schema_map[ref_name]]
-            return fields.List(fields.Nested(schema_class), **field_kwargs)
+        by_ref = _nested_array_ref_name_to_class_map()
+        if ref_name in by_ref:
+            return fields.List(fields.Nested(by_ref[ref_name]), **field_kwargs)
 
         return None
 
@@ -397,16 +402,11 @@ class SystemProfileNormalizer:
         if "properties" in field_def:
             # Check for specific known object types
             properties = field_def["properties"]
+            m = _get_system_profile_schemas_module()
             if all(key in properties for key in ["major", "minor", "name"]):
-                # This looks like OperatingSystem schema
-                from app.models.schemas.system_profile import OperatingSystemSchema
-
-                return fields.Nested(OperatingSystemSchema, **field_kwargs)
-            elif all(key in properties for key in ["version", "environment_ids"]):
-                # This looks like Rhsm schema
-                from app.models.schemas.system_profile import RhsmSchema
-
-                return fields.Nested(RhsmSchema, **field_kwargs)
+                return fields.Nested(m.OperatingSystemSchema, **field_kwargs)
+            if all(key in properties for key in ["version", "environment_ids"]):
+                return fields.Nested(m.RhsmSchema, **field_kwargs)
 
         return fields.Dict(**field_kwargs)
 

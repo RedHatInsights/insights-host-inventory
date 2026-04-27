@@ -65,6 +65,17 @@ class OutboxDeletePayloadSchema(BaseSchemaWithExclude):
 
 
 class OutboxSchema(BaseSchemaWithExclude):
+    _OPERATION_PAYLOAD_SCHEMAS = {
+        "created": OutboxCreateUpdatePayloadSchema,
+        "updated": OutboxCreateUpdatePayloadSchema,
+        "delete": OutboxDeletePayloadSchema,
+    }
+    # Distinct classes for best-effort validation of unknown `operation` values
+    _UNIQUE_KNOWN_PAYLOAD_SCHEMAS = (
+        OutboxCreateUpdatePayloadSchema,
+        OutboxDeletePayloadSchema,
+    )
+
     id = fields.Raw(validate=verify_uuid_format, dump_only=True)
     aggregatetype = fields.Str(validate=marshmallow_validate.Length(min=1, max=255), load_default="hbi.hosts")
     aggregateid = fields.Raw(validate=verify_uuid_format, required=True)
@@ -77,18 +88,18 @@ class OutboxSchema(BaseSchemaWithExclude):
         operation = data.get("operation")
         payload = data.get("payload")
 
-        if operation and payload:
-            if operation in ["created", "updated"]:
-                OutboxCreateUpdatePayloadSchema().load(payload)
-            elif operation == "delete":
-                OutboxDeletePayloadSchema().load(payload)
-            else:
-                # Allow other operation types but still validate payload structure if it matches known patterns
-                with contextlib.suppress(MarshmallowValidationError):
-                    OutboxCreateUpdatePayloadSchema().load(payload)
-                with contextlib.suppress(MarshmallowValidationError):
-                    OutboxDeletePayloadSchema().load(payload)
-                # If payload doesn't match either schema, that's okay for unknown operations
+        if not (operation and payload):
+            return
+
+        schema_cls = self._OPERATION_PAYLOAD_SCHEMAS.get(operation)
+        if schema_cls is not None:
+            schema_cls().load(payload)
+            return
+
+        # Unknown operation: best-effort validation against each known schema once
+        for known_schema in self._UNIQUE_KNOWN_PAYLOAD_SCHEMAS:
+            with contextlib.suppress(MarshmallowValidationError):
+                known_schema().load(payload)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
