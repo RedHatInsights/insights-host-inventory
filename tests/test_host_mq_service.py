@@ -2416,6 +2416,38 @@ def test_groups_not_overwritten_for_existing_hosts(
     assert retrieved_host.groups[0]["ungrouped"] is False
 
 
+def test_cant_update_host_groups_via_mq(
+    mq_create_or_update_host,
+    db_get_host,
+    db_get_hosts_for_group,
+    db_get_group_by_id,
+    db_create_group_with_hosts,
+    db_create_group,
+):
+    original_group = db_create_group_with_hosts("original_group", 1)
+    host = db_get_hosts_for_group(original_group.id)[0]
+    original_group_id = str(original_group.id)
+    host_id = str(host.id)
+
+    other_group = db_create_group("other_group")
+    other_group_id = str(other_group.id)
+
+    update_data = minimal_host(insights_id=str(host.insights_id))
+    update_data.groups = [{"id": other_group_id, "name": "other_group", "ungrouped": False}]
+
+    mq_create_or_update_host(update_data)
+
+    retrieved_group = db_get_group_by_id(original_group.id)
+    assert retrieved_group.name == "original_group"
+    assert len(db_get_hosts_for_group(original_group.id)) == 1
+    assert len(db_get_hosts_for_group(other_group.id)) == 0
+
+    retrieved_host = db_get_host(host_id)
+    assert len(retrieved_host.groups) == 1
+    assert retrieved_host.groups[0]["id"] == original_group_id
+    assert retrieved_host.groups[0]["name"] == "original_group"
+
+
 @pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
 def test_add_host_with_invalid_identity(mocker, mq_create_or_update_host):
     """
