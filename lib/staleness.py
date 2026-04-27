@@ -102,7 +102,9 @@ def remove_staleness_if_exists() -> bool:
     row = Staleness.query.filter(Staleness.org_id == org_id).one_or_none()
     if row is None:
         return False
-    with session_guard(db.session):
+    # Do not close the scoped session: the same request (or test) may still use
+    # other ORM instances (e.g. Host) bound to this session.
+    with session_guard(db.session, close=False):
         db.session.delete(row)
     return True
 
