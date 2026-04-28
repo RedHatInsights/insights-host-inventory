@@ -267,7 +267,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
+    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255), nullable=False)
