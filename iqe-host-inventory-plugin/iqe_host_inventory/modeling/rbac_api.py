@@ -322,7 +322,7 @@ class RBACAPIWrapper(BaseEntity):
                     for ws_id in _hbi_groups_to_ids(hbi_groups)
                 ]
             else:
-                workspace_ids = [self._host_inventory.apis.workspaces.root_workspace.id]
+                workspace_ids = [self._host_inventory.apis.workspaces.default_workspace.id]
             role_ids = [role.id for role in roles]
             self.create_role_bindings(role_ids, group.uuid, workspace_ids)
         else:
