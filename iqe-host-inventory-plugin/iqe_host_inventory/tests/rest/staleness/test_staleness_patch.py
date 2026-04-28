@@ -186,7 +186,7 @@ def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory
       negative: true
       title: Attempt to update a new staleness record with an invalid field
     """
-    host_inventory.apis.account_staleness.create_staleness()
+    host_inventory.apis.account_staleness.create_staleness(**gen_staleness_settings(False))
 
     test_data = {TIME_TO_STALE: DAY_SECS, "bad_field": DAY_SECS}
     logger.info(f"Updating account record with:\n{test_data}")
