@@ -501,7 +501,8 @@ class ExportsAPIWrapper(BaseEntity):
         # The create_export() method will error out (maybe revisit this?) if
         # we wait for completion and fail, so need to do the wait directly
         export_id = self.create_export(wait_for_completion=False)
-        assert self.wait_for_completion(export_id) == "failed"
+        result = self.wait_for_completion(export_id)
+        assert result == "failed"
 
         status = self.get_export_status(export_id)
 
