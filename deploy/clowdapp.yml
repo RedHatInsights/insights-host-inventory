@@ -267,6 +267,10 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -378,6 +382,10 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -508,6 +516,10 @@ objects:
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -579,6 +591,10 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -688,6 +704,10 @@ objects:
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -755,6 +775,10 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -896,6 +920,10 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -1677,61 +1705,6 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
             memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
-    - name: flatten-per-reporter-staleness
-      restartPolicy: Never
-      podSpec:
-        image: ${IMAGE}:${IMAGE_TAG}
-        args: [ "./jobs/flatten_per_reporter_staleness.py" ]
-        env:
-          - name: PYTHONPATH
-            value: '/opt/app-root/src'
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: INVENTORY_DB_SSL_CERT
-            value: ${INVENTORY_DB_SSL_CERT}
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: KAFKA_BOOTSTRAP_SERVERS
-            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
-            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory-mq-service
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: PROMETHEUS_PUSHGATEWAY
-            value: ${PROMETHEUS_PUSHGATEWAY}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - <<: *namespaceFieldRef
-            name: NAMESPACE
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: SCRIPT_CHUNK_SIZE
-            value: ${SCRIPT_CHUNK_SIZE}
-          - name: DRY_RUN
-            value: ${FLATTEN_PER_REPORTER_STALENESS_DRY_RUN}
-        resources:
-          limits:
-            cpu: ${CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
-            memory: ${MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS}
-          requests:
-            cpu: ${CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
-            memory: ${MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS}
     - name: run-db-migrations
       restartPolicy: OnFailure
       podSpec:
@@ -2358,14 +2331,6 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
   value: 512Mi
-- name: CPU_REQUEST_FLATTEN_PER_REPORTER_STALENESS
-  value: 250m
-- name: CPU_LIMIT_FLATTEN_PER_REPORTER_STALENESS
-  value: 500m
-- name: MEMORY_REQUEST_FLATTEN_PER_REPORTER_STALENESS
-  value: 256Mi
-- name: MEMORY_LIMIT_FLATTEN_PER_REPORTER_STALENESS
-  value: 512Mi
 - name: CPU_REQUEST_DB_MIGRATIONS_JOB
   value: 250m
 - name: CPU_LIMIT_DB_MIGRATIONS_JOB
@@ -2695,11 +2660,6 @@ parameters:
   description: Whether to suspend the remove-null-values-in-workloads-fields-data job
   value: 'true'
 
-# -- Flatten per Reporter Staleness Job --
-- name: FLATTEN_PER_REPORTER_STALENESS_DRY_RUN
-  description: Whether the flatten-per-reporter-staleness job should run in dry-run mode
-  value: 'true'
-
 # -- Downgrade Alembic revision Job --
 - name: DB_MIGRATION_DOWNGRADE_REVISION
   description: >-
@@ -2738,3 +2698,15 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+# =================================================================================
+# VII. OpenTelemetry Configuration
+# =================================================================================
+# Settings for distributed tracing via OpenTelemetry.
+
+- name: OTEL_ENABLED
+  description: Enable OpenTelemetry distributed tracing
+  value: 'false'
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  description: OTLP HTTP endpoint for trace export
+  value: 'http://otel-collector.otel-stage.svc:4318'

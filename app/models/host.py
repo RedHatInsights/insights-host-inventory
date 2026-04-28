@@ -1,5 +1,6 @@
 import uuid
 from contextlib import suppress
+from datetime import datetime
 
 from dateutil.parser import isoparse
 from flask import current_app
@@ -13,10 +14,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
 
+from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.config import ID_FACTS
+from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -29,9 +33,11 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
+from app.models.utils import get_staleness_obj
 from app.utils import Tag
 
 logger = get_logger(__name__)
+
 
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
@@ -46,6 +52,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
     def __init__(
         self,
+        *,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -269,6 +276,7 @@ class Host(LimitedHost):
 
     def __init__(
         self,
+        *,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -318,26 +326,26 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            display_name,
-            ansible_host,
-            account,
-            org_id,
-            facts,
-            tags,
-            tags_alt,
-            system_profile_facts,
-            groups,
-            id,
-            insights_id,
-            subscription_manager_id,
-            satellite_id,
-            fqdn,
-            bios_uuid,
-            ip_addresses,
-            mac_addresses,
-            provider_id,
-            provider_type,
-            openshift_cluster_id,
+            display_name=display_name,
+            ansible_host=ansible_host,
+            account=account,
+            org_id=org_id,
+            facts=facts,
+            tags=tags,
+            tags_alt=tags_alt,
+            system_profile_facts=system_profile_facts,
+            groups=groups,
+            id=id,
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            satellite_id=satellite_id,
+            fqdn=fqdn,
+            bios_uuid=bios_uuid,
+            ip_addresses=ip_addresses,
+            mac_addresses=mac_addresses,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            openshift_cluster_id=openshift_cluster_id,
         )
         self.reporter = reporter
         if display_name:
@@ -563,31 +571,20 @@ class Host(LimitedHost):
         if not reporter_data:
             logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
             return True
-        # Support both flat (string) and nested (dict with "last_check_in" / "stale_timestamp") formats
-        if isinstance(reporter_data, dict):
-            if "stale_timestamp" in reporter_data:
-                pr_stale_timestamp = isoparse(reporter_data["stale_timestamp"])
-            else:
-                last_check_in_str = reporter_data.get("last_check_in")
-                if not last_check_in_str:
-                    logger.debug("Reports from %s are stale (no check-in recorded)", reporter)
-                    return True
-                from api.staleness_query import get_staleness_obj
 
-        # Handle both flat (str) and nested (dict) formats
-        if isinstance(reporter_data, str):
-            # Flat format: compute stale_timestamp on-the-fly from stored last_check_in
-            from api.staleness_query import get_staleness_obj
-            from app.common import inventory_config
-            from app.culling import Timestamps
-
-            staleness_ts = Timestamps.from_config(inventory_config())
-            staleness = get_staleness_obj(self.org_id)
+        if not isinstance(reporter_data, str):
+            raise ValidationException(
+                f"Invalid per_reporter_staleness for reporter {reporter!r}: "
+                f"expected ISO-8601 string, got {type(reporter_data).__name__}."
+            )
+        try:
             last_check_in = isoparse(reporter_data)
-            pr_stale_timestamp = staleness_ts.stale_timestamp(last_check_in, staleness["conventional_time_to_stale"])
-        else:
-            # Nested format: use stored stale_timestamp from dict
-            pr_stale_timestamp = isoparse(reporter_data["stale_timestamp"])
+        except ValueError as e:
+            raise ValidationException(str(e)) from e
+
+        staleness_ts = Timestamps.from_config(inventory_config())
+        staleness = get_staleness_obj(self.org_id)
+        pr_stale_timestamp = staleness_ts.stale_timestamp(last_check_in, staleness["conventional_time_to_stale"])
 
         logger.debug("per_reporter_staleness[%s] stale_timestamp: %s", reporter, pr_stale_timestamp)
         if _time_now() > pr_stale_timestamp:
@@ -596,6 +593,28 @@ class Host(LimitedHost):
 
         logger.debug("Reports from %s are not stale", reporter)
         return False
+
+    @validates("per_reporter_staleness")
+    def _validate_per_reporter_staleness(self, _key, value):
+        out: dict[str, str] = {}
+        if not value:
+            return out
+        for reporter, raw in dict(value).items():
+            if isinstance(raw, dict):
+                raise ValidationException(
+                    f"Invalid per_reporter_staleness: reporter {reporter!r} has nested value; "
+                    "ISO-8601 string required."
+                )
+            if isinstance(raw, datetime):
+                out[reporter] = raw.isoformat()
+            elif isinstance(raw, str):
+                out[reporter] = raw
+            else:
+                raise ValidationException(
+                    f"Invalid per_reporter_staleness: reporter {reporter!r} value must be str or datetime, "
+                    f"not {type(raw).__name__}."
+                )
+        return out
 
     def __repr__(self):
         return (
