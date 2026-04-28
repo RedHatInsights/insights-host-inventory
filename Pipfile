@@ -64,6 +64,7 @@ types-python-dateutil = "*"
 types-requests = "*"
 types-pytz = "*"
 tabulate = "*"
+faker = "*"
 
 [requires]
 python_version = "3.12"
