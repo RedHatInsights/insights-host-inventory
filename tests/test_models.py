@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from marshmallow import ValidationError as MarshmallowValidationError
+from sqlalchemy import update
 from sqlalchemy.exc import DataError
 from sqlalchemy.exc import IntegrityError
 
@@ -27,6 +28,7 @@ from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
+from app.queue.events import EventType
 from app.utils import Tag
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -583,6 +585,27 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
     # datetime will not change because the datetime.now() method is patched
     # yupana should be removed and replaced with new_reporter
     assert existing_host.per_reporter_staleness == {new_reporter: models_datetime_mock.isoformat()}
+
+
+def test_reporter_stale_non_string_scalar_errors(db_create_host):
+    """Non-string JSONB values must not be treated as stale; reject with ValidationException."""
+    stale_timestamp = now() + timedelta(days=1)
+    host = db_create_host(
+        host=Host(
+            subscription_manager_id=generate_uuid(),
+            display_name="display_name",
+            reporter="puptoo",
+            stale_timestamp=stale_timestamp,
+            org_id=USER_IDENTITY["org_id"],
+        )
+    )
+
+    db.session.execute(update(Host).where(Host.id == host.id).values(per_reporter_staleness={"puptoo": 42}))
+    db.session.commit()
+    db.session.refresh(host)
+
+    with pytest.raises(ValidationException, match="expected ISO-8601 string"):
+        host.reporter_stale("puptoo")
 
 
 def test_canonical_facts_version_default():
@@ -2754,14 +2777,14 @@ def test_staleness_cache_context_manager():
 def test_staleness_cache_eliminates_redundant_queries(flask_app, mocker):  # noqa: ARG001
     """StalenessCache should prevent duplicate Staleness DB queries for the same org_id."""
     from app.models.utils import StalenessCache
-    from app.models.utils import _get_staleness_obj
+    from app.models.utils import get_staleness_obj
 
     with StalenessCache():
-        first_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        first_result = get_staleness_obj(USER_IDENTITY["org_id"])
         assert first_result is not None
 
         mocker.patch("app.models.staleness.Staleness.query")
-        second_result = _get_staleness_obj(USER_IDENTITY["org_id"])
+        second_result = get_staleness_obj(USER_IDENTITY["org_id"])
 
         assert second_result is first_result
         from app.models.staleness import Staleness
@@ -2817,10 +2840,15 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
     mock_identity.org_id = "test_org"
     mock_identity.account_number = "test_account"
 
+    workspace_id = generate_uuid()
     mock_created_group = mocker.Mock(name="created_ungrouped_group")
+    mock_config = mocker.patch("lib.group_repository.inventory_config")
+    mock_config.return_value.bypass_kessel = False
     get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
-    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value="ws-id")
-    mock_add = mocker.patch("lib.group_repository.add_group", return_value=mock_created_group)
+    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=workspace_id)
+    mock_wait = mocker.patch("lib.group_repository.wait_for_workspace_event")
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=False)
+    mock_get_by_id = mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=mock_created_group)
 
     with UngroupedGroupCache():
         first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
@@ -2830,10 +2858,41 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
     assert second is mock_created_group
     get_ungrouped.assert_called_once_with(mock_identity)
     mock_rbac.assert_called_once_with(mock_identity)
-    mock_add.assert_called_once_with(
-        group_name="Ungrouped Hosts",
-        org_id="test_org",
-        account="test_account",
-        group_id="ws-id",
-        ungrouped=True,
+    mock_wait.assert_called_once_with(
+        str(workspace_id),
+        EventType.created,
+        org_id=mock_identity.org_id,
+        timeout=mock_config.return_value.rbac_timeout,
     )
+    mock_get_by_id.assert_called_once_with(str(workspace_id), "test_org")
+
+
+def test_ungrouped_group_cache_deduplicates_group_creation_rbac_v2(flask_app, mocker):  # noqa: ARG001
+    """When RBAC v2 is enabled and ungrouped group must be created, the workspace dict is fetched from RBAC."""
+    from lib.group_repository import UngroupedGroupCache
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
+    mock_identity = mocker.Mock()
+    mock_identity.org_id = "test_org"
+    mock_identity.account_number = "test_account"
+
+    workspace_id = generate_uuid()
+    mock_rbac_workspace = {"id": str(workspace_id), "name": "Ungrouped Hosts"}
+    mock_config = mocker.patch("lib.group_repository.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
+    mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=workspace_id)
+    mock_wait = mocker.patch("lib.group_repository.wait_for_workspace_event")
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=True)
+    mock_get_rbac_ws = mocker.patch("lib.group_repository.get_rbac_workspace_by_id", return_value=mock_rbac_workspace)
+
+    with UngroupedGroupCache():
+        first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+        second = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+
+    assert first is mock_rbac_workspace
+    assert second is mock_rbac_workspace
+    get_ungrouped.assert_called_once_with(mock_identity)
+    mock_rbac.assert_called_once_with(mock_identity)
+    mock_wait.assert_called_once()
+    mock_get_rbac_ws.assert_called_once_with(str(workspace_id))

@@ -51,36 +51,6 @@ class HBIUnleash(BaseEntity):
                 )
 
     @cached_property
-    def kessel_phase_1_flag(self) -> str:
-        feature_flag = "hbi.api.kessel-phase-1"
-
-        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
-            flag_request = UnleashFlagRequest(
-                name=feature_flag,
-                description="kessel_phase_1 flag",
-                type=_RequestType.RELEASE,
-                impressionData=False,
-            )
-            self._unleash.admin.create_flag(flag_request=flag_request)
-
-        return feature_flag
-
-    @cached_property
-    def kessel_groups_flag(self) -> str:
-        feature_flag = "hbi.api.kessel-groups"
-
-        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
-            flag_request = UnleashFlagRequest(
-                name=feature_flag,
-                description="RBAC v2 workspace support for groups endpoints",
-                type=_RequestType.RELEASE,
-                impressionData=False,
-            )
-            self._unleash.admin.create_flag(flag_request=flag_request)
-
-        return feature_flag
-
-    @cached_property
     def kessel_force_single_checks_flag(self) -> str:
         feature_flag = "hbi.api.kessel-force-single-checks-for-bulk"
 
@@ -127,12 +97,6 @@ class HBIUnleash(BaseEntity):
 
     def is_flag_enabled(self, flag: str) -> bool:
         return self._unleash.is_enabled(flag, context={"orgId": get_org_id(self.application)})
-
-    def is_kessel_phase_1_enabled(self) -> bool:
-        return self.is_flag_enabled(self.kessel_phase_1_flag)
-
-    def is_kessel_groups_enabled(self) -> bool:
-        return self.is_flag_enabled(self.kessel_groups_flag)
 
     @cached_property
     def is_rbac_workspaces_enabled(self) -> bool:
