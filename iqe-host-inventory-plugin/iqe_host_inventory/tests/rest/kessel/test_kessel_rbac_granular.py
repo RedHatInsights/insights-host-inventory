@@ -3,7 +3,7 @@ from collections.abc import Generator
 from typing import NamedTuple
 
 import pytest
-from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesCreateWorkspaceResponse
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
