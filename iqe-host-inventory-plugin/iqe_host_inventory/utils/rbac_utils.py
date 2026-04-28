@@ -4,9 +4,9 @@ import logging
 from enum import Enum
 from time import sleep
 
-from iqe_rbac_api import RoleWithAccess
-from iqe_rbac_v2_api import Permission as RBACV2Permission
-from iqe_rbac_v2_api import Role as RBACV2Role
+from iqe_bindings.v7.rbac_v1 import RoleWithAccess
+from iqe_bindings.v7.rbac_v2 import Permission as RBACV2Permission
+from iqe_bindings.v7.rbac_v2 import Role as RBACV2Role
 
 from iqe_host_inventory import ApplicationHostInventory
 
