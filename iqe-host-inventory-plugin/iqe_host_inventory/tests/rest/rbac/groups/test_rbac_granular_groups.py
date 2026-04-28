@@ -1123,7 +1123,7 @@ def setup_permissions_with_and_without_resource_definitions(
     """Creates 2 roles, one with and one without resource definitions.
     User should have access to all resources.
 
-    V2 equivalent: one role bound to a specific workspace, one bound to root workspace.
+    V2 equivalent: one role bound to a specific workspace, one bound to default workspace.
     """
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
