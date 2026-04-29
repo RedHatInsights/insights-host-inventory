@@ -146,7 +146,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
                             host._update_staleness_timestamps()
-                            serialized_host = serialize_host(host, for_mq=True, staleness=staleness_dict)
+                            serialized_host = serialize_host(host, AttrDict(staleness_dict), for_mq=True)
 
                             # Create host update event and append it to an array
                             event, headers = _build_host_updated_event_params(serialized_host, host, identity)

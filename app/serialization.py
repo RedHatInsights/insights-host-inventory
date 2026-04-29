@@ -24,6 +24,7 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import WORKLOADS_FIELDS
+from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
 from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
@@ -176,11 +177,11 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
 
 
 def serialize_host(
-    host,
-    for_mq=True,
-    additional_fields=None,
-    staleness=None,
-    system_profile_fields=None,
+    host: Host | LimitedHost,
+    staleness: AttrDict,
+    for_mq: bool = True,
+    additional_fields: tuple = tuple(),
+    system_profile_fields: list[str] | None = None,
 ):
     """
     Serialize a host for API and MQ consumers.
@@ -192,8 +193,6 @@ def serialize_host(
         staleness: Staleness configuration to use for staleness calculations.
         system_profile_fields: System profile fields to serialize.
     """
-    # Ensure additional_fields is a tuple
-    additional_fields = additional_fields or ()
 
     # Compute staleness timestamps for this host
     st_timestamps = get_staleness_timestamps(host, staleness)
@@ -276,10 +275,10 @@ def serialize_host(
 
 
 def serialize_host_for_export_svc(
-    host,
-    staleness=None,
+    host: Host | LimitedHost,
+    staleness: AttrDict,
 ):
-    serialized_host = serialize_host(host, staleness=staleness, additional_fields=("os_release", "state"))
+    serialized_host = serialize_host(host, staleness, additional_fields=("os_release", "state"))
 
     serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
@@ -743,4 +742,4 @@ def build_rhel_version_str(system_profile: dict) -> str:
 def serialize_host_with_params(host, additional_fields=tuple(), system_profile_fields=None):
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
-    return serialize_host(host, False, additional_fields, staleness, system_profile_fields)
+    return serialize_host(host, staleness, False, additional_fields, system_profile_fields)

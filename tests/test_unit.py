@@ -1669,7 +1669,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             setattr(host, k, v)
 
         staleness = get_sys_default_staleness()
-        actual = serialize_host(host, False, ("tags",), staleness=staleness)
+        actual = serialize_host(host, staleness, False, ("tags",))
 
         expected = {
             **canonical_facts,
@@ -1736,7 +1736,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     setattr(host, k, v)
 
                 staleness = get_sys_default_staleness()
-                actual = serialize_host(host, False, ("tags",), staleness=staleness)
+                actual = serialize_host(host, staleness, False, ("tags",))
                 expected = {
                     "insights_id": DEFAULT_INSIGHTS_ID,
                     "fqdn": None,
@@ -1794,7 +1794,7 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
                 setattr(host, k, v)
 
             staleness = get_sys_default_staleness()
-            serialized = serialize_host(host, False, staleness=staleness)
+            serialized = serialize_host(host, staleness, False)
 
             assert (
                 _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
@@ -1835,7 +1835,7 @@ def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flas
             expected["stale_timestamp"],
             expected["stale_warning_timestamp"],
         )
-        serialized = serialize_host(host, False, additional_fields=("state",), staleness=staleness)
+        serialized = serialize_host(host, staleness, False, additional_fields=("state",))
         assert serialized["stale_timestamp"] == _timestamp_to_str(expected["stale_timestamp"])
         assert serialized["stale_warning_timestamp"] == _timestamp_to_str(expected["stale_warning_timestamp"])
         assert serialized["culled_timestamp"] == _timestamp_to_str(expected["culled_timestamp"])
@@ -1902,7 +1902,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             setattr(host, k, v)
 
         staleness = get_sys_default_staleness()
-        actual = serialize_host(host, False, ("tags",), staleness=staleness)
+        actual = serialize_host(host, staleness, False, ("tags",))
         expected = {
             **serialized_canonical_facts,
             **unchanged_data,

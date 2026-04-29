@@ -1055,7 +1055,8 @@ def write_add_update_event_message(
         current_operation="write_message_batch",
         inventory_id=result.row.id,
     ) as tracker_ctx:
-        output_host = serialize_host(result.row, staleness=result.staleness_object)
+        staleness = result.staleness_object or get_staleness_obj(result.row.org_id)
+        output_host = serialize_host(result.row, staleness)
         insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 

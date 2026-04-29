@@ -14,7 +14,7 @@ def build_paginated_host_list_response(
     json_host_list = host_list
     if serialize_hosts:
         json_host_list = [
-            serialize_host(host, False, additional_fields, staleness, system_profile_fields) for host in host_list
+            serialize_host(host, staleness, False, additional_fields, system_profile_fields) for host in host_list
         ]
     return {
         "total": total,
