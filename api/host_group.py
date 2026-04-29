@@ -25,6 +25,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import get_rbac_workspace_by_id_using_psk
 from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_group_id_check
 
@@ -140,8 +141,8 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
 
     # Feature flag check for RBAC v2 workspace validation
     if is_rbac_v2_enabled(identity.org_id):
-        # RBAC v2 path: Validate workspace via RBAC v2 API
-        get_rbac_workspace_by_id(str(group_id))
+        # RBAC v2 path: Validate workspace via PSK (write operations don't require read permission)
+        get_rbac_workspace_by_id_using_psk(str(group_id), identity.org_id)
     else:
         # RBAC v1 path: Validate group via database
         group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
@@ -179,8 +180,8 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
 
     # Feature flag check for RBAC v2 workspace validation
     if is_rbac_v2_enabled(identity.org_id):
-        # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
+        # RBAC v2 path: Validate workspace via PSK (write operations don't require read permission)
+        workspace = get_rbac_workspace_by_id_using_psk(str(group_id), identity.org_id)
 
         # Check if workspace is ungrouped type
         # The "ungrouped-hosts" workspace is special: hosts not in any group must belong to it.

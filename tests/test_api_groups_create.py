@@ -460,7 +460,7 @@ def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
         "type": "standard",
     }
     mock_get_workspace = mocker.patch(
-        "api.group.get_rbac_workspace_by_id",
+        "api.group.get_rbac_workspace_by_id_using_psk",
         return_value=workspace_from_rbac,
     )
 
@@ -472,7 +472,7 @@ def test_create_group_response_uses_rbac_workspace_when_rbac_v2_enabled(
     )
 
     assert response.status_code == 201
-    mock_get_workspace.assert_called_once_with(workspace_id)
+    mock_get_workspace.assert_called_once_with(workspace_id, USER_IDENTITY["org_id"])
     body = json.loads(response.text)
     org_id = USER_IDENTITY["org_id"]
     account = USER_IDENTITY["account_number"]

@@ -93,6 +93,15 @@ def _build_rbac_request_headers(identity_header: str | None = None, request_id_h
     return request_headers
 
 
+def _build_psk_request_headers(org_id: str) -> dict:
+    psk = inventory_config().rbac_psk
+    return {
+        "X-RH-RBAC-PSK": psk,
+        "X-RH-RBAC-ORG-ID": org_id,
+        "X-RH-RBAC-CLIENT-ID": "inventory",
+    }
+
+
 def _execute_rbac_http_request(  # type: ignore[return]
     method: str,
     rbac_endpoint: str,
@@ -891,7 +900,25 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
-def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
+def get_rbac_workspace_by_id_using_psk(workspace_id: str, org_id: str) -> dict[str, Any]:
+    """
+    Fetch a single workspace from RBAC v2 API using PSK (service-to-service) auth.
+
+    Used after write operations (create/patch) to build the response without requiring
+    the user to have read permission on the workspace.
+
+    Note: This intentionally duplicates the pattern in get_rbac_workspace_by_id() rather than
+    calling it, because that function always uses user identity headers and does not accept
+    a request_headers parameter.
+    """
+    request_headers = _build_psk_request_headers(org_id)
+    if workspaces := get_rbac_workspaces_by_ids([workspace_id], request_headers=request_headers):
+        return workspaces[0]
+    else:
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
+
+
+def get_rbac_workspaces_by_ids(workspace_ids: list[str], request_headers: dict | None = None) -> list[dict[str, Any]]:
     """
     Fetch multiple workspaces from RBAC v2 API by ID list.
 
@@ -925,7 +952,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
     rbac_endpoint = _get_rbac_workspace_url(
         query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
     )
-    request_headers = _build_rbac_request_headers()
+    if request_headers is None:
+        request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
         method="GET",
