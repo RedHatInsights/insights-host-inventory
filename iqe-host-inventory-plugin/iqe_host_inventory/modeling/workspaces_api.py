@@ -329,6 +329,13 @@ class WorkspacesAPIWrapper(BaseEntity):
             type=WorkspacesWorkspaceTypesQueryParam.DEFAULT,
         )[0]
 
+    @cached_property
+    def default_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the default workspace.
+        """
+        return self.get_default_workspace()
+
     def get_workspaces_response(
         self,
         *,

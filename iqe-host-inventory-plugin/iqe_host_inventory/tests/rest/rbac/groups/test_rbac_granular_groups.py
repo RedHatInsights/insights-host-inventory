@@ -1123,7 +1123,7 @@ def setup_permissions_with_and_without_resource_definitions(
     """Creates 2 roles, one with and one without resource definitions.
     User should have access to all resources.
 
-    V2 equivalent: one role bound to a specific workspace, one bound to root workspace.
+    V2 equivalent: one role bound to a specific workspace, one bound to default workspace.
     """
     hbi_groups = [rbac_setup_resources_for_granular_rbac[1][0]]
     host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
@@ -1138,7 +1138,7 @@ def setup_permissions_with_and_without_resource_definitions(
         role_without = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.ALL_READ)
 
         workspace_ids = [g.id for g in hbi_groups]
-        root_workspace_id = host_inventory.apis.workspaces.root_workspace.id
+        default_workspace_id = host_inventory.apis.workspaces.default_workspace.id
 
         if request.param == "first_with":
             roles = [role_with, role_without]
@@ -1147,7 +1147,7 @@ def setup_permissions_with_and_without_resource_definitions(
 
         host_inventory.apis.rbac.create_role_bindings([role_with.id], group.uuid, workspace_ids)
         host_inventory.apis.rbac.create_role_bindings(
-            [role_without.id], group.uuid, [root_workspace_id]
+            [role_without.id], group.uuid, [default_workspace_id]
         )
     else:
         if request.param == "first_with":
