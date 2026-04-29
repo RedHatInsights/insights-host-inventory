@@ -105,7 +105,7 @@ def _build_host_view_response(total, page, per_page, host_list, fields=None):
 
     results = []
     for host in host_list:
-        host_data = serialize_host(host, False, (), staleness, None)
+        host_data = serialize_host(host, staleness, False)
         host_data["app_data"] = app_data_map.get(str(host.id), {})
         results.append(host_data)
 
