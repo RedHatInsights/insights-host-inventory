@@ -1741,13 +1741,17 @@ objects:
             cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
             memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     - name: db-migration-downgrade
-      restartPolicy: OnFailure
+      restartPolicy: Never
       suspend: ${{DB_MIGRATION_DOWNGRADE_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         command: ["/bin/sh", "-c"]
         args:
           - |
+            if [ "${DB_MIGRATION_DOWNGRADE_SUSPEND}" = "true" ]; then
+              echo "INFO: db-migration-downgrade job is suspended. Exiting."
+              exit 0
+            fi
             if [ -z "${DB_MIGRATION_DOWNGRADE_REVISION}" ] || [ "${DB_MIGRATION_DOWNGRADE_REVISION}" = "change-me" ]; then
               echo "ERROR: DB_MIGRATION_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
               exit 1
@@ -1776,6 +1780,8 @@ objects:
             value: ${MIGRATION_MODE}
           - name: HOSTS_TABLE_NUM_PARTITIONS
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - name: DB_MIGRATION_DOWNGRADE_SUSPEND
+            value: ${DB_MIGRATION_DOWNGRADE_SUSPEND}
         resources:
           limits:
             cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
@@ -2672,7 +2678,7 @@ parameters:
   value: '1'
 - name: DB_MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
-  value: 'false'
+  value: 'true'
 
 
 # =================================================================================
