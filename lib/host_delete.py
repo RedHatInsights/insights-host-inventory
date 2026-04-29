@@ -110,7 +110,6 @@ def _delete_host(session: Session, host: Host, identity: Identity | None, contro
         host,
         {"b64_identity": to_auth_header(identity)} if identity else None,
         None,
-        None,
         EventType.delete,
         partial(log_host_delete_succeeded, logger, host.id, control_rule, sp_fields_to_log),
     )

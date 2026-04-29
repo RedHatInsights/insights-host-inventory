@@ -16,7 +16,6 @@ from api.cache import delete_cached_system_keys
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import build_paginated_host_list_response
-from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_id_by_insights_id
 from api.host_query_db import get_host_ids_list
@@ -440,7 +439,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         if db.session.is_modified(host):
             db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+            serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
             owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
@@ -516,7 +515,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         if db.session.is_modified(host):
             db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+            serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
             owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
@@ -575,7 +574,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
         existing_host._update_staleness_timestamps()
         db.session.flush()  # Trigger outbox event listeners before commit
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
+        serialized_host = serialize_host(existing_host, staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         insights_id = serialize_uuid(existing_host.insights_id)
         static_sp = existing_host.static_system_profile

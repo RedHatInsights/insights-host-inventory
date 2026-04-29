@@ -20,7 +20,6 @@ from api import flask_json_response
 from api import json_error_response
 from api import metrics
 from api.cache import delete_cached_system_keys
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -130,7 +129,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict
             logger.debug(f"Querying hosts for org_id: {identity.org_id}")
             hosts_query = host_query(identity.org_id)
             num_hosts = hosts_query.count()
-            st = staleness_timestamps()
             if num_hosts > 0:
                 logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
 
@@ -148,9 +146,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
                             host._update_staleness_timestamps()
-                            serialized_host = serialize_host(
-                                host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
-                            )
+                            serialized_host = serialize_host(host, for_mq=True, staleness=staleness_dict)
 
                             # Create host update event and append it to an array
                             event, headers = _build_host_updated_event_params(serialized_host, host, identity)

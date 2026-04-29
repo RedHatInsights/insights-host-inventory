@@ -11,11 +11,9 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
-from app.common import inventory_config
 from app.config import CANONICAL_FACTS_FIELDS
 from app.config import DEFAULT_INSIGHTS_ID
 from app.culling import Conditions
-from app.culling import Timestamps
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -179,7 +177,6 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
 
 def serialize_host(
     host,
-    staleness_timestamps,
     for_mq=True,
     additional_fields=None,
     staleness=None,
@@ -190,7 +187,6 @@ def serialize_host(
 
     Args:
         host: Host object to serialize.
-        staleness_timestamps: Timestamps object to use for staleness calculations.
         for_mq: Whether to serialize for MQ consumers.
         additional_fields: Additional fields to serialize.
         staleness: Staleness configuration to use for staleness calculations.
@@ -199,9 +195,8 @@ def serialize_host(
     # Ensure additional_fields is a tuple
     additional_fields = additional_fields or ()
 
-    # Keep the ``staleness_timestamps`` param as the culling ``Timestamps`` helper; the computed
-    # dict must use another name or per-reporter serialization would receive a dict.
-    st_timestamps = get_staleness_timestamps(host, staleness_timestamps, staleness)
+    # Compute staleness timestamps for this host
+    st_timestamps = get_staleness_timestamps(host, staleness)
 
     fields = DEFAULT_FIELDS + additional_fields
 
@@ -220,7 +215,7 @@ def serialize_host(
         "ansible_host": lambda: host.ansible_host,
         "facts": lambda: serialize_facts(host.facts),
         "reporter": lambda: host.reporter,
-        "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness, staleness_timestamps),
+        "per_reporter_staleness": lambda: _serialize_per_reporter_staleness(host, staleness),
         "stale_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_timestamp"]),
         "stale_warning_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["stale_warning_timestamp"]),
         "culled_timestamp": lambda: _serialize_staleness_to_string(st_timestamps["culled_timestamp"]),
@@ -282,12 +277,9 @@ def serialize_host(
 
 def serialize_host_for_export_svc(
     host,
-    staleness_timestamps,
     staleness=None,
 ):
-    serialized_host = serialize_host(
-        host, staleness_timestamps=staleness_timestamps, staleness=staleness, additional_fields=("os_release", "state")
-    )
+    serialized_host = serialize_host(host, staleness=staleness, additional_fields=("os_release", "state"))
 
     serialized_host["host_id"] = serialize_uuid(host.id)
     serialized_host["hostname"] = host.display_name
@@ -714,11 +706,10 @@ def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
 def _full_per_reporter_staleness_dict(
     host: Host,
     staleness: Any,
-    staleness_timestamps: Timestamps,
     stored_value: str,
 ) -> dict[str, Any]:
     last_check_in_dt = _deserialize_datetime(stored_value)
-    ts = get_staleness_timestamps(host, staleness_timestamps, staleness, last_check_in=last_check_in_dt)
+    ts = get_staleness_timestamps(host, staleness, last_check_in=last_check_in_dt)
     return {
         "last_check_in": _serialize_staleness_to_string(last_check_in_dt),
         "stale_timestamp": _serialize_staleness_to_string(ts["stale_timestamp"]),
@@ -728,14 +719,14 @@ def _full_per_reporter_staleness_dict(
     }
 
 
-def _serialize_per_reporter_staleness(host, staleness, staleness_timestamps):
+def _serialize_per_reporter_staleness(host, staleness):
     """
     Serialize per_reporter_staleness for API/event output.
 
     Staleness timestamps are computed from org staleness + host.
     """
     return {
-        reporter: _full_per_reporter_staleness_dict(host, staleness, staleness_timestamps, stored)
+        reporter: _full_per_reporter_staleness_dict(host, staleness, stored)
         for reporter, stored in host.per_reporter_staleness.items()
     }
 
@@ -750,7 +741,6 @@ def build_rhel_version_str(system_profile: dict) -> str:
 
 
 def serialize_host_with_params(host, additional_fields=tuple(), system_profile_fields=None):
-    timestamps = Timestamps.from_config(inventory_config())
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
-    return serialize_host(host, timestamps, False, additional_fields, staleness, system_profile_fields)
+    return serialize_host(host, False, additional_fields, staleness, system_profile_fields)

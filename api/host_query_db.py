@@ -28,7 +28,6 @@ from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.filtering.db_filters import update_query_for_owner_id
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -910,7 +909,6 @@ def get_hosts_to_export(
     if rbac_filter is None:
         rbac_filter = {}
 
-    st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity.org_id)
 
     q_filters, _ = query_filters(
@@ -942,7 +940,7 @@ def get_hosts_to_export(
         logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
         for host in db.session.scalars(export_host_query):
-            yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
+            yield serialize_host_for_export_svc(host, staleness=staleness)
 
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e
