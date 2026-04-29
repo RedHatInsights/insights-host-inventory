@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 DAY_SECS = 24 * 60 * 60
 
 MIN_DELTA = 1
+DEFAULT_BUFFER = 3601
 
 type DELTAS = tuple[int, int, int]
 type HOSTS_INPUT = list[dict[str, Any]]
@@ -102,7 +103,15 @@ def gen_staleness_settings(want_sample: bool = True) -> dict[str, int]:
             STALENESS_DEFAULTS[fields[1]],
             STALENESS_LIMITS[fields[2]],
         ]
-        return dict(zip(fields, starmap(randint, pairwise(boundaries)), strict=False))
+        result = dict(zip(fields, starmap(randint, pairwise(boundaries)), strict=False))
+
+        # If the values are too close to the defaults, HBI keeps the default config
+        # https://redhat.atlassian.net/browse/RHINENG-20674
+        for field in fields:
+            default = STALENESS_DEFAULTS[field]
+            if abs(result[field] - default) < DEFAULT_BUFFER:
+                result[field] = default - DEFAULT_BUFFER
+        return result
 
     settings = {}
 

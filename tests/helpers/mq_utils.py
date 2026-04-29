@@ -67,6 +67,9 @@ class FakeMessage:
     def error(self):
         return self._error
 
+    def topic(self):
+        return "platform.inventory.host-ingress"
+
     def partition(self):
         return 0
 

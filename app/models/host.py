@@ -52,6 +52,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
     def __init__(
         self,
+        *,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -266,7 +267,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
+    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
     deletion_timestamp = db.Column(db.DateTime(timezone=True))
     stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255), nullable=False)
@@ -275,6 +276,7 @@ class Host(LimitedHost):
 
     def __init__(
         self,
+        *,
         display_name=None,
         ansible_host=None,
         account=None,
@@ -324,26 +326,26 @@ class Host(LimitedHost):
             raise ValidationException("The tags field cannot be null.")
 
         super().__init__(
-            display_name,
-            ansible_host,
-            account,
-            org_id,
-            facts,
-            tags,
-            tags_alt,
-            system_profile_facts,
-            groups,
-            id,
-            insights_id,
-            subscription_manager_id,
-            satellite_id,
-            fqdn,
-            bios_uuid,
-            ip_addresses,
-            mac_addresses,
-            provider_id,
-            provider_type,
-            openshift_cluster_id,
+            display_name=display_name,
+            ansible_host=ansible_host,
+            account=account,
+            org_id=org_id,
+            facts=facts,
+            tags=tags,
+            tags_alt=tags_alt,
+            system_profile_facts=system_profile_facts,
+            groups=groups,
+            id=id,
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            satellite_id=satellite_id,
+            fqdn=fqdn,
+            bios_uuid=bios_uuid,
+            ip_addresses=ip_addresses,
+            mac_addresses=mac_addresses,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            openshift_cluster_id=openshift_cluster_id,
         )
         self.reporter = reporter
         if display_name:
