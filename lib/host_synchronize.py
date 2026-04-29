@@ -1,7 +1,6 @@
 from confluent_kafka.error import KafkaException
 from confluent_kafka.error import ProduceError
 
-from app.culling import Timestamps
 from app.logging import get_logger
 from app.models import Host
 from app.queue.events import EventType
@@ -65,7 +64,7 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
             except KeyError:
                 staleness = get_sys_default_staleness(config)
 
-            serialized_host = serialize_host(host, Timestamps.from_config(config), staleness=staleness)
+            serialized_host = serialize_host(host, staleness=staleness)
             event = build_event(EventType.updated, serialized_host)
             host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
             headers = message_headers(
