@@ -2917,7 +2917,7 @@ def test_ungrouped_group_cache_deduplicates_group_creation_rbac_v2(flask_app, mo
     mock_wait = mocker.patch("lib.group_repository.wait_for_workspace_event")
     mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=True)
     mock_get_rbac_ws = mocker.patch(
-        "lib.group_repository.get_rbac_workspace_by_id_using_service_account", return_value=mock_rbac_workspace
+        "lib.group_repository.get_rbac_workspace_as_service", return_value=mock_rbac_workspace
     )
 
     with UngroupedGroupCache():
