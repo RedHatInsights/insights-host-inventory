@@ -128,12 +128,8 @@ def _get_rbac_access_token() -> str:
     Returns:
         str: Valid OAuth2 access token
 
-    Raises:
-        Exception: If token fetch fails
-
     Note:
-        OAuth2ClientCredentials.get_token() may implement internal caching.
-        The token is fetched from the same OIDC provider used by Kessel.
+        OAuth2ClientCredentials.get_token() has built-in caching with a 300-second refresh buffer.
     """
     oauth_client = _get_rbac_oauth_client()
     try:
@@ -171,7 +167,6 @@ def _build_rbac_request_headers(
     }
 
     if use_service_account:
-        # Add OAuth2 service account authentication
         access_token = _get_rbac_access_token()
         request_headers["Authorization"] = f"Bearer {access_token}"
 
@@ -996,7 +991,7 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
-def get_rbac_workspace_by_id_using_service_account(workspace_id: str, org_id: str) -> dict[str, Any]:
+def get_rbac_workspace_as_service(workspace_id: str, org_id: str) -> dict[str, Any]:
     """
     Fetch a single workspace from RBAC v2 API using service account authentication.
 
@@ -1019,25 +1014,13 @@ def get_rbac_workspace_by_id_using_service_account(workspace_id: str, org_id: st
         ResourceNotFoundException: If workspace not found (404)
     """
     request_headers = _build_service_account_headers(org_id)
-
-    ids_param = workspace_id
-    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "type": "all", "limit": 1})
-
-    response = _execute_rbac_http_request(
-        method="GET",
-        rbac_endpoint=rbac_endpoint,
-        request_headers=request_headers,
-        skip_not_found=False,
-    )
-
-    workspaces = response.get("data", []) if response else []
-    if workspaces:
+    if workspaces := get_rbac_workspaces_by_ids([workspace_id], request_headers=request_headers):
         return workspaces[0]
     else:
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
-def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
+def get_rbac_workspaces_by_ids(workspace_ids: list[str], request_headers: dict | None = None) -> list[dict[str, Any]]:
     """
     Fetch multiple workspaces from RBAC v2 API by ID list.
 
@@ -1052,6 +1035,8 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
 
     Args:
         workspace_ids: List of workspace UUIDs to fetch
+        request_headers: Optional pre-built headers. Defaults to user identity headers
+                         via _build_rbac_request_headers().
 
     Returns:
         list[dict]: List of workspace objects found from RBAC v2 API.
@@ -1065,13 +1050,12 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]
         # Returns: [{"id": "uuid1", ...}, {"id": "uuid2", ...}] if uuid3 doesn't exist
         # Caller should use check_all_ids_found() to validate all were found
     """
-    # Build query parameter string with multiple IDs
-    # Format: ?ids=uuid1,uuid2,uuid3
     ids_param = ",".join(workspace_ids)
     rbac_endpoint = _get_rbac_workspace_url(
         query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
     )
-    request_headers = _build_rbac_request_headers()
+    if request_headers is None:
+        request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
         method="GET",
