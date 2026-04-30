@@ -390,7 +390,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 db.session.rollback()
 
         elif operation == "update":
-            logger.info(f"Updating group with data: {workspace}")
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
             group_repository.patch_group(
                 group=group_to_update,
