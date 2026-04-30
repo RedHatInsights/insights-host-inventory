@@ -123,6 +123,10 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_host_by_id(
     # Prepare the second host
     host_to_delete = host_inventory_cert_auth.upload.create_host(insights_id=generate_uuid())
 
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host_to_delete)
+
     # Init the cache
     response = host_inventory_cert_auth.apis.hosts.get_hosts(
         insights_id=host_to_delete.insights_id
@@ -157,6 +161,10 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_filtered(
     # Prepare the second host
     host_to_delete = host_inventory_cert_auth.upload.create_host(insights_id=generate_uuid())
 
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(host_to_delete)
+
     # Init the cache
     response = host_inventory_cert_auth.apis.hosts.get_hosts(
         insights_id=host_to_delete.insights_id
@@ -166,7 +174,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_filtered(
 
     # Delete the second host to invalidate the cache
     host_inventory.apis.hosts.delete_filtered(insights_id=host_to_delete.insights_id)
-    host_inventory.apis.hosts.wait_for_deleted(host_to_delete)
 
     # Check that the cache has been invalidated
     response = host_inventory_cert_auth.apis.hosts.get_hosts(
@@ -538,6 +545,10 @@ def test_cache_invalidation_insights_client_get_host_exists(
 
     # Create a new host to invalidate the cache
     new_host = host_inventory_cert_auth.upload.create_host(insights_id=insights_id)
+
+    # Cert auth doesn't go through Kessel, so we need to do additional waiting with other auth
+    # to make sure the host got synced and is available
+    host_inventory.apis.hosts.wait_for_created(new_host)
 
     # Check that the cache has been invalidated
     response = host_inventory_cert_auth.apis.hosts.get_host_exists(insights_id)

@@ -4,7 +4,17 @@
 
 This guide outlines the process for modifying tables related to downstream applications (e.g., `hosts_app_data_patch`, `hosts_app_data_malware`) within the HBI service. These changes are typically required when a downstream app introduces new data fields or modifies existing data structures.
 
-The Host App Data tables are used by the Inventory Views feature to store application-specific data for each host. Data flows from downstream services via Kafka messages on the `platform.inventory.host-apps` topic.
+The Host App Data tables are used by the Inventory Views feature to store application-specific data for each host. Data flows from downstream services via Kafka messages on the `platform.inventory.host-apps` topic, and is exposed through the `GET /api/inventory/v1/beta/hosts-view` endpoint.
+
+### Inventory Views Endpoint Capabilities
+
+The `/beta/hosts-view` endpoint returns host data combined with application-specific metrics. It supports:
+
+- **Sorting** by app data fields using the `order_by=app:field` format (e.g., `order_by=vulnerability:critical_cves`)
+- **Filtering** by app data fields using `filter[app][field][operator]=value` (e.g., `filter[patch][packages_installable][gte]=5`)
+- **Sparse fieldsets** to control which application data is included in the response (e.g., `fields[advisor]=recommendations,incidents`)
+
+Downstream apps declare which of their fields support sorting and filtering via `__sortable_fields__` and `__filterable_fields__` on their model class. See the sections below for details.
 
 ## Affected Files
 
@@ -12,13 +22,14 @@ To ensure end-to-end consistency, you must update the following files:
 
 | File | Purpose |
 |------|---------|
-| `app/models/host_app_data.py` | SQLAlchemy model definition |
+| `app/models/host_app_data.py` | SQLAlchemy model definition (columns, sortable/filterable fields) |
 | `app/queue/enums.py` | Application enum (if adding a new app) |
-| `swagger/host_app_events.spec.yaml` | Event schema specification |
+| `swagger/host_app_events.spec.yaml` | Kafka event schema specification |
 | `tests/test_host_app_mq_service.py` | MQ service integration tests |
 | `tests/test_models.py` | Database model unit tests |
 | `api/filtering/app_data_sorting.py` | Sorting logic for hosts-view endpoint |
-| `tests/test_api_host_views.py` | Hosts-view API tests (including sorting) |
+| `api/filtering/db_app_data_filters.py` | Filtering logic for hosts-view endpoint |
+| `tests/test_api_host_views.py` | Hosts-view API tests (sorting, filtering, sparse fields) |
 | `tests/test_filtering_app_data_sorting.py` | Sorting utility unit tests |
 
 ## Step-by-Step Guide
@@ -46,11 +57,19 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
     # NEW: Add your new field here
     my_new_field = db.Column(db.String(255), nullable=True)
 
-    # NEW: If the field should be sortable in hosts-view, add it to __sortable_fields__
+    # NEW: If the field should be sortable, add it to __sortable_fields__
     __sortable_fields__ = (
         "advisories_rhsa_applicable",
         "advisories_rhba_applicable",
         # ... existing sortable fields ...
+        "my_new_field",  # Add your new field here
+    )
+
+    # NEW: If the field should be filterable, add it to __filterable_fields__
+    __filterable_fields__ = (
+        "advisories_rhsa_applicable",
+        "advisories_rhba_applicable",
+        # ... existing filterable fields ...
         "my_new_field",  # Add your new field here
     )
 ```
@@ -78,16 +97,7 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
 
 The sort field map in `api/filtering/app_data_sorting.py` is built dynamically from all models' `__sortable_fields__` declarations, so no additional registration is needed.
 
-**Currently supported sortable fields by application:**
-
-| Application | Sortable Fields |
-|-------------|----------------|
-| `advisor` | `recommendations`, `incidents` |
-| `vulnerability` | `total_cves`, `critical_cves`, `high_severity_cves`, `cves_with_security_rules`, `cves_with_known_exploits` |
-| `patch` | `advisories_rhsa_installable`, `advisories_rhba_installable`, `advisories_rhea_installable`, `advisories_other_installable`, `advisories_rhsa_applicable`, `advisories_rhba_applicable`, `advisories_rhea_applicable`, `advisories_other_applicable`, `packages_installable`, `packages_applicable`, `packages_installed` |
-| `remediations` | `remediations_plans` |
-| `compliance` | `last_scan` |
-| `malware` | `last_matches`, `total_matches`, `last_scan` |
+The current sortable fields for each application are defined by the `__sortable_fields__` tuples in `app/models/host_app_data.py`. Check each model class for the authoritative list.
 
 **Usage in the API:**
 
@@ -97,6 +107,58 @@ GET /api/inventory/v1/beta/hosts-view?order_by=patch:my_new_field&order_how=DESC
 
 > **Note:** Hosts without app data for the sorted field will appear at the end of the results regardless of sort direction (`NULLS LAST` behavior). Only `db.Integer` and `db.DateTime` columns are recommended for sorting. String and JSONB columns are typically not suitable sort candidates.
 
+#### Enabling Filtering via `__filterable_fields__`
+
+The `HostAppDataMixin` base class defines an optional `__filterable_fields__` class attribute. Fields listed in this tuple can be used for filtering in the `/beta/hosts-view` endpoint via the `filter` query parameter using the `filter[app_name][field_name][operator]=value` format.
+
+**Default:** `__filterable_fields__` defaults to an empty tuple `()`, meaning no fields are filterable unless explicitly declared.
+
+**Example:** To allow filtering by `my_new_field` in the Patch app:
+
+```python
+class HostAppDataPatch(HostAppDataMixin, db.Model):
+    __tablename__ = "hosts_app_data_patch"
+    __app_name__ = "patch"
+    __filterable_fields__ = (
+        "advisories_rhsa_installable",
+        # ... other fields ...
+        "my_new_field",  # Enables: ?filter[patch][my_new_field][gte]=10
+    )
+
+    my_new_field = db.Column(db.Integer, nullable=True)
+```
+
+The filter logic in `api/filtering/db_app_data_filters.py` validates field names against `__filterable_fields__` at runtime, so no additional registration is needed.
+
+**Supported filter operators:**
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `eq` | Equal to | `filter[patch][packages_installable][eq]=10` |
+| `ne` | Not equal to | `filter[patch][packages_installable][ne]=0` |
+| `gt` | Greater than | `filter[vulnerability][critical_cves][gt]=5` |
+| `gte` | Greater than or equal | `filter[vulnerability][critical_cves][gte]=5` |
+| `lt` | Less than | `filter[advisor][recommendations][lt]=100` |
+| `lte` | Less than or equal | `filter[advisor][recommendations][lte]=100` |
+| `nil` | Field is NULL (no data) | `filter[patch][template_name][nil]=true` |
+| `not_nil` | Field is not NULL | `filter[patch][template_name][not_nil]=true` |
+
+Multiple filters are combined with AND semantics. You can filter across different apps and fields simultaneously:
+
+```
+GET /api/inventory/v1/beta/hosts-view?filter[vulnerability][critical_cves][gt]=0&filter[patch][packages_installable][gte]=5
+```
+
+App data filters can also be combined with `filter[system_profile]` filters:
+
+```
+GET /api/inventory/v1/beta/hosts-view?filter[system_profile][number_of_cpus][gte]=4&filter[patch][packages_installable][gt]=0
+```
+
+The current filterable fields for each application are defined by the `__filterable_fields__` tuples in `app/models/host_app_data.py`. Check each model class for the authoritative list.
+
+> **Note:** Filterable fields can be a superset of sortable fields. For instance, string fields like `template_name` or `last_status` may be filterable (via `eq`/`nil`/`not_nil`) but not sortable.
+
 **Supported Column Types:**
 - `db.Integer` - For numeric counts
 - `db.String(length)` - For text with max length
@@ -105,6 +167,29 @@ GET /api/inventory/v1/beta/hosts-view?order_by=patch:my_new_field&order_how=DESC
 - `JSONB` - For complex JSON structures (e.g., arrays, nested objects)
 
 > **Note:** All fields should typically be `nullable=True` since downstream services may not always provide every field.
+
+#### Sparse Fieldsets in API Responses
+
+The `/beta/hosts-view` endpoint supports JSON:API-style sparse fieldsets via the `fields` query parameter. This allows API consumers to control which application data is included in each host's `app_data` object. This feature works automatically for all fields on any model; no special declaration is needed.
+
+**Usage:**
+
+| Parameter | Behavior |
+|-----------|----------|
+| *(omitted)* | All apps and all fields are returned (default) |
+| `fields[app_data]=true` | All apps and all fields (explicit shorthand) |
+| `fields[advisor]=true` | Only advisor data, all fields |
+| `fields[advisor]=recommendations,incidents` | Only advisor data, only those two fields |
+| `fields[advisor]=&fields[patch]=true` | Advisor with no fields (empty object), Patch with all fields |
+| `fields[invalid_app]=true` | Ignored; other valid apps still returned |
+
+**Example:**
+
+```
+GET /api/inventory/v1/beta/hosts-view?fields[advisor]=recommendations&fields[vulnerability]=critical_cves,total_cves
+```
+
+Response `app_data` will only contain `advisor` and `vulnerability` keys, with only the requested fields in each.
 
 ### 2. Update the Event Schema
 
@@ -285,6 +370,96 @@ def test_my_app_field_in_sort_map():
     assert "my_app:field_one" in sort_map
 ```
 
+#### D. Update Filtering Tests (if `__filterable_fields__` was modified)
+
+If you added or changed `__filterable_fields__`, update the filtering tests.
+
+**File:** `tests/test_api_host_views.py`
+
+**Action:** Add test cases to verify filtering behavior for the new fields. Test at least the basic operators (`eq`, `nil`, `not_nil`) and, for numeric fields, comparison operators (`gt`, `gte`, `lt`, `lte`).
+
+**Example:**
+
+```python
+def test_filter_by_my_new_app_field(
+    api_get,
+    db_create_host,
+    db_create_host_app_data,
+):
+    """Verify filtering by my_app:field_one in the hosts-view endpoint."""
+    host_a = db_create_host()
+    host_b = db_create_host()
+
+    db_create_host_app_data(host_a, "my_app", {"field_one": 100})
+    db_create_host_app_data(host_b, "my_app", {"field_one": 5})
+
+    # Filter: field_one >= 50
+    response = api_get(
+        HOST_VIEWS_URL,
+        query_string={"filter[my_app][field_one][gte]": "50"},
+    )
+    assert response["total"] == 1
+    assert response["results"][0]["id"] == str(host_a.id)
+```
+
+**Action:** Also test that filtering and sorting work together for the same app.
+
+```python
+def test_filter_and_sort_same_app(
+    api_get,
+    db_create_host,
+    db_create_host_app_data,
+):
+    """Verify filter + sort on the same app field."""
+    host_a = db_create_host()
+    host_b = db_create_host()
+    host_c = db_create_host()
+
+    db_create_host_app_data(host_a, "my_app", {"field_one": 100})
+    db_create_host_app_data(host_b, "my_app", {"field_one": 50})
+    db_create_host_app_data(host_c, "my_app", {"field_one": 5})
+
+    response = api_get(
+        HOST_VIEWS_URL,
+        query_string={
+            "filter[my_app][field_one][gte]": "10",
+            "order_by": "my_app:field_one",
+            "order_how": "DESC",
+        },
+    )
+    assert response["total"] == 2
+    assert response["results"][0]["id"] == str(host_a.id)
+    assert response["results"][1]["id"] == str(host_b.id)
+```
+
+#### E. Update Sparse Fieldset Tests (if adding a new app)
+
+If you added a new application, verify it works with the sparse fieldsets feature.
+
+**File:** `tests/test_api_host_views.py`
+
+**Action:** Add test cases to verify the new app data appears correctly with the `fields` parameter.
+
+```python
+def test_sparse_fields_my_new_app(
+    api_get,
+    db_create_host,
+    db_create_host_app_data,
+):
+    """Verify sparse fieldsets for my_app."""
+    host = db_create_host()
+    db_create_host_app_data(host, "my_app", {"field_one": 100, "field_two": "value"})
+
+    # Request only field_one
+    response = api_get(
+        HOST_VIEWS_URL,
+        query_string={"fields[my_app]": "field_one"},
+    )
+    app_data = response["results"][0]["app_data"]["my_app"]
+    assert "field_one" in app_data
+    assert "field_two" not in app_data
+```
+
 ### 6. Apply and Verify
 
 Apply the migration locally and run the test suite to verify your changes.
@@ -311,6 +486,7 @@ class HostAppDataMyApp(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_my_app"
     __app_name__ = "my_app"
     __sortable_fields__ = ("field_one",)  # Optional: enable sorting on numeric/datetime fields
+    __filterable_fields__ = ("field_one", "field_two")  # Optional: enable filtering
 
     field_one = db.Column(db.Integer, nullable=True)
     field_two = db.Column(db.String(255), nullable=True)
@@ -322,7 +498,7 @@ class HostAppDataMyApp(HostAppDataMixin, db.Model):
 
 4. **Update the `oneOf` list** in `swagger/host_app_events.spec.yaml` under `HostAppItem.data`
 
-5. **Add comprehensive tests** for the new application
+5. **Add comprehensive tests** for the new application (MQ, model, sorting, filtering, sparse fields)
 
 6. **Generate and verify the migration**
 
@@ -335,3 +511,15 @@ Ensure you've updated **all** relevant test files. The parameterized tests in `t
 ### Validation errors in MQ service
 
 Check that your field types in the SQLAlchemy model match the expected types from the Kafka message. The MQ service validates incoming data before inserting.
+
+### Filter returns 400 "Invalid filter field"
+
+The field must be listed in `__filterable_fields__` on the model class. Only explicitly declared fields are allowed. Check `app/models/host_app_data.py` for the current allowlist.
+
+### Sort returns 400 "Unsupported app sort field"
+
+The field must be listed in `__sortable_fields__` on the model class. The error message includes the full list of allowed sort fields.
+
+### Sparse fieldsets return empty `app_data`
+
+If `fields[app]=` (empty value) is passed, the endpoint intentionally returns an empty object for that app per JSON:API spec. Use `fields[app]=true` to request all fields, or specify field names explicitly.

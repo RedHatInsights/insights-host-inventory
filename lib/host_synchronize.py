@@ -13,6 +13,7 @@ from app.serialization import serialize_host
 from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from lib.group_repository import get_group_using_host_id
+from lib.host_repository import host_exists
 from lib.metrics import synchronize_host_count
 
 logger = get_logger(__name__)
@@ -56,6 +57,7 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
     num_synchronized = 0
 
     while len(host_list) > 0 and not interrupt():
+        events_to_produce = []
         for host in host_list:
             staleness = None
             try:
@@ -74,16 +76,22 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
                 os_name,
                 bootc_booted,
             )
+            events_to_produce.append((event, headers, str(host.id)))
+
+        for event, headers, host_id in events_to_produce:
+            if not host_exists(host_id, org_id=host_list[0].org_id, session=query.session):
+                logger.warning(f"Skipping sync event for host {host_id}: host no longer exists")
+                continue
             # in case of a failed update event, event_producer logs the message.
             # Workaround to solve: https://issues.redhat.com/browse/RHINENG-4856
             try:
-                event_producer.write_event(event, str(host.id), headers, wait=True)
+                event_producer.write_event(event, host_id, headers, wait=True)
                 synchronize_host_count.inc()
-                logger.info("Synchronized host: %s", str(host.id))
+                logger.info("Synchronized host: %s", host_id)
 
                 num_synchronized += 1
             except (ProduceError, KafkaException):
-                logger.error(f"Failed to synchronize host: {str(host.id)} because of {ProduceError.code}")
+                logger.error(f"Failed to synchronize host: {host_id} because of {ProduceError.code}")
                 continue
 
         try:

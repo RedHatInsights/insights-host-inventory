@@ -23,6 +23,7 @@ from tests.helpers.api_utils import build_system_profile_operating_system_url
 from tests.helpers.api_utils import build_system_profile_sap_sids_url
 from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.mq_utils import create_kafka_consumer_mock
 from tests.helpers.system_profile_utils import system_profile_specification
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -77,35 +78,10 @@ def test_system_profile_valid_date_format(mq_create_or_update_host, boot_time):
 
 
 @pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_sap_system_with_RBAC_allowed(subtests, mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    url = build_system_profile_sap_system_url()
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 200)
-
-
-@pytest.mark.usefixtures("enable_rbac")
-def test_get_system_profile_sap_sids_with_RBAC_allowed(subtests, mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    url = build_system_profile_sap_sids_url()
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 200)
+@pytest.mark.parametrize("url_builder", [build_system_profile_sap_system_url, build_system_profile_sap_sids_url])
+def test_get_system_profile_endpoints_with_RBAC_allowed(subtests, mocker, api_get, url_builder):
+    url = url_builder()
+    run_rbac_test(subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [url])
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -145,18 +121,10 @@ def test_get_system_profile_sap_sids_with_RBAC_bypassed_as_system(api_get):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_system_profile_RBAC_allowed(mocker, subtests, db_create_host, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
     host_id = str(db_create_host().id)
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-            response_status, _ = api_get(f"{HOST_URL}/{host_id}/system_profile")
-
-            assert_response_status(response_status, 200)
+    run_rbac_test(
+        subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [f"{HOST_URL}/{host_id}/system_profile"]
+    )
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -289,6 +257,28 @@ def test_validate_sp_for_invalid_days(api_post):
     assert response_status == 400
 
 
+def test_system_profile_owner_id(mq_create_or_update_host, api_get):
+    """Test that owner_id system profile field is properly stored and retrieved."""
+    owner_id = generate_uuid()
+    system_profile = valid_system_profile()
+    system_profile["owner_id"] = owner_id
+    host = minimal_host(system_profile=system_profile)
+
+    # Create custom identity with matching owner_id
+    custom_identity = {**SYSTEM_IDENTITY, "system": {**SYSTEM_IDENTITY["system"], "cn": owner_id}}
+
+    created_host = mq_create_or_update_host(host, identity=custom_identity)
+
+    # Verify owner_id is in the created host response
+    assert created_host.system_profile.get("owner_id") == owner_id
+
+    # Verify owner_id is returned via API
+    url = f"{HOST_URL}/{created_host.id}/system_profile"
+    response_status, response_data = api_get(url, identity=custom_identity)
+    assert response_status == 200
+    assert response_data["results"][0]["system_profile"]["owner_id"] == owner_id
+
+
 def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     # Create some operating systems
     ordered_sp_data = [
@@ -418,6 +408,33 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
             assert item_count == len(sap_list)
         else:
             assert item_count == len(not_sap_list)
+
+
+@pytest.mark.parametrize(
+    "sap_sids",
+    [
+        ["ABC"],
+        ["ABC", "CDE"],
+        ["ABC", "CDE", "EFG"],
+        ["A01", "BCD", "C1E"],
+        ["A00", "AB0", "ABC"],
+    ],
+)
+def test_system_profile_sap_sids_patterns(mq_create_or_update_host, api_get, sap_sids):
+    """Test various SAP sids patterns are properly stored and retrieved."""
+    system_profile = {"workloads": {"sap": {"sap_system": True, "sids": sap_sids}}}
+    host = minimal_host(system_profile=system_profile)
+
+    created_host = mq_create_or_update_host(host)
+
+    # Verify sids are in the created host response
+    assert created_host.system_profile.get("workloads", {}).get("sap", {}).get("sids") == sap_sids
+
+    # Verify sids are returned via API
+    url = f"{HOST_URL}/{created_host.id}/system_profile"
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert response_data["results"][0]["system_profile"]["workloads"]["sap"]["sids"] == sap_sids
 
 
 def test_system_profile_sap_sids(mq_create_or_update_host, api_get):

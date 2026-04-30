@@ -691,18 +691,11 @@ the email to the email address that's linked with your Red Hat account.
 
 ### How E2E notification testing works
 
-For E2E tests we are using tools from
-[iqe-notifications-plugin](https://gitlab.cee.redhat.com/insights-qe/iqe-notifications-plugin).
-At the time of writing this documentation, the notifications plugin uses a
-[hard-coded account](https://gitlab.cee.redhat.com/insights-qe/iqe-notifications-plugin/-/blob/a2e1f73576672993114eb28ddb0ff2cd78d58cbb/iqe_notifications/utils/email_utils.py#L45)
-for getting emails (`insights-qe`). There is an MR open to change that and let users define their
-email credentials in their IQE config:
-[iqe-notifications-plugin#574](https://gitlab.cee.redhat.com/insights-qe/iqe-notifications-plugin/-/merge_requests/574)
-
-However, even if this change is merged, it would still be quite difficult (if not impossible) to
-use our regular Stage/Prod users for getting the emails, because they use mailing lists as their
-email addresses, so I don't think we can "log in" to them and fetch the emails. So, we will keep
-using the `insights-qe` account for email fetching for now.
+For E2E tests we use local utilities in `iqe_host_inventory/utils/email_utils.py` and
+`iqe_host_inventory/utils/notifications_alert.py` that consume the Notifications and Integrations
+APIs directly via `iqe-bindings`. The email utilities use the `insights-qe` Gmail account
+(configured via `email_account` in the host_inventory plugin config or the user config) to fetch
+and verify notification emails.
 
 If we want to do that, we don't have to use the `insights-qe` account to execute our notifications
 tests though. The workaround for using our own account for test execution and being able to fetch

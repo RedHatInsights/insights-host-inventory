@@ -5,6 +5,7 @@ import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
 
+from lib.middleware import HIDE_WORKSPACE_TYPES
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import assert_response_status
@@ -390,7 +391,7 @@ def test_get_groups_by_id_rbac_v2_success(
     # Mock feature flag enabled (RBAC v2 path)
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch
     mocker.patch("api.group_query.get_rbac_workspaces_by_ids", return_value=mock_workspaces)
@@ -449,7 +450,7 @@ def test_get_groups_by_id_rbac_v2_not_found(mocker, db_create_group, api_get):
     # Mock feature flag enabled (RBAC v2 path)
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return empty list (no workspaces found)
     mocker.patch(
@@ -481,7 +482,7 @@ def test_get_groups_by_id_rbac_v2_partial_not_found(mocker, db_create_group, api
     # Mock feature flag enabled (RBAC v2 path)
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 workspace fetch to return only 2 out of 3 workspaces
     # (simulating that the 3rd workspace is missing)
@@ -526,7 +527,7 @@ def test_get_groups_by_id_feature_flag_disabled(
         db_create_host_group_assoc(host.id, group.id)
 
     # Mock feature flag disabled (RBAC v1 path - default behavior)
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=False)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=False)
 
     # Call endpoint
     response_status, response_data = api_get(GROUP_URL + "/" + ",".join(group_id_list))
@@ -547,7 +548,7 @@ def test_get_groups_by_id_feature_flag_disabled(
 # ============================================================================
 # RBAC v2 (Kessel) Integration Tests
 # ============================================================================
-# These tests verify the RBAC v2 code path when FLAG_INVENTORY_KESSEL_PHASE_1
+# These tests verify the RBAC v2 code path when FLAG_RBAC_WORKSPACES
 # feature flag is enabled, ensuring get_rbac_workspaces() is called correctly
 # with proper parameters including ordering support.
 # ============================================================================
@@ -585,7 +586,7 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
     # Mock feature flag
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=flag_enabled)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=flag_enabled)
 
     # Mock get_rbac_workspaces to return matching workspaces (only called if flag enabled)
     mock_workspaces = [
@@ -672,8 +673,10 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         # Baseline updated->modified mapping with standard ASC/DESC
         ("updated", "ASC", "modified"),
         ("updated", "DESC", "-modified"),
-        # No order_how: should default to ascending, with the mapped field name and no hyphen
-        ("updated", None, "modified"),
+        # No order_how: should default to ascending on "name", with the mapped field name and no hyphen
+        ("name", None, "name"),
+        # No order_how: should default to descending on "updated", with the mapped field name and hyphen
+        ("updated", None, "-modified"),
         # Different order_how casing: should still be treated as DESC and apply a leading hyphen
         ("updated", "desc", "-modified"),
         ("updated", "Desc", "-modified"),
@@ -694,8 +697,8 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
-    mocker.patch("lib.middleware.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
 
     mock_rbac_http = mocker.patch(
         "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
@@ -717,6 +720,128 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
         assert "order_how" not in parsed
 
 
+def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_get):
+    """
+    RBAC may return root/default workspaces mixed with standard and ungrouped-hosts workspaces.
+    get_rbac_workspaces() requests per_page + len(HIDE_WORKSPACE_TYPES) items from RBAC,
+    strips root/default types, then caps at per_page so the caller always gets a full page.
+
+    Scenario: user has 5 workspaces total (3 standard, 1 root, 1 default).
+    per_page=3 -> limit sent to RBAC is 5 -> after stripping, exactly 3 standard remain.
+    """
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    standard_ids = [str(generate_uuid()) for _ in range(3)]
+    rbac_payload = {
+        "data": [
+            _create_mock_workspace(workspace_id=standard_ids[0], name="group_a", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=str(generate_uuid()), name="root_ws", workspace_type="root"),
+            _create_mock_workspace(workspace_id=standard_ids[1], name="group_b", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=str(generate_uuid()), name="default_ws", workspace_type="default"),
+            _create_mock_workspace(workspace_id=standard_ids[2], name="group_c", workspace_type="standard"),
+        ],
+        "meta": {"count": 5},
+    }
+    mock_rbac_http = mocker.patch(
+        "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
+        return_value=rbac_payload,
+    )
+
+    mocker.patch(
+        "api.group.get_host_counts_batch",
+        return_value={sid: 0 for sid in standard_ids},
+    )
+
+    per_page = 3
+    response_status, response_data = api_get(
+        build_groups_url(query=f"?group_type=all&order_by=name&per_page={per_page}")
+    )
+
+    assert_response_status(response_status, 200)
+    # All 3 standard workspaces returned despite root/default being in the RBAC response
+    assert response_data["count"] == per_page
+    assert len(response_data["results"]) == per_page
+    returned_ids = {r["id"] for r in response_data["results"]}
+    assert returned_ids == set(standard_ids)
+
+    # RBAC was asked for per_page + len(HIDE_WORKSPACE_TYPES) to compensate for stripping
+    rbac_endpoint = mock_rbac_http.call_args[0][1]
+    parsed = parse_qs(urlparse(rbac_endpoint).query)
+    assert parsed["limit"] == [str(per_page + len(HIDE_WORKSPACE_TYPES))]
+
+
+@pytest.mark.parametrize(
+    "group_type,workspace_type",
+    [
+        ("standard", "standard"),
+        ("ungrouped-hosts", "ungrouped-hosts"),
+    ],
+)
+def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get, group_type, workspace_type):
+    """
+    When the caller filters on a specific group_type (standard or ungrouped-hosts),
+    that type is passed straight to the RBAC API, since root/default workspaces are never
+    returned. The middleware should NOT apply the extra-limit or post-filter stripping
+    that it does for group_type=all.
+    """
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    ws_ids = [str(generate_uuid()) for _ in range(3)]
+    rbac_payload = {
+        "data": [
+            _create_mock_workspace(workspace_id=ws_ids[0], name="ws_a", workspace_type=workspace_type),
+            _create_mock_workspace(workspace_id=ws_ids[1], name="ws_b", workspace_type=workspace_type),
+            _create_mock_workspace(workspace_id=ws_ids[2], name="ws_c", workspace_type=workspace_type),
+        ],
+        "meta": {"count": 3},
+    }
+    mock_rbac_http = mocker.patch(
+        "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
+        return_value=rbac_payload,
+    )
+
+    mocker.patch(
+        "api.group.get_host_counts_batch",
+        return_value={wid: 0 for wid in ws_ids},
+    )
+
+    per_page = 3
+    response_status, response_data = api_get(
+        build_groups_url(query=f"?group_type={group_type}&order_by=name&per_page={per_page}")
+    )
+
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 3
+    assert len(response_data["results"]) == 3
+    returned_ids = {r["id"] for r in response_data["results"]}
+    assert returned_ids == set(ws_ids)
+
+    # The RBAC request includes type=<group_type> and limit=per_page+len(HIDE_WORKSPACE_TYPES)
+    # (the extra limit is always applied, but no post-filter stripping happens)
+    rbac_endpoint = mock_rbac_http.call_args[0][1]
+    parsed = parse_qs(urlparse(rbac_endpoint).query)
+    assert parsed["type"] == [group_type]
+    assert parsed["limit"] == [str(per_page)]
+    # meta.count is returned as-is (no subtraction) since no stripping occurred
+    assert response_data["total"] == 3
+
+
 @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
 def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     """
@@ -733,7 +858,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count(mocker, api_get, order_how):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Create mock workspaces in a specific order (by name)
     # RBAC v2 API would return these in this order
@@ -795,7 +920,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_with_ties(mocker, api_get, or
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Create mock workspaces - some with same host counts
     mock_workspaces = [
@@ -862,7 +987,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_too_many_groups(mocker, api_g
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 returning 3500 total groups (exceeds MAX_GROUPS_FOR_HOST_COUNT_SORTING of 3000)
     # RBAC v2 returns first 3000 groups, but total=3500
@@ -896,7 +1021,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_timeout(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock get_rbac_workspaces to raise Timeout exception
     mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
@@ -921,7 +1046,7 @@ def test_get_groups_rbac_v2_ordering_by_host_count_all_empty_groups(mocker, api_
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC v2 returning 3 workspaces in specific order
     mock_workspaces = [
@@ -984,7 +1109,7 @@ def test_get_groups_rbac_v2_parameter_passing(
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock get_rbac_workspaces
     if param_name == "pagination":
@@ -1033,7 +1158,7 @@ def test_get_groups_rbac_v2_with_rbac_permissions(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC permissions (RBAC v1 still runs for backward compatibility during migration)
     group_id_1 = str(generate_uuid())
@@ -1082,7 +1207,7 @@ def test_get_groups_rbac_v2_empty_results(mocker, api_get):
     Verifies proper handling of empty results from get_rbac_workspaces().
     """
     # Mock feature flag enabled
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock get_rbac_workspaces returning empty results
     mock_get_rbac_workspaces = mocker.patch("api.group.get_rbac_workspaces")
@@ -1109,7 +1234,7 @@ def test_get_groups_rbac_v2_api_connection_error(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     mocker.patch(
         "api.group.get_rbac_workspaces",
@@ -1129,7 +1254,7 @@ def test_get_groups_rbac_v2_api_timeout(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     mocker.patch(
         "api.group.get_rbac_workspaces",
@@ -1151,7 +1276,7 @@ def test_get_groups_rbac_v2_invalid_order_by(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Try to order by invalid field (not in API spec)
     query = "?order_by=invalid_field"
@@ -1173,7 +1298,7 @@ def test_get_groups_rbac_v2_no_workspace_permissions(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock RBAC permissions with empty resource definitions (no workspaces accessible)
     mock_rbac_response = [{"permission": "inventory:groups:read", "resourceDefinitions": []}]
@@ -1206,7 +1331,7 @@ def test_get_groups_rbac_v2_malformed_workspace_response(mocker, api_get):
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_groups_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     # Mock malformed workspace (missing required 'id' field)
     mock_workspaces = [

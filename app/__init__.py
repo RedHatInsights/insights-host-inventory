@@ -38,10 +38,14 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
+from app.telemetry import instrument_flask_app
+from app.telemetry import instrument_outbound_http
+from app.telemetry import instrument_sqlalchemy
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
 from lib.handlers import register_shutdown
+from lib.host_outbox_events import init_outbox_event_processing
 from lib.kessel import init_kessel
 
 logger = get_logger(__name__)
@@ -273,6 +277,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     flask_app.config["USE_SUBMAN_ID"] = app_config.use_sub_man_id_for_host_id
 
     init_cache(app_config, app)
+    init_outbox_event_processing(app_config)
 
     # Configure Unleash (feature flags)
     if not app_config.bypass_unleash and app_config.unleash_token:
@@ -359,5 +364,14 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     # Register automatic outbox event listeners for Host model
     # This must be imported after db.init_app() is called
     from lib import host_outbox_events  # noqa: F401
+
+    # OpenTelemetry instrumentation
+    instrument_flask_app(flask_app)
+    try:
+        with flask_app.app_context():
+            instrument_sqlalchemy(db.engine)
+    except RuntimeError:
+        logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
+    instrument_outbound_http()
 
     return app

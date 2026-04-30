@@ -10,22 +10,20 @@ UNLEASH = Unleash()
 logger = get_logger(__name__)
 
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
-FLAG_INVENTORY_KESSEL_PHASE_1 = "hbi.api.kessel-phase-1"
+FLAG_RBAC_WORKSPACES = "platform.rbac.workspaces"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY = "hbi.workloads_fields_backward_compatibility"
-FLAG_INVENTORY_KESSEL_GROUPS = "hbi.api.kessel-groups"
 FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK = "hbi.api.kessel-force-single-checks-for-bulk"
 FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS = "hbi.flattened_per_reporter_staleness"
 
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
-    FLAG_INVENTORY_KESSEL_PHASE_1: False,
+    FLAG_RBAC_WORKSPACES: False,
     # Use when all hosts are populated with stale_warning/deletion_timestamps
     FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
     FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY: True,
-    FLAG_INVENTORY_KESSEL_GROUPS: False,
     FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK: False,
     FLAG_INVENTORY_FLATTENED_PER_REPORTER_STALENESS: False,
 }
@@ -67,7 +65,7 @@ def custom_fallback(feature_name: str, context: dict) -> bool:  # noqa: ARG001, 
     raise ConnectionError(f"Could not contact Unleash server, or feature toggle {feature_name} not found.")
 
 
-def build_flag_context(org_id: str) -> dict[str, str]:
+def _build_flag_context(org_id: str) -> dict[str, str]:
     """
     Build a feature flag context for org-specific targeting.
 
@@ -86,10 +84,7 @@ def build_flag_context(org_id: str) -> dict[str, str]:
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns a tuple containing the flag's value and whether or not the fallback value was used.
-def get_flag_value_and_fallback(flag_name: str, context: Mapping[str, str] | None = None) -> tuple[bool, bool]:
-    if context is None:
-        context = {}
-
+def get_flag_value_and_fallback(flag_name: str, context: Mapping[str, str]) -> tuple[bool, bool]:
     # Get flag name and default to fallback value
     flag_value = FLAG_FALLBACK_VALUES[flag_name]
     using_fallback = True
@@ -113,8 +108,5 @@ def get_flag_value_and_fallback(flag_name: str, context: Mapping[str, str] | Non
 # Gets a feature flag's value from Unleash, if available.
 # Accepts a string with the name of the feature flag.
 # Returns the value of the feature flag, whether it's the fallback or real value.
-def get_flag_value(flag_name: str, context: Mapping[str, str] | None = None) -> bool:
-    if context is None:
-        context = {}
-
-    return get_flag_value_and_fallback(flag_name, context)[0]
+def get_flag_value(flag_name: str, org_id: str) -> bool:
+    return get_flag_value_and_fallback(flag_name, _build_flag_context(org_id))[0]

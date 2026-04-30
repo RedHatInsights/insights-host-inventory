@@ -5,9 +5,7 @@ from collections.abc import Generator
 from typing import NamedTuple
 
 import pytest
-from iqe.base.application import Application
-from iqe.base.application.implementations.rest import ViaREST
-from iqe_rbac.entities.group import Group
+from _pytest.fixtures import FixtureRequest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
@@ -17,7 +15,7 @@ from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
 from iqe_host_inventory.utils.rbac_utils import RBACRoles
-from iqe_host_inventory.utils.rbac_utils import update_group_with_roles
+from iqe_host_inventory.utils.rbac_utils import get_role_id
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
@@ -45,20 +43,14 @@ def hbi_non_org_admin_user_rbac_setup(
             hbi_non_org_admin_user_username, permissions, hbi_groups=hbi_groups
         )
 
-        to_delete.append((group.uuid, [role.uuid for role in roles]))
-
-        host_inventory.apis.rbac.check_inventory_user_permission(
-            hbi_non_org_admin_user_username,
-            permissions,
-            hbi_groups=hbi_groups,
-        )
+        to_delete.append((group.uuid, [get_role_id(role) for role in roles]))
 
     yield _rbac_inventory_user_setup
 
     for rbac_setup in to_delete:
+        for role_id in rbac_setup[1]:
+            host_inventory.apis.rbac.delete_role(role_id)
         host_inventory.apis.rbac.delete_group(rbac_setup[0])
-        for uuid in rbac_setup[1]:
-            host_inventory.apis.rbac.delete_role(uuid)
 
 
 @pytest.fixture(scope="class")
@@ -80,25 +72,14 @@ def hbi_non_org_admin_user_rbac_setup_class(
         group, roles = host_inventory.apis.rbac.setup_rbac_user(
             hbi_non_org_admin_user_username, permissions, hbi_groups=hbi_groups
         )
-        to_delete.append((group.uuid, [role.uuid for role in roles]))
-
-        # If we set up permissions for a group/workspace that has child workspaces, then RBAC is
-        # going to return all child workspaces as well
-        if expected_hbi_groups is None:
-            expected_hbi_groups = hbi_groups
-
-        host_inventory.apis.rbac.check_inventory_user_permission(
-            hbi_non_org_admin_user_username,
-            permissions,
-            hbi_groups=expected_hbi_groups,
-        )
+        to_delete.append((group.uuid, [get_role_id(role) for role in roles]))
 
     yield _rbac_inventory_user_setup
 
     for rbac_setup in to_delete:
+        for role_id in rbac_setup[1]:
+            host_inventory.apis.rbac.delete_role(role_id)
         host_inventory.apis.rbac.delete_group(rbac_setup[0])
-        for uuid in rbac_setup[1]:
-            host_inventory.apis.rbac.delete_role(uuid)
 
 
 @pytest.fixture(scope="class")
@@ -114,8 +95,15 @@ def rbac_non_org_admin_rbac_admin_setup_class(
 
     group = host_inventory.apis.rbac.create_group(RBACInventoryPermission.RBAC_ADMIN)
     host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
+
     role = host_inventory.apis.rbac.get_rbac_admin_role()
-    host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        workspace_id = host_inventory.apis.workspaces.default_workspace.id
+        host_inventory.apis.rbac.create_role_bindings(
+            [get_role_id(role)], group.uuid, [workspace_id]
+        )
+    else:
+        host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
 
     wait_for_kessel_sync(host_inventory)
 
@@ -591,67 +579,45 @@ def rbac_setup_granular_hosts_permissions_for_sa(
 ):
     inv_group = rbac_setup_resources_for_granular_rbac.groups[0]
     rbac_group = host_inventory.apis.rbac.get_group_by_name(RBAC_GROUP_SERVICE_ACCOUNT_REGULAR)
-    role = host_inventory.apis.rbac.create_role(
-        RBACInventoryPermission.HOSTS_ALL, hbi_groups=[inv_group]
-    )
-    host_inventory.apis.rbac.add_roles_to_a_group([role], rbac_group.uuid)
+
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        role = host_inventory.apis.rbac.create_role_v2(RBACInventoryPermission.HOSTS_ALL)
+        host_inventory.apis.rbac.create_role_bindings([role.id], rbac_group.uuid, [inv_group.id])
+    else:
+        role = host_inventory.apis.rbac.create_role_v1(
+            RBACInventoryPermission.HOSTS_ALL, hbi_groups=[inv_group]
+        )
+        host_inventory.apis.rbac.add_roles_to_a_group([role], rbac_group.uuid)
 
     wait_for_kessel_sync(host_inventory)
 
     yield
 
-    host_inventory.apis.rbac.delete_role(role.uuid)
+    host_inventory.apis.rbac.delete_role(get_role_id(role))
 
 
-@pytest.fixture
-def rbac_setup_group_with_member(
-    application: Application, hbi_non_org_admin_user_username: str
-) -> Generator[tuple[Group, Application]]:
-    with application.context.use(ViaREST):
-        group = application.rbac.collections.groups.create(
-            name=generate_display_name(),
-            members=[
-                application.rbac.collections.users.instantiate(hbi_non_org_admin_user_username)
-            ],
+@pytest.fixture(params=[RBACRoles.RHEL_ADMIN, RBACRoles.RHEL_OPERATOR, RBACRoles.RHEL_VIEWER])
+def rbac_setup_user_with_rhel_role(
+    hbi_non_org_admin_user_username: str,
+    host_inventory: ApplicationHostInventory,
+    request: FixtureRequest,
+) -> Generator[str]:
+    host_inventory.apis.rbac.reset_user_groups(hbi_non_org_admin_user_username)
+
+    group = host_inventory.apis.rbac.create_group(request.param)
+    host_inventory.apis.rbac.add_user_to_a_group(hbi_non_org_admin_user_username, group.uuid)
+
+    role = host_inventory.apis.rbac.get_role_by_name(request.param.value)
+    if host_inventory.unleash.is_rbac_workspaces_enabled:
+        workspace_id = host_inventory.apis.workspaces.default_workspace.id
+        host_inventory.apis.rbac.create_role_bindings(
+            [get_role_id(role)], group.uuid, [workspace_id]
         )
-
-    yield group, application
-
-    with application.context.use(ViaREST):
-        group.delete_if_exists()
-
-
-@pytest.fixture
-def rbac_setup_user_with_rhel_admin_role(
-    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
-) -> str:
-    group, app = rbac_setup_group_with_member
-    update_group_with_roles(app, group, [RBACRoles.RHEL_ADMIN])
+    else:
+        host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
 
     wait_for_kessel_sync(host_inventory)
 
-    return RBACRoles.RHEL_ADMIN
+    yield request.param.value
 
-
-@pytest.fixture
-def rbac_setup_user_with_rhel_operator_role(
-    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
-) -> str:
-    group, app = rbac_setup_group_with_member
-    update_group_with_roles(app, group, [RBACRoles.RHEL_OPERATOR])
-
-    wait_for_kessel_sync(host_inventory)
-
-    return RBACRoles.RHEL_OPERATOR
-
-
-@pytest.fixture
-def rbac_setup_user_with_rhel_viewer_role(
-    rbac_setup_group_with_member, host_inventory: ApplicationHostInventory
-) -> str:
-    group, app = rbac_setup_group_with_member
-    update_group_with_roles(app, group, [RBACRoles.RHEL_VIEWER])
-
-    wait_for_kessel_sync(host_inventory)
-
-    return RBACRoles.RHEL_VIEWER
+    host_inventory.apis.rbac.delete_group(group.uuid)

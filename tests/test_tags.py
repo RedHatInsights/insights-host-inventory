@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
@@ -13,6 +14,7 @@ from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -111,16 +113,8 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
     tag_key = "database"
     tag_value = "postgresql"
     per_reporter_staleness = {
-        "puptoo": {
-            "last_check_in": _now.isoformat(),
-            "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-            "check_in_succeeded": True,
-        },
-        "yupana": {
-            "last_check_in": (_now - timedelta(days=3)).isoformat(),
-            "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-            "check_in_succeeded": True,
-        },
+        "puptoo": _now.isoformat(),
+        "yupana": (_now - timedelta(days=3)).isoformat(),
     }
     db_create_multiple_hosts(
         how_many=1,
@@ -211,37 +205,18 @@ def test_get_tags_count_from_host_with_no_tags(api_get, db_create_host):
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_allowed(subtests, mocker, api_get, db_create_host):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
-
-    for response_file in HOST_READ_ALLOWED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            host_id = str(db_create_host().id)
-            url = build_host_tags_url(host_list_or_id=host_id)
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 200)
+    host_id = str(db_create_host().id)
+    url = build_host_tags_url(host_list_or_id=host_id)
+    run_rbac_test(subtests, mocker, api_get, HOST_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [url])
 
 
 @pytest.mark.usefixtures("enable_rbac")
 def test_get_host_tags_with_RBAC_denied(subtests, db_create_host, mocker, api_get):
-    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
     get_host_tags_list_mock = mocker.patch("api.host.get_host_tags_list_by_id_list")
-
-    for response_file in HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES:
-        mock_rbac_response = create_mock_rbac_response(response_file)
-        with subtests.test():
-            get_rbac_permissions_mock.return_value = mock_rbac_response
-
-            host_id = str(db_create_host().id)
-            url = build_host_tags_url(host_list_or_id=host_id)
-            response_status, _ = api_get(url)
-
-            assert_response_status(response_status, 403)
-
-            get_host_tags_list_mock.assert_not_called()
+    host_id = str(db_create_host().id)
+    url = build_host_tags_url(host_list_or_id=host_id)
+    run_rbac_test(subtests, mocker, api_get, HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES, 403, [url])
+    get_host_tags_list_mock.assert_not_called()
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -395,7 +370,7 @@ def test_query_tags_filter_last_check_in_both_same(db_create_host, api_get):
             "tags": _deserialize_tags_dict({"ns2": {"nomatch_key": ["nomatch_value"]}}),
         },
     )
-    last_check_in = str(match_host.last_check_in).replace("+00:00", "Z")
+    last_check_in = match_host.last_check_in.astimezone(UTC).isoformat().replace("+00:00", "Z")
     response_status, response_data = api_get(
         build_tags_url(query=f"?last_check_in_start={last_check_in}&last_check_in_end={last_check_in}")
     )

@@ -541,57 +541,31 @@ def test_query_using_fqdn_as_hostname(mq_create_three_specific_hosts, api_get, s
     assert len(response_data["results"]) == 1
 
 
-def test_query_using_id(mq_create_three_specific_hosts, api_get, subtests):
+@pytest.mark.parametrize(
+    "param_name,value_getter",
+    [
+        ("hostname_or_id", lambda h: h[0].id),
+        ("insights_id", lambda h: h[0].insights_id.upper()),
+        ("subscription_manager_id", lambda h: h[0].subscription_manager_id),
+    ],
+)
+def test_query_using_single_field(mq_create_three_specific_hosts, api_get, subtests, param_name, value_getter):
     created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?hostname_or_id={created_hosts[0].id}")
-
+    url = build_hosts_url(query=f"?{param_name}={value_getter(created_hosts)}")
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=1)
-
     assert response_status == 200
     assert len(response_data["results"]) == 1
 
 
-def test_query_using_non_existent_hostname(api_get, subtests):
-    url = build_hosts_url(query="?hostname_or_id=NotGonnaFindMe")
-
+@pytest.mark.parametrize("value", ["NotGonnaFindMe", lambda: generate_uuid()])
+def test_query_using_non_existent_host(api_get, subtests, value):
+    query_value = value() if callable(value) else value
+    url = build_hosts_url(query=f"?hostname_or_id={query_value}")
     response_status, response_data = api_get(url)
     api_pagination_test(api_get, subtests, url, expected_total=0)
-
     assert response_status == 200
     assert len(response_data["results"]) == 0
-
-
-def test_query_using_non_existent_id(api_get, subtests):
-    url = build_hosts_url(query=f"?hostname_or_id={generate_uuid()}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=0)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
-
-
-def test_query_using_insights_id(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?insights_id={created_hosts[0].insights_id.upper()}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=1)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-
-
-def test_query_using_subscription_manager_id(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    url = build_hosts_url(query=f"?subscription_manager_id={created_hosts[0].subscription_manager_id}")
-
-    response_status, response_data = api_get(url)
-    api_pagination_test(api_get, subtests, url, expected_total=1)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
 
 
 def test_get_host_by_tag(mq_create_three_specific_hosts, api_get, subtests):
@@ -1373,49 +1347,16 @@ def test_query_by_id_culled_hosts(db_create_host, api_get):
 def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
     _now = now()
     registered_with_data = [
+        {"puptoo": _now.isoformat(), "yupana": (_now - timedelta(days=3)).isoformat()},
         {
-            "puptoo": {
-                "last_check_in": _now.isoformat(),
-                "stale_timestamp": (_now + timedelta(days=7)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "yupana": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
+            "puptoo": (_now - timedelta(days=1)).isoformat(),
+            "satellite": (_now - timedelta(days=3)).isoformat(),
         },
         {
-            "puptoo": {
-                "last_check_in": (_now - timedelta(days=1)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "satellite": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
+            "puptoo": (_now - timedelta(days=30)).isoformat(),
+            "discovery": (_now - timedelta(days=3)).isoformat(),
         },
-        {
-            "puptoo": {
-                "last_check_in": (_now - timedelta(days=30)).isoformat(),
-                "stale_timestamp": (_now - timedelta(days=23)).isoformat(),
-                "check_in_succeeded": True,
-            },
-            "discovery": {
-                "last_check_in": (_now - timedelta(days=3)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=4)).isoformat(),
-                "check_in_succeeded": True,
-            },
-        },
-        {
-            "rhsm-conduit": {
-                "last_check_in": (_now - timedelta(days=1)).isoformat(),
-                "stale_timestamp": (_now + timedelta(days=6)).isoformat(),
-                "check_in_succeeded": True,
-            },
-        },
+        {"rhsm-conduit": (_now - timedelta(days=1)).isoformat()},
     ]
     insights_ids = [generate_uuid() for _ in range(len(registered_with_data))]
 
@@ -2742,3 +2683,239 @@ def test_api_hosts_get_system_profile_multiple_values_without_brackets(api_get):
     response_status, response_data = api_get(url)
     assert response_status == 400
     assert "Param filter must be appended with [] to accept multiple values." in response_data["detail"]
+
+
+@pytest.mark.parametrize(
+    "sp_filter_param",
+    (
+        "filter[system_profile][workloads][sap][is]=not_nil&filter[system_profile][workloads][ansible][is]=not_nil",
+        "filter[system_profile][workloads][rhel_ai][is]=nil&filter[system_profile][workloads][ansible][is]=not_nil",
+        "filter[system_profile][workloads][mssql][]=not_nil&filter[system_profile][workloads][sap][]=not_nil",
+    ),
+)
+def test_query_workload_top_level_presence_filters_use_or_logic(db_create_host, api_get, sp_filter_param):
+    """
+    Verifies that filtering by top-level workload types (existence)
+    broadens the results using OR logic.
+    """
+    sap_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {"sap": {"sap_system": True}, "rhel_ai": {"rhel_ai_version_id": "v1.1.3"}}
+                }
+            }
+        ).id
+    )
+    ansible_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {
+                        "ansible": {"controller_version": "1.2"},
+                        "rhel_ai": {"rhel_ai_version_id": "v1.1.3"},
+                    }
+                }
+            }
+        ).id
+    )
+    mssql_host_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "workloads": {"mssql": {"version": "2022"}, "rhel_ai": {"rhel_ai_version_id": "v1.1.3"}}
+                }
+            }
+        ).id
+    )
+
+    no_rhel_host_id = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {}}}).id)
+
+    url = build_hosts_url(query=f"?{sp_filter_param}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    assert len(response_ids) == 2
+
+    if "sap" in sp_filter_param:
+        assert sap_host_id in response_ids
+    if "ansible" in sp_filter_param:
+        assert ansible_host_id in response_ids
+    if "mssql" in sp_filter_param:
+        assert mssql_host_id in response_ids
+    if "rhel_ai" in sp_filter_param:
+        assert no_rhel_host_id in response_ids
+
+
+def test_query_operating_system_and_sap_workload_presence_not_nil(db_create_host, api_get):
+    """OS filter AND SAP workload presence (not_nil) narrow results; both must match."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    match_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    same_os_no_sap = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+    sap_wrong_os = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+        "&filter[system_profile][workloads][sap][is]=not_nil"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {match_id}
+    assert same_os_no_sap not in response_ids
+    assert sap_wrong_os not in response_ids
+
+
+def test_query_workload_presence_or_logic_combined_with_operating_system_filter(db_create_host, api_get):
+    """Top-level workload existence filters use OR among themselves; OS remains AND (narrowing)."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    sap_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    ansible_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"ansible": {"controller_version": "1.2"}},
+                }
+            }
+        ).id
+    )
+    sap_on_rhel77 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    neither_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][is]=not_nil"
+        "&filter[system_profile][workloads][ansible][is]=not_nil"
+        "&filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {sap_on_rhel86, ansible_on_rhel86}
+    assert sap_on_rhel77 not in response_ids
+    assert neither_on_rhel86 not in response_ids
+
+
+def test_query_workload_specific_properties_across_workloads_still_use_and_logic(db_create_host, api_get):
+    """Drill-down filters on different workloads remain AND (Case 2)."""
+    sap_ver = "1.00.122.04.1478575636"
+    mssql_ver = "15.2.0"
+
+    both = {
+        "system_profile_facts": {
+            "workloads": {
+                "sap": {"sap_system": True, "version": sap_ver},
+                "mssql": {"version": mssql_ver},
+            }
+        }
+    }
+    sap_only = {
+        "system_profile_facts": {
+            "workloads": {"sap": {"sap_system": True, "version": sap_ver}},
+        }
+    }
+    mssql_only = {
+        "system_profile_facts": {
+            "workloads": {"mssql": {"version": mssql_ver}},
+        }
+    }
+
+    both_id = str(db_create_host(extra_data=both).id)
+    sap_only_id = str(db_create_host(extra_data=sap_only).id)
+    mssql_only_id = str(db_create_host(extra_data=mssql_only).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][workloads][sap][version]={sap_ver}"
+        f"&filter[system_profile][workloads][mssql][version]={mssql_ver}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert both_id in response_ids
+    assert sap_only_id not in response_ids
+    assert mssql_only_id not in response_ids
+
+
+def test_mixed_workload_property_and_type_no_matches(db_create_host, api_get):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["H2O"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"rhel_ai": {"variant": "RHEL AI"}}}})
+
+    query = "?filter[system_profile][sap_sids][contains][]=H2O&filter[system_profile][rhel_ai][is][]=not_nil"
+
+    url = build_hosts_url(query)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
+def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}})
+
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][sids][contains][]=NONEXISTENT_SID"
+        "&filter[system_profile][workloads][sap][sap_system][]=true"
+        "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
+    )
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []

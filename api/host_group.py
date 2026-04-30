@@ -25,7 +25,7 @@ from lib.group_repository import remove_hosts_from_group
 from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.middleware import access
 from lib.middleware import get_rbac_workspace_by_id
-from lib.middleware import is_rbac_v2_groups_enabled
+from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_group_id_check
 
 logger = get_logger(__name__)
@@ -54,7 +54,7 @@ def get_host_list_by_group(
     """
     Get the list of hosts in a specific group.
 
-    Behind feature flag: hbi.api.kessel-groups
+    Behind feature flag: platform.rbac.workspaces
     - If enabled: Validates group via RBAC v2 workspace API
     - If disabled: Validates group via database
 
@@ -75,11 +75,9 @@ def get_host_list_by_group(
     # Validate group exists
     # Use RBAC v2 workspace validation only when bypass_kessel is False and flag is enabled
     # Otherwise, use database validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace exists
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
-            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+        get_rbac_workspace_by_id(str(group_id))
     else:
         # Database path: Validate group exists (used in tests, when Kessel is bypassed, or when flag is disabled)
         group = get_group_by_id_from_db(str(group_id), identity.org_id)
@@ -141,12 +139,9 @@ def add_host_list_to_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
-        workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
-            log_patch_group_failed(logger, str(group_id))
-            return abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
+        get_rbac_workspace_by_id(str(group_id))
     else:
         # RBAC v1 path: Validate group via database
         group_to_update = get_group_by_id_from_db(str(group_id), identity.org_id)
@@ -183,17 +178,15 @@ def delete_hosts_from_group(group_id: UUID, host_id_list, rbac_filter=None):
     identity = get_current_identity()
 
     # Feature flag check for RBAC v2 workspace validation
-    if is_rbac_v2_groups_enabled(identity.org_id):
+    if is_rbac_v2_enabled(identity.org_id):
         # RBAC v2 path: Validate workspace via RBAC v2 API
         workspace = get_rbac_workspace_by_id(str(group_id))
-        if workspace is None:
-            abort(HTTPStatus.NOT_FOUND, f"Group {group_id} not found")
 
         # Check if workspace is ungrouped type
         # The "ungrouped-hosts" workspace is special: hosts not in any group must belong to it.
         # Hosts cannot be explicitly removed from ungrouped-hosts (blocked at workspace level).
         # They are implicitly removed when added to another group via POST.
-        if workspace.get("type") == "ungrouped-hosts":  # type: ignore[union-attr]
+        if workspace.get("type") == "ungrouped-hosts":
             abort(HTTPStatus.BAD_REQUEST, f"Cannot remove hosts from ungrouped workspace {group_id}")
     else:
         # RBAC v1 path: Validate group via database

@@ -27,9 +27,37 @@ default:
         path: api/inventory/v1
         generator_version: 7.6.0
     v7_ingress_v1:
+      type: rest
       config:
         module_name: iqe_bindings.v7.ingress_v1
         path: api/ingress/v1
+    v7_notifications_v1:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.notifications_v1
+        path: api/notifications/v1.0
+    v7_integrations_v1:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.integrations_v1
+        path: api/integrations/v1.0
+    v7_rbac_v1:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.rbac_v1
+        path: api/rbac/v1
+    v7_rbac_v2:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.rbac_v2
+        path: api/rbac/v2
+  email_account:
+    insights-qe:
+      username: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: username}
+      password: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: password}
+      credentials: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: credentials}
+      token: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: token}
+
   metadata:
     default_fields:
       component: host_inventory
@@ -92,6 +120,56 @@ prod:
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
+          vault_key: org_id
+    insights_inventory_test: # Account for testing RBAC v1
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_2: # Account for testing RBAC v1
+      auth:
+        username:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: username
+        password:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: password
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: refresh_token
+      cert_auth:
+        cert:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: cert
+        key:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: key
+      identity:
+        account_number:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: account_number
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test_2
           vault_key: org_id
     inventory_service_account:
       auth:
@@ -347,7 +425,7 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: org_id
-    insights_inventory_test:  # Temp account simulating insights_inventory_qe
+    insights_inventory_test:  # Account for testing RBAC v1
       auth:
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_test
@@ -372,7 +450,7 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: org_id
-    insights_inventory_test_2:  # Temp account simulating insights_inventory_qe_2
+    insights_inventory_test_2:  # Account for testing RBAC v1
       auth:
         username:
           vault_path: secrets/qe/stage/users/insights_inventory_test_2
@@ -511,6 +589,16 @@ smoke:
         hostname: ingress-service
         scheme: http
         port: 8080
+    v7_rbac_v1:
+      config:
+        hostname: rbac-service
+        scheme: http
+        port: 8080
+    v7_rbac_v2:
+      config:
+        hostname: rbac-service
+        scheme: http
+        port: 8080
   db:
     hostname: "inventory-db"
     database: "insights"
@@ -646,6 +734,16 @@ clowder_smoke:
         hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
+    v7_rbac_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_rbac_v2:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
@@ -682,6 +780,16 @@ stage_post_deploy:
         hostname: "@jinja {{ env_parser.get_hostname('ingress', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('ingress', 'service') }}"
+    v7_rbac_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_rbac_v2:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"

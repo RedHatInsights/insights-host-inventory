@@ -78,16 +78,6 @@ objects:
   metadata:
     labels:
       app: host-inventory
-    name: backfill-per-reporter-culled-timestamps-${BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - backfill-per-reporter-culled-timestamps
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
     name: populate-host-type-${POPULATE_HOST_TYPE_RUN_NUMBER}
   spec:
     appName: host-inventory
@@ -103,16 +93,6 @@ objects:
     appName: host-inventory
     jobs:
       - remove-null-values-in-workloads-fields-data
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    labels:
-      app: host-inventory
-    name: flatten-per-reporter-staleness-${FLATTEN_PER_REPORTER_STALENESS_RUN_NUMBER}
-  spec:
-    appName: host-inventory
-    jobs:
-      - flatten-per-reporter-staleness
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -128,11 +108,7 @@ parameters:
   value: '1'
 - name: ASSIGN_UNGROUPED_HOSTS_RUN_NUMBER
   value: '1'
-- name: BACKFILL_PER_REPORTER_CULLED_TIMESTAMPS_RUN_NUMBER
-  value: '1'
 - name: POPULATE_HOST_TYPE_RUN_NUMBER
   value: '1'
 - name: REMOVE_NULL_VALUES_IN_WORKLOADS_FIELDS_DATA_RUN_NUMBER
-  value: '1'
-- name: FLATTEN_PER_REPORTER_STALENESS_RUN_NUMBER
   value: '1'

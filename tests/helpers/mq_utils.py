@@ -67,6 +67,9 @@ class FakeMessage:
     def error(self):
         return self._error
 
+    def topic(self):
+        return "platform.inventory.host-ingress"
+
     def partition(self):
         return 0
 
@@ -446,7 +449,7 @@ def assert_patch_event_is_valid(
             "stale_warning_timestamp": stale_warning_timestamp,
             "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(UTC).isoformat(),
-            "last_check_in": host.last_check_in.isoformat(),
+            "last_check_in": host.last_check_in.astimezone(UTC).isoformat(),
             "provider_id": host.provider_id,
             "provider_type": host.provider_type,
             "openshift_cluster_id": host.openshift_cluster_id,
