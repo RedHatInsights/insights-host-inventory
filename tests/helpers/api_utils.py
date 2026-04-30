@@ -5,6 +5,7 @@ import math
 import types
 from base64 import b64encode
 from collections.abc import Callable
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from enum import StrEnum
@@ -675,8 +676,8 @@ def assert_group_response(response, expected_group, expected_host_count):
     assert response["org_id"] == expected_group.org_id
     assert response["account"] == expected_group.account
     assert response["name"] == expected_group.name
-    assert response["created"] == expected_group.created_on.isoformat()
-    assert response["updated"] == expected_group.modified_on.isoformat()
+    assert response["created"] == expected_group.created_on.astimezone(UTC).isoformat()
+    assert response["updated"] == expected_group.modified_on.astimezone(UTC).isoformat()
     assert response["host_count"] == expected_host_count
 
 
