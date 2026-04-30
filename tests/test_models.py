@@ -1,5 +1,6 @@
 import uuid
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
@@ -1573,7 +1574,7 @@ def test_add_dynamic_profile(db_create_host):
         # We return datetime objects from the database,
         # so we need to convert them to strings for comparison
         if isinstance(getattr(retrieved, key), datetime):
-            assert getattr(retrieved, key).isoformat() == value
+            assert getattr(retrieved, key).astimezone(UTC).isoformat() == value
         else:
             assert getattr(retrieved, key) == value
 

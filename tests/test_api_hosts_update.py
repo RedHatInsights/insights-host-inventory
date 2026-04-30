@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import UTC
 from datetime import datetime
 from threading import Thread
 from unittest.mock import MagicMock
@@ -621,5 +622,5 @@ def test_patch_updated_timestamp(event_producer, db_create_host, db_get_host, ap
     b64_identity = json.loads(event_producer.write_event.call_args_list[0][0][0])["platform_metadata"]["b64_identity"]
     identity = from_auth_header(b64_identity)
 
-    assert updated_timestamp_from_event == record.modified_on.isoformat()
+    assert updated_timestamp_from_event == record.modified_on.astimezone(UTC).isoformat()
     assert identity._asdict() == USER_IDENTITY
