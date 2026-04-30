@@ -59,7 +59,7 @@ class Group(db.Model):
             self.account = input_group.account
 
     def patch(self, patch_data):
-        logger.debug(f"patching group (id={self.id}) with data: {patch_data}")
+        logger.info(f"patching group (id={self.id}) with data: {patch_data}")
         if self.ungrouped is True:
             raise InventoryException(title="Bad Request", detail="The 'ungrouped' group can not be modified.")
         if not patch_data:
