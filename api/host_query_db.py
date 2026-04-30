@@ -226,7 +226,7 @@ def get_host_list_by_id_list(
     fields=None,
     rbac_filter=None,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
-    all_filters = host_id_list_filter(host_id_list)
+    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
     all_filters += rbac_permissions_filter(rbac_filter)
 
     items, total, additional_fields, system_profile_fields = _get_host_list_using_filters(
@@ -438,7 +438,7 @@ def get_host_tags_list_by_id_list(
 ) -> tuple[dict, int]:
     columns = [Host.id, Host.tags]
     query = _find_hosts_entities_query(columns=columns)
-    all_filters = host_id_list_filter(host_id_list)
+    all_filters = host_id_list_filter(host_id_list, get_current_identity().org_id)
     all_filters += rbac_permissions_filter(rbac_filter)
     order = params_to_order_by(order_by, order_how)
     query_results = query.filter(*all_filters).order_by(*order).offset(offset).limit(limit).all()
@@ -802,7 +802,7 @@ def get_sparse_system_profile(
 
     columns = [Host.id] + sp_columns
 
-    all_filters = host_id_list_filter(host_id_list) + rbac_permissions_filter(rbac_filter)
+    all_filters = host_id_list_filter(host_id_list, identity.org_id) + rbac_permissions_filter(rbac_filter)
 
     query_base = (
         db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group).filter(Host.org_id == identity.org_id)

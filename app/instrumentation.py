@@ -233,7 +233,9 @@ def log_add_host_attempt(logger, input_host, sp_fields_to_log, identity: Identit
                 "provider_id": input_host.provider_id,
                 "provider_type": input_host.provider_type,
                 "reporter": input_host.reporter,
-                "stale_timestamp": input_host.stale_timestamp.isoformat(),
+                "stale_timestamp": (
+                    input_host.stale_timestamp.isoformat() if input_host.stale_timestamp is not None else None
+                ),
                 "tags": json.dumps(input_host.tags),
                 "system_profile": json.dumps(sp_fields_to_log),
             },

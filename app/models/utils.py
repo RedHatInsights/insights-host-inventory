@@ -1,6 +1,7 @@
 from datetime import UTC
 from datetime import datetime
 
+from sqlalchemy import orm
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm.base import instance_state
 
@@ -85,6 +86,17 @@ def _create_staleness_timestamps_values(host, org_id):
     staleness = get_staleness_obj(org_id)
     staleness_ts = Timestamps.from_config(inventory_config())
     return get_staleness_timestamps(host, staleness_ts, staleness)
+
+
+def apply_computed_staleness_timestamps_to_host(host) -> None:
+    """Persist staleness columns from config + host facts (org staleness rebaseline only)."""
+    staleness_timestamps = _create_staleness_timestamps_values(host, host.org_id)
+    host.stale_timestamp = staleness_timestamps["stale_timestamp"]
+    host.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
+    host.deletion_timestamp = staleness_timestamps["culled_timestamp"]
+    orm.attributes.flag_modified(host, "stale_timestamp")
+    orm.attributes.flag_modified(host, "stale_warning_timestamp")
+    orm.attributes.flag_modified(host, "deletion_timestamp")
 
 
 def deleted_by_this_query(model):

@@ -25,7 +25,6 @@ from app.models import HostAppDataVulnerability
 from app.models import HostSchema
 from app.models import InputGroupSchema
 from app.models import LimitedHost
-from app.models import _create_staleness_timestamps_values
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -455,6 +454,11 @@ def test_host_stale_timestamp_nullable_update_to_null(db_create_host):
         org_id=USER_IDENTITY["org_id"],
     )
     db_create_host(host=host)
+    assert host.stale_timestamp is None
+
+    host.stale_timestamp = now()
+    db.session.commit()
+    db.session.refresh(host)
     assert host.stale_timestamp is not None
 
     host.stale_timestamp = None
@@ -498,7 +502,6 @@ def test_host_model_timestamp_timezones(db_create_host):
 
     assert host.created_on.tzinfo
     assert host.modified_on.tzinfo
-    assert host.stale_timestamp.tzinfo
 
 
 @pytest.mark.parametrize(
@@ -1246,12 +1249,11 @@ def test_create_host_validate_staleness(db_create_host, db_get_host):
     }
 
     created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
-    staleness_timestamps = _create_staleness_timestamps_values(created_host, created_host.org_id)
     retrieved_host = db_get_host(created_host.id)
 
-    assert retrieved_host.stale_timestamp == staleness_timestamps["stale_timestamp"]
-    assert retrieved_host.stale_warning_timestamp == staleness_timestamps["stale_warning_timestamp"]
-    assert retrieved_host.deletion_timestamp == staleness_timestamps["culled_timestamp"]
+    assert retrieved_host.stale_timestamp is None
+    assert retrieved_host.stale_warning_timestamp is None
+    assert retrieved_host.deletion_timestamp is None
     assert retrieved_host.reporter == host_data["reporter"]
 
 
