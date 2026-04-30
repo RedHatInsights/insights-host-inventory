@@ -1,6 +1,7 @@
 import pytest
 from requests import exceptions
 
+import lib.middleware
 from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
@@ -198,7 +199,6 @@ def test_get_rbac_oauth_client_singleton(mocker):
     mock_oauth2_class = mocker.patch("lib.middleware.OAuth2ClientCredentials", return_value=mock_oauth_client)
 
     # Reset global singleton for test
-    import lib.middleware
 
     lib.middleware._rbac_oauth_client = None
 
@@ -237,7 +237,6 @@ def test_get_rbac_oauth_client_initialization(mocker):
     mock_oauth2_class = mocker.patch("lib.middleware.OAuth2ClientCredentials")
 
     # Reset global singleton
-    import lib.middleware
 
     lib.middleware._rbac_oauth_client = None
 
@@ -260,15 +259,12 @@ def test_get_rbac_access_token_success(mocker):
     """
     # Mock OAuth2 client
     mock_oauth_client = mocker.Mock()
-    mock_oauth_client.get_token.return_value = {
-        "access_token": "test_token_12345",
-        "expires_in": 3600,
-        "token_type": "Bearer",
-    }
+    mock_token_response = mocker.Mock()
+    mock_token_response.access_token = "test_token_12345"
+    mock_oauth_client.get_token.return_value = mock_token_response
     mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
 
     # Call function
-    import lib.middleware
 
     token = lib.middleware._get_rbac_access_token()
 
@@ -289,13 +285,12 @@ def test_get_rbac_access_token_failure(mocker):
     mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
 
     # Call function and expect exception
-    import lib.middleware
 
     with pytest.raises(Exception, match="Token fetch failed"):
         lib.middleware._get_rbac_access_token()
 
 
-def test_build_rbac_request_headers_with_service_account(mocker, flask_client):
+def test_build_rbac_request_headers_with_service_account(mocker, flask_app):
     """
     Test that Authorization header is added when use_service_account=True.
 
@@ -305,14 +300,12 @@ def test_build_rbac_request_headers_with_service_account(mocker, flask_client):
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token_12345")
 
     # Create a test request context
-    with flask_client.application.test_request_context(
+    with flask_app.app.test_request_context(
         headers={
             "x-rh-identity": "test_identity_header",
             "x-rh-insights-request-id": "test_request_id",
         }
     ):
-        import lib.middleware
-
         headers = lib.middleware._build_rbac_request_headers(use_service_account=True)
 
         # Verify headers
@@ -321,21 +314,19 @@ def test_build_rbac_request_headers_with_service_account(mocker, flask_client):
         assert headers["Authorization"] == "Bearer mock_access_token_12345"
 
 
-def test_build_rbac_request_headers_without_service_account(flask_client):
+def test_build_rbac_request_headers_without_service_account(flask_app):
     """
     Test that Authorization header is NOT added when use_service_account=False.
 
     JIRA: RHINENG-25611
     """
     # Create a test request context
-    with flask_client.application.test_request_context(
+    with flask_app.app.test_request_context(
         headers={
             "x-rh-identity": "test_identity_header",
             "x-rh-insights-request-id": "test_request_id",
         }
     ):
-        import lib.middleware
-
         headers = lib.middleware._build_rbac_request_headers(use_service_account=False)
 
         # Verify headers
@@ -344,7 +335,7 @@ def test_build_rbac_request_headers_without_service_account(flask_client):
         assert "Authorization" not in headers
 
 
-def test_build_rbac_request_headers_custom_identity(mocker, flask_client):
+def test_build_rbac_request_headers_custom_identity(mocker, flask_app):
     """
     Test that custom identity header can be provided.
 
@@ -354,14 +345,12 @@ def test_build_rbac_request_headers_custom_identity(mocker, flask_client):
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
 
     # Create a test request context
-    with flask_client.application.test_request_context(
+    with flask_app.app.test_request_context(
         headers={
             "x-rh-identity": "default_identity",
             "x-rh-insights-request-id": "default_request_id",
         }
     ):
-        import lib.middleware
-
         headers = lib.middleware._build_rbac_request_headers(
             identity_header="custom_identity",
             request_id_header="custom_request_id",
@@ -374,7 +363,7 @@ def test_build_rbac_request_headers_custom_identity(mocker, flask_client):
         assert headers["Authorization"] == "Bearer mock_token"
 
 
-def test_rbac_create_ungrouped_workspace_uses_service_account(mocker, flask_client):
+def test_rbac_create_ungrouped_workspace_uses_service_account(mocker, flask_app):  # noqa: ARG001
     """
     Test that ungrouped workspace creation uses service account instead of PSK.
 
@@ -390,29 +379,20 @@ def test_rbac_create_ungrouped_workspace_uses_service_account(mocker, flask_clie
     # Mock config
     mock_config = mocker.Mock()
     mock_config.bypass_kessel = False
+    mock_config.rbac_endpoint = "http://rbac-service:8080"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
 
-    # Create test identity
-    from app.auth.identity import Identity
+    # Create test identity with org_id
+    test_identity = mocker.Mock()
+    test_identity.org_id = "test-org-123"
 
-    test_identity = Identity(org_id="test-org-123")
+    workspace_id = lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
 
-    # Create request context with identity header
-    with flask_client.application.test_request_context(
-        headers={
-            "x-rh-identity": "test_identity_b64",
-            "x-rh-insights-request-id": "test_request_id",
-        }
-    ):
-        import lib.middleware
-
-        workspace_id = lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
-
-        # Verify workspace ID is returned
-        assert workspace_id == "workspace-uuid-12345"
+    # Verify workspace ID is returned
+    assert workspace_id == "workspace-uuid-12345"
 
 
-def test_rbac_create_ungrouped_workspace_no_psk_header(mocker, flask_client):
+def test_rbac_create_ungrouped_workspace_no_psk_header(mocker, flask_app):  # noqa: ARG001
     """
     Test that PSK header is NOT present in ungrouped workspace creation.
 
@@ -428,35 +408,26 @@ def test_rbac_create_ungrouped_workspace_no_psk_header(mocker, flask_client):
     # Mock config
     mock_config = mocker.Mock()
     mock_config.bypass_kessel = False
+    mock_config.rbac_endpoint = "http://rbac-service:8080"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
 
-    # Create test identity
-    from app.auth.identity import Identity
+    # Create test identity with org_id
+    test_identity = mocker.Mock()
+    test_identity.org_id = "test-org-123"
 
-    test_identity = Identity(org_id="test-org-123")
+    lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
 
-    # Create request context
-    with flask_client.application.test_request_context(
-        headers={
-            "x-rh-identity": "test_identity_b64",
-            "x-rh-insights-request-id": "test_request_id",
-        }
-    ):
-        import lib.middleware
+    # Get the headers that were passed to the RBAC request
+    call_args = mock_rbac_request.call_args
+    headers_used = call_args[0][1]  # Second argument is request_headers
 
-        lib.middleware.rbac_create_ungrouped_hosts_workspace(test_identity)
+    # Verify PSK header is NOT present
+    assert "X-RH-RBAC-PSK" not in headers_used
 
-        # Get the headers that were passed to the RBAC request
-        call_args = mock_rbac_request.call_args
-        headers_used = call_args[0][1]  # Second argument is request_headers
+    # Verify service account header IS present
+    assert "Authorization" in headers_used
+    assert headers_used["Authorization"] == "Bearer mock_token"
 
-        # Verify PSK header is NOT present
-        assert "X-RH-RBAC-PSK" not in headers_used
-
-        # Verify service account header IS present
-        assert "Authorization" in headers_used
-        assert headers_used["Authorization"] == "Bearer mock_token"
-
-        # Verify other required headers are present
-        assert headers_used["X-RH-RBAC-ORG-ID"] == "test-org-123"
-        assert headers_used["X-RH-RBAC-CLIENT-ID"] == "inventory"
+    # Verify other required headers are present
+    assert headers_used["X-RH-RBAC-ORG-ID"] == "test-org-123"
+    assert headers_used["X-RH-RBAC-CLIENT-ID"] == "inventory"

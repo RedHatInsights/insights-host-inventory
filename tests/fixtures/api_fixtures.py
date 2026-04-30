@@ -244,8 +244,9 @@ def api_remove_hosts_from_diff_groups(flask_client):
 
 
 @pytest.fixture(scope="function")
-def enable_rbac(inventory_config):
+def enable_rbac(inventory_config, mocker):
     inventory_config.bypass_rbac = False
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 
 
 @pytest.fixture(scope="function")

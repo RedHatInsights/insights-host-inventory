@@ -307,7 +307,7 @@ def test_handle_message_happy_path(
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock, db_create_group):
     from uuid import UUID
 
-    mock_psk = "1234567890"
+    mock_access_token = "mock_sa_token_12345"
     workspace_uuid = generate_uuid()
     get_rbac_mock = mocker.patch(
         "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
@@ -315,11 +315,11 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     mocker.patch(
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
-            rbac_psk=mock_psk,
             bypass_kessel=False,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
 
     # Simulate the MQ consumer creating the group in the DB while we wait.
     def wait_and_create(workspace_id_str, *args, **kwargs):
@@ -335,9 +335,9 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     assert result.event_type == EventType.created
     assert "/_private/_s2s/workspaces/ungrouped/" in get_rbac_mock.call_args_list[0][0][0]
     assert get_rbac_mock.call_args_list[0][0][1] == {
+        "Authorization": f"Bearer {mock_access_token}",
         "X-RH-RBAC-CLIENT-ID": "inventory",
         "X-RH-RBAC-ORG-ID": "test",
-        "X-RH-RBAC-PSK": mock_psk,
     }
     wait_mock.assert_called_once_with(
         str(workspace_uuid),
@@ -360,11 +360,11 @@ def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consume
     mocker.patch(
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
-            rbac_psk="psk",
             bypass_kessel=False,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
     mocker.patch(
         "lib.group_repository.wait_for_workspace_event",
         side_effect=TimeoutError("No workspace creation message consumed in time."),
