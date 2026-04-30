@@ -3,14 +3,18 @@ from collections.abc import Callable
 from collections.abc import Generator
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
 from pytest_mock import MockFixture
 
 from app.config import Config
+from app.models import Host
 from app.models import db
+from app.models.utils import apply_computed_staleness_timestamps_to_host
 from app.queue.event_producer import EventProducer
 from app.queue.export_service_mq import ExportServiceConsumer
 from app.queue.host_mq import HostAppMessageConsumer
@@ -160,6 +164,19 @@ def mq_create_deleted_hosts(mq_create_or_update_host):
                 facts=FACTS,
             )
             created_hosts[state] = mq_create_or_update_host(host)
+
+        for state, hw in created_hosts.items():
+            orm_host = Host.query.filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).first()
+            if orm_host is None:
+                continue
+            if state == "culled":
+                past = datetime.now(UTC) - timedelta(days=400)
+                orm_host.stale_timestamp = past - timedelta(days=7)
+                orm_host.stale_warning_timestamp = past - timedelta(days=1)
+                orm_host.deletion_timestamp = past
+            else:
+                apply_computed_staleness_timestamps_to_host(orm_host)
+        db.session.commit()
 
         return created_hosts
 

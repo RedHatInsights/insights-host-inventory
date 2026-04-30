@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.orm import Query
 
+from api.filtering.db_filters import _staleness_filter
 from api.host_query import staleness_timestamps
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -23,6 +24,7 @@ from app.staleness_serialization import AttrDict
 from app.staleness_serialization import build_staleness_sys_default
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
+from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
@@ -74,8 +76,15 @@ def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
     )
 
 
+def _assert_host_row_staleness_columns_null(host: Host) -> None:
+    """Check-in paths no longer persist staleness columns; fresh rows should have NULLs."""
+    assert host.stale_timestamp is None
+    assert host.stale_warning_timestamp is None
+    assert host.deletion_timestamp is None
+
+
 def _assert_host_level_staleness_matches(host: Host, st_obj: Timestamps, staleness: AttrDict) -> None:
-    """Host row timestamps must match ``get_staleness_timestamps`` for its ``last_check_in`` and config."""
+    """Host row timestamps must match ``get_staleness_timestamps`` (e.g. after org staleness async persistence)."""
     expected = get_staleness_timestamps(host, st_obj, staleness)
     assert _utc(host.stale_timestamp) == _utc(expected["stale_timestamp"])
     assert _utc(host.stale_warning_timestamp) == _utc(expected["stale_warning_timestamp"])
@@ -144,11 +153,7 @@ def test_async_update_host_create_custom_staleness(
                 assert isinstance(v, str)
                 assert v == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_before_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
-            )
+            _assert_host_row_staleness_columns_null(hosts_before_update[0])
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
 
             staleness_url = build_staleness_url()
@@ -209,11 +214,7 @@ def test_async_update_host_delete_custom_staleness(
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_before_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
-            )
+            _assert_host_row_staleness_columns_null(hosts_before_update[0])
             stale_before = hosts_before_update[0].stale_timestamp
 
             status, _ = api_delete_staleness()
@@ -271,11 +272,7 @@ def test_async_update_host_update_custom_staleness(
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_before_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
-            )
+            _assert_host_row_staleness_columns_null(hosts_before_update[0])
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
 
             staleness_url = build_staleness_url()
@@ -330,11 +327,7 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_before_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
-            )
+            _assert_host_row_staleness_columns_null(hosts_before_update[0])
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
             modified_on_before = hosts_before_update[0].modified_on
 
@@ -737,3 +730,46 @@ def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
         yupana = result["yupana"]
         assert yupana["last_check_in"] == "2024-06-16T12:00:00+00:00"
         assert "stale_timestamp" in yupana and "culled_timestamp" in yupana
+
+
+def test_staleness_db_filter_fresh_uses_org_defaults_when_columns_null(db_create_host):
+    """``_staleness_filter``: NULL staleness columns + recent check-in counts as fresh."""
+    host = db_create_host()
+    expr = _staleness_filter(["fresh"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+
+def test_staleness_db_filter_not_fresh_when_columns_null_and_last_check_in_old(db_create_host):
+    host = db_create_host()
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=40)
+    db.session.commit()
+
+    expr = _staleness_filter(["fresh"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 0
+
+
+def test_staleness_db_filter_stale_mid_window_when_columns_null(db_create_host):
+    host = db_create_host()
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=3)
+    db.session.commit()
+
+    expr = _staleness_filter(["stale"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+
+def test_staleness_db_filter_culled_when_columns_null_and_last_check_in_old(db_create_host):
+    host = db_create_host()
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=40)
+    db.session.commit()
+
+    expr = _staleness_filter(["culled"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+
+def test_find_non_culled_excludes_compute_on_read_culled(db_create_host):
+    host = db_create_host()
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=40)
+    db.session.commit()
+
+    base = Host.query.filter(Host.id == host.id)
+    assert find_non_culled_hosts(base, host.org_id).count() == 0
