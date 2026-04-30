@@ -9,24 +9,35 @@ from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_rbac import ApplicationRBAC
-from iqe_rbac_api import ApiException as RBACApiException
-from iqe_rbac_api import GroupOut as RBACGroupOut
-from iqe_rbac_api import GroupWithPrincipalsAndRoles
-from iqe_rbac_api import RoleWithAccess
-from iqe_rbac_v2_api import ApiException as RBACV2ApiException
-from iqe_rbac_v2_api import ResourceType
-from iqe_rbac_v2_api import Role as RBACV2Role
-from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsRequest
-from iqe_rbac_v2_api import RoleBindingsBatchCreateRoleBindingsResponse
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequest
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestResource
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestRole
-from iqe_rbac_v2_api import RoleBindingsCreateRoleBindingsRequestSubject
-from iqe_rbac_v2_api import RoleBindingsSubjectType
-from iqe_rbac_v2_api import RoleBindingsUpdateRoleBindingsRequest
-from iqe_rbac_v2_api import RolesBatchDeleteRolesRequest
-from iqe_rbac_v2_api import RolesCreateOrUpdateRoleRequest
+from iqe_bindings.v7.rbac_v1 import Access
+from iqe_bindings.v7.rbac_v1 import ApiException as RBACApiException
+from iqe_bindings.v7.rbac_v1 import Group as RBACGroup
+from iqe_bindings.v7.rbac_v1 import GroupOut as RBACGroupOut
+from iqe_bindings.v7.rbac_v1 import GroupPrincipalIn
+from iqe_bindings.v7.rbac_v1 import GroupPrincipalInPrincipalsInner
+from iqe_bindings.v7.rbac_v1 import GroupRoleIn
+from iqe_bindings.v7.rbac_v1 import GroupWithPrincipalsAndRoles
+from iqe_bindings.v7.rbac_v1 import PrincipalIn
+from iqe_bindings.v7.rbac_v1 import ResourceDefinition
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilter
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilterOperationEqual
+from iqe_bindings.v7.rbac_v1 import ResourceDefinitionFilterOperationIn
+from iqe_bindings.v7.rbac_v1 import RoleIn
+from iqe_bindings.v7.rbac_v1 import RoleOutDynamic
+from iqe_bindings.v7.rbac_v1 import RoleWithAccess
+from iqe_bindings.v7.rbac_v2 import ApiException as RBACV2ApiException
+from iqe_bindings.v7.rbac_v2 import ResourceType
+from iqe_bindings.v7.rbac_v2 import Role as RBACV2Role
+from iqe_bindings.v7.rbac_v2 import RoleBindingsBatchCreateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RoleBindingsBatchCreateRoleBindingsResponse
+from iqe_bindings.v7.rbac_v2 import RoleBindingsBindingSubjectType
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestResource
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestRole
+from iqe_bindings.v7.rbac_v2 import RoleBindingsCreateRoleBindingsRequestSubject
+from iqe_bindings.v7.rbac_v2 import RoleBindingsUpdateRoleBindingsRequest
+from iqe_bindings.v7.rbac_v2 import RolesBatchDeleteRolesRequest
+from iqe_bindings.v7.rbac_v2 import RolesCreateOrUpdateRoleRequest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
@@ -36,6 +47,7 @@ from iqe_host_inventory.schemas import RBACRestClientV2
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
 from iqe_host_inventory.utils.rbac_utils import RBACRoles
+from iqe_host_inventory.utils.rbac_utils import get_role_id
 from iqe_host_inventory.utils.rbac_utils import permission_to_v2
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
@@ -64,18 +76,14 @@ class RBACAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def _rbac(self) -> ApplicationRBAC:
-        return self.application.rbac
-
-    @cached_property
     def raw_api(self) -> RBACRestClient:
-        return self._rbac.rest_client
+        return self._host_inventory.v7_rbac_v1
 
     @cached_property
     def raw_api_v2(self) -> RBACRestClientV2:
         if not self._host_inventory.unleash.is_rbac_workspaces_enabled:
             raise RuntimeError("RBAC v2 can be used only on v2 enabled accounts")
-        return self._rbac.rbac_v2_api
+        return self._host_inventory.v7_rbac_v2
 
     def create_group(
         self,
@@ -95,12 +103,13 @@ class RBACAPIWrapper(BaseEntity):
             else description
         )
 
-        return self.raw_api.group_api.create_group({"name": name, "description": description})
+        return self.raw_api.group_api.create_group(RBACGroup(name=name, description=description))
 
     def add_user_to_a_group(self, username: str, group_uuid: str) -> GroupWithPrincipalsAndRoles:
-        return self.raw_api.group_api.add_principal_to_group(
-            group_uuid, {"principals": [{"username": username}]}
+        body = GroupPrincipalIn(
+            principals=[GroupPrincipalInPrincipalsInner(PrincipalIn(username=username))]
         )
+        return self.raw_api.group_api.add_principal_to_group(group_uuid, body)
 
     def remove_user_from_group(self, username: str, group_uuid: str) -> None:
         try:
@@ -130,8 +139,6 @@ class RBACAPIWrapper(BaseEntity):
     ) -> RoleWithAccess:
         hbi_group_ids = _hbi_groups_to_ids(hbi_groups)
         permission_v = permission.value
-        application = permission_v.split(":")[0]
-
         name = f"iqe-hbi-role_{generate_uuid()}" if name is None else name
         description = (
             f"Inventory role for {permission_v} permission tests with groups: {hbi_group_ids}"
@@ -140,20 +147,29 @@ class RBACAPIWrapper(BaseEntity):
         )
 
         if hbi_group_ids:
-            definitions = [
-                {"attributeFilter": {"key": key, "value": hbi_group_ids, "operation": operation}}
-            ]
+            if operation == "in":
+                attr_filter = ResourceDefinitionFilter(
+                    ResourceDefinitionFilterOperationIn(
+                        key=key, operation=operation, value=hbi_group_ids
+                    )
+                )
+            else:
+                attr_filter = ResourceDefinitionFilter(
+                    ResourceDefinitionFilterOperationEqual(
+                        key=key, operation=operation, value=hbi_group_ids
+                    )
+                )
+            resource_defs = [ResourceDefinition(attribute_filter=attr_filter)]
         else:
-            definitions = []
+            resource_defs = []
 
-        permissions = [{"permission": permission_v, "resourceDefinitions": definitions}]
+        access = [Access(permission=permission_v, resource_definitions=resource_defs)]
 
-        return self.raw_api.role_api.create_role({
-            "name": name,
-            "description": description,
-            "access": permissions,
-            "applications": [application],
-        })
+        application = permission_v.split(":")[0]
+        role_in = RoleIn(name=name, description=description, access=access)
+        role_in.additional_properties = {"applications": [application]}
+
+        return self.raw_api.role_api.create_role(role_in)
 
     def create_role_v2(
         self,
@@ -176,9 +192,11 @@ class RBACAPIWrapper(BaseEntity):
             )
         )
 
-    def add_roles_to_a_group(self, roles: list[RoleWithAccess], group_uuid: str) -> None:
-        role_uuids = [role.uuid for role in roles]
-        self.raw_api.group_api.add_role_to_group(group_uuid, {"roles": role_uuids})
+    def add_roles_to_a_group(
+        self, roles: list[RoleWithAccess | RoleOutDynamic], group_uuid: str
+    ) -> None:
+        role_ids = [get_role_id(role) for role in roles]
+        self.raw_api.group_api.add_role_to_group(group_uuid, GroupRoleIn(roles=role_ids))
 
     def create_role_bindings(
         self,
@@ -195,7 +213,7 @@ class RBACAPIWrapper(BaseEntity):
                             id=workspace_id, type="workspace"
                         ),
                         subject=RoleBindingsCreateRoleBindingsRequestSubject(
-                            id=group_uuid, type=RoleBindingsSubjectType.GROUP
+                            id=group_uuid, type=RoleBindingsBindingSubjectType.GROUP
                         ),
                         role=RoleBindingsCreateRoleBindingsRequestRole(id=role_id),
                     )
@@ -234,7 +252,7 @@ class RBACAPIWrapper(BaseEntity):
         bindings for each (resource, subject) combination.
         """
         get_response = self.raw_api_v2.role_bindings_api.role_bindings_list(
-            subject_type=RoleBindingsSubjectType.GROUP,
+            subject_type=RoleBindingsBindingSubjectType.GROUP,
             subject_id=group_uuid,
             limit=10000,
         )
@@ -251,7 +269,7 @@ class RBACAPIWrapper(BaseEntity):
                         ResourceType(resource.type) if resource.type else ResourceType.WORKSPACE
                     ),
                     subject_id=group_uuid,
-                    subject_type=RoleBindingsSubjectType.GROUP,
+                    subject_type=RoleBindingsBindingSubjectType.GROUP,
                     role_bindings_update_role_bindings_request=empty_request,
                 )
             )
@@ -308,8 +326,8 @@ class RBACAPIWrapper(BaseEntity):
                     for ws_id in _hbi_groups_to_ids(hbi_groups)
                 ]
             else:
-                workspace_ids = [self._host_inventory.apis.workspaces.root_workspace.id]
-            role_ids = [role.id for role in roles]
+                workspace_ids = [self._host_inventory.apis.workspaces.default_workspace.id]
+            role_ids = [get_role_id(role) for role in roles]
             self.create_role_bindings(role_ids, group.uuid, workspace_ids)
         else:
             roles = [self.create_role_v1(perm, hbi_groups=hbi_groups) for perm in permissions]
@@ -319,10 +337,10 @@ class RBACAPIWrapper(BaseEntity):
 
         return group, roles
 
-    def get_role_by_name(self, name: str) -> RoleWithAccess:
+    def get_role_by_name(self, name: str) -> RoleOutDynamic:
         return self.raw_api.role_api.list_roles(name=name).data[0]
 
-    def get_rbac_admin_role(self) -> RoleWithAccess:
+    def get_rbac_admin_role(self) -> RoleOutDynamic:
         return self.get_role_by_name("User Access Administrator")
 
     def get_group_by_name(self, name: str) -> RBACGroupOut:

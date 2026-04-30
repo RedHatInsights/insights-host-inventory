@@ -10,21 +10,20 @@ from functools import cached_property
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_rbac import ApplicationRBAC
-from iqe_rbac_v2_api import ApiException
-from iqe_rbac_v2_api import WorkspacesApi
-from iqe_rbac_v2_api import WorkspacesCreateWorkspaceRequest
-from iqe_rbac_v2_api import WorkspacesCreateWorkspaceResponse
-from iqe_rbac_v2_api import WorkspacesPatchWorkspaceRequest
-from iqe_rbac_v2_api import WorkspacesPatchWorkspaceResponse
-from iqe_rbac_v2_api import WorkspacesRead200Response
-from iqe_rbac_v2_api import WorkspacesUpdateWorkspaceRequest
-from iqe_rbac_v2_api import WorkspacesUpdateWorkspaceResponse
-from iqe_rbac_v2_api import WorkspacesWorkspace
-from iqe_rbac_v2_api import WorkspacesWorkspaceListResponse
-from iqe_rbac_v2_api import WorkspacesWorkspaceTypes
-from iqe_rbac_v2_api import WorkspacesWorkspaceTypesQueryParam
-from iqe_rbac_v2_api.exceptions import NotFoundException
+from iqe_bindings.v7.rbac_v2 import WorkspacesApi
+from iqe_bindings.v7.rbac_v2 import WorkspacesCreateWorkspaceRequest
+from iqe_bindings.v7.rbac_v2 import WorkspacesCreateWorkspaceResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesPatchWorkspaceRequest
+from iqe_bindings.v7.rbac_v2 import WorkspacesPatchWorkspaceResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesRead200Response
+from iqe_bindings.v7.rbac_v2 import WorkspacesUpdateWorkspaceRequest
+from iqe_bindings.v7.rbac_v2 import WorkspacesUpdateWorkspaceResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesWorkspace
+from iqe_bindings.v7.rbac_v2 import WorkspacesWorkspaceListResponse
+from iqe_bindings.v7.rbac_v2 import WorkspacesWorkspaceTypes
+from iqe_bindings.v7.rbac_v2 import WorkspacesWorkspaceTypesQueryParam
+from iqe_bindings.v7.rbac_v2.exceptions import ApiException
+from iqe_bindings.v7.rbac_v2.exceptions import NotFoundException
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import is_global_account
@@ -105,17 +104,13 @@ class WorkspacesAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def _rbac(self) -> ApplicationRBAC:
-        return self.application.rbac
-
-    @cached_property
     def raw_api(self) -> WorkspacesApi:
         """
         Raw auto-generated OpenAPI client.
         Use high level API wrapper methods instead of this raw API client.
         Outside this class, this should be used only for negative validation testing.
         """
-        return self._rbac.rbac_v2_api.workspaces_api
+        return self._host_inventory.v7_rbac_v2.workspaces_api
 
     def create_workspace(
         self,
@@ -333,6 +328,13 @@ class WorkspacesAPIWrapper(BaseEntity):
         return self.get_workspaces(
             type=WorkspacesWorkspaceTypesQueryParam.DEFAULT,
         )[0]
+
+    @cached_property
+    def default_workspace(self) -> WorkspacesWorkspace:
+        """
+        A cached property for getting the default workspace.
+        """
+        return self.get_default_workspace()
 
     def get_workspaces_response(
         self,

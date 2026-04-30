@@ -98,7 +98,7 @@ def rbac_non_org_admin_rbac_admin_setup_class(
 
     role = host_inventory.apis.rbac.get_rbac_admin_role()
     if host_inventory.unleash.is_rbac_workspaces_enabled:
-        workspace_id = host_inventory.apis.workspaces.root_workspace.id
+        workspace_id = host_inventory.apis.workspaces.default_workspace.id
         host_inventory.apis.rbac.create_role_bindings(
             [get_role_id(role)], group.uuid, [workspace_id]
         )
@@ -609,7 +609,7 @@ def rbac_setup_user_with_rhel_role(
 
     role = host_inventory.apis.rbac.get_role_by_name(request.param.value)
     if host_inventory.unleash.is_rbac_workspaces_enabled:
-        workspace_id = host_inventory.apis.workspaces.root_workspace.id
+        workspace_id = host_inventory.apis.workspaces.default_workspace.id
         host_inventory.apis.rbac.create_role_bindings(
             [get_role_id(role)], group.uuid, [workspace_id]
         )

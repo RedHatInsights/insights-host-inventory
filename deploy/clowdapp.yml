@@ -267,6 +267,10 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -378,6 +382,10 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: KAFKA_PRODUCER_ACKS
             value: ${KAFKA_PRODUCER_ACKS}
           - name: KAFKA_PRODUCER_RETRIES
@@ -508,6 +516,10 @@ objects:
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -579,6 +591,10 @@ objects:
             value: ${KAFKA_SASL_MECHANISM}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -688,6 +704,10 @@ objects:
             value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -755,6 +775,10 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -896,6 +920,10 @@ objects:
             value: ${KAFKA_SECURITY_PROTOCOL}
           - name: KAFKA_SASL_MECHANISM
             value: ${KAFKA_SASL_MECHANISM}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -1713,13 +1741,17 @@ objects:
             cpu: ${CPU_REQUEST_DB_MIGRATIONS_JOB}
             memory: ${MEMORY_REQUEST_DB_MIGRATIONS_JOB}
     - name: db-migration-downgrade
-      restartPolicy: OnFailure
+      restartPolicy: Never
       suspend: ${{DB_MIGRATION_DOWNGRADE_SUSPEND}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         command: ["/bin/sh", "-c"]
         args:
           - |
+            if [ "${DB_MIGRATION_DOWNGRADE_SUSPEND}" = "true" ]; then
+              echo "INFO: db-migration-downgrade job is suspended. Exiting."
+              exit 0
+            fi
             if [ -z "${DB_MIGRATION_DOWNGRADE_REVISION}" ] || [ "${DB_MIGRATION_DOWNGRADE_REVISION}" = "change-me" ]; then
               echo "ERROR: DB_MIGRATION_DOWNGRADE_REVISION is not set. Aborting downgrade." >&2
               exit 1
@@ -1748,6 +1780,8 @@ objects:
             value: ${MIGRATION_MODE}
           - name: HOSTS_TABLE_NUM_PARTITIONS
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
+          - name: DB_MIGRATION_DOWNGRADE_SUSPEND
+            value: ${DB_MIGRATION_DOWNGRADE_SUSPEND}
         resources:
           limits:
             cpu: ${CPU_LIMIT_DB_MIGRATIONS_JOB}
@@ -2644,7 +2678,7 @@ parameters:
   value: '1'
 - name: DB_MIGRATION_DOWNGRADE_SUSPEND
   description: Whether to suspend the db-migration-downgrade job
-  value: 'false'
+  value: 'true'
 
 
 # =================================================================================
@@ -2670,3 +2704,15 @@ parameters:
 - name: FLOORIST_DB_SECRET_NAME
   description: database secret name
   value: host-inventory-db
+
+# =================================================================================
+# VII. OpenTelemetry Configuration
+# =================================================================================
+# Settings for distributed tracing via OpenTelemetry.
+
+- name: OTEL_ENABLED
+  description: Enable OpenTelemetry distributed tracing
+  value: 'false'
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  description: OTLP HTTP endpoint for trace export
+  value: 'http://otel-collector.otel-stage.svc:4318'

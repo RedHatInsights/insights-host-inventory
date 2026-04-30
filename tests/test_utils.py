@@ -11,7 +11,6 @@ from yaml import safe_load
 from api.cache_key import make_system_cache_key
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
-from lib.feature_flags import build_flag_context
 from lib.feature_flags import get_flag_value
 from lib.feature_flags import get_flag_value_and_fallback
 from utils.deploy import main as deploy
@@ -139,7 +138,7 @@ def test_feature_flag_no_fallback(_enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG, {})
         assert flag_value
         assert not using_fallback
 
@@ -149,7 +148,7 @@ def test_feature_flag_error_fallback(_enable_unleash):
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.side_effect = ConnectionError("something went wrong :<")
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG, {})
         assert not flag_value
         assert using_fallback
 
@@ -157,7 +156,7 @@ def test_feature_flag_error_fallback(_enable_unleash):
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
 def test_feature_uninitialized_fallback(_enable_unleash):
     with patch.object(UNLEASH, "client", None):
-        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG)
+        flag_value, using_fallback = get_flag_value_and_fallback(TEST_FEATURE_FLAG, {})
         assert not flag_value
         assert using_fallback
 
@@ -179,21 +178,22 @@ def test_make_system_cache_key_valid():
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
-def test_get_flag_value_without_context(_enable_unleash):
-    """Test get_flag_value() without context uses empty dict."""
+def test_get_flag_value_builds_context_from_org_id(_enable_unleash):
+    """Test get_flag_value() builds orgId context from org_id parameter."""
     unleash_mock = MagicMock()
     unleash_mock.is_enabled.return_value = True
+    org_id = "1234567"
 
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value = get_flag_value(TEST_FEATURE_FLAG)
+        flag_value = get_flag_value(TEST_FEATURE_FLAG, org_id)
 
         # Verify flag value returned
         assert flag_value is True
 
-        # Verify Unleash was called with empty context
+        # Verify Unleash was called with the org_id context
         unleash_mock.is_enabled.assert_called_once()
         call_args = unleash_mock.is_enabled.call_args
-        assert call_args[1]["context"] == {}
+        assert call_args[1]["context"] == {"orgId": org_id}
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
@@ -206,14 +206,12 @@ def test_get_flag_value_without_context(_enable_unleash):
 )
 def test_get_flag_value_org_specific_targeting(_enable_unleash, org_id, expected_enabled):
     """Test get_flag_value() with org-specific targeting via orgId context."""
-    context = build_flag_context(org_id)
-
     unleash_mock = MagicMock()
     # Simulate Unleash's org-specific targeting behavior
     unleash_mock.is_enabled.return_value = expected_enabled
 
     with patch.object(UNLEASH, "client", unleash_mock):
-        flag_value = get_flag_value(TEST_FEATURE_FLAG, context=context)
+        flag_value = get_flag_value(TEST_FEATURE_FLAG, org_id)
 
         # Verify correct value based on org_id
         assert flag_value == expected_enabled
