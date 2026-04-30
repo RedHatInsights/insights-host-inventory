@@ -694,6 +694,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
     mock_mw_config.bypass_rbac = False
     mock_mw_config.rbac_endpoint = "http://rbac.test"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
@@ -733,6 +734,7 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     mock_mw_config.bypass_rbac = False
     mock_mw_config.rbac_endpoint = "http://rbac.test"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False
@@ -796,6 +798,7 @@ def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get
     mock_mw_config.bypass_rbac = False
     mock_mw_config.rbac_endpoint = "http://rbac.test"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 
     mock_config = mocker.patch("api.group.inventory_config")
     mock_config.return_value.bypass_kessel = False

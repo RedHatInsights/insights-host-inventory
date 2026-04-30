@@ -138,7 +138,7 @@ def _get_rbac_access_token() -> str:
     oauth_client = _get_rbac_oauth_client()
     try:
         token_response = oauth_client.get_token()
-        return token_response["access_token"]
+        return token_response.access_token
     except Exception as e:
         logger.error("Failed to get RBAC access token", extra={"error": str(e)})
         raise
@@ -176,6 +176,21 @@ def _build_rbac_request_headers(
         request_headers["Authorization"] = f"Bearer {access_token}"
 
     return request_headers
+
+
+def _build_service_account_headers(org_id: str) -> dict:
+    """
+    Build request headers for service-to-service RBAC API calls.
+
+    Uses OAuth2 service account authentication with explicit org_id context.
+    Safe to call outside Flask request context (e.g., MQ service).
+    """
+    access_token = _get_rbac_access_token()
+    return {
+        "Authorization": f"Bearer {access_token}",
+        "X-RH-RBAC-ORG-ID": org_id,
+        "X-RH-RBAC-CLIENT-ID": "inventory",
+    }
 
 
 def _execute_rbac_http_request(  # type: ignore[return]
@@ -787,16 +802,7 @@ def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
     if inventory_config().bypass_kessel:
         return None
 
-    # Use service account authentication (OAuth2) instead of PSK
-    request_headers = _build_rbac_request_headers(
-        identity_header=request.headers.get(IDENTITY_HEADER),
-        request_id_header=threadctx.request_id,
-        use_service_account=True,  # Adds Authorization: Bearer <token>
-    )
-
-    # Add additional headers required by ungrouped workspace creation
-    request_headers["X-RH-RBAC-ORG-ID"] = identity.org_id
-    request_headers["X-RH-RBAC-CLIENT-ID"] = "inventory"
+    request_headers = _build_service_account_headers(identity.org_id)
 
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_private_url(), request_headers)
 
@@ -985,6 +991,47 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
         # Returns: {"id": "019a5ae6-...", "name": "Production", ...}
     """
     if workspaces := get_rbac_workspaces_by_ids([workspace_id]):
+        return workspaces[0]
+    else:
+        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
+
+
+def get_rbac_workspace_by_id_using_service_account(workspace_id: str, org_id: str) -> dict[str, Any]:
+    """
+    Fetch a single workspace from RBAC v2 API using service account authentication.
+
+    Unlike get_rbac_workspace_by_id() which uses the current Flask request's identity
+    header, this function uses OAuth2 service account auth and explicit org_id. This
+    makes it safe to call from contexts without a Flask request (e.g., MQ service)
+    and bypasses user-level permission filtering — the service account has full access.
+
+    Use this for read-back after write operations where the user may have write but
+    not read permission, and for MQ service contexts.
+
+    Args:
+        workspace_id: UUID of the workspace to fetch
+        org_id: Organization ID for the request
+
+    Returns:
+        dict: Workspace object from RBAC v2 API
+
+    Raises:
+        ResourceNotFoundException: If workspace not found (404)
+    """
+    request_headers = _build_service_account_headers(org_id)
+
+    ids_param = workspace_id
+    rbac_endpoint = _get_rbac_workspace_url(query_params={"ids": ids_param, "type": "all", "limit": 1})
+
+    response = _execute_rbac_http_request(
+        method="GET",
+        rbac_endpoint=rbac_endpoint,
+        request_headers=request_headers,
+        skip_not_found=False,
+    )
+
+    workspaces = response.get("data", []) if response else []
+    if workspaces:
         return workspaces[0]
     else:
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
