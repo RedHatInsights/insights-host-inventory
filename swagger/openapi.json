@@ -1786,6 +1786,259 @@
           }
         }
       }
+    },
+    "/beta/views": {
+      "get": {
+        "operationId": "api.views.get_views_list",
+        "tags": [
+          "views"
+        ],
+        "summary": "Read the list of inventory views",
+        "description": "Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and private views owned by the requester. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/perPageParam"
+          },
+          {
+            "$ref": "#/components/parameters/pageParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully read the views list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewsListOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing username."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      },
+      "post": {
+        "operationId": "api.views.create_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Create a new inventory view",
+        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "Data required to create a new inventory view.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully created the inventory view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing username."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      }
+    },
+    "/beta/views/{view_id}": {
+      "get": {
+        "operationId": "api.views.get_view_by_id",
+        "tags": [
+          "views"
+        ],
+        "summary": "Get a single inventory view",
+        "description": "Returns the full details and configuration for a single inventory view. The view must be visible to the requesting user. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/viewId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully returned the inventory view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing username."
+          },
+          "404": {
+            "description": "View not found or not visible to the requesting user."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      },
+      "put": {
+        "operationId": "api.views.update_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Update an inventory view",
+        "description": "Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/viewId"
+          }
+        ],
+        "requestBody": {
+          "description": "Data with which to update the inventory view.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the inventory view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "403": {
+            "description": "Forbidden - not the view owner or view is a system view."
+          },
+          "404": {
+            "description": "View not found or not visible to the requesting user."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "api.views.delete_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Delete an inventory view",
+        "description": "Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/viewId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully deleted the inventory view."
+          },
+          "403": {
+            "description": "Forbidden - not the view owner or view is a system view."
+          },
+          "404": {
+            "description": "View not found or not visible to the requesting user."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      }
+    },
+    "/beta/views/{view_id}/clone": {
+      "post": {
+        "operationId": "api.views.clone_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Clone an inventory view",
+        "description": "Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The cloned view name is prefixed with \"Copy of \". <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/viewId"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successfully cloned the inventory view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing username."
+          },
+          "404": {
+            "description": "Source view not found or not visible to the requesting user."
+          },
+          "501": {
+            "description": "Not yet implemented."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2352,6 +2605,16 @@
           "items": {
             "$ref": "#/components/schemas/NonStrictUUID"
           }
+        }
+      },
+      "viewId": {
+        "in": "path",
+        "name": "view_id",
+        "description": "View ID.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -5033,6 +5296,226 @@
             "pattern": "^\\d+(\\.\\d+)+$"
           }
         }
+      },
+      "ViewColumnConfig": {
+        "title": "View Column Configuration",
+        "description": "Configuration for a single column in a view.",
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "description": "The column key identifier, e.g. \"insights_id\", \"compliance.last_scan\", \"advisor.recommendations\".",
+            "type": "string"
+          },
+          "visible": {
+            "description": "Whether the column is visible in the view.",
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "ViewSortConfig": {
+        "title": "View Sort Configuration",
+        "description": "Sort configuration for a view.",
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "description": "The column key to sort by.",
+            "type": "string"
+          },
+          "direction": {
+            "description": "The sort direction.",
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          }
+        }
+      },
+      "ViewConfiguration": {
+        "title": "View Configuration",
+        "description": "The full visual configuration for an inventory view, including column layout, sort order, and active filters.",
+        "type": "object",
+        "required": [
+          "columns"
+        ],
+        "properties": {
+          "columns": {
+            "description": "Ordered list of column configurations.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewColumnConfig"
+            }
+          },
+          "sort": {
+            "$ref": "#/components/schemas/ViewSortConfig"
+          },
+          "filters": {
+            "description": "Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ViewIn": {
+        "title": "View Create Payload",
+        "description": "Data required to create a new inventory view.",
+        "type": "object",
+        "required": [
+          "name",
+          "configuration"
+        ],
+        "properties": {
+          "name": {
+            "description": "The display name for the view.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "description": "An optional description of the view.",
+            "type": "string",
+            "maxLength": 2048,
+            "nullable": true
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/ViewConfiguration"
+          },
+          "org_wide": {
+            "description": "If true, the view is visible to all users in the organization. If false, only the creator can see it.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "ViewPatch": {
+        "title": "View Update Payload",
+        "description": "Data for updating an existing inventory view. All fields are optional.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The display name for the view.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "description": "An optional description of the view.",
+            "type": "string",
+            "maxLength": 2048,
+            "nullable": true
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/ViewConfiguration"
+          },
+          "org_wide": {
+            "description": "If true, the view is visible to all users in the organization. If false, only the creator can see it.",
+            "type": "boolean"
+          }
+        }
+      },
+      "ViewOut": {
+        "title": "View Response",
+        "description": "Full representation of an inventory view returned by the API.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "The unique identifier of the view.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "org_id": {
+            "description": "The organization ID that owns the view. Null for system views.",
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "description": "The display name for the view.",
+            "type": "string"
+          },
+          "description": {
+            "description": "An optional description of the view.",
+            "type": "string",
+            "nullable": true
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/ViewConfiguration"
+          },
+          "org_wide": {
+            "description": "Whether the view is visible to the entire organization.",
+            "type": "boolean"
+          },
+          "is_system_view": {
+            "description": "True if this is a read-only system view (Red Hat preset). System views cannot be updated or deleted, but can be cloned.",
+            "type": "boolean"
+          },
+          "is_owner": {
+            "description": "True if the requesting user is the creator of this view. Only the owner can update or delete a view.",
+            "type": "boolean"
+          },
+          "created_by": {
+            "description": "The username of the view creator.",
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "description": "Timestamp when the view was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "Timestamp when the view was last updated.",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "configuration",
+          "org_wide",
+          "is_system_view",
+          "is_owner",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "ViewsListOut": {
+        "title": "Views List Response",
+        "description": "A paginated list of inventory views.",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaginationOut"
+          },
+          {
+            "type": "object",
+            "required": [
+              "results"
+            ],
+            "properties": {
+              "results": {
+                "description": "List of inventory views.",
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          }
+        ]
       },
       "PaginationOut": {
         "type": "object",
