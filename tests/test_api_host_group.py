@@ -167,6 +167,36 @@ def test_add_associated_host_to_same_group(
     assert second_update > first_update
 
 
+@pytest.mark.parametrize("kessel_groups_enabled", [True, False])
+def test_add_hosts_to_group_timestamp_with_kessel_groups_flag(
+    db_create_group,
+    db_create_host,
+    db_get_group_by_id,
+    db_get_hosts_for_group,
+    api_add_hosts_to_group,
+    event_producer,
+    mocker,
+    kessel_groups_enabled,
+):
+    mocker.patch.object(event_producer, "write_event")
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=kessel_groups_enabled)
+
+    group = db_create_group("test_group")
+    group_id = group.id
+    orig_modified_on = group.modified_on
+
+    host_id_list = [str(db_create_host().id) for _ in range(2)]
+    response_status, _ = api_add_hosts_to_group(group_id, host_id_list)
+    assert response_status == 200
+    assert len(db_get_hosts_for_group(group_id)) == 2
+
+    updated_group = db_get_group_by_id(group_id)
+    if kessel_groups_enabled:
+        assert updated_group.modified_on == orig_modified_on
+    else:
+        assert updated_group.modified_on > orig_modified_on
+
+
 def test_add_associated_host_to_different_group(
     db_create_group,
     db_create_host,

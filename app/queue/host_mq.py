@@ -373,6 +373,8 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     account=identity.account_number,
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                    created_on=workspace.get("created"),
+                    modified_on=workspace.get("modified"),
                 )
                 return OperationResult(
                     group,
