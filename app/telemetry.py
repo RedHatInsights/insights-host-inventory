@@ -21,6 +21,7 @@ Usage:
 
 import contextlib
 import os
+from urllib.parse import urlparse
 
 from app.logging import get_logger
 
@@ -192,7 +193,5 @@ def _response_hook(span, status, response_headers):  # noqa: ARG001
 def _outbound_request_hook(span, request):
     """Use METHOD + path as the client span name (default is METHOD only)."""
     if span and span.is_recording():
-        from urllib.parse import urlparse
-
         parsed = urlparse(request.path_url)
         span.update_name(f"{request.method} {parsed.path}")

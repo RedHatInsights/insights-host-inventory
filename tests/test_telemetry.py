@@ -13,6 +13,8 @@ def test_flask_excluded_urls_match_full_request_url():
     assert excluded.url_disabled("http://host-inventory-stage.svc:8080/health")
     assert excluded.url_disabled("http://localhost:8080/metrics")
     assert excluded.url_disabled("http://app/version")
+    assert not excluded.url_disabled("http://host-inventory-stage.svc:8080/healthz")
+    assert not excluded.url_disabled("http://localhost:8080/api/metrics/summary")
 
 
 def test_outbound_request_hook_sets_span_name():
