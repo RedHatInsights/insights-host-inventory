@@ -682,6 +682,7 @@ def test_get_groups_rbac_v2_flag_toggle(mocker, db_create_group, api_get, flag_e
         ("updated", "Desc", "-modified"),
     ],
 )
+@pytest.mark.usefixtures("mock_rbac_v2_middleware")
 def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, expected_rbac_order_by):
     """
     Test GET /groups with RBAC v2 and ordering parameters.
@@ -690,17 +691,6 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
     GET request: field names (e.g. updated -> modified) and DESC as a leading hyphen on the
     order_by value (-field), per RBAC v2 workspace API conventions.
     """
-    mock_mw_config = mocker.MagicMock()
-    mock_mw_config.bypass_rbac = False
-    mock_mw_config.rbac_endpoint = "http://rbac.test"
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
-    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
-
-    mock_config = mocker.patch("api.group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
-    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
-
     mock_rbac_http = mocker.patch(
         "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
         return_value={"data": [], "meta": {"count": 0}},
@@ -721,6 +711,7 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
         assert "order_how" not in parsed
 
 
+@pytest.mark.usefixtures("mock_rbac_v2_middleware")
 def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_get):
     """
     RBAC may return root/default workspaces mixed with standard and ungrouped-hosts workspaces.
@@ -730,17 +721,6 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     Scenario: user has 5 workspaces total (3 standard, 1 root, 1 default).
     per_page=3 -> limit sent to RBAC is 5 -> after stripping, exactly 3 standard remain.
     """
-    mock_mw_config = mocker.MagicMock()
-    mock_mw_config.bypass_rbac = False
-    mock_mw_config.rbac_endpoint = "http://rbac.test"
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
-    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
-
-    mock_config = mocker.patch("api.group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
-    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
-
     standard_ids = [str(generate_uuid()) for _ in range(3)]
     rbac_payload = {
         "data": [
@@ -787,6 +767,7 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
         ("ungrouped-hosts", "ungrouped-hosts"),
     ],
 )
+@pytest.mark.usefixtures("mock_rbac_v2_middleware")
 def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get, group_type, workspace_type):
     """
     When the caller filters on a specific group_type (standard or ungrouped-hosts),
@@ -794,17 +775,6 @@ def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get
     returned. The middleware should NOT apply the extra-limit or post-filter stripping
     that it does for group_type=all.
     """
-    mock_mw_config = mocker.MagicMock()
-    mock_mw_config.bypass_rbac = False
-    mock_mw_config.rbac_endpoint = "http://rbac.test"
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
-    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
-
-    mock_config = mocker.patch("api.group.inventory_config")
-    mock_config.return_value.bypass_kessel = False
-    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
-    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
-
     ws_ids = [str(generate_uuid()) for _ in range(3)]
     rbac_payload = {
         "data": [

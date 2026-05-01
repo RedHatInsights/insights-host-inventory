@@ -260,6 +260,21 @@ def _enable_unleash(inventory_config):
 
 
 @pytest.fixture(scope="function")
+def mock_rbac_v2_middleware(mocker):
+    """Common RBAC v2 middleware setup for tests that go through the full HTTP middleware path."""
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+
+@pytest.fixture(scope="function")
 def api_create_staleness(flask_client):
     def _api_create_staleness(staleness_data, identity=USER_IDENTITY, query_parameters=None, extra_headers=None):
         return do_request(flask_client.post, STALENESS_URL, identity, staleness_data, query_parameters, extra_headers)
