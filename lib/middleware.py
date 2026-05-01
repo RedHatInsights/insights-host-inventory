@@ -528,7 +528,7 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
     return other_func
 
 
-def access(permission: KesselPermission, id_param: str = ""):
+def access(permission: KesselPermission, id_param: str = "", require_global: bool = False):
     def other_func(func):
         sig = inspect.signature(func)
 
@@ -543,13 +543,13 @@ def access(permission: KesselPermission, id_param: str = ""):
             if inventory_config().bypass_rbac:
                 return func(*args, **kwargs)
 
-            ids = []
-            if id_param:
-                ids = permission.resource_type.get_resource_id(kwargs, id_param)
+            ids = permission.resource_type.get_resource_id(kwargs, id_param)
 
             allowed, rbac_filter = resolve_permission(current_identity, permission, ids)
 
             if allowed:
+                if require_global and rbac_filter is not None:
+                    abort(HTTPStatus.FORBIDDEN)
                 if rbac_filter and "rbac_filter" in sig.parameters:
                     kwargs["rbac_filter"] = rbac_filter
                 return func(*args, **kwargs)

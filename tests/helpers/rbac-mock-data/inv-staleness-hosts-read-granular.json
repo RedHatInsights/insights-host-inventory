@@ -1,0 +1,39 @@
+{
+  "meta": {
+      "count": 1,
+      "limit": 1000,
+      "offset": 0
+  },
+  "links": {
+      "first": "/api/rbac/v1/access/?application=inventory&limit=1000&offset=0",
+      "next": null,
+      "previous": null,
+      "last": "/api/rbac/v1/access/?application=inventory&limit=1000&offset=0"
+  },
+  "data": [
+      {
+          "resourceDefinitions": [
+              {
+                  "attributeFilter": {
+                      "key": "group.id",
+                      "value": ["df7db8f2-a866-4efd-a4e1-1cea3abb5d38"],
+                      "operation": "in"
+                  }
+              }
+          ],
+          "permission": "staleness:staleness:read"
+      },
+      {
+          "resourceDefinitions": [
+              {
+                  "attributeFilter": {
+                      "key": "group.id",
+                      "value": ["df7db8f2-a866-4efd-a4e1-1cea3abb5d38"],
+                      "operation": "in"
+                  }
+              }
+          ],
+          "permission": "inventory:hosts:read"
+      }
+  ]
+}
