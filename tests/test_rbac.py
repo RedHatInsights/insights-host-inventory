@@ -183,71 +183,55 @@ def test_access_decorator_patch_nonexistent_host_with_permission_denied(mocker, 
 # ============================================================================
 
 
-def test_get_rbac_oauth_client_singleton_and_initialization(mocker):
+def test_get_rbac_oauth_credentials_delegates_to_shared(mocker):
     """
-    Test that OAuth2 client is created once with correct credentials and reused.
+    Test that _get_rbac_oauth_credentials delegates to the shared get_oauth2_credentials.
 
     JIRA: RHINENG-25611
     """
-    mock_discovery = mocker.Mock()
-    mock_discovery.token_endpoint = "https://sso.redhat.com/token"
-    mock_fetch_discovery = mocker.patch("lib.middleware.fetch_oidc_discovery", return_value=mock_discovery)
+    mock_credentials = mocker.Mock()
+    mock_get_oauth2 = mocker.patch("lib.middleware.get_oauth2_credentials", return_value=mock_credentials)
 
     mock_config = mocker.Mock()
-    mock_config.kessel_auth_client_id = "test-client-id"
-    mock_config.kessel_auth_client_secret = "test-client-secret"
-    mock_config.kessel_auth_oidc_issuer = "https://sso.redhat.com/auth/realms/redhat-external"
     mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
 
-    mock_oauth_client = mocker.Mock()
-    mock_oauth2_class = mocker.patch("lib.middleware.OAuth2ClientCredentials", return_value=mock_oauth_client)
+    creds1 = lib.middleware._get_rbac_oauth_credentials()
+    creds2 = lib.middleware._get_rbac_oauth_credentials()
 
-    lib.middleware._rbac_oauth_client = None
-
-    client1 = lib.middleware._get_rbac_oauth_client()
-    client2 = lib.middleware._get_rbac_oauth_client()
-
-    # Singleton: same instance returned, constructor called once
-    assert client1 is client2
-    assert client1 is mock_oauth_client
-    mock_fetch_discovery.assert_called_once()
-    mock_oauth2_class.assert_called_once_with(
-        client_id="test-client-id",
-        client_secret="test-client-secret",
-        token_endpoint="https://sso.redhat.com/token",
-    )
+    assert creds1 is creds2
+    assert creds1 is mock_credentials
+    assert mock_get_oauth2.call_count == 2
+    mock_get_oauth2.assert_called_with(mock_config)
 
 
-def test_get_rbac_access_token_success(mocker):
+@pytest.mark.parametrize(
+    "token_value, side_effect",
+    [
+        pytest.param("test_token_12345", None, id="success"),
+        pytest.param(None, Exception("Token fetch failed"), id="failure"),
+    ],
+)
+def test_get_rbac_access_token(mocker, token_value, side_effect):
     """
-    Test that access token is fetched successfully from OAuth2 client.
+    Test OAuth2 access token fetch: success returns token, failure re-raises.
 
     JIRA: RHINENG-25611
     """
-    mock_oauth_client = mocker.Mock()
-    mock_token_response = mocker.Mock()
-    mock_token_response.access_token = "test_token_12345"
-    mock_oauth_client.get_token.return_value = mock_token_response
-    mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
+    mock_oauth_credentials = mocker.Mock()
+    if side_effect:
+        mock_oauth_credentials.get_token.side_effect = side_effect
+    else:
+        mock_token_response = mocker.Mock()
+        mock_token_response.access_token = token_value
+        mock_oauth_credentials.get_token.return_value = mock_token_response
+    mocker.patch("lib.middleware._get_rbac_oauth_credentials", return_value=mock_oauth_credentials)
 
-    token = lib.middleware._get_rbac_access_token()
-
-    assert token == "test_token_12345"
-    mock_oauth_client.get_token.assert_called_once()
-
-
-def test_get_rbac_access_token_failure(mocker):
-    """
-    Test that token fetch failures are re-raised after logging.
-
-    JIRA: RHINENG-25611
-    """
-    mock_oauth_client = mocker.Mock()
-    mock_oauth_client.get_token.side_effect = Exception("Token fetch failed")
-    mocker.patch("lib.middleware._get_rbac_oauth_client", return_value=mock_oauth_client)
-
-    with pytest.raises(Exception, match="Token fetch failed"):
-        lib.middleware._get_rbac_access_token()
+    if side_effect:
+        with pytest.raises(Exception, match="Token fetch failed"):
+            lib.middleware._get_rbac_access_token()
+    else:
+        assert lib.middleware._get_rbac_access_token() == token_value
+    mock_oauth_credentials.get_token.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -312,6 +296,22 @@ def test_rbac_create_ungrouped_workspace_uses_service_account(mocker, flask_app)
 
     headers_used = mock_rbac_request.call_args[0][1]
     assert "X-RH-RBAC-PSK" not in headers_used
-    assert headers_used["Authorization"] == "Bearer mock_token"
-    assert headers_used["X-RH-RBAC-ORG-ID"] == "test-org-123"
-    assert headers_used["X-RH-RBAC-CLIENT-ID"] == "inventory"
+    assert "Authorization" in headers_used
+
+
+def test_build_service_account_headers(mocker):
+    """
+    Test that _build_service_account_headers produces correct headers with OAuth2 token
+    and org context, without x-rh-identity.
+
+    JIRA: RHINENG-25611
+    """
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_abc")
+
+    headers = lib.middleware._build_service_account_headers("org-42")
+
+    assert headers["Authorization"] == "Bearer sa_token_abc"
+    assert headers["X-RH-RBAC-ORG-ID"] == "org-42"
+    assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
+    assert len(headers) == 3
+    assert "x-rh-identity" not in {k.lower() for k in headers}
