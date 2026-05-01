@@ -13,7 +13,6 @@ from flask import current_app
 from flask import g
 from flask import request
 from kessel.auth import OAuth2ClientCredentials
-from kessel.auth import fetch_oidc_discovery
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
@@ -42,6 +41,7 @@ from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
+from lib.kessel import get_oauth2_credentials
 
 logger = get_logger(__name__)
 
@@ -87,38 +87,8 @@ def get_rbac_private_url() -> str:
     return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
 
-# Global singleton for RBAC v2 OAuth2 client
-_rbac_oauth_client = None
-
-
-def _get_rbac_oauth_client() -> OAuth2ClientCredentials:
-    """
-    Get or create the OAuth2 client for RBAC v2 API.
-
-    Returns:
-        OAuth2ClientCredentials: Configured OAuth2 client for token fetching
-
-    Note:
-        Uses the same service account credentials as Kessel integration
-        (KESSEL_AUTH_CLIENT_ID, KESSEL_AUTH_CLIENT_SECRET).
-    """
-    global _rbac_oauth_client
-    if _rbac_oauth_client is None:
-        config = inventory_config()
-        discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
-        _rbac_oauth_client = OAuth2ClientCredentials(
-            client_id=config.kessel_auth_client_id,
-            client_secret=config.kessel_auth_client_secret,
-            token_endpoint=discovery.token_endpoint,
-        )
-        logger.info(
-            "RBAC OAuth2 client initialized",
-            extra={
-                "client_id": config.kessel_auth_client_id,
-                "token_endpoint": discovery.token_endpoint,
-            },
-        )
-    return _rbac_oauth_client
+def _get_rbac_oauth_credentials() -> OAuth2ClientCredentials:
+    return get_oauth2_credentials(inventory_config())
 
 
 def _get_rbac_access_token() -> str:
@@ -131,7 +101,7 @@ def _get_rbac_access_token() -> str:
     Note:
         OAuth2ClientCredentials.get_token() has built-in caching with a 300-second refresh buffer.
     """
-    oauth_client = _get_rbac_oauth_client()
+    oauth_client = _get_rbac_oauth_credentials()
     try:
         token_response = oauth_client.get_token()
         return token_response.access_token
@@ -159,7 +129,7 @@ def _build_rbac_request_headers(
     Note:
         When use_service_account=True, adds dual authentication:
         - Authorization: Bearer <token> (service account proves HBI is authorized caller)
-        - x-rh-identity: <user_jwt> (user context for permission scoping)
+        - x-rh-identity: <base64-encoded identity> (user context for permission scoping)
     """
     request_headers = {
         IDENTITY_HEADER: identity_header or request.headers[IDENTITY_HEADER],
@@ -991,36 +961,7 @@ def get_rbac_workspace_by_id(workspace_id: str) -> dict[str, Any]:
         raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
 
 
-def get_rbac_workspace_as_service(workspace_id: str, org_id: str) -> dict[str, Any]:
-    """
-    Fetch a single workspace from RBAC v2 API using service account authentication.
-
-    Unlike get_rbac_workspace_by_id() which uses the current Flask request's identity
-    header, this function uses OAuth2 service account auth and explicit org_id. This
-    makes it safe to call from contexts without a Flask request (e.g., MQ service)
-    and bypasses user-level permission filtering — the service account has full access.
-
-    Use this for read-back after write operations where the user may have write but
-    not read permission, and for MQ service contexts.
-
-    Args:
-        workspace_id: UUID of the workspace to fetch
-        org_id: Organization ID for the request
-
-    Returns:
-        dict: Workspace object from RBAC v2 API
-
-    Raises:
-        ResourceNotFoundException: If workspace not found (404)
-    """
-    request_headers = _build_service_account_headers(org_id)
-    if workspaces := get_rbac_workspaces_by_ids([workspace_id], request_headers=request_headers):
-        return workspaces[0]
-    else:
-        raise ResourceNotFoundException(f"Workspace {workspace_id} not found")
-
-
-def get_rbac_workspaces_by_ids(workspace_ids: list[str], request_headers: dict | None = None) -> list[dict[str, Any]]:
+def get_rbac_workspaces_by_ids(workspace_ids: list[str]) -> list[dict[str, Any]]:
     """
     Fetch multiple workspaces from RBAC v2 API by ID list.
 
@@ -1035,8 +976,6 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str], request_headers: dict |
 
     Args:
         workspace_ids: List of workspace UUIDs to fetch
-        request_headers: Optional pre-built headers. Defaults to user identity headers
-                         via _build_rbac_request_headers().
 
     Returns:
         list[dict]: List of workspace objects found from RBAC v2 API.
@@ -1054,8 +993,7 @@ def get_rbac_workspaces_by_ids(workspace_ids: list[str], request_headers: dict |
     rbac_endpoint = _get_rbac_workspace_url(
         query_params={"ids": ids_param, "type": "all", "limit": len(workspace_ids)}
     )
-    if request_headers is None:
-        request_headers = _build_rbac_request_headers()
+    request_headers = _build_rbac_request_headers()
 
     response = _execute_rbac_http_request(
         method="GET",
