@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -171,7 +172,8 @@ def _add_hosts_to_group(group_id: str, host_id_list: list[str], org_id: str):
     ]
     db.session.add_all(host_group_assoc)
 
-    _update_group_update_time(group_id, org_id)
+    if not is_rbac_v2_enabled(org_id):
+        _update_group_update_time(group_id, org_id)
 
     log_host_group_add_succeeded(logger, host_id_list, group_id)
 
@@ -250,9 +252,19 @@ def add_group(
     group_id: UUID | None = None,
     ungrouped: bool = False,
     session: Session | None = None,
+    created_on: datetime | None = None,
+    modified_on: datetime | None = None,
 ) -> Group:
     session = session or db.session
-    new_group = Group(org_id=org_id, name=group_name, account=account, id=group_id, ungrouped=ungrouped)
+    new_group = Group(
+        org_id=org_id,
+        name=group_name,
+        account=account,
+        id=group_id,
+        ungrouped=ungrouped,
+        created_on=created_on,
+        modified_on=modified_on,
+    )
     session.add(new_group)
     session.flush()
 
@@ -454,7 +466,8 @@ def _remove_hosts_from_group(group_id, host_id_list, org_id):
             else:
                 log_host_group_delete_failed(logger, assoc.host_id, assoc.group_id, get_control_rule())
 
-    _update_group_update_time(group_id, org_id)
+    if not is_rbac_v2_enabled(org_id):
+        _update_group_update_time(group_id, org_id)
 
     return removed_host_ids
 
