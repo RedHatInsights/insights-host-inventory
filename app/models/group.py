@@ -30,6 +30,8 @@ class Group(db.Model):
         account=None,
         id=None,
         ungrouped=False,
+        created_on=None,
+        modified_on=None,
     ):
         if not org_id:
             raise ValidationException("Group org_id cannot be null.")
@@ -42,6 +44,10 @@ class Group(db.Model):
         self.account = account
         self.name = name
         self.ungrouped = ungrouped
+        if created_on is not None:
+            self.created_on = created_on
+        if modified_on is not None:
+            self.modified_on = modified_on
 
     def update_modified_on(self):
         self.modified_on = _time_now()
@@ -53,11 +59,13 @@ class Group(db.Model):
             self.account = input_group.account
 
     def patch(self, patch_data):
-        logger.debug("patching group (id=%s) with data: %s", self.id, patch_data)
         if self.ungrouped is True:
             raise InventoryException(title="Bad Request", detail="The 'ungrouped' group can not be modified.")
         if not patch_data:
             raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
+
+        if "modified" in patch_data:
+            self.modified_on = patch_data["modified"]
 
         if "name" in patch_data:
             self.name = patch_data["name"]
