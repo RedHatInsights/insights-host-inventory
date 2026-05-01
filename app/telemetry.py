@@ -102,7 +102,8 @@ def instrument_flask_app(flask_app):
 
     FlaskInstrumentor().instrument_app(
         flask_app,
-        excluded_urls="^/health$,^/metrics$,^/version$",
+        # Match path suffix: instrumentor tests against the full request URL, not path-only.
+        excluded_urls=r"/health$,/metrics$,/version$",
         request_hook=_request_hook,
         response_hook=_response_hook,
     )
@@ -143,7 +144,7 @@ def instrument_outbound_http():
 
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
-    RequestsInstrumentor().instrument()
+    RequestsInstrumentor().instrument(request_hook=_outbound_request_hook)
     logger.info("Outbound HTTP (requests library) instrumented with OpenTelemetry")
 
 
@@ -186,3 +187,12 @@ def _response_hook(span, status, response_headers):  # noqa: ARG001
                 span.set_attribute("http.status_code", int(status.split()[0]))
         elif isinstance(status, int):
             span.set_attribute("http.status_code", status)
+
+
+def _outbound_request_hook(span, request):
+    """Use METHOD + path as the client span name (default is METHOD only)."""
+    if span and span.is_recording():
+        from urllib.parse import urlparse
+
+        parsed = urlparse(request.path_url)
+        span.update_name(f"{request.method} {parsed.path}")
