@@ -102,9 +102,10 @@ def instrument_flask_app(flask_app):
     from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
     # Patterns match flask.request.url (full URL), not path-only; do not anchor with ^.
+    # Optional (?...) allows query strings (e.g. /health?verbose=1).
     FlaskInstrumentor().instrument_app(
         flask_app,
-        excluded_urls="/health$,/metrics$,/version$",
+        excluded_urls=r"/health(?:\?.*)?$,/metrics(?:\?.*)?$,/version(?:\?.*)?$",
         request_hook=_request_hook,
         response_hook=_response_hook,
     )
@@ -149,7 +150,7 @@ def instrument_outbound_http():
     logger.info("Outbound HTTP (requests library) instrumented with OpenTelemetry")
 
 
-def _outbound_request_hook(span, request):
+def _outbound_request_hook(span, request, *_args, **_kwargs):
     """Use METHOD + path as the client span name (default is METHOD only)."""
     if not span or not span.is_recording():
         return

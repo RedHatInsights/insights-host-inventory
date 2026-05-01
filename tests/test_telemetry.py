@@ -17,6 +17,18 @@ def test_outbound_request_hook_updates_span_name():
     span.update_name.assert_called_once_with("GET /api/client/features")
 
 
+def test_outbound_request_hook_strips_query_from_path_url():
+    span = MagicMock()
+    span.is_recording.return_value = True
+    request = MagicMock()
+    request.method = "GET"
+    request.path_url = "/api/client/features?env=prod&limit=10"
+
+    _outbound_request_hook(span, request, extra_kw=1)
+
+    span.update_name.assert_called_once_with("GET /api/client/features")
+
+
 def test_outbound_request_hook_noop_when_not_recording():
     span = MagicMock()
     span.is_recording.return_value = False
