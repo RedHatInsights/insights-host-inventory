@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
@@ -369,7 +370,7 @@ def test_query_tags_filter_last_check_in_both_same(db_create_host, api_get):
             "tags": _deserialize_tags_dict({"ns2": {"nomatch_key": ["nomatch_value"]}}),
         },
     )
-    last_check_in = str(match_host.last_check_in).replace("+00:00", "Z")
+    last_check_in = match_host.last_check_in.astimezone(UTC).isoformat().replace("+00:00", "Z")
     response_status, response_data = api_get(
         build_tags_url(query=f"?last_check_in_start={last_check_in}&last_check_in_end={last_check_in}")
     )

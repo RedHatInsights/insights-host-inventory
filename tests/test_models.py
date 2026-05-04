@@ -1,5 +1,6 @@
 import uuid
 from copy import deepcopy
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
@@ -429,6 +430,37 @@ def test_host_model_default_timestamps(db_create_host):
     assert before_commit < host.created_on < after_commit
     assert isinstance(host.modified_on, datetime)
     assert host.modified_on < after_commit
+
+
+def test_host_stale_timestamp_nullable_on_insert(db_create_host):
+    """The hosts table allows inserting a row with stale_timestamp NULL."""
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        subscription_manager_id=generate_uuid(),
+        reporter="yupana",
+        org_id=USER_IDENTITY["org_id"],
+    )
+    host.stale_timestamp = None
+    db_create_host(host=host)
+    db.session.refresh(host)
+    assert host.stale_timestamp is None
+
+
+def test_host_stale_timestamp_nullable_update_to_null(db_create_host):
+    """An existing row may update stale_timestamp from a value to NULL."""
+    host = Host(
+        account=USER_IDENTITY["account_number"],
+        subscription_manager_id=generate_uuid(),
+        reporter="yupana",
+        org_id=USER_IDENTITY["org_id"],
+    )
+    db_create_host(host=host)
+    assert host.stale_timestamp is not None
+
+    host.stale_timestamp = None
+    db.session.commit()
+    db.session.refresh(host)
+    assert host.stale_timestamp is None
 
 
 def test_host_model_updated_timestamp(db_create_host):
@@ -1542,7 +1574,7 @@ def test_add_dynamic_profile(db_create_host):
         # We return datetime objects from the database,
         # so we need to convert them to strings for comparison
         if isinstance(getattr(retrieved, key), datetime):
-            assert getattr(retrieved, key).isoformat() == value
+            assert getattr(retrieved, key).astimezone(UTC).isoformat() == value
         else:
             assert getattr(retrieved, key) == value
 

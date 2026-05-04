@@ -110,7 +110,13 @@ class MockFuture:
 
 
 def generate_kessel_workspace_message(
-    operation: str, id: str, name: str, type: str = "standard", identity: dict = SYSTEM_IDENTITY
+    operation: str,
+    id: str,
+    name: str,
+    type: str = "standard",
+    identity: dict = SYSTEM_IDENTITY,
+    created: str | None = None,
+    modified: str | None = None,
 ):
     now = datetime.now().isoformat()
 
@@ -122,8 +128,8 @@ def generate_kessel_workspace_message(
             "id": id,
             "name": name,
             "type": type,
-            "created": now,
-            "modified": now,
+            "created": created or now,
+            "modified": modified or now,
         },
     }
 
@@ -449,7 +455,7 @@ def assert_patch_event_is_valid(
             "stale_warning_timestamp": stale_warning_timestamp,
             "culled_timestamp": culled_timestamp,
             "created": host.created_on.astimezone(UTC).isoformat(),
-            "last_check_in": host.last_check_in.isoformat(),
+            "last_check_in": host.last_check_in.astimezone(UTC).isoformat(),
             "provider_id": host.provider_id,
             "provider_type": host.provider_type,
             "openshift_cluster_id": host.openshift_cluster_id,

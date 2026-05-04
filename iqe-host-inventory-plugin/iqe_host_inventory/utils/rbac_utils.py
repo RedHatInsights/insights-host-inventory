@@ -4,9 +4,10 @@ import logging
 from enum import Enum
 from time import sleep
 
-from iqe_rbac_api import RoleWithAccess
-from iqe_rbac_v2_api import Permission as RBACV2Permission
-from iqe_rbac_v2_api import Role as RBACV2Role
+from iqe_bindings.v7.rbac_v1 import RoleOutDynamic
+from iqe_bindings.v7.rbac_v1 import RoleWithAccess
+from iqe_bindings.v7.rbac_v2 import Permission as RBACV2Permission
+from iqe_bindings.v7.rbac_v2 import Role as RBACV2Role
 
 from iqe_host_inventory import ApplicationHostInventory
 
@@ -42,7 +43,7 @@ class RBACRoles(Enum):
     USER_ACCESS = "User Access administrator"
 
 
-def get_role_id(role: RoleWithAccess | RBACV2Role) -> str:
+def get_role_id(role: RoleWithAccess | RoleOutDynamic | RBACV2Role) -> str:
     """Get role ID from either V1 (RoleWithAccess.uuid) or V2 (Role.id) role object."""
     return getattr(role, "uuid", None) or role.id
 

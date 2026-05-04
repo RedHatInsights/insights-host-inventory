@@ -257,6 +257,28 @@ def test_validate_sp_for_invalid_days(api_post):
     assert response_status == 400
 
 
+def test_system_profile_owner_id(mq_create_or_update_host, api_get):
+    """Test that owner_id system profile field is properly stored and retrieved."""
+    owner_id = generate_uuid()
+    system_profile = valid_system_profile()
+    system_profile["owner_id"] = owner_id
+    host = minimal_host(system_profile=system_profile)
+
+    # Create custom identity with matching owner_id
+    custom_identity = {**SYSTEM_IDENTITY, "system": {**SYSTEM_IDENTITY["system"], "cn": owner_id}}
+
+    created_host = mq_create_or_update_host(host, identity=custom_identity)
+
+    # Verify owner_id is in the created host response
+    assert created_host.system_profile.get("owner_id") == owner_id
+
+    # Verify owner_id is returned via API
+    url = f"{HOST_URL}/{created_host.id}/system_profile"
+    response_status, response_data = api_get(url, identity=custom_identity)
+    assert response_status == 200
+    assert response_data["results"][0]["system_profile"]["owner_id"] == owner_id
+
+
 def test_system_profile_operating_system(mq_create_or_update_host, api_get):
     # Create some operating systems
     ordered_sp_data = [
@@ -386,6 +408,33 @@ def test_system_profile_sap_system(mq_create_or_update_host, api_get):
             assert item_count == len(sap_list)
         else:
             assert item_count == len(not_sap_list)
+
+
+@pytest.mark.parametrize(
+    "sap_sids",
+    [
+        ["ABC"],
+        ["ABC", "CDE"],
+        ["ABC", "CDE", "EFG"],
+        ["A01", "BCD", "C1E"],
+        ["A00", "AB0", "ABC"],
+    ],
+)
+def test_system_profile_sap_sids_patterns(mq_create_or_update_host, api_get, sap_sids):
+    """Test various SAP sids patterns are properly stored and retrieved."""
+    system_profile = {"workloads": {"sap": {"sap_system": True, "sids": sap_sids}}}
+    host = minimal_host(system_profile=system_profile)
+
+    created_host = mq_create_or_update_host(host)
+
+    # Verify sids are in the created host response
+    assert created_host.system_profile.get("workloads", {}).get("sap", {}).get("sids") == sap_sids
+
+    # Verify sids are returned via API
+    url = f"{HOST_URL}/{created_host.id}/system_profile"
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert response_data["results"][0]["system_profile"]["workloads"]["sap"]["sids"] == sap_sids
 
 
 def test_system_profile_sap_sids(mq_create_or_update_host, api_get):
