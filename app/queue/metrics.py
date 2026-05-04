@@ -111,7 +111,7 @@ host_app_data_message_parsing_time = Summary(
 host_app_data_processing_success = Counter(
     "inventory_host_app_data_processing_successes",
     "Total number of host app data records successfully processed",
-    ["application", "org_id"],
+    ["application"],
 )
 host_app_data_failure = Counter(
     "inventory_host_app_data_failures",
@@ -121,5 +121,5 @@ host_app_data_failure = Counter(
 host_app_data_last_processed_timestamp = Gauge(
     "inventory_host_app_data_last_processed_timestamp",
     "Unix timestamp of the last successfully processed message for each application",
-    ["application", "org_id"],
+    ["application"],
 )
