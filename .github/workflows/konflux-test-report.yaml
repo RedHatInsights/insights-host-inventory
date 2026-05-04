@@ -85,8 +85,8 @@ jobs:
             exit 0
           fi
 
-          # Sanitize logs: remove lines that may contain secrets/tokens/passwords (case-insensitive)
-          grep -ivE '(password|token|secret|credential|bearer|authorization|private.token)' /tmp/iqe-logs-raw.txt > /tmp/iqe-logs.txt
+          # Sanitize logs: redact sensitive values in-place (case-insensitive)
+          sed -E 's/(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+/\1=***REDACTED***/gI' /tmp/iqe-logs-raw.txt > /tmp/iqe-logs.txt
           rm -f /tmp/iqe-logs-raw.txt
 
           echo "status=ok" >> "$GITHUB_OUTPUT"
@@ -107,7 +107,7 @@ jobs:
             FAILED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
             PASSED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' || echo "0")
             SKIPPED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' || echo "0")
-            ERRORS=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ error' | grep -oE '[0-9]+' || echo "0")
+            ERRORS=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ errors?' | grep -oE '[0-9]+' || echo "0")
 
             echo "failed=${FAILED:-0}" >> "$GITHUB_OUTPUT"
             echo "passed=${PASSED:-0}" >> "$GITHUB_OUTPUT"
@@ -135,8 +135,8 @@ jobs:
               ERROR_MSG=$(tail -50 "$LOGS")
             fi
 
-            # Sanitize error message: strip any lines containing tokens/secrets (case-insensitive)
-            echo "$ERROR_MSG" | grep -ivE '(password|token|secret|credential|bearer|authorization|private.token)' | head -c 4000 > /tmp/error-msg.txt
+            # Sanitize error message: redact sensitive values in-place (case-insensitive)
+            echo "$ERROR_MSG" | sed -E 's/(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+/\1=***REDACTED***/gI' | head -c 4000 > /tmp/error-msg.txt
           fi
 
       - name: Logout from Konflux cluster
