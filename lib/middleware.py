@@ -105,8 +105,8 @@ def _get_rbac_access_token() -> str:
     try:
         token_response = oauth_client.get_token()
         return token_response.access_token
-    except Exception as e:
-        logger.exception("Failed to get RBAC access token", extra={"error": str(e)})
+    except Exception:
+        logger.exception("Failed to get RBAC access token")
         raise
 
 
