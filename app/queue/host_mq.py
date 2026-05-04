@@ -373,6 +373,8 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     account=identity.account_number,
                     group_id=workspace["id"],
                     ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                    created_on=workspace.get("created"),
+                    modified_on=workspace.get("modified"),
                 )
                 return OperationResult(
                     group,
@@ -774,15 +776,13 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 org_id=org_id,
                 hosts_data=hosts_data,
             )
-            metrics.host_app_data_processing_success.labels(application=application, org_id=org_id).inc(success_count)
+            metrics.host_app_data_processing_success.labels(application=application).inc(success_count)
 
             # Update data freshness metric with current timestamp
             # In test/dev environments, Gauge metrics may fail if PROMETHEUS_MULTIPROC_DIR
             # isn't properly configured for multiprocess mode. This is non-fatal.
             with suppress(TypeError, OSError):
-                metrics.host_app_data_last_processed_timestamp.labels(application=application, org_id=org_id).set(
-                    time.time()
-                )
+                metrics.host_app_data_last_processed_timestamp.labels(application=application).set(time.time())
 
         except OperationalError as e:
             logger.exception(
