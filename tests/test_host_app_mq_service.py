@@ -234,7 +234,7 @@ class TestHostAppMessageConsumerMetrics:
         headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
         host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
-        mock_metrics.host_app_data_processing_success.labels.assert_called_with(application="advisor", org_id=org_id)
+        mock_metrics.host_app_data_processing_success.labels.assert_called_with(application="advisor")
 
     @patch("app.queue.host_mq.metrics")
     def test_unicode_error_increments_failure_metric(self, mock_metrics, host_app_consumer):
