@@ -91,20 +91,20 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:796e859cfb5e93c55276ce746f8020f691eda6b68a0ec4ce4f6fd07a1cca6859",
-                "sha256:be951cc22769fbcda73fac523b031ee38db45c3ae2b0d828c76b8f6e8e683073"
+                "sha256:7c7777862ffc898f05efa566032bbabfe226dbb810e35ec11125817f128bc5c5",
+                "sha256:fb9fe51849ef2a78198d582756fc06f14f7de27f73e0fa90275d6aa4171eb4d0"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==1.43.2"
+            "version": "==1.43.3"
         },
         "botocore": {
             "hashes": [
-                "sha256:7b2ec87b6d0720bff920451ce930e71c2a99cdea48d0eaa66ccf0b21ea747e03",
-                "sha256:b823454d751a1c24bb403b5b07ab65007689654abb21787df923684e0743976c"
+                "sha256:eac6da0fffccf87888ebf4d89f0b2378218a707efa748cd955b838995e944695",
+                "sha256:ec0769eb0f7c5034856bb406a92698dbc02a3d4be0f78a384747106b161d8ea3"
             ],
             "markers": "python_version >= '3.10'",
-            "version": "==1.43.2"
+            "version": "==1.43.3"
         },
         "cachelib": {
             "hashes": [
@@ -3279,12 +3279,12 @@
         },
         "types-requests": {
             "hashes": [
-                "sha256:81f31d5ea4acb39f03be7bc8bed569ba6d5a9c5d97e89f45ac43d819b68ca50f",
-                "sha256:95b9a86376807a216b2fb412b47617b202091c3ea7c078f47cc358d5528ccb7b"
+                "sha256:02aaa7e3577a13471715bb1bddb693cc985ea514f754b503bf033e6a09a3e528",
+                "sha256:9721b2d9dbee7131f2fb39f20f0ebb1999c18cef4b512c9a7932f3722de7c5f4"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==2.33.0.20260408"
+            "version": "==2.33.0.20260503"
         },
         "types-setuptools": {
             "hashes": [
@@ -3316,7 +3316,6 @@
                 "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed",
                 "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"
             ],
-            "index": "pypi",
             "markers": "python_version >= '3.9'",
             "version": "==2.6.3"
         },
