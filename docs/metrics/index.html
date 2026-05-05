@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PR Health Metrics — insights-host-inventory</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.5rem; color: #f0f6fc; }
+    .subtitle { color: #8b949e; margin: 0.25rem 0 0.5rem; font-size: 0.85rem; }
+    .baseline-note {
+      color: #8b949e;
+      font-size: 0.8rem;
+      margin-bottom: 2rem;
+      padding: 0.75rem 1rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+    }
+    .baseline-note span { color: #c9d1d9; font-weight: 500; }
+    .section { margin-bottom: 2.5rem; }
+    .section-header {
+      font-size: 1.05rem;
+      color: #f0f6fc;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #21262d;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+    thead th {
+      padding: 0.65rem 0.75rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #8b949e;
+      background: #1c2028;
+      border-bottom: 1px solid #30363d;
+      text-align: center;
+      white-space: nowrap;
+    }
+    thead th:first-child {
+      text-align: left;
+      min-width: 180px;
+    }
+    thead th.col-baseline {
+      background: #1a1f27;
+    }
+    thead th.col-quarter {
+      border-left: 1px solid #30363d;
+    }
+    tbody td {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.85rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+    tbody td:first-child {
+      text-align: left;
+      color: #c9d1d9;
+      font-weight: 500;
+    }
+    tbody td.col-baseline {
+      color: #e6b44c;
+      background: rgba(26, 31, 39, 0.5);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    tbody td.col-quarter {
+      border-left: 1px solid #21262d;
+    }
+    td.val { color: #f0f6fc; font-weight: 600; font-variant-numeric: tabular-nums; }
+    td.delta-good { color: #3fb950; font-weight: 600; font-size: 0.8rem; }
+    td.delta-bad { color: #f85149; font-weight: 600; font-size: 0.8rem; }
+    td.delta-neutral { color: #484f58; font-size: 0.8rem; }
+    td.no-data { color: #484f58; }
+    .bot-stat {
+      margin-top: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .bot-stat .label { color: #8b949e; }
+    .bot-stat .q-val { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .bot-stat .q-name { color: #58a6ff; font-size: 0.75rem; }
+    .bot-stat .q-num { color: #f0f6fc; font-weight: 700; }
+    .empty { text-align: center; padding: 4rem; color: #8b949e; }
+    .error { text-align: center; padding: 4rem; color: #f85149; }
+    .updated { color: #484f58; font-size: 0.75rem; margin-top: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>PR Health Metrics</h1>
+  <p class="subtitle">insights-host-inventory — auto-updated by CI</p>
+  <div id="app"><div class="empty">Loading metrics data...</div></div>
+
+  <script>
+    function fmt(v, suffix) {
+      if (v === null || v === undefined) return '—';
+      const n = parseFloat(v);
+      return (Number.isInteger(n) ? n.toString() : n.toFixed(1)) + (suffix || '');
+    }
+
+    function calcDelta(before, after, lowerIsBetter) {
+      if (before == null || after == null) return ['', 'delta-neutral'];
+      if (before === 0 && after === 0) return ['—', 'delta-neutral'];
+      if (before === 0) return ['', 'delta-neutral'];
+      const pct = Math.round((after - before) / Math.abs(before) * 100);
+      const prefix = pct >= 0 ? '+' : '';
+      const text = `${prefix}${pct}%`;
+      const isGood = lowerIsBetter ? pct <= 0 : pct >= 0;
+      const cls = pct === 0 ? 'delta-neutral' : (isGood ? 'delta-good' : 'delta-bad');
+      return [text, cls];
+    }
+
+    const QUARTER_NAMES = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+    function buildTable(metrics, baselineData, quartersData) {
+      let headerRow = '<th>Metric</th><th class="col-baseline">Baseline</th>';
+      for (const q of QUARTER_NAMES) {
+        headerRow += `<th class="col-quarter" colspan="2">${q}</th>`;
+      }
+
+      let subHeaderRow = '<th></th><th class="col-baseline">(pre-deploy)</th>';
+      for (const q of QUARTER_NAMES) {
+        subHeaderRow += '<th class="col-quarter">Value</th><th>Change</th>';
+      }
+
+      let bodyRows = '';
+      for (const m of metrics) {
+        const baseVal = baselineData[m.key];
+        let row = `<td>${m.label}</td>`;
+        row += `<td class="col-baseline">${fmt(baseVal, m.suffix)}</td>`;
+
+        for (const q of QUARTER_NAMES) {
+          const qd = quartersData[q];
+          if (qd && qd[m.key] !== undefined && qd[m.key] !== null) {
+            const val = qd[m.key];
+            const [dText, dCls] = calcDelta(baseVal, val, m.lowerIsBetter);
+            row += `<td class="col-quarter val">${fmt(val, m.suffix)}</td>`;
+            row += `<td class="${dCls}">${dText}</td>`;
+          } else {
+            row += '<td class="col-quarter no-data">—</td><td class="no-data"></td>';
+          }
+        }
+
+        bodyRows += `<tr>${row}</tr>`;
+      }
+
+      return `<table>
+        <thead>
+          <tr>${headerRow}</tr>
+          <tr>${subHeaderRow}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+    }
+
+    async function init() {
+      const app = document.getElementById('app');
+      let data;
+      try {
+        const resp = await fetch('data.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        data = await resp.json();
+      } catch (e) {
+        app.innerHTML = `<div class="error">Failed to load data.json: ${e.message}</div>`;
+        return;
+      }
+
+      if (!data.baseline) {
+        app.innerHTML = '<div class="empty">No metrics data yet. Run the workflow to collect the first data point.</div>';
+        return;
+      }
+
+      const baseline = data.baseline;
+      const quarters = data.quarters || {};
+      const year = data.year || '';
+
+      const staleQuarters = {};
+      const reviewQuarters = {};
+      for (const [q, entry] of Object.entries(quarters)) {
+        if (entry.stale) staleQuarters[q] = entry.stale.data;
+        if (entry.review) reviewQuarters[q] = entry.review.data;
+      }
+
+      const staleMetrics = [
+        { key: 'median_ttm', label: 'Median time-to-merge', suffix: 'h', lowerIsBetter: true },
+        { key: 'open_15d', label: 'Open >15 days', suffix: '', lowerIsBetter: true }
+      ];
+
+      const reviewMetrics = [
+        { key: 'no_review_24h', label: 'PRs with 0 reviews >24h', suffix: '', lowerIsBetter: true },
+        { key: 'avg_ttfr', label: 'Avg time-to-first-review (team responsiveness)', suffix: 'h', lowerIsBetter: true }
+      ];
+
+      const staleTable = buildTable(staleMetrics, baseline.stale.data, staleQuarters);
+      const reviewTable = buildTable(reviewMetrics, baseline.review.data, reviewQuarters);
+
+      const botValues = QUARTER_NAMES
+        .filter(q => staleQuarters[q] && staleQuarters[q].bot_closed != null)
+        .map(q => `<span class="q-val"><span class="q-name">${q}</span> <span class="q-num">${staleQuarters[q].bot_closed}</span></span>`)
+        .join('');
+
+      const botHtml = botValues
+        ? `<div class="bot-stat"><span class="label">PRs auto-closed by stale bot:</span>${botValues}</div>`
+        : '';
+
+      const lastUpdated = Object.values(quarters).map(q => q.updated).sort().pop() || '';
+
+      app.innerHTML = `
+        <div class="baseline-note">
+          Baseline (pre-deploy, fixed): <span>${baseline.stale.period}</span> (stale) &nbsp;&bull;&nbsp; <span>${baseline.review.period}</span> (review)
+        </div>
+        <div class="section">
+          <div class="section-header">Stale PR Closer &mdash; ${year} Quarterly Comparison</div>
+          ${staleTable}
+          ${botHtml}
+        </div>
+        <div class="section">
+          <div class="section-header">PR Review Reminder &mdash; ${year} Quarterly Comparison</div>
+          ${reviewTable}
+        </div>
+        <div class="updated">Year: ${year} &nbsp;&bull;&nbsp; Last updated: ${lastUpdated}</div>
+      `;
+    }
+
+    init();
+  </script>
+</body>
+</html>
