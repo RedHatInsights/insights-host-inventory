@@ -8,13 +8,16 @@ on:
   schedule:
     # Every weekday (Mon-Fri) at 14:00 UTC (~9 AM US Eastern)
     - cron: "0 14 * * 1-5"
-  workflow_dispatch: # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip Slack post and just log output'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
   pull-requests: read
-  pages: write
-  id-token: write
 
 jobs:
   notify:
@@ -37,7 +40,7 @@ jobs:
             --json number,title,author,createdAt,url,isDraft,reviewDecision,reviews,comments \
             --limit 100)
 
-          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\])$"
+          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
 
           FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" --arg bots "$BOT_PATTERN" '
             [ .[]
@@ -87,17 +90,24 @@ jobs:
               ]
             }')
 
-          curl -sf -X POST \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$SLACK_WEBHOOK_URL"
-
-          echo "Slack reminder sent with $COUNT PR(s)."
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "DRY RUN — would have posted to Slack:"
+            echo "$PAYLOAD" | jq .
+          else
+            curl -sf -X POST \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$SLACK_WEBHOOK_URL"
+            echo "Slack reminder sent with $COUNT PR(s)."
+          fi
 
   metrics:
     runs-on: ubuntu-latest
     needs: notify
     if: always()
+    permissions:
+      contents: write
+      pull-requests: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
@@ -172,7 +182,7 @@ jobs:
           STORED_YEAR=$(echo "$EXISTING" | jq -r '.year // ""')
           if [ "$STORED_YEAR" != "$YEAR" ]; then
             echo "New year detected ($STORED_YEAR -> $YEAR). Resetting quarterly data."
-            EXISTING=$(echo "$EXISTING" | jq --arg y "$YEAR" '{year: $y, baseline: .baseline, quarters: {}}')
+            EXISTING=$(echo "$EXISTING" | jq --arg y "$YEAR" '.year = $y | .quarters = {}')
           fi
 
           BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
@@ -282,11 +292,21 @@ jobs:
               --search "created:${stale_before_start}..${review_before_end}" \
               --limit 1000)
 
-            REVIEW_DATA=$(gh pr list --repo "$REPO" --state all \
+            if [ "$(echo "$PRS_BASE" | jq 'length')" -ge 1000 ]; then
+              echo "::warning::Baseline PR count hit 1000 limit for ${stale_before_start}..${review_before_end}. Metrics may be truncated."
+            fi
+
+            REVIEW_DATA_RAW=$(gh pr list --repo "$REPO" --state all \
               --json number,reviews \
               --search "created:${stale_before_start}..${review_before_end}" \
-              --limit 1000 \
-              --jq "[.[] | {number, review_times: [.reviews[]? | select(.author.login | test(\"$BOT_PATTERN\") | not) | .submittedAt]}]")
+              --limit 1000)
+
+            if [ "$(echo "$REVIEW_DATA_RAW" | jq 'length')" -ge 1000 ]; then
+              echo "::warning::Baseline review data hit 1000 limit. Review metrics may be truncated."
+            fi
+
+            REVIEW_DATA=$(echo "$REVIEW_DATA_RAW" | jq --arg bots "$BOT_PATTERN" \
+              '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]')
 
             BASELINE_PRS=$(jq -n --argjson base "$PRS_BASE" --argjson reviews "$REVIEW_DATA" '
               ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
@@ -327,8 +347,8 @@ jobs:
           Q_REVIEW_DATA=$(gh pr list --repo "$REPO" --state all \
             --json number,reviews \
             --search "created:${Q_START}..${Q_END}" \
-            --limit 1000 \
-            --jq "[.[] | {number, review_times: [.reviews[]? | select(.author.login | test(\"$BOT_PATTERN\") | not) | .submittedAt]}]")
+            --limit 1000 | jq --arg bots "$BOT_PATTERN" \
+            '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]')
 
           Q_PRS=$(jq -n --argjson base "$Q_PRS_BASE" --argjson reviews "$Q_REVIEW_DATA" '
             ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
@@ -387,12 +407,20 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$DATA_FILE"
           git diff --cached --quiet || git commit -m "chore: update PR metrics for ${TODAY}"
-          git push origin HEAD
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin HEAD && git push origin HEAD && break
+            echo "Push attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
 
   deploy:
     runs-on: ubuntu-latest
     needs: metrics
     if: always() && needs.metrics.result == 'success'
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
