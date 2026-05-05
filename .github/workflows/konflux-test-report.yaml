@@ -119,7 +119,8 @@ jobs:
             echo "summary_line=$SUMMARY_LINE" >> "$GITHUB_OUTPUT"
 
             # Extract failed and errored test names from the short test summary section
-            FAILED_TESTS=$(grep -E '^FAILED |^ERROR ' "$LOGS" | sed -E 's/^(FAILED|ERROR) (iqe-local-plugin\/)?//' | grep -v '^\s*$' | head -50)
+            FAILED_TESTS=$(grep -E '^(FAILED|ERROR) ' "$LOGS" | sed -E 's/^(FAILED|ERROR) (iqe-local-plugin\/)?//' | head -50)
+            FAILED_TESTS=$(echo "$FAILED_TESTS" | grep -v '^\s*$' || true)
             echo "$FAILED_TESTS" > /tmp/failed-tests.txt
 
           else
@@ -173,9 +174,8 @@ jobs:
           FAILED_TESTS=$(cat /tmp/failed-tests.txt)
           TOTAL=$((FAILED + PASSED + SKIPPED + ERRORS))
 
-          # Group failures by test module
-          # Strip ::test_method, then strip filename (last /segment), filter empty lines
-          GROUPED=$(echo "$FAILED_TESTS" | grep -v '^\s*$' | sed -E 's|::.*||' | sed -E 's|/[^/]*$||' | grep -v '^\s*$' | sort | uniq -c | sort -rn | head -10)
+          # Group failures by test module (strip ::test_method, then filename)
+          GROUPED=$(echo "$FAILED_TESTS" | sed -E 's|::.*||' | sed -E 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
 
           MARKER="<!-- konflux-test-report:$SCENARIO -->"
 
@@ -195,7 +195,7 @@ jobs:
           # Add failed/errored tests section
           PROBLEM_COUNT=$((FAILED + ERRORS))
           if [ "$PROBLEM_COUNT" -gt 0 ]; then
-            if [ -n "$FAILED_TESTS" ] && [ -n "$(echo "$FAILED_TESTS" | grep -v '^\s*$')" ]; then
+            if [ -n "$FAILED_TESTS" ]; then
               BODY="$BODY
 
           ### Failed/Errored Tests ($PROBLEM_COUNT)
