@@ -814,7 +814,7 @@ def generate_fqdn(panic_prevention: str = "rhiqe") -> str:
 
 
 def generate_display_name(panic_prevention: str = "rhiqe") -> str:
-    return f"{panic_prevention}.{generate_uuid()}"
+    return f"{panic_prevention}_{generate_uuid()}"
 
 
 def generate_ips(num_ips: int = 2) -> list[str]:
