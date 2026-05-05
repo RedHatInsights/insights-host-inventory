@@ -42,11 +42,11 @@ __all__ = (
 
 
 _EXPORT_SERVICE_FIELDS = [
-    "host_id",
+    "display_name",
     "fqdn",
+    "host_id",
     "subscription_manager_id",
     "satellite_id",
-    "display_name",
     "group_id",
     "group_name",
     "os_release",
