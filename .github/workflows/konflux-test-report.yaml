@@ -115,9 +115,8 @@ jobs:
             echo "errors=${ERRORS:-0}" >> "$GITHUB_OUTPUT"
             echo "summary_line=$SUMMARY_LINE" >> "$GITHUB_OUTPUT"
 
-            # Extract failed test names
-            FAILED_TESTS=$(grep '^FAILED ' "$LOGS" | sed 's|^FAILED iqe-local-plugin/||' | head -50)
-            # Save to file for the comment step (multiline)
+            # Extract failed and errored test names
+            FAILED_TESTS=$(grep -E '^(FAILED|ERROR) ' "$LOGS" | sed -E 's|^(FAILED|ERROR) iqe-local-plugin/||' | head -50)
             echo "$FAILED_TESTS" > /tmp/failed-tests.txt
 
           else
@@ -165,10 +164,11 @@ jobs:
           FAILED: ${{ steps.parse.outputs.failed }}
           PASSED: ${{ steps.parse.outputs.passed }}
           SKIPPED: ${{ steps.parse.outputs.skipped }}
+          ERRORS: ${{ steps.parse.outputs.errors }}
           PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
         run: |
           FAILED_TESTS=$(cat /tmp/failed-tests.txt)
-          TOTAL=$((FAILED + PASSED + SKIPPED))
+          TOTAL=$((FAILED + PASSED + SKIPPED + ERRORS))
 
           # Group failures by test module
           GROUPED=$(echo "$FAILED_TESTS" | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
@@ -184,14 +184,16 @@ jobs:
           | Total  | $TOTAL |
           | Passed | $PASSED |
           | Failed | $FAILED |
+          | Errors | $ERRORS |
           | Skipped | $SKIPPED |
           "
 
-          # Add failed tests section
-          if [ "$FAILED" -gt 0 ]; then
+          # Add failed/errored tests section
+          PROBLEM_COUNT=$((FAILED + ERRORS))
+          if [ "$PROBLEM_COUNT" -gt 0 ]; then
             BODY="$BODY
 
-          ### Failed Tests ($FAILED)
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
 
           Most affected modules:
           \`\`\`
