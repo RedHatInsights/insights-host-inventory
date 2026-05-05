@@ -206,6 +206,11 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
     return os_filter_list
 
 
+def _operating_system_name_lower(os_field) -> ColumnElement:
+    """Lowercase `operating_system.name` text for case-insensitive comparisons."""
+    return func.lower(os_field["name"].astext)
+
+
 # Takes an OS filter param and converts it into a tuple containing the DB filter
 def build_operating_system_filter(filter_param: dict) -> tuple:
     os_filter_list = []  # Top-level filter
@@ -224,7 +229,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [
-                func.lower(os_field["name"].astext).operate(comparator, os_filter.name.lower()),
+                _operating_system_name_lower(os_field).operate(comparator, os_filter.name.lower()),
             ]
 
             if os_filter.major is not None:
@@ -241,7 +246,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
                 comparator_no_eq = POSTGRES_COMPARATOR_NO_EQ_LOOKUP.get(os_filter.comparator)
                 os_filter = and_(
-                    func.lower(os_field["name"].astext) == os_filter.name.lower(),
+                    _operating_system_name_lower(os_field) == os_filter.name.lower(),
                     or_(
                         os_field["major"].astext.cast(Integer).operate(comparator_no_eq, os_filter.major),
                         and_(
@@ -253,7 +258,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
             else:
                 os_filter = and_(
-                    func.lower(os_field["name"].astext) == os_filter.name.lower(),
+                    _operating_system_name_lower(os_field) == os_filter.name.lower(),
                     os_field["major"].astext.cast(Integer).operate(comparator, os_filter.major),
                 )
 
