@@ -206,7 +206,7 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
     return os_filter_list
 
 
-def _operating_system_name_lower(os_field) -> ColumnElement:
+def _operating_system_name_lower(os_field: ColumnElement) -> ColumnElement:
     """Lowercase `operating_system.name` text for case-insensitive comparisons."""
     return func.lower(os_field["name"].astext)
 
