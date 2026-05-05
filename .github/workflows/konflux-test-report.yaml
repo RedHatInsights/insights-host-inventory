@@ -125,7 +125,9 @@ jobs:
             echo "type=infra_error" >> "$GITHUB_OUTPUT"
 
             # Look for common infrastructure error patterns
-            if grep -q "ApiException" "$LOGS"; then
+            if grep -q "deploy failed" "$LOGS"; then
+              ERROR_MSG=$(grep -E '(deploy failed|ErrImagePull|timed out waiting)' "$LOGS" | sort -u | head -20)
+            elif grep -q "ApiException" "$LOGS"; then
               ERROR_MSG=$(grep -B2 "ApiException" "$LOGS" | tail -3)
             elif grep -q "Traceback" "$LOGS"; then
               ERROR_MSG=$(grep -A20 "Traceback (most recent call last)" "$LOGS" | tail -25)
