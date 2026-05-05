@@ -97,6 +97,9 @@ jobs:
         run: |
           LOGS="/tmp/iqe-logs.txt"
 
+          # Strip ANSI color codes from logs for reliable parsing
+          sed -i 's/\x1b\[[0-9;]*m//g' "$LOGS"
+
           # Check for pytest summary line (e.g. "= 43 failed, 4605 passed, 65 skipped ...")
           SUMMARY_LINE=$(grep -E '^=+ .*(failed|passed|error).*=+$' "$LOGS" | tail -1)
 
@@ -115,8 +118,8 @@ jobs:
             echo "errors=${ERRORS:-0}" >> "$GITHUB_OUTPUT"
             echo "summary_line=$SUMMARY_LINE" >> "$GITHUB_OUTPUT"
 
-            # Extract failed and errored test names
-            FAILED_TESTS=$(grep -E '^(FAILED|ERROR) ' "$LOGS" | sed -E 's|^(FAILED|ERROR) iqe-local-plugin/||' | head -50)
+            # Extract failed and errored test names from the short test summary section
+            FAILED_TESTS=$(grep -E '^FAILED |^ERROR ' "$LOGS" | sed -E 's/^(FAILED|ERROR) (iqe-local-plugin\/)?//' | grep -v '^\s*$' | head -50)
             echo "$FAILED_TESTS" > /tmp/failed-tests.txt
 
           else
@@ -171,7 +174,8 @@ jobs:
           TOTAL=$((FAILED + PASSED + SKIPPED + ERRORS))
 
           # Group failures by test module
-          GROUPED=$(echo "$FAILED_TESTS" | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
+          # Strip ::test_method, then strip filename (last /segment), filter empty lines
+          GROUPED=$(echo "$FAILED_TESTS" | grep -v '^\s*$' | sed -E 's|::.*||' | sed -E 's|/[^/]*$||' | grep -v '^\s*$' | sort | uniq -c | sort -rn | head -10)
 
           MARKER="<!-- konflux-test-report:$SCENARIO -->"
 
@@ -191,7 +195,8 @@ jobs:
           # Add failed/errored tests section
           PROBLEM_COUNT=$((FAILED + ERRORS))
           if [ "$PROBLEM_COUNT" -gt 0 ]; then
-            BODY="$BODY
+            if [ -n "$FAILED_TESTS" ] && [ -n "$(echo "$FAILED_TESTS" | grep -v '^\s*$')" ]; then
+              BODY="$BODY
 
           ### Failed/Errored Tests ($PROBLEM_COUNT)
 
@@ -209,6 +214,14 @@ jobs:
 
           </details>
           "
+            else
+              BODY="$BODY
+
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
+
+          _Could not extract individual test names from logs._
+          "
+            fi
           fi
 
           BODY="$BODY
