@@ -241,7 +241,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
                 comparator_no_eq = POSTGRES_COMPARATOR_NO_EQ_LOOKUP.get(os_filter.comparator)
                 os_filter = and_(
-                    os_field["name"].astext == os_filter.name,
+                    func.lower(os_field["name"].astext) == os_filter.name.lower(),
                     or_(
                         os_field["major"].astext.cast(Integer).operate(comparator_no_eq, os_filter.major),
                         and_(
@@ -253,7 +253,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
             else:
                 os_filter = and_(
-                    os_field["name"].astext == os_filter.name,
+                    func.lower(os_field["name"].astext) == os_filter.name.lower(),
                     os_field["major"].astext.cast(Integer).operate(comparator, os_filter.major),
                 )
 
