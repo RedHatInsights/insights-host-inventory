@@ -268,8 +268,8 @@ jobs:
           '
 
           compute_metrics() {
-            local prs_json="$1" start_date="$2" end_date="$3"
-            echo "$prs_json" | jq --arg start "${start_date}T00:00:00Z" --arg end "${end_date}T23:59:59Z" "$COMPUTE_JQ"
+            local prs_file="$1" start_date="$2" end_date="$3"
+            jq --arg start "${start_date}T00:00:00Z" --arg end "${end_date}T23:59:59Z" "$COMPUTE_JQ" < "$prs_file"
           }
 
           # --- BASELINE: compute once, store forever ---
@@ -287,34 +287,49 @@ jobs:
             echo "Review baseline: $review_before_start..$review_before_end"
 
             # Fetch PRs covering the baseline period (date-bounded at API level)
-            PRS_BASE=$(gh pr list --repo "$REPO" --state all \
+            gh pr list --repo "$REPO" --state all \
               --json number,createdAt,closedAt,mergedAt,isDraft,state,labels,author \
               --search "created:${stale_before_start}..${review_before_end}" \
-              --limit 1000)
+              --limit 1000 > /tmp/prs_base.json
 
-            if [ "$(echo "$PRS_BASE" | jq 'length')" -ge 1000 ]; then
+            if [ "$(jq 'length' /tmp/prs_base.json)" -ge 1000 ]; then
               echo "::warning::Baseline PR count hit 1000 limit for ${stale_before_start}..${review_before_end}. Metrics may be truncated."
             fi
 
-            REVIEW_DATA_RAW=$(gh pr list --repo "$REPO" --state all \
-              --json number,reviews \
-              --search "created:${stale_before_start}..${review_before_end}" \
-              --limit 1000)
+            # Fetch reviews in monthly chunks to avoid GitHub GraphQL timeouts
+            echo '[]' > /tmp/reviews_raw.json
+            chunk_start="$stale_before_start"
+            while [[ "$chunk_start" < "$review_before_end" ]]; do
+              chunk_end=$(date -u -d "$chunk_start + 30 days" +%Y-%m-%d)
+              if [[ "$chunk_end" > "$review_before_end" ]]; then
+                chunk_end="$review_before_end"
+              fi
+              echo "Fetching reviews for $chunk_start..$chunk_end..."
+              gh pr list --repo "$REPO" --state all \
+                --json number,reviews \
+                --search "created:${chunk_start}..${chunk_end}" \
+                --limit 500 > /tmp/reviews_chunk.json
+              jq -s '.[0] + .[1]' /tmp/reviews_raw.json /tmp/reviews_chunk.json > /tmp/reviews_tmp.json
+              mv /tmp/reviews_tmp.json /tmp/reviews_raw.json
+              chunk_start=$(date -u -d "$chunk_end + 1 day" +%Y-%m-%d)
+            done
+            echo "Fetched reviews for $(jq 'length' /tmp/reviews_raw.json) PRs total."
 
-            if [ "$(echo "$REVIEW_DATA_RAW" | jq 'length')" -ge 1000 ]; then
+            if [ "$(jq 'length' /tmp/reviews_raw.json)" -ge 1000 ]; then
               echo "::warning::Baseline review data hit 1000 limit. Review metrics may be truncated."
             fi
 
-            REVIEW_DATA=$(echo "$REVIEW_DATA_RAW" | jq --arg bots "$BOT_PATTERN" \
-              '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]')
+            jq --arg bots "$BOT_PATTERN" \
+              '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]' \
+              /tmp/reviews_raw.json > /tmp/reviews_filtered.json
 
-            BASELINE_PRS=$(jq -n --argjson base "$PRS_BASE" --argjson reviews "$REVIEW_DATA" '
+            jq -s '.[0] as $base | .[1] as $reviews |
               ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
               [$base[] | . + {review_times: ($rmap[.number | tostring] // [])}]
-            ')
+            ' /tmp/prs_base.json /tmp/reviews_filtered.json > /tmp/baseline_prs.json
 
-            STALE_BASELINE=$(compute_metrics "$BASELINE_PRS" "$stale_before_start" "$stale_before_end")
-            REVIEW_BASELINE=$(compute_metrics "$BASELINE_PRS" "$review_before_start" "$review_before_end")
+            STALE_BASELINE=$(compute_metrics "/tmp/baseline_prs.json" "$stale_before_start" "$stale_before_end")
+            REVIEW_BASELINE=$(compute_metrics "/tmp/baseline_prs.json" "$review_before_start" "$review_before_end")
 
             EXISTING=$(echo "$EXISTING" | jq \
               --argjson sb "$STALE_BASELINE" \
@@ -339,23 +354,26 @@ jobs:
           # --- QUARTERLY DATA: fetch current quarter only ---
           echo "Fetching PRs for current quarter ($QUARTER)..."
 
-          Q_PRS_BASE=$(gh pr list --repo "$REPO" --state all \
+          gh pr list --repo "$REPO" --state all \
             --json number,createdAt,closedAt,mergedAt,isDraft,state,labels,author \
             --search "created:${Q_START}..${Q_END}" \
-            --limit 1000)
+            --limit 1000 > /tmp/q_prs_base.json
 
-          Q_REVIEW_DATA=$(gh pr list --repo "$REPO" --state all \
+          gh pr list --repo "$REPO" --state all \
             --json number,reviews \
             --search "created:${Q_START}..${Q_END}" \
-            --limit 1000 | jq --arg bots "$BOT_PATTERN" \
-            '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]')
+            --limit 1000 > /tmp/q_reviews_raw.json
 
-          Q_PRS=$(jq -n --argjson base "$Q_PRS_BASE" --argjson reviews "$Q_REVIEW_DATA" '
+          jq --arg bots "$BOT_PATTERN" \
+            '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]' \
+            /tmp/q_reviews_raw.json > /tmp/q_reviews_filtered.json
+
+          jq -s '.[0] as $base | .[1] as $reviews |
             ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
             [$base[] | . + {review_times: ($rmap[.number | tostring] // [])}]
-          ')
+          ' /tmp/q_prs_base.json /tmp/q_reviews_filtered.json > /tmp/q_prs.json
 
-          echo "Fetched $(echo "$Q_PRS" | jq 'length') PRs for $QUARTER."
+          echo "Fetched $(jq 'length' /tmp/q_prs.json) PRs for $QUARTER."
 
           # Fetch bot-closed count separately (PRs closed during quarter, regardless of creation date)
           BOT_CLOSED_COUNT=0
@@ -371,7 +389,7 @@ jobs:
           QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" '{ quarter: $q, updated: $date }')
 
           if [ "$SKIP_STALE" = "false" ]; then
-            STALE_Q=$(compute_metrics "$Q_PRS" "$STALE_Q_START" "$STALE_Q_END")
+            STALE_Q=$(compute_metrics "/tmp/q_prs.json" "$STALE_Q_START" "$STALE_Q_END")
             STALE_Q=$(echo "$STALE_Q" | jq --argjson bc "$BOT_CLOSED_COUNT" '.bot_closed = $bc')
             QUARTER_ENTRY=$(echo "$QUARTER_ENTRY" | jq \
               --argjson data "$STALE_Q" \
@@ -380,7 +398,7 @@ jobs:
           fi
 
           if [ "$SKIP_REVIEW" = "false" ]; then
-            REVIEW_Q=$(compute_metrics "$Q_PRS" "$REVIEW_Q_START" "$REVIEW_Q_END")
+            REVIEW_Q=$(compute_metrics "/tmp/q_prs.json" "$REVIEW_Q_START" "$REVIEW_Q_END")
             QUARTER_ENTRY=$(echo "$QUARTER_ENTRY" | jq \
               --argjson data "$REVIEW_Q" \
               --arg period "$REVIEW_Q_START to $REVIEW_Q_END" \
