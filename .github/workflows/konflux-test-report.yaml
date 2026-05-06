@@ -97,6 +97,9 @@ jobs:
         run: |
           LOGS="/tmp/iqe-logs.txt"
 
+          # Strip ANSI color codes from logs for reliable parsing
+          sed -i 's/\x1b\[[0-9;]*m//g' "$LOGS"
+
           # Check for pytest summary line (e.g. "= 43 failed, 4605 passed, 65 skipped ...")
           SUMMARY_LINE=$(grep -E '^=+ .*(failed|passed|error).*=+$' "$LOGS" | tail -1)
 
@@ -115,9 +118,9 @@ jobs:
             echo "errors=${ERRORS:-0}" >> "$GITHUB_OUTPUT"
             echo "summary_line=$SUMMARY_LINE" >> "$GITHUB_OUTPUT"
 
-            # Extract failed test names
-            FAILED_TESTS=$(grep '^FAILED ' "$LOGS" | sed 's|^FAILED iqe-local-plugin/||' | head -50)
-            # Save to file for the comment step (multiline)
+            # Extract failed and errored test names from the short test summary section
+            FAILED_TESTS=$(grep -E '^(FAILED|ERROR) ' "$LOGS" | sed -E 's/^(FAILED|ERROR) (iqe-local-plugin\/)?//' | head -50)
+            FAILED_TESTS=$(echo "$FAILED_TESTS" | grep -v '^\s*$' || true)
             echo "$FAILED_TESTS" > /tmp/failed-tests.txt
 
           else
@@ -165,13 +168,14 @@ jobs:
           FAILED: ${{ steps.parse.outputs.failed }}
           PASSED: ${{ steps.parse.outputs.passed }}
           SKIPPED: ${{ steps.parse.outputs.skipped }}
+          ERRORS: ${{ steps.parse.outputs.errors }}
           PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
         run: |
           FAILED_TESTS=$(cat /tmp/failed-tests.txt)
-          TOTAL=$((FAILED + PASSED + SKIPPED))
+          TOTAL=$((FAILED + PASSED + SKIPPED + ERRORS))
 
-          # Group failures by test module
-          GROUPED=$(echo "$FAILED_TESTS" | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
+          # Group failures by test module (strip ::test_method, then filename)
+          GROUPED=$(echo "$FAILED_TESTS" | sed -E 's|::.*||' | sed -E 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
 
           MARKER="<!-- konflux-test-report:$SCENARIO -->"
 
@@ -184,14 +188,17 @@ jobs:
           | Total  | $TOTAL |
           | Passed | $PASSED |
           | Failed | $FAILED |
+          | Errors | $ERRORS |
           | Skipped | $SKIPPED |
           "
 
-          # Add failed tests section
-          if [ "$FAILED" -gt 0 ]; then
-            BODY="$BODY
+          # Add failed/errored tests section
+          PROBLEM_COUNT=$((FAILED + ERRORS))
+          if [ "$PROBLEM_COUNT" -gt 0 ]; then
+            if [ -n "$FAILED_TESTS" ]; then
+              BODY="$BODY
 
-          ### Failed Tests ($FAILED)
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
 
           Most affected modules:
           \`\`\`
@@ -207,6 +214,14 @@ jobs:
 
           </details>
           "
+            else
+              BODY="$BODY
+
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
+
+          _Could not extract individual test names from logs._
+          "
+            fi
           fi
 
           BODY="$BODY

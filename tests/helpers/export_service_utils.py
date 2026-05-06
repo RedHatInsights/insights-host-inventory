@@ -156,11 +156,11 @@ def create_export_csv_mock(mocker):
 def create_export_json_mock(mocker):
     return [
         {
+            "display_name": mocker.ANY,
+            "fqdn": mocker.ANY,
             "host_id": mocker.ANY,
             "subscription_manager_id": mocker.ANY,
             "satellite_id": mocker.ANY,
-            "display_name": mocker.ANY,
-            "fqdn": mocker.ANY,
             "group_id": mocker.ANY,
             "group_name": mocker.ANY,
             "os_release": mocker.ANY,
