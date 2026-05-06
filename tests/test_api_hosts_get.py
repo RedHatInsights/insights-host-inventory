@@ -1719,6 +1719,12 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
         "[RHEL][version][eq][]=8",
         "[RHEL][version]=8",  # Minor version should be ignored
         "[RHEL][version][gte]=8&filter[system_profile][operating_system][RHEL][version][lte]=8",
+        # RHINENG-15763: range comparators must match stored OS name case-insensitively
+        "[Rhel][version][gt][]=7",
+        "[rHeL][version][gte]=8",
+        "[rhel][version][gt][]=7&filter[system_profile][operating_system][rhel][version][lt][]=9",
+        "[rhel][version][gt][]=7&filter[system_profile][operating_system][rhel][version][lte][]=8",
+        "[rhel][version][gte]=8&filter[system_profile][operating_system][rhel][version][lte]=8",
     ),
 )
 def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
