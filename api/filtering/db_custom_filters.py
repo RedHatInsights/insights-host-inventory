@@ -62,7 +62,7 @@ class OsFilter:
         except ValidationException:
             raise
 
-        self.name = name
+        self.name = name.lower()
         self.comparator = comparator
         self.major = major
         self.minor = minor
@@ -229,7 +229,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
         elif os_filter.comparator in ["eq", "neq"]:
             os_filters = [
-                _operating_system_name_lower(os_field).operate(comparator, os_filter.name.lower()),
+                _operating_system_name_lower(os_field).operate(comparator, os_filter.name),
             ]
 
             if os_filter.major is not None:
@@ -246,7 +246,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
                 # output: (major < 9) OR (major = 9 AND minor <= 5)
                 comparator_no_eq = POSTGRES_COMPARATOR_NO_EQ_LOOKUP.get(os_filter.comparator)
                 os_filter = and_(
-                    _operating_system_name_lower(os_field) == os_filter.name.lower(),
+                    _operating_system_name_lower(os_field) == os_filter.name,
                     or_(
                         os_field["major"].astext.cast(Integer).operate(comparator_no_eq, os_filter.major),
                         and_(
@@ -258,7 +258,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
 
             else:
                 os_filter = and_(
-                    _operating_system_name_lower(os_field) == os_filter.name.lower(),
+                    _operating_system_name_lower(os_field) == os_filter.name,
                     os_field["major"].astext.cast(Integer).operate(comparator, os_filter.major),
                 )
 
