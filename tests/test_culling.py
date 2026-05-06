@@ -1,11 +1,9 @@
-from datetime import UTC
-from datetime import datetime
 from uuid import UUID
 
 import pytest
 
 from app.models import Host
-from app.models import _create_staleness_timestamps_values
+from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_hosts_url
@@ -90,34 +88,18 @@ def test_delete_works_on_non_culled(mq_create_hosts_in_all_states, api_delete_ho
     assert response_status == 200
 
 
-def test_mq_create_deleted_hosts_sets_past_staleness_for_culled(mq_create_deleted_hosts):
-    """Culled bucket gets explicit past timestamps so find_non_culled excludes the row."""
+def test_mq_create_deleted_hosts_culled_has_null_columns_and_is_non_culled_excluded(mq_create_deleted_hosts):
+    """Ingress does not persist staleness columns; old last_check_in yields compute-on-read culled."""
     hw = mq_create_deleted_hosts["culled"]
     orm_host = Host.query.filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).first()
     assert orm_host is not None
 
-    assert orm_host.stale_timestamp is not None
-    assert orm_host.stale_warning_timestamp is not None
-    assert orm_host.deletion_timestamp is not None
+    assert orm_host.stale_timestamp is None
+    assert orm_host.stale_warning_timestamp is None
+    assert orm_host.deletion_timestamp is None
 
-    clock_now = datetime.now(UTC)
-    assert orm_host.deletion_timestamp < clock_now
-    assert orm_host.stale_timestamp < orm_host.stale_warning_timestamp < orm_host.deletion_timestamp
-
-
-def test_mq_create_deleted_hosts_sets_computed_staleness_for_non_culled(mq_create_deleted_hosts):
-    """Non-culled states match apply_computed_staleness_timestamps_to_host / org config + last_check_in."""
-    for state, hw in mq_create_deleted_hosts.items():
-        if state == "culled":
-            continue
-
-        orm_host = Host.query.filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).first()
-        assert orm_host is not None
-
-        expected = _create_staleness_timestamps_values(orm_host, orm_host.org_id)
-        assert orm_host.stale_timestamp == expected["stale_timestamp"]
-        assert orm_host.stale_warning_timestamp == expected["stale_warning_timestamp"]
-        assert orm_host.deletion_timestamp == expected["culled_timestamp"]
+    base = Host.query.filter(Host.id == orm_host.id)
+    assert find_non_culled_hosts(base, orm_host.org_id).count() == 0
 
 
 @pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")

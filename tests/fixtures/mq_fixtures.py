@@ -4,17 +4,16 @@ from collections.abc import Generator
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from unittest.mock import patch
 from uuid import UUID
 
 import pytest
 from connexion import FlaskApp
 from pytest_mock import MockFixture
 
+from api.staleness_query import get_staleness_obj
 from app.config import Config
 from app.models import Host
 from app.models import db
-from app.models.utils import apply_computed_staleness_timestamps_to_host
 from app.queue.event_producer import EventProducer
 from app.queue.export_service_mq import ExportServiceConsumer
 from app.queue.host_mq import HostAppMessageConsumer
@@ -22,6 +21,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import write_add_update_event_message
+from app.serialization import serialize_staleness_to_dict
 from app.utils import HostWrapper
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import TAGS
@@ -137,48 +137,41 @@ def mq_create_edge_host(mq_create_or_update_host):
 
 @pytest.fixture(scope="function")
 def mq_create_hosts_in_all_states(mq_create_or_update_host):
-    staleness_timestamps = get_staleness_timestamps()
+    staleness_states = get_staleness_timestamps().keys()
     created_hosts = {}
-    for state, timestamp in staleness_timestamps.items():
-        host = minimal_host(
-            insights_id=generate_uuid(), stale_timestamp=timestamp.isoformat(), reporter="some reporter", facts=FACTS
-        )
+    for state in staleness_states:
+        host = minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS)
         created_hosts[state] = mq_create_or_update_host(host)
 
     return created_hosts
 
 
 @pytest.fixture(scope="function")
-def mq_create_deleted_hosts(mq_create_or_update_host):
-    with patch("app.models.utils.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2, hour=1, minute=1, second=1, tzinfo=UTC)
-        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+def mq_create_deleted_hosts(flask_app: FlaskApp, mq_create_or_update_host):
+    """Hosts are compute-on-read culled: ``last_check_in`` is past org ``conventional_time_to_delete``."""
+    staleness_states = get_staleness_timestamps().keys()
+    created_hosts = {}
 
-        staleness_timestamps = get_staleness_timestamps()
-        created_hosts = {}
-        for state, timestamp in staleness_timestamps.items():
-            host = minimal_host(
-                insights_id=generate_uuid(),
-                stale_timestamp=timestamp.isoformat(),
-                reporter="some reporter",
-                facts=FACTS,
-            )
-            created_hosts[state] = mq_create_or_update_host(host)
+    with flask_app.app.app_context():
+        org_id = SYSTEM_IDENTITY["org_id"]
+        staleness = serialize_staleness_to_dict(get_staleness_obj(org_id))
+        delete_seconds = staleness["conventional_time_to_delete"]
+        last_check_in_culled = datetime.now(tz=UTC) - timedelta(seconds=delete_seconds + 3600)
 
-        for state, hw in created_hosts.items():
-            orm_host = Host.query.filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).first()
-            if orm_host is None:
-                continue
-            if state == "culled":
-                past = datetime.now(UTC) - timedelta(days=400)
-                orm_host.stale_timestamp = past - timedelta(days=7)
-                orm_host.stale_warning_timestamp = past - timedelta(days=1)
-                orm_host.deletion_timestamp = past
-            else:
-                apply_computed_staleness_timestamps_to_host(orm_host)
-        db.session.commit()
+    for state in staleness_states:
+        host = minimal_host(
+            insights_id=generate_uuid(),
+            reporter="some reporter",
+            facts=FACTS,
+        )
+        hw = mq_create_or_update_host(host)
+        with flask_app.app.app_context():
+            row = db.session.query(Host).filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).one()
+            row.last_check_in = last_check_in_culled
+            db.session.commit()
+        created_hosts[state] = hw
 
-        return created_hosts
+    return created_hosts
 
 
 @pytest.fixture(scope="function")
