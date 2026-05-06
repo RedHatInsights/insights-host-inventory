@@ -1,5 +1,6 @@
 # Posts a daily Slack reminder listing open PRs (older than 1 day) with no human
-# review or comment activity in the last 24 hours.
+# review or comment activity in the last 24 hours, and collects PR health metrics
+# to a GitHub Pages dashboard.
 
 name: PR Review Reminder
 
@@ -7,7 +8,16 @@ on:
   schedule:
     # Every weekday (Mon-Fri) at 14:00 UTC (~9 AM US Eastern)
     - cron: "0 14 * * 1-5"
-  workflow_dispatch: # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Skip Slack post and just log output'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  pull-requests: read
 
 jobs:
   notify:
@@ -25,21 +35,19 @@ jobs:
           NOW=$(date -u +%s)
           ONE_DAY=86400
 
-          # Fetch all open, non-draft PRs with review and comment info
           PRS=$(gh pr list \
             --state open \
             --json number,title,author,createdAt,url,isDraft,reviewDecision,reviews,comments \
             --limit 100)
 
-          # Filter: not draft, older than 1 day, no human reviews or comments in the last 24 hours
-          # Bot interactions (logins matching "bot", "sourcery", or "github-actions") are ignored
-          # Sort: oldest first (highest priority)
-          FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" '
+          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
+
+          FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" --arg bots "$BOT_PATTERN" '
             [ .[]
               | select(.isDraft == false)
               | .author.login as $pr_author
-              | select(([.reviews[] | select(.author.login != $pr_author and (.author.login | test("bot|sourcery|github-actions") | not)) | select(.submittedAt != null and ($now - (.submittedAt | fromdateiso8601)) <= $day)] | length) == 0)
-              | select(([.comments[] | select(.author.login != $pr_author and (.author.login | test("bot|sourcery|github-actions") | not)) | select(($now - (.createdAt | fromdateiso8601)) <= $day)] | length) == 0)
+              | select(([.reviews[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(.submittedAt != null and ($now - (.submittedAt | fromdateiso8601)) <= $day)] | length) == 0)
+              | select(([.comments[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(($now - (.createdAt | fromdateiso8601)) <= $day)] | length) == 0)
               | select(.reviewDecision != "APPROVED")
               | (.createdAt | fromdateiso8601) as $created
               | select(($now - $created) > $day)
@@ -59,7 +67,6 @@ jobs:
 
           escape_mrkdwn() { echo "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 
-          # Build the Slack message body
           LINES=""
           INDEX=1
           while IFS= read -r pr; do
@@ -72,7 +79,6 @@ jobs:
             INDEX=$((INDEX + 1))
           done < <(echo "$FILTERED" | jq -c '.[]')
 
-          # Post to Slack via Incoming Webhook
           PAYLOAD=$(jq -n \
             --arg header ":eyes: *Backend PR Review Reminder ($DAY_NAME)* — $COUNT PR(s) awaiting review" \
             --arg body "$LINES" \
@@ -84,9 +90,375 @@ jobs:
               ]
             }')
 
-          curl -sf -X POST \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "$SLACK_WEBHOOK_URL"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "DRY RUN — would have posted to Slack:"
+            echo "$PAYLOAD" | jq .
+          else
+            curl -sf -X POST \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$SLACK_WEBHOOK_URL"
+            echo "Slack reminder sent with $COUNT PR(s)."
+          fi
 
-          echo "Slack reminder sent with $COUNT PR(s)."
+  metrics:
+    runs-on: ubuntu-latest
+    needs: notify
+    if: always()
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      STALE_DEPLOY_DATE: "2026-02-17"
+      REVIEW_DEPLOY_DATE: "2026-04-01"
+      BASELINE_DAYS: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Collect PR metrics
+        id: collect
+        run: |
+          set -euo pipefail
+
+          TODAY=$(date -u +%Y-%m-%d)
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%-m)
+          DATA_FILE="docs/metrics/data.json"
+
+          if [ ! -f "$DATA_FILE" ]; then
+            mkdir -p "$(dirname "$DATA_FILE")"
+            echo '{}' > "$DATA_FILE"
+          fi
+
+          EXISTING=$(cat "$DATA_FILE")
+
+          # Determine current quarter
+          if [ "$MONTH" -le 3 ]; then
+            QUARTER="Q1"; Q_START="${YEAR}-01-01"; Q_END="${YEAR}-03-31"
+          elif [ "$MONTH" -le 6 ]; then
+            QUARTER="Q2"; Q_START="${YEAR}-04-01"; Q_END="${YEAR}-06-30"
+          elif [ "$MONTH" -le 9 ]; then
+            QUARTER="Q3"; Q_START="${YEAR}-07-01"; Q_END="${YEAR}-09-30"
+          else
+            QUARTER="Q4"; Q_START="${YEAR}-10-01"; Q_END="${YEAR}-12-31"
+          fi
+
+          # For tools deployed mid-quarter, adjust start to deploy date
+          STALE_Q_START="$Q_START"
+          REVIEW_Q_START="$Q_START"
+          if [[ "$STALE_DEPLOY_DATE" > "$Q_START" && "$STALE_DEPLOY_DATE" < "$Q_END" ]]; then
+            STALE_Q_START="$STALE_DEPLOY_DATE"
+          fi
+          if [[ "$REVIEW_DEPLOY_DATE" > "$Q_START" && "$REVIEW_DEPLOY_DATE" < "$Q_END" ]]; then
+            REVIEW_Q_START="$REVIEW_DEPLOY_DATE"
+          fi
+
+          # Use today as the end if quarter hasn't finished
+          STALE_Q_END="$Q_END"
+          REVIEW_Q_END="$Q_END"
+          if [[ "$TODAY" < "$Q_END" ]]; then
+            STALE_Q_END="$TODAY"
+            REVIEW_Q_END="$TODAY"
+          fi
+
+          # Skip if tool wasn't deployed yet in this quarter
+          SKIP_STALE="false"
+          SKIP_REVIEW="false"
+          if [[ "$STALE_DEPLOY_DATE" > "$STALE_Q_END" ]]; then
+            SKIP_STALE="true"
+          fi
+          if [[ "$REVIEW_DEPLOY_DATE" > "$REVIEW_Q_END" ]]; then
+            SKIP_REVIEW="true"
+          fi
+
+          echo "Year: $YEAR | Quarter: $QUARTER | Today: $TODAY"
+          echo "Stale quarter: $STALE_Q_START..$STALE_Q_END (skip=$SKIP_STALE)"
+          echo "Review quarter: $REVIEW_Q_START..$REVIEW_Q_END (skip=$SKIP_REVIEW)"
+
+          # Year-end reset: if the stored year differs from current, wipe quarterly data
+          STORED_YEAR=$(echo "$EXISTING" | jq -r '.year // ""')
+          if [ "$STORED_YEAR" != "$YEAR" ]; then
+            echo "New year detected ($STORED_YEAR -> $YEAR). Resetting quarterly data."
+            EXISTING=$(echo "$EXISTING" | jq --arg y "$YEAR" '.year = $y | .quarters = {}')
+          fi
+
+          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
+
+          # jq function for computing metrics from a PR list
+          COMPUTE_JQ='
+            def to_epoch: sub("\\.[0-9]+"; "") | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime;
+            def hours_between(a; b): ((b - a) / 3600 * 10 | floor) / 10;
+            def median:
+              sort | if length == 0 then null
+              elif length % 2 == 1 then .[length/2 | floor]
+              else (.[length/2 - 1] + .[length/2]) / 2 end;
+
+            def is_bot_author: .author.login | test("^(app/|dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)");
+
+            ($start | to_epoch) as $s |
+            ($end | to_epoch) as $e |
+
+            [ .[] | select(.isDraft == false)
+              | select(is_bot_author | not)
+              | (.createdAt | to_epoch) as $created
+              | select($created >= $s and $created <= $e)
+            ] as $prs |
+
+            ($prs | length) as $total |
+            [ $prs[] | select(.mergedAt != null) ] as $merged |
+            [ $prs[] | select(.state == "CLOSED" and .mergedAt == null) ] as $closed_no_merge |
+            [ $prs[] | select(.state == "OPEN") ] as $still_open |
+
+            [ .[]
+              | select(.state == "CLOSED" and .mergedAt == null)
+              | select(any(.labels[]?; .name == "stale"))
+              | select(.closedAt != null)
+              | (.closedAt | to_epoch) as $closed
+              | select($closed >= $s and $closed <= $e)
+            ] as $bot_closed |
+
+            [ $merged[]
+              | (.createdAt | to_epoch) as $c
+              | (.mergedAt | to_epoch) as $m
+              | hours_between($c; $m)
+            ] as $ttm |
+
+            [ $prs[]
+              | (.createdAt | to_epoch) as $c
+              | [ .review_times[]? | to_epoch ] | sort | first // null
+              | if . then hours_between($c; .) else null end
+            ] | map(select(. != null)) as $ttfr |
+
+            [ $prs[]
+              | (.createdAt | to_epoch) as $c
+              | select((.review_times | length) == 0)
+              | select(($e - $c) > 86400)
+            ] as $no_review_24h |
+
+            [ $prs[]
+              | (.createdAt | to_epoch) as $c
+              | (if .closedAt then (.closedAt | to_epoch) else $e end) as $resolve
+              | select(($resolve - $c) > (15 * 86400))
+            ] as $open_15d |
+
+            [ $prs[]
+              | (.createdAt | to_epoch) as $c
+              | [ .review_times[]? | to_epoch ] | sort | first // null
+              | if . then (. - $c) else null end
+            ] as $review_deltas |
+            ([ $review_deltas[] | select(. != null and . <= 86400) ] | length) as $reviewed_24h |
+            ([ $review_deltas[] | select(. != null) ] | length) as $reviewed_total |
+
+            {
+              total: $total,
+              merged: ($merged | length),
+              closed_no_merge: ($closed_no_merge | length),
+              still_open: ($still_open | length),
+              bot_closed: ($bot_closed | length),
+              median_ttm: ($ttm | median),
+              median_ttfr: ($ttfr | median),
+              avg_ttfr: (if ($ttfr | length) > 0 then ($ttfr | add / length * 10 | floor) / 10 else null end),
+              pct_reviewed_24h: (if $reviewed_total > 0 then (($reviewed_24h * 10000 / $reviewed_total | floor) / 100) else null end),
+              no_review_24h: ($no_review_24h | length),
+              open_15d: ($open_15d | length)
+            }
+          '
+
+          compute_metrics() {
+            local prs_file="$1" start_date="$2" end_date="$3"
+            jq --arg start "${start_date}T00:00:00Z" --arg end "${end_date}T23:59:59Z" "$COMPUTE_JQ" < "$prs_file"
+          }
+
+          # --- BASELINE: compute once, store forever ---
+          HAS_BASELINE=$(echo "$EXISTING" | jq 'has("baseline") and .baseline != null')
+
+          if [ "$HAS_BASELINE" = "false" ]; then
+            echo "Computing frozen baseline (${BASELINE_DAYS} days before each deploy date)..."
+
+            stale_before_start=$(date -u -d "$STALE_DEPLOY_DATE - ${BASELINE_DAYS} days" +%Y-%m-%d)
+            stale_before_end=$(date -u -d "$STALE_DEPLOY_DATE - 1 day" +%Y-%m-%d)
+            review_before_start=$(date -u -d "$REVIEW_DEPLOY_DATE - ${BASELINE_DAYS} days" +%Y-%m-%d)
+            review_before_end=$(date -u -d "$REVIEW_DEPLOY_DATE - 1 day" +%Y-%m-%d)
+
+            echo "Stale baseline: $stale_before_start..$stale_before_end"
+            echo "Review baseline: $review_before_start..$review_before_end"
+
+            # Fetch PRs covering the baseline period (date-bounded at API level)
+            gh pr list --repo "$REPO" --state all \
+              --json number,createdAt,closedAt,mergedAt,isDraft,state,labels,author \
+              --search "created:${stale_before_start}..${review_before_end}" \
+              --limit 1000 > /tmp/prs_base.json
+
+            if [ "$(jq 'length' /tmp/prs_base.json)" -ge 1000 ]; then
+              echo "::warning::Baseline PR count hit 1000 limit for ${stale_before_start}..${review_before_end}. Metrics may be truncated."
+            fi
+
+            # Fetch reviews in monthly chunks to avoid GitHub GraphQL timeouts
+            echo '[]' > /tmp/reviews_raw.json
+            chunk_start="$stale_before_start"
+            while [[ "$chunk_start" < "$review_before_end" ]]; do
+              chunk_end=$(date -u -d "$chunk_start + 30 days" +%Y-%m-%d)
+              if [[ "$chunk_end" > "$review_before_end" ]]; then
+                chunk_end="$review_before_end"
+              fi
+              echo "Fetching reviews for $chunk_start..$chunk_end..."
+              gh pr list --repo "$REPO" --state all \
+                --json number,reviews \
+                --search "created:${chunk_start}..${chunk_end}" \
+                --limit 500 > /tmp/reviews_chunk.json
+              jq -s '.[0] + .[1]' /tmp/reviews_raw.json /tmp/reviews_chunk.json > /tmp/reviews_tmp.json
+              mv /tmp/reviews_tmp.json /tmp/reviews_raw.json
+              chunk_start=$(date -u -d "$chunk_end + 1 day" +%Y-%m-%d)
+            done
+            echo "Fetched reviews for $(jq 'length' /tmp/reviews_raw.json) PRs total."
+
+            if [ "$(jq 'length' /tmp/reviews_raw.json)" -ge 1000 ]; then
+              echo "::warning::Baseline review data hit 1000 limit. Review metrics may be truncated."
+            fi
+
+            jq --arg bots "$BOT_PATTERN" \
+              '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]' \
+              /tmp/reviews_raw.json > /tmp/reviews_filtered.json
+
+            jq -s '.[0] as $base | .[1] as $reviews |
+              ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
+              [$base[] | . + {review_times: ($rmap[.number | tostring] // [])}]
+            ' /tmp/prs_base.json /tmp/reviews_filtered.json > /tmp/baseline_prs.json
+
+            STALE_BASELINE=$(compute_metrics "/tmp/baseline_prs.json" "$stale_before_start" "$stale_before_end")
+            REVIEW_BASELINE=$(compute_metrics "/tmp/baseline_prs.json" "$review_before_start" "$review_before_end")
+
+            EXISTING=$(echo "$EXISTING" | jq \
+              --argjson sb "$STALE_BASELINE" \
+              --argjson rb "$REVIEW_BASELINE" \
+              --arg sbp "$stale_before_start to $stale_before_end" \
+              --arg rbp "$review_before_start to $review_before_end" \
+              --arg y "$YEAR" \
+              '. + {
+                year: $y,
+                baseline: {
+                  stale: { period: $sbp, data: $sb },
+                  review: { period: $rbp, data: $rb }
+                },
+                quarters: (.quarters // {})
+              }')
+
+            echo "Baseline computed and stored."
+          else
+            echo "Baseline already exists. Skipping."
+          fi
+
+          # --- QUARTERLY DATA: fetch current quarter only ---
+          echo "Fetching PRs for current quarter ($QUARTER)..."
+
+          gh pr list --repo "$REPO" --state all \
+            --json number,createdAt,closedAt,mergedAt,isDraft,state,labels,author \
+            --search "created:${Q_START}..${Q_END}" \
+            --limit 1000 > /tmp/q_prs_base.json
+
+          gh pr list --repo "$REPO" --state all \
+            --json number,reviews \
+            --search "created:${Q_START}..${Q_END}" \
+            --limit 1000 > /tmp/q_reviews_raw.json
+
+          jq --arg bots "$BOT_PATTERN" \
+            '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]' \
+            /tmp/q_reviews_raw.json > /tmp/q_reviews_filtered.json
+
+          jq -s '.[0] as $base | .[1] as $reviews |
+            ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
+            [$base[] | . + {review_times: ($rmap[.number | tostring] // [])}]
+          ' /tmp/q_prs_base.json /tmp/q_reviews_filtered.json > /tmp/q_prs.json
+
+          echo "Fetched $(jq 'length' /tmp/q_prs.json) PRs for $QUARTER."
+
+          # Fetch bot-closed count separately (PRs closed during quarter, regardless of creation date)
+          BOT_CLOSED_COUNT=0
+          if [ "$SKIP_STALE" = "false" ]; then
+            BOT_CLOSED_COUNT=$(gh pr list --repo "$REPO" --state closed \
+              --json number \
+              --search "label:stale closed:${STALE_Q_START}..${STALE_Q_END} -is:merged" \
+              --limit 1000 | jq 'length')
+            echo "Bot-closed PRs in $QUARTER: $BOT_CLOSED_COUNT"
+          fi
+
+          # Compute quarterly metrics
+          QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" '{ quarter: $q, updated: $date }')
+
+          if [ "$SKIP_STALE" = "false" ]; then
+            STALE_Q=$(compute_metrics "/tmp/q_prs.json" "$STALE_Q_START" "$STALE_Q_END")
+            STALE_Q=$(echo "$STALE_Q" | jq --argjson bc "$BOT_CLOSED_COUNT" '.bot_closed = $bc')
+            QUARTER_ENTRY=$(echo "$QUARTER_ENTRY" | jq \
+              --argjson data "$STALE_Q" \
+              --arg period "$STALE_Q_START to $STALE_Q_END" \
+              '. + { stale: { period: $period, data: $data } }')
+          fi
+
+          if [ "$SKIP_REVIEW" = "false" ]; then
+            REVIEW_Q=$(compute_metrics "/tmp/q_prs.json" "$REVIEW_Q_START" "$REVIEW_Q_END")
+            QUARTER_ENTRY=$(echo "$QUARTER_ENTRY" | jq \
+              --argjson data "$REVIEW_Q" \
+              --arg period "$REVIEW_Q_START to $REVIEW_Q_END" \
+              '. + { review: { period: $period, data: $data } }')
+          fi
+
+          echo "$QUARTER_ENTRY" | jq .
+
+          # Upsert the quarter into data
+          EXISTING=$(echo "$EXISTING" | jq \
+            --arg q "$QUARTER" \
+            --argjson entry "$QUARTER_ENTRY" \
+            '.quarters[$q] = $entry')
+
+          echo "$EXISTING" | jq . > "$DATA_FILE"
+
+      - name: Update metrics data
+        run: |
+          set -euo pipefail
+          DATA_FILE="docs/metrics/data.json"
+          TODAY=$(date -u +%Y-%m-%d)
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$DATA_FILE"
+          git diff --cached --quiet || git commit -m "chore: update PR metrics for ${TODAY}"
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin HEAD && git push origin HEAD && break
+            echo "Push attempt $attempt failed, retrying in 5s..."
+            sleep 5
+          done
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: metrics
+    if: always() && needs.metrics.result == 'success'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Pull latest data
+        run: git pull origin HEAD --ff-only
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/metrics
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,304 @@
+name: Konflux Test Failure Report
+
+on:
+  check_run:
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  checks: read
+
+jobs:
+  report-failures:
+    if: >
+      github.event.check_run.app.slug == 'red-hat-konflux' &&
+      github.event.check_run.conclusion == 'failure' &&
+      contains(github.event.check_run.name, 'insights-hbi-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Extract pipeline run info
+        id: extract
+        env:
+          CHECK_RUN_OUTPUT: ${{ toJSON(github.event.check_run.output) }}
+          CHECK_RUN_NAME: ${{ github.event.check_run.name }}
+          HEAD_SHA: ${{ github.event.check_run.head_sha }}
+        run: |
+          echo "check_run_name=$CHECK_RUN_NAME" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+          # Extract scenario name (e.g. insights-hbi-all, insights-hbi-rbac, insights-hbi-smoke)
+          SCENARIO=$(echo "$CHECK_RUN_NAME" | grep -oE 'insights-hbi-[a-z]+')
+          echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+
+          # Extract pipeline run name from the check run output HTML
+          PIPELINERUN=$(echo "$CHECK_RUN_OUTPUT" | jq -r '.text' | grep -oE 'pipelinerun/[a-z0-9-]+' | head -1 | sed 's|pipelinerun/||')
+          echo "pipelinerun=$PIPELINERUN" >> "$GITHUB_OUTPUT"
+
+      - name: Install oc CLI
+        uses: actions/cache@v4
+        id: oc-cache
+        with:
+          path: /usr/local/bin/oc
+          key: oc-cli-4.15.10-linux
+      - name: Download oc CLI
+        if: steps.oc-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.15.10/openshift-client-linux.tar.gz | tar xz -C /usr/local/bin oc kubectl
+
+      - name: Fetch test logs from Konflux
+        id: logs
+        env:
+          KONFLUX_TOKEN: ${{ secrets.KONFLUX_BOT_TOKEN }}
+          KONFLUX_SERVER: https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443
+          KONFLUX_NAMESPACE: insights-management-tenant
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          set +e
+
+          # Mask the token from workflow logs
+          echo "::add-mask::$KONFLUX_TOKEN"
+
+          # Login to the cluster (suppress all output to avoid leaking server details)
+          oc login --token="$KONFLUX_TOKEN" --server="$KONFLUX_SERVER" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "status=log_error" >> "$GITHUB_OUTPUT"
+            echo "Failed to authenticate to Konflux cluster"
+            exit 0
+          fi
+
+          # Find the run-iqe-cji task run pod
+          TASKRUN="${PIPELINERUN}-run-iqe-cji"
+          POD_NAME=$(oc get taskrun "$TASKRUN" -n "$KONFLUX_NAMESPACE" -o jsonpath='{.status.podName}' 2>/dev/null)
+
+          if [ -z "$POD_NAME" ]; then
+            echo "status=no_pod" >> "$GITHUB_OUTPUT"
+            echo "Could not find pod for taskrun: $TASKRUN"
+            exit 0
+          fi
+
+          echo "Fetching logs from pod: $POD_NAME"
+          oc logs "$POD_NAME" -n "$KONFLUX_NAMESPACE" -c step-deploy-iqe-cji > /tmp/iqe-logs-raw.txt 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "status=log_error" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Sanitize logs: redact sensitive values in-place (case-insensitive)
+          sed -E 's/(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+/\1=***REDACTED***/gI' /tmp/iqe-logs-raw.txt > /tmp/iqe-logs.txt
+          rm -f /tmp/iqe-logs-raw.txt
+
+          echo "status=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Parse test results
+        id: parse
+        if: steps.logs.outputs.status == 'ok'
+        run: |
+          LOGS="/tmp/iqe-logs.txt"
+
+          # Strip ANSI color codes from logs for reliable parsing
+          sed -i 's/\x1b\[[0-9;]*m//g' "$LOGS"
+
+          # Check for pytest summary line (e.g. "= 43 failed, 4605 passed, 65 skipped ...")
+          SUMMARY_LINE=$(grep -E '^=+ .*(failed|passed|error).*=+$' "$LOGS" | tail -1)
+
+          if [ -n "$SUMMARY_LINE" ]; then
+            echo "type=test_results" >> "$GITHUB_OUTPUT"
+
+            # Extract counts
+            FAILED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' || echo "0")
+            PASSED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' || echo "0")
+            SKIPPED=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' || echo "0")
+            ERRORS=$(echo "$SUMMARY_LINE" | grep -oE '[0-9]+ errors?' | grep -oE '[0-9]+' || echo "0")
+
+            echo "failed=${FAILED:-0}" >> "$GITHUB_OUTPUT"
+            echo "passed=${PASSED:-0}" >> "$GITHUB_OUTPUT"
+            echo "skipped=${SKIPPED:-0}" >> "$GITHUB_OUTPUT"
+            echo "errors=${ERRORS:-0}" >> "$GITHUB_OUTPUT"
+            echo "summary_line=$SUMMARY_LINE" >> "$GITHUB_OUTPUT"
+
+            # Extract failed and errored test names from the short test summary section
+            FAILED_TESTS=$(grep -E '^(FAILED|ERROR) ' "$LOGS" | sed -E 's/^(FAILED|ERROR) (iqe-local-plugin\/)?//' | head -50)
+            FAILED_TESTS=$(echo "$FAILED_TESTS" | grep -v '^\s*$' || true)
+            echo "$FAILED_TESTS" > /tmp/failed-tests.txt
+
+          else
+            # No pytest summary — check for setup/infrastructure errors
+            echo "type=infra_error" >> "$GITHUB_OUTPUT"
+
+            # Look for common infrastructure error patterns
+            if grep -q "deploy failed" "$LOGS"; then
+              ERROR_MSG=$(grep -E '(deploy failed|ErrImagePull|timed out waiting)' "$LOGS" | sort -u | head -20)
+            elif grep -q "ApiException" "$LOGS"; then
+              ERROR_MSG=$(grep -B2 "ApiException" "$LOGS" | tail -3)
+            elif grep -q "Traceback" "$LOGS"; then
+              ERROR_MSG=$(grep -A20 "Traceback (most recent call last)" "$LOGS" | tail -25)
+            elif grep -q "Tests FAILED" "$LOGS"; then
+              ERROR_MSG=$(tail -30 "$LOGS")
+            else
+              ERROR_MSG=$(tail -50 "$LOGS")
+            fi
+
+            # Sanitize error message: redact sensitive values in-place (case-insensitive)
+            echo "$ERROR_MSG" | sed -E 's/(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+/\1=***REDACTED***/gI' | head -c 4000 > /tmp/error-msg.txt
+          fi
+
+      - name: Logout from Konflux cluster
+        if: always()
+        run: |
+          oc logout > /dev/null 2>&1 || true
+          rm -f ~/.kube/config
+
+      - name: Find associated PR
+        id: find_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.extract.outputs.head_sha }}
+        run: |
+          PR_NUMBER=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/pulls" --jq '.[0].number' 2>/dev/null || echo "")
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Post test results comment
+        if: steps.logs.outputs.status == 'ok' && steps.parse.outputs.type == 'test_results' && steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.find_pr.outputs.pr_number }}
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+          FAILED: ${{ steps.parse.outputs.failed }}
+          PASSED: ${{ steps.parse.outputs.passed }}
+          SKIPPED: ${{ steps.parse.outputs.skipped }}
+          ERRORS: ${{ steps.parse.outputs.errors }}
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          FAILED_TESTS=$(cat /tmp/failed-tests.txt)
+          TOTAL=$((FAILED + PASSED + SKIPPED + ERRORS))
+
+          # Group failures by test module (strip ::test_method, then filename)
+          GROUPED=$(echo "$FAILED_TESTS" | sed -E 's|::.*||' | sed -E 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -10)
+
+          MARKER="<!-- konflux-test-report:$SCENARIO -->"
+
+          # Build the comment body
+          BODY="$MARKER
+          ## Konflux Test Report: \`$SCENARIO\`
+
+          | Metric | Count |
+          |--------|-------|
+          | Total  | $TOTAL |
+          | Passed | $PASSED |
+          | Failed | $FAILED |
+          | Errors | $ERRORS |
+          | Skipped | $SKIPPED |
+          "
+
+          # Add failed/errored tests section
+          PROBLEM_COUNT=$((FAILED + ERRORS))
+          if [ "$PROBLEM_COUNT" -gt 0 ]; then
+            if [ -n "$FAILED_TESTS" ]; then
+              BODY="$BODY
+
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
+
+          Most affected modules:
+          \`\`\`
+          $GROUPED
+          \`\`\`
+
+          <details>
+          <summary>Full list of failed tests</summary>
+
+          \`\`\`
+          $FAILED_TESTS
+          \`\`\`
+
+          </details>
+          "
+            else
+              BODY="$BODY
+
+          ### Failed/Errored Tests ($PROBLEM_COUNT)
+
+          _Could not extract individual test names from logs._
+          "
+            fi
+          fi
+
+          BODY="$BODY
+          ---
+          [View pipeline run](https://konflux-ui.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/ns/insights-management-tenant/pipelinerun/$PIPELINERUN/logs/run-iqe-cji)
+          "
+
+          # Check for existing comment to update
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" -f body="$BODY"
+          fi
+
+      - name: Post infrastructure error comment
+        if: steps.logs.outputs.status == 'ok' && steps.parse.outputs.type == 'infra_error' && steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.find_pr.outputs.pr_number }}
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          ERROR_MSG=$(cat /tmp/error-msg.txt)
+
+          MARKER="<!-- konflux-test-report:$SCENARIO -->"
+          BODY="$MARKER
+          ## Konflux Test Report: \`$SCENARIO\`
+
+          **Tests did not run** — infrastructure/setup error detected.
+
+          <details>
+          <summary>Error details</summary>
+
+          \`\`\`
+          $ERROR_MSG
+          \`\`\`
+
+          </details>
+
+          ---
+          [View pipeline run](https://konflux-ui.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/ns/insights-management-tenant/pipelinerun/$PIPELINERUN/logs/run-iqe-cji)
+          "
+
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" -f body="$BODY"
+          fi
+
+      - name: Post unavailable logs comment
+        if: steps.logs.outputs.status == 'no_pod' && steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.find_pr.outputs.pr_number }}
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          MARKER="<!-- konflux-test-report:$SCENARIO -->"
+          BODY="$MARKER
+          ## Konflux Test Report: \`$SCENARIO\`
+
+          **Could not fetch test logs** — the pipeline run has been garbage-collected before logs could be retrieved.
+
+          Pipeline run: \`$PIPELINERUN\`
+
+          ---
+          [View pipeline run](https://konflux-ui.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/ns/insights-management-tenant/pipelinerun/$PIPELINERUN/logs/run-iqe-cji)
+          "
+
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" -f body="$BODY"
+          fi
