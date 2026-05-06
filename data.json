@@ -36,6 +36,26 @@
           "open_15d": 2
         }
       }
+    },
+    "Q1": {
+      "quarter": "Q1",
+      "updated": "2026-03-31",
+      "stale": {
+        "period": "2026-02-17 to 2026-03-31",
+        "data": {
+          "total": 105,
+          "merged": 101,
+          "closed_no_merge": 4,
+          "still_open": 0,
+          "bot_closed": 13,
+          "median_ttm": 5.5,
+          "median_ttfr": 0.5,
+          "avg_ttfr": 16.6,
+          "pct_reviewed_24h": 87.25,
+          "no_review_24h": 3,
+          "open_15d": 3
+        }
+      }
     }
   },
   "baseline": {
