@@ -35,13 +35,13 @@ def upgrade():
         sa.Column("org_wide", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("created_by", sa.String(length=255), nullable=True),
         sa.Column(
-            "created_at",
+            "created_on",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
         ),
         sa.Column(
-            "updated_at",
+            "modified_on",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
@@ -49,13 +49,9 @@ def upgrade():
         schema="hbi",
     )
 
-    op.create_index("idx_inventory_views_org_id", "inventory_views", ["org_id"], schema="hbi")
-    op.create_index("idx_inventory_views_is_system_view", "inventory_views", ["is_system_view"], schema="hbi")
-    op.create_index("idx_inventory_views_created_by", "inventory_views", ["created_by"], schema="hbi")
+    op.create_index("idx_inventory_views_org_id_created_by", "inventory_views", ["org_id", "created_by"], schema="hbi")
 
 
 def downgrade():
-    op.drop_index("idx_inventory_views_created_by", table_name="inventory_views", schema="hbi")
-    op.drop_index("idx_inventory_views_is_system_view", table_name="inventory_views", schema="hbi")
-    op.drop_index("idx_inventory_views_org_id", table_name="inventory_views", schema="hbi")
+    op.drop_index("idx_inventory_views_org_id_created_by", table_name="inventory_views", schema="hbi")
     op.drop_table("inventory_views", schema="hbi")

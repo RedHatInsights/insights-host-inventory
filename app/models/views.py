@@ -5,6 +5,7 @@ from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 
+from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models.constants import INVENTORY_SCHEMA
 from app.models.database import db
@@ -16,9 +17,7 @@ logger = get_logger(__name__)
 class InventoryView(db.Model):
     __tablename__ = "inventory_views"
     __table_args__ = (
-        Index("idx_inventory_views_org_id", "org_id"),
-        Index("idx_inventory_views_is_system_view", "is_system_view"),
-        Index("idx_inventory_views_created_by", "created_by"),
+        Index("idx_inventory_views_org_id_created_by", "org_id", "created_by"),
         {"schema": INVENTORY_SCHEMA},
     )
 
@@ -30,10 +29,13 @@ class InventoryView(db.Model):
     configuration = db.Column(JSONB, nullable=False)
     org_wide = db.Column(db.Boolean, default=False, nullable=False)
     created_by = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=_time_now, nullable=False)
-    updated_at = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now, nullable=False)
+    created_on = db.Column(db.DateTime(timezone=True), default=_time_now, nullable=False)
+    modified_on = db.Column(db.DateTime(timezone=True), default=_time_now, onupdate=_time_now, nullable=False)
 
     def patch(self, patch_data):
+        if not patch_data:
+            raise InventoryException(title="Bad Request", detail="Patch json document cannot be empty.")
+
         if "name" in patch_data:
             self.name = patch_data["name"]
         if "description" in patch_data:
