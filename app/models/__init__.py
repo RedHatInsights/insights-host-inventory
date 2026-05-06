@@ -56,6 +56,7 @@ from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import deleted_by_this_query
 from app.models.utils import get_staleness_obj
+from app.models.views import MAX_VIEW_NAME_LENGTH
 from app.models.views import InventoryView
 
 logger = get_logger(__name__)
@@ -114,6 +115,7 @@ __all__ = [
     "datetime",
     "HostDynamicSystemProfile",
     "HostStaticSystemProfile",
+    "MAX_VIEW_NAME_LENGTH",
     "InventoryView",
     "InputViewSchema",
     "PatchViewSchema",
