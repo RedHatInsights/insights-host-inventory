@@ -84,11 +84,22 @@ def _assert_host_row_staleness_columns_null(host: Host) -> None:
 
 
 def _assert_host_level_staleness_matches(host: Host, st_obj: Timestamps, staleness: AttrDict) -> None:
-    """Host row timestamps must match ``get_staleness_timestamps`` (e.g. after org staleness async persistence)."""
+    """Staleness columns are not persisted; verify compute-on-read matches org ``conventional_time_to_*``."""
+    _assert_host_row_staleness_columns_null(host)
     expected = get_staleness_timestamps(host, st_obj, staleness)
-    assert _utc(host.stale_timestamp) == _utc(expected["stale_timestamp"])
-    assert _utc(host.stale_warning_timestamp) == _utc(expected["stale_warning_timestamp"])
-    assert _utc(host.deletion_timestamp) == _utc(expected["culled_timestamp"])
+    ref = host.last_check_in
+    assert ref is not None
+    assert _utc(expected["stale_timestamp"]) == _utc(
+        st_obj.stale_timestamp(ref, staleness["conventional_time_to_stale"])
+    )
+    assert _utc(expected["stale_warning_timestamp"]) == _utc(
+        st_obj.stale_warning_timestamp(ref, staleness["conventional_time_to_stale_warning"])
+    )
+    assert _utc(expected["culled_timestamp"]) == _utc(
+        st_obj.culled_timestamp(ref, staleness["conventional_time_to_delete"])
+    )
+    for key in ("stale_timestamp", "stale_warning_timestamp", "culled_timestamp"):
+        assert expected[key].tzinfo is not None
 
 
 @patch("tests.helpers.api_utils.db.session.commit")
@@ -154,7 +165,8 @@ def test_async_update_host_create_custom_staleness(
                 assert v == _now.isoformat()
 
             _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            stale_timestamp_before = hosts_before_update[0].stale_timestamp
+            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
+            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
@@ -169,12 +181,10 @@ def test_async_update_host_create_custom_staleness(
                 assert isinstance(v, str)
                 assert v == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_after_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
-            )
-            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
+            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
+            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
+            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
+            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
 
             assert event_producer.write_event.call_count == num_hosts
 
@@ -215,7 +225,8 @@ def test_async_update_host_delete_custom_staleness(
                 assert prs == _now.isoformat()
 
             _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            stale_before = hosts_before_update[0].stale_timestamp
+            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
+            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
 
             status, _ = api_delete_staleness()
             assert status == 204
@@ -231,7 +242,8 @@ def test_async_update_host_delete_custom_staleness(
 
             sys_staleness = build_staleness_sys_default(hosts_after_update[0].org_id)
             _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, sys_staleness)
-            assert hosts_after_update[0].stale_timestamp != stale_before
+            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, sys_staleness)
+            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -273,7 +285,8 @@ def test_async_update_host_update_custom_staleness(
                 assert prs == _now.isoformat()
 
             _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            stale_timestamp_before = hosts_before_update[0].stale_timestamp
+            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
+            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
 
             staleness_url = build_staleness_url()
             status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
@@ -288,12 +301,10 @@ def test_async_update_host_update_custom_staleness(
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
 
-            _assert_host_level_staleness_matches(
-                hosts_after_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
-            )
-            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
+            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
+            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
+            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
+            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
 
             # Call event_producer
             assert event_producer.write_event.call_count == num_hosts
@@ -328,7 +339,8 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
                 assert prs == _now.isoformat()
 
             _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            stale_timestamp_before = hosts_before_update[0].stale_timestamp
+            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
+            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
             modified_on_before = hosts_before_update[0].modified_on
 
             staleness_url = build_staleness_url()
@@ -345,12 +357,10 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
                 prs = hosts_after_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
                 assert prs == _now.isoformat()
-            _assert_host_level_staleness_matches(
-                hosts_after_update[0],
-                st_obj,
-                _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
-            )
-            assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
+            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
+            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
+            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
+            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
             assert hosts_after_update[0].modified_on == modified_on_before
 
             # Call event_producer

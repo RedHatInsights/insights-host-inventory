@@ -35,7 +35,6 @@ from app.models import Host
 from app.models import Staleness
 from app.models import StalenessSchema
 from app.models.utils import StalenessCache
-from app.models.utils import apply_computed_staleness_timestamps_to_host
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import extract_system_profile_fields_for_headers
@@ -148,7 +147,6 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict
 
                     with session_guard(hosts_query.session):
                         for host in batch_hosts:
-                            apply_computed_staleness_timestamps_to_host(host)
                             serialized_host = serialize_host(
                                 host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
                             )
