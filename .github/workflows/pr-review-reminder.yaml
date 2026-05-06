@@ -118,6 +118,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup gh-pages branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Fetch gh-pages if it exists, or create an orphan branch
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
+            git checkout gh-pages -- data.json 2>/dev/null || echo '{}' > data.json
+          else
+            echo '{}' > data.json
+          fi
+
       - name: Collect PR metrics
         id: collect
         run: |
@@ -126,10 +139,9 @@ jobs:
           TODAY=$(date -u +%Y-%m-%d)
           YEAR=$(date -u +%Y)
           MONTH=$(date -u +%-m)
-          DATA_FILE="docs/metrics/data.json"
+          DATA_FILE="data.json"
 
           if [ ! -f "$DATA_FILE" ]; then
-            mkdir -p "$(dirname "$DATA_FILE")"
             echo '{}' > "$DATA_FILE"
           fi
 
@@ -298,6 +310,7 @@ jobs:
 
             # Fetch reviews in monthly chunks to avoid GitHub GraphQL timeouts
             echo '[]' > /tmp/reviews_raw.json
+            chunk_hit_limit=0
             chunk_start="$stale_before_start"
             while [[ "$chunk_start" < "$review_before_end" ]]; do
               chunk_end=$(date -u -d "$chunk_start + 30 days" +%Y-%m-%d)
@@ -309,20 +322,21 @@ jobs:
                 --json number,reviews \
                 --search "created:${chunk_start}..${chunk_end}" \
                 --limit 500 > /tmp/reviews_chunk.json
+              if [ "$(jq 'length' /tmp/reviews_chunk.json)" -ge 500 ]; then
+                chunk_hit_limit=1
+              fi
               jq -s '.[0] + .[1]' /tmp/reviews_raw.json /tmp/reviews_chunk.json > /tmp/reviews_tmp.json
               mv /tmp/reviews_tmp.json /tmp/reviews_raw.json
               chunk_start=$(date -u -d "$chunk_end + 1 day" +%Y-%m-%d)
             done
             echo "Fetched reviews for $(jq 'length' /tmp/reviews_raw.json) PRs total."
-
-            if [ "$(jq 'length' /tmp/reviews_raw.json)" -ge 1000 ]; then
-              echo "::warning::Baseline review data hit 1000 limit. Review metrics may be truncated."
+            if [ "$chunk_hit_limit" -eq 1 ]; then
+              echo "::warning::Baseline review data may be truncated: at least one chunk hit the 500 PR per-call limit."
             fi
 
             jq --arg bots "$BOT_PATTERN" \
               '[.[] | {number, review_times: [.reviews[]? | select(.author.login | test($bots) | not) | .submittedAt]}]' \
               /tmp/reviews_raw.json > /tmp/reviews_filtered.json
-
             jq -s '.[0] as $base | .[1] as $reviews |
               ($reviews | map({(.number | tostring): .review_times}) | add // {}) as $rmap |
               [$base[] | . + {review_times: ($rmap[.number | tostring] // [])}]
@@ -414,51 +428,40 @@ jobs:
             '.quarters[$q] = $entry')
 
           echo "$EXISTING" | jq . > "$DATA_FILE"
+          cp "$DATA_FILE" /tmp/metrics_data.json
 
-      - name: Update metrics data
+      - name: Push to gh-pages branch
         run: |
           set -euo pipefail
-          DATA_FILE="docs/metrics/data.json"
           TODAY=$(date -u +%Y-%m-%d)
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$DATA_FILE"
+          # Switch to gh-pages branch (create orphan if first run)
+          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
+          fi
+
+          # Move data and index into place
+          if [ ! -f /tmp/metrics_data.json ]; then
+            echo "Error: /tmp/metrics_data.json not found. Metrics step may have failed."
+            exit 1
+          fi
+          cp /tmp/metrics_data.json data.json
+          git checkout main -- docs/metrics/index.html 2>/dev/null || git checkout master -- docs/metrics/index.html 2>/dev/null || true
+          if [ -f docs/metrics/index.html ]; then
+            mv docs/metrics/index.html index.html
+            rm -rf docs
+          fi
+
+          git add data.json index.html
           git diff --cached --quiet || git commit -m "chore: update PR metrics for ${TODAY}"
 
           for attempt in 1 2 3; do
-            git pull --rebase origin HEAD && git push origin HEAD && break
+            git push origin gh-pages && break
             echo "Push attempt $attempt failed, retrying in 5s..."
+            git pull --rebase origin gh-pages
             sleep 5
+            [ "$attempt" -eq 3 ] && exit 1
           done
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: metrics
-    if: always() && needs.metrics.result == 'success'
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.ref }}
-
-      - name: Pull latest data
-        run: git pull origin HEAD --ff-only
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/metrics
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
