@@ -1,3 +1,4 @@
+import inspect
 import json
 from functools import wraps
 
@@ -28,7 +29,7 @@ Usage:
     from tests.helpers.sql_dump import dumps_sql
     :
     :
-    # Or decorator for whole method
+    # Or decorator for whole method (including generators and async functions)
     @dumps_sql
     def test_find_host_using_superset_canonical_fact_match(db_create_host):
 """
@@ -36,8 +37,7 @@ Usage:
 
 class SQLDump:
     def __init__(self, dump_method=None, write_method=print):
-        if dump_method is None:
-            self.dump_method = self.dump_sql
+        self.dump_method = self.dump_sql if dump_method is None else dump_method
         self.write_method = write_method
 
     def __enter__(self):
@@ -56,15 +56,54 @@ class SQLDump:
 
 def dumps_sql(_func=None, *, dump_method=None, write_method=print):
     def decorator_dumps_sql(old_func):
+        if inspect.isgeneratorfunction(old_func):
+
+            @wraps(old_func)
+            def gen_wrapper(*args, **kwargs):
+                sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+                sqld.__enter__()
+                try:
+                    yield from old_func(*args, **kwargs)
+                finally:
+                    sqld.__exit__(None, None, None)
+
+            return gen_wrapper
+
+        if inspect.isasyncgenfunction(old_func):
+
+            @wraps(old_func)
+            async def asyncgen_wrapper(*args, **kwargs):
+                sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+                sqld.__enter__()
+                try:
+                    async for item in old_func(*args, **kwargs):
+                        yield item
+                finally:
+                    sqld.__exit__(None, None, None)
+
+            return asyncgen_wrapper
+
+        if inspect.iscoroutinefunction(old_func):
+
+            @wraps(old_func)
+            async def async_wrapper(*args, **kwargs):
+                sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+                sqld.__enter__()
+                try:
+                    return await old_func(*args, **kwargs)
+                finally:
+                    sqld.__exit__(None, None, None)
+
+            return async_wrapper
+
         @wraps(old_func)
         def new_func(*args, **kwargs):
             sqld = SQLDump(dump_method=dump_method, write_method=write_method)
             sqld.__enter__()
-
-            results = old_func(*args, **kwargs)
-
-            sqld.__exit__(None, None, None)
-            return results
+            try:
+                return old_func(*args, **kwargs)
+            finally:
+                sqld.__exit__(None, None, None)
 
         return new_func
 
@@ -72,3 +111,7 @@ def dumps_sql(_func=None, *, dump_method=None, write_method=print):
         return decorator_dumps_sql
     else:
         return decorator_dumps_sql(_func)
+
+
+# Alias for the name used in RHINENG-15779 and similar reports
+sqldumps = dumps_sql
