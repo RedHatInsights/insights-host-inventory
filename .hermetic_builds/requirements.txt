@@ -44,7 +44,7 @@ jsonschema-path==0.3.4; python_full_version >= '3.8.0' and python_full_version <
 jsonschema-specifications==2025.9.1; python_version >= '3.9'
 lazy-object-proxy==1.12.0; python_version >= '3.9'
 logstash-formatter==0.5.17
-mako==1.3.11; python_version >= '3.8'
+mako==1.3.12; python_version >= '3.8'
 markupsafe==3.0.2
 marshmallow==4.0.1
 mmh3==5.2.0; python_version >= '3.9'
