@@ -4,6 +4,8 @@ on:
     paths:
       - 'pyproject.toml'
       - 'uv.lock'
+      - 'iqe-host-inventory-plugin/pyproject.toml'
+      - 'iqe-host-inventory-plugin/uv.lock'
       - '.hermetic_builds/requirements.txt'
 
 jobs:
