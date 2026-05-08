@@ -1,5 +1,8 @@
 FROM registry.access.redhat.com/ubi9/python-312
 
+ENV APP_ROOT=/opt/app-root/src
+WORKDIR $APP_ROOT
+
 USER 0
 # use general package name instead of a specific one,
 # like "postgresql-10.15-1.module+el8.3.0+8944+1ca16b1f.x86_64",
@@ -31,7 +34,9 @@ COPY run.py run.py
 RUN chown -R 1001:0 ./
 USER 1001
 
+ENV PATH="$APP_ROOT/.venv/bin:$PATH"
+
 RUN pip install "uv==0.11.11" && \
-    uv sync --frozen --system
+    uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'

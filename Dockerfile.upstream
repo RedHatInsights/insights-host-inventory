@@ -44,7 +44,10 @@ ENV UV_COMPILE_BYTECODE=1
 
 RUN python3.12 -m pip install --upgrade pip setuptools wheel && \
     python3.12 -m pip install "uv==0.11.11" dumb-init && \
-    uv sync --frozen --system
+    uv sync --frozen && \
+    chown -R 1001:0 "$APP_ROOT/.venv"
+
+ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
 # allows pre-commit and unit tests to run successfully within the container if image is built in "test" environment
 RUN if [ "$TEST_IMAGE" = "true" ]; then \
