@@ -57,7 +57,7 @@ Before starting, ensure you have the following installed on your system:
 
 - **Podman**: For running containers and services.
 - **Python 3.12.x**: The recommended version for this project.
-- **pipenv**: For managing Python dependencies.
+- **[uv](https://docs.astral.sh/uv/)**: For managing Python dependencies (`uv sync`, `uv run`, …). Install with your package manager or the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Environment setup
 
@@ -126,13 +126,13 @@ source .env
 1. **Install dependencies**:
 
 ```bash
-pipenv install --dev
+uv sync
 ```
 
-2. **Activate virtual environment**:
+2. **Activate virtual environment** (optional):
 
 ```bash
-pipenv shell
+uv shell
 ```
 
 ### Create database data directory
@@ -243,7 +243,7 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 #### Run the Export Service
 
 ```bash
-pipenv shell
+uv shell
 make run_inv_export_service
 ```
 
@@ -773,7 +773,7 @@ Slash commands are markdown files in `.claude/commands/` that instruct Claude Co
 | `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
 | `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
 | `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
-| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref Pipfile.lock/Dockerfile, produce Jira-formatted output |
+| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref `uv.lock`/Dockerfile, produce Jira-formatted output |
 
 ### HBI Make Targets
 

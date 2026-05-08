@@ -3,11 +3,11 @@
 HBI Development Environment Initialization Script.
 
 Deterministic setup script that:
-1. Checks prerequisites (python3, pipenv, podman, podman compose)
+1. Checks prerequisites (python3, uv, podman, podman compose)
 2. Creates required directories (~/.pg_data)
 3. Initializes git submodules (e.g., librdkafka)
 4. Checks /etc/hosts for kafka entry
-5. Installs Python dependencies via pipenv
+5. Installs Python dependencies via uv
 6. Starts Podman Compose services
 7. Waits for PostgreSQL to be ready
 8. Runs database migrations
@@ -57,7 +57,6 @@ def run_cmd(cmd, cwd=None, timeout=60, env=None, check=True):
     if not isinstance(cmd, list) or not all(isinstance(c, str) for c in cmd):
         raise TypeError(f"cmd must be a list of strings, got: {type(cmd)}")
     merged_env = {**os.environ, **(env or {})}
-    merged_env.pop("PIPENV_PIPFILE", None)  # Ensure pipenv uses the project root Pipfile
     try:
         result = subprocess.run(  # noqa: S603
             cmd,
@@ -83,7 +82,7 @@ def check_prerequisites():
     results = {}
     checks = {
         "python3": ["python3", "--version"],
-        "pipenv": ["pipenv", "--version"],
+        "uv": ["uv", "--version"],
         "podman": ["podman", "--version"],
         "podman_compose": ["podman", "compose", "version"],
     }
@@ -98,7 +97,7 @@ def check_prerequisites():
         if not ok:
             all_ok = False
 
-    # Check Python version >= 3.9
+    # Check Python version >= 3.12
     if results["python3"]["ok"]:
         rc, stdout, _ = run_cmd(
             ["python3", "-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
@@ -106,8 +105,8 @@ def check_prerequisites():
         )
         if rc == 0:
             major, minor = stdout.split(".")
-            if int(major) < 3 or (int(major) == 3 and int(minor) < 9):
-                log.warning("  Python 3.9+ required, found %s", stdout)
+            if int(major) < 3 or (int(major) == 3 and int(minor) < 12):
+                log.warning("  Python 3.12+ required, found %s", stdout)
                 results["python3"]["ok"] = False
                 all_ok = False
 
@@ -157,13 +156,13 @@ def init_submodules():
 
 
 def install_dependencies():
-    """Install Python dependencies via pipenv."""
-    log.info("  Running pipenv install --dev ...")
-    rc, _, stderr = run_cmd(["pipenv", "install", "--dev"], timeout=300)
+    """Install Python dependencies via uv."""
+    log.info("  Running uv sync ...")
+    rc, _, stderr = run_cmd(["uv", "sync"], timeout=300)
     if rc == 0:
         log.info("  Dependencies installed successfully")
     else:
-        log.error("  pipenv install failed: %s", stderr)
+        log.error("  uv sync failed: %s", stderr)
     return rc == 0
 
 
@@ -210,7 +209,7 @@ def run_migrations():
         "INVENTORY_DB_PASS": "insights",
     }
     rc, _, stderr = run_cmd(
-        ["pipenv", "run", "make", "upgrade_db"],
+        ["uv", "run", "make", "upgrade_db"],
         timeout=60,
         env=env,
     )

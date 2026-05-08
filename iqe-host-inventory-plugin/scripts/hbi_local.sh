@@ -26,15 +26,15 @@ export RBAC_ENDPOINT="http://localhost:8000"
 export RBAC_ENFORCED="true" # change this value to "true" when running rbac related tests
 
 echo "Creating venv and installing dependencies"
-pipenv install
+uv sync
 echo venv creation complete
 
 echo "Running DB migrations"
-pipenv run python manage.py db upgrade
+uv run python manage.py db upgrade
 echo Migration process complete
 
 echo "Running HBI REST API Service"
-pipenv run gunicorn -b localhost:8080 run &
+uv run gunicorn -b localhost:8080 run &
 
 echo "Running HBI MQ Service"
-pipenv run python inv_mq_service.py &
+uv run python inv_mq_service.py &

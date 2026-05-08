@@ -1,4 +1,4 @@
 #!/bin/bash
-# Quick helper to activate IQE environment
-export PIPENV_PIPFILE=Pipfile.iqe
-exec pipenv shell
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT/iqe-host-inventory-plugin"
+exec uv shell

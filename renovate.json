@@ -3,9 +3,6 @@
   "extends": [
     "github>RedHatInsights/konflux-pipelines//renovate/foreman_satellite/renovate.json"
   ],
-  "ignorePaths": [
-    "Pipfile"
-  ],
   "tekton": {
     "schedule": [
       "at any time"

@@ -65,13 +65,13 @@ git commit -m "Add generated RPM lock files"
 To generate the Python requirements files (`requirements.txt`, `requirements-build.in`, `requirements-build.txt`), follow these steps to lock application and build dependencies.
 
 ### Step 1: Generate the `requirements.txt` File
-Run the `generate-requirements-txt` target to create `requirements.txt` from Poetry or Pipenv lock files.
+Run the `generate-requirements-txt` target to create `requirements.txt` from `uv.lock` (or Poetry, or a checked-in `requirements.txt`).
 
 ```bash
 make generate-requirements-txt
 ```
 
-- **Input**: Uses `poetry.lock` or `Pipfile.lock` if present; exits successfully if `requirements.txt` already exists.
+- **Input**: Uses `uv.lock` if present (else `poetry.lock`, else copies `requirements.txt`); exits successfully if `requirements.txt` already exists.
 - **Output**: Creates `requirements.txt` with application dependencies.
 - **Error**: Fails if no lock file is found and `requirements.txt` is missing.
 
@@ -98,7 +98,7 @@ You can manually prepare them by running `generate-requirements-build-in` target
 # Optional
 make generate-requirements-build-in
 ```
-- **Output**: Creates `requirements-build.in` with build dependencies (e.g., `pipenv==2025.0.3`).
+- **Output**: Creates `requirements-build.in` with build dependencies (e.g., `uv==0.11.11`).
 - **Manual Step**: If additional build dependencies are discovered (e.g., during testing), update `.hermetic_builds/add_manual_build_dependencies.sh` to append them. Each entry should be:
 
   ```bash

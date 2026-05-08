@@ -18,7 +18,7 @@ Interactive setup that asks the user preferences before configuring the environm
    **Question 2 - Dependencies**:
    - "How should Python dependencies be handled?"
    - Options:
-     - "Full install" (description: "Run pipenv install --dev to install all dependencies")
+     - "Full install" (description: "Run uv sync to install all dependencies")
      - "Skip" (description: "Skip dependency installation, assume already installed")
 
    **Question 3 - Podman services**:
@@ -31,13 +31,13 @@ Interactive setup that asks the user preferences before configuring the environm
    **Question 4 - Environment check**:
    - "Run environment prerequisite checks first?"
    - Options:
-     - "Yes (Recommended)" (description: "Verify python3, pipenv, podman, podman compose are installed")
+     - "Yes (Recommended)" (description: "Verify python3, uv, podman, podman compose are installed")
      - "No" (description: "Skip checks and proceed directly")
 
 3. Based on the user's answers, execute the appropriate steps:
 
    **If environment check = Yes:**
-   - Run `python3 --version`, `unset PIPENV_PIPFILE && pipenv --version`, `podman --version`, `podman compose version`
+   - Run `python3 --version`, `uv --version`, `podman --version`, `podman compose version`
    - Report any missing tools and suggest installation
 
    **Always (before any other setup):**
@@ -51,7 +51,7 @@ Interactive setup that asks the user preferences before configuring the environm
    - Run `mkdir -p ~/.pg_data`
 
    **If dependencies = Full install:**
-   - Run `unset PIPENV_PIPFILE && pipenv install --dev`
+   - Run `uv sync`
 
    **If Podman services = All services:**
    - Run `podman compose -f dev.yml up -d`
@@ -61,7 +61,7 @@ Interactive setup that asks the user preferences before configuring the environm
 
    **If Podman services != Skip:**
    - Wait for PostgreSQL: poll `podman compose -f dev.yml exec -T db pg_isready -h db`
-   - Run migrations: `unset PIPENV_PIPFILE && INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights pipenv run make upgrade_db`
+   - Run migrations: `INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights uv run make upgrade_db`
    - Health check: `curl -sf http://localhost:8080/health`
 
 4. Report results for each step that was executed.

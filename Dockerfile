@@ -44,8 +44,8 @@ COPY inv_mq_service.py inv_mq_service.py
 COPY inv_export_service.py inv_export_service.py
 COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
+COPY pyproject.toml pyproject.toml
+COPY uv.lock uv.lock
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -54,13 +54,11 @@ COPY wait_for_migrations.py wait_for_migrations.py
 COPY jobs/ jobs/
 
 ENV PIP_NO_CACHE_DIR=1
-ENV PIPENV_CLEAR=1
-ENV PIPENV_VENV_IN_PROJECT=1
+ENV UV_COMPILE_BYTECODE=1
 
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install pipenv && \
-    python3 -m pip install dumb-init && \
-    pipenv install --system
+    python3 -m pip install "uv==0.11.11" dumb-init && \
+    uv sync --frozen --system --no-dev
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \

@@ -4,6 +4,7 @@ bin/
 pip-selfcheck.json
 pyvenv.cfg
 .python-version
+.venv/
 tags
 .coverage
 .pytest_cache/

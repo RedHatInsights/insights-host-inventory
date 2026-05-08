@@ -7,7 +7,7 @@ NUM_HOSTS=1
 
 
 init:
-	pipenv shell
+	uv shell
 
 migrate_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db migrate -m "${message}"
