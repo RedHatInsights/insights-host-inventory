@@ -105,7 +105,7 @@ def check_resource_types_groups_response(
     return response_data
 
 
-def test_resource_types_get_list_without_groups(host_inventory):
+def test_resource_types_get_list_without_groups(request, host_inventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3827
@@ -116,6 +116,9 @@ def test_resource_types_get_list_without_groups(host_inventory):
       importance: medium
       title: Get resource types list without any groups
     """
+    if request.config.getoption("--kessel"):
+        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
+
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_resource_types_response()
     check_resource_types_list_response(response, 1)
@@ -140,7 +143,7 @@ def test_resource_types_get_list_with_group_with_host(host_inventory: Applicatio
     check_resource_types_list_response(response, groups_count)
 
 
-def test_resource_types_get_groups_without_groups(host_inventory):
+def test_resource_types_get_groups_without_groups(request, host_inventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3827
@@ -151,6 +154,9 @@ def test_resource_types_get_groups_without_groups(host_inventory):
       importance: medium
       title: Get groups resources without any groups
     """
+    if request.config.getoption("--kessel"):
+        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
+
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_groups_response()
     groups = check_resource_types_groups_response(response, 0)
@@ -183,6 +189,7 @@ def test_resource_types_get_groups_with_group_with_host(host_inventory: Applicat
 @pytest.mark.ephemeral
 @pytest.mark.parametrize("with_hosts", [True, False], ids=["with hosts", "without hosts"])
 def test_resource_types_get_groups_pagination_only_my_groups(
+    request,
     host_inventory: ApplicationHostInventory,
     with_hosts: bool,
 ):
@@ -196,6 +203,9 @@ def test_resource_types_get_groups_pagination_only_my_groups(
       importance: high
       title: Test pagination while getting groups resources with limited amount of groups
     """
+    if request.config.getoption("--kessel"):
+        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
+
     host_inventory.apis.groups.delete_all_groups()
 
     hosts = host_inventory.kafka.create_random_hosts(10)

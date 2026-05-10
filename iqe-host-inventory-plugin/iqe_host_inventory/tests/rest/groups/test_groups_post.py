@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 )
 @pytest.mark.ephemeral
 def test_groups_create_response(
+    request,
     host_inventory: ApplicationHostInventory,
     hbi_default_org_id: str,
     hbi_default_account_number: str,
@@ -73,8 +74,7 @@ def test_groups_create_response(
     assert group.account == hbi_default_account_number
     assert group.ungrouped is False
     assert time1 < group.created < time2
-    # With kessel sync it will take longer
-    time_delta = 500
+    time_delta = 2000 if request.config.getoption("--kessel") else 500
     assert_datetimes_equal(group.updated, group.created, timedelta(milliseconds=time_delta))
 
     if not assigned_hosts:

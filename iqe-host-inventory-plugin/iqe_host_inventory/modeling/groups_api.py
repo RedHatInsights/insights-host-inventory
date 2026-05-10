@@ -788,9 +788,39 @@ class GroupsAPIWrapper(BaseEntity):
         ):
             self._host_inventory.apis.workspaces.delete_all_workspaces()
 
+        # RBAC v2 maps one HBI group to the "default workspace" which cannot be deleted.
+        # The batch DELETE is atomic server-side: if any group triggers a 400, zero groups
+        # are deleted. On batch failure, fall back to deleting one-by-one, tracking
+        # undeletable IDs in skip_ids to prevent an infinite retry loop.
         groups = self.get_groups(per_page=100)
+        skip_ids: set[str] = set()
         while groups:
-            self.delete_groups(groups, wait_for_deleted=wait_for_deleted, **api_kwargs)
+            deletable = [g for g in groups if not g.ungrouped and g.id not in skip_ids]
+            if not deletable:
+                break
+            try:
+                self.delete_groups(deletable, wait_for_deleted=wait_for_deleted, **api_kwargs)
+            except ApiException as err:
+                if err.status == 400 and "default workspace" in str(err.body):
+                    for group in deletable:
+                        try:
+                            self.delete_groups([group], wait_for_deleted=False, **api_kwargs)
+                        except ApiException as inner_err:
+                            if inner_err.status == 400 and "default workspace" in str(
+                                inner_err.body
+                            ):
+                                logger.info(
+                                    f"Skipping group {group.id}: cannot delete default workspace"
+                                )
+                                skip_ids.add(group.id)
+                            elif inner_err.status in FORBIDDEN_OR_NOT_FOUND:
+                                pass
+                            else:
+                                raise
+                elif err.status in FORBIDDEN_OR_NOT_FOUND:
+                    pass
+                else:
+                    raise
             groups = self.get_groups(per_page=100)
 
     def wait_for_deleted(
