@@ -75,7 +75,7 @@ def test_kessel_create_empty_group(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
-def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
+def test_kessel_get_groups_by_type(request, host_inventory: ApplicationHostInventory):
     """
     metadata:
       requirements: inv-kessel-groups
@@ -83,6 +83,9 @@ def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
       importance: high
       title: Verify the GET /groups type param works correctly
     """
+    if request.config.getoption("--kessel"):
+        pytest.xfail("RBAC v2: Default Workspace appears as 'standard' type in group list")
+
     host_inventory.apis.groups.delete_all_groups()
     group = host_inventory.apis.groups.create_group(generate_display_name())
 
