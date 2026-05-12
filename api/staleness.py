@@ -156,7 +156,7 @@ def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict
                             list_of_events_params.append((event, headers, str(host.id)))
 
                         processed_hosts += len(batch_hosts)
-                        logger.debug(f"Updated staleness asynchronously for {processed_hosts}/{num_hosts} hosts")
+                        logger.debug(f"Recomputed and emitted staleness events for {processed_hosts}/{num_hosts} hosts")
 
                     # After a successful commit to the db, verify which hosts still
                     # exist before producing events. This prevents producing "updated"
