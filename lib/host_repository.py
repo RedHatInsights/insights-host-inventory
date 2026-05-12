@@ -274,10 +274,8 @@ def find_hosts_sys_default_staleness(staleness_types):
 def _excluded_hosts_filter(org_id: str):
     """Filter matching hosts that should be excluded from active counts.
 
-    Matches culled hosts (deletion_timestamp <= now, or compute-on-read culled
-    from last_check_in + conventional_time_to_delete when staleness columns are
-    NULL). Used by both find_non_culled_hosts (negated) and
-    get_host_counts_batch so the definition stays in one place.
+    Matches hosts that are culled: ``now >= last_check_in +
+    conventional_time_to_delete`` for the org's staleness settings.
     """
     staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
     staleness_filter = HostStalenessStatesDbFilters(staleness_obj)
@@ -445,7 +443,7 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     )
     total_map = {str(gid): total for gid, total in total_query.all()}
 
-    # Count EXCLUDED members: culled (deletion_timestamp <= now).
+    # Count EXCLUDED members: culled (last_check_in + delete window).
     # This query joins the hosts table but matches very few rows (typically <1%).
     excluded_query = (
         db.session.query(HostGroupAssoc.group_id, func.count().label("excluded"))

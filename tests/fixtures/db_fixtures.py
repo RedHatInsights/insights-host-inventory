@@ -161,7 +161,6 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 
         host = host or minimal_db_host(org_id=org_id, account=identity["account_number"], **extra_data)
         db.session.add(host)
-        db.session.flush()
         db.session.commit()
         return host
 

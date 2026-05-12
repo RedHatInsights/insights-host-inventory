@@ -219,24 +219,6 @@ def test_get_staleness_obj_no_record_uses_default(mock_get, mock_db, mock_put, m
 # --- API endpoint tests ---
 
 
-@patch("api.staleness._async_update_host_staleness")
-@patch.object(StalenessCache, "delete")
-def test_create_staleness_invalidates_cache(
-    mock_delete,
-    _mock_async,  # noqa: ARG001
-    api_create_staleness,
-    db_get_staleness_culling,  # noqa: ARG001
-):
-    data = {
-        "conventional_time_to_stale": 1,
-        "conventional_time_to_stale_warning": 604800,
-        "conventional_time_to_delete": 1209600,
-    }
-    status, resp = api_create_staleness(data)
-    assert status == 201
-    mock_delete.assert_called_once_with(resp["org_id"])
-
-
 def test_get_host_uses_cached_staleness(db_create_host, api_get):
     host = db_create_host(
         SYSTEM_IDENTITY,

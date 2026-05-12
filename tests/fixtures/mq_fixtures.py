@@ -136,17 +136,6 @@ def mq_create_edge_host(mq_create_or_update_host):
 
 
 @pytest.fixture(scope="function")
-def mq_create_hosts_in_all_states(mq_create_or_update_host):
-    staleness_states = get_staleness_timestamps().keys()
-    created_hosts = {}
-    for state in staleness_states:
-        host = minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS)
-        created_hosts[state] = mq_create_or_update_host(host)
-
-    return created_hosts
-
-
-@pytest.fixture(scope="function")
 def mq_create_deleted_hosts(flask_app: FlaskApp, mq_create_or_update_host):
     """Hosts are compute-on-read culled: ``last_check_in`` is past org ``conventional_time_to_delete``."""
     staleness_states = get_staleness_timestamps().keys()
@@ -164,12 +153,12 @@ def mq_create_deleted_hosts(flask_app: FlaskApp, mq_create_or_update_host):
             reporter="some reporter",
             facts=FACTS,
         )
-        hw = mq_create_or_update_host(host)
+        host_wrapper = mq_create_or_update_host(host)
         with flask_app.app.app_context():
-            row = db.session.query(Host).filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).one()
+            row = db.session.query(Host).filter_by(id=UUID(str(host_wrapper.id)), org_id=host_wrapper.org_id).one()
             row.last_check_in = last_check_in_culled
             db.session.commit()
-        created_hosts[state] = hw
+        created_hosts[state] = host_wrapper
 
     return created_hosts
 
