@@ -21,14 +21,11 @@ from app.models import Host
 from app.models import db
 from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
-from app.staleness_serialization import build_staleness_sys_default
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
 from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import build_hosts_url
-from tests.helpers.api_utils import build_staleness_url
 from tests.helpers.api_utils import create_host_with_reporter
-from tests.helpers.outbox_utils import wait_for_all_events
 from tests.helpers.test_utils import USER_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import now
@@ -126,245 +123,6 @@ def test_create_host_with_reporter_defaults_stale_timestamp_to_last_check_in_plu
     assert extra["reporter"] == "some-reporter"
     assert host.last_check_in == last_check_in
     assert host.stale_timestamp == expected_stale_timestamp
-
-
-@pytest.mark.parametrize("num_hosts", [1, 2, 3])
-def test_async_update_host_create_custom_staleness(
-    db_create_staleness_culling,
-    db_get_hosts,
-    db_create_multiple_hosts,
-    api_get,
-    api_patch,
-    flask_app,
-    event_producer,
-    mocker,
-    num_hosts,
-):
-    """Create hosts under NO_HOSTS_TO_DELETE, then PATCH staleness to HOST_BECAME_STALE; async job runs."""
-    db_create_staleness_culling(**CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-    with (
-        patch("app.models.utils.datetime") as mock_datetime,
-    ):
-        with flask_app.app.app_context():
-            mocker.patch.object(event_producer, "write_event")
-            _now = now()
-            mock_datetime.now.return_value = _now
-            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
-            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
-            host_url = build_hosts_url()
-            response_status, response_data = api_get(host_url)
-            assert response_status == 200
-            assert len(response_data["results"]) == len(created_hosts)
-
-            host_ids = [host["id"] for host in response_data["results"]]
-            hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
-            for reporter in hosts_before_update[0].per_reporter_staleness:
-                v = hosts_before_update[0].per_reporter_staleness[reporter]
-                assert isinstance(v, str)
-                assert v == _now.isoformat()
-
-            _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
-
-            staleness_url = build_staleness_url()
-            status, _ = api_patch(staleness_url, CUSTOM_STALENESS_HOST_BECAME_STALE)
-            assert status in (200, 201)
-
-            # Wait for thread to finish - poll until event_producer.write_event is called
-            wait_for_all_events(event_producer, num_hosts)
-
-            hosts_after_update = db_get_hosts(host_ids).all()
-            for reporter in hosts_after_update[0].per_reporter_staleness:
-                v = hosts_after_update[0].per_reporter_staleness[reporter]
-                assert isinstance(v, str)
-                assert v == _now.isoformat()
-
-            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
-            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
-            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
-            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
-
-            assert event_producer.write_event.call_count == num_hosts
-
-
-@pytest.mark.parametrize("num_hosts", [1, 2, 3])
-def test_async_update_host_delete_custom_staleness(
-    db_create_staleness_culling,
-    db_get_hosts,
-    db_create_multiple_hosts,
-    api_get,
-    api_delete_staleness,
-    flask_app,
-    event_producer,
-    mocker,
-    num_hosts,
-):
-    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    with (
-        patch("app.models.utils.datetime") as mock_datetime,
-    ):
-        with flask_app.app.app_context():
-            mocker.patch.object(event_producer, "write_event")
-            _now = now()
-            mock_datetime.now.return_value = _now
-            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
-            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
-            host_url = build_hosts_url()
-            response_status, response_data = api_get(host_url)
-            assert response_status == 200
-            assert len(response_data["results"]) == len(created_hosts)
-
-            host_ids = [host["id"] for host in response_data["results"]]
-            hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
-            for reporter in hosts_before_update[0].per_reporter_staleness:
-                prs = hosts_before_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-
-            _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
-            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
-
-            status, _ = api_delete_staleness()
-            assert status == 204
-
-            # Wait for thread to finish - poll until event_producer.write_event is called
-            wait_for_all_events(event_producer, num_hosts)
-
-            hosts_after_update = db_get_hosts(host_ids).all()
-            for reporter in hosts_after_update[0].per_reporter_staleness:
-                prs = hosts_after_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-
-            sys_staleness = build_staleness_sys_default(hosts_after_update[0].org_id)
-            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, sys_staleness)
-            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, sys_staleness)
-            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
-
-            # Call event_producer
-            assert event_producer.write_event.call_count == num_hosts
-
-
-@pytest.mark.parametrize("num_hosts", [1, 2, 3])
-def test_async_update_host_update_custom_staleness(
-    db_create_staleness_culling,
-    db_get_hosts,
-    db_create_multiple_hosts,
-    api_get,
-    api_patch,
-    flask_app,
-    event_producer,
-    mocker,
-    num_hosts,
-):
-    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    with (
-        patch("app.models.utils.datetime") as mock_datetime,
-    ):
-        with flask_app.app.app_context():
-            mocker.patch.object(event_producer, "write_event")
-            _now = now()
-            mock_datetime.now.return_value = _now
-            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
-            created_hosts = db_create_multiple_hosts(how_many=num_hosts)
-            host_url = build_hosts_url()
-            response_status, response_data = api_get(host_url)
-            assert response_status == 200
-            assert len(response_data["results"]) == len(created_hosts)
-
-            host_ids = [host["id"] for host in response_data["results"]]
-            hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
-            for reporter in hosts_before_update[0].per_reporter_staleness:
-                prs = hosts_before_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-
-            _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
-            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
-
-            staleness_url = build_staleness_url()
-            status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-            assert status == 200
-
-            # Wait for thread to finish - poll until event_producer.write_event is called
-            wait_for_all_events(event_producer, num_hosts)
-
-            hosts_after_update = db_get_hosts(host_ids).all()
-            for reporter in hosts_after_update[0].per_reporter_staleness:
-                prs = hosts_after_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-
-            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
-            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
-            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
-
-            # Call event_producer
-            assert event_producer.write_event.call_count == num_hosts
-
-
-@pytest.mark.parametrize("num_hosts", [1, 2, 3])
-def test_async_update_host_update_custom_staleness_no_modified_on_change(
-    db_create_staleness_culling,
-    db_get_hosts,
-    db_create_multiple_hosts,
-    api_patch,
-    flask_app,
-    event_producer,
-    mocker,
-    num_hosts,
-):
-    db_create_staleness_culling(**CUSTOM_STALENESS_HOST_BECAME_STALE)
-    with (
-        patch("app.models.utils.datetime") as mock_datetime,
-    ):
-        with flask_app.app.app_context():
-            mocker.patch.object(event_producer, "write_event")
-            _now = now()
-            mock_datetime.now.return_value = _now
-            mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
-            hosts_before_update = db_create_multiple_hosts(how_many=num_hosts)
-            st_obj = staleness_timestamps()
-
-            for reporter in hosts_before_update[0].per_reporter_staleness:
-                prs = hosts_before_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-
-            _assert_host_row_staleness_columns_null(hosts_before_update[0])
-            staleness_before = _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE)
-            computed_before = get_staleness_timestamps(hosts_before_update[0], st_obj, staleness_before)
-            modified_on_before = hosts_before_update[0].modified_on
-
-            staleness_url = build_staleness_url()
-            status, _ = api_patch(staleness_url, CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-            assert status == 200
-
-            # Wait for thread to finish - poll until event_producer.write_event is called
-            wait_for_all_events(event_producer, num_hosts)
-
-            host_ids = [str(host.id) for host in hosts_before_update]
-
-            hosts_after_update = db_get_hosts(host_ids).all()
-            for reporter in hosts_after_update[0].per_reporter_staleness:
-                prs = hosts_after_update[0].per_reporter_staleness[reporter]
-                assert isinstance(prs, str)
-                assert prs == _now.isoformat()
-            staleness_after = _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE)
-            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, staleness_after)
-            computed_after = get_staleness_timestamps(hosts_after_update[0], st_obj, staleness_after)
-            assert computed_before["stale_timestamp"] != computed_after["stale_timestamp"]
-            assert hosts_after_update[0].modified_on == modified_on_before
-
-            # Call event_producer
-            assert event_producer.write_event.call_count == num_hosts
 
 
 def test_registered_with_filter_handles_multi_reporter_hosts(
@@ -764,6 +522,16 @@ def test_staleness_db_filter_stale_mid_window_when_columns_null(db_create_host):
     db.session.commit()
 
     expr = _staleness_filter(["stale"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+
+def test_staleness_db_filter_stale_warning_when_columns_null(db_create_host):
+    """``_staleness_filter``: past ``conventional_time_to_stale_warning`` but before delete window."""
+    host = db_create_host()
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=10)
+    db.session.commit()
+
+    expr = _staleness_filter(["stale_warning"], host.org_id)
     assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
 
 

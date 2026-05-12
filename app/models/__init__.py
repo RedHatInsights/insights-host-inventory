@@ -48,7 +48,6 @@ from app.models.staleness import Staleness
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_normalizer import SystemProfileNormalizer
 from app.models.system_profile_static import HostStaticSystemProfile
-from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import deleted_by_this_query
@@ -105,7 +104,6 @@ __all__ = [
     "get_staleness_obj",
     "_set_display_name_on_save",
     "_time_now",
-    "_create_staleness_timestamps_values",
     "deleted_by_this_query",
     "datetime",
     "HostDynamicSystemProfile",
