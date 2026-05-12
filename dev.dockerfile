@@ -1,4 +1,7 @@
-FROM registry.access.redhat.com/ubi9/python-39
+FROM registry.access.redhat.com/ubi9/python-312
+
+ENV APP_ROOT=/opt/app-root/src
+WORKDIR $APP_ROOT
 
 USER 0
 # use general package name instead of a specific one,
@@ -22,8 +25,8 @@ COPY inv_mq_service.py inv_mq_service.py
 COPY inv_export_service.py inv_export_service.py
 COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
+COPY pyproject.toml pyproject.toml
+COPY uv.lock uv.lock
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -31,9 +34,9 @@ COPY run.py run.py
 RUN chown -R 1001:0 ./
 USER 1001
 
-# Set pipenv to version 2022.4.8 to prevent pip from updating and
-# failing a rootless image build
-RUN pip install pipenv==2022.4.8  && \
-    pipenv install --system --dev
+ENV PATH="$APP_ROOT/.venv/bin:$PATH"
+
+RUN pip install "uv==0.11.11" && \
+    uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'

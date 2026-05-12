@@ -4,5 +4,5 @@ globs:
 alwaysApply: true
 ---
 
-- This project runs in a virtual environment; always use `pipenv run` when running python or pytest commands.
+- This project uses uv; run Python and pytest with `uv run` (or activate `.venv` after `uv sync`).
 - When making changes, always test your code and make fixes as needed.

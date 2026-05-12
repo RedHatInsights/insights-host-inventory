@@ -24,13 +24,13 @@ Run each of the following checks and report results in a summary table:
 - Report the version response or connection error
 
 ### 5. Database Migration Status
-- Run with local env: `unset PIPENV_PIPFILE && INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights FLASK_APP=manage.py pipenv run flask db current`
+- Run with local env: `INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights FLASK_APP=manage.py uv run flask db current`
 - Report current migration head
 
 ### 6. Python Environment
 - Check `python3 --version`
-- Check `pipenv --version`
-- Check if virtual environment exists: `unset PIPENV_PIPFILE && pipenv --venv`
+- Check `uv --version`
+- Check if virtual environment exists: `test -d .venv && echo root .venv OK`
 
 ### 7. Git Branch Status
 - Run `git fetch --quiet` to update remote refs

@@ -2,8 +2,6 @@
 
 -include .env
 export
-unexport PIPENV_PIPFILE
-
 .PHONY: hbi-help
 hbi-help: ## List all HBI make targets
 	@awk 'BEGIN {FS = ":.*##"; printf "\nHBI targets (mk/private.mk):\n\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' mk/private.mk
@@ -23,19 +21,19 @@ hbi-logs: ## View service logs (set SERVICE= for a specific service)
 
 .PHONY: hbi-migrate
 hbi-migrate: ## Run database migrations
-	INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights pipenv run make upgrade_db
+	INVENTORY_DB_HOST=localhost INVENTORY_DB_NAME=insights INVENTORY_DB_USER=insights INVENTORY_DB_PASS=insights uv run make upgrade_db
 
 .PHONY: hbi-test
 hbi-test: ## Run tests with coverage (set ARGS= for extra args)
-	pipenv run pytest --cov=. $(ARGS)
+	uv run pytest --cov=. $(ARGS)
 
 .PHONY: hbi-style
 hbi-style: ## Run code style checks
-	pipenv run make style
+	uv run make style
 
 .PHONY: hbi-deps
 hbi-deps: ## Install Python dependencies
-	pipenv install --dev
+	uv sync
 
 .PHONY: hbi-health
 hbi-health: ## Health check the web service

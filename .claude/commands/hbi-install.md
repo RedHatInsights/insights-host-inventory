@@ -27,7 +27,7 @@ MODE: $1 (optional - if "true", run interactive mode)
 4. Read the log file at `.claude/hooks/setup.init.log` to see detailed output.
 
 5. Analyze the JSON output from the script. Report to the user:
-   - Which prerequisites were found (python3, pipenv, podman, podman compose)
+   - Which prerequisites were found (python3, uv, podman, podman compose)
    - Whether directories were created
    - Whether Podman services started successfully
    - Whether PostgreSQL became ready

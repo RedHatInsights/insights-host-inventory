@@ -3,7 +3,7 @@
 hermetic_builds_dir=${1:-".hermetic_builds"}
 
 cat <<EOF >> ${hermetic_builds_dir}/requirements-build.in
-pipenv==2025.0.4
+uv==0.11.11
 wheel==0.45.1
 flit_core<4,>=3.8
 virtualenv>=20.24.2

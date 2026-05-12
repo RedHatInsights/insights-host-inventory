@@ -8,7 +8,7 @@ Red Hat Insights Host Based Inventory (HBI) — Flask REST API managing system i
 
 - `make style` — run before committing (pre-commit / ruff)
 - `make hbi-help` — list all dev workflow targets (defined in `mk/private.mk`)
-- `pipenv run pytest --cov=.` — run tests with coverage
+- `uv run pytest --cov=.` — run tests with coverage
 - `podman compose -f dev.yml up -d` / `down` — start/stop containerized services
 - `make upgrade_db` — run Alembic migrations
 - `make migrate_db message="..."` — generate a new migration
@@ -16,7 +16,7 @@ Red Hat Insights Host Based Inventory (HBI) — Flask REST API managing system i
 
 ## Conventions
 
-- Always `unset PIPENV_PIPFILE` before pipenv commands — two Pipenv environments exist (dev and IQE in `iqe-host-inventory-plugin/`)
+- Main app: `uv sync` at repo root. IQE: `uv sync` in `iqe-host-inventory-plugin/` (see `setup-iqe.sh`, `docs/IQE.md`).
 - Auth uses `x-rh-identity` header (Base64-encoded JSON with org_id) — org_id isolates tenant data
 - DB schema is `hbi.*` with partitioned tables
 - The `hbi-web` container auto-reloads on code changes — no manual restart needed

@@ -105,22 +105,12 @@ rpms.lock.yaml: rpms.in.yaml
 		exit 1; \
 	fi
 
-# Generate requirements.txt from Poetry or Pipenv lock files
+# Generate requirements.txt from the root uv.lock (single source of truth).
 .PHONY: generate-requirements-txt
 generate-requirements-txt: $(hermetic_builds_dir)/requirements.txt
 
-$(hermetic_builds_dir)/requirements.txt: Pipfile.lock
-	@if [ -f poetry.lock ]; then \
-		poetry export --format requirements.txt --output $(hermetic_builds_dir)/requirements.txt; \
-	elif [ -f Pipfile.lock ]; then \
-		pipenv requirements > $(hermetic_builds_dir)/requirements.txt; \
-	elif [ -f requirements.txt ]; then \
-		cp requirements.txt $(hermetic_builds_dir)/requirements.txt; \
-		exit 0; \
-	else \
-		echo "Error: Unable to generate requirements.txt file"; \
-		exit 1; \
-	fi
+$(hermetic_builds_dir)/requirements.txt: pyproject.toml uv.lock
+	uv export --frozen --no-dev -o $(hermetic_builds_dir)/requirements.txt
 	@if [ ! -f $(hermetic_builds_dir)/requirements.txt ]; then \
 		echo "Error: requirements.txt was not generated"; \
 		exit 1; \
