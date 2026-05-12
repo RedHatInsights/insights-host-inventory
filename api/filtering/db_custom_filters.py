@@ -428,7 +428,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
+        if field_filter == "wildcard":
             value = value.replace("*", "%")
 
         # Handle special values and casting
