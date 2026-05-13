@@ -25,7 +25,7 @@ setuptools-rust>=1.11.0
 cffi==1.17.1
 cfgv==3.4.0
 coverage==7.9.2
-cryptography==46.0.5
+cryptography==48.0.0
 identify==2.6.12
 iniconfig==2.1.0
 nodeenv==1.9.1
