@@ -20,6 +20,8 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.wildcard_utils import apply_wildcard_filtering
+from api.wildcard_utils import restore_literal_asterisks
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -37,6 +39,50 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _field_supports_wildcards(field_name: str, jsonb_path: tuple[str, ...] = None) -> bool:
+    """
+    Check if a field supports wildcard filtering based on the system profile spec.
+    
+    Args:
+        field_name: Name of the field to check
+        jsonb_path: JSONB path for nested fields
+        
+    Returns:
+        True if the field supports wildcards (has x-wildcard: true)
+    """
+    try:
+        spec = system_profile_spec()
+        
+        # For nested fields, navigate through the path
+        if jsonb_path:
+            current_spec = spec
+            for path_element in jsonb_path:
+                if "properties" in current_spec:
+                    current_spec = current_spec["properties"]
+                elif "children" in current_spec:
+                    current_spec = current_spec["children"]
+                
+                if path_element in current_spec:
+                    current_spec = current_spec[path_element]
+                else:
+                    return False
+            
+            return current_spec.get("x-wildcard", False)
+        
+        # For top-level fields
+        if field_name in spec:
+            return spec[field_name].get("x-wildcard", False)
+        
+        # Check in properties
+        if "properties" in spec and field_name in spec["properties"]:
+            return spec["properties"][field_name].get("x-wildcard", False)
+            
+        return False
+    except Exception:
+        # If we can't determine wildcard support, default to False
+        return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +473,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields with proper URL-encoded asterisk support
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if this field supports wildcards
+            supports_wildcards = _field_supports_wildcards(field_name, jsonb_path)
+            if supports_wildcards:
+                # Apply intelligent wildcard filtering that preserves literal asterisks
+                value = apply_wildcard_filtering(value, is_wildcard_field=True)
+            else:
+                # For non-wildcard fields, just restore any literal asterisks
+                value = restore_literal_asterisks(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

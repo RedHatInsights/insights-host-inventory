@@ -41,6 +41,7 @@ from app.tags_blueprint import tags_bp
 from app.telemetry import instrument_flask_app
 from app.telemetry import instrument_outbound_http
 from app.telemetry import instrument_sqlalchemy
+from app.wildcard_middleware import init_wildcard_middleware
 from lib.check_org import check_org_id
 from lib.feature_flags import SchemaStrategy
 from lib.feature_flags import init_unleash_app
@@ -258,6 +259,9 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
 
     flask_app = app.app
 
+    # Initialize wildcard middleware to handle URL-encoded asterisks
+    init_wildcard_middleware(flask_app)
+
     # Add an error handler that will convert our top level exceptions
     # into error responses
     flask_app.register_error_handler(InventoryException, render_exception)
@@ -267,6 +271,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = app_config.db_uri
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_size']"] = app_config.db_pool_size
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_timeout']"] = app_config.db_pool_timeout
+    flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['pool_pre_ping']"] = True
     flask_app.config["SQLALCHEMY_ENGINE_OPTIONS['connect_args']"] = {
         "options": f"-c statement_timeout={app_config.db_statement_timeout} -c lock_timeout={app_config.db_lock_timeout}"  # noqa
