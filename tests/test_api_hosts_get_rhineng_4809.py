@@ -1,31 +1,54 @@
 
+import pytest
+
 from tests.helpers.api_utils import build_hosts_url
 
 
-def test_rhineng_4809_backslash_escaping_in_wildcard_filter(db_create_host, api_get):
-    """
-    Tests that backslashes are properly escaped in wildcard filters for system profiles.
-    This test case is based on the scenario described in RHINENG-4809.
-    """
-    # Create a host with a system profile value containing a backslash followed by a 't'.
-    # This is problematic if the backslash is not escaped, as '\t' is a special character.
-    sp_data = {"system_profile_facts": {"os_release": "text\\text"}}
-    host_id = str(db_create_host(extra_data=sp_data).id)
+@pytest.mark.parametrize(
+    "filter_value, expected_match",
+    [
+        # Test case 1: Escaped asterisk should match literal '*'
+        ("test1\\*test2", True),
+        # Test case 2: Unescaped asterisk should act as a wildcard
+        ("test1*test2", True),
+        # Test case 3: Wildcard at the end
+        ("test1*", True),
+        # Test case 4: Escaped backslash should match literal '\'
+        ("data\\\\center", True),
+        # Test case 5: Combination of escaped and unescaped wildcards
+        ("test1\\*t*2", True),
+        # Test case 6: Should not match (no wildcard)
+        ("test1_test2", False),
+        # Test case 7: URL encoded value with literal '*' and '\'
+        # The value 'test1*test2\\test3' is what the app sees after decoding
+        ("test1*test2\\test3", True),
+    ],
+)
+def test_sp_filter_wildcard_escaping(db_create_host, api_get, filter_value, expected_match):
+    # Host with system profile data containing special characters
+    host_data = {
+        "system_profile_facts": {
+            "os_release": "test1*test2",
+            "data_center": "data\\center",
+            "complex_field": "test1*test2\\test3",
+        }
+    }
+    host = db_create_host(extra_data=host_data)
 
-    # The filter query uses a wildcard '*' at the end.
-    # The value "text\text*" is URL-encoded to "text%5Ctext*".
-    # After decoding by the web framework, the application receives "text\text*".
-    #
-    # Without the fix, the backslash is not escaped for the SQL ILIKE query,
-    # and the pattern becomes 'text\text%'. In PostgreSQL, '\t' is interpreted
-    # as a tab character, so the query looks for 'text<tab>ext%', which does not match.
-    #
-    # With the fix, the backslash is escaped, and the pattern becomes 'text\\text%',
-    # which correctly matches the host's os_release value.
-    query = "?filter[system_profile][os_release]=text%5Ctext*"
-    url = build_hosts_url(query=query)
+    # Determine which field to filter on based on the test case
+    if "data" in filter_value:
+        field = "data_center"
+    elif "test3" in filter_value:
+        field = "complex_field"
+    else:
+        field = "os_release"
+
+    url = build_hosts_url(query=f"?filter[system_profile][{field}]={filter_value}")
     response_status, response_data = api_get(url)
 
-    assert response_status == 200, "API request should be successful"
-    assert response_data["total"] == 1, "Should find one host matching the backslash pattern"
-    assert response_data["results"][0]["id"] == host_id, "The correct host should be returned"
+    assert response_status == 200
+    if expected_match:
+        assert len(response_data["results"]) == 1
+        assert response_data["results"][0]["id"] == str(host.id)
+    else:
+        assert len(response_data["results"]) == 0

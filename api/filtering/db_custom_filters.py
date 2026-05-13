@@ -31,6 +31,45 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 logger = get_logger(__name__)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """
+    Process a string for wildcard filtering in an ILIKE clause.
+    - User's `*` is treated as a wildcard (becomes SQL `%`).
+    - User can escape `*` with `\\*` to treat it as a literal `*`.
+    - SQL's native wildcards (`%`, `_`) are escaped.
+    - Backslashes can be escaped as `\\\\`.
+    """
+    # Use private use area characters as placeholders to avoid conflicts.
+    # Placeholder for user-escaped literal backslash (\\\\)
+    placeholder_bs = "\uE000"
+    # Placeholder for user-escaped literal asterisk (\\*)
+    placeholder_star = "\uE001"
+
+    # 1. Replace user-escaped sequences with placeholders.
+    # Order matters: handle `\\\\` before `\\*` to avoid ambiguity.
+    processed = value.replace("\\\\", placeholder_bs)
+    processed = processed.replace("\\*", placeholder_star)
+
+    # 2. Escape any remaining backslashes for the SQL ILIKE `escape` clause.
+    # This ensures that backslashes not used for escaping are treated literally.
+    processed = processed.replace("\\", "\\\\")
+
+    # 3. Escape SQL-native wildcards (`%` and `_`).
+    processed = processed.replace("%", "\\%")
+    processed = processed.replace("_", "\\_")
+
+    # 4. Convert the user's unescaped wildcard `*` to the SQL wildcard `%`.
+    processed = processed.replace("*", "%")
+
+    # 5. Restore the placeholders to their final literal form.
+    # A literal backslash needs to be escaped for PG ILIKE (`\\\\`).
+    processed = processed.replace(placeholder_bs, "\\\\")
+    # A literal asterisk is just `*`.
+    processed = processed.replace(placeholder_star, "*")
+
+    return processed
+
+
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
     if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):
@@ -429,7 +468,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            processed_value = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("*", "%")
+            processed_value = _process_wildcard_value(value)
             return target_field.ilike(processed_value, escape="\\")
 
         # Handle special values and casting
