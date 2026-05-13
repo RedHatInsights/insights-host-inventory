@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from sqlalchemy import Boolean
@@ -29,6 +30,34 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _contains_url_encoded_chars(value: str) -> bool:
+    """
+    Check if a string contains URL-encoded characters that suggest it was
+    originally URL-encoded and should be treated as literal rather than wildcard.
+    
+    This function looks for patterns like %XX where XX are hex digits.
+    """
+    if not isinstance(value, str):
+        return False
+    
+    # Pattern to match URL-encoded characters (%XX where XX are hex digits)
+    url_encoded_pattern = r'%[0-9A-Fa-f]{2}'
+    return bool(re.search(url_encoded_pattern, value))
+
+
+def _should_use_literal_match(value: str, field_filter: str) -> bool:
+    """
+    Determine if a value should use literal matching instead of wildcard matching.
+    
+    For wildcard fields, if the value contains URL-encoded characters, we assume
+    it was originally URL-encoded and should be treated as a literal match.
+    """
+    if field_filter != "wildcard":
+        return False
+    
+    return _contains_url_encoded_chars(value)
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
@@ -427,9 +456,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # RHINENG-4809 FIX: Handle wildcard fields with URL-encoded characters
+        # If the value contains URL-encoded characters (like %2A for *), treat it as literal
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            if _should_use_literal_match(value, field_filter):
+                # Value contains URL-encoded chars, use exact match instead of wildcard
+                pg_op = ColumnOperators.__eq__
+                logger.debug(f"Using literal match for URL-encoded value: {value}")
+            else:
+                # Regular wildcard behavior: replace * with % for SQL LIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
