@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       zookeeper:
-        image: confluentinc/cp-zookeeper:7.4.4
+        image: confluentinc/cp-zookeeper:7.9.6
         env:
           ZOOKEEPER_CLIENT_PORT: 32181
           ZOOKEEPER_SERVER_ID: 1
