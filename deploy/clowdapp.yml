@@ -192,6 +192,7 @@ objects:
             fieldRef:
               fieldPath: metadata.name
         image: registry.access.redhat.com/ubi9/nginx-124:latest
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
