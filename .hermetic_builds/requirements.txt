@@ -60,8 +60,8 @@ protobuf==6.33.5; python_version >= '3.9'
 psycopg2==2.9.11
 pyjwt==2.12.0; python_version >= '3.9'
 python-dateutil==2.9.0.post0
-python-dotenv==1.1.1; python_version >= '3.9'
-python-multipart==0.0.20; python_version >= '3.8'
+python-dotenv==1.2.2; python_version >= '3.9'
+python-multipart==0.0.28; python_version >= '3.8'
 pyyaml==6.0.3
 ratelimit==2.2.1
 redis==6.4.0
@@ -85,7 +85,7 @@ typing-extensions==4.15.0; python_version >= '3.9'
 tzlocal==5.3.1; python_version >= '3.9'
 ujson==5.10.0
 unleashclient==5.12.2
-urllib3==2.6.3
+urllib3==2.7.0
 uvicorn[standard]==0.38.0; python_version >= '3.9'
 uvloop==0.22.1; python_full_version >= '3.8.0'
 validators==0.35.0
