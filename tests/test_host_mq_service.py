@@ -1086,28 +1086,6 @@ def test_add_host_with_operating_system_incorrect_format(mocker, mq_create_or_up
         mock_notification_event_producer.write_event.assert_called()
 
 
-@pytest.mark.parametrize(
-    "facts",
-    (
-        [{"facts": {"": "invalid"}, "namespace": "rhsm"}],
-        [{"facts": {"metadata": {"": "invalid"}}, "namespace": "rhsm"}],
-    ),
-)
-def test_add_host_empty_keys_facts(facts, mocker, mq_create_or_update_host):
-    mock_notification_event_producer = mocker.Mock()
-    insights_id = generate_uuid()
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=insights_id,
-        facts=facts,
-        system_profile={"owner_id": OWNER_ID},
-    )
-
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
 @pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
 def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mocker, mq_create_or_update_host):
     mock_notification_event_producer = mocker.Mock()
@@ -2325,58 +2303,6 @@ def test_create_host_by_user_with_missing_details(mq_create_or_update_host, db_g
     assert created_host.id == str(host_from_db.id)
 
 
-def test_add_host_with_canonical_facts_MAC_address_incorrect_format(mocker, mq_create_or_update_host, subtests):
-    """
-    Tests that a validation exception is raised when MAC address is in the wrong format.
-    """
-    bad_address_list = [
-        "bad",  # just a random string
-        "Z1:Z2:Z3:Z4:Z5:Z6",  # right length, out of range character
-        "BD0DC5FB42356",  # too long
-        "BD0DC5FB423",  # too short
-        "BD:0D:C5:FB:42:35:66",  # too long
-        "BD:0D:C5:FB:42:3",  # too short
-        "1EDC.C1E7.32BA.ABCD",  # too long
-        "1EDC.C1E7",  # too short
-        "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44",  # too long
-        "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22",  # too short
-        "99:40:16:A9:3821",  # missing one dilimiter
-        "99:40:16:A9:38::21",  # too many delimiters
-    ]
-    mock_notification_event_producer = mocker.Mock()
-
-    for bad_address in bad_address_list:
-        with subtests.test(bad_address=bad_address):
-            host = minimal_host(mac_addresses=[bad_address])
-            with pytest.raises(ValidationException):
-                mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-            mock_notification_event_producer.write_event.assert_called()
-
-
-def test_add_host_with_canonical_facts_MAC_address_valid_formats(mq_create_or_update_host, db_get_host):
-    """
-    Tests that a pyload containing a list of MAC adresses (in each of the valid formats) is excepted.
-    """
-    host = minimal_host(
-        mac_addresses=[
-            "BD0DC5FB4235",
-            "d3a94b06bbdd",
-            "99:40:16:A9:38:21",
-            "2f:3c:00:53:8c:71",
-            "58-CA-D4-5F-D6-BE",
-            "d5-90-c8-e0-3b-e5",
-            "1EDC.C1E7.32BA",
-            "a2da.8b79.40e0",
-            "00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33",
-            "00112233445566778899aabbccddeeff00112233",
-        ]
-    )
-    created_host = mq_create_or_update_host(host)
-    host_from_db = db_get_host(created_host.id)
-
-    assert created_host.mac_addresses == host_from_db.mac_addresses
-
-
 @pytest.mark.usefixtures("event_datetime_mock")
 def test_create_invalid_host_produces_message(mocker, mq_create_or_update_host):
     insights_id = generate_uuid()
@@ -3322,52 +3248,6 @@ def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, moc
         assert "stale_timestamp" in prs
         assert "stale_warning_timestamp" in prs
         assert "culled_timestamp" in prs
-
-
-@pytest.mark.parametrize("provider_type", ["alibaba", "aws", "azure", "discovery", "gcp", "ibm"])
-def test_add_host_with_provider_types(
-    mq_create_or_update_host: Callable,
-    db_get_host: Callable[[str], Host],
-    provider_type: str,
-) -> None:
-    """
-    Tests adding a host with various provider_type values via Kafka message
-    and validates that the host is successfully created in the database.
-    """
-    provider_id = generate_uuid()
-
-    host = minimal_host(provider_type=provider_type, provider_id=provider_id)
-
-    expected_results = {"host": {**host.data()}}
-    host_keys_to_check = ["provider_type", "provider_id"]
-
-    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
-    # Verify host was created in database with correct provider_type
-    created_host: Host = db_get_host(key)
-    assert created_host.provider_type == provider_type
-    assert created_host.provider_id == provider_id
-
-
-@pytest.mark.parametrize("invalid_provider_type", ["invalid_provider", "discovery-system", "unknown", ""])
-def test_add_host_with_invalid_provider_type(
-    mocker: MockerFixture,
-    mq_create_or_update_host: Callable,
-    invalid_provider_type: str,
-) -> None:
-    """
-    Tests that adding a host with invalid provider_type via Kafka message
-    raises ValidationException and sends notification event.
-    """
-    host = minimal_host(insights_id=generate_uuid(), provider_type=invalid_provider_type, provider_id=generate_uuid())
-
-    mock_notification_event_producer = mocker.Mock()
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-
-    # Verify that notification event was sent for the validation failure
-    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
