@@ -429,6 +429,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
+            value = value.replace('\\', '\\\\')
             value = value.replace("%", "\\%").replace("_", "\\_")
             value = value.replace("*", "%")
 
