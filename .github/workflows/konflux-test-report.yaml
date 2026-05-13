@@ -36,7 +36,7 @@ jobs:
           echo "pipelinerun=$PIPELINERUN" >> "$GITHUB_OUTPUT"
 
       - name: Install oc CLI
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: oc-cache
         with:
           path: /usr/local/bin/oc
