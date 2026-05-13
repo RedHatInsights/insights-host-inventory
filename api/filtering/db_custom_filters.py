@@ -20,6 +20,7 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.parsing import LITERAL_ASTERISK_PLACEHOLDER
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -395,6 +396,36 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _handle_wildcard_value(value: str, field_filter: str) -> str:
+    """Handle wildcard replacement for wildcard fields.
+    
+    For wildcard fields, replace * with % for SQL LIKE operations.
+    However, preserve literal asterisks that were URL-encoded as %2A.
+    
+    The literal asterisks are preserved as placeholders during URL parsing
+    and should be restored as literal * characters, not treated as wildcards.
+    """
+    if field_filter != "wildcard":
+        # For non-wildcard fields, just restore literal asterisks
+        return value.replace(LITERAL_ASTERISK_PLACEHOLDER, "*")
+    
+    # For wildcard fields:
+    # First, replace wildcard asterisks with % for SQL LIKE
+    # But preserve literal asterisks (placeholders) by temporarily replacing them
+    temp_placeholder = "___TEMP_LITERAL___"
+    
+    # Step 1: Temporarily replace literal asterisk placeholders
+    temp_value = value.replace(LITERAL_ASTERISK_PLACEHOLDER, temp_placeholder)
+    
+    # Step 2: Convert wildcard asterisks to %
+    temp_value = temp_value.replace("*", "%")
+    
+    # Step 3: Restore literal asterisks
+    result = temp_value.replace(temp_placeholder, "*")
+    
+    return result
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -412,7 +443,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # For arrays (especially arrays of objects), truncate the path to stop at the array level.
         # This allows searching within the stringified array rather than trying to navigate
-        # into array elements with invalid JSONB path syntax.
+        # into array elements which isn't valid JSONB path syntax.
         if field_filter == "array" and jsonb_path:
             column_spec = system_profile_spec().get(column.key, {})
             jsonb_path = _truncate_path_at_array(column_spec, jsonb_path)
@@ -427,9 +458,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, replace * with % but preserve literal asterisks)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _handle_wildcard_value(value, field_filter)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
