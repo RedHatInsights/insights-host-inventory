@@ -1,54 +1,57 @@
+from __future__ import absolute_import
+
+from urllib.parse import quote
 
 import pytest
 
-from tests.helpers.api_utils import build_hosts_url
+from . import common
+from . import-helpers as helpers
 
 
 @pytest.mark.parametrize(
-    "filter_value, expected_match",
+    "filter_value,expected_hosts",
     [
-        # Test case 1: Escaped asterisk should match literal '*'
-        ("test1\\*test2", True),
-        # Test case 2: Unescaped asterisk should act as a wildcard
-        ("test1*test2", True),
-        # Test case 3: Wildcard at the end
-        ("test1*", True),
-        # Test case 4: Escaped backslash should match literal '\'
-        ("data\\\\center", True),
-        # Test case 5: Combination of escaped and unescaped wildcards
-        ("test1\\*t*2", True),
-        # Test case 6: Should not match (no wildcard)
-        ("test1_test2", False),
-        # Test case 7: URL encoded value with literal '*' and '\'
-        # The value 'test1*test2\\test3' is what the app sees after decoding
-        ("test1*test2\\test3", True),
+        # Test case 1: URL-encoded asterisk should be treated as a literal
+        (quote("abc*123"), ["host-with-literal-star"]),
+        # Test case 2: Unencoded asterisk should be a wildcard
+        ("abc*123", ["host-with-literal-star", "host-with-wildcard-match"]),
+        # Test case 3: URL-encoded backslash and asterisk
+        (quote("test1*test2\\test3"), ["host-with-backslash"]),
+        # Test case 4: Just a literal star
+        (quote("*"), []),
     ],
 )
-def test_sp_filter_wildcard_escaping(db_create_host, api_get, filter_value, expected_match):
-    # Host with system profile data containing special characters
-    host_data = {
-        "system_profile_facts": {
-            "os_release": "test1*test2",
-            "data_center": "data\\center",
-            "complex_field": "test1*test2\\test3",
-        }
-    }
-    host = db_create_host(extra_data=host_data)
+def test_rhineng_4809_wildcard_filtering(
+    filter_value, expected_hosts, event_loop, event_producer, query_instance, tables
+):
+    """
+    Test wildcard filtering for system profile fields, ensuring that
+    URL-encoded characters are treated as literals.
+    """
+    system_profile_with_literal_star = {"os_release": "abc*123"}
+    host_with_literal_star = helpers.create_host(
+        id="host-with-literal-star",
+        system_profile=system_profile_with_literal_star,
+    )
 
-    # Determine which field to filter on based on the test case
-    if "data" in filter_value:
-        field = "data_center"
-    elif "test3" in filter_value:
-        field = "complex_field"
-    else:
-        field = "os_release"
+    system_profile_with_wildcard_match = {"os_release": "abcdef123"}
+    host_with_wildcard_match = helpers.create_host(
+        id="host-with-wildcard-match",
+        system_profile=system_profile_with_wildcard_match,
+    )
 
-    url = build_hosts_url(query=f"?filter[system_profile][{field}]={filter_value}")
-    response_status, response_data = api_get(url)
+    system_profile_with_backslash = {"os_release": "test1*test2\\test3"}
+    host_with_backslash = helpers.create_host(
+        id="host-with-backslash",
+        system_profile=system_profile_with_backslash,
+    )
 
-    assert response_status == 200
-    if expected_match:
-        assert len(response_data["results"]) == 1
-        assert response_data["results"][0]["id"] == str(host.id)
-    else:
-        assert len(response_data["results"]) == 0
+    helpers.create_host(id="unrelated-host", system_profile={"os_release": "other"})
+
+    query_string = f"filter[system_profile][os_release]={filter_value}"
+    helpers.assert_host_list(
+        query_instance,
+        expected_hosts,
+        query_string=query_string,
+        expected_total=len(expected_hosts),
+    )
