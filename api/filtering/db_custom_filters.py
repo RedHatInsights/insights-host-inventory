@@ -50,18 +50,21 @@ def _process_wildcard_value(value: str) -> str:
     processed = value.replace("\\\\", placeholder_bs)
     processed = processed.replace("\\*", placeholder_star)
 
-    # 2. Escape any remaining backslashes for the SQL ILIKE `escape` clause.
-    # This ensures that backslashes not used for escaping are treated literally.
-    processed = processed.replace("\\", "\\\\")
+    # Heuristic: if the value contains a literal backslash, treat '*' as a literal too.
+    is_literal_search = "\\" in processed
 
-    # 3. Escape SQL-native wildcards (`%` and `_`).
+    # 2. Convert or escape the user's wildcard `*`.
+    if is_literal_search:
+        processed = processed.replace("*", "\\*")
+    else:
+        processed = processed.replace("*", "%")
+
+    # 3. Escape SQL-native wildcards (`%`, `_`) and the escape character `\`.
+    processed = processed.replace("\\", "\\\\")
     processed = processed.replace("%", "\\%")
     processed = processed.replace("_", "\\_")
 
-    # 4. Convert the user's unescaped wildcard `*` to the SQL wildcard `%`.
-    processed = processed.replace("*", "%")
-
-    # 5. Restore the placeholders to their final literal form.
+    # 4. Restore the placeholders to their final literal form.
     # A literal backslash needs to be escaped for PG ILIKE (`\\\\`).
     processed = processed.replace(placeholder_bs, "\\\\")
     # A literal asterisk is just `*`.
