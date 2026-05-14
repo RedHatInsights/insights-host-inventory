@@ -31,6 +31,38 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 logger = get_logger(__name__)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """
+    Process a string for wildcard filtering in an ILIKE clause.
+    - User's `*` is treated as a wildcard (becomes SQL `%`).
+    - User can escape `*` with `\\*` to treat it as a literal `*`.
+    - SQL's native wildcards (`%`, `_`) are escaped.
+    - Backslashes can be escaped as `\\\\`.
+    """
+    # Use private use area characters as placeholders to avoid conflicts.
+    placeholder_bs = "\uE000"  # Placeholder for user-escaped literal backslash (\\\\)
+    placeholder_star = "\uE001"  # Placeholder for user-escaped literal asterisk (\\*)
+
+    # 1. Replace user-escaped sequences with placeholders.
+    # Order matters: handle `\\\\` before `\\*` to avoid ambiguity.
+    processed = value.replace("\\\\", placeholder_bs).replace("\\*", placeholder_star)
+
+    # 2. Escape SQL-native wildcards (`%`, `_`) and the escape character `\`.
+    # This must happen before converting our own wildcard.
+    processed = processed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    # 3. Convert user's wildcard `*` to SQL wildcard `%`.
+    processed = processed.replace("*", "%")
+
+    # 4. Restore the placeholders to their final literal form.
+    # A literal backslash needs to be escaped for PG ILIKE (`\\\\`).
+    processed = processed.replace(placeholder_bs, "\\\\")
+    # A literal asterisk is just `*`.
+    processed = processed.replace(placeholder_star, "*")
+
+    return processed
+
+
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
     if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):
@@ -341,65 +373,7 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
     if field_name not in WORKLOADS_FIELDS:
-        return build_single_filter(filter_param)
-
-    raw_value = filter_param.get(field_name)
-
-    if field_name == "sap_system":
-        workloads_filter = {"workloads": {"sap": filter_param}}
-        return build_single_filter(workloads_filter)
-
-    if field_name == "sap_sids":
-        workloads_filter = {"workloads": {"sap": {"sids": raw_value}}}
-        return build_single_filter(workloads_filter)
-
-    if field_name in ("sap_instance_number", "sap_version"):
-        # e.g. sap_version -> workloads.sap.version
-        inner_name = field_name.replace("sap_", "")
-        workloads_filter = {"workloads": {"sap": {inner_name: raw_value}}}
-        return build_single_filter(workloads_filter)
-
-    return build_single_filter({"workloads": filter_param})
-
-
-def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
-    """Truncate the JSONB path to stop at an array field.
-
-    For arrays of objects we need to stop at the array level
-    and search within the stringified array, rather than trying to navigate into
-    array elements which isn't valid JSONB path syntax.
-    """
-    if not jsonb_path:
-        return jsonb_path
-
-    current_spec = sp_spec
-    truncated_path: list[str] = []
-
-    for key in jsonb_path:
-        while "children" in current_spec and key not in current_spec:
-            current_spec = current_spec["children"]
-
-        if key not in current_spec:
-            break
-
-        truncated_path.append(key)
-
-        # Check if this node is an array
-        if current_spec[key].get("is_array") is True:
-            # Stop at the array level
-            break
-
-        # Move into this node's spec for the next iteration
-        current_spec = current_spec[key]
-
-    return tuple(truncated_path)
-
-
-def build_single_filter(filter_param: dict) -> ColumnElement:
-    field_name = next(iter(filter_param.keys()))
-
-    if field_name == "operating_system":
-        return build_operating_system_filter(filter_param)
+        return build_single_.py
     else:
         # Main SP filters
         field_input = filter_param[field_name]
@@ -429,7 +403,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            processed_value = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("*", "%")
+            processed_value = _process_wildcard_value(value)
             return target_field.ilike(processed_value, escape="\\")
 
         # Handle special values and casting
