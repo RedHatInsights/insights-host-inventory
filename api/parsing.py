@@ -150,6 +150,56 @@ class customURIParser(OpenAPIURIParser):
         return None
 
     @staticmethod
+    def _preserve_url_encoded_asterisks(value):
+        """
+        Preserve URL-encoded asterisks by replacing them with a placeholder before URL decoding.
+
+        This prevents URL-encoded %2A from being treated as wildcards in fields that support
+        wildcard filtering. The placeholder will be restored to literal '*' characters later.
+
+        Args:
+            value: The URL parameter value that may contain %2A
+
+        Returns:
+            tuple: (processed_value, has_encoded_asterisks)
+                - processed_value: Value with %2A replaced by placeholder
+                - has_encoded_asterisks: Boolean indicating if %2A was found
+        """
+        if not isinstance(value, str):
+            return value, False
+
+        # Use a placeholder that's unlikely to appear in real data
+        placeholder = "__URL_ENCODED_ASTERISK__"
+
+        # Check if the value contains URL-encoded asterisks
+        has_encoded_asterisks = "%2A" in value or "%2a" in value
+
+        if has_encoded_asterisks:
+            # Replace both uppercase and lowercase variants
+            processed_value = value.replace("%2A", placeholder).replace("%2a", placeholder)
+            return processed_value, True
+
+        return value, False
+
+    @staticmethod
+    def _restore_url_encoded_asterisks(value, had_encoded_asterisks):
+        """
+        Restore URL-encoded asterisks from placeholder back to literal '*' characters.
+
+        Args:
+            value: The value that may contain placeholders
+            had_encoded_asterisks: Boolean indicating if placeholders should be restored
+
+        Returns:
+            The value with placeholders restored to literal '*' characters
+        """
+        if not isinstance(value, str) or not had_encoded_asterisks:
+            return value
+
+        placeholder = "__URL_ENCODED_ASTERISK__"
+        return value.replace(placeholder, "*")
+
+    @staticmethod
     def _make_deep_object(k, v):
         """consumes keys, value pairs like (a[foo][bar], "baz")
         returns (a, {"foo": {"bar": "baz"}}}, is_deep_object)
@@ -184,15 +234,34 @@ class customURIParser(OpenAPIURIParser):
         # this indicates an array parameter.
         # in this case we want to add all the values, not just the 0th
         if k == "":
-            prev[prev_k] = v
+            # Handle URL-encoded asterisks for array values
+            processed_values = []
+            encoded_asterisks_info = []
+
+            for val in v:
+                processed_val, had_encoded = customURIParser._preserve_url_encoded_asterisks(val)
+                processed_values.append(unquote(processed_val))
+                encoded_asterisks_info.append(had_encoded)
+
+            # Restore literal asterisks for values that were URL-encoded
+            final_values = []
+            for val, had_encoded in zip(processed_values, encoded_asterisks_info, strict=True):
+                final_val = customURIParser._restore_url_encoded_asterisks(val, had_encoded)
+                final_values.append(final_val)
+
+            prev[prev_k] = final_values
         else:
             if len(v) > 1:
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             # Try to parse the value as JSON object
             leaf_value = v[0]
+
+            # Handle URL-encoded asterisks for single values
+            processed_leaf, had_encoded = customURIParser._preserve_url_encoded_asterisks(leaf_value)
+
             # Use the full parameter path for the error message (e.g., "filter[system_profile]")
             full_param_path = f"{root_key}[{']['.join(key_path)}]"
-            parsed = customURIParser._try_parse_json(leaf_value, param_name=full_param_path)
+            parsed = customURIParser._try_parse_json(processed_leaf, param_name=full_param_path)
 
             # For filter params with only one path element (e.g., filter[system_profile]=value),
             # the value must be a JSON object. A plain string value at this level is invalid
@@ -203,10 +272,18 @@ class customURIParser(OpenAPIURIParser):
                     f"notation for nested fields (e.g., {full_param_path}[field]=value)."
                 )
 
-            prev[k] = (
-                _coerce_query_value(leaf_value)
-                if k in ("nil", "not_nil")
-                else (parsed if parsed is not None else leaf_value)
-            )
+            if parsed is not None:
+                final_value = parsed
+            else:
+                # URL decode the value
+                decoded_value = unquote(processed_leaf)
+                # Restore literal asterisks if they were originally URL-encoded
+                final_value = customURIParser._restore_url_encoded_asterisks(decoded_value, had_encoded)
+
+                # Apply coercion for special values
+                if k in ("nil", "not_nil"):
+                    final_value = _coerce_query_value(final_value)
+
+            prev[k] = final_value
 
         return (root_key, [root], True)
