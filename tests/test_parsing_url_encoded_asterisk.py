@@ -1,7 +1,5 @@
 """Unit tests for URL-encoded asterisk handling in parsing logic."""
 
-import pytest
-from urllib.parse import quote
 
 from api.parsing import customURIParser
 

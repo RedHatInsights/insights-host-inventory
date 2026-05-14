@@ -1,7 +1,7 @@
 """Integration test for wildcard filtering with URL-encoded asterisks."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from api.filtering.db_custom_filters import build_single_filter
 from api.parsing import customURIParser
@@ -104,7 +104,9 @@ class TestWildcardFilteringIntegration:
             filter_dict = result[0]
             parsed_value = filter_dict["system_profile"]["os_release"]
 
-            assert parsed_value == expected_output, f"Input: {input_value}, Expected: {expected_output}, Got: {parsed_value}"
+            assert parsed_value == expected_output, (
+                f"Input: {input_value}, Expected: {expected_output}, Got: {parsed_value}"
+            )
 
     def test_array_parameter_mixed_encoding(self):
         """Test array parameters with mixed URL encoding."""
