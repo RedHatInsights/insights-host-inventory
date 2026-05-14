@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from urllib.parse import unquote
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -37,6 +38,55 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _handle_wildcard_value(value: str) -> str:
+    """
+    Handle wildcard processing for URL-encoded values.
+
+    URL-encoded asterisks (%2A) should be treated as literal asterisks,
+    while unencoded asterisks (*) should be treated as wildcards.
+
+    Args:
+        value: The filter value, potentially URL-encoded
+
+    Returns:
+        The processed value with wildcards converted to SQL LIKE patterns
+    """
+    # First, URL-decode the value to handle encoded characters
+    decoded_value = unquote(value)
+
+    # Now we need to distinguish between:
+    # 1. Original asterisks (*) that should become wildcards (%)
+    # 2. Asterisks that came from URL-encoded %2A that should stay literal
+
+    # Strategy:
+    # - If the original value contained %2A, those asterisks in the decoded
+    #   value should be treated as literals
+    # - If the original value contained *, those should become wildcards
+
+    # Check if the original value had URL-encoded asterisks
+    if '%2A' in value or '%2a' in value:
+        # The value contains URL-encoded asterisks
+        # We need to be more careful about which asterisks to convert
+
+        # Replace URL-encoded asterisks with a temporary placeholder
+        temp_value = value.replace('%2A', '\x00LITERAL_ASTERISK\x00')
+        temp_value = temp_value.replace('%2a', '\x00LITERAL_ASTERISK\x00')
+
+        # URL-decode the value (this will decode other characters but leave our placeholder)
+        decoded_temp = unquote(temp_value)
+
+        # Convert remaining asterisks (which were not URL-encoded) to wildcards
+        decoded_temp = decoded_temp.replace('*', '%')
+
+        # Convert our placeholder back to literal asterisks
+        result = decoded_temp.replace('\x00LITERAL_ASTERISK\x00', '*')
+
+        return result
+    else:
+        # No URL-encoded asterisks, so all asterisks in the decoded value are wildcards
+        return decoded_value.replace('*', '%')
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +477,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, replace * with % but handle URL encoding)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _handle_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
