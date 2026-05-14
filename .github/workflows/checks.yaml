@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       zookeeper:
-        image: confluentinc/cp-zookeeper:7.4.4
+        image: confluentinc/cp-zookeeper:7.9.6
         env:
           ZOOKEEPER_CLIENT_PORT: 32181
           ZOOKEEPER_SERVER_ID: 1
@@ -33,7 +33,7 @@ jobs:
           - 32181:32181
 
       kafka:
-        image: confluentinc/cp-kafka:7.4.4
+        image: confluentinc/cp-kafka:7.9.6
         env:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
           KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
