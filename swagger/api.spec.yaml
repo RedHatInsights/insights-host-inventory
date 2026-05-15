@@ -36,7 +36,9 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/workspaceListParam'
         - $ref: '#/components/parameters/groupIdListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -78,7 +80,9 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/workspaceListParam'
         - $ref: '#/components/parameters/groupIdListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
@@ -115,7 +119,8 @@ paths:
         - $ref: '#/components/parameters/updatedEnd'
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
-        - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/workspaceListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
         - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
@@ -776,7 +781,9 @@ paths:
         - $ref: '#/components/parameters/lastCheckInStart'
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/groupNameListParam'
+        - $ref: '#/components/parameters/workspaceListParam'
         - $ref: '#/components/parameters/groupIdListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
@@ -1682,6 +1689,7 @@ components:
       in: query
       name: group_name
       description: Filter by group name
+      deprecated: true
       required: false
       schema:
         type: array
@@ -1691,6 +1699,25 @@ components:
       in: query
       name: group_id
       description: Filter by group ID (UUID format)
+      deprecated: true
+      required: false
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    workspaceListParam:
+      in: query
+      name: workspace_name
+      description: Filter by workspace name
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+    workspaceIdListParam:
+      in: query
+      name: workspace_id
+      description: Filter by workspace ID (UUID format)
       required: false
       schema:
         type: array
