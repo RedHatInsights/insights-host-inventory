@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.orm import Query
 
-from api.host_query import staleness_timestamps
+from app.common import inventory_config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
@@ -74,9 +74,9 @@ def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
     )
 
 
-def _assert_host_level_staleness_matches(host: Host, st_obj: Timestamps, staleness: AttrDict) -> None:
+def _assert_host_level_staleness_matches(host: Host, staleness: AttrDict) -> None:
     """Host row timestamps must match ``get_staleness_timestamps`` for its ``last_check_in`` and config."""
-    expected = get_staleness_timestamps(host, st_obj, staleness)
+    expected = get_staleness_timestamps(host, staleness)
     assert _utc(host.stale_timestamp) == _utc(expected["stale_timestamp"])
     assert _utc(host.stale_warning_timestamp) == _utc(expected["stale_warning_timestamp"])
     assert _utc(host.deletion_timestamp) == _utc(expected["culled_timestamp"])
@@ -138,7 +138,6 @@ def test_async_update_host_create_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 v = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(v, str)
@@ -146,7 +145,6 @@ def test_async_update_host_create_custom_staleness(
 
             _assert_host_level_staleness_matches(
                 hosts_before_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
             )
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
@@ -166,7 +164,6 @@ def test_async_update_host_create_custom_staleness(
 
             _assert_host_level_staleness_matches(
                 hosts_after_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
             )
             assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
@@ -203,7 +200,6 @@ def test_async_update_host_delete_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
@@ -211,7 +207,6 @@ def test_async_update_host_delete_custom_staleness(
 
             _assert_host_level_staleness_matches(
                 hosts_before_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
             )
             stale_before = hosts_before_update[0].stale_timestamp
@@ -229,7 +224,7 @@ def test_async_update_host_delete_custom_staleness(
                 assert prs == _now.isoformat()
 
             sys_staleness = build_staleness_sys_default(hosts_after_update[0].org_id)
-            _assert_host_level_staleness_matches(hosts_after_update[0], st_obj, sys_staleness)
+            _assert_host_level_staleness_matches(hosts_after_update[0], sys_staleness)
             assert hosts_after_update[0].stale_timestamp != stale_before
 
             # Call event_producer
@@ -265,7 +260,6 @@ def test_async_update_host_update_custom_staleness(
 
             host_ids = [host["id"] for host in response_data["results"]]
             hosts_before_update = db_get_hosts(host_ids).all()
-            st_obj = staleness_timestamps()
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
                 assert isinstance(prs, str)
@@ -273,7 +267,6 @@ def test_async_update_host_update_custom_staleness(
 
             _assert_host_level_staleness_matches(
                 hosts_before_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
             )
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
@@ -293,7 +286,6 @@ def test_async_update_host_update_custom_staleness(
 
             _assert_host_level_staleness_matches(
                 hosts_after_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
             )
             assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
@@ -323,7 +315,6 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
             mock_datetime.now.return_value = _now
             mocker.patch("app.models.host._time_now", side_effect=lambda: _now)
             hosts_before_update = db_create_multiple_hosts(how_many=num_hosts)
-            st_obj = staleness_timestamps()
 
             for reporter in hosts_before_update[0].per_reporter_staleness:
                 prs = hosts_before_update[0].per_reporter_staleness[reporter]
@@ -332,7 +323,6 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
 
             _assert_host_level_staleness_matches(
                 hosts_before_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_HOST_BECAME_STALE),
             )
             stale_timestamp_before = hosts_before_update[0].stale_timestamp
@@ -354,7 +344,6 @@ def test_async_update_host_update_custom_staleness_no_modified_on_change(
                 assert prs == _now.isoformat()
             _assert_host_level_staleness_matches(
                 hosts_after_update[0],
-                st_obj,
                 _attrdict_from_custom_staleness(CUSTOM_STALENESS_NO_HOSTS_TO_DELETE),
             )
             assert hosts_after_update[0].stale_timestamp != stale_timestamp_before
@@ -526,7 +515,7 @@ def test_calculated_timestamps_match_stored_timestamps(
     # Get host from database and calculate timestamps
     db_host = db_get_hosts([str(host.id)]).first()
     staleness = get_sys_default_staleness()
-    staleness_timestamps_obj = staleness_timestamps()
+    staleness_timestamps_obj = Timestamps.from_config(inventory_config())
 
     date_to_use = datetime.fromisoformat(db_host.per_reporter_staleness["puptoo"])
     date_to_use = date_to_use.replace(tzinfo=UTC) if date_to_use.tzinfo is None else date_to_use.astimezone(UTC)
@@ -534,14 +523,13 @@ def test_calculated_timestamps_match_stored_timestamps(
     # Explicit last_check_in path (reporter-specific reference instant)
     calculated = get_staleness_timestamps(
         db_host,
-        staleness_timestamps_obj,
         staleness,
         last_check_in=date_to_use,
     )
 
     # Default path: rely on host.last_check_in internally (no last_check_in argument)
     db_host.last_check_in = date_to_use
-    calculated_from_host = get_staleness_timestamps(db_host, staleness_timestamps_obj, staleness)
+    calculated_from_host = get_staleness_timestamps(db_host, staleness)
     assert calculated_from_host == calculated
 
     # Calculate expected timestamps
@@ -586,9 +574,8 @@ def test_get_staleness_timestamps_last_check_in_arg_overrides_host_last_check_in
     staleness = _attrdict_from_custom_staleness(
         {"conventional_time_to_stale": 10, "conventional_time_to_stale_warning": 20, "conventional_time_to_delete": 30}
     )
-    ts_helper = Timestamps.from_config(_MINIMAL_TS_CONFIG)
 
-    result = get_staleness_timestamps(host, ts_helper, staleness, last_check_in=override)
+    result = get_staleness_timestamps(host, staleness, last_check_in=override)
 
     assert result["stale_timestamp"] == override + timedelta(seconds=10)
     assert result["stale_warning_timestamp"] == override + timedelta(seconds=20)
@@ -606,10 +593,9 @@ def test_get_staleness_timestamps_raises_when_reference_instant_missing(
     staleness = _attrdict_from_custom_staleness(
         {"conventional_time_to_stale": 1, "conventional_time_to_stale_warning": 2, "conventional_time_to_delete": 3}
     )
-    ts_helper = Timestamps.from_config(_MINIMAL_TS_CONFIG)
 
     with pytest.raises(ValueError, match="last_check_in is required"):
-        get_staleness_timestamps(host, ts_helper, staleness)
+        get_staleness_timestamps(host, staleness)
 
 
 def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
@@ -676,9 +662,8 @@ def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
         )
         host.per_reporter_staleness = {"puptoo": last_check_in_str}
         staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
 
-        result = _serialize_per_reporter_staleness(host, staleness, st)
+        result = _serialize_per_reporter_staleness(host, staleness)
 
         puptoo = result["puptoo"]
         assert isinstance(puptoo, dict)
@@ -700,9 +685,8 @@ def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
         )
         host.per_reporter_staleness = {"puptoo": last_check_in_dt}
         staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
 
-        result = _serialize_per_reporter_staleness(host, staleness, st)
+        result = _serialize_per_reporter_staleness(host, staleness)
 
         puptoo = result["puptoo"]
         assert isinstance(puptoo, dict)
@@ -726,9 +710,8 @@ def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
             "yupana": "2024-06-16T12:00:00+00:00",
         }
         staleness = get_sys_default_staleness()
-        st = staleness_timestamps()
 
-        result = _serialize_per_reporter_staleness(host, staleness, st)
+        result = _serialize_per_reporter_staleness(host, staleness)
 
         puptoo = result["puptoo"]
         assert puptoo["last_check_in"] == "2024-06-15T10:00:00+00:00"

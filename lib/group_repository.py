@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.cache import delete_cached_system_keys
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -103,7 +102,7 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
             continue
 
         host.groups = serialized_groups
-        serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+        serialized_host = serialize_host(host, staleness=staleness)
         host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
         headers = message_headers(
             EventType.updated,

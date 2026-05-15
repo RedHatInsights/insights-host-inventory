@@ -10,8 +10,6 @@ from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm.exc import ObjectDeletedError
 
 from app.auth.identity import Identity
-from app.culling import Timestamps
-from app.culling import _Config as CullingConfig
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import create_export
 from app.queue.export_service import get_host_list
@@ -113,12 +111,8 @@ def test_host_serialization(flask_app, db_create_host):
     with flask_app.app.app_context():
         expected_fields = _EXPORT_SERVICE_FIELDS
         host = db_create_host(host=db_host())
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(
-            host, staleness_timestamps=staleness_timestamps, staleness=staleness
-        )
+        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
 
         assert expected_fields == list(serialized_host.keys())
 
@@ -126,12 +120,8 @@ def test_host_serialization(flask_app, db_create_host):
 def test_handle_csv_format(flask_app, db_create_host, mocker):
     with flask_app.app.app_context():
         host = db_create_host(host=db_host())
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(
-            host, staleness_timestamps=staleness_timestamps, staleness=staleness
-        )
+        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
         export_host = _format_export_data([serialized_host], "csv")
 
         csv_file = io.StringIO(export_host)
@@ -145,12 +135,8 @@ def test_handle_csv_format(flask_app, db_create_host, mocker):
 def test_handle_json_format(flask_app, db_create_host, mocker):
     with flask_app.app.app_context():
         host = db_create_host(host=db_host())
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
-        staleness_timestamps = Timestamps(config)
         staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(
-            host, staleness_timestamps=staleness_timestamps, staleness=staleness
-        )
+        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
 
         export_host = json.loads(_format_export_data([serialized_host], "json"))
         mocked_json = es_utils.create_export_json_mock(mocker)

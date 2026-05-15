@@ -10,7 +10,6 @@ import flask
 from api import api_operation
 from api import flask_json_response
 from api import metrics
-from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list_for_views
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -98,7 +97,6 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None =
 
 def _build_host_view_response(total, page, per_page, host_list, fields=None):
     """Build the response for the hosts-view endpoint."""
-    timestamps = staleness_timestamps()
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
 
@@ -107,7 +105,7 @@ def _build_host_view_response(total, page, per_page, host_list, fields=None):
 
     results = []
     for host in host_list:
-        host_data = serialize_host(host, timestamps, False, (), staleness, None)
+        host_data = serialize_host(host, staleness, False)
         host_data["app_data"] = app_data_map.get(str(host.id), {})
         results.append(host_data)
 
