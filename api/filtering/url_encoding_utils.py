@@ -8,7 +8,9 @@ query string and handle them appropriately in filtering operations.
 import re
 from urllib.parse import unquote
 
-import flask
+from flask import g
+from flask import has_request_context
+from flask import request
 
 
 def detect_url_encoded_wildcards() -> dict[str, set[str]]:
@@ -16,19 +18,26 @@ def detect_url_encoded_wildcards() -> dict[str, set[str]]:
     Detect URL-encoded wildcards in the raw query string.
 
     Returns a dictionary mapping filter paths to sets of values that contain
-    URL-encoded wildcards (%2A). This allows the filtering logic to distinguish
+    URL-encoded wildcards (%2A or %2a). This allows the filtering logic to distinguish
     between literal asterisks (URL-encoded as %2A) and wildcard asterisks (unencoded).
+
+    Results are cached per request to avoid repeated regex parsing.
 
     Returns:
         Dict mapping filter paths like "system_profile.os_release" to sets of
         values that were URL-encoded with %2A wildcards.
     """
-    if not hasattr(flask, "request") or not flask.request:
+    if not has_request_context():
         return {}
 
+    # Check if we've already computed this for the current request
+    if hasattr(g, "_url_encoded_wildcards_cache"):
+        return g._url_encoded_wildcards_cache
+
     # Get the raw query string before URL decoding
-    raw_query = flask.request.environ.get("QUERY_STRING", "")
+    raw_query = request.environ.get("QUERY_STRING", "")
     if not raw_query:
+        g._url_encoded_wildcards_cache = {}
         return {}
 
     encoded_wildcard_values = {}
@@ -41,8 +50,8 @@ def detect_url_encoded_wildcards() -> dict[str, set[str]]:
         full_match = match.group(0)
         value_part = match.group(2)
 
-        # Check if the value contains URL-encoded asterisk (%2A)
-        if "%2A" in value_part:
+        # Check if the value contains URL-encoded asterisk (%2A or %2a - case insensitive)
+        if re.search(r"%2[Aa]", value_part):
             # Extract the field path from the filter parameter
             field_path_match = re.search(r"filter\[system_profile\](.+?)=", full_match)
             if field_path_match:
@@ -61,6 +70,8 @@ def detect_url_encoded_wildcards() -> dict[str, set[str]]:
                         encoded_wildcard_values[field_key] = set()
                     encoded_wildcard_values[field_key].add(decoded_value)
 
+    # Cache the result for this request
+    g._url_encoded_wildcards_cache = encoded_wildcard_values
     return encoded_wildcard_values
 
 
@@ -79,21 +90,3 @@ def should_treat_as_literal(field_name: str, value: str, encoded_wildcards: dict
     """
     field_key = f"system_profile.{field_name}"
     return field_key in encoded_wildcards and value in encoded_wildcards[field_key]
-
-
-def escape_literal_wildcards(value: str) -> str:
-    """
-    Escape wildcard characters to be treated literally in PostgreSQL ILIKE.
-
-    Args:
-        value: The value that should be matched literally
-
-    Returns:
-        The value with wildcard characters escaped for literal matching
-    """
-    # In PostgreSQL ILIKE, we need to escape special characters
-    # * becomes \* and % becomes \% and \ becomes \\
-    escaped = value.replace("\\", "\\\\")  # Escape backslashes first
-    escaped = escaped.replace("%", "\\%")  # Escape existing % characters
-    escaped = escaped.replace("*", "\\*")  # Escape asterisks to be literal
-    return escaped

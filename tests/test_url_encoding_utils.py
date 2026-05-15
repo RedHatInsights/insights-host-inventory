@@ -8,17 +8,16 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from api.filtering.url_encoding_utils import detect_url_encoded_wildcards
-from api.filtering.url_encoding_utils import escape_literal_wildcards
 from api.filtering.url_encoding_utils import should_treat_as_literal
 
 
 class TestDetectUrlEncodedWildcards:
     """Test the detect_url_encoded_wildcards function."""
 
-    def test_no_flask_request(self):
-        """Test when Flask request is not available."""
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = None
+    def test_no_request_context(self):
+        """Test when Flask request context is not available."""
+        with patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context:
+            mock_has_context.return_value = False
             result = detect_url_encoded_wildcards()
             assert result == {}
 
@@ -26,19 +25,56 @@ class TestDetectUrlEncodedWildcards:
         """Test when there's no query string."""
         mock_request = Mock()
         mock_request.environ = {"QUERY_STRING": ""}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
             assert result == {}
+            assert mock_g._url_encoded_wildcards_cache == {}
 
     def test_simple_encoded_wildcard(self):
         """Test detection of simple URL-encoded wildcard."""
         mock_request = Mock()
         mock_request.environ = {"QUERY_STRING": "filter[system_profile][os_release]=abc%2A123"}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
+            result = detect_url_encoded_wildcards()
+
+            expected = {"system_profile.os_release": {"abc*123"}}
+            assert result == expected
+
+    def test_lowercase_encoded_wildcard(self):
+        """Test detection of lowercase URL-encoded wildcard (%2a)."""
+        mock_request = Mock()
+        mock_request.environ = {"QUERY_STRING": "filter[system_profile][os_release]=abc%2a123"}
+        mock_g = Mock()
+
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
 
             expected = {"system_profile.os_release": {"abc*123"}}
@@ -52,9 +88,17 @@ class TestDetectUrlEncodedWildcards:
             "filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
         )
         mock_request.environ = {"QUERY_STRING": query_string}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
 
             expected = {
@@ -71,9 +115,17 @@ class TestDetectUrlEncodedWildcards:
             "filter[system_profile][insights_client_version]=3.0.*-2.el4_2"
         )
         mock_request.environ = {"QUERY_STRING": query_string}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
 
             # Only the URL-encoded one should be detected
@@ -84,9 +136,17 @@ class TestDetectUrlEncodedWildcards:
         """Test detection with complex filter operators."""
         mock_request = Mock()
         mock_request.environ = {"QUERY_STRING": "filter[system_profile][os_release][eq]=abc%2A123"}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
 
             expected = {"system_profile.os_release": {"abc*123"}}
@@ -96,13 +156,47 @@ class TestDetectUrlEncodedWildcards:
         """Test detection of URL-encoded backslashes."""
         mock_request = Mock()
         mock_request.environ = {"QUERY_STRING": "filter[system_profile][os_release]=test1%2Atest2%5Ctest3"}
+        mock_g = Mock()
 
-        with patch("api.filtering.url_encoding_utils.flask") as mock_flask:
-            mock_flask.request = mock_request
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+
             result = detect_url_encoded_wildcards()
 
             expected = {"system_profile.os_release": {"test1*test2\\test3"}}
             assert result == expected
+
+    def test_caching_behavior(self):
+        """Test that results are cached per request."""
+        mock_request = Mock()
+        mock_request.environ = {"QUERY_STRING": "filter[system_profile][os_release]=abc%2A123"}
+        mock_g = Mock()
+
+        with (
+            patch("api.filtering.url_encoding_utils.has_request_context") as mock_has_context,
+            patch("api.filtering.url_encoding_utils.request", mock_request),
+            patch("api.filtering.url_encoding_utils.g", mock_g),
+        ):
+            mock_has_context.return_value = True
+
+            # First call - no cache
+            mock_g._url_encoded_wildcards_cache = None
+            del mock_g._url_encoded_wildcards_cache  # Simulate not having the cache
+            detect_url_encoded_wildcards()
+
+            # Second call - should use cache
+            cached_result = {"cached": "value"}
+            mock_g._url_encoded_wildcards_cache = cached_result
+            result2 = detect_url_encoded_wildcards()
+
+            assert result2 == cached_result
+            assert result2 is cached_result  # Should be the exact same object
 
 
 class TestShouldTreatAsLiteral:
@@ -135,37 +229,3 @@ class TestShouldTreatAsLiteral:
 
         result = should_treat_as_literal("os_release", "abc*123", encoded_wildcards)
         assert result is False
-
-
-class TestEscapeLiteralWildcards:
-    """Test the escape_literal_wildcards function."""
-
-    def test_escape_asterisk(self):
-        """Test escaping asterisk characters."""
-        result = escape_literal_wildcards("abc*123")
-        assert result == "abc\\*123"
-
-    def test_escape_percent(self):
-        """Test escaping percent characters."""
-        result = escape_literal_wildcards("abc%123")
-        assert result == "abc\\%123"
-
-    def test_escape_backslash(self):
-        """Test escaping backslash characters."""
-        result = escape_literal_wildcards("abc\\123")
-        assert result == "abc\\\\123"
-
-    def test_escape_multiple_characters(self):
-        """Test escaping multiple special characters."""
-        result = escape_literal_wildcards("test1*test2\\test3%test4")
-        assert result == "test1\\*test2\\\\test3\\%test4"
-
-    def test_no_special_characters(self):
-        """Test with no special characters to escape."""
-        result = escape_literal_wildcards("normal_string")
-        assert result == "normal_string"
-
-    def test_empty_string(self):
-        """Test with empty string."""
-        result = escape_literal_wildcards("")
-        assert result == ""
