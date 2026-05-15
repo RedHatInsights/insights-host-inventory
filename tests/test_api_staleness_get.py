@@ -38,3 +38,16 @@ def test_get_staleness_rbac_denied(subtests, mocker, api_get):
 def test_get_staleness_rbac_allowed(subtests, mocker, api_get):
     url = build_sys_default_staleness_url()
     run_rbac_test(subtests, mocker, api_get, STALENESS_READ_ALLOWED_RBAC_RESPONSE_FILES, 200, [url])
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_get_staleness_rbac_denied_granular(subtests, mocker, api_get):
+    url = build_sys_default_staleness_url()
+    run_rbac_test(
+        subtests,
+        mocker,
+        api_get,
+        ("tests/helpers/rbac-mock-data/inv-staleness-hosts-read-granular.json",),
+        403,
+        [url],
+    )

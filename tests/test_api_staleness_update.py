@@ -50,6 +50,20 @@ def test_update_staleness_rbac_denied(subtests, mocker, api_patch, db_create_sta
     run_rbac_test(subtests, mocker, api_patch, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403, [url, _INPUT_DATA])
 
 
+@pytest.mark.usefixtures("enable_rbac")
+def test_update_staleness_rbac_denied_granular(subtests, mocker, api_patch, db_create_staleness_culling):
+    db_create_staleness_culling(conventional_time_to_stale=1)
+    url = build_staleness_url()
+    run_rbac_test(
+        subtests,
+        mocker,
+        api_patch,
+        ("tests/helpers/rbac-mock-data/inv-staleness-hosts-write-granular.json",),
+        403,
+        [url, _INPUT_DATA],
+    )
+
+
 def test_patch_staleness_at_defaults_without_custom_returns_404(api_patch):
     """No custom row: PATCH does not update anything and returns 404 (even for default-equivalent payload)."""
     response_status, _ = api_patch(build_staleness_url(), host_data=_DEFAULT_STALENESS_TRIPLE)

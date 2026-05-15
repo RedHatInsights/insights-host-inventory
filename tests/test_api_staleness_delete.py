@@ -46,3 +46,14 @@ def test_delete_staleness_rbac_allowed(subtests, mocker, api_delete_staleness, d
 @pytest.mark.usefixtures("enable_rbac")
 def test_delete_staleness_rbac_denied(subtests, mocker, api_delete_staleness):
     run_rbac_test(subtests, mocker, api_delete_staleness, STALENESS_WRITE_PROHIBITED_RBAC_RESPONSE_FILES, 403)
+
+
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_staleness_rbac_denied_granular(subtests, mocker, api_delete_staleness):
+    run_rbac_test(
+        subtests,
+        mocker,
+        api_delete_staleness,
+        ("tests/helpers/rbac-mock-data/inv-staleness-hosts-write-granular.json",),
+        403,
+    )

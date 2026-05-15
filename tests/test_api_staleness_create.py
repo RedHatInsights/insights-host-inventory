@@ -119,6 +119,18 @@ def test_create_staleness_rbac_denied(subtests, mocker, api_create_staleness):
     )
 
 
+@pytest.mark.usefixtures("enable_rbac")
+def test_create_staleness_rbac_denied_granular(subtests, mocker, api_create_staleness):
+    run_rbac_test(
+        subtests,
+        mocker,
+        api_create_staleness,
+        ("tests/helpers/rbac-mock-data/inv-staleness-hosts-write-granular.json",),
+        403,
+        [_INPUT_DATA],
+    )
+
+
 @pytest.mark.parametrize(
     "input_data",
     (

@@ -218,8 +218,8 @@ def _async_update_host_staleness(identity: Identity, staleness_orm_or_defaults: 
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.view)
-@access(KesselResourceTypes.HOST.view)
+@access(KesselResourceTypes.STALENESS.view, require_global=True)
+@access(KesselResourceTypes.HOST.view, require_global=True)
 @metrics.api_request_time.time()
 def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
@@ -232,8 +232,8 @@ def get_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required 
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.view)
-@access(KesselResourceTypes.HOST.view)
+@access(KesselResourceTypes.STALENESS.view, require_global=True)
+@access(KesselResourceTypes.HOST.view, require_global=True)
 @metrics.api_request_time.time()
 def get_default_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is required for all API endpoints
     try:
@@ -247,8 +247,8 @@ def get_default_staleness(rbac_filter=None):  # noqa: ARG001, 'rbac_filter' is r
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.update)
-@access(KesselResourceTypes.HOST.update)
+@access(KesselResourceTypes.STALENESS.update, require_global=True)
+@access(KesselResourceTypes.HOST.update, require_global=True)
 @metrics.api_request_time.time()
 def create_staleness(body):
     # Validate account staleness input data
@@ -280,8 +280,8 @@ def create_staleness(body):
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.update)
-@access(KesselResourceTypes.HOST.update)
+@access(KesselResourceTypes.STALENESS.update, require_global=True)
+@access(KesselResourceTypes.HOST.update, require_global=True)
 @metrics.api_request_time.time()
 def delete_staleness():
     identity = get_current_identity()
@@ -301,8 +301,8 @@ def delete_staleness():
 
 
 @api_operation
-@access(KesselResourceTypes.STALENESS.update)
-@access(KesselResourceTypes.HOST.update)
+@access(KesselResourceTypes.STALENESS.update, require_global=True)
+@access(KesselResourceTypes.HOST.update, require_global=True)
 @metrics.api_request_time.time()
 def update_staleness(body):
     # Validate account staleness input data
