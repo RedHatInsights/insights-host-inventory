@@ -339,29 +339,29 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter
         return
 
 
-def _build_workloads_filter(filter_param: dict) -> ColumnElement:
+def _build_workloads_filter(filter_param: dict, encoded_wildcards: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
     if field_name not in WORKLOADS_FIELDS:
-        return build_single_filter(filter_param)
+        return build_single_filter(filter_param, encoded_wildcards)
 
     raw_value = filter_param.get(field_name)
 
     if field_name == "sap_system":
         workloads_filter = {"workloads": {"sap": filter_param}}
-        return build_single_filter(workloads_filter)
+        return build_single_filter(workloads_filter, encoded_wildcards)
 
     if field_name == "sap_sids":
         workloads_filter = {"workloads": {"sap": {"sids": raw_value}}}
-        return build_single_filter(workloads_filter)
+        return build_single_filter(workloads_filter, encoded_wildcards)
 
     if field_name in ("sap_instance_number", "sap_version"):
         # e.g. sap_version -> workloads.sap.version
         inner_name = field_name.replace("sap_", "")
         workloads_filter = {"workloads": {"sap": {inner_name: raw_value}}}
-        return build_single_filter(workloads_filter)
+        return build_single_filter(workloads_filter, encoded_wildcards)
 
-    return build_single_filter({"workloads": filter_param})
+    return build_single_filter({"workloads": filter_param}, encoded_wildcards)
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
@@ -397,7 +397,7 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
-def build_single_filter(filter_param: dict) -> ColumnElement:
+def build_single_filter(filter_param: dict, encoded_wildcards: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
     if field_name == "operating_system":
@@ -431,9 +431,6 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields with URL encoding detection
         if pg_op == ColumnOperators.ilike:
-            # Detect if this value was URL-encoded with %2A wildcards
-            encoded_wildcards = detect_url_encoded_wildcards()
-
             if should_treat_as_literal(field_name, value, encoded_wildcards):
                 # This value had URL-encoded wildcards (%2A), treat as literal match
                 # Use exact match instead of ILIKE to avoid wildcard interpretation
@@ -504,7 +501,7 @@ def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
     return and_ if field_filter == "array" else or_
 
 
-def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
+def _organize_filter_params(filter_param_list: list, encoded_wildcards: dict) -> tuple[list[dict], list]:
     """
     Split filters into workload existence checks and standard SQL filters.
     Each grouped_filter_param can be:
@@ -543,7 +540,9 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
             conjunction = _get_group_conjunction(grouped_filter_param)
 
             # Build SQLAlchemy expressions for each filter and combine them
-            conjunction_filter = conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
+            conjunction_filter = conjunction(
+                _build_workloads_filter(f, encoded_wildcards) for f in grouped_filter_param
+            )
             standard_filters.append(conjunction_filter)
             continue
 
@@ -553,22 +552,26 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
             workload_null_check_filters.append(grouped_filter_param)
         else:
             # Regular filter -> convert to SQLAlchemy expression
-            standard_filters.append(_build_workloads_filter(grouped_filter_param))
+            standard_filters.append(_build_workloads_filter(grouped_filter_param, encoded_wildcards))
 
     return workload_null_check_filters, standard_filters
 
 
 # Takes a System Profile filter param and turns it into sql filters.
 def build_system_profile_filter(system_profile_param: dict) -> tuple:
+    # Detect URL-encoded wildcards once per request and pass down to all filters
+    encoded_wildcards = detect_url_encoded_wildcards()
 
     # Separate the filter object into a list of filters
     filter_param_list = _unique_paths(system_profile_param, ["operating_system"])
-    workload_null_check_filters, standard_filters = _organize_filter_params(filter_param_list)
+    workload_null_check_filters, standard_filters = _organize_filter_params(filter_param_list, encoded_wildcards)
 
     filters: list = []
 
     if workload_null_check_filters:
-        workload_presence_expr = or_(*(_build_workloads_filter(f) for f in workload_null_check_filters))
+        workload_presence_expr = or_(
+            *(_build_workloads_filter(f, encoded_wildcards) for f in workload_null_check_filters)
+        )
         filters.append(workload_presence_expr)
 
     filters.extend(standard_filters)

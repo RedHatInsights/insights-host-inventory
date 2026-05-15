@@ -43,32 +43,28 @@ def detect_url_encoded_wildcards() -> dict[str, set[str]]:
     encoded_wildcard_values = {}
 
     # Pattern to match filter[system_profile][field]=value or filter[system_profile][field][op]=value
-    # This captures both simple and complex filter patterns
-    filter_pattern = r"filter\[system_profile\](?:\[([^\]]+)\])+=(.*?)(?:&|$)"
+    # Capture the field path and value directly
+    filter_pattern = r"filter\[system_profile\]((?:\[[^\]]+\])+)=(.*?)(?:&|$)"
 
     for match in re.finditer(filter_pattern, raw_query):
-        full_match = match.group(0)
+        field_path_raw = match.group(1)
         value_part = match.group(2)
 
         # Check if the value contains URL-encoded asterisk (%2A or %2a - case insensitive)
         if re.search(r"%2[Aa]", value_part):
-            # Extract the field path from the filter parameter
-            field_path_match = re.search(r"filter\[system_profile\](.+?)=", full_match)
-            if field_path_match:
-                field_path_raw = field_path_match.group(1)
-                # Parse the field path (e.g., [os_release] or [insights_client_version][eq])
-                field_parts = re.findall(r"\[([^\]]+)\]", field_path_raw)
-                if field_parts:
-                    # Build the field path (e.g., "os_release" or "insights_client_version")
-                    field_name = field_parts[0]
-                    field_key = f"system_profile.{field_name}"
+            # Parse the field path (e.g., [os_release] or [insights_client_version][eq])
+            field_parts = re.findall(r"\[([^\]]+)\]", field_path_raw)
+            if field_parts:
+                # Build the field path (e.g., "os_release" or "insights_client_version")
+                field_name = field_parts[0]
+                field_key = f"system_profile.{field_name}"
 
-                    # Decode the value to get what the filter logic will see
-                    decoded_value = unquote(value_part)
+                # Decode the value to get what the filter logic will see
+                decoded_value = unquote(value_part)
 
-                    if field_key not in encoded_wildcard_values:
-                        encoded_wildcard_values[field_key] = set()
-                    encoded_wildcard_values[field_key].add(decoded_value)
+                if field_key not in encoded_wildcard_values:
+                    encoded_wildcard_values[field_key] = set()
+                encoded_wildcard_values[field_key].add(decoded_value)
 
     # Cache the result for this request
     g._url_encoded_wildcards_cache = encoded_wildcard_values
