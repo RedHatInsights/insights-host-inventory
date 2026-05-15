@@ -21,7 +21,6 @@ from iqe_bindings.v7.export_v1 import DefaultApi
 from iqe_bindings.v7.export_v1 import ExportList
 from iqe_bindings.v7.export_v1 import ExportRequest
 from iqe_bindings.v7.export_v1 import ExportRequestResource
-from iqe_bindings.v7.export_v1 import ExportResource
 from iqe_bindings.v7.export_v1 import ExportStatus
 
 import iqe_host_inventory
@@ -166,8 +165,8 @@ class ExportsAPIWrapper(BaseEntity):
 
     def _get_export_status_via_workaround(self, export_id: str) -> ExportStatus:
         """Workaround for RHCLOUD-47776: the export service returns source-level
-        status values not declared in the OpenAPI spec's Status enum. Fetch raw
-        response and use model_construct to bypass strict enum validation."""
+        status values not declared in the OpenAPI spec's Status enum. Normalize
+        unknown statuses so model_validate can properly coerce datetime fields."""
         response = self.raw_api.get_export_status_without_preload_content(id=export_id)
         body = json.loads(response.read())
 
@@ -176,15 +175,16 @@ class ExportsAPIWrapper(BaseEntity):
             if src_status and src_status not in SPEC_SOURCE_STATUSES:
                 logger.warning(
                     "RHCLOUD-47776: GET /exports/%s/status — source[%d] has "
-                    "status=%r which is NOT in the OpenAPI spec enum %s.",
+                    "status=%r which is NOT in the OpenAPI spec enum %s; "
+                    "normalizing to 'complete' for validation.",
                     export_id,
                     idx,
                     src_status,
                     sorted(SPEC_SOURCE_STATUSES),
                 )
+                src["status"] = "complete"
 
-        sources = [ExportResource.model_construct(**src) for src in body.get("sources") or []]
-        return ExportStatus.model_construct(**{**body, "sources": sources})
+        return ExportStatus.model_validate(body)
 
     def _write_zip_bytes_to_tempfile(self, zip_bytes: bytes) -> str:
         """Workaround for RHCLOUD-47769 migration gap: v7 bindings return raw
