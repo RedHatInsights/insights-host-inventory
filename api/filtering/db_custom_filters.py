@@ -20,6 +20,7 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.filtering.url_encoding_utils import handle_url_encoded_wildcards
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -167,6 +168,25 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node
         return "array"
 
     return sp_spec[key]["filter"]
+
+
+def _build_field_path_from_filter_param(filter_param: dict) -> str:
+    """
+    Build the field path string for URL encoding detection.
+
+    For example, {"os_release": "value"} becomes "filter[system_profile][os_release]"
+    """
+
+    def _build_path_recursive(param_dict: dict, current_path: str = "") -> str:
+        for key, value in param_dict.items():
+            new_path = f"{current_path}[{key}]"
+            if isinstance(value, dict) and key not in POSTGRES_COMPARATOR_LOOKUP:
+                return _build_path_recursive(value, new_path)
+            else:
+                return new_path
+        return current_path
+
+    return f"filter[system_profile]{_build_path_recursive(filter_param)}"
 
 
 # Extracts specific filters from the filter param object and puts them in an easier format
@@ -412,7 +432,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # For arrays (especially arrays of objects), truncate the path to stop at the array level.
         # This allows searching within the stringified array rather than trying to navigate
-        # into array elements with invalid JSONB path syntax.
+        # into array elements which isn't valid JSONB path syntax.
         if field_filter == "array" and jsonb_path:
             column_spec = system_profile_spec().get(column.key, {})
             jsonb_path = _truncate_path_at_array(column_spec, jsonb_path)
@@ -427,9 +447,19 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+        # RHINENG-4809: Handle URL-encoded wildcards
+        # Check if wildcards were URL-encoded and should be treated as literals
+        if pg_op == ColumnOperators.ilike and value:
+            field_path = _build_field_path_from_filter_param(filter_param)
+            processed_value, use_exact_match = handle_url_encoded_wildcards(field_path, value, field_filter)
+
+            if use_exact_match:
+                # Use exact matching for URL-encoded wildcards
+                pg_op = ColumnOperators.__eq__
+                value = processed_value
+            else:
+                # Normal wildcard processing - replace * with %
+                value = processed_value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
