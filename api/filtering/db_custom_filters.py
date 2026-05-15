@@ -20,6 +20,7 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.filtering.wildcard_utils import process_wildcard_value
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -395,6 +396,27 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _build_field_path_for_wildcard_detection(column: Column, jsonb_path: tuple[str, ...]) -> str:
+    """
+    Build a field path string for wildcard detection.
+
+    This creates a path like "system_profile.os_release" that can be used
+    to match against the raw query string parameters.
+    """
+    if column.key == "workloads":
+        # For workloads, the path is system_profile.workloads.field_name
+        if jsonb_path:
+            return f"system_profile.workloads.{'.'.join(jsonb_path)}"
+        else:
+            return "system_profile.workloads"
+    else:
+        # For regular system profile fields
+        if jsonb_path:
+            return f"system_profile.{column.key}.{'.'.join(jsonb_path)}"
+        else:
+            return f"system_profile.{column.key}"
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -427,9 +449,12 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, process * characters appropriately)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Build the field path for wildcard detection
+            field_path = _build_field_path_for_wildcard_detection(column, jsonb_path)
+            # Process the value to handle URL-encoded vs. literal asterisks
+            value = process_wildcard_value(field_path, value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
