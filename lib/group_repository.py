@@ -50,7 +50,7 @@ from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
-from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import get_rbac_workspace_by_id_using_psk
 from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
@@ -610,7 +610,7 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
         )
 
         if is_rbac_v2_enabled(identity.org_id):
-            group = get_rbac_workspace_by_id(str(workspace_id))
+            group = get_rbac_workspace_by_id_using_psk(str(workspace_id), identity.org_id)
         else:
             group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
 

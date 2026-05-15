@@ -60,7 +60,7 @@ from lib.host_repository import get_host_list_by_id_list_from_db
 from lib.metrics import create_group_count
 from lib.middleware import check_access
 from lib.middleware import delete_rbac_workspace
-from lib.middleware import get_rbac_workspace_by_id
+from lib.middleware import get_rbac_workspace_by_id_using_psk
 from lib.middleware import get_rbac_workspaces
 from lib.middleware import get_rbac_workspaces_by_ids
 from lib.middleware import is_rbac_v2_enabled
@@ -355,7 +355,7 @@ def create_group(body: dict, rbac_filter: dict | None = None) -> Response:
                 current_app.event_producer,
             )
             if is_rbac_v2_enabled(identity.org_id):
-                created_group = get_rbac_workspace_by_id(str(workspace_id))
+                created_group = get_rbac_workspace_by_id_using_psk(str(workspace_id), identity.org_id)
             else:
                 created_group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
         else:
@@ -435,7 +435,7 @@ def patch_group_by_id(group_id: str, body: dict[str, Any], rbac_filter: dict[str
         )
 
     if is_rbac_v2_enabled(identity.org_id):
-        updated_workspace = get_rbac_workspace_by_id(group_id)
+        updated_workspace = get_rbac_workspace_by_id_using_psk(group_id, identity.org_id)
         response_body = build_rbac_v2_workspace_response(updated_workspace)
     else:
         updated_group = get_group_by_id_from_db(group_id, identity.org_id)

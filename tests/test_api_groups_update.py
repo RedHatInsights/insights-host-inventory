@@ -771,7 +771,7 @@ def test_patch_group_rename_succeeds_with_workspace_edit(
     mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.move_host))
     mocker.patch(
-        "api.group.get_rbac_workspace_by_id",
+        "api.group.get_rbac_workspace_by_id_using_psk",
         return_value={
             "id": group_id,
             "name": "new_name",
@@ -809,7 +809,7 @@ def test_patch_group_assign_hosts_succeeds_with_workspace_move_host(
     mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", side_effect=_deny_permission(KesselResourceTypes.WORKSPACE.edit))
     mocker.patch(
-        "api.group.get_rbac_workspace_by_id",
+        "api.group.get_rbac_workspace_by_id_using_psk",
         return_value={
             "id": group_id,
             "name": "test_group",
@@ -846,7 +846,7 @@ def test_patch_group_rename_and_move_hosts_succeeds_with_workspace_permissions(
     mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
     mocker.patch("api.group.check_access", return_value=None)
     mocker.patch(
-        "api.group.get_rbac_workspace_by_id",
+        "api.group.get_rbac_workspace_by_id_using_psk",
         return_value={
             "id": group_id,
             "name": "new_name",
