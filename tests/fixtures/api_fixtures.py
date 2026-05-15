@@ -244,8 +244,9 @@ def api_remove_hosts_from_diff_groups(flask_client):
 
 
 @pytest.fixture(scope="function")
-def enable_rbac(inventory_config):
+def enable_rbac(inventory_config, mocker):
     inventory_config.bypass_rbac = False
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 
 
 @pytest.fixture(scope="function")
@@ -256,6 +257,21 @@ def enable_kessel(inventory_config):
 @pytest.fixture(scope="function")
 def _enable_unleash(inventory_config):
     inventory_config.unleash_token = "mockUnleashTokenValue"
+
+
+@pytest.fixture(scope="function")
+def mock_rbac_v2_middleware(mocker):
+    """Common RBAC v2 middleware setup for tests that go through the full HTTP middleware path."""
+    mock_mw_config = mocker.MagicMock()
+    mock_mw_config.bypass_rbac = False
+    mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
+
+    mock_config = mocker.patch("api.group.inventory_config")
+    mock_config.return_value.bypass_kessel = False
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
 
 
 @pytest.fixture(scope="function")

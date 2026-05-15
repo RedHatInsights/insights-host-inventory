@@ -24,20 +24,34 @@ from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
+_oauth2_credentials = None
+
+
+def get_oauth2_credentials(config: Config) -> OAuth2ClientCredentials:
+    global _oauth2_credentials
+    if _oauth2_credentials is None:
+        discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
+        _oauth2_credentials = OAuth2ClientCredentials(
+            client_id=config.kessel_auth_client_id,
+            client_secret=config.kessel_auth_client_secret,
+            token_endpoint=discovery.token_endpoint,
+        )
+        logger.info(
+            "OAuth2 credentials initialized",
+            extra={
+                "client_id": config.kessel_auth_client_id,
+                "token_endpoint": discovery.token_endpoint,
+            },
+        )
+    return _oauth2_credentials
+
 
 class Kessel:
     def __init__(self, config: Config):
         client_builder = ClientBuilder(config.kessel_inventory_api_endpoint)
 
         if config.kessel_auth_enabled:
-            # Configure Kessel Oauth2 credentials
-            discovery = fetch_oidc_discovery(config.kessel_auth_oidc_issuer)
-            auth_credentials = OAuth2ClientCredentials(
-                client_id=config.kessel_auth_client_id,
-                client_secret=config.kessel_auth_client_secret,
-                token_endpoint=discovery.token_endpoint,
-            )
-
+            auth_credentials = get_oauth2_credentials(config)
             client_builder = client_builder.oauth2_client_authenticated(auth_credentials)
 
         if config.kessel_insecure:
