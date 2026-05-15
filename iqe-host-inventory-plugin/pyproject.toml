@@ -28,7 +28,6 @@ dependencies = [
   "google-auth",
   "iqe-bindings",
   "iqe-core>=24.11.29.1",
-  "iqe-export-service-plugin",
   "iqe-kessel-sync-plugin",
   "iqe-mq-plugin>=24.11.29",
   "lxml",
