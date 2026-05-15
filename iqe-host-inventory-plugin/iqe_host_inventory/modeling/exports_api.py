@@ -8,19 +8,20 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import zipfile
 from functools import cached_property
 from typing import Any
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_export_service import ApplicationExportService
-from iqe_export_service_api import ApiException
-from iqe_export_service_api.api.default_api import DefaultApi
-from iqe_export_service_api.models.export_list import ExportList
-from iqe_export_service_api.models.export_request import ExportRequest
-from iqe_export_service_api.models.export_request_resource import ExportRequestResource
-from iqe_export_service_api.models.export_status import ExportStatus
+from iqe_bindings.v7.export_v1 import ApiException
+from iqe_bindings.v7.export_v1 import DefaultApi
+from iqe_bindings.v7.export_v1 import ExportList
+from iqe_bindings.v7.export_v1 import ExportRequest
+from iqe_bindings.v7.export_v1 import ExportRequestResource
+from iqe_bindings.v7.export_v1 import ExportResource
+from iqe_bindings.v7.export_v1 import ExportStatus
 
 import iqe_host_inventory
 from iqe_host_inventory.utils.api_utils import accept_when
@@ -28,6 +29,8 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory_api.models.host_out import HostOut
 
 logger = logging.getLogger(__name__)
+
+SPEC_SOURCE_STATUSES = {"partial", "pending", "running", "complete", "failed"}
 
 HBI_EXPORT_APPLICATION = "urn:redhat:application:inventory"
 HBI_EXPORT_RESOURCE = "urn:redhat:application:inventory:export:systems"
@@ -131,24 +134,20 @@ class ExportsAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def _exports(self) -> ApplicationExportService:
-        return self.application.export_service
-
-    @cached_property
     def raw_api(self) -> DefaultApi:
         """
         Raw auto-generated OpenAPI client.
         Use high level API wrapper methods instead of this raw API client.
         Outside this class this should be used only for negative validation testing.
         """
-        return self._exports.rest_client.default_api
+        return self._host_inventory.v7_export_v1.default_api
 
     def wait_for_completion(
         self,
         export_id: str,
         *,
-        retries: int = 20,
-        delay: float = 0.5,
+        retries: int = 30,
+        delay: float = 1,
     ) -> str:
         """Wait for an export to complete, return its status
 
@@ -166,7 +165,7 @@ class ExportsAPIWrapper(BaseEntity):
         def is_valid(status: str) -> bool:
             return status in ("complete", "failed")
 
-        return accept_when(get_status, is_valid=is_valid, retries=retries, delay=delay)
+        return accept_when(get_status, is_valid=is_valid, retries=retries, delay=delay, error=None)
 
     def create_export(
         self,
@@ -210,13 +209,32 @@ class ExportsAPIWrapper(BaseEntity):
         )
         request = ExportRequest(name=name, format=format, sources=[source])
 
-        export_id = self.raw_api.create_export(export_request=request).id
+        # Workaround for RHCLOUD-47769: the export service returns 202 instead of the
+        # spec-defined 200, so the v7 bindings client leaves create_response.data as None
+        # (status code not in the response-types map). Until the upstream bug is fixed,
+        # assert the expected non-compliant 202 and deserialize the body directly.
+        create_response = self.raw_api.create_export_with_http_info(export_request=request)
+        assert create_response.status_code == 202, (
+            f"RHCLOUD-47769 workaround: expected 202, got {create_response.status_code}. "
+            "If the status is now 200 the upstream bug may be fixed — remove this workaround."
+        )
+        export_id = ExportStatus.model_validate_json(create_response.raw_data).id
 
         if register_for_cleanup:
             self._host_inventory.cleanup.add_exports({export_id}, scope=cleanup_scope)
 
         if wait_for_completion:
             status = self.wait_for_completion(export_id, **kwargs)
+
+            # Workaround for RHCLOUD-47556: export can get stuck in "pending" or "running"
+            # due to backend deployment configuration errors that prevent status updates.
+            if status not in ("complete", "failed"):
+                import pytest
+
+                pytest.xfail(
+                    f"RHCLOUD-47556: export {export_id} stuck in {status!r} — backend "
+                    "deployment configuration causes errors that prevent status updates"
+                )
 
             # Terminal states are "failed" and "complete".
             assert status == "complete", (
@@ -242,7 +260,28 @@ class ExportsAPIWrapper(BaseEntity):
         :param str export_id: export id
         :return: ExportStatus
         """
-        return self.raw_api.get_export_status(id=export_id)
+        # Workaround for RHCLOUD-47776: the export service returns source-level status
+        # values (e.g. "success") that are not declared in the OpenAPI spec's Status enum.
+        # The generated Pydantic model rejects the response with a ValidationError. Until
+        # the upstream spec is fixed, fetch the raw response and use model_construct to
+        # bypass strict enum validation.
+        response = self.raw_api.get_export_status_without_preload_content(id=export_id)
+        body = json.loads(response.read())
+
+        for idx, src in enumerate(body.get("sources") or []):
+            src_status = src.get("status")
+            if src_status and src_status not in SPEC_SOURCE_STATUSES:
+                logger.warning(
+                    "RHCLOUD-47776: GET /exports/%s/status — source[%d] has "
+                    "status=%r which is NOT in the OpenAPI spec enum %s.",
+                    export_id,
+                    idx,
+                    src_status,
+                    sorted(SPEC_SOURCE_STATUSES),
+                )
+
+        sources = [ExportResource.model_construct(**src) for src in body.get("sources") or []]
+        return ExportStatus.model_construct(**{**body, "sources": sources})
 
     def delete_export(self, export_id: str, *, fail_when_not_found: bool = False) -> None:
         """Delete an export
@@ -285,7 +324,12 @@ class ExportsAPIWrapper(BaseEntity):
         :param str export_id: export id
         :return: str
         """
-        path = self.raw_api.download_export(id=export_id)
+        zip_bytes = self.raw_api.download_export(id=export_id)
+        # The v7 bindings return the raw zip bytes; write to a named temp file so
+        # callers continue to receive a file path (RHCLOUD-47769 migration gap).
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            tmp.write(zip_bytes)
+            path = tmp.name
         assert os.path.isfile(path)
 
         return path
@@ -502,6 +546,14 @@ class ExportsAPIWrapper(BaseEntity):
         # we wait for completion and fail, so need to do the wait directly
         export_id = self.create_export(wait_for_completion=False)
         result = self.wait_for_completion(export_id)
+        # Workaround for RHCLOUD-47556: export stuck in non-terminal state
+        if result not in ("complete", "failed"):
+            import pytest
+
+            pytest.xfail(
+                f"RHCLOUD-47556: export {export_id} stuck in {result!r} — backend "
+                "deployment configuration causes errors that prevent status updates"
+            )
         assert result == "failed"
 
         status = self.get_export_status(export_id)

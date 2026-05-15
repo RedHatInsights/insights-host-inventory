@@ -51,6 +51,11 @@ default:
       config:
         module_name: iqe_bindings.v7.rbac_v2
         path: api/rbac/v2
+    v7_export_v1:
+      type: rest
+      config:
+        module_name: iqe_bindings.v7.export_v1
+        path: api/export/v1
   email_account:
     insights-qe:
       username: {vault_path: secrets/qe/global/insights-qe-sa, vault_key: username}
@@ -744,6 +749,11 @@ clowder_smoke:
         hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_export_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('export-service', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('export-service', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
@@ -790,6 +800,11 @@ stage_post_deploy:
         hostname: "@jinja {{ env_parser.get_hostname('rbac', 'service') }}"
         scheme: http
         port: "@jinja {{ env_parser.get_port('rbac', 'service') }}"
+    v7_export_v1:
+      config:
+        hostname: "@jinja {{ env_parser.get_hostname('export-service', 'service') }}"
+        scheme: http
+        port: "@jinja {{ env_parser.get_port('export-service', 'service') }}"
   db:
     hostname: "@jinja {{ env_parser.get_db_config('host-inventory').hostname }}"
     database: "@jinja {{ env_parser.get_db_config('host-inventory').name }}"
