@@ -88,7 +88,7 @@ class customURIParser(OpenAPIURIParser):
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
                 if _in == "query":
-                    resolved_param[k] = [unquote(value) for value in self._split(values, param_defn, _in)]
+                    resolved_param[k] = self._split(values, param_defn, _in)
                 else:
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:

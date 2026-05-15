@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from urllib.parse import unquote
 from collections.abc import Callable
 
 from sqlalchemy import Boolean
@@ -39,6 +39,8 @@ def _process_wildcard_value(value: str) -> str:
     - SQL's native wildcards (`%`, `_`) are escaped.
     - Backslashes can be escaped as `\\\\`.
     """
+    # Decode URL-encoded characters.
+    value = unquote(value)
     # Use private use area characters as placeholders to avoid conflicts.
     # Placeholder for user-escaped literal backslash (\\\\)
     placeholder_bs = "\uE000"
