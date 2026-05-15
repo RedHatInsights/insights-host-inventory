@@ -39,27 +39,12 @@ def _process_wildcard_value(value: str) -> str:
     - SQL's native wildcards (`%`, `_`) are escaped.
     - Backslashes can be escaped as `\\\\`.
     """
-    # Use private use area characters as placeholders to avoid conflicts.
-    placeholder_bs = "\uE000"  # Placeholder for user-escaped literal backslash (\\\\)
-    placeholder_star = "\uE001"  # Placeholder for user-escaped literal asterisk (\\*)
-
-    # 1. Replace user-escaped sequences with placeholders.
-    # Order matters: handle `\\\\` before `\\*` to avoid ambiguity.
-    processed = value.replace("\\\\", placeholder_bs).replace("\\*", placeholder_star)
-
-    # 2. Escape SQL-native wildcards (`%`, `_`) and the escape character `\`.
-    # This must happen before converting our own wildcard.
-    processed = processed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-    # 3. Convert user's wildcard `*` to SQL wildcard `%`.
-    processed = processed.replace("*", "%")
-
-    # 4. Restore the placeholders to their final literal form.
-    # A literal backslash needs to be escaped for PG ILIKE (`\\\\`).
-    processed = processed.replace(placeholder_bs, "\\\\")
-    # A literal asterisk is just `*`.
-    processed = processed.replace(placeholder_star, "*")
-
+    # Escape the escape character first.
+    processed = value.replace("\\", "\\\\")
+    # Escape SQL wildcards.
+    processed = processed.replace("%", "\\%").replace("_", "\\_")
+    # Convert user wildcard to SQL wildcard, but respect escaped wildcards.
+    processed = processed.replace("*", "%").replace("\\%", "*")
     return processed
 
 
