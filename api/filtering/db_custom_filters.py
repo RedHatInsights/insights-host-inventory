@@ -20,6 +20,7 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.parsing import get_encoded_asterisk_marker
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -37,6 +38,35 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _handle_wildcard_replacement(value: str) -> str:
+    """
+    Handle wildcard replacement for ILIKE operations.
+
+    This function distinguishes between literal asterisks (which came from URL-encoded %2A)
+    and wildcard asterisks (which were unencoded) to fix RHINENG-4809.
+
+    Args:
+        value: The filter value that may contain asterisks
+
+    Returns:
+        The value with wildcard asterisks replaced by % for SQL ILIKE,
+        but literal asterisks preserved as-is.
+    """
+    encoded_asterisk_marker = get_encoded_asterisk_marker()
+
+    # First, temporarily replace literal asterisks (from URL-encoded %2A) with a placeholder
+    literal_asterisk_placeholder = "\x01LITERAL_ASTERISK\x01"
+    value = value.replace(encoded_asterisk_marker, literal_asterisk_placeholder)
+
+    # Replace wildcard asterisks with % for SQL ILIKE
+    value = value.replace("*", "%")
+
+    # Restore literal asterisks
+    value = value.replace(literal_asterisk_placeholder, "*")
+
+    return value
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +457,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, replace * with % but preserve literal asterisks)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _handle_wildcard_replacement(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

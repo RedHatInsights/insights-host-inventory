@@ -30,6 +30,8 @@ print(SystemProfileWorkloads.to_json())
 # convert the object into a dict
 system_profile_workloads_dict = system_profile_workloads_instance.to_dict()
 # create an instance of SystemProfileWorkloads from a dict
-system_profile_workloads_from_dict = SystemProfileWorkloads.from_dict(system_profile_workloads_dict)
+system_profile_workloads_from_dict = SystemProfileWorkloads.from_dict(
+    system_profile_workloads_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

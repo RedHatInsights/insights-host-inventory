@@ -24,6 +24,8 @@ print(SystemProfileDnfModule.to_json())
 # convert the object into a dict
 system_profile_dnf_module_dict = system_profile_dnf_module_instance.to_dict()
 # create an instance of SystemProfileDnfModule from a dict
-system_profile_dnf_module_from_dict = SystemProfileDnfModule.from_dict(system_profile_dnf_module_dict)
+system_profile_dnf_module_from_dict = SystemProfileDnfModule.from_dict(
+    system_profile_dnf_module_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

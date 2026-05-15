@@ -32,9 +32,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -42,21 +40,21 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.AccountsStalenessApi(api_client)
-    staleness_in = iqe_host_inventory_api_v7.StalenessIn() # StalenessIn | Data required to create a record for a account staleness.
+    staleness_in = (
+        iqe_host_inventory_api_v7.StalenessIn()
+    )  # StalenessIn | Data required to create a record for a account staleness.
 
     try:
         # Create account staleness record
@@ -64,7 +62,9 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
         print("The response of AccountsStalenessApi->api_staleness_create_staleness:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e)
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e
+        )
 ```
 
 
@@ -117,9 +117,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -127,15 +125,13 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
@@ -146,7 +142,9 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
         # Delete an account staleness
         api_instance.api_staleness_delete_staleness()
     except Exception as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_delete_staleness: %s\n" % e)
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_delete_staleness: %s\n" % e
+        )
 ```
 
 
@@ -198,9 +196,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -208,15 +204,13 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
@@ -229,7 +223,10 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
         print("The response of AccountsStalenessApi->api_staleness_get_default_staleness:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_get_default_staleness: %s\n" % e)
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_get_default_staleness: %s\n"
+            % e
+        )
 ```
 
 
@@ -280,9 +277,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -290,15 +285,13 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
@@ -363,9 +356,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -373,21 +364,21 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.AccountsStalenessApi(api_client)
-    staleness_in = iqe_host_inventory_api_v7.StalenessIn() # StalenessIn | Data required to update a record for a account staleness.
+    staleness_in = (
+        iqe_host_inventory_api_v7.StalenessIn()
+    )  # StalenessIn | Data required to update a record for a account staleness.
 
     try:
         # Update account staleness record
@@ -395,7 +386,9 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
         print("The response of AccountsStalenessApi->api_staleness_update_staleness:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_update_staleness: %s\n" % e)
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_update_staleness: %s\n" % e
+        )
 ```
 
 

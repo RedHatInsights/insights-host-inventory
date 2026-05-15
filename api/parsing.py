@@ -9,6 +9,11 @@ from connexion.utils import coerce_type
 
 _BOOL_STRINGS = {"true": True, "false": False}
 
+# Special markers to preserve URL-encoded characters
+# Using a format that's extremely unlikely to appear in real data
+_ENCODED_ASTERISK_MARKER = "\x00ENCODED_ASTERISK\x00"
+_ENCODED_BACKSLASH_MARKER = "\x00ENCODED_BACKSLASH\x00"
+
 
 def _coerce_query_value(value):
     """Coerce string query parameter values to native Python types.
@@ -18,6 +23,22 @@ def _coerce_query_value(value):
     validation against ``type: boolean`` properties succeeds.
     """
     return _BOOL_STRINGS.get(value.lower(), value) if isinstance(value, str) else value
+
+
+def _preserve_encoded_wildcards(value):
+    """
+    Preserve URL-encoded asterisks and backslashes by replacing them with markers
+    before URL decoding, so we can distinguish between literal and wildcard characters.
+
+    This fixes RHINENG-4809: SP filtering uses "*" as wildcard even if it is formatted.
+    """
+    if isinstance(value, str):
+        # Replace URL-encoded asterisks and backslashes with temporary markers
+        value = value.replace("%2A", _ENCODED_ASTERISK_MARKER)
+        value = value.replace("%2a", _ENCODED_ASTERISK_MARKER)  # Handle lowercase
+        value = value.replace("%5C", _ENCODED_BACKSLASH_MARKER)
+        value = value.replace("%5c", _ENCODED_BACKSLASH_MARKER)  # Handle lowercase
+    return value
 
 
 def custom_fields_parser(root_key, key_path, val):
@@ -84,15 +105,25 @@ class customURIParser(OpenAPIURIParser):
             if param_schema and param_schema["type"] == "array":
                 # resolve variable re-assignment, handle explode
                 if _in == "query":
+                    # Preserve encoded wildcards before quoting
+                    values = [_preserve_encoded_wildcards(value) for value in values]
                     values = [quote(value) for value in values]
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
                 if _in == "query":
+                    # Just unquote, but keep the markers in place
                     resolved_param[k] = [unquote(value) for value in self._split(values, param_defn, _in)]
                 else:
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:
-                resolved_param[k] = values[-1]
+                # For non-array parameters, preserve encoded wildcards before processing
+                if _in == "query" and isinstance(values, list):
+                    # Take the last value and preserve encoded wildcards
+                    last_value = _preserve_encoded_wildcards(values[-1])
+                    # URL decode but keep the markers
+                    resolved_param[k] = unquote(last_value)
+                else:
+                    resolved_param[k] = values[-1]
 
             # Skip coercion for 'fields' parameter - it uses a custom format that
             # doesn't match the OpenAPI schema structure (custom_fields_parser transforms
@@ -210,3 +241,14 @@ class customURIParser(OpenAPIURIParser):
             )
 
         return (root_key, [root], True)
+
+
+# Export the marker constants so they can be used in filtering logic
+def get_encoded_asterisk_marker():
+    """Get the marker used for URL-encoded asterisks."""
+    return _ENCODED_ASTERISK_MARKER
+
+
+def get_encoded_backslash_marker():
+    """Get the marker used for URL-encoded backslashes."""
+    return _ENCODED_BACKSLASH_MARKER
