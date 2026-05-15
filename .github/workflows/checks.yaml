@@ -33,7 +33,7 @@ jobs:
           - 32181:32181
 
       kafka:
-        image: confluentinc/cp-kafka:7.9.6
+        image: confluentinc/cp-kafka:8.2.1
         env:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
           KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
