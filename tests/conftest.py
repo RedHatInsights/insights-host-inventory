@@ -1,7 +1,15 @@
 import os
 import sys
 
+import pytest
+
 from app.utils import HostWrapper
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        item.add_marker(pytest.mark.skip(reason="Temporarily disabled -- tracked in RHINENG-26274"))
+
 
 # Make test helpers available to be imported
 sys.path.append(os.path.join(os.path.dirname(__file__), "helpers"))

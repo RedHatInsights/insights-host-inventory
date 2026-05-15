@@ -10,16 +10,14 @@ import flask
 from api import api_operation
 from api import flask_json_response
 from api import metrics
-from api.host_query import staleness_timestamps
 from api.host_query_db import get_host_list_for_views
-from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_host_list_failed
 from app.logging import get_logger
 from app.models.database import db
 from app.models.host_app_data import get_app_data_models
-from app.serialization import serialize_host
+from app.serialization import serialize_host_with_params
 from lib.middleware import access
 
 logger = get_logger(__name__)
@@ -96,18 +94,15 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None =
     return result
 
 
-def _build_host_view_response(total, page, per_page, host_list, fields=None):
+def _build_host_view_response(total: int, page: int, per_page: int, host_list: list, fields=None) -> dict:
     """Build the response for the hosts-view endpoint."""
-    timestamps = staleness_timestamps()
     identity = get_current_identity()
-    staleness = get_staleness_obj(identity.org_id)
-
     host_ids = [host.id for host in host_list]
     app_data_map = _fetch_app_data_for_hosts(host_ids, identity.org_id, fields)
 
     results = []
     for host in host_list:
-        host_data = serialize_host(host, timestamps, False, (), staleness, None)
+        host_data = serialize_host_with_params(host)
         host_data["app_data"] = app_data_map.get(str(host.id), {})
         results.append(host_data)
 
