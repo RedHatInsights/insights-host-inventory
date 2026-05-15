@@ -36,9 +36,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -46,21 +44,21 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_in = iqe_host_inventory_api_v7.GroupIn() # GroupIn | Data required to create a record for a group.
+    group_in = (
+        iqe_host_inventory_api_v7.GroupIn()
+    )  # GroupIn | Data required to create a record for a group.
 
     try:
         # Create a new group matching the provided name and list of hosts IDs
@@ -121,9 +119,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -131,7 +127,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -140,7 +136,7 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id_list = ['group_id_list_example'] # List[str] | A comma-separated list of group IDs.
+    group_id_list = ["group_id_list_example"]  # List[str] | A comma-separated list of group IDs.
 
     try:
         # Delete a list of groups
@@ -198,9 +194,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -208,7 +202,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -217,13 +211,16 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    host_id_list = ['host_id_list_example'] # List[str] | A comma-separated list of host IDs.
+    host_id_list = ["host_id_list_example"]  # List[str] | A comma-separated list of host IDs.
 
     try:
         # Delete a list of hosts from the groups they are in
         api_instance.api_group_delete_hosts_from_different_groups(host_id_list)
     except Exception as e:
-        print("Exception when calling GroupsApi->api_group_delete_hosts_from_different_groups: %s\n" % e)
+        print(
+            "Exception when calling GroupsApi->api_group_delete_hosts_from_different_groups: %s\n"
+            % e
+        )
 ```
 
 
@@ -277,9 +274,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -287,7 +282,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -296,16 +291,23 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    name = 'name_example' # str | Filter by group name (optional)
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    order_by = 'order_by_example' # str | Ordering field name (optional)
-    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
-    group_type = 'standard' # str | The type of workspaces that should be returned. (optional) (default to 'standard')
+    name = "name_example"  # str | Filter by group name (optional)
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    order_by = "order_by_example"  # str | Ordering field name (optional)
+    order_how = "order_how_example"  # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
+    group_type = "standard"  # str | The type of workspaces that should be returned. (optional) (default to 'standard')
 
     try:
         # Read the entire list of groups
-        api_response = api_instance.api_group_get_group_list(name=name, per_page=per_page, page=page, order_by=order_by, order_how=order_how, group_type=group_type)
+        api_response = api_instance.api_group_get_group_list(
+            name=name,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            group_type=group_type,
+        )
         print("The response of GroupsApi->api_group_get_group_list:\n")
         pprint(api_response)
     except Exception as e:
@@ -367,9 +369,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -377,7 +377,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -386,15 +386,17 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id_list = ['group_id_list_example'] # List[str] | A comma-separated list of group IDs.
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    order_by = 'order_by_example' # str | Ordering field name (optional)
-    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
+    group_id_list = ["group_id_list_example"]  # List[str] | A comma-separated list of group IDs.
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    order_by = "order_by_example"  # str | Ordering field name (optional)
+    order_how = "order_how_example"  # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
 
     try:
         # Find groups by their IDs
-        api_response = api_instance.api_group_get_groups_by_id(group_id_list, per_page=per_page, page=page, order_by=order_by, order_how=order_how)
+        api_response = api_instance.api_group_get_groups_by_id(
+            group_id_list, per_page=per_page, page=page, order_by=order_by, order_how=order_how
+        )
         print("The response of GroupsApi->api_group_get_groups_by_id:\n")
         pprint(api_response)
     except Exception as e:
@@ -457,9 +459,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -467,7 +467,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -476,8 +476,10 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id = 'group_id_example' # str | Group ID.
-    group_in = iqe_host_inventory_api_v7.GroupIn() # GroupIn | A dictionary with new information with which to update the original group.
+    group_id = "group_id_example"  # str | Group ID.
+    group_in = (
+        iqe_host_inventory_api_v7.GroupIn()
+    )  # GroupIn | A dictionary with new information with which to update the original group.
 
     try:
         # Update group information
@@ -540,9 +542,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -550,7 +550,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -559,8 +559,10 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id = 'group_id_example' # str | Group ID.
-    request_body = ['request_body_example'] # List[str] | A list of hosts IDs to associate with the provided group.
+    group_id = "group_id_example"  # str | Group ID.
+    request_body = [
+        "request_body_example"
+    ]  # List[str] | A list of hosts IDs to associate with the provided group.
 
     try:
         # Add host IDs to the provided group
@@ -622,9 +624,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -632,7 +632,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -641,8 +641,8 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id = 'group_id_example' # str | Group ID.
-    host_id_list = ['host_id_list_example'] # List[str] | A comma-separated list of host IDs.
+    group_id = "group_id_example"  # str | Group ID.
+    host_id_list = ["host_id_list_example"]  # List[str] | A comma-separated list of host IDs.
 
     try:
         # Delete one or more hosts from a group
@@ -697,15 +697,15 @@ Read the list of all hosts in a specific group. <br /><br /> Required permission
 ```python
 import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
-from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import SystemProfileNestedObjectValue
+from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
+    SystemProfileNestedObjectValue,
+)
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -713,7 +713,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -722,24 +722,53 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.GroupsApi(api_client)
-    group_id = 'group_id_example' # str | Group ID.
-    display_name = 'display_name_example' # str | Filter by display_name (case-insensitive) (optional)
-    fqdn = 'fqdn_example' # str | Filter by FQDN (case-insensitive) (optional)
-    hostname_or_id = 'hostname_or_id_example' # str | Filter by display_name, fqdn, id (case-insensitive) (optional)
-    insights_id = 'insights_id_example' # str | Filter by insights_id (optional)
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    order_by = 'order_by_example' # str | Ordering field name (optional)
-    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system (optional)
-    staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
-    registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
-    filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
-    fields = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\" (optional)
+    group_id = "group_id_example"  # str | Group ID.
+    display_name = (
+        "display_name_example"  # str | Filter by display_name (case-insensitive) (optional)
+    )
+    fqdn = "fqdn_example"  # str | Filter by FQDN (case-insensitive) (optional)
+    hostname_or_id = "hostname_or_id_example"  # str | Filter by display_name, fqdn, id (case-insensitive) (optional)
+    insights_id = "insights_id_example"  # str | Filter by insights_id (optional)
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    order_by = "order_by_example"  # str | Ordering field name (optional)
+    order_how = "order_how_example"  # str | Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system (optional)
+    staleness = [
+        "fresh",
+        "stale",
+        "stale_warning",
+    ]  # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
+    tags = [
+        "tags_example"
+    ]  # List[str] | filters out hosts not tagged by the given tags (optional)
+    registered_with = [
+        "registered_with_example"
+    ]  # List[str] | Filters out any host not registered by the specified reporters (optional)
+    filter = {
+        "key": iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()
+    }  # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
+    fields = {
+        "key": iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()
+    }  # Dict[str, SystemProfileNestedObjectValue] | Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\" (optional)
 
     try:
         # Read the list of hosts in a group
-        api_response = api_instance.api_host_group_get_host_list_by_group(group_id, display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, filter=filter, fields=fields)
+        api_response = api_instance.api_host_group_get_host_list_by_group(
+            group_id,
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            filter=filter,
+            fields=fields,
+        )
         print("The response of GroupsApi->api_host_group_get_host_list_by_group:\n")
         pprint(api_response)
     except Exception as e:

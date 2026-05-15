@@ -15,7 +15,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai import SystemProfileWorkloadsRhelAi
+from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai import (
+    SystemProfileWorkloadsRhelAi,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -27,6 +29,8 @@ print(SystemProfileWorkloadsRhelAi.to_json())
 # convert the object into a dict
 system_profile_workloads_rhel_ai_dict = system_profile_workloads_rhel_ai_instance.to_dict()
 # create an instance of SystemProfileWorkloadsRhelAi from a dict
-system_profile_workloads_rhel_ai_from_dict = SystemProfileWorkloadsRhelAi.from_dict(system_profile_workloads_rhel_ai_dict)
+system_profile_workloads_rhel_ai_from_dict = SystemProfileWorkloadsRhelAi.from_dict(
+    system_profile_workloads_rhel_ai_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

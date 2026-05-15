@@ -37,9 +37,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -48,33 +46,31 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
-    api_key = {
-        'x-rh-identity': 'YOUR_API_KEY'
-    }
+    host="http://localhost", api_key={"x-rh-identity": "YOUR_API_KEY"}
 )
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['x-rh-identity'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api.Configuration(
-    access_token = 'YOUR_BEARER_TOKEN'
-)
+configuration = iqe_host_inventory_api.Configuration(access_token="YOUR_BEARER_TOKEN")
 
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.AccountsStalenessApi(api_client)
-    staleness_in = iqe_host_inventory_api.StalenessIn() # StalenessIn | Data required to create a record for a account staleness.
+    staleness_in = (
+        iqe_host_inventory_api.StalenessIn()
+    )  # StalenessIn | Data required to create a record for a account staleness.
 
     try:
         # Create account staleness record
         api_response = api_instance.api_staleness_create_staleness(staleness_in)
         pprint(api_response)
     except ApiException as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e)
-
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e
+        )
 ```
 
 ## Documentation for API Endpoints

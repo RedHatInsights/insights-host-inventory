@@ -21,15 +21,15 @@ Returns the list of groups in the current account. <br /><br /> Required permiss
 
 ```python
 import iqe_host_inventory_api_v7
-from iqe_host_inventory_api_v7.models.resource_types_groups_query_output import ResourceTypesGroupsQueryOutput
+from iqe_host_inventory_api_v7.models.resource_types_groups_query_output import (
+    ResourceTypesGroupsQueryOutput,
+)
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -37,7 +37,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -46,17 +46,24 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.ResourceTypesApi(api_client)
-    name = 'name_example' # str | Filter by group name (optional)
-    per_page = 10 # int | A number of items to return per page. (optional) (default to 10)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
+    name = "name_example"  # str | Filter by group name (optional)
+    per_page = 10  # int | A number of items to return per page. (optional) (default to 10)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
 
     try:
         # Get the list of inventory groups in resource-types format
-        api_response = api_instance.api_resource_type_get_resource_type_groups_list(name=name, per_page=per_page, page=page)
-        print("The response of ResourceTypesApi->api_resource_type_get_resource_type_groups_list:\n")
+        api_response = api_instance.api_resource_type_get_resource_type_groups_list(
+            name=name, per_page=per_page, page=page
+        )
+        print(
+            "The response of ResourceTypesApi->api_resource_type_get_resource_type_groups_list:\n"
+        )
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling ResourceTypesApi->api_resource_type_get_resource_type_groups_list: %s\n" % e)
+        print(
+            "Exception when calling ResourceTypesApi->api_resource_type_get_resource_type_groups_list: %s\n"
+            % e
+        )
 ```
 
 
@@ -111,9 +118,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -121,7 +126,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -130,16 +135,21 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.ResourceTypesApi(api_client)
-    per_page = 10 # int | A number of items to return per page. (optional) (default to 10)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
+    per_page = 10  # int | A number of items to return per page. (optional) (default to 10)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
 
     try:
         # Get the list of resource types
-        api_response = api_instance.api_resource_type_get_resource_type_list(per_page=per_page, page=page)
+        api_response = api_instance.api_resource_type_get_resource_type_list(
+            per_page=per_page, page=page
+        )
         print("The response of ResourceTypesApi->api_resource_type_get_resource_type_list:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling ResourceTypesApi->api_resource_type_get_resource_type_list: %s\n" % e)
+        print(
+            "Exception when calling ResourceTypesApi->api_resource_type_get_resource_type_list: %s\n"
+            % e
+        )
 ```
 
 

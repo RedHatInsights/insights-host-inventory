@@ -23,16 +23,18 @@ Required permissions: inventory:hosts:read
 
 ```python
 import iqe_host_inventory_api_v7
-from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import SystemProfileNestedObjectValue
-from iqe_host_inventory_api_v7.models.system_profile_operating_system_out import SystemProfileOperatingSystemOut
+from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
+    SystemProfileNestedObjectValue,
+)
+from iqe_host_inventory_api_v7.models.system_profile_operating_system_out import (
+    SystemProfileOperatingSystemOut,
+)
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -40,7 +42,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -49,20 +51,40 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.SystemProfileApi(api_client)
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
-    filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
+    tags = [
+        "tags_example"
+    ]  # List[str] | filters out hosts not tagged by the given tags (optional)
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    staleness = [
+        "fresh",
+        "stale",
+        "stale_warning",
+    ]  # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
+    registered_with = [
+        "registered_with_example"
+    ]  # List[str] | Filters out any host not registered by the specified reporters (optional)
+    filter = {
+        "key": iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()
+    }  # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
 
     try:
         # get all operating system versions and counts on the account
-        api_response = api_instance.api_system_profile_get_operating_system(tags=tags, per_page=per_page, page=page, staleness=staleness, registered_with=registered_with, filter=filter)
+        api_response = api_instance.api_system_profile_get_operating_system(
+            tags=tags,
+            per_page=per_page,
+            page=page,
+            staleness=staleness,
+            registered_with=registered_with,
+            filter=filter,
+        )
         print("The response of SystemProfileApi->api_system_profile_get_operating_system:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemProfileApi->api_system_profile_get_operating_system: %s\n" % e)
+        print(
+            "Exception when calling SystemProfileApi->api_system_profile_get_operating_system: %s\n"
+            % e
+        )
 ```
 
 
@@ -115,16 +137,18 @@ Required permissions: inventory:hosts:read
 
 ```python
 import iqe_host_inventory_api_v7
-from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import SystemProfileNestedObjectValue
-from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import SystemProfileSapSystemOut
+from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
+    SystemProfileNestedObjectValue,
+)
+from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import (
+    SystemProfileSapSystemOut,
+)
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -132,7 +156,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -141,17 +165,35 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.SystemProfileApi(api_client)
-    search = 'search_example' # str | Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching. (optional)
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
-    filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
+    search = "search_example"  # str | Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching. (optional)
+    tags = [
+        "tags_example"
+    ]  # List[str] | filters out hosts not tagged by the given tags (optional)
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    staleness = [
+        "fresh",
+        "stale",
+        "stale_warning",
+    ]  # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
+    registered_with = [
+        "registered_with_example"
+    ]  # List[str] | Filters out any host not registered by the specified reporters (optional)
+    filter = {
+        "key": iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()
+    }  # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
 
     try:
         # get all sap sids values and counts on the account
-        api_response = api_instance.api_system_profile_get_sap_sids(search=search, tags=tags, per_page=per_page, page=page, staleness=staleness, registered_with=registered_with, filter=filter)
+        api_response = api_instance.api_system_profile_get_sap_sids(
+            search=search,
+            tags=tags,
+            per_page=per_page,
+            page=page,
+            staleness=staleness,
+            registered_with=registered_with,
+            filter=filter,
+        )
         print("The response of SystemProfileApi->api_system_profile_get_sap_sids:\n")
         pprint(api_response)
     except Exception as e:
@@ -209,16 +251,18 @@ Required permissions: inventory:hosts:read
 
 ```python
 import iqe_host_inventory_api_v7
-from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import SystemProfileNestedObjectValue
-from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import SystemProfileSapSystemOut
+from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
+    SystemProfileNestedObjectValue,
+)
+from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import (
+    SystemProfileSapSystemOut,
+)
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -226,7 +270,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -235,20 +279,39 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.SystemProfileApi(api_client)
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
-    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
-    page = 1 # int | A page number of the items to return. (optional) (default to 1)
-    staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
-    filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
+    tags = [
+        "tags_example"
+    ]  # List[str] | filters out hosts not tagged by the given tags (optional)
+    per_page = 50  # int | A number of items to return per page. (optional) (default to 50)
+    page = 1  # int | A page number of the items to return. (optional) (default to 1)
+    staleness = [
+        "fresh",
+        "stale",
+        "stale_warning",
+    ]  # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
+    registered_with = [
+        "registered_with_example"
+    ]  # List[str] | Filters out any host not registered by the specified reporters (optional)
+    filter = {
+        "key": iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()
+    }  # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
 
     try:
         # get all sap system values and counts on the account
-        api_response = api_instance.api_system_profile_get_sap_system(tags=tags, per_page=per_page, page=page, staleness=staleness, registered_with=registered_with, filter=filter)
+        api_response = api_instance.api_system_profile_get_sap_system(
+            tags=tags,
+            per_page=per_page,
+            page=page,
+            staleness=staleness,
+            registered_with=registered_with,
+            filter=filter,
+        )
         print("The response of SystemProfileApi->api_system_profile_get_sap_system:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SystemProfileApi->api_system_profile_get_sap_system: %s\n" % e)
+        print(
+            "Exception when calling SystemProfileApi->api_system_profile_get_sap_system: %s\n" % e
+        )
 ```
 
 
@@ -306,9 +369,7 @@ from pprint import pprint
 
 # Defining the host is optional and defaults to http://localhost
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="http://localhost")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -316,7 +377,7 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
@@ -325,16 +386,22 @@ configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.SystemProfileApi(api_client)
-    repo_branch = 'repo_branch_example' # str | The branch of the inventory-schemas repo to use
-    repo_fork = 'repo_fork_example' # str | The fork of the inventory-schemas repo to use (optional)
-    days = 56 # int | How many days worth of data to validate (optional)
-    max_messages = 10000 # int | Stops polling when this number of messages has been collected (optional) (default to 10000)
+    repo_branch = "repo_branch_example"  # str | The branch of the inventory-schemas repo to use
+    repo_fork = (
+        "repo_fork_example"  # str | The fork of the inventory-schemas repo to use (optional)
+    )
+    days = 56  # int | How many days worth of data to validate (optional)
+    max_messages = 10000  # int | Stops polling when this number of messages has been collected (optional) (default to 10000)
 
     try:
         # validate system profile schema
-        api_instance.api_system_profile_validate_schema(repo_branch, repo_fork=repo_fork, days=days, max_messages=max_messages)
+        api_instance.api_system_profile_validate_schema(
+            repo_branch, repo_fork=repo_fork, days=days, max_messages=max_messages
+        )
     except Exception as e:
-        print("Exception when calling SystemProfileApi->api_system_profile_validate_schema: %s\n" % e)
+        print(
+            "Exception when calling SystemProfileApi->api_system_profile_validate_schema: %s\n" % e
+        )
 ```
 
 

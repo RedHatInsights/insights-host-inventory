@@ -11,7 +11,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_third_party_services import SystemProfileThirdPartyServices
+from iqe_host_inventory_api_v7.models.system_profile_third_party_services import (
+    SystemProfileThirdPartyServices,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -23,6 +25,8 @@ print(SystemProfileThirdPartyServices.to_json())
 # convert the object into a dict
 system_profile_third_party_services_dict = system_profile_third_party_services_instance.to_dict()
 # create an instance of SystemProfileThirdPartyServices from a dict
-system_profile_third_party_services_from_dict = SystemProfileThirdPartyServices.from_dict(system_profile_third_party_services_dict)
+system_profile_third_party_services_from_dict = SystemProfileThirdPartyServices.from_dict(
+    system_profile_third_party_services_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

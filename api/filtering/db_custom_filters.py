@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from urllib.parse import unquote
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -395,6 +396,46 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """
+    Process wildcard value for ILIKE operations.
+
+    Handles URL-encoded asterisks properly:
+    - %2A (URL-encoded asterisk) becomes literal * in the result
+    - * (actual asterisk) becomes % (SQL wildcard) in the result
+
+    This addresses RHINENG-4809 where URL-encoded wildcards were incorrectly
+    being treated as SQL wildcards instead of literal asterisks.
+
+    Args:
+        value: The filter value that may contain wildcards and/or URL-encoded characters
+
+    Returns:
+        The processed value with wildcards converted to SQL LIKE patterns
+    """
+    # Check if the value contains URL-encoded asterisks (%2A)
+    if "%2A" in value:
+        # Replace URL-encoded asterisks with a temporary placeholder
+        # to preserve them as literal asterisks
+        temp_placeholder = "___LITERAL_ASTERISK___"
+        value = value.replace("%2A", temp_placeholder)
+
+        # URL decode the rest of the value (this handles other encoded characters like %5C for \)
+        value = unquote(value)
+
+        # Replace actual asterisks with SQL wildcards
+        value = value.replace("*", "%")
+
+        # Restore the literal asterisks
+        value = value.replace(temp_placeholder, "*")
+    else:
+        # No URL-encoded asterisks, so URL decode first then process wildcards
+        value = unquote(value)
+        value = value.replace("*", "%")
+
+    return value
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -427,9 +468,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, process wildcards properly)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

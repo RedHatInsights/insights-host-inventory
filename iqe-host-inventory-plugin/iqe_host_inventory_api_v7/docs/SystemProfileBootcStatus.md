@@ -25,6 +25,8 @@ print(SystemProfileBootcStatus.to_json())
 # convert the object into a dict
 system_profile_bootc_status_dict = system_profile_bootc_status_instance.to_dict()
 # create an instance of SystemProfileBootcStatus from a dict
-system_profile_bootc_status_from_dict = SystemProfileBootcStatus.from_dict(system_profile_bootc_status_dict)
+system_profile_bootc_status_from_dict = SystemProfileBootcStatus.from_dict(
+    system_profile_bootc_status_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

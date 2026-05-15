@@ -13,7 +13,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_bootc_status_booted import SystemProfileBootcStatusBooted
+from iqe_host_inventory_api_v7.models.system_profile_bootc_status_booted import (
+    SystemProfileBootcStatusBooted,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -25,6 +27,8 @@ print(SystemProfileBootcStatusBooted.to_json())
 # convert the object into a dict
 system_profile_bootc_status_booted_dict = system_profile_bootc_status_booted_instance.to_dict()
 # create an instance of SystemProfileBootcStatusBooted from a dict
-system_profile_bootc_status_booted_from_dict = SystemProfileBootcStatusBooted.from_dict(system_profile_bootc_status_booted_dict)
+system_profile_bootc_status_booted_from_dict = SystemProfileBootcStatusBooted.from_dict(
+    system_profile_bootc_status_booted_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
