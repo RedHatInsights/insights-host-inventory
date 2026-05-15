@@ -20,6 +20,8 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.filtering.url_encoding_utils import detect_url_encoded_wildcards
+from api.filtering.url_encoding_utils import should_treat_as_literal
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -427,9 +429,19 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields with URL encoding detection
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Detect if this value was URL-encoded with %2A wildcards
+            encoded_wildcards = detect_url_encoded_wildcards()
+
+            if should_treat_as_literal(field_name, value, encoded_wildcards):
+                # This value had URL-encoded wildcards (%2A), treat as literal match
+                # Use exact match instead of ILIKE to avoid wildcard interpretation
+                pg_op = ColumnOperators.__eq__
+                # Don't replace * with % since we want literal matching
+            else:
+                # Normal wildcard behavior - replace * with % for ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
