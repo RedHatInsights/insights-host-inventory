@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +38,45 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _was_wildcard_url_encoded(value: str) -> bool:
+    """
+    Check if asterisk characters in the value were originally URL-encoded.
+
+    This function examines the raw query string to determine if asterisk characters
+    in the filter value were originally encoded as %2A (or %2a) in the URL.
+    If they were URL-encoded, they should be treated as literal asterisks rather
+    than wildcards.
+
+    Args:
+        value: The decoded filter value that may contain asterisk characters
+
+    Returns:
+        True if the asterisks were URL-encoded (should be literal), False otherwise
+    """
+    if "*" not in value:
+        return False
+
+    try:
+        # Get the raw query string from the Flask request
+        raw_query = flask.request.environ.get("QUERY_STRING", "")
+        if not raw_query:
+            return False
+
+        # URL-encode the value to see what it would look like if it was encoded
+        import urllib.parse
+
+        encoded_value = urllib.parse.quote(value, safe="")
+
+        # Check if the encoded version (with %2A) appears in the raw query string
+        # This indicates the asterisks were originally URL-encoded
+        return "%2A" in encoded_value and encoded_value in raw_query
+
+    except Exception:
+        # If we can't access the request context or there's any error,
+        # default to treating asterisks as wildcards (existing behavior)
+        return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -429,7 +469,13 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if asterisks were URL-encoded (should be treated as literals)
+            if _was_wildcard_url_encoded(value):
+                # Use exact match instead of wildcard matching for URL-encoded asterisks
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Normal wildcard behavior: replace * with % for ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
