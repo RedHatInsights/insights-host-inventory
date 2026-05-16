@@ -151,7 +151,9 @@ def db_get_groups_for_host(flask_app):  # noqa: ARG001
 @pytest.fixture(scope="function")
 def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
     def _db_create_host(
-        identity: dict[str, Any] | None = None, host: Host | None = None, extra_data: dict[str, Any] | None = None
+        identity: dict[str, Any] | None = None,
+        host: Host | None = None,
+        extra_data: dict[str, Any] | None = None,
     ) -> Host:
         identity = identity or SYSTEM_IDENTITY
         extra_data = extra_data or {}
@@ -159,7 +161,6 @@ def db_create_host(flask_app: FlaskApp) -> Callable[..., Host]:  # noqa: ARG001
 
         host = host or minimal_db_host(org_id=org_id, account=identity["account_number"], **extra_data)
         db.session.add(host)
-
         db.session.commit()
         return host
 

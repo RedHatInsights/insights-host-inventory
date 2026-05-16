@@ -175,13 +175,13 @@ def find_existing_host(
 def find_existing_host_by_id(identity: Identity, host_id: str) -> Host | None:
     query = host_query(identity.org_id).filter(Host.id == host_id)
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query).order_by(Host.modified_on.desc()).first()
+    return find_non_culled_hosts(query, identity.org_id).order_by(Host.modified_on.desc()).first()
 
 
 def find_existing_hosts_by_id_list(identity: Identity, host_id_list: list[str]) -> list[Host]:
     query = host_query(identity.org_id).filter(Host.id.in_(host_id_list))
     query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query).all()
+    return find_non_culled_hosts(query, identity.org_id).all()
 
 
 def _find_host_by_multiple_facts_in_db_or_in_memory(
@@ -223,7 +223,7 @@ def multiple_canonical_facts_host_query(
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query)
+    return find_non_culled_hosts(query, identity.org_id)
 
 
 def multiple_canonical_facts_host_query_in_memory(
@@ -271,19 +271,19 @@ def find_hosts_sys_default_staleness(staleness_types):
     return or_(False, *staleness_conditions)
 
 
-def _excluded_hosts_filter():
+def _excluded_hosts_filter(org_id: str):
     """Filter matching hosts that should be excluded from active counts.
 
-    Matches culled hosts (deletion_timestamp <= now) and hosts with NULL
-    deletion_timestamp. Used by both find_non_culled_hosts (negated) and
-    get_host_counts_batch so the definition stays in one place.
+    Matches hosts that are culled: ``now >= last_check_in +
+    conventional_time_to_delete`` for the org's staleness settings.
     """
-    staleness_filter = HostStalenessStatesDbFilters()
-    return or_(staleness_filter.culled(), Host.deletion_timestamp.is_(None))
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
+    staleness_filter = HostStalenessStatesDbFilters(staleness_obj)
+    return staleness_filter.culled()
 
 
-def find_non_culled_hosts(query: Query) -> Query:
-    return query.filter(not_(_excluded_hosts_filter()))
+def find_non_culled_hosts(query: Query, org_id: str) -> Query:
+    return query.filter(not_(_excluded_hosts_filter(org_id)))
 
 
 @metrics.new_host_commit_processing_time.time()
@@ -408,7 +408,7 @@ def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, c
     query = Host.query.outerjoin(HostGroupAssoc).outerjoin(Group).filter(*filters).group_by(Host.id, Host.org_id)
     if columns:
         query = query.with_entities(*columns)
-    return find_non_culled_hosts(update_query_for_owner_id(identity, query))
+    return find_non_culled_hosts(update_query_for_owner_id(identity, query), identity.org_id)
 
 
 def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
@@ -443,7 +443,7 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
     )
     total_map = {str(gid): total for gid, total in total_query.all()}
 
-    # Count EXCLUDED members: culled (deletion_timestamp <= now) OR NULL deletion_timestamp.
+    # Count EXCLUDED members: culled (last_check_in + delete window).
     # This query joins the hosts table but matches very few rows (typically <1%).
     excluded_query = (
         db.session.query(HostGroupAssoc.group_id, func.count().label("excluded"))
@@ -451,7 +451,7 @@ def get_host_counts_batch(org_id: str, group_ids: list[str]) -> dict[str, int]:
         .filter(
             HostGroupAssoc.org_id == org_id,
             HostGroupAssoc.group_id.in_(group_ids),
-            _excluded_hosts_filter(),
+            _excluded_hosts_filter(org_id),
         )
         .group_by(HostGroupAssoc.group_id)
     )
@@ -501,7 +501,8 @@ def get_group_ids_ordered_by_host_count(
     # Query to get group_ids ordered by host count
     # Start from Group table with LEFT OUTER JOINs to include groups with 0 hosts
     # Build staleness filter that includes NULL hosts (groups with no hosts)
-    host_staleness_states_filters = HostStalenessStatesDbFilters()
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
+    host_staleness_states_filters = HostStalenessStatesDbFilters(staleness_obj)
 
     query = (
         db.session.query(Group.id.label("group_id"), func.count(Host.id).label("host_count"))

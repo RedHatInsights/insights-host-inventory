@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from threading import Thread
 
 import sqlalchemy as sa
-from flask import Flask
 from flask import Response
 from flask import abort
-from flask import current_app
 from marshmallow import ValidationError
 from sqlalchemy import orm
 from sqlalchemy.engine.base import Connection
@@ -19,34 +16,21 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
-from api.cache import delete_cached_system_keys
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
-from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_create_staleness_failed
 from app.instrumentation import log_create_staleness_succeeded
 from app.instrumentation import log_patch_staleness_succeeded
 from app.logging import get_logger
-from app.logging import threadctx
 from app.models import Host
 from app.models import Staleness
 from app.models import StalenessSchema
 from app.models.utils import StalenessCache
-from app.queue.events import EventType
-from app.queue.events import build_event
-from app.queue.events import extract_system_profile_fields_for_headers
-from app.queue.events import message_headers
-from app.serialization import serialize_host
 from app.serialization import serialize_staleness_response
 from app.serialization import serialize_staleness_to_dict
-from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_sys_default_staleness_api
-from lib.db import session_guard
-from lib.host_repository import host_exists
-from lib.host_repository import host_query
 from lib.middleware import access
 from lib.staleness import add_staleness
 from lib.staleness import patch_staleness
@@ -61,7 +45,6 @@ def _response_if_staleness_equivalent_to_system_defaults(
     validated_data: dict,
     identity: Identity,
     org_id: str,
-    request_id: str,
     success_status: HTTPStatus,
 ) -> Response | None:
     """If validated data is strictly under 1h from system defaults, drop custom row and return JSON."""
@@ -70,7 +53,6 @@ def _response_if_staleness_equivalent_to_system_defaults(
         return None
     if remove_staleness_if_exists():
         StalenessCache.delete(org_id)
-        _async_update_host_staleness(identity, sys_defaults, request_id)
     return flask_json_response(serialize_staleness_response(sys_defaults), success_status)
 
 
@@ -122,101 +104,6 @@ def receive_before_host_update(mapper: Mapper, connection: Connection, host: Hos
         orm.attributes.flag_modified(host, "modified_on")
 
 
-def _update_hosts_staleness_async(identity: Identity, app: Flask, staleness_dict: dict, request_id):
-    with app.app_context():
-        threadctx.request_id = request_id
-        logger.debug("Starting host staleness update thread")
-        try:
-            logger.debug(f"Querying hosts for org_id: {identity.org_id}")
-            hosts_query = host_query(identity.org_id)
-            num_hosts = hosts_query.count()
-            st = staleness_timestamps()
-            if num_hosts > 0:
-                logger.debug(f"Found {num_hosts} hosts for org_id: {identity.org_id}")
-
-                # Process hosts in batches to avoid memory issues with large datasets
-                processed_hosts = 0
-
-                while processed_hosts < num_hosts:
-                    list_of_events_params = []
-
-                    # Get a batch of hosts
-                    batch_hosts = hosts_query.offset(processed_hosts).limit(500).all()
-                    if not batch_hosts:
-                        break
-
-                    with session_guard(hosts_query.session):
-                        for host in batch_hosts:
-                            host._update_staleness_timestamps()
-                            serialized_host = serialize_host(
-                                host, for_mq=True, staleness_timestamps=st, staleness=staleness_dict
-                            )
-
-                            # Create host update event and append it to an array
-                            event, headers = _build_host_updated_event_params(serialized_host, host, identity)
-                            list_of_events_params.append((event, headers, str(host.id)))
-
-                        processed_hosts += len(batch_hosts)
-                        logger.debug(f"Updated staleness asynchronously for {processed_hosts}/{num_hosts} hosts")
-
-                    # After a successful commit to the db, verify which hosts still
-                    # exist before producing events. This prevents producing "updated"
-                    # events for hosts that were deleted between our DB commit and the
-                    # event production, which would cause downstream consumers to see
-                    # an update after a delete (ghost host race condition).
-                    for event, headers, host_id in list_of_events_params:
-                        if host_exists(host_id, org_id=identity.org_id, session=hosts_query.session):
-                            app.event_producer.write_event(event, host_id, headers, wait=True)
-                        else:
-                            logger.warning(
-                                f"Skipping staleness update event for host {host_id}: host no longer exists"
-                            )
-
-                delete_cached_system_keys(org_id=identity.org_id, spawn=True)
-            logger.debug("Leaving host staleness update thread")
-        except Exception as e:
-            raise e
-
-
-def _build_host_updated_event_params(serialized_host: dict, host: Host, identity: Identity):
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
-    headers = message_headers(
-        EventType.updated,
-        str(host.insights_id),
-        host.reporter,
-        host_type,
-        os_name,
-        bootc_booted,
-    )
-    metadata = {"b64_identity": to_auth_header(identity)}
-    event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
-    return event, headers
-
-
-def _async_update_host_staleness(identity: Identity, staleness_orm_or_defaults: Staleness | AttrDict, request_id):
-    """
-    This method starts a new thread to update the host staleness.
-
-    ``staleness_orm_or_defaults`` is either a persisted :class:`Staleness` row
-    (after create/patch) or a system-defaults :class:`AttrDict` (after delete
-    or near-default reset); both expose the same conventional_time_to_* fields.
-    """
-    # Serialize in the request thread while ORM objects are still session-bound; the
-    # worker must not access Staleness rows that may be detached or deleted.
-    staleness_dict = serialize_staleness_to_dict(staleness_orm_or_defaults)
-    update_hosts_thread = Thread(
-        target=_update_hosts_staleness_async,
-        daemon=True,
-        args=(
-            identity,
-            current_app._get_current_object(),
-            staleness_dict,
-            request_id,
-        ),
-    )
-    update_hosts_thread.start()
-
-
 @api_operation
 @access(KesselResourceTypes.STALENESS.view)
 @access(KesselResourceTypes.HOST.view)
@@ -254,12 +141,9 @@ def create_staleness(body):
     # Validate account staleness input data
     identity = get_current_identity()
     org_id = identity.org_id
-    request_id = threadctx.request_id
     validated_data = _validate_input_data(body)
 
-    early = _response_if_staleness_equivalent_to_system_defaults(
-        validated_data, identity, org_id, request_id, HTTPStatus.CREATED
-    )
+    early = _response_if_staleness_equivalent_to_system_defaults(validated_data, identity, org_id, HTTPStatus.CREATED)
     if early is not None:
         return early
 
@@ -267,7 +151,6 @@ def create_staleness(body):
         # Create account staleness with validated data
         created_staleness = add_staleness(validated_data)
         StalenessCache.delete(org_id)
-        _async_update_host_staleness(identity, created_staleness, request_id)
         log_create_staleness_succeeded(logger, created_staleness.id)
     except IntegrityError:
         error_message = f"Staleness record for org_id {org_id} already exists."
@@ -286,12 +169,9 @@ def create_staleness(body):
 def delete_staleness():
     identity = get_current_identity()
     org_id = identity.org_id
-    request_id = threadctx.request_id
     try:
         remove_staleness()
         StalenessCache.delete(org_id)
-        staleness = get_sys_default_staleness_api(identity)
-        _async_update_host_staleness(identity, staleness, request_id)
         return flask_json_response(None, HTTPStatus.NO_CONTENT)
     except NoResultFound:
         abort(
@@ -307,7 +187,6 @@ def delete_staleness():
 def update_staleness(body):
     # Validate account staleness input data
     validated_data = _validate_input_data(body)
-    request_id = threadctx.request_id
     identity = get_current_identity()
     org_id = identity.org_id
 
@@ -315,9 +194,7 @@ def update_staleness(body):
     # (pre-RHINENG-20674 behavior), even when the payload is default-equivalent.
     early = None
     if Staleness.query.filter(Staleness.org_id == org_id).first() is not None:
-        early = _response_if_staleness_equivalent_to_system_defaults(
-            validated_data, identity, org_id, request_id, HTTPStatus.OK
-        )
+        early = _response_if_staleness_equivalent_to_system_defaults(validated_data, identity, org_id, HTTPStatus.OK)
     if early is not None:
         return early
 
@@ -327,8 +204,6 @@ def update_staleness(body):
         if updated_staleness is None:
             # since update only return None with no record instead of exception.
             raise NoResultFound
-
-        _async_update_host_staleness(identity, updated_staleness, request_id)
 
         log_patch_staleness_succeeded(logger, updated_staleness.id)
 

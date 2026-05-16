@@ -296,8 +296,9 @@ def per_reporter_staleness_filter(staleness, reporter, org_id):
     return [conditions]
 
 
-def _staleness_filter(staleness: list[str]) -> list:
-    host_staleness_states_filters = HostStalenessStatesDbFilters()
+def _staleness_filter(staleness: list[str], org_id: str) -> list:
+    staleness_obj = serialize_staleness_to_dict(get_staleness_obj(org_id))
+    host_staleness_states_filters = HostStalenessStatesDbFilters(staleness_obj)
     if staleness == ["unknown"]:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
         filters = [not_(host_staleness_states_filters.culled())]
@@ -424,9 +425,9 @@ def _last_check_in_filter(last_check_in_start: str | None, last_check_in_end: st
     return [and_(*last_check_in_filter)] if last_check_in_filter else []
 
 
-def host_id_list_filter(host_id_list: list[str]) -> list:
+def host_id_list_filter(host_id_list: list[str], org_id: str) -> list:
     all_filters = [Host.id.in_(host_id_list)]
-    all_filters += _staleness_filter(ALL_STALENESS_STATES)
+    all_filters += _staleness_filter(ALL_STALENESS_STATES, org_id)
     return all_filters
 
 
@@ -553,7 +554,7 @@ def query_filters(
         filter_exprs, app_data_models_to_join = _build_filter(filter)
         filters += filter_exprs
     if staleness:
-        filters += _staleness_filter(staleness)
+        filters += _staleness_filter(staleness, identity.org_id)
     if registered_with:
         filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
