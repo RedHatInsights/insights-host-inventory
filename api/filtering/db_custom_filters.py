@@ -81,6 +81,60 @@ def _should_use_exact_match_for_wildcard_field(value: str) -> bool:
     return True
 
 
+
+def _should_use_exact_match_for_wildcard_field(value: str) -> bool:
+    """
+    Determine if a wildcard field value should use exact matching instead of pattern matching.
+    
+    For wildcard fields (x-wildcard: true), the default is pattern matching (ILIKE).
+    We only switch to exact matching (=) when the value contains characters that would
+    cause issues in ILIKE patterns or when the asterisk usage suggests literal intent:
+    
+    1. Problematic ILIKE characters: backslash (\), percent (%), underscore (_)
+    2. Asterisk (*) usage that suggests literal intent:
+       - Multiple asterisks (e.g., "a*b*c")
+       - Asterisk at the beginning (e.g., "*abc")  
+       - Asterisk in the middle (e.g., "abc*123")
+    
+    Simple trailing asterisks (e.g., "abc*") are treated as wildcard patterns.
+    
+    This fixes issues where URL-encoded * (%2A) gets decoded to * and then treated as a wildcard
+    when it should be treated as a literal asterisk character.
+    
+    Args:
+        value: The filter value to check
+        
+    Returns:
+        True if exact matching should be used, False if pattern matching should be used
+    """
+    if not value:
+        return False  # Empty values can use pattern matching
+    
+    # Characters that cause problems in PostgreSQL ILIKE patterns
+    problematic_chars = {"\\", "%", "_"}
+    
+    # If the value contains problematic characters, always use exact matching
+    if any(char in value for char in problematic_chars):
+        return True
+    
+    # Handle asterisk (*) - check for literal usage patterns
+    if "*" in value:
+        # Count asterisks
+        asterisk_count = value.count("*")
+        
+        # Multiple asterisks suggest literal usage
+        if asterisk_count > 1:
+            return True
+        
+        # Single asterisk cases
+        if asterisk_count == 1:
+            # Asterisk anywhere else (beginning, middle) suggests literal usage
+            return not (value.endswith("*") and len(value) > 1)
+    
+    # No problematic characters or literal asterisk patterns - use pattern matching (default for wildcard fields)
+    return False
+
+
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
     if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):

@@ -7,6 +7,7 @@ This test verifies that the wildcard filtering logic correctly distinguishes bet
 3. Values with problematic ILIKE characters (should use exact matching)
 """
 
+import pytest
 from api.filtering.db_custom_filters import _should_use_exact_match_for_wildcard_field
 
 
@@ -24,7 +25,6 @@ class TestWildcardFix:
             "value%with%percent",  # Contains percent (ILIKE special char)
             "test\\backslash",  # Contains backslash (ILIKE escape char)
             "complex*value\\test_123%end",  # Multiple special characters
-            "",  # Empty string
             "*literal",  # Asterisk at beginning
             "**multiple",  # Multiple asterisks
             "*",  # Single asterisk only
@@ -34,13 +34,17 @@ class TestWildcardFix:
         for value in exact_match_cases:
             assert _should_use_exact_match_for_wildcard_field(value), f"Should use exact match for: {value}"
 
-        # Test cases that should use pattern matching (wildcard patterns)
+        # Test cases that should use pattern matching (wildcard patterns or simple values)
         pattern_match_cases = [
             "abc*",  # Simple trailing wildcard
             "test*",  # Simple trailing wildcard
             "prefix*",  # Simple trailing wildcard
             "3.0.*",  # Version wildcard pattern
             "insights*",  # Simple trailing wildcard
+            "simple",  # Simple value without special chars
+            "normalvalue",  # Simple value without special chars
+            "123",  # Simple value without special chars
+            "",  # Empty string
         ]
 
         for value in pattern_match_cases:
@@ -54,27 +58,24 @@ class TestWildcardFix:
             "test%value",  # Percent (multi-char wildcard in ILIKE)
             "test_value",  # Underscore (single-char wildcard in ILIKE)
             "complex\\test%value_123",  # Multiple problematic chars
+            "x86_64",  # Contains underscore
         ]
 
         for value in problematic_cases:
-            assert _should_use_exact_match_for_wildcard_field(value), (
-                f"Should use exact match for problematic chars: {value}"
-            )
+            assert _should_use_exact_match_for_wildcard_field(value), f"Should use exact match for problematic chars: {value}"
 
     def test_simple_values_without_special_chars(self):
-        """Test that simple values without special characters use exact matching."""
+        """Test that simple values without special characters use pattern matching (default for wildcard fields)."""
 
         simple_cases = [
             "simple",
             "normalvalue",
             "123",
-            "x86_64",  # This should use exact matching (not a wildcard field)
+            "amd64",  # Simple value without underscores or other special chars
         ]
 
         for value in simple_cases:
-            assert _should_use_exact_match_for_wildcard_field(value), (
-                f"Should use exact match for simple value: {value}"
-            )
+            assert not _should_use_exact_match_for_wildcard_field(value), f"Should use pattern match for simple value: {value}"
 
     def test_edge_cases(self):
         """Test edge cases for wildcard detection."""
@@ -98,6 +99,4 @@ class TestWildcardFix:
         ]
 
         for value in pattern_match_edge_cases:
-            assert not _should_use_exact_match_for_wildcard_field(value), (
-                f"Should use pattern match for edge case: {value}"
-            )
+            assert not _should_use_exact_match_for_wildcard_field(value), f"Should use pattern match for edge case: {value}"
