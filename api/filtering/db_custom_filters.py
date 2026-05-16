@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +38,66 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _was_wildcard_url_encoded(field_name: str, value: str) -> bool:
+    """
+    Check if the original query string contained URL-encoded wildcards (%2A) for this field.
+
+    This is used to distinguish between literal asterisks (which were URL-encoded as %2A)
+    and intended wildcards (which were sent as literal * characters).
+
+    Args:
+        field_name: The field name being filtered
+        value: The decoded value that may contain asterisks
+
+    Returns:
+        True if the original query contained %2A for this field, False otherwise
+    """
+    if "*" not in value:
+        return False
+
+    try:
+        # Get the raw query string from Flask request
+        query_string = request.environ.get("QUERY_STRING", "")
+        if not query_string:
+            return False
+
+        # Look for URL-encoded asterisks (%2A or %2a) in the query string
+        # We need to check if this specific field had URL-encoded wildcards
+        # This is a heuristic approach - we look for the field name followed by URL-encoded asterisks
+
+        # Build possible query patterns for this field
+        # e.g., filter[system_profile][os_release]=abc%2A123
+        field_patterns = [
+            f"filter[system_profile][{field_name}]=",
+            f"filter%5Bsystem_profile%5D%5B{field_name}%5D=",  # URL-encoded brackets
+        ]
+
+        for pattern in field_patterns:
+            if pattern in query_string:
+                # Find the start of the value for this field
+                start_idx = query_string.find(pattern)
+                if start_idx != -1:
+                    value_start = start_idx + len(pattern)
+                    # Find the end of this parameter (next & or end of string)
+                    value_end = query_string.find("&", value_start)
+                    if value_end == -1:
+                        value_end = len(query_string)
+
+                    # Extract the raw value from the query string
+                    raw_value = query_string[value_start:value_end]
+
+                    # Check if this raw value contains URL-encoded asterisks
+                    if "%2A" in raw_value or "%2a" in raw_value:
+                        return True
+
+        return False
+
+    except Exception:
+        # If we can't determine from the query string, default to False
+        # This means we'll treat asterisks as wildcards (existing behavior)
+        return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -428,8 +489,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
+        # RHINENG-4809: Check if wildcards were URL-encoded to distinguish literal vs wildcard asterisks
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            if _was_wildcard_url_encoded(field_name, value):
+                # URL-encoded wildcards should be treated as literal characters
+                # Switch to exact match instead of wildcard matching
+                pg_op = ColumnOperators.__eq__
+                # Don't replace * with % since we want literal matching
+            else:
+                # Regular wildcard behavior - replace * with % for ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
