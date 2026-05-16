@@ -20,6 +20,8 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.filtering.url_encoding_utils import contains_url_encoded_asterisk
+from api.filtering.url_encoding_utils import escape_ilike_special_chars
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -337,6 +339,39 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter
         return
 
 
+def _build_filter_path_for_url_check(filter_param: dict) -> str:
+    """
+    Build the filter path string for URL encoding detection.
+
+    Args:
+        filter_param: The filter parameter dict, e.g., {"os_release": "abc*123"}
+
+    Returns:
+        The filter path string, e.g., "filter[system_profile][os_release]"
+    """
+    field_name = next(iter(filter_param.keys()))
+
+    # Handle workloads fields
+    if field_name in WORKLOADS_FIELDS:
+        return f"filter[system_profile][workloads][{field_name}]"
+
+    # Handle nested workloads paths
+    if field_name == "workloads":
+        # Extract the nested path
+        workloads_value = filter_param[field_name]
+        if isinstance(workloads_value, dict):
+            workload_type = next(iter(workloads_value.keys()))
+            workload_data = workloads_value[workload_type]
+            if isinstance(workload_data, dict):
+                workload_field = next(iter(workload_data.keys()))
+                return f"filter[system_profile][workloads][{workload_type}][{workload_field}]"
+            else:
+                return f"filter[system_profile][workloads][{workload_type}]"
+
+    # Regular system profile field
+    return f"filter[system_profile][{field_name}]"
+
+
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -427,9 +462,27 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields - check for URL-encoded asterisks
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Build the filter path for URL encoding detection
+            filter_path = _build_filter_path_for_url_check(filter_param)
+
+            # Check if the original query contained URL-encoded asterisks
+            if contains_url_encoded_asterisk(filter_path, value):
+                # URL-encoded asterisks should be treated literally, not as wildcards
+                # Use exact matching instead of ILIKE pattern matching
+                pg_op = ColumnOperators.__eq__
+                logger.debug(f"URL-encoded asterisk detected in {filter_path}, using exact match instead of wildcard")
+            else:
+                # Normal wildcard behavior: replace * with % for ILIKE
+                value = value.replace("*", "%")
+                # Also escape other ILIKE special characters for proper literal matching
+                # when they appear in the value but weren't intended as patterns
+                if "\\" in value or "_" in value:
+                    # Only escape if these characters appear to be literal
+                    # (this is a heuristic - in practice, users rarely use _ as wildcards)
+                    value = escape_ilike_special_chars(value.replace("%", "*"))  # Restore * temporarily
+                    value = value.replace("*", "%")  # Convert back to SQL wildcards
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
