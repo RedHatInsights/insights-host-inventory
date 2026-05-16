@@ -31,6 +31,56 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 logger = get_logger(__name__)
 
 
+def _should_use_exact_match_for_wildcard_field(value: str) -> bool:
+    r"""
+    Determine if a wildcard field value should use exact matching instead of pattern matching.
+
+    For wildcard fields, we use exact matching (=) instead of pattern matching (ILIKE) when:
+    1. The value contains characters that have special meaning in ILIKE patterns and could
+       cause issues: backslash (\), percent (%), underscore (_)
+    2. The value contains asterisk (*) in positions that suggest literal usage rather than
+       wildcard usage (e.g., in the middle of the string, multiple asterisks, etc.)
+
+    This fixes the issue where URL-encoded * (%2A) gets decoded to * and then treated as a wildcard
+    when it should be treated as a literal asterisk character. It also fixes issues with backslashes
+    being treated as escape characters in ILIKE patterns.
+
+    Args:
+        value: The filter value to check
+
+    Returns:
+        True if exact matching should be used, False if pattern matching should be used
+    """
+    if not value:
+        return True
+
+    # Characters that cause problems in PostgreSQL ILIKE patterns
+    problematic_chars = {"\\", "%", "_"}
+
+    # If the value contains problematic characters, always use exact matching
+    if any(char in value for char in problematic_chars):
+        return True
+
+    # Handle asterisk (*) - this is more nuanced
+    if "*" in value:
+        # Count asterisks
+        asterisk_count = value.count("*")
+
+        # Multiple asterisks suggest literal usage
+        if asterisk_count > 1:
+            return True
+
+        # Single asterisk cases
+        if asterisk_count == 1:
+            # If asterisk is at the end and string is longer than 1 char, likely a wildcard pattern
+            # If asterisk is at the end and string is longer than 1 char, likely a wildcard pattern
+            # Asterisk anywhere else (beginning, middle) suggests literal usage
+            return not (value.endswith("*") and len(value) > 1)
+
+    # No special characters, use exact matching for consistency
+    return True
+
+
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
     if isinstance(column.type, (Boolean, Integer, ARRAY, JSONB)):
@@ -427,9 +477,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields - improved logic to distinguish between literal and wildcard usage
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if this value should use exact matching instead of pattern matching
+            if _should_use_exact_match_for_wildcard_field(value):
+                # Use exact matching for values that contain special characters
+                # but are likely intended as literal values (e.g., "abc*123")
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Use pattern matching and replace * with % for PostgreSQL ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
