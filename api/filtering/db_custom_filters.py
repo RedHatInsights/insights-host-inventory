@@ -40,7 +40,20 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
-def _should_use_exact_match_for_wildcards(field_name: str, value: str) -> bool:
+def _get_raw_query_string() -> str | None:
+    """
+    Get the raw query string from Flask request.
+
+    Returns:
+        The raw query string, or None if not available
+    """
+    try:
+        return flask.request.query_string.decode("utf-8")
+    except (AttributeError, UnicodeDecodeError, RuntimeError):
+        return None
+
+
+def _should_use_exact_match_for_wildcards(field_name: str, value: str, raw_query: str | None = None) -> bool:
     """
     Check if a wildcard field value should use exact matching instead of ILIKE.
 
@@ -50,6 +63,7 @@ def _should_use_exact_match_for_wildcards(field_name: str, value: str) -> bool:
     Args:
         field_name: The system profile field name (e.g., "os_release")
         value: The decoded filter value (e.g., "abc*123")
+        raw_query: Optional raw query string (if None, will try to get from Flask request)
 
     Returns:
         True if exact matching should be used, False if ILIKE wildcards should be used
@@ -58,41 +72,43 @@ def _should_use_exact_match_for_wildcards(field_name: str, value: str) -> bool:
     if "*" not in value:
         return False
 
-    try:
-        # Get the raw query string from Flask request
-        raw_query = flask.request.query_string.decode("utf-8")
+    # Get raw query string if not provided
+    if raw_query is None:
+        raw_query = _get_raw_query_string()
+        if raw_query is None:
+            return False
 
-        # Look for patterns like filter[system_profile][field_name]=...%2A...
-        # We need to check if any %2A appears in the context of this field
+    # Build possible query parameter patterns for this field
+    field_patterns = [
+        f"filter[system_profile][{field_name}]",
+        f"filter%5Bsystem_profile%5D%5B{field_name}%5D",  # URL-encoded brackets
+    ]
 
-        # Build possible query parameter patterns for this field
-        field_patterns = [
-            f"filter[system_profile][{field_name}]",
-            f"filter%5Bsystem_profile%5D%5B{field_name}%5D",  # URL-encoded brackets
-        ]
+    # Check all occurrences of each pattern
+    for pattern in field_patterns:
+        start_pos = 0
+        while True:
+            # Find the next occurrence of this pattern
+            param_start = raw_query.find(pattern, start_pos)
+            if param_start == -1:
+                break  # No more occurrences of this pattern
 
-        for pattern in field_patterns:
-            if pattern in raw_query:
-                # Find the start of this parameter
-                param_start = raw_query.find(pattern)
-                if param_start != -1:
-                    # Find the end of this parameter (next & or end of string)
-                    param_end = raw_query.find("&", param_start)
-                    if param_end == -1:
-                        param_end = len(raw_query)
+            # Find the end of this parameter (next & or end of string)
+            param_end = raw_query.find("&", param_start)
+            if param_end == -1:
+                param_end = len(raw_query)
 
-                    # Extract the parameter value portion
-                    param_section = raw_query[param_start:param_end]
+            # Extract the parameter value portion
+            param_section = raw_query[param_start:param_end]
 
-                    # Check if this parameter contains %2A (URL-encoded asterisk)
-                    if "%2A" in param_section.upper():
-                        return True
+            # Check if this parameter contains %2A (URL-encoded asterisk)
+            if "%2A" in param_section.upper():
+                return True
 
-        return False
+            # Move to the next potential occurrence
+            start_pos = param_start + 1
 
-    except (AttributeError, UnicodeDecodeError, RuntimeError):
-        # If we can't access the raw query string, fall back to normal wildcard behavior
-        return False
+    return False
 
 
 # Utility class to facilitate OS filter comparison

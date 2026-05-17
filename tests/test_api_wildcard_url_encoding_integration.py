@@ -27,9 +27,8 @@ class TestWildcardUrlEncodingIntegration:
         assert response_data["count"] == 1
         assert response_data["results"][0]["id"] == created_host.id
 
-        # Test 2: Normal asterisk should NOT match (it's treated as wildcard)
-        # This would match "test1*test2" as a pattern, but our host has literal "test1*test2"
-        # Since the wildcard pattern would match, this should also work
+        # Test 2: Normal asterisk also matches because it's treated as a wildcard
+        # The wildcard pattern "test1*test2" matches the literal value "test1*test2"
         normal_filter = "filter[system_profile][os_release]=test1*test2"
         url = build_hosts_url(query=f"?{normal_filter}")
         response_status, response_data = api_get(url)
