@@ -39,6 +39,56 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _has_url_encoded_wildcard(field_path: tuple[str, ...] | str, value: str) -> bool:  # noqa: ARG001
+    """
+    Check if the original query string contained URL-encoded wildcards (%2A or %2a)
+    for the given field path and value.
+
+    This function accesses the raw Flask request to check if asterisks in the value
+    were originally URL-encoded, indicating they should be treated as literals
+    rather than wildcards.
+    """
+    if "*" not in value:
+        return False
+
+    try:
+        import flask
+
+        if not flask.has_request_context():
+            return False
+
+        # Get the raw query string from the request
+        query_string = flask.request.query_string.decode("utf-8")
+        if not query_string:
+            return False
+
+        # Check if the query string contains URL-encoded asterisks
+        # We look for %2A or %2a anywhere in the query string
+        # If present, and our value contains asterisks, it's likely they were encoded
+        if "%2A" in query_string or "%2a" in query_string:
+            # Additional check: see if our specific value pattern appears encoded
+            # We need to URL-encode the entire value and check if it appears in the query string
+            from urllib.parse import quote
+
+            # URL-encode the entire value and check if it appears in the query string
+            fully_encoded_value = quote(value, safe="")
+            if fully_encoded_value in query_string:
+                return True
+
+            # Also check if just the asterisks were encoded
+            encoded_pattern = value.replace("*", "%2A")
+            encoded_pattern_lower = value.replace("*", "%2a")
+
+            return encoded_pattern in query_string or encoded_pattern_lower in query_string
+
+    except Exception:
+        # If we can't access the request context or any other error occurs,
+        # fall back to normal wildcard behavior
+        pass
+
+    return False
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -427,8 +477,18 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
+        # Handle wildcard fields - check if asterisks should be treated as literals
+        if pg_op == ColumnOperators.ilike and field_filter == "wildcard":
+            # Check if the original query string contained URL-encoded asterisks
+            if _has_url_encoded_wildcard(jsonb_path or field_name, value):
+                # Treat asterisks as literals - use exact match instead of ILIKE
+                pg_op = ColumnOperators.__eq__
+                # Don't replace * with % for literal matching
+            else:
+                # Normal wildcard behavior - replace * with % for ILIKE
+                value = value.replace("*", "%")
+        elif pg_op == ColumnOperators.ilike:
+            # For non-wildcard fields that still use ILIKE, replace * with %
             value = value.replace("*", "%")
 
         # Handle special values and casting
