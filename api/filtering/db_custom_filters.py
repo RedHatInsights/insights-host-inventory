@@ -47,11 +47,16 @@ def _has_url_encoded_wildcard(field_path: tuple[str, ...] | str, value: str) -> 
     This function accesses the raw Flask request to check if asterisks in the value
     were originally URL-encoded, indicating they should be treated as literals
     rather than wildcards.
+
+    Uses a more targeted approach to avoid false positives from other parameters.
     """
     if "*" not in value:
         return False
 
     try:
+        import re
+        from urllib.parse import quote
+
         import flask
 
         if not flask.has_request_context():
@@ -62,24 +67,32 @@ def _has_url_encoded_wildcard(field_path: tuple[str, ...] | str, value: str) -> 
         if not query_string:
             return False
 
-        # Check if the query string contains URL-encoded asterisks
-        # We look for %2A or %2a anywhere in the query string
-        # If present, and our value contains asterisks, it's likely they were encoded
-        if "%2A" in query_string or "%2a" in query_string:
-            # Additional check: see if our specific value pattern appears encoded
-            # We need to URL-encode the entire value and check if it appears in the query string
-            from urllib.parse import quote
+        # Only proceed if there are URL-encoded asterisks in the query string
+        if "%2A" not in query_string and "%2a" not in query_string:
+            return False
 
-            # URL-encode the entire value and check if it appears in the query string
-            fully_encoded_value = quote(value, safe="")
-            if fully_encoded_value in query_string:
-                return True
+        # More targeted detection: look for system_profile filter patterns
+        # This reduces false positives from other parameters containing %2A
+        sp_filter_patterns = [
+            r"filter\[system_profile\]\[[^\]]+\]=[^&]*%2[Aa][^&]*",
+            r"filter%5Bsystem_profile%5D%5B[^\]]+%5D=[^&]*%2[Aa][^&]*",
+        ]
 
-            # Also check if just the asterisks were encoded
-            encoded_pattern = value.replace("*", "%2A")
-            encoded_pattern_lower = value.replace("*", "%2a")
+        has_sp_encoded_wildcard = any(re.search(pattern, query_string) for pattern in sp_filter_patterns)
+        if not has_sp_encoded_wildcard:
+            return False
 
-            return encoded_pattern in query_string or encoded_pattern_lower in query_string
+        # Check if our specific value pattern appears encoded in the query string
+        # URL-encode the entire value and check if it appears
+        fully_encoded_value = quote(value, safe="")
+        if fully_encoded_value in query_string:
+            return True
+
+        # Also check if just the asterisks were encoded
+        encoded_pattern = value.replace("*", "%2A")
+        encoded_pattern_lower = value.replace("*", "%2a")
+
+        return encoded_pattern in query_string or encoded_pattern_lower in query_string
 
     except Exception:
         # If we can't access the request context or any other error occurs,
@@ -487,9 +500,6 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             else:
                 # Normal wildcard behavior - replace * with % for ILIKE
                 value = value.replace("*", "%")
-        elif pg_op == ColumnOperators.ilike:
-            # For non-wildcard fields that still use ILIKE, replace * with %
-            value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
