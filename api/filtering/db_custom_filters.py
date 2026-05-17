@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +38,54 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _was_wildcard_url_encoded(value: str, field_path: str) -> bool:
+    """
+    Check if wildcard characters in the value were originally URL-encoded.
+
+    This function examines the raw query string to determine if '*' or '\' characters
+    in the decoded value were originally URL-encoded as '%2A' or '%5C'.
+
+    Args:
+        value: The decoded filter value that may contain wildcard characters
+        field_path: The field path (e.g., "system_profile][os_release")
+
+    Returns:
+        True if wildcard characters were URL-encoded, False otherwise
+    """
+    if not value or ("*" not in value and "\\" not in value):
+        return False
+
+    try:
+        # Get the raw query string from the Flask request
+        raw_query = flask.request.environ.get("QUERY_STRING", "")
+        if not raw_query:
+            return False
+
+        # Check if the encoded version appears in the raw query string
+        # We need to be careful to match the right parameter
+        field_param = f"filter[{field_path}]="
+
+        # Look for the parameter in the query string
+        if field_param in raw_query:
+            param_start = raw_query.find(field_param) + len(field_param)
+            # Find the end of this parameter value (next & or end of string)
+            param_end = raw_query.find("&", param_start)
+            if param_end == -1:
+                param_end = len(raw_query)
+
+            raw_value = raw_query[param_start:param_end]
+
+            # Check if the raw value contains URL-encoded wildcards
+            return "%2A" in raw_value or "%2a" in raw_value or "%5C" in raw_value or "%5c" in raw_value
+
+    except Exception as e:
+        # If we can't determine the encoding status, err on the side of caution
+        # and assume it wasn't encoded (preserve existing behavior)
+        logger.debug(f"Could not determine URL encoding status for value '{value}': {e}")
+
+    return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +476,21 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields - check if wildcards were URL-encoded
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Build the field path for URL encoding detection
+            field_path = "system_profile"
+            if jsonb_path:
+                field_path += "][" + "][".join(jsonb_path)
+
+            # Check if wildcard characters were originally URL-encoded
+            if _was_wildcard_url_encoded(value, field_path):
+                # If wildcards were URL-encoded, treat them as literal characters
+                # Use exact match instead of ILIKE to avoid wildcard interpretation
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Normal wildcard processing - replace * with % for ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
