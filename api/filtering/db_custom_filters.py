@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +38,61 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _should_use_exact_match_for_wildcards(field_name: str, value: str) -> bool:
+    """
+    Check if a wildcard field value should use exact matching instead of ILIKE.
+
+    This happens when the original query string contained URL-encoded asterisks (%2A),
+    indicating the user wants to match literal asterisks, not use them as wildcards.
+
+    Args:
+        field_name: The system profile field name (e.g., "os_release")
+        value: The decoded filter value (e.g., "abc*123")
+
+    Returns:
+        True if exact matching should be used, False if ILIKE wildcards should be used
+    """
+    # Only check if the value contains asterisks
+    if "*" not in value:
+        return False
+
+    try:
+        # Get the raw query string from Flask request
+        raw_query = flask.request.query_string.decode("utf-8")
+
+        # Look for patterns like filter[system_profile][field_name]=...%2A...
+        # We need to check if any %2A appears in the context of this field
+
+        # Build possible query parameter patterns for this field
+        field_patterns = [
+            f"filter[system_profile][{field_name}]",
+            f"filter%5Bsystem_profile%5D%5B{field_name}%5D",  # URL-encoded brackets
+        ]
+
+        for pattern in field_patterns:
+            if pattern in raw_query:
+                # Find the start of this parameter
+                param_start = raw_query.find(pattern)
+                if param_start != -1:
+                    # Find the end of this parameter (next & or end of string)
+                    param_end = raw_query.find("&", param_start)
+                    if param_end == -1:
+                        param_end = len(raw_query)
+
+                    # Extract the parameter value portion
+                    param_section = raw_query[param_start:param_end]
+
+                    # Check if this parameter contains %2A (URL-encoded asterisk)
+                    if "%2A" in param_section.upper():
+                        return True
+
+        return False
+
+    except (AttributeError, UnicodeDecodeError, RuntimeError):
+        # If we can't access the raw query string, fall back to normal wildcard behavior
+        return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +483,16 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields with special logic for URL-encoded asterisks
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if this field value should use exact matching instead of wildcards
+            if _should_use_exact_match_for_wildcards(field_name, value):
+                # Use exact matching for URL-encoded asterisks
+                pg_op = ColumnOperators.__eq__
+                # Don't replace * with % - keep literal asterisks
+            else:
+                # Normal wildcard behavior - replace * with %
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
