@@ -75,3 +75,25 @@ def test_url_encoded_backslash_with_wildcard(db_create_host, api_get):
     # Should match the host with literal characters
     assert str(host_with_backslash.id) in response_ids
     assert len(response_ids) == 1
+
+
+def test_backslash_with_true_wildcard(db_create_host, api_get):
+    """
+    Test that a literal '*' combined with a non-URL-encoded backslash is
+    treated as a wildcard pattern while preserving correct backslash
+    escaping in the underlying ILIKE query (RHINENG-4809).
+    """
+    # Create hosts where only one should match the wildcard + backslash pattern
+    host_matches_pattern = db_create_host(extra_data={"system_profile_facts": {"os_release": "test1XYZtest2\\test3"}})
+    host_does_not_match = db_create_host(extra_data={"system_profile_facts": {"os_release": "test1XYZtest2\\nope"}})
+
+    # Literal '*' should act as wildcard, backslash is not URL-encoded here
+    url_wildcard_backslash = build_hosts_url(query="?filter[system_profile][os_release]=test1*test2\\test3")
+    response_status, response_data = api_get(url_wildcard_backslash)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    # Only the host whose os_release matches the wildcard + backslash pattern should match
+    assert str(host_matches_pattern.id) in response_ids
+    assert str(host_does_not_match.id) not in response_ids

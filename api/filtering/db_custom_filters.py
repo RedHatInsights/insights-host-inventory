@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections.abc import Callable
 
 from flask import request
@@ -40,6 +41,48 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _check_url_encoded_wildcards_in_query(field_name: str, query_string: str) -> bool:
+    """
+    Check if the query string contains URL-encoded wildcards (%2A) for a specific field.
+
+    Uses proper URL parsing to robustly detect URL-encoded asterisks in query parameters.
+
+    Args:
+        field_name: The field name being filtered
+        query_string: The raw query string to parse
+
+    Returns:
+        True if the field contains URL-encoded wildcards, False otherwise
+    """
+    if not query_string:
+        return False
+
+    try:
+        # Parse the query string into a dictionary of parameters
+        parsed_params = urllib.parse.parse_qs(query_string, keep_blank_values=True)
+
+        # Look for system profile filter parameters for this field
+        # Handle both regular and URL-encoded bracket formats
+        possible_param_names = [
+            f"filter[system_profile][{field_name}]",
+            f"filter%5Bsystem_profile%5D%5B{field_name}%5D",  # URL-encoded brackets
+        ]
+
+        for param_name in possible_param_names:
+            if param_name in parsed_params:
+                # Check if any of the values for this parameter contain URL-encoded asterisks
+                for value in parsed_params[param_name]:
+                    if "%2A" in value or "%2a" in value:
+                        return True
+
+        return False
+
+    except (ValueError, TypeError) as e:
+        # Log parsing errors but don't fail the request
+        logger.warning(f"Failed to parse query string for wildcard detection: {e}")
+        return False
+
+
 def _was_wildcard_url_encoded(field_name: str, value: str) -> bool:
     """
     Check if the original query string contained URL-encoded wildcards (%2A) for this field.
@@ -60,43 +103,11 @@ def _was_wildcard_url_encoded(field_name: str, value: str) -> bool:
     try:
         # Get the raw query string from Flask request
         query_string = request.environ.get("QUERY_STRING", "")
-        if not query_string:
-            return False
+        return _check_url_encoded_wildcards_in_query(field_name, query_string)
 
-        # Look for URL-encoded asterisks (%2A or %2a) in the query string
-        # We need to check if this specific field had URL-encoded wildcards
-        # This is a heuristic approach - we look for the field name followed by URL-encoded asterisks
-
-        # Build possible query patterns for this field
-        # e.g., filter[system_profile][os_release]=abc%2A123
-        field_patterns = [
-            f"filter[system_profile][{field_name}]=",
-            f"filter%5Bsystem_profile%5D%5B{field_name}%5D=",  # URL-encoded brackets
-        ]
-
-        for pattern in field_patterns:
-            if pattern in query_string:
-                # Find the start of the value for this field
-                start_idx = query_string.find(pattern)
-                if start_idx != -1:
-                    value_start = start_idx + len(pattern)
-                    # Find the end of this parameter (next & or end of string)
-                    value_end = query_string.find("&", value_start)
-                    if value_end == -1:
-                        value_end = len(query_string)
-
-                    # Extract the raw value from the query string
-                    raw_value = query_string[value_start:value_end]
-
-                    # Check if this raw value contains URL-encoded asterisks
-                    if "%2A" in raw_value or "%2a" in raw_value:
-                        return True
-
-        return False
-
-    except Exception:
-        # If we can't determine from the query string, default to False
-        # This means we'll treat asterisks as wildcards (existing behavior)
+    except (RuntimeError, AttributeError) as e:
+        # Handle Flask request context issues or missing environ
+        logger.warning(f"Unable to access Flask request context for wildcard detection: {e}")
         return False
 
 
