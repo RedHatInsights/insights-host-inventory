@@ -69,28 +69,47 @@ def _was_wildcard_url_encoded(value: str, field_path: str, query_string: str | N
         # URL-encode the current value to see what it would look like if it was encoded
         encoded_value = quote(value, safe="")
 
-        # Check if the encoded version (with %2A) appears in the raw query string
-        # We need to be careful to match the specific field path
-        if f"[{field_path}]={encoded_value}" in raw_query:
-            return True
+        # Check if the encoded version (with %2A or %2a) appears in the raw query string
+        # Look for both direct field match and nested system_profile match
+        encoded_value_upper = encoded_value
+        encoded_value_lower = encoded_value.replace("%2A", "%2a")
 
-        # Also check for the case where the field might be nested deeper
-        # e.g., filter[system_profile][os_release]=abc%2A123
-        if f"[{field_path}]={encoded_value}" in raw_query:
-            return True
+        field_patterns = [
+            f"[{field_path}]={encoded_value_upper}",
+            f"[{field_path}]={encoded_value_lower}",
+            f"[system_profile][{field_path}]={encoded_value_upper}",
+            f"[system_profile][{field_path}]={encoded_value_lower}",
+        ]
 
-        # Check for URL-encoded asterisks specifically
-        if "%2A" in raw_query or "%2a" in raw_query:
-            # If the raw query contains URL-encoded asterisks and our value contains asterisks,
-            # it's likely that our asterisks were originally encoded
-            # This is a heuristic approach since we can't perfectly reconstruct the mapping
-            # without more complex parsing
-            return True
+        for pattern in field_patterns:
+            if pattern in raw_query:
+                return True
 
-    except Exception:
-        # If anything goes wrong with the detection, default to treating as non-encoded
-        # This ensures we don't break existing functionality
-        pass
+        # Fallback heuristic: check if this specific field has URL-encoded wildcards
+        # This is more conservative than the global check
+        field_specific_patterns = [
+            f"[{field_path}]=" + quote(value.replace("*", "%2A"), safe=""),
+            f"[{field_path}]=" + quote(value.replace("*", "%2a"), safe=""),
+        ]
+
+        for pattern in field_specific_patterns:
+            if pattern in raw_query:
+                return True
+
+    except (KeyError, AttributeError, TypeError, ValueError) as exc:
+        # Known issues while inspecting the raw query; treat as non-encoded
+        logger.debug(
+            "URL-encoding detection failed with %s: %s",
+            type(exc).__name__,
+            exc,
+        )
+    except Exception as exc:
+        # Log unexpected errors so they remain observable
+        logger.warning(
+            "Unexpected error in URL-encoding detection: %s: %s",
+            type(exc).__name__,
+            exc,
+        )
 
     return False
 

@@ -61,19 +61,25 @@ class TestUrlEncodedWildcardDetection:
         result1 = _was_wildcard_url_encoded("abc*123", "os_release", query_string)
         assert result1 is True
 
-        # The bios_version field should be detected as not encoded
+        # The bios_version field should be detected as not encoded (regular asterisk)
         result2 = _was_wildcard_url_encoded("def*456", "bios_version", query_string)
-        assert result2 is True  # This will be True due to the heuristic that checks for %2A in query string
+        assert result2 is False
 
-    def test_was_wildcard_url_encoded_heuristic_fallback(self):
-        """Test the heuristic fallback when exact matching fails."""
-        # Query string contains %2A but not the exact field match
+    def test_was_wildcard_url_encoded_field_specific_detection(self):
+        """Test that detection is field-specific and doesn't use global heuristics."""
+        # Query string contains %2A for one field but not another
         query_string = "filter[system_profile][other_field]=abc%2A123"
         result = _was_wildcard_url_encoded("def*456", "os_release", query_string)
-        assert result is True  # Should return True due to heuristic
+        assert result is False  # Should not match due to field-specific logic
 
     def test_was_wildcard_url_encoded_no_encoded_wildcards_in_query(self):
         """Test when query string has no URL-encoded wildcards."""
         query_string = "filter[system_profile][os_release]=abc123&filter[system_profile][bios_version]=def456"
         result = _was_wildcard_url_encoded("abc*123", "os_release", query_string)
         assert result is False
+
+    def test_was_wildcard_url_encoded_direct_field_pattern(self):
+        """Test detection with direct field pattern (no system_profile prefix)."""
+        query_string = "filter[os_release]=abc%2A123"
+        result = _was_wildcard_url_encoded("abc*123", "os_release", query_string)
+        assert result is True
