@@ -185,13 +185,12 @@ run_migrations() {
     local wt_dir="$1"
     local db_port="$2"
     cd "$wt_dir"
-    unset PIPENV_PIPFILE
     INVENTORY_DB_HOST=localhost \
     INVENTORY_DB_PORT="$db_port" \
     INVENTORY_DB_NAME=insights \
     INVENTORY_DB_USER=insights \
     INVENTORY_DB_PASS=insights \
-    pipenv run make upgrade_db
+    uv run make upgrade_db
 }
 
 # --- Command stubs (implemented in subsequent tasks) ---
@@ -244,13 +243,12 @@ cmd_create() {
     mkdir -p "$pg_data"
 
     echo "Installing virtual environments..."
-    local main_log="$WORKTREES_DIR/$safe_name/.pipenv-main.log"
+    local main_log="$WORKTREES_DIR/$safe_name/.uv-main.log"
     local main_pid
 
     (
         cd "$WORKTREES_DIR/$safe_name"
-        unset PIPENV_PIPFILE
-        pipenv sync --dev -v
+        uv sync
     ) > "$main_log" 2>&1 &
     main_pid=$!
     echo "  Main venv (PID $main_pid) — log: $main_log"
@@ -304,14 +302,14 @@ cmd_create() {
         exit 1
     fi
 
-    rm -f "$main_log" "$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
+    rm -f "$main_log" "$WORKTREES_DIR/$safe_name/.pipenv-iqe.log" "$WORKTREES_DIR/$safe_name/.uv-main.log"
 
     echo "Starting compose stack..."
     cd "$WORKTREES_DIR/$safe_name"
     if ! podman compose -f dev.yml up -d; then
         echo "Error: Compose stack failed to start. Cleaning up..." >&2
         remove_pg_data "$pg_data"
-        (cd "$WORKTREES_DIR/$safe_name" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
+        rm -rf "$WORKTREES_DIR/$safe_name/.venv"
         if [[ "$skip_iqe" == "false" ]]; then
             (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
         fi
@@ -347,7 +345,7 @@ cmd_create() {
     echo "  DB Port:    $db_port"
     echo ""
     echo "To activate the main app environment:"
-    echo "  cd $WORKTREES_DIR/$safe_name && unset PIPENV_PIPFILE && pipenv shell"
+    echo "  cd $WORKTREES_DIR/$safe_name && source .venv/bin/activate"
     if [[ "$skip_iqe" == "false" ]]; then
         echo ""
         echo "To activate the IQE test environment:"
@@ -383,7 +381,7 @@ cmd_up() {
         echo "Use --clean to tear down and restart with a fresh database."
         echo ""
         echo "To activate the main app environment:"
-        echo "  cd $wt_dir && unset PIPENV_PIPFILE && pipenv shell"
+        echo "  cd $wt_dir && source .venv/bin/activate"
         if [[ -f "$wt_dir/Pipfile.iqe" ]]; then
             echo ""
             echo "To activate the IQE test environment:"
@@ -423,7 +421,7 @@ cmd_up() {
     echo "  DB Port:   $db_port"
     echo ""
     echo "To activate the main app environment:"
-    echo "  cd $wt_dir && unset PIPENV_PIPFILE && pipenv shell"
+    echo "  cd $wt_dir && source .venv/bin/activate"
     if [[ -f "$wt_dir/Pipfile.iqe" ]]; then
         echo ""
         echo "To activate the IQE test environment:"
@@ -486,7 +484,7 @@ cmd_destroy() {
     fi
 
     echo "Removing virtual environments..."
-    (cd "$wt_dir" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
+    rm -rf "$wt_dir/.venv"
     (cd "$wt_dir" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
 
     local branch
