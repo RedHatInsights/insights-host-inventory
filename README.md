@@ -19,6 +19,7 @@ please see the
     - [Create Hosts Data](#create-hosts-data)
     - [Run the export service](#run-the-export-service)
     - [Testing](#testing)
+- [Parallel development with worktrees](#parallel-development-with-worktrees)
 - [Running the webserver locally](#running-the-webserver-locally)
 - [Legacy Support](#legacy-support)
 - [Identity](#identity)
@@ -313,6 +314,27 @@ This ensures that every PR is tested with the exact IQE test code in the reposit
 - `deploy_ephemeral_env.sh`: Creates the ephemeral namespace and deploys HBI
 - `run_cji_with_local_plugin.sh`: Deploys the CJI pod, copies local plugin, installs it, and runs tests
 - `post_test_results.sh`: Collects and publishes test results
+
+## Parallel development with worktrees
+
+Need to run multiple branches at the same time, each with their own stack?
+The `scripts/worktree.sh` script creates isolated git worktrees with per-worktree Podman Compose stacks,
+databases, and virtual environments — no port collisions, no shared DB data.
+
+```bash
+# Create a worktree with full stack
+./scripts/worktree.sh create my-feature-branch
+
+# List worktrees and their status
+./scripts/worktree.sh list
+
+# Tear down everything when done
+./scripts/worktree.sh destroy my-feature
+```
+
+This is useful for running multiple AI agents on independent branches, parallel feature work, or code review with live stacks.
+See the [full documentation](docs/worktree-parallel-development.md)
+for details on port allocation, environment variables, and all available commands.
 
 ## Running the webserver locally
 
