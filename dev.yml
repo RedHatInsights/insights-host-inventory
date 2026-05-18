@@ -1,7 +1,6 @@
 version: '3.1'
 services:
     db:
-      container_name: hbi-db
       image: docker.io/library/postgres:16.4
       command: postgres -c wal_level=logical
       restart: always
@@ -12,13 +11,13 @@ services:
           POSTGRES_DB: insights
       privileged: true
       ports:
-          - "5432:5432"
+          - "${INVENTORY_DB_PORT:-5432}:5432"
       volumes:
         - ./.unleash/create_unleashdb.sql:/docker-entrypoint-initdb.d/create_unleashdb.sql
         - ./.export-service/create_exportdb.sql:/docker-entrypoint-initdb.d/create_exportdb.sql
         # Create .pg_data dir in your home or another destination for saving the db data between runs.
         # It is being provided to test DB upgrades
-        - ~/.pg_data:/var/lib/postgresql/data
+        - ${HBI_PG_DATA:-~/.pg_data}:/var/lib/postgresql/data
       healthcheck:
         test: "pg_isready -h db"
         interval: 2s
@@ -26,7 +25,6 @@ services:
         retries: 5
 
     export-service:
-      container_name: export-service
       image: quay.io/cloudservices/export-service
       environment:
         - PGSQL_PORT=5432
@@ -53,28 +51,26 @@ services:
       volumes:
         - './.export-service:/.export-service'
       ports:
-        - "8001:8001"
-        - "9090:9090"
-        - "10010:10010"
+        - "${HBI_EXPORT_PORT:-8001}:8001"
+        - "${HBI_EXPORT_METRICS_PORT:-9090}:9090"
+        - "${HBI_EXPORT_PRIVATE_PORT:-10010}:10010"
       command: >
         /bin/sh -c "export-service migrate_db upgrade;
         export-service api_server;
         "
 
     zookeeper:
-      container_name: zookeeper
       image: docker.io/confluentinc/cp-zookeeper:7.4.4
       environment:
         - ZOOKEEPER_CLIENT_PORT=32181
         - ZOOKEEPER_SERVER_ID=1
 
     kafka:
-      container_name: kafka
       image: docker.io/confluentinc/cp-kafka:7.4.4
       restart: always
       ports:
-        - "29092:29092"
-        - "9092:9092"
+        - "${HBI_KAFKA_INTERNAL_PORT:-29092}:29092"
+        - "${HBI_KAFKA_PORT:-9092}:9092"
       depends_on:
         - zookeeper
       environment:
@@ -93,7 +89,6 @@ services:
         start_period: 15s
 
     unleash:
-      container_name: unleash
       image: docker.io/unleashorg/unleash-server:5.11.3
       environment:
         - INIT_ADMIN_API_TOKENS=${UNLEASH_TOKEN:?}
@@ -107,7 +102,7 @@ services:
         - IMPORT_DROP_BEFORE_IMPORT=true
         - LOG_LEVEL=INFO
       ports:
-        - "4242:4242"
+        - "${HBI_UNLEASH_PORT:-4242}:4242"
       volumes:
         - './.unleash:/.unleash'
       depends_on:
@@ -117,17 +112,15 @@ services:
         - label=disable
 
     prometheus-gateway:
-      container_name: prometheus_gateway
       image: quay.io/prometheus/pushgateway
       ports:
-        - "9091:9091"
+        - "${HBI_PROM_GW_PORT:-9091}:9091"
 
     minio:
-      container_name: minio
       image: docker.io/minio/minio
       ports:
-        - "9099:9099"
-        - "9991:9991"
+        - "${HBI_MINIO_API_PORT:-9099}:9099"
+        - "${HBI_MINIO_CONSOLE_PORT:-9991}:9991"
       volumes:
         - ./tmp/minio:/data:Z
       environment:
@@ -136,7 +129,6 @@ services:
       command: server --address 0.0.0.0:9099 --console-address 0.0.0.0:9991 /data
 
     s3-createbucket:
-      container_name: s3-createbucket
       image: docker.io/minio/mc
       depends_on:
         - minio
@@ -152,11 +144,10 @@ services:
         "
 
     redis:
-      container_name: hbi-redis
       image: docker.io/library/redis:7
       restart: always
       ports:
-        - "6379:6379"
+        - "${HBI_REDIS_PORT:-6379}:6379"
       healthcheck:
         test: ["CMD", "redis-cli", "ping"]
         interval: 2s
@@ -164,20 +155,18 @@ services:
         retries: 5
 
     tempo:
-      container_name: tempo
       image: grafana/tempo:2.7.1
       command: ["-config.file=/etc/tempo.yaml"]
       volumes:
         - ./.otel/tempo.yaml:/etc/tempo.yaml
       ports:
-        - "4318:4318"
-        - "3200:3200"
+        - "${HBI_TEMPO_OTLP_PORT:-4318}:4318"
+        - "${HBI_TEMPO_INTERNAL_PORT:-3250}:3200"
 
     grafana:
-      container_name: grafana
       image: grafana/grafana:11.5.2
       ports:
-        - "3000:3000"
+        - "${HBI_GRAFANA_PORT:-3000}:3000"
       environment:
         - GF_AUTH_ANONYMOUS_ENABLED=true
         - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -187,10 +176,9 @@ services:
         - tempo
 
     hbi-web:
-      container_name: hbi-web
       build: .
       ports:
-        - "8080:8080"
+        - "${HBI_WEB_PORT:-8080}:8080"
       environment:
         - LISTEN_PORT=${LISTEN_PORT:-8080}
         - FLASK_ENV=${FLASK_ENV:-development}
@@ -236,7 +224,6 @@ services:
         - label=disable
 
     hbi-mq:
-      container_name: hbi-mq
       build: .
       environment:
         - INVENTORY_LOG_LEVEL=${INVENTORY_LOG_LEVEL:-DEBUG}
