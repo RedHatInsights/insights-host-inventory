@@ -279,9 +279,155 @@ cmd_create() {
     echo "  cd $WORKTREES_DIR/$safe_name && unset PIPENV_PIPFILE && pipenv shell"
     echo "════════════════════════════════════════════════════"
 }
-cmd_up()     { echo "Error: 'up' not yet implemented" >&2; exit 1; }
-cmd_down()   { echo "Error: 'down' not yet implemented" >&2; exit 1; }
-cmd_destroy(){ echo "Error: 'destroy' not yet implemented" >&2; exit 1; }
+cmd_up() {
+    local clean=false
+    local name=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --clean) clean=true; shift ;;
+            *) name="$1"; shift ;;
+        esac
+    done
+
+    local wt_dir
+    wt_dir=$(resolve_worktree "$name")
+    local wt_name
+    wt_name=$(basename "$wt_dir")
+
+    if is_stack_running "$wt_dir" && [[ "$clean" == "false" ]]; then
+        local web_port
+        web_port=$(grep '^HBI_WEB_PORT=' "$wt_dir/.env" | cut -d= -f2)
+        local db_port
+        db_port=$(grep '^INVENTORY_DB_PORT=' "$wt_dir/.env" | cut -d= -f2)
+        echo "Stack for '$wt_name' is already running."
+        echo "  Web API:   http://localhost:$web_port"
+        echo "  DB Port:   $db_port"
+        echo ""
+        echo "Use --clean to tear down and restart with a fresh database."
+        echo ""
+        echo "To activate the environment:"
+        echo "  cd $wt_dir && unset PIPENV_PIPFILE && pipenv shell"
+        exit 0
+    fi
+
+    if [[ "$clean" == "true" ]]; then
+        echo "Cleaning and restarting stack for '$wt_name'..."
+        cd "$wt_dir"
+        podman compose -f dev.yml down 2>/dev/null || true
+        local pg_data
+        pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
+        pg_data="${pg_data/#\~/$HOME}"
+        rm -rf "$pg_data"
+        mkdir -p "$pg_data"
+    fi
+
+    echo "Starting stack for '$wt_name'..."
+    cd "$wt_dir"
+    podman compose -f dev.yml up -d
+
+    local db_port
+    db_port=$(grep '^INVENTORY_DB_PORT=' "$wt_dir/.env" | cut -d= -f2)
+    wait_for_db "$db_port"
+
+    echo "Running database migrations..."
+    run_migrations "$wt_dir" "$db_port"
+
+    local web_port
+    web_port=$(grep '^HBI_WEB_PORT=' "$wt_dir/.env" | cut -d= -f2)
+
+    echo ""
+    echo "Stack for '$wt_name' is up."
+    echo "  Web API:   http://localhost:$web_port"
+    echo "  DB Port:   $db_port"
+    echo ""
+    echo "To activate the environment:"
+    echo "  cd $wt_dir && unset PIPENV_PIPFILE && pipenv shell"
+}
+cmd_down() {
+    local keep_db=false
+    local name=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --keep-db) keep_db=true; shift ;;
+            *) name="$1"; shift ;;
+        esac
+    done
+
+    local wt_dir
+    wt_dir=$(resolve_worktree "$name")
+    local wt_name
+    wt_name=$(basename "$wt_dir")
+
+    echo "Stopping stack for '$wt_name'..."
+    cd "$wt_dir"
+    podman compose -f dev.yml down
+
+    if [[ "$keep_db" == "false" ]]; then
+        local pg_data
+        pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
+        pg_data="${pg_data/#\~/$HOME}"
+        if [[ -d "$pg_data" ]]; then
+            echo "Removing DB data at $pg_data..."
+            rm -rf "$pg_data"
+        fi
+    else
+        echo "DB data preserved (--keep-db)."
+    fi
+
+    echo "Stack for '$wt_name' stopped."
+}
+cmd_destroy() {
+    local name="${1:?Usage: worktree.sh destroy <worktree-name>}"
+    local wt_dir="$WORKTREES_DIR/$name"
+
+    if [[ ! -d "$wt_dir" ]]; then
+        echo "Error: Worktree '$name' not found at $wt_dir" >&2
+        exit 1
+    fi
+
+    echo "Destroying worktree '$name'..."
+
+    if [[ -f "$wt_dir/.env" ]]; then
+        if is_stack_running "$wt_dir" 2>/dev/null; then
+            echo "Stopping compose stack..."
+            cd "$wt_dir"
+            podman compose -f dev.yml down 2>/dev/null || true
+        fi
+
+        local pg_data
+        pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
+        pg_data="${pg_data/#\~/$HOME}"
+        if [[ -d "$pg_data" ]]; then
+            echo "Removing DB data at $pg_data..."
+            rm -rf "$pg_data"
+        fi
+    fi
+
+    echo "Removing virtual environments..."
+    (cd "$wt_dir" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
+    (cd "$wt_dir" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
+
+    local branch
+    branch=$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    cd "$REPO_ROOT"
+    echo "Removing git worktree..."
+    git worktree remove "$wt_dir" --force
+
+    if [[ -n "$branch" ]]; then
+        if git branch -d "$branch" 2>/dev/null; then
+            echo "Deleted branch '$branch' (was fully merged)."
+        else
+            echo "Warning: Branch '$branch' is not fully merged. Not deleted."
+            echo "  To force delete: git branch -D $branch"
+        fi
+    fi
+
+    echo ""
+    echo "Worktree '$name' destroyed."
+}
 cmd_list() {
     printf "\nHBI Worktrees:\n"
     echo "────────────────────────────────────────────────────────────────"
