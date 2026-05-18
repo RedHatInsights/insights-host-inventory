@@ -3,7 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-WORKTREES_DIR="$REPO_ROOT/worktrees"
+
+if [[ -f "$REPO_ROOT/.git" ]]; then
+    MAIN_REPO_ROOT=$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir | sed 's|/\.git$||')
+else
+    MAIN_REPO_ROOT="$REPO_ROOT"
+fi
+
+WORKTREES_DIR="$MAIN_REPO_ROOT/worktrees"
 MAX_SLOTS=8
 
 # --- Utility Functions ---
@@ -170,7 +177,21 @@ run_migrations() {
 # --- Command stubs (implemented in subsequent tasks) ---
 
 cmd_create() {
-    local branch_name="${1:?Usage: worktree.sh create <branch-name>}"
+    local skip_iqe=false
+    local branch_name=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-iqe) skip_iqe=true; shift ;;
+            *) branch_name="$1"; shift ;;
+        esac
+    done
+
+    if [[ -z "$branch_name" ]]; then
+        echo "Usage: worktree.sh create [--no-iqe] <branch-name>" >&2
+        exit 1
+    fi
+
     local safe_name
     safe_name=$(sanitize_name "$branch_name")
 
@@ -202,10 +223,9 @@ cmd_create() {
     pg_data="${pg_data/#\~/$HOME}"
     mkdir -p "$pg_data"
 
-    echo "Installing virtual environments (in parallel)..."
+    echo "Installing virtual environments..."
     local main_log="$WORKTREES_DIR/$safe_name/.pipenv-main.log"
-    local iqe_log="$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
-    local main_pid iqe_pid
+    local main_pid
 
     (
         cd "$WORKTREES_DIR/$safe_name"
@@ -213,15 +233,20 @@ cmd_create() {
         pipenv sync --dev -v
     ) > "$main_log" 2>&1 &
     main_pid=$!
-
-    (
-        cd "$WORKTREES_DIR/$safe_name"
-        bash setup-iqe.sh
-    ) > "$iqe_log" 2>&1 &
-    iqe_pid=$!
-
     echo "  Main venv (PID $main_pid) — log: $main_log"
-    echo "  IQE venv  (PID $iqe_pid) — log: $iqe_log"
+
+    local iqe_pid=""
+    if [[ "$skip_iqe" == "false" ]]; then
+        local iqe_log="$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
+        (
+            cd "$WORKTREES_DIR/$safe_name"
+            bash setup-iqe.sh
+        ) > "$iqe_log" 2>&1 &
+        iqe_pid=$!
+        echo "  IQE venv  (PID $iqe_pid) — log: $iqe_log"
+    else
+        echo "  IQE venv skipped (--no-iqe)"
+    fi
 
     local failed=false
     if ! wait "$main_pid"; then
@@ -230,11 +255,13 @@ cmd_create() {
     else
         echo "  Main venv installed successfully."
     fi
-    if ! wait "$iqe_pid"; then
-        echo "Error: IQE venv installation failed. See $iqe_log" >&2
-        failed=true
-    else
-        echo "  IQE venv installed successfully."
+    if [[ -n "$iqe_pid" ]]; then
+        if ! wait "$iqe_pid"; then
+            echo "Error: IQE venv installation failed. See $iqe_log" >&2
+            failed=true
+        else
+            echo "  IQE venv installed successfully."
+        fi
     fi
 
     if [[ "$failed" == "true" ]]; then
@@ -244,7 +271,7 @@ cmd_create() {
         exit 1
     fi
 
-    rm -f "$main_log" "$iqe_log"
+    rm -f "$main_log" "$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
 
     echo "Starting compose stack..."
     cd "$WORKTREES_DIR/$safe_name"
@@ -252,8 +279,10 @@ cmd_create() {
         echo "Error: Compose stack failed to start. Cleaning up..." >&2
         remove_pg_data "$pg_data"
         (cd "$WORKTREES_DIR/$safe_name" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
-        (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
-        cd "$REPO_ROOT"
+        if [[ "$skip_iqe" == "false" ]]; then
+            (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
+        fi
+        cd "$MAIN_REPO_ROOT"
         git worktree remove "$WORKTREES_DIR/$safe_name" --force 2>/dev/null || true
         exit 1
     fi
@@ -414,7 +443,7 @@ cmd_destroy() {
     local branch
     branch=$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
-    cd "$REPO_ROOT"
+    cd "$MAIN_REPO_ROOT"
     echo "Removing git worktree..."
     git worktree remove "$wt_dir" --force
 
@@ -432,9 +461,9 @@ cmd_destroy() {
 }
 cmd_list() {
     printf "\nHBI Worktrees:\n"
-    echo "────────────────────────────────────────────────────────────────"
+    echo "─────────────────────────────────────────────────────────────────────────────"
     printf "%-20s %-25s %-6s %-10s %-8s %-8s\n" "NAME" "BRANCH" "SLOT" "STATUS" "WEB" "DB"
-    echo "────────────────────────────────────────────────────────────────"
+    echo "─────────────────────────────────────────────────────────────────────────────"
 
     local found=false
     for env_file in "$WORKTREES_DIR"/*/.env; do
@@ -467,7 +496,7 @@ cmd_list() {
         echo "  (no worktrees)"
     fi
 
-    echo "────────────────────────────────────────────────────────────────"
+    echo "─────────────────────────────────────────────────────────────────────────────"
     echo ""
 }
 
@@ -483,7 +512,7 @@ case "${1:-}" in
         echo "Usage: worktree.sh <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  create <branch-name>              Create a new worktree with full isolation"
+        echo "  create [--no-iqe] <branch-name>   Create a new worktree with full isolation"
         echo "  up [worktree-name] [--clean]       Start compose stack for a worktree"
         echo "  down [worktree-name] [--keep-db]   Stop compose stack"
         echo "  destroy <worktree-name>            Remove worktree and all resources"
