@@ -282,7 +282,46 @@ cmd_create() {
 cmd_up()     { echo "Error: 'up' not yet implemented" >&2; exit 1; }
 cmd_down()   { echo "Error: 'down' not yet implemented" >&2; exit 1; }
 cmd_destroy(){ echo "Error: 'destroy' not yet implemented" >&2; exit 1; }
-cmd_list()   { echo "Error: 'list' not yet implemented" >&2; exit 1; }
+cmd_list() {
+    printf "\nHBI Worktrees:\n"
+    echo "────────────────────────────────────────────────────────────────"
+    printf "%-20s %-25s %-6s %-10s %-8s %-8s\n" "NAME" "BRANCH" "SLOT" "STATUS" "WEB" "DB"
+    echo "────────────────────────────────────────────────────────────────"
+
+    local found=false
+    for env_file in "$WORKTREES_DIR"/*/.env; do
+        [[ -f "$env_file" ]] || continue
+        found=true
+
+        local wt_dir
+        wt_dir=$(dirname "$env_file")
+        local wt_name
+        wt_name=$(basename "$wt_dir")
+
+        local branch
+        branch=$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+        local db_port
+        db_port=$(grep '^INVENTORY_DB_PORT=' "$env_file" | cut -d= -f2)
+        local web_port
+        web_port=$(grep '^HBI_WEB_PORT=' "$env_file" | cut -d= -f2)
+        local slot=$(( (db_port - 5432) / 100 ))
+
+        local status="stopped"
+        if is_stack_running "$wt_dir" 2>/dev/null; then
+            status="running"
+        fi
+
+        printf "%-20s %-25s %-6s %-10s %-8s %-8s\n" "$wt_name" "$branch" "$slot" "$status" "$web_port" "$db_port"
+    done
+
+    if [[ "$found" == "false" ]]; then
+        echo "  (no worktrees)"
+    fi
+
+    echo "────────────────────────────────────────────────────────────────"
+    echo ""
+}
 
 # --- Main dispatch ---
 
