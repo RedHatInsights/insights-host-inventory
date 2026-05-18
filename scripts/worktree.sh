@@ -161,7 +161,111 @@ run_migrations() {
 
 # --- Command stubs (implemented in subsequent tasks) ---
 
-cmd_create() { echo "Error: 'create' not yet implemented" >&2; exit 1; }
+cmd_create() {
+    local branch_name="${1:?Usage: worktree.sh create <branch-name>}"
+    local safe_name
+    safe_name=$(sanitize_name "$branch_name")
+
+    if [[ -d "$WORKTREES_DIR/$safe_name" ]]; then
+        echo "Error: Worktree '$safe_name' already exists at $WORKTREES_DIR/$safe_name" >&2
+        exit 1
+    fi
+
+    local slot
+    slot=$(find_free_slot) || {
+        echo "Error: All $MAX_SLOTS worktree slots are in use. Active worktrees:" >&2
+        cmd_list >&2
+        exit 1
+    }
+
+    local offset=$((slot * 100))
+    echo "Creating worktree '$safe_name' on branch '$branch_name' (slot $slot, port offset +$offset)..."
+
+    mkdir -p "$WORKTREES_DIR"
+    git worktree add "$WORKTREES_DIR/$safe_name" -b "$branch_name"
+
+    echo "Initializing submodules..."
+    git -C "$WORKTREES_DIR/$safe_name" submodule update --init --recursive
+
+    generate_env "$safe_name" "$slot"
+
+    local pg_data
+    pg_data=$(grep '^HBI_PG_DATA=' "$WORKTREES_DIR/$safe_name/.env" | cut -d= -f2)
+    pg_data="${pg_data/#\~/$HOME}"
+    mkdir -p "$pg_data"
+
+    echo "Installing virtual environments (in parallel)..."
+    local main_log="$WORKTREES_DIR/$safe_name/.pipenv-main.log"
+    local iqe_log="$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
+    local main_pid iqe_pid
+
+    (
+        cd "$WORKTREES_DIR/$safe_name"
+        unset PIPENV_PIPFILE
+        pipenv sync --dev -v
+    ) > "$main_log" 2>&1 &
+    main_pid=$!
+
+    (
+        cd "$WORKTREES_DIR/$safe_name"
+        bash setup-iqe.sh
+    ) > "$iqe_log" 2>&1 &
+    iqe_pid=$!
+
+    echo "  Main venv (PID $main_pid) — log: $main_log"
+    echo "  IQE venv  (PID $iqe_pid) — log: $iqe_log"
+
+    local failed=false
+    if ! wait "$main_pid"; then
+        echo "Error: Main venv installation failed. See $main_log" >&2
+        failed=true
+    else
+        echo "  Main venv installed successfully."
+    fi
+    if ! wait "$iqe_pid"; then
+        echo "Error: IQE venv installation failed. See $iqe_log" >&2
+        failed=true
+    else
+        echo "  IQE venv installed successfully."
+    fi
+
+    if [[ "$failed" == "true" ]]; then
+        echo "Cleaning up after venv failure..." >&2
+        rm -rf "$pg_data"
+        git worktree remove "$WORKTREES_DIR/$safe_name" --force 2>/dev/null || true
+        exit 1
+    fi
+
+    rm -f "$main_log" "$iqe_log"
+
+    echo "Starting compose stack..."
+    cd "$WORKTREES_DIR/$safe_name"
+    podman compose -f dev.yml up -d
+
+    local db_port
+    db_port=$(grep '^INVENTORY_DB_PORT=' "$WORKTREES_DIR/$safe_name/.env" | cut -d= -f2)
+    wait_for_db "$db_port"
+
+    echo "Running database migrations..."
+    run_migrations "$WORKTREES_DIR/$safe_name" "$db_port"
+
+    local web_port
+    web_port=$(grep '^HBI_WEB_PORT=' "$WORKTREES_DIR/$safe_name/.env" | cut -d= -f2)
+
+    echo ""
+    echo "════════════════════════════════════════════════════"
+    echo " Worktree '$safe_name' created successfully!"
+    echo "════════════════════════════════════════════════════"
+    echo "  Branch:     $branch_name"
+    echo "  Path:       $WORKTREES_DIR/$safe_name"
+    echo "  Slot:       $slot"
+    echo "  Web API:    http://localhost:$web_port"
+    echo "  DB Port:    $db_port"
+    echo ""
+    echo "To activate the environment:"
+    echo "  cd $WORKTREES_DIR/$safe_name && unset PIPENV_PIPFILE && pipenv shell"
+    echo "════════════════════════════════════════════════════"
+}
 cmd_up()     { echo "Error: 'up' not yet implemented" >&2; exit 1; }
 cmd_down()   { echo "Error: 'down' not yet implemented" >&2; exit 1; }
 cmd_destroy(){ echo "Error: 'destroy' not yet implemented" >&2; exit 1; }
