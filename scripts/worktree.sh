@@ -240,14 +240,27 @@ cmd_create() {
 
     echo "Starting compose stack..."
     cd "$WORKTREES_DIR/$safe_name"
-    podman compose -f dev.yml up -d
+    if ! podman compose -f dev.yml up -d; then
+        echo "Error: Compose stack failed to start. Cleaning up..." >&2
+        rm -rf "$pg_data"
+        (cd "$WORKTREES_DIR/$safe_name" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
+        (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
+        cd "$REPO_ROOT"
+        git worktree remove "$WORKTREES_DIR/$safe_name" --force 2>/dev/null || true
+        exit 1
+    fi
 
     local db_port
     db_port=$(grep '^INVENTORY_DB_PORT=' "$WORKTREES_DIR/$safe_name/.env" | cut -d= -f2)
     wait_for_db "$db_port"
 
     echo "Running database migrations..."
-    run_migrations "$WORKTREES_DIR/$safe_name" "$db_port"
+    if ! run_migrations "$WORKTREES_DIR/$safe_name" "$db_port"; then
+        echo "Error: DB migration failed. Stack left running for debugging." >&2
+        echo "  DB Port: $db_port" >&2
+        echo "  Path:    $WORKTREES_DIR/$safe_name" >&2
+        exit 1
+    fi
 
     local web_port
     web_port=$(grep '^HBI_WEB_PORT=' "$WORKTREES_DIR/$safe_name/.env" | cut -d= -f2)
