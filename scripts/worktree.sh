@@ -99,6 +99,14 @@ EOF
     fi
 }
 
+remove_pg_data() {
+    local pg_data="$1"
+    if [[ -d "$pg_data" ]]; then
+        echo "Removing DB data at $pg_data..."
+        podman unshare rm -rf "$pg_data" 2>/dev/null || rm -rf "$pg_data"
+    fi
+}
+
 resolve_worktree() {
     local name="${1:-}"
     if [[ -n "$name" ]]; then
@@ -231,7 +239,7 @@ cmd_create() {
 
     if [[ "$failed" == "true" ]]; then
         echo "Cleaning up after venv failure..." >&2
-        rm -rf "$pg_data"
+        remove_pg_data "$pg_data"
         git worktree remove "$WORKTREES_DIR/$safe_name" --force 2>/dev/null || true
         exit 1
     fi
@@ -242,7 +250,7 @@ cmd_create() {
     cd "$WORKTREES_DIR/$safe_name"
     if ! podman compose -f dev.yml up -d; then
         echo "Error: Compose stack failed to start. Cleaning up..." >&2
-        rm -rf "$pg_data"
+        remove_pg_data "$pg_data"
         (cd "$WORKTREES_DIR/$safe_name" && unset PIPENV_PIPFILE && pipenv --rm) 2>/dev/null || true
         (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
         cd "$REPO_ROOT"
@@ -318,7 +326,7 @@ cmd_up() {
         local pg_data
         pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
         pg_data="${pg_data/#\~/$HOME}"
-        rm -rf "$pg_data"
+        remove_pg_data "$pg_data"
         mkdir -p "$pg_data"
     fi
 
@@ -368,10 +376,7 @@ cmd_down() {
         local pg_data
         pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
         pg_data="${pg_data/#\~/$HOME}"
-        if [[ -d "$pg_data" ]]; then
-            echo "Removing DB data at $pg_data..."
-            rm -rf "$pg_data"
-        fi
+        remove_pg_data "$pg_data"
     else
         echo "DB data preserved (--keep-db)."
     fi
@@ -399,10 +404,7 @@ cmd_destroy() {
         local pg_data
         pg_data=$(grep '^HBI_PG_DATA=' "$wt_dir/.env" | cut -d= -f2)
         pg_data="${pg_data/#\~/$HOME}"
-        if [[ -d "$pg_data" ]]; then
-            echo "Removing DB data at $pg_data..."
-            rm -rf "$pg_data"
-        fi
+        remove_pg_data "$pg_data"
     fi
 
     echo "Removing virtual environments..."
