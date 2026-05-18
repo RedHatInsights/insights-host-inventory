@@ -92,6 +92,7 @@ appropriate values for your environment.
 ```bash
 cat > ${PWD}/.env<<EOF
 # RUNNING HBI Locally
+COMPOSE_PROJECT_NAME=hbi
 PROMETHEUS_MULTIPROC_DIR=/tmp
 BYPASS_RBAC=true
 BYPASS_UNLEASH=true
