@@ -79,9 +79,7 @@ class TestRBACStalenessWritePermission:
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
 
-        response = host_inventory_non_org_admin.apis.account_staleness.create_staleness(
-            **settings, wait_for_host_events=False
-        )
+        response = host_inventory_non_org_admin.apis.account_staleness.create_staleness(**settings)
         validate_staleness_response(response.to_dict(), hbi_staleness_defaults, settings)
 
         assert response.org_id == hbi_non_org_admin_user_org_id
@@ -113,9 +111,7 @@ class TestRBACStalenessWritePermission:
         original = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
-        response = host_inventory_non_org_admin.apis.account_staleness.update_staleness(
-            **settings, wait_for_host_events=False
-        )
+        response = host_inventory_non_org_admin.apis.account_staleness.update_staleness(**settings)
         validate_staleness_response(response.to_dict(), original, settings)
 
         assert response.org_id == hbi_non_org_admin_user_org_id
@@ -149,9 +145,7 @@ class TestRBACStalenessWritePermission:
         response = host_inventory.apis.account_staleness.get_staleness_response()
         assert response.id.actual_instance != "system_default"
 
-        host_inventory_non_org_admin.apis.account_staleness.delete_staleness(
-            wait_for_host_events=False
-        )
+        host_inventory_non_org_admin.apis.account_staleness.delete_staleness()
         response = host_inventory.apis.account_staleness.get_staleness_response()
         assert response.id.actual_instance == "system_default"
 
