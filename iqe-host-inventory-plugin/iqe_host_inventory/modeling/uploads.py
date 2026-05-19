@@ -11,7 +11,6 @@ from functools import cached_property
 import attr
 from iqe.base.modeling import BaseEntity
 from iqe.utils.archive_memory import InsightsArchiveInMemory
-from iqe_bindings.v7.ingress_v1 import ApiException
 from iqe_bindings.v7.ingress_v1 import IngressApi
 
 from iqe_host_inventory import ApplicationHostInventory
@@ -26,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 _FILE_TYPE = "application/vnd.redhat.advisor.payload+tgz"
 
-# https://redhat.atlassian.net/browse/RHCLOUD-45847
 mimetypes.add_type(_FILE_TYPE, ".redhat-advisor-tgz")
 
 _CONTENT_TYPE_TO_EXTENSION = {
@@ -115,17 +113,13 @@ class HBIUploads(BaseEntity):
         self._host_inventory._services.pop("v7_ingress_v1", None)
 
     def _upload_file(self, filepath: str, content_type: str = _FILE_TYPE) -> None:
-        """Upload a file to ingress using the iqe-bindings v7 client.
-
-        Uses upload_post_without_preload_content to avoid response deserialization
-        issues (RHCLOUD-45847).
-        """
+        """Upload a file to ingress using the iqe-bindings v7 client."""
         file_data = pathlib.Path(filepath).read_bytes()
         file_extension = _CONTENT_TYPE_TO_EXTENSION.get(content_type, ".bin")
 
         for attempt in range(2):
             try:
-                response = self._ingress_api.upload_post_without_preload_content(
+                self._ingress_api.upload_post(
                     file=(f"upload{file_extension}", file_data),
                     metadata={"content_type": content_type},
                 )
@@ -144,9 +138,6 @@ class HBIUploads(BaseEntity):
                     "hostname; clearing cached service and retrying"
                 )
                 self._reset_ingress_api()
-
-        if not 200 <= response.status <= 299:
-            raise ApiException(response.status, response.reason)
 
     def upload_archive(
         self,
