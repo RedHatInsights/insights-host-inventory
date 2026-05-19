@@ -3287,12 +3287,12 @@
         },
         "types-pytz": {
             "hashes": [
-                "sha256:58ab5307c20885f9bcd42ff106616eb0e32710791f8cbdc770aee2ea0c4f01fb",
-                "sha256:fc6a0de6a1b7da82a748fb4065e152372dac3016559cb1eef5e8af1e338eb627"
+                "sha256:3a12eaa38f476bd650902a9c9bb442f03f3c7dee2be5c5848bce61bd708d205a",
+                "sha256:e5d254329e9c4e91f0781b22c43a4bb2d10bb044d97b24c4b05d45567b0eae16"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==2026.2.0.20260506"
+            "version": "==2026.2.0.20260518"
         },
         "types-pyyaml": {
             "hashes": [
