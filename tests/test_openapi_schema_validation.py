@@ -137,7 +137,7 @@ class TestOpenAPISchemaValidation:
 
         # Backend allows missing name (it's optional in the schema)
         try:
-            result = InputGroupSchema().load(missing_name_data)
+            InputGroupSchema().load(missing_name_data)
             # This should succeed - backend allows optional name
         except MarshmallowValidationError:
             pytest.fail("Backend should allow missing name field")
