@@ -2925,3 +2925,107 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
 
     assert response_status == 200
     assert response_data["results"] == []
+
+def test_url_encoded_wildcard_vs_literal_asterisk(db_create_host, api_get):
+    """
+    Test that URL-encoded wildcards (%2A) are treated as literal asterisks,
+    not as wildcard characters. This verifies the fix for RHINENG-4809.
+    """
+
+    # Create hosts with different os_release values to test wildcard behavior
+    host_with_literal_asterisk = db_create_host(
+        extra_data={"system_profile_facts": {"os_release": "abc*123", "arch": "x86_64"}}
+    )
+
+    host_matching_wildcard_pattern = db_create_host(
+        extra_data={"system_profile_facts": {"os_release": "abcXYZ123", "arch": "x86_64"}}
+    )
+
+    host_no_match = db_create_host(
+        extra_data={"system_profile_facts": {"os_release": "def456", "arch": "x86_64"}}
+    )
+
+    # Test 1: Regular wildcard should match both literal asterisk and pattern
+    url_wildcard = build_hosts_url(query="?filter[system_profile][os_release]=abc*123")
+    response_status, response_data = api_get(url_wildcard)
+    assert response_status == 200
+
+    wildcard_host_ids = {host["id"] for host in response_data["results"]}
+    assert len(wildcard_host_ids) == 2
+    assert str(host_with_literal_asterisk.id) in wildcard_host_ids
+    assert str(host_matching_wildcard_pattern.id) in wildcard_host_ids
+    assert str(host_no_match.id) not in wildcard_host_ids
+
+    # Test 2: URL-encoded wildcard should only match literal asterisk
+    url_encoded = build_hosts_url(query="?filter[system_profile][os_release]=abc%2A123")
+    response_status, response_data = api_get(url_encoded)
+    assert response_status == 200
+
+    encoded_host_ids = {host["id"] for host in response_data["results"]}
+    assert len(encoded_host_ids) == 1
+    assert str(host_with_literal_asterisk.id) in encoded_host_ids
+    assert str(host_matching_wildcard_pattern.id) not in encoded_host_ids
+    assert str(host_no_match.id) not in encoded_host_ids
+
+
+def test_url_encoded_wildcard_multiple_asterisks(db_create_host, api_get):
+    """
+    Test URL-encoded wildcards with multiple asterisks.
+    """
+
+    host_multiple_literal = db_create_host(
+        extra_data={"system_profile_facts": {"os_release": "start*middle*end", "arch": "x86_64"}}
+    )
+
+    host_matching_multiple_pattern = db_create_host(
+        extra_data={"system_profile_facts": {"os_release": "startXmiddleYend", "arch": "x86_64"}}
+    )
+
+    # Test wildcard behavior with multiple asterisks
+    url_wildcard = build_hosts_url(query="?filter[system_profile][os_release]=start*middle*end")
+    response_status, response_data = api_get(url_wildcard)
+    assert response_status == 200
+
+    wildcard_results = {host["id"] for host in response_data["results"]}
+    assert len(wildcard_results) == 2
+
+    # Test URL-encoded behavior with multiple asterisks
+    url_encoded = build_hosts_url(query="?filter[system_profile][os_release]=start%2Amiddle%2Aend")
+    response_status, response_data = api_get(url_encoded)
+    assert response_status == 200
+
+    encoded_results = {host["id"] for host in response_data["results"]}
+    assert len(encoded_results) == 1
+    assert str(host_multiple_literal.id) in encoded_results
+    assert str(host_matching_multiple_pattern.id) not in encoded_results
+
+
+def test_url_encoded_wildcard_other_fields(db_create_host, api_get):
+    """
+    Test that URL-encoded wildcard fix works for other wildcard-enabled fields.
+    """
+
+    # Test with bios_release_date (another field with x-wildcard: true)
+    host_literal_bios = db_create_host(
+        extra_data={"system_profile_facts": {"bios_release_date": "2023*01*15", "arch": "x86_64"}}
+    )
+
+    host_pattern_bios = db_create_host(
+        extra_data={"system_profile_facts": {"bios_release_date": "2023-01-15", "arch": "x86_64"}}
+    )
+
+    # Test wildcard behavior
+    url_wildcard = build_hosts_url(query="?filter[system_profile][bios_release_date]=2023*01*15")
+    response_status, response_data = api_get(url_wildcard)
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+
+    # Test URL-encoded behavior
+    url_encoded = build_hosts_url(query="?filter[system_profile][bios_release_date]=2023%2A01%2A15")
+    response_status, response_data = api_get(url_encoded)
+    assert response_status == 200
+
+    encoded_results = {host["id"] for host in response_data["results"]}
+    assert len(encoded_results) == 1
+    assert str(host_literal_bios.id) in encoded_results
+    assert str(host_pattern_bios.id) not in encoded_results
