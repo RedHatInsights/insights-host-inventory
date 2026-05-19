@@ -2515,6 +2515,8 @@ components:
       description: >-
         A group’s human-readable name.
       type: string
+      minLength: 1
+      maxLength: 255
       nullable: false
       example: sre-group
     NonStrictUUID:
@@ -2558,6 +2560,8 @@ components:
       description: >-
         Data of a single group belonging to an account.
       type: object
+      required:
+        - name
       properties:
         name:
           $ref: "#/components/schemas/GroupName"
