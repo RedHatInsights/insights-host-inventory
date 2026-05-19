@@ -20,6 +20,8 @@ from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
 from api.filtering.filtering_common import get_valid_os_names
+from api.filtering.wildcard_utils import prepare_wildcard_value_for_sql
+from api.filtering.wildcard_utils import process_wildcard_value
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -395,6 +397,22 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _build_filter_field_path(filter_param: dict) -> str:
+    """
+    Build the filter field path for wildcard processing.
+
+    Args:
+        filter_param: The filter parameter dict
+
+    Returns:
+        The field path string, e.g., "filter[system_profile][os_release]"
+    """
+    # Extract the field path from the filter parameter
+    # This is used to identify the field in the raw query string
+    field_name = next(iter(filter_param.keys()))
+    return f"filter[system_profile][{field_name}]"
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -429,7 +447,10 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Process the value to handle URL-encoded wildcards correctly
+            field_path = _build_filter_field_path(filter_param)
+            processed_value = process_wildcard_value(field_path, value)
+            value = prepare_wildcard_value_for_sql(processed_value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
