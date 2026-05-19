@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from urllib.parse import unquote
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -29,6 +31,58 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _was_asterisk_url_encoded(field_path: str, value: str) -> bool:
+    """
+    Check if asterisks in the value were originally URL-encoded as %2A.
+
+    This helps distinguish between literal asterisks (which should not be treated
+    as wildcards) and actual wildcard asterisks.
+
+    Args:
+        field_path: The filter field path (e.g., "filter[system_profile][os_release]")
+        value: The decoded value containing asterisks
+
+    Returns:
+        True if asterisks were originally URL-encoded, False otherwise
+    """
+    try:
+        # Get the raw query string from the current Flask request
+        raw_query = flask.request.environ.get("QUERY_STRING", "")
+        if not raw_query:
+            return False
+
+        # Look for the field in the raw query string
+        # Handle both bracket notation and other formats
+        if field_path in raw_query:
+            # Find the value part after the field
+            field_start = raw_query.find(field_path)
+            if field_start != -1:
+                # Find the start of the value (after =)
+                value_start = raw_query.find("=", field_start)
+                if value_start != -1:
+                    value_start += 1  # Skip the =
+                    # Find the end of the value (& or end of string)
+                    value_end = raw_query.find("&", value_start)
+                    if value_end == -1:
+                        value_end = len(raw_query)
+
+                    # Extract the raw value
+                    raw_value = raw_query[value_start:value_end]
+
+                    # Check if the raw value contains %2A (URL-encoded asterisk)
+                    if "%2A" in raw_value.upper():
+                        # Verify that when decoded, it matches our value
+                        decoded_raw = unquote(raw_value)
+                        if decoded_raw == value:
+                            return True
+
+        return False
+    except Exception:
+        # If anything goes wrong, default to treating as wildcard
+        logger.debug("Error checking URL encoding for asterisks", exc_info=True)
+        return False
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
@@ -429,7 +483,23 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if asterisks were originally URL-encoded
+            # Build the field path for checking the raw query
+            field_path_parts = ["filter", "system_profile"]
+            if jsonb_path:
+                field_path_parts.extend(jsonb_path)
+            else:
+                field_path_parts.append(field_name)
+
+            field_path = "[" + "][".join(field_path_parts) + "]"
+
+            if _was_asterisk_url_encoded(field_path, value):
+                # Asterisks were URL-encoded, treat as literal - use exact match instead of ILIKE
+                logger.debug(f"URL-encoded asterisks detected in {field_path}, using exact match")
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Normal wildcard processing
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
