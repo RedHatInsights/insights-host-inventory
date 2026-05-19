@@ -59,7 +59,11 @@ ENV UV_COMPILE_BYTECODE=1
 RUN python3 -m pip install --upgrade pip setuptools wheel && \
     python3 -m pip install "uv==0.11.11" dumb-init && \
     uv sync --frozen --no-dev && \
-    chown -R 1001:0 "$APP_ROOT/.venv"
+    chown -R 1001:0 "$APP_ROOT/.venv" && \
+    VENV_PYTHON="$APP_ROOT/.venv/bin/python" && \
+    ln -sf "$VENV_PYTHON" /usr/bin/python && \
+    ln -sf "$VENV_PYTHON" /usr/bin/python3 && \
+    ln -sf "$VENV_PYTHON" /usr/bin/python3.12
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
