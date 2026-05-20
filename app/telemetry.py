@@ -254,23 +254,21 @@ def _outbound_request_hook(span, request, *_args, **_kwargs):
 
 
 def _request_hook(span, environ):  # noqa: ARG001
-    """Add HBI-specific attributes to every request span.
+    """Add Red Hat platform attributes to every request span.
 
     Adds org_id and request_id so traces can be filtered in Grafana/Tempo:
-        - hbi.org_id = "12345"         → all traces for an org
-        - hbi.request_id = "abc-..."   → find a specific request
+        - rh.org_id = "12345"         → all traces for an org
+        - rh.request_id = "abc-..."   → find a specific request
     """
     if not span or not span.is_recording():
         return
 
     from flask import request
 
-    # Add request_id from the x-rh-insights-request-id header
     request_id = request.headers.get("x-rh-insights-request-id", "")
     if request_id:
-        span.set_attribute("hbi.request_id", request_id)
+        span.set_attribute("rh.request_id", request_id)
 
-    # Add org_id from the decoded identity header
     try:
         from app.auth.identity import from_auth_header
 
@@ -278,9 +276,9 @@ def _request_hook(span, environ):  # noqa: ARG001
         if encoded_id:
             identity = from_auth_header(encoded_id)
             if identity and hasattr(identity, "org_id"):
-                span.set_attribute("hbi.org_id", identity.org_id or "")
+                span.set_attribute("rh.org_id", identity.org_id or "")
     except Exception:
-        pass  # Don't break requests if identity extraction fails
+        pass
 
 
 def _response_hook(span, status, response_headers):  # noqa: ARG001
