@@ -5,8 +5,13 @@ if [ "$#" -eq 0 ]; then
     exit 1
 fi
 
-# The command to execute is provided by the user of this script
-command_to_run="$@"
+APP_ROOT="${APP_ROOT:-/opt/app-root/src}"
+VENV_PYTHON="${APP_ROOT}/.venv/bin/python"
 
-# Run the command
-eval "$command_to_run"
+# ClowdApp runs scripts as ./foo.py; the shebang must not use /usr/bin/python because
+# that is the RPM interpreter without project deps. Run .py entrypoints with the venv.
+if [ -x "$VENV_PYTHON" ] && [[ "$1" == *'.py' ]]; then
+    exec "$VENV_PYTHON" "$@"
+fi
+
+eval "$@"
