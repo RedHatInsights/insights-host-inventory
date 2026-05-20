@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-def test_groups_get_list_no_groups(request, host_inventory):
+def test_groups_get_list_no_groups(host_inventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3829
@@ -26,9 +26,6 @@ def test_groups_get_list_no_groups(request, host_inventory):
       importance: high
       title: Get groups list when there are no groups
     """
-    if request.config.getoption("--kessel"):
-        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
-
     host_inventory.apis.groups.delete_all_groups()
 
     response = host_inventory.apis.groups.get_groups_response()
@@ -73,7 +70,6 @@ def test_groups_get_list(
 @pytest.mark.parametrize("n_hosts", [0, 1, 3])
 @pytest.mark.parametrize("n_groups", [1, 3])
 def test_groups_get_list_only_my_groups(
-    request,
     host_inventory: ApplicationHostInventory,
     n_hosts: int,
     n_groups: int,
@@ -88,8 +84,6 @@ def test_groups_get_list_only_my_groups(
       importance: high
       title: Get groups list with limited amount of groups
     """
-    if request.config.getoption("--kessel"):
-        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
 
     host_inventory.apis.groups.delete_all_groups()
 
@@ -144,7 +138,7 @@ def test_groups_get_list_pagination(host_inventory: ApplicationHostInventory, wi
 @pytest.mark.ephemeral
 @pytest.mark.parametrize("with_hosts", [True, False], ids=["with hosts", "without hosts"])
 def test_groups_get_list_pagination_only_my_groups(
-    request, host_inventory: ApplicationHostInventory, with_hosts: bool
+    host_inventory: ApplicationHostInventory, with_hosts: bool
 ):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
@@ -156,9 +150,6 @@ def test_groups_get_list_pagination_only_my_groups(
       importance: high
       title: Test pagination while getting groups list with limited amount of groups
     """
-    if request.config.getoption("--kessel"):
-        pytest.xfail("RBAC v2: Default Workspace cannot be deleted and appears in group list")
-
     host_inventory.apis.groups.delete_all_groups()
 
     hosts = host_inventory.kafka.create_random_hosts(10)
