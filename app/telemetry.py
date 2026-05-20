@@ -35,6 +35,7 @@ OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
 OTEL_SQL_ENABLED = os.getenv("OTEL_SQL_ENABLED", "true").lower() == "true"
 OTEL_SQL_COMMENTER_ENABLED = os.getenv("OTEL_SQL_COMMENTER_ENABLED", "false").lower() == "true"
 OTEL_HTTP_ENABLED = os.getenv("OTEL_HTTP_ENABLED", "true").lower() == "true"
+OTEL_MQ_ENABLED = os.getenv("OTEL_MQ_ENABLED", "true").lower() == "true"
 OTEL_SAMPLING_RATE = min(max(float(os.getenv("OTEL_SAMPLING_RATE", "1.0")), 0.0), 1.0)
 
 OTEL_BSP_MAX_QUEUE_SIZE = int(os.getenv("OTEL_BSP_MAX_QUEUE_SIZE", "8192"))
@@ -134,6 +135,7 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http=%s "
         "bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
         "compression=%s attr_limit=%d attr_len_limit=%d "
+        "mq_enabled=%s "
         "mq_message_spans=%s mq_slow_message_ms=%d",
         OTEL_SAMPLING_RATE,
         OTEL_SQL_ENABLED,
@@ -146,6 +148,7 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         OTEL_EXPORTER_OTLP_COMPRESSION,
         OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
         OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,
+        OTEL_MQ_ENABLED,
         OTEL_MQ_MESSAGE_SPANS_ENABLED,
         OTEL_MQ_SLOW_MESSAGE_MS,
     )
@@ -193,6 +196,36 @@ def instrument_sqlalchemy(engine):
         },
     )
     logger.info("SQLAlchemy engine instrumented with OpenTelemetry (commenter=%s)", OTEL_SQL_COMMENTER_ENABLED)
+
+
+def instrument_kafka_producer(producer):
+    """Wrap a confluent-kafka producer with OpenTelemetry instrumentation."""
+    if not OTEL_ENABLED or not OTEL_MQ_ENABLED:
+        return producer
+
+    try:
+        from opentelemetry import trace
+        from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
+    except ImportError:
+        logger.warning("Kafka producer instrumentation unavailable; continuing without producer spans")
+        return producer
+
+    return ConfluentKafkaInstrumentor.instrument_producer(producer, tracer_provider=trace.get_tracer_provider())
+
+
+def instrument_kafka_consumer(consumer):
+    """Wrap a confluent-kafka consumer with OpenTelemetry instrumentation."""
+    if not OTEL_ENABLED or not OTEL_MQ_ENABLED:
+        return consumer
+
+    try:
+        from opentelemetry import trace
+        from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
+    except ImportError:
+        logger.warning("Kafka consumer instrumentation unavailable; continuing without consumer spans")
+        return consumer
+
+    return ConfluentKafkaInstrumentor.instrument_consumer(consumer, tracer_provider=trace.get_tracer_provider())
 
 
 def instrument_outbound_http():

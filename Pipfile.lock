@@ -1228,6 +1228,15 @@
             "markers": "python_version >= '3.10'",
             "version": "==0.63b0"
         },
+        "opentelemetry-instrumentation-confluent-kafka": {
+            "hashes": [
+                "sha256:3185fd2f891d63e85ffcaea6eac266e597d4aaa70d323c4a789a94be30c8ae31",
+                "sha256:7aa889b8764807922966311e84467124c392b6affec92a745b65812705c2bef1"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.10'",
+            "version": "==0.63b0"
+        },
         "opentelemetry-instrumentation-flask": {
             "hashes": [
                 "sha256:37662ad159570dab1e3017a2a415193c014a5798fc32d33f3bdd254469e8c69a",

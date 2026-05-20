@@ -587,6 +587,8 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
           - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
             value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
           - name: OTEL_MQ_SLOW_MESSAGE_MS
@@ -688,6 +690,8 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
           - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
             value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
           - name: OTEL_MQ_SLOW_MESSAGE_MS
@@ -827,6 +831,8 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
           - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
             value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
           - name: OTEL_MQ_SLOW_MESSAGE_MS
@@ -924,6 +930,8 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
           - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
             value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
           - name: OTEL_MQ_SLOW_MESSAGE_MS
@@ -1095,6 +1103,8 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
           - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
             value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
           - name: OTEL_MQ_SLOW_MESSAGE_MS
@@ -2924,6 +2934,9 @@ parameters:
 - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
   description: Max length of span attribute values (truncates long SQL text, etc.)
   value: '1024'
+- name: OTEL_MQ_ENABLED
+  description: Enable OpenTelemetry tracing for Kafka/MQ producer and consumer operations
+  value: 'true'
 - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
   description: Emit per-message child spans for MQ consumers (disable in prod to reduce span volume)
   value: 'true'

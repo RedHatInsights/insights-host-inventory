@@ -19,6 +19,7 @@ from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -78,9 +79,11 @@ from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from app.telemetry import OTEL_MQ_ENABLED
 from app.telemetry import OTEL_MQ_MESSAGE_SPANS_ENABLED
 from app.telemetry import OTEL_MQ_SLOW_MESSAGE_MS
 from app.telemetry import get_tracer
+from app.telemetry import instrument_kafka_consumer
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
@@ -125,7 +128,7 @@ def create_consumer(config):
     """Factory function to create appropriate kafka consumer"""
     if config.replica_namespace:
         return NullConsumer(config)
-    return Consumer(
+    consumer = Consumer(
         {
             "group.id": config.host_ingress_consumer_group,
             "bootstrap.servers": config.bootstrap_servers,
@@ -133,6 +136,7 @@ def create_consumer(config):
             **config.kafka_consumer,
         }
     )
+    return instrument_kafka_consumer(consumer)
 
 
 class HostOperationSchema(Schema):
@@ -240,7 +244,7 @@ class HBIMessageConsumerBase:
 
     def _should_emit_message_span(self) -> bool:
         """Whether a per-message child span should be started eagerly."""
-        return OTEL_MQ_MESSAGE_SPANS_ENABLED or self._is_retry
+        return OTEL_MQ_ENABLED and (OTEL_MQ_MESSAGE_SPANS_ENABLED or self._is_retry)
 
     def _message_span_attrs(self, msg, **extra) -> dict:
         """Build common span attributes for a Kafka message."""
@@ -254,6 +258,8 @@ class HBIMessageConsumerBase:
 
     def _emit_slow_message_span(self, msg, start_ns: int, end_ns: int) -> None:
         """Emit a retroactive span for a message that exceeded the slow threshold."""
+        if not OTEL_MQ_ENABLED:
+            return
         duration_ms = (end_ns - start_ns) / 1_000_000
         if duration_ms < OTEL_MQ_SLOW_MESSAGE_MS:
             return
@@ -323,6 +329,8 @@ class HBIMessageConsumerBase:
 
     def _emit_error_span(self, msg, start_ns: int, exc: Exception) -> None:
         """Emit a span for a failed message when routine per-message spans are disabled."""
+        if not OTEL_MQ_ENABLED:
+            return
         end_ns = time.time_ns()
         span = tracer.start_span(
             f"mq.process {msg.topic()}",
@@ -335,6 +343,10 @@ class HBIMessageConsumerBase:
 
     def _process_batch(self) -> None:
         """Process a single batch of messages from Kafka.
+
+        The Confluent Kafka instrumentor owns the batch-level consumer context for
+        the returned records. We keep lightweight per-message child spans under that
+        context so SQL spans can still be inspected message-by-message.
 
         Raises:
             InvalidRequestError: When the database session is in an invalid state
@@ -358,16 +370,11 @@ class HBIMessageConsumerBase:
         if not valid_messages:
             return
 
-        with (
-            tracer.start_as_current_span(
-                "mq.batch",
-                attributes={
-                    "messaging.system": "kafka",
-                    "messaging.batch.message_count": len(valid_messages),
-                },
-            ),
-            no_expire_on_commit(db.session),
-        ):
+        batch_span = trace.get_current_span()
+        if OTEL_MQ_ENABLED and batch_span.is_recording():
+            batch_span.set_attribute("messaging.batch.message_count", len(valid_messages))
+
+        with no_expire_on_commit(db.session):
             with (
                 session_guard(db.session, close=False),
                 db.session.no_autoflush,

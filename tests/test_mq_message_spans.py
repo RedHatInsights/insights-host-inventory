@@ -47,6 +47,7 @@ def consumer():
 
 
 def test_span_emitted_when_enabled(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
 
@@ -57,7 +58,23 @@ def test_span_emitted_when_enabled(otel_spans, consumer, monkeypatch):
     assert spans[0].name.startswith("mq.process")
 
 
+def test_message_span_is_child_of_current_consume_context(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    from app.queue import host_mq
+
+    with host_mq.tracer.start_as_current_span("inventory process") as consume_span:
+        consumer._process_single_message(FakeMessage())
+
+    process_spans = [span for span in otel_spans.get_finished_spans() if span.name.startswith("mq.process ")]
+    assert len(process_spans) == 1
+    assert process_spans[0].parent.span_id == consume_span.get_span_context().span_id
+
+
 def test_no_span_when_disabled(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
 
@@ -68,6 +85,7 @@ def test_no_span_when_disabled(otel_spans, consumer, monkeypatch):
 
 
 def test_error_emits_span_when_disabled(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
     consumer._handler.side_effect = ValueError("boom")
@@ -81,6 +99,7 @@ def test_error_emits_span_when_disabled(otel_spans, consumer, monkeypatch):
 
 
 def test_retry_emits_span_when_disabled(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
     consumer._is_retry = True
@@ -93,6 +112,7 @@ def test_retry_emits_span_when_disabled(otel_spans, consumer, monkeypatch):
 
 
 def test_slow_message_emits_span(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 30)
 
@@ -115,6 +135,7 @@ def test_slow_message_emits_span(otel_spans, consumer, monkeypatch):
 
 
 def test_fast_message_no_slow_span(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 5000)
 
@@ -123,7 +144,19 @@ def test_fast_message_no_slow_span(otel_spans, consumer, monkeypatch):
     assert len(otel_spans.get_finished_spans()) == 0
 
 
+def test_no_spans_when_mq_tracing_disabled(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", False)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 30)
+    consumer._handler.side_effect = ValueError("boom")
+
+    consumer._process_single_message(FakeMessage())
+
+    assert len(otel_spans.get_finished_spans()) == 0
+
+
 def test_config_defaults(monkeypatch):
+    monkeypatch.delenv("OTEL_MQ_ENABLED", raising=False)
     monkeypatch.delenv("OTEL_MQ_MESSAGE_SPANS_ENABLED", raising=False)
     monkeypatch.delenv("OTEL_MQ_SLOW_MESSAGE_MS", raising=False)
 
@@ -131,6 +164,7 @@ def test_config_defaults(monkeypatch):
 
     importlib.reload(telemetry_mod)
 
+    assert telemetry_mod.OTEL_MQ_ENABLED is True
     assert telemetry_mod.OTEL_MQ_MESSAGE_SPANS_ENABLED is True
     assert telemetry_mod.OTEL_MQ_SLOW_MESSAGE_MS == 0
 
