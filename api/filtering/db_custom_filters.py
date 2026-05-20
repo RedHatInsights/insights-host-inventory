@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections.abc import Callable
 
+from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +39,52 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _was_asterisk_url_encoded(field_path: str, value: str) -> bool:
+    """
+    Check if the asterisk in the value was originally URL-encoded in the query string.
+
+    This function checks the raw query string to determine if asterisks in the filter value
+    were URL-encoded as %2A. If they were, they should be treated as literal characters,
+    not as wildcard patterns.
+
+    Args:
+        field_path: The filter field path (e.g., "filter[system_profile][os_release]")
+        value: The decoded filter value that may contain asterisks
+
+    Returns:
+        True if any asterisk in the value was originally URL-encoded as %2A
+    """
+    if "*" not in value:
+        return False
+
+    try:
+        # Get the raw query string from the Flask request
+        query_string = request.environ.get("QUERY_STRING", "")
+        if not query_string:
+            return False
+
+        # Parse the raw query string manually to preserve URL encoding
+        # Split by & to get individual parameters
+        params = query_string.split("&")
+        for param in params:
+            if "=" in param:
+                param_key, param_value = param.split("=", 1)
+                # Check if this parameter matches our field path and contains URL-encoded asterisk
+                if field_path in param_key and ("%2A" in param_value or "%2a" in param_value):
+                    # Decode the parameter value and see if it matches our value
+                    decoded_param = urllib.parse.unquote(param_value)
+                    if decoded_param == value:
+                        return True
+
+        return False
+
+    except Exception:
+        # If we can't determine the encoding status, err on the side of caution
+        # and assume it wasn't URL-encoded (treat as wildcard)
+        logger.debug("Could not determine URL encoding status for asterisk in filter value", exc_info=True)
+        return False
 
 
 # Utility class to facilitate OS filter comparison
@@ -428,8 +476,24 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
+        # But only if the asterisk was not URL-encoded (i.e., treat URL-encoded asterisks as literals)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Build the field path for checking URL encoding
+            # This reconstructs the filter path like "filter[system_profile][os_release]"
+            field_path_parts = ["filter[system_profile]"]
+            if jsonb_path:
+                field_path_parts.extend(f"[{part}]" for part in jsonb_path)
+            else:
+                field_path_parts.append(f"[{field_name}]")
+            field_path = "".join(field_path_parts)
+
+            # Check if asterisks were URL-encoded in the original query
+            if _was_asterisk_url_encoded(field_path, value):
+                # Asterisk was URL-encoded, treat as literal character (use exact match)
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Asterisk was not URL-encoded, treat as wildcard pattern
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
