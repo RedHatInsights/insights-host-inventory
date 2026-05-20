@@ -144,4 +144,12 @@ from iqe_host_inventory_api.models.tag_count_out import TagCountOut
 from iqe_host_inventory_api.models.tag_count_out_all_of import TagCountOutAllOf
 from iqe_host_inventory_api.models.tags_out import TagsOut
 from iqe_host_inventory_api.models.tags_out_all_of import TagsOutAllOf
+from iqe_host_inventory_api.models.view_column_config import ViewColumnConfig
+from iqe_host_inventory_api.models.view_configuration import ViewConfiguration
+from iqe_host_inventory_api.models.view_in import ViewIn
+from iqe_host_inventory_api.models.view_out import ViewOut
+from iqe_host_inventory_api.models.view_patch import ViewPatch
+from iqe_host_inventory_api.models.view_sort_config import ViewSortConfig
+from iqe_host_inventory_api.models.views_list_out import ViewsListOut
+from iqe_host_inventory_api.models.views_list_out_all_of import ViewsListOutAllOf
 from iqe_host_inventory_api.models.vulnerability_app_data import VulnerabilityAppData

@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **name** | **str** |  | [optional]
 **stream** | **str** |  | [optional]
+**status** | **List[str]** |  | [optional]
 
 ## Example
 

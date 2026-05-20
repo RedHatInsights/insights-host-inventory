@@ -384,7 +384,7 @@ class GroupsApi:
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param str order_by: Ordering field name
-        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :param str group_type: The type of workspaces that should be returned.
         :param _preload_content: if False, the urllib3.HTTPResponse object will
                                  be returned without reading/decoding response
@@ -414,7 +414,7 @@ class GroupsApi:
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param str order_by: Ordering field name
-        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :param str group_type: The type of workspaces that should be returned.
         :param _return_http_data_only: response data without head status code
                                        and headers
@@ -511,7 +511,7 @@ class GroupsApi:
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param str order_by: Ordering field name
-        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :param _preload_content: if False, the urllib3.HTTPResponse object will
                                  be returned without reading/decoding response
                                  data. Default is True.
@@ -540,7 +540,7 @@ class GroupsApi:
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
         :param str order_by: Ordering field name
-        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param str order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :param _return_http_data_only: response data without head status code
                                        and headers
         :param _preload_content: if False, the urllib3.HTTPResponse object will

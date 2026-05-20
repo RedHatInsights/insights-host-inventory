@@ -70,7 +70,7 @@ class Configuration:
 
     def __init__(
         self,
-        host="http://localhost",
+        host="http://localhost/api/inventory/v1",
         api_key=None,
         api_key_prefix=None,
         username=None,
@@ -368,8 +368,8 @@ class Configuration:
         """
         return [
             {
-                "url": "/",
-                "description": "No description provided",
+                "url": "/api/inventory/v1",
+                "description": "API server",
             }
         ]
 
