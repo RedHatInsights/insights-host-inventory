@@ -46,6 +46,13 @@ OTEL_EXPORTER_OTLP_COMPRESSION = os.getenv("OTEL_EXPORTER_OTLP_COMPRESSION", "gz
 OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT = int(os.getenv("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64"))
 OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT = int(os.getenv("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", "1024"))
 
+# MQ per-message span controls
+# Default True to preserve full visibility in stage; set to "false" in production.
+OTEL_MQ_MESSAGE_SPANS_ENABLED = os.getenv("OTEL_MQ_MESSAGE_SPANS_ENABLED", "true").lower() == "true"
+# Threshold in ms: when message spans are disabled, still emit a span for messages slower than this.
+# 0 means disabled (no slow-message spans).
+OTEL_MQ_SLOW_MESSAGE_MS = int(os.getenv("OTEL_MQ_SLOW_MESSAGE_MS", "0"))
+
 _otel_initialized_pid = None
 
 
@@ -126,7 +133,8 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     logger.info(
         "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http=%s "
         "bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
-        "compression=%s attr_limit=%d attr_len_limit=%d",
+        "compression=%s attr_limit=%d attr_len_limit=%d "
+        "mq_message_spans=%s mq_slow_message_ms=%d",
         OTEL_SAMPLING_RATE,
         OTEL_SQL_ENABLED,
         OTEL_SQL_COMMENTER_ENABLED,
@@ -138,6 +146,8 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         OTEL_EXPORTER_OTLP_COMPRESSION,
         OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
         OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,
+        OTEL_MQ_MESSAGE_SPANS_ENABLED,
+        OTEL_MQ_SLOW_MESSAGE_MS,
     )
 
 
