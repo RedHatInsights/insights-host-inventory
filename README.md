@@ -132,7 +132,7 @@ uv sync
 2. **Activate virtual environment** (optional):
 
 ```bash
-uv shell
+source .venv/bin/activate
 ```
 
 ### Create database data directory
@@ -243,7 +243,7 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 #### Run the Export Service
 
 ```bash
-uv shell
+source .venv/bin/activate
 make run_inv_export_service
 ```
 

@@ -84,7 +84,7 @@ This guide covers debugging Host Based Inventory code that runs locally while co
    ```bash
    cd insights-host-inventory
    uv sync
-   uv shell
+   source .venv/bin/activate
    ```
 
 2. **Get Kafka broker address:**
@@ -238,7 +238,7 @@ Debugging the MQ service requires stopping the service running in Kubernetes and
 3. **Create a host to trigger the breakpoint:**
    In a new terminal:
    ```bash
-   uv shell
+   source .venv/bin/activate
    make run_inv_mq_service_test_producer
    ```
 
@@ -280,7 +280,7 @@ When you're done debugging and want to clean up resources:
 - Check that the database port is forwarded correctly
 
 ### Debugger Not Starting
-- Ensure your shell has the project virtual environment (for example `uv shell`, or activate `.venv` after `uv sync`)
+- Ensure your shell has the project virtual environment (`source .venv/bin/activate` after `uv sync`)
 - Check that all required environment variables are set in the launch configuration
 - Verify the Python path in VS Code points to that virtual environment (for example `.venv/bin/python`)
 
