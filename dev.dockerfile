@@ -36,7 +36,7 @@ USER 1001
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
-RUN pip install "uv==0.11.11" && \
+RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['uv']['required-version'])") && pip install "uv==${UV_VERSION}" && \
     uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'

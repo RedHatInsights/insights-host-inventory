@@ -15,4 +15,4 @@ if [ -x "$VENV_PYTHON" ] && [[ "$1" == *'.py' ]] && [[ "$1" != *'='* ]]; then
     exec "$VENV_PYTHON" "$@"
 fi
 
-eval "$@"
+exec "$@"
