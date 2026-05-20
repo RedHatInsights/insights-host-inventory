@@ -12,13 +12,6 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - "dependencies"
-  - package-ecosystem: "uv"
-    directory: "/iqe-host-inventory-plugin"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

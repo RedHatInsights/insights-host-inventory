@@ -39,23 +39,22 @@ This installs all IQE dependencies and the local plugin in editable mode.
 
 ### Activate IQE Environment
 ```bash
-# Quick activation (spawns a shell with the plugin venv)
+# Quick activation
 ./iqe-shell.sh
 
 # Or manually
-cd iqe-host-inventory-plugin
-uv shell
+export PIPENV_PIPFILE=Pipfile.iqe
+pipenv shell
 ```
 
 ### IQE dependency update
 
-Unfortunately some IQE dependencies (for example `iqe-core`) are resolved from a Red Hat private index (`cqt-pypi` in `pyproject.toml`). Locking requires VPN and a trust store that includes Red Hat corporate CAs (`native-tls` is enabled for uv in the plugin project).
+Unfortunatelly the IQE dependencies mostly live in a Red Hat private repo.
 
-To refresh the lockfile after editing plugin dependencies, run from the repository root and open a PR with the updated `iqe-host-inventory-plugin/uv.lock`:
+To update them manually please run the following command and push the changes to the lockfile as PR.
 
 ```bash
-cd iqe-host-inventory-plugin
-uv lock --python 3.12
+PIPENV_PIPFILE=Pipfile.iqe pipenv lock --dev -v
 ```
 
 Then run the setup script to install the updated dependencies.
@@ -161,8 +160,11 @@ iqe plugin list
 ```
 
 **Which environment am I in?**
-- Main HBI app: virtualenv at the repository root (`.venv` after `uv sync` there).
-- IQE: virtualenv under `iqe-host-inventory-plugin/.venv` after `./setup-iqe.sh` or `uv sync` in that directory.
+```bash
+echo $PIPENV_PIPFILE
+# Empty = main HBI environment
+# Pipfile.iqe = IQE test environment
+```
 
 ## Further Reading
 - Full IQE plugin documentation: `iqe-host-inventory-plugin/README.md`

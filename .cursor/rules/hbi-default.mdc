@@ -4,5 +4,5 @@ globs:
 alwaysApply: true
 ---
 
-- This project uses uv; run Python and pytest with `uv run` (or activate `.venv` after `uv sync`).
+- Main app uses uv: run Python and pytest with `uv run` (or `.venv` after `uv sync` at repo root). IQE uses `Pipfile.iqe` and pipenv (`./setup-iqe.sh`, `unset PIPENV_PIPFILE` before main-app uv commands).
 - When making changes, always test your code and make fixes as needed.
