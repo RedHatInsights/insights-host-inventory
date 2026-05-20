@@ -6,7 +6,6 @@ not as wildcard patterns.
 """
 
 from tests.helpers.api_utils import build_hosts_url
-from tests.helpers.test_utils import minimal_host
 
 
 def test_url_encoded_wildcard_not_treated_as_wildcard(db_create_host, api_get):
@@ -26,8 +25,7 @@ def test_url_encoded_wildcard_not_treated_as_wildcard(db_create_host, api_get):
     ]
 
     created_hosts = []
-    for i, sp_data in enumerate(hosts_data):
-        host = minimal_host(display_name=f"test-host-{i}", system_profile={"arch": "x86_64", **sp_data})
+    for sp_data in hosts_data:
         created_host = db_create_host(extra_data={"system_profile_facts": sp_data})
         created_hosts.append(created_host)
 
@@ -80,8 +78,7 @@ def test_backslash_escaping_with_url_encoding(db_create_host, api_get):
     # Create a host with the specific value mentioned in the ticket
     sp_data = {"os_release": "test1*test2\\test3"}
 
-    host = minimal_host(display_name="test-host-backslash", system_profile={"arch": "x86_64", **sp_data})
-    created_host = db_create_host(extra_data={"system_profile_facts": sp_data})
+    db_create_host(extra_data={"system_profile_facts": sp_data})
 
     # Test: Filter with URL-encoded value should match the host
     encoded_value = "test1%2Atest2%5Ctest3"
@@ -105,7 +102,7 @@ def test_literal_asterisk_vs_wildcard_asterisk(db_create_host, api_get):
     ]
 
     created_hosts = []
-    for i, sp_data in enumerate(hosts_data):
+    for sp_data in hosts_data:
         created_host = db_create_host(extra_data={"system_profile_facts": sp_data})
         created_hosts.append(created_host)
 
