@@ -1,7 +1,8 @@
 """OpenTelemetry initialization for HBI services.
 
 Provides centralized tracing setup for all HBI entry points (web API, MQ service,
-export service). Controlled by the OTEL_ENABLED environment variable.
+export service). Every knob is configurable via environment variables so stage and
+prod can run independent configurations without code changes.
 
 Usage:
     from app.telemetry import init_otel, instrument_flask_app, instrument_sqlalchemy, instrument_outbound_http
@@ -27,7 +28,24 @@ from app.logging import get_logger
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Configuration — all tunables are environment-driven
+# ---------------------------------------------------------------------------
 OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+OTEL_SQL_ENABLED = os.getenv("OTEL_SQL_ENABLED", "true").lower() == "true"
+OTEL_SQL_COMMENTER_ENABLED = os.getenv("OTEL_SQL_COMMENTER_ENABLED", "false").lower() == "true"
+OTEL_HTTP_ENABLED = os.getenv("OTEL_HTTP_ENABLED", "true").lower() == "true"
+OTEL_SAMPLING_RATE = min(max(float(os.getenv("OTEL_SAMPLING_RATE", "1.0")), 0.0), 1.0)
+
+OTEL_BSP_MAX_QUEUE_SIZE = int(os.getenv("OTEL_BSP_MAX_QUEUE_SIZE", "8192"))
+OTEL_BSP_MAX_EXPORT_BATCH_SIZE = int(os.getenv("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "256"))
+OTEL_BSP_SCHEDULE_DELAY = int(os.getenv("OTEL_BSP_SCHEDULE_DELAY", "2000"))
+OTEL_BSP_EXPORT_TIMEOUT = int(os.getenv("OTEL_BSP_EXPORT_TIMEOUT", "10000"))
+
+OTEL_EXPORTER_OTLP_COMPRESSION = os.getenv("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip").lower()
+OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT = int(os.getenv("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64"))
+OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT = int(os.getenv("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", "1024"))
+
 _otel_initialized_pid = None
 
 
@@ -67,8 +85,10 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     from opentelemetry.sdk.resources import SERVICE_NAME
     from opentelemetry.sdk.resources import SERVICE_VERSION
     from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import SpanLimits
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
     resource = Resource.create(
         attributes={
@@ -78,16 +98,47 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         }
     )
 
-    provider = TracerProvider(resource=resource)
+    sampler = TraceIdRatioBased(OTEL_SAMPLING_RATE)
+    span_limits = SpanLimits(
+        max_attributes=OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
+        max_attribute_length=OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,
+    )
+    provider = TracerProvider(resource=resource, sampler=sampler, span_limits=span_limits)
 
-    # OTLP exporter — picks up endpoint from OTEL_EXPORTER_OTLP_ENDPOINT
-    # (falls back to OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, then default localhost:4318)
-    exporter = OTLPSpanExporter()
-    provider.add_span_processor(BatchSpanProcessor(exporter))
+    from opentelemetry.exporter.otlp.proto.http import Compression
+
+    _compression_map = {"gzip": Compression.Gzip, "deflate": Compression.Deflate}
+    compression = _compression_map.get(OTEL_EXPORTER_OTLP_COMPRESSION, Compression.NoCompression)
+    exporter = OTLPSpanExporter(compression=compression)
+    provider.add_span_processor(
+        BatchSpanProcessor(
+            exporter,
+            max_queue_size=OTEL_BSP_MAX_QUEUE_SIZE,
+            max_export_batch_size=OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+            schedule_delay_millis=OTEL_BSP_SCHEDULE_DELAY,
+            export_timeout_millis=OTEL_BSP_EXPORT_TIMEOUT,
+        )
+    )
 
     trace.set_tracer_provider(provider)
     _otel_initialized_pid = os.getpid()
     logger.info("OpenTelemetry initialized for service=%s version=%s", service_name, service_version)
+    logger.info(
+        "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http=%s "
+        "bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
+        "compression=%s attr_limit=%d attr_len_limit=%d",
+        OTEL_SAMPLING_RATE,
+        OTEL_SQL_ENABLED,
+        OTEL_SQL_COMMENTER_ENABLED,
+        OTEL_HTTP_ENABLED,
+        OTEL_BSP_MAX_QUEUE_SIZE,
+        OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
+        OTEL_BSP_SCHEDULE_DELAY,
+        OTEL_BSP_EXPORT_TIMEOUT,
+        OTEL_EXPORTER_OTLP_COMPRESSION,
+        OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
+        OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,
+    )
 
 
 def instrument_flask_app(flask_app):
@@ -115,33 +166,33 @@ def instrument_flask_app(flask_app):
 def instrument_sqlalchemy(engine):
     """Instrument a SQLAlchemy engine with OpenTelemetry query tracing.
 
-    Every SQL query becomes a child span of the request that triggered it,
-    with the query text and duration. SQLCommenter adds traceparent to SQL
-    comments so queries are visible in pg_stat_activity.
+    Controlled by OTEL_SQL_ENABLED (master toggle) and OTEL_SQL_COMMENTER_ENABLED
+    (adds traceparent to SQL comments for pg_stat_activity visibility).
     """
-    if not OTEL_ENABLED:
+    if not OTEL_ENABLED or not OTEL_SQL_ENABLED:
         return
 
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
     SQLAlchemyInstrumentor().instrument(
         engine=engine,
-        enable_commenter=True,
+        enable_commenter=OTEL_SQL_COMMENTER_ENABLED,
         commenter_options={
             "db_framework": True,
             "db_driver": True,
         },
     )
-    logger.info("SQLAlchemy engine instrumented with OpenTelemetry")
+    logger.info("SQLAlchemy engine instrumented with OpenTelemetry (commenter=%s)", OTEL_SQL_COMMENTER_ENABLED)
 
 
 def instrument_outbound_http():
     """Instrument outbound HTTP calls (e.g., RBAC) with OpenTelemetry.
 
-    Automatically creates spans for all requests made via the `requests` library,
-    including trace context propagation to downstream services.
+    Controlled by OTEL_HTTP_ENABLED. Automatically creates spans for all
+    requests made via the `requests` library, including trace context
+    propagation to downstream services.
     """
-    if not OTEL_ENABLED:
+    if not OTEL_ENABLED or not OTEL_HTTP_ENABLED:
         return
 
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
