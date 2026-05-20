@@ -10,7 +10,8 @@ VENV_PYTHON="${APP_ROOT}/.venv/bin/python"
 
 # ClowdApp runs scripts as ./foo.py; the shebang must not use /usr/bin/python because
 # that is the RPM interpreter without project deps. Run .py entrypoints with the venv.
-if [ -x "$VENV_PYTHON" ] && [[ "$1" == *'.py' ]]; then
+# Skip env assignments (e.g. FLASK_APP=./manage.py flask db upgrade).
+if [ -x "$VENV_PYTHON" ] && [[ "$1" == *'.py' ]] && [[ "$1" != *'='* ]]; then
     exec "$VENV_PYTHON" "$@"
 fi
 
