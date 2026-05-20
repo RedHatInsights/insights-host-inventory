@@ -18,6 +18,7 @@ from api import metrics
 from api.group_query import build_group_response
 from api.group_query import build_paginated_group_list_response
 from api.group_query import build_rbac_v2_workspace_response
+from api.group_query import does_group_with_name_exist
 from api.group_query import get_filtered_group_list_db
 from api.group_query import get_group_list_by_id_list_db
 from api.group_query import get_group_list_by_id_list_rbac_v2
@@ -127,6 +128,62 @@ def _build_group_list_response(total: int, page: int, per_page: int, results: li
         "per_page": per_page,
         "results": results,
     }
+
+
+@api_operation
+@rbac(RbacResourceType.GROUPS, RbacPermission.READ)
+@metrics.api_request_time.time()
+def validate_group_name(name: str) -> Response:
+    """
+    Validate if a group name is available and meets requirements.
+
+    This endpoint allows the frontend to validate workspace names in real-time
+    during the creation process, ensuring proper UI state management.
+
+    Args:
+        name: The group name to validate
+
+    Returns:
+        JSON response with validation result and details
+    """
+    identity = get_current_identity()
+
+    # Validate the name using the same schema as group creation
+    try:
+        # Use the InputGroupSchema to validate the name
+        validated_data = InputGroupSchema().load({"name": name})
+        validated_name = validated_data.get("name")
+    except ValidationError as e:
+        # Return validation error details
+        return flask_json_response(
+            {
+                "valid": False,
+                "error": "validation_error",
+                "message": str(e.messages.get("name", e.messages)),
+                "name": name,
+            },
+            HTTPStatus.OK,
+        )
+
+    # Check if a group with this name already exists
+    name_exists = does_group_with_name_exist(validated_name, identity.org_id)
+
+    if name_exists:
+        return flask_json_response(
+            {
+                "valid": False,
+                "error": "name_exists",
+                "message": f"A group with name '{validated_name}' already exists.",
+                "name": validated_name,
+            },
+            HTTPStatus.OK,
+        )
+
+    # Name is valid and available
+    return flask_json_response(
+        {"valid": True, "message": f"Group name '{validated_name}' is available.", "name": validated_name},
+        HTTPStatus.OK,
+    )
 
 
 @api_operation

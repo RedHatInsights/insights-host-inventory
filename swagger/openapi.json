@@ -800,6 +800,76 @@
         }
       }
     },
+    "/groups/validate-name": {
+      "get": {
+        "operationId": "api.group.validate_group_name",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Validate a group name",
+        "description": "Validate if a group name is available and meets requirements. This endpoint allows the frontend to validate workspace names in real-time during the creation process, ensuring proper UI state management. <br /><br /> Required permissions: inventory:groups:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "description": "The group name to validate"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation result for the group name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean",
+                      "description": "Whether the group name is valid and available"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "Error type if validation failed",
+                      "enum": [
+                        "validation_error",
+                        "name_exists"
+                      ]
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable validation message"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The validated/processed group name"
+                    }
+                  },
+                  "required": [
+                    "valid",
+                    "message",
+                    "name"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
     "/groups": {
       "get": {
         "operationId": "api.group.get_group_list",
