@@ -43,6 +43,9 @@ from app.models.schemas.system_profile import NetworkInterfaceSchema
 from app.models.schemas.system_profile import OperatingSystemSchema
 from app.models.schemas.system_profile import RhsmSchema
 from app.models.schemas.system_profile import YumRepoSchema
+from app.models.schemas.views import InputViewSchema
+from app.models.schemas.views import PatchViewSchema
+from app.models.schemas.views import ViewResponseSchema
 
 __all__ = [
     "BaseSchemaWithExclude",
@@ -86,4 +89,7 @@ __all__ = [
     "TagsSchema",
     "VulnerabilityDataSchema",
     "YumRepoSchema",
+    "InputViewSchema",
+    "PatchViewSchema",
+    "ViewResponseSchema",
 ]
