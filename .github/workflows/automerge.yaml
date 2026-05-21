@@ -2,8 +2,10 @@ name: Dependabot Auto-merge
 on:
   pull_request_target:
     paths:
-      - 'Pipfile'
-      - 'Pipfile.lock'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Pipfile.iqe'
+      - 'Pipfile.iqe.lock'
       - '.hermetic_builds/requirements.txt'
 
 jobs:

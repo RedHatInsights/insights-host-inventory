@@ -36,9 +36,9 @@ The input is provided as: $ARGUMENTS
 
 For **Python package** vulnerabilities (Package Type = python):
 
-1. Check `Pipfile.lock` for the current pinned version of each vulnerable package:
+1. Check `uv.lock` for the current pinned version of each vulnerable package (TOML `[[package]]` stanzas):
    ```
-   grep -A 5 '"<package_name>"' Pipfile.lock
+   rg -n 'name = "<package_name>"' uv.lock -A2
    ```
 2. Compare the locked version against the "Fixed Version" from the report.
 3. Mark as ALREADY FIXED if the locked version meets or exceeds the fixed version.
@@ -73,8 +73,8 @@ h3. Image Tags in Report
 
 h3. 1. Python Packages (HBI image) - Direct Control
 
-||Package||Vuln Version(s)||Fixed Version||CVE / GHSA||Severity||Pipfile.lock Status||Action||
-|<package>|<versions>|<fixed>|<cve>|{color:red}*High*{color} or {color:orange}*Medium*{color} or Low||(/) Already fixed (==<ver>) or (x) Needs update|Rebuild image / Update Pipfile|
+||Package||Vuln Version(s)||Fixed Version||CVE / GHSA||Severity||uv.lock Status||Action||
+|<package>|<versions>|<fixed>|<cve>|{color:red}*High*{color} or {color:orange}*Medium*{color} or Low||(/) Already fixed (==<ver>) or (x) Needs update|Rebuild image / update `pyproject.toml` + `uv lock`|
 
 h3. 2. RPM Packages (HBI image) - Base Image Rebuild
 
