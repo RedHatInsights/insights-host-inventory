@@ -693,6 +693,7 @@ dependencies = [
     { name = "openapi-spec-validator" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-confluent-kafka" },
     { name = "opentelemetry-instrumentation-flask" },
     { name = "opentelemetry-instrumentation-requests" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
@@ -758,6 +759,7 @@ requires-dist = [
     { name = "openapi-spec-validator", specifier = "==0.7.2" },
     { name = "opentelemetry-api", specifier = "~=1.41.1" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = "~=1.41.1" },
+    { name = "opentelemetry-instrumentation-confluent-kafka", specifier = "~=0.53b0" },
     { name = "opentelemetry-instrumentation-flask", specifier = "==0.62b1" },
     { name = "opentelemetry-instrumentation-requests", specifier = "==0.62b1" },
     { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.62b1" },
@@ -1148,6 +1150,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/cb/0523b92c112a6cc70be43724343dc45225d3af134419844d7879a07755d4/opentelemetry_instrumentation-0.62b1.tar.gz", hash = "sha256:90e92a905ba4f84db06ac3aec96701df6c079b2d66e9379f8739f0a1bdcc7f45", size = 34043, upload-time = "2026-04-24T13:22:31.997Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/0f/45adbaea1f81b847cffdcee4f4b5f89297e42facf7fac78c7aaac4c38e75/opentelemetry_instrumentation-0.62b1-py3-none-any.whl", hash = "sha256:976fc6e640f2006599e97429c949e622c108d0c17c2059347d1e6c93c707f257", size = 34163, upload-time = "2026-04-24T13:21:31.722Z" },
+]
+
+[[package]]
+name = "opentelemetry-instrumentation-confluent-kafka"
+version = "0.62b1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/ed/4063731c1a44a5cce37e8ba88484857ca2aac59831bb4ba07dc49b23011f/opentelemetry_instrumentation_confluent_kafka-0.62b1.tar.gz", hash = "sha256:057f42de82470e59a1f4b406cb5b38caf9c277d5b9ef8e0fdcee1f255c22831c", size = 12107, upload-time = "2026-04-24T13:22:46.873Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/8a/a3d1cb30951cf9a0cf0eaf8d3e1f11bcf2f4ced5211d690f4eda016589c8/opentelemetry_instrumentation_confluent_kafka-0.62b1-py3-none-any.whl", hash = "sha256:9f3c518706797161e7ebd0bc036b906c5779d574e01c41ef942a30a4da2df732", size = 12801, upload-time = "2026-04-24T13:21:48.966Z" },
 ]
 
 [[package]]

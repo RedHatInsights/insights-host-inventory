@@ -39,6 +39,7 @@ dependencies = [
     "opentelemetry-instrumentation-flask==0.62b1",
     "opentelemetry-instrumentation-sqlalchemy==0.62b1",
     "opentelemetry-instrumentation-requests==0.62b1",
+    "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.7.0",
     "rpds-py==0.30.0",
 ]
