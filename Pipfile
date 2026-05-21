@@ -40,7 +40,7 @@ opentelemetry-sdk = "~=1.42"
 opentelemetry-exporter-otlp-proto-http = "~=1.42"
 opentelemetry-instrumentation-flask = "~=0.53b"
 opentelemetry-instrumentation-sqlalchemy = "~=0.53b"
-opentelemetry-instrumentation-requests = "~=0.53b"
+opentelemetry-instrumentation-requests = "~=0.63b0"
 # pinning versions of transitive dependencies to avoid hermetic build issues
 unleashclient = "==6.7.0"
 rpds-py = "==0.30.0"
