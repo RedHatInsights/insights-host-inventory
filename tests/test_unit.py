@@ -2326,9 +2326,9 @@ def test_happy_path_event_producer(subtests, flask_app):
                 event_producer.write_event(event, host_id, headers)
 
                 produce.assert_called_once_with(
-                    topic_name,
-                    event.encode("utf-8"),
-                    host_id.encode("utf-8"),
+                    topic=topic_name,
+                    value=event.encode("utf-8"),
+                    key=host_id.encode("utf-8"),
                     callback=ANY,
                     headers=ANY,
                 )
@@ -2370,9 +2370,9 @@ def test_producer_poll_event_producer(subtests, flask_app):
                 event_producer.write_event(event, host_id, headers)
 
                 produce.assert_called_once_with(
-                    topic_name,
-                    event.encode("utf-8"),
-                    host_id.encode("utf-8"),
+                    topic=topic_name,
+                    value=event.encode("utf-8"),
+                    key=host_id.encode("utf-8"),
                     callback=ANY,
                     headers=ANY,
                 )

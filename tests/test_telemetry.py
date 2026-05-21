@@ -255,9 +255,54 @@ def test_http_instrumentation_runs_when_enabled(monkeypatch):
     _cleanup_telemetry(monkeypatch)
 
 
+def test_kafka_instrumentation_helpers_skip_when_otel_disabled(monkeypatch):
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "false"})
+    producer = MagicMock()
+    consumer = MagicMock()
+
+    assert telemetry_mod.instrument_kafka_producer(producer) is producer
+    assert telemetry_mod.instrument_kafka_consumer(consumer) is consumer
+
+
+def test_kafka_instrumentation_helpers_skip_when_mq_disabled(monkeypatch):
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_MQ_ENABLED": "false"})
+    producer = MagicMock()
+    consumer = MagicMock()
+
+    assert telemetry_mod.instrument_kafka_producer(producer) is producer
+    assert telemetry_mod.instrument_kafka_consumer(consumer) is consumer
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_kafka_instrumentation_helpers_wrap_when_enabled(monkeypatch):
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_MQ_ENABLED": "true"})
+    producer = MagicMock()
+    consumer = MagicMock()
+    tracer_provider = MagicMock()
+    wrapped_producer = MagicMock()
+    wrapped_consumer = MagicMock()
+
+    with (
+        patch("opentelemetry.trace.get_tracer_provider", return_value=tracer_provider),
+        patch("opentelemetry.instrumentation.confluent_kafka.ConfluentKafkaInstrumentor") as mock_instrumentor,
+    ):
+        mock_instrumentor.instrument_producer.return_value = wrapped_producer
+        mock_instrumentor.instrument_consumer.return_value = wrapped_consumer
+
+        assert telemetry_mod.instrument_kafka_producer(producer) is wrapped_producer
+        assert telemetry_mod.instrument_kafka_consumer(consumer) is wrapped_consumer
+
+        mock_instrumentor.instrument_producer.assert_called_once_with(producer, tracer_provider=tracer_provider)
+        mock_instrumentor.instrument_consumer.assert_called_once_with(consumer, tracer_provider=tracer_provider)
+
+    _cleanup_telemetry(monkeypatch)
+
+
 def test_config_defaults_without_env_vars(monkeypatch):
     """Module-level config constants use sensible defaults when env vars are absent."""
     for var in [
+        "OTEL_MQ_ENABLED",
         "OTEL_SQL_ENABLED",
         "OTEL_SQL_COMMENTER_ENABLED",
         "OTEL_HTTP_ENABLED",
@@ -278,6 +323,7 @@ def test_config_defaults_without_env_vars(monkeypatch):
     importlib.reload(telemetry_mod)
 
     assert telemetry_mod.OTEL_ENABLED is False
+    assert telemetry_mod.OTEL_MQ_ENABLED is True
     assert telemetry_mod.OTEL_SQL_ENABLED is True
     assert telemetry_mod.OTEL_SQL_COMMENTER_ENABLED is False
     assert telemetry_mod.OTEL_HTTP_ENABLED is True
