@@ -19,6 +19,7 @@ from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -78,7 +79,11 @@ from app.serialization import remove_null_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_uuid
 from app.staleness_serialization import AttrDict
+from app.telemetry import OTEL_MQ_ENABLED
+from app.telemetry import OTEL_MQ_MESSAGE_SPANS_ENABLED
+from app.telemetry import OTEL_MQ_SLOW_MESSAGE_MS
 from app.telemetry import get_tracer
+from app.telemetry import instrument_kafka_consumer
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
@@ -123,7 +128,7 @@ def create_consumer(config):
     """Factory function to create appropriate kafka consumer"""
     if config.replica_namespace:
         return NullConsumer(config)
-    return Consumer(
+    consumer = Consumer(
         {
             "group.id": config.host_ingress_consumer_group,
             "bootstrap.servers": config.bootstrap_servers,
@@ -131,6 +136,7 @@ def create_consumer(config):
             **config.kafka_consumer,
         }
     )
+    return instrument_kafka_consumer(consumer)
 
 
 class HostOperationSchema(Schema):
@@ -203,6 +209,7 @@ class HBIMessageConsumerBase:
         self.event_producer = event_producer
         self.notification_event_producer = notification_event_producer
         self.processed_rows: list[OperationResult] = []
+        self._is_retry = False
 
     @property
     def success_metric(self):
@@ -235,17 +242,55 @@ class HBIMessageConsumerBase:
     def post_process_rows(self) -> None:
         pass  # No action is taken by default
 
+    def _should_emit_message_span(self) -> bool:
+        """Whether a per-message child span should be started eagerly."""
+        return OTEL_MQ_ENABLED and (OTEL_MQ_MESSAGE_SPANS_ENABLED or self._is_retry)
+
+    def _message_span_attrs(self, msg, **extra) -> dict:
+        """Build common span attributes for a Kafka message."""
+        attrs = {
+            "messaging.operation": "process",
+            "messaging.destination.name": msg.topic() or "",
+            "messaging.kafka.partition": msg.partition() or 0,
+        }
+        attrs.update(extra)
+        return attrs
+
+    def _emit_slow_message_span(self, msg, start_ns: int, end_ns: int) -> None:
+        """Emit a retroactive span for a message that exceeded the slow threshold."""
+        if not OTEL_MQ_ENABLED:
+            return
+        duration_ms = (end_ns - start_ns) / 1_000_000
+        if duration_ms < OTEL_MQ_SLOW_MESSAGE_MS:
+            return
+
+        span = tracer.start_span(
+            f"mq.process {msg.topic()}",
+            attributes=self._message_span_attrs(msg, **{"hbi.slow_message": True, "hbi.duration_ms": duration_ms}),
+            start_time=start_ns,
+        )
+        span.end(end_time=end_ns)
+
     def _process_single_message(self, msg) -> None:
-        """Process a single Kafka message within a tracing span."""
+        """Process a single Kafka message, conditionally emitting a child span.
+
+        Span emission rules:
+        - Always emit when OTEL_MQ_MESSAGE_SPANS_ENABLED is True (default for stage).
+        - Always emit during retry attempts or on error.
+        - When disabled, emit retroactively for messages exceeding OTEL_MQ_SLOW_MESSAGE_MS.
+        """
         logger.debug("Message received")
 
+        if self._should_emit_message_span():
+            self._process_message_with_span(msg)
+        else:
+            self._process_message_without_span(msg)
+
+    def _process_message_with_span(self, msg) -> None:
+        """Process a message with a full tracing span (used when spans are enabled or on retry)."""
         with tracer.start_as_current_span(
             f"mq.process {msg.topic()}",
-            attributes={
-                "messaging.operation": "process",
-                "messaging.destination.name": msg.topic() or "",
-                "messaging.kafka.partition": msg.partition() or 0,
-            },
+            attributes=self._message_span_attrs(msg, **{"hbi.retry": self._is_retry}),
         ) as span:
             try:
                 self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
@@ -262,8 +307,46 @@ class HBIMessageConsumerBase:
                 self.failure_metric.inc()
                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
+    def _process_message_without_span(self, msg) -> None:
+        """Process a message without an eager span; emit retroactively on error or slow threshold."""
+        start_ns = time.time_ns()
+        try:
+            self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+            metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
+            self.success_metric.inc()
+        except OperationalError as oe:
+            self._emit_error_span(msg, start_ns, oe)
+            logger.error(f"Could not access DB {str(oe)}")
+            sys.exit(3)
+        except Exception as exc:
+            self._emit_error_span(msg, start_ns, exc)
+            self.failure_metric.inc()
+            logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
+        else:
+            if OTEL_MQ_SLOW_MESSAGE_MS > 0:
+                end_ns = time.time_ns()
+                self._emit_slow_message_span(msg, start_ns, end_ns)
+
+    def _emit_error_span(self, msg, start_ns: int, exc: Exception) -> None:
+        """Emit a span for a failed message when routine per-message spans are disabled."""
+        if not OTEL_MQ_ENABLED:
+            return
+        end_ns = time.time_ns()
+        span = tracer.start_span(
+            f"mq.process {msg.topic()}",
+            attributes=self._message_span_attrs(msg, **{"hbi.error": True}),
+            start_time=start_ns,
+        )
+        span.set_status(StatusCode.ERROR, str(exc))
+        span.record_exception(exc)
+        span.end(end_time=end_ns)
+
     def _process_batch(self) -> None:
         """Process a single batch of messages from Kafka.
+
+        The Confluent Kafka instrumentor owns the batch-level consumer context for
+        the returned records. We keep lightweight per-message child spans under that
+        context so SQL spans can still be inspected message-by-message.
 
         Raises:
             InvalidRequestError: When the database session is in an invalid state
@@ -287,16 +370,11 @@ class HBIMessageConsumerBase:
         if not valid_messages:
             return
 
-        with (
-            tracer.start_as_current_span(
-                "mq.batch",
-                attributes={
-                    "messaging.system": "kafka",
-                    "messaging.batch.message_count": len(valid_messages),
-                },
-            ),
-            no_expire_on_commit(db.session),
-        ):
+        batch_span = trace.get_current_span()
+        if OTEL_MQ_ENABLED and batch_span.is_recording():
+            batch_span.set_attribute("messaging.batch.message_count", len(valid_messages))
+
+        with no_expire_on_commit(db.session):
             with (
                 session_guard(db.session, close=False),
                 db.session.no_autoflush,
@@ -323,6 +401,7 @@ class HBIMessageConsumerBase:
                 while not interrupt():
                     for attempt in range(1, MAX_RETRIES + 1):
                         self.processed_rows = []
+                        self._is_retry = attempt > 1
                         try:
                             self._process_batch()
                             break  # Success, exit retry loop
