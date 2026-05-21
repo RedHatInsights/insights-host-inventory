@@ -7,6 +7,7 @@ from time import sleep
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.modeling.wrappers import HostWrapper
 
 
 @contextmanager
@@ -72,3 +73,13 @@ def hbi_staleness_cleanup_culled(host_inventory: ApplicationHostInventory) -> Ge
         yield
 
     sleep(5)
+
+
+@pytest.fixture(scope="module")
+def hbi_staleness_prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostWrapper]:
+    """Hosts used to verify staleness API calls do not emit Kafka host update events."""
+    host_inventory.apis.hosts.confirm_delete_all()
+    new_hosts = host_inventory.kafka.create_random_hosts(5, cleanup_scope="module")
+    edge_hosts_data = host_inventory.datagen.create_n_hosts_data(5, host_type="edge")
+    new_hosts += host_inventory.kafka.create_hosts(edge_hosts_data, cleanup_scope="module")
+    return new_hosts

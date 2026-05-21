@@ -8,11 +8,9 @@ from api.cache import delete_cached_staleness
 from api.cache import get_cached_staleness
 from api.cache import set_cached_staleness
 from app.common import inventory_config
-from app.culling import Timestamps
 from app.logging import get_logger
 from app.staleness_serialization import build_serialized_acc_staleness_obj
 from app.staleness_serialization import build_staleness_sys_default
-from app.staleness_serialization import get_staleness_timestamps
 from lib.batch_cache import ThreadLocalBatchCache
 
 logger = get_logger(__name__)
@@ -79,12 +77,6 @@ def _set_display_name_on_save(context):
 
 def _time_now():
     return datetime.now(UTC)
-
-
-def _create_staleness_timestamps_values(host, org_id):
-    staleness = get_staleness_obj(org_id)
-    staleness_ts = Timestamps.from_config(inventory_config())
-    return get_staleness_timestamps(host, staleness_ts, staleness)
 
 
 def deleted_by_this_query(model):

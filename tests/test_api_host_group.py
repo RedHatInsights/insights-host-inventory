@@ -8,8 +8,10 @@ from datetime import timedelta
 import pytest
 from dateutil.parser import parse
 
+from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.exceptions import ResourceNotFoundException
 from app.models import Host
+from app.models import db
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import assert_response_status
@@ -382,7 +384,8 @@ def test_group_with_culled_hosts(
     assert len(hosts_after) == 3
     culled_host = db_get_host(hosts_after[0].id)
 
-    culled_host.deletion_timestamp = datetime.now(tz=UTC) - timedelta(minutes=5)
+    culled_host.last_check_in = datetime.now(tz=UTC) - timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS + 3600)
+    db.session.commit()
 
     _, response_data = api_get(f"{GROUP_URL}/" + ",".join([str(group_id)]))
     host_count = response_data["results"][0]["host_count"]
