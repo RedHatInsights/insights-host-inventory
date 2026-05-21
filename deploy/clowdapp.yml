@@ -587,6 +587,12 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -684,6 +690,12 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -819,6 +831,12 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -912,6 +930,12 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -1079,6 +1103,12 @@ objects:
             value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
           - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
             value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
           - name: CLOWDER_ENABLED
             value: "true"
           - name: INVENTORY_DB_SCHEMA
@@ -2904,3 +2934,12 @@ parameters:
 - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
   description: Max length of span attribute values (truncates long SQL text, etc.)
   value: '1024'
+- name: OTEL_MQ_ENABLED
+  description: Enable OpenTelemetry tracing for Kafka/MQ producer and consumer operations
+  value: 'true'
+- name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+  description: Emit per-message child spans for MQ consumers (disable in prod to reduce span volume)
+  value: 'true'
+- name: OTEL_MQ_SLOW_MESSAGE_MS
+  description: When message spans are disabled, emit spans for messages exceeding this threshold (ms). 0 = disabled.
+  value: '0'
