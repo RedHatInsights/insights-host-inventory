@@ -30,7 +30,6 @@ from app.models.database import db
 from app.models.mixins import HostTypeDeriver
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
-from app.models.utils import _create_staleness_timestamps_values
 from app.models.utils import _set_display_name_on_save
 from app.models.utils import _time_now
 from app.models.utils import get_staleness_obj
@@ -352,7 +351,6 @@ class Host(LimitedHost):
             self.display_name_reporter = reporter
 
         self._update_last_check_in_date()
-        self._update_staleness_timestamps()
 
         self.per_reporter_staleness = per_reporter_staleness or {}
         if not per_reporter_staleness:
@@ -397,7 +395,6 @@ class Host(LimitedHost):
 
         self._update_last_check_in_date()
         self._update_per_reporter_staleness(input_host.reporter)
-        self._update_staleness_timestamps()
 
     def patch(self, patch_data):
         logger.debug("patching host (id=%s) with data: %s", self.id, patch_data)
@@ -555,16 +552,6 @@ class Host(LimitedHost):
             self._add_or_update_normalized_system_profiles(input_system_profile)
         except Exception as e:
             logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
-
-    def _update_staleness_timestamps(self):
-        staleness_timestamps = _create_staleness_timestamps_values(self, self.org_id)
-        self.stale_timestamp = staleness_timestamps["stale_timestamp"]
-        self.stale_warning_timestamp = staleness_timestamps["stale_warning_timestamp"]
-        self.deletion_timestamp = staleness_timestamps["culled_timestamp"]
-
-        orm.attributes.flag_modified(self, "stale_timestamp")
-        orm.attributes.flag_modified(self, "stale_warning_timestamp")
-        orm.attributes.flag_modified(self, "deletion_timestamp")
 
     def reporter_stale(self, reporter):
         reporter_data = self.per_reporter_staleness.get(reporter, None)

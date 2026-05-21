@@ -462,7 +462,7 @@ def test_get_culled_hosts_using_last_check_in(
     patched_hosts = culled_hosts[:2]
     host_inventory.apis.hosts.patch_hosts(patched_hosts, display_name=generate_display_name())
 
-    # Go through all the host events, otherwise updating staleness won't find correct events
+    # Drain patch host update events before creating custom staleness config
     host_inventory.kafka.wait_for_filtered_host_messages(
         HostWrapper.insights_id, [host.insights_id for host in patched_hosts]
     )
@@ -525,7 +525,7 @@ def test_staleness_stage_prod(host_inventory: ApplicationHostInventory) -> None:
     assert host.id not in {response_host.id for response_host in response_hosts}
 
     # Delete staleness config
-    host_inventory.apis.account_staleness.delete_staleness(wait_for_host_events=False)
+    host_inventory.apis.account_staleness.delete_staleness()
     host_inventory.apis.hosts.wait_for_staleness(host, staleness="fresh")
 
     response_hosts = host_inventory.apis.hosts.get_hosts(staleness=["stale", "stale_warning"])

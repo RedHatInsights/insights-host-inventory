@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from random import randint
 from typing import Any
@@ -5,6 +7,7 @@ from typing import Any
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import api_disabled_validation
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import DAY_SECS
@@ -323,3 +326,29 @@ def test_staleness_update_invalid_ordering(
 
     with raises_apierror(400, match_message="must be lower than"):
         host_inventory.apis.account_staleness.update_staleness(**settings)
+
+
+@pytest.mark.ephemeral
+def test_staleness_mq_events_not_produce_update_staleness(
+    host_inventory: ApplicationHostInventory,
+    hbi_staleness_prepare_hosts: list[HostWrapper],
+) -> None:
+    """
+    https://issues.redhat.com/browse/RHINENG-16619
+
+    metadata:
+      requirements: inv-staleness-patch, inv-produce-event-messages
+      assignee: fstavela
+      importance: high
+      negative: true
+      title: Don't produce kafka event message when staleness config is updated
+    """
+    host_inventory.apis.account_staleness.create_staleness(
+        **gen_staleness_settings(want_sample=False)
+    )
+
+    host_inventory.apis.account_staleness.update_staleness(
+        **gen_staleness_settings(want_sample=False)
+    )
+
+    host_inventory.kafka.verify_host_messages_not_produced(hbi_staleness_prepare_hosts, timeout=2)
