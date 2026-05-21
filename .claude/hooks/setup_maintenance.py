@@ -3,7 +3,7 @@
 HBI Development Environment Maintenance Script.
 
 Deterministic maintenance script that:
-1. Updates Python dependencies via pipenv
+1. Updates Python dependencies via uv
 2. Pulls latest Podman images
 3. Restarts Podman Compose services
 4. Runs database migrations
@@ -49,7 +49,6 @@ def run_cmd(cmd, cwd=None, timeout=60, env=None, check=True):
     if not isinstance(cmd, list) or not all(isinstance(c, str) for c in cmd):
         raise TypeError(f"cmd must be a list of strings, got: {type(cmd)}")
     merged_env = {**os.environ, **(env or {})}
-    merged_env.pop("PIPENV_PIPFILE", None)  # Ensure pipenv uses the project root Pipfile
     try:
         result = subprocess.run(  # noqa: S603
             cmd,
@@ -72,12 +71,16 @@ def run_cmd(cmd, cwd=None, timeout=60, env=None, check=True):
 
 def update_dependencies():
     """Update Python dependencies."""
-    log.info("  Running pipenv update --dev ...")
-    rc, _, stderr = run_cmd(["pipenv", "update", "--dev"], timeout=300)
+    log.info("  Running uv lock --upgrade && uv sync ...")
+    rc, _, stderr = run_cmd(["uv", "lock", "--upgrade"], timeout=300)
+    if rc != 0:
+        log.error("  uv lock --upgrade failed: %s", stderr)
+        return False
+    rc, _, stderr = run_cmd(["uv", "sync"], timeout=300)
     if rc == 0:
         log.info("  Dependencies updated successfully")
     else:
-        log.error("  pipenv update failed: %s", stderr)
+        log.error("  uv sync failed: %s", stderr)
     return rc == 0
 
 
@@ -138,7 +141,7 @@ def run_migrations():
         "INVENTORY_DB_PASS": "insights",
     }
     rc, _, stderr = run_cmd(
-        ["pipenv", "run", "make", "upgrade_db"],
+        ["uv", "run", "make", "upgrade_db"],
         timeout=60,
         env=env,
     )
@@ -153,7 +156,7 @@ def run_style_checks():
     """Run code style checks."""
     log.info("  Running style checks ...")
     rc, _, stderr = run_cmd(
-        ["pipenv", "run", "make", "style"],
+        ["uv", "run", "make", "style"],
         timeout=120,
     )
     if rc == 0:
