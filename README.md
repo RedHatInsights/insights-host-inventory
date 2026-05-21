@@ -129,7 +129,7 @@ source .env
 uv sync
 ```
 
-2. **Activate virtual environment** (optional):
+2. **Activate virtual environment**:
 
 ```bash
 source .venv/bin/activate
