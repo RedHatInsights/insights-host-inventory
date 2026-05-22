@@ -11,7 +11,7 @@ dependencies = [
     "gunicorn~=26.0.0",
     "connexion[swagger-ui, flask, uvicorn]~=3.3.0",
     "openapi-schema-validator==0.6.3",
-    "openapi-spec-validator==0.7.2",
+    "openapi-spec-validator==0.9.0",
     "pyyaml~=6.0.3",
     "prometheus-client~=0.25.0",
     "logstash-formatter~=0.5.17",
