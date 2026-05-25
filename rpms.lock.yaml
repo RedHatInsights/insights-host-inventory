@@ -81,13 +81,13 @@ arches:
     name: keyutils-libs-devel
     evr: 1.6.3-1.el9
     sourcerpm: keyutils-1.6.3-1.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/krb5-devel-1.21.1-9.el9_8.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/k/krb5-devel-1.21.1-10.el9_8.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 152768
-    checksum: sha256:30d1ed89d5f9f24d7cffb964185cc02336903b18627f1ccc03ee42ddf3d2fd76
+    size: 152611
+    checksum: sha256:7ba9b36033f06d4864ee66956a417fc93ade29bc0c7a0d65291d24f0b26597bc
     name: krb5-devel
-    evr: 1.21.1-9.el9_8
-    sourcerpm: krb5-1.21.1-9.el9_8.src.rpm
+    evr: 1.21.1-10.el9_8
+    sourcerpm: krb5-1.21.1-10.el9_8.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/l/libcom_err-devel-1.46.5-8.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 16789
@@ -851,6 +851,13 @@ arches:
     name: kmod-libs
     evr: 28-11.el9
     sourcerpm: kmod-28-11.el9.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/k/krb5-libs-1.21.1-10.el9_8.x86_64.rpm
+    repoid: rhel-9-for-x86_64-baseos-rpms
+    size: 790743
+    checksum: sha256:8906be9f2d414c5f4e1218db0c94955c2b3394b43a04b7dbcc2ef66c4340ebc6
+    name: krb5-libs
+    evr: 1.21.1-10.el9_8
+    sourcerpm: krb5-1.21.1-10.el9_8.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/less-590-6.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
     size: 166025
@@ -907,13 +914,13 @@ arches:
     name: libgomp
     evr: 11.5.0-14.el9
     sourcerpm: gcc-11.5.0-14.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/libkadm5-1.21.1-9.el9_8.x86_64.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/libkadm5-1.21.1-10.el9_8.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
-    size: 83463
-    checksum: sha256:331765f7c79fd9117194e449f432171cf710deef62ca803d5c6eccad06218ff1
+    size: 83010
+    checksum: sha256:789897755fd1c2f6189f13f7ae4cf0a860f3ab21b018eb4054f19a9a3ad4456f
     name: libkadm5
-    evr: 1.21.1-9.el9_8
-    sourcerpm: krb5-1.21.1-9.el9_8.src.rpm
+    evr: 1.21.1-10.el9_8
+    sourcerpm: krb5-1.21.1-10.el9_8.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/libpkgconf-1.7.3-10.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
     size: 38387
@@ -1461,12 +1468,12 @@ arches:
     checksum: sha256:4f6fefbf0d004b23494fe18ccfff2b9151ea887a276c56a6f25ea597a250991c
     name: kmod
     evr: 28-11.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/krb5-1.21.1-9.el9_8.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/k/krb5-1.21.1-10.el9_8.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
-    size: 8963981
-    checksum: sha256:5e3983add196a28124da98b3bc64146ad31357dbac641454059d02037608d769
+    size: 8964976
+    checksum: sha256:b22a66515c98c14a4969a403d5419b9f9bab50015553863de866d3f45fd6d922
     name: krb5
-    evr: 1.21.1-9.el9_8
+    evr: 1.21.1-10.el9_8
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/source/SRPMS/Packages/l/less-590-6.el9.src.rpm
     repoid: rhel-9-for-x86_64-baseos-source-rpms
     size: 382338
