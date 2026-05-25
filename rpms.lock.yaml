@@ -851,13 +851,6 @@ arches:
     name: kmod-libs
     evr: 28-11.el9
     sourcerpm: kmod-28-11.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/k/krb5-libs-1.21.1-10.el9_8.x86_64.rpm
-    repoid: rhel-9-for-x86_64-baseos-rpms
-    size: 790743
-    checksum: sha256:8906be9f2d414c5f4e1218db0c94955c2b3394b43a04b7dbcc2ef66c4340ebc6
-    name: krb5-libs
-    evr: 1.21.1-10.el9_8
-    sourcerpm: krb5-1.21.1-10.el9_8.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/less-590-6.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
     size: 166025

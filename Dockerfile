@@ -6,7 +6,7 @@ RUN ./configure --prefix=/usr && \
     make && \
     make install
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1777460003
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1779709832
 
 ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
 
