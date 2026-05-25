@@ -127,6 +127,7 @@ def check_host_timestamps(
     This function is used to check the host timestamps after an API update of a host."""
 
     def _extract_timestamps(data: dict) -> dict[str, datetime]:
+        # figure out what to do here
         timestamps = {
             "updated": data.pop("updated"),
             "stale_timestamp": data.pop("stale_timestamp"),
@@ -391,9 +392,6 @@ def check_mq_create_or_update_event_host_data(
         culled_timestamp=event_host_data.pop("culled_timestamp"),
         staleness_settings=staleness_settings,
     )
-    expected_host_data.pop("stale_timestamp", None)
-    expected_host_data.pop("stale_warning_timestamp", None)
-    expected_host_data.pop("culled_timestamp", None)
 
     check_prs_timestamps(
         event_host_data.pop("per_reporter_staleness"),

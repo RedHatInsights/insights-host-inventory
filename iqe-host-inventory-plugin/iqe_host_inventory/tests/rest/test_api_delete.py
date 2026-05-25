@@ -442,17 +442,17 @@ def test_delete_bulk_all_hosts_correct_parameters(
         title: Inventory: Test DELETE on /hosts/all with all required parameters
     """
     hosts_data = host_inventory.datagen.create_n_hosts_data(6)
-    hosts_data[0]["stale_timestamp"] = gen_fresh_date().isoformat()
+    hosts_data[0]["last_check_in"] = gen_fresh_date().isoformat()
     hosts_data[0]["insights_id"] = generate_uuid()
-    hosts_data[1]["stale_timestamp"] = gen_fresh_date().isoformat()
+    hosts_data[1]["last_check_in"] = gen_fresh_date().isoformat()
     hosts_data[1].pop("insights_id", None)
-    hosts_data[2]["stale_timestamp"] = gen_stale_date().isoformat()
+    hosts_data[2]["last_check_in"] = gen_stale_date().isoformat()
     hosts_data[2]["insights_id"] = generate_uuid()
-    hosts_data[3]["stale_timestamp"] = gen_stale_date().isoformat()
+    hosts_data[3]["last_check_in"] = gen_stale_date().isoformat()
     hosts_data[3].pop("insights_id", None)
-    hosts_data[4]["stale_timestamp"] = gen_stale_warning_date().isoformat()
+    hosts_data[4]["last_check_in"] = gen_stale_warning_date().isoformat()
     hosts_data[4]["insights_id"] = generate_uuid()
-    hosts_data[5]["stale_timestamp"] = gen_stale_warning_date().isoformat()
+    hosts_data[5]["last_check_in"] = gen_stale_warning_date().isoformat()
     hosts_data[5].pop("insights_id", None)
     host_inventory.kafka.create_hosts(
         hosts_data=hosts_data, field_to_match=HostWrapper.subscription_manager_id

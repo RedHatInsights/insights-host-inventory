@@ -80,7 +80,6 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "qpc_prods.qpc_products, "
         "qpc_certs.qpc_product_ids, "
         "system_profile.system_profile_product_ids, "
-        "h.stale_timestamp "
         "from hosts h "
         "left join system_profiles_static sps on h.org_id = sps.org_id and h.id = sps.host_id "
         "left join system_profiles_dynamic spd on h.org_id = spd.org_id and h.id = spd.host_id "
@@ -99,8 +98,6 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "where h.org_id IN ('00000000')"
         "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # noqa: E501
         "   and (h.host_type IS NULL OR h.host_type <> 'edge')"
-        "   and (stale_timestamp is null "
-        "   or  (NOW() < stale_timestamp + make_interval(days => 30)))"
     )
 
     inventory_db_session.execute(query)

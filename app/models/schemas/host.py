@@ -477,7 +477,6 @@ class HostSchema(LimitedHostSchema):
             tags=tags,
             tags_alt=tags_alt,
             system_profile_facts=data.get("system_profile", {}),
-            stale_timestamp=data.get("stale_timestamp"),
             reporter=data["reporter"],
             groups=data.get("groups", []),
             insights_id=data.get("insights_id"),

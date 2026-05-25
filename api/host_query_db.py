@@ -80,7 +80,6 @@ DEFAULT_COLUMNS = [
     Host.facts,
     Host.reporter,
     Host.per_reporter_staleness,
-    Host.stale_timestamp,
     Host.created_on,
     Host.modified_on,
     Host.groups,

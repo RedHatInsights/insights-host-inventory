@@ -266,9 +266,6 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
 
 class Host(LimitedHost):
-    stale_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
-    deletion_timestamp = db.Column(db.DateTime(timezone=True))
-    stale_warning_timestamp = db.Column(db.DateTime(timezone=True))
     reporter = db.Column(db.String(255), nullable=False)
     per_reporter_staleness = db.Column(JSONB, nullable=False)
     display_name_reporter = db.Column(db.String(255))
@@ -284,7 +281,6 @@ class Host(LimitedHost):
         tags=None,
         tags_alt=None,
         system_profile_facts=None,
-        stale_timestamp=None,  # noqa: ARG002 - to be removed
         reporter=None,
         per_reporter_staleness=None,
         groups=None,

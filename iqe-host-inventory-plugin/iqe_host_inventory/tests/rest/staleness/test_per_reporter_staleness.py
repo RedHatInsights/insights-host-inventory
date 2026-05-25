@@ -57,7 +57,7 @@ def do_reporter_check_ins(
     host_data = host_inventory.datagen.create_host_data(
         host_type=host_type,
         reporter="puptoo",
-        stale_timestamp=generate_timestamp(delta=timedelta(days=5)),
+        last_check_in=generate_timestamp(delta=timedelta(days=5)),
     )
 
     host = host_inventory.kafka.create_host(host_data)
@@ -71,7 +71,7 @@ def do_reporter_check_ins(
 
     host_data.update(
         reporter="yupana",
-        stale_timestamp=generate_timestamp(delta=timedelta(days=3)),
+        last_check_in=generate_timestamp(delta=timedelta(days=3)),
         ansible_host=generate_display_name(),
     )
     host_inventory.kafka.create_host(host_data)
@@ -103,6 +103,7 @@ def verify_staleness(
     assert reporter_staleness.check_in_succeeded
 
     assert_datetimes_equal(reporter_staleness.last_check_in, host.last_check_in)
+    # update to check for the calculatd values
     assert_datetimes_equal(
         host.stale_timestamp,
         reporter_staleness.stale_timestamp,
@@ -436,7 +437,7 @@ def test_per_reporter_registered_with(
     host_data = host_inventory.datagen.create_host_data(
         host_type=host_type,
         reporter="puptoo",
-        stale_timestamp=generate_timestamp(delta=timedelta(days=5)),
+        last_check_in=generate_timestamp(delta=timedelta(days=5)),
     )
 
     host = host_inventory.kafka.create_host(host_data)
@@ -460,7 +461,7 @@ def test_per_reporter_registered_with(
 
     host_data.update(
         reporter="yupana",
-        stale_timestamp=generate_timestamp(delta=timedelta(days=3)),
+        last_check_in=generate_timestamp(delta=timedelta(days=3)),
         ansible_host=generate_display_name(),
     )
     host_inventory.kafka.create_host(host_data)

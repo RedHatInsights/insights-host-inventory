@@ -1685,42 +1685,6 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_stale_timestamp(mq_create_or_update_host):
-    """
-    Tests to see if the host is successfully created with both reporter
-    and stale_timestamp set.
-    """
-    expected_insights_id = generate_uuid()
-    stale_timestamp = now()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        stale_timestamp=stale_timestamp.isoformat(),
-    )
-
-    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
-
-    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
-
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat()
-    expected_results = {
-        "host": {
-            **host.data(),
-            "stale_warning_timestamp": (
-                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
-            ).isoformat(),
-            "culled_timestamp": (
-                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
-            ).isoformat(),
-        }
-    }
-
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_without_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created without stale_timestamp.

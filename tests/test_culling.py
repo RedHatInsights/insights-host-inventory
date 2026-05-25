@@ -1,8 +1,5 @@
-from uuid import UUID
-
 import pytest
 
-from app.models import Host
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
@@ -53,17 +50,6 @@ def test_delete_ignores_culled(mq_create_deleted_hosts, api_delete_host):
     response_status, _ = api_delete_host(culled_host.id)
 
     assert response_status == 404
-
-
-def test_mq_create_deleted_hosts_culled_has_null_staleness_columns(mq_create_deleted_hosts):
-    """Ingress does not persist staleness columns on MQ create."""
-    hw = mq_create_deleted_hosts["culled"]
-    orm_host = Host.query.filter_by(id=UUID(str(hw.id)), org_id=hw.org_id).first()
-    assert orm_host is not None
-
-    assert orm_host.stale_timestamp is None
-    assert orm_host.stale_warning_timestamp is None
-    assert orm_host.deletion_timestamp is None
 
 
 @pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")

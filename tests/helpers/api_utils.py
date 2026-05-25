@@ -762,13 +762,8 @@ def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
-
-    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
-    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
-    """
+    """Create a host with flat PRS (ISO string per reporter) and ``last_check_in`` set."""
     host = db_create_host(
         extra_data={
             "reporter": reporter,
@@ -778,9 +773,5 @@ def create_host_with_reporter(
         },
     )
     host.last_check_in = last_check_in
-    if stale_timestamp is not None:
-        host.stale_timestamp = stale_timestamp
-    else:
-        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host
