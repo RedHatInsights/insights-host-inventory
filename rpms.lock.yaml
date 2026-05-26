@@ -851,13 +851,6 @@ arches:
     name: kmod-libs
     evr: 28-11.el9
     sourcerpm: kmod-28-11.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/k/krb5-libs-1.21.1-10.el9_8.x86_64.rpm
-    repoid: rhel-9-for-x86_64-baseos-rpms
-    size: 790743
-    checksum: sha256:8906be9f2d414c5f4e1218db0c94955c2b3394b43a04b7dbcc2ef66c4340ebc6
-    name: krb5-libs
-    evr: 1.21.1-10.el9_8
-    sourcerpm: krb5-1.21.1-10.el9_8.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os/Packages/l/less-590-6.el9.x86_64.rpm
     repoid: rhel-9-for-x86_64-baseos-rpms
     size: 166025
@@ -1661,7 +1654,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/09721fc6cad6565f56325519dd54633a2ff2c3fb22d1c74faa8039cc0ad740f8-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/b0e17ee8e9f2e69e3e3f0e6459f7946815fede936696f0f094832b74dc21d1c0-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 52484
-    checksum: sha256:09721fc6cad6565f56325519dd54633a2ff2c3fb22d1c74faa8039cc0ad740f8
+    checksum: sha256:b0e17ee8e9f2e69e3e3f0e6459f7946815fede936696f0f094832b74dc21d1c0
