@@ -694,30 +694,14 @@ class TestHostViewSparseFieldsets:
         assert result["display_name"] == "filtered-host.example.com"
         assert result["app_data"]["advisor"] == {"recommendations": 5}
 
-    def test_invalid_app_name_ignored(self, api_get, db_create_host):
-        """Invalid app name in fields parameter should be gracefully ignored."""
-        host = db_create_host()
-        db_create_host_app_data(
-            host.id,
-            host.org_id,
-            "advisor",
-            recommendations=5,
-            incidents=2,
-            critical=3,
-            important=2,
-            moderate=0,
-            low=0,
-        )
+    def test_invalid_app_name_returns_400(self, api_get, db_create_host):
+        """Unknown app name in fields parameter should return 400."""
+        db_create_host()
 
-        # Request an invalid app name
         url = build_host_view_url(query="?fields[invalid_app]=something")
-        response_status, response_data = api_get(url)
+        response_status, _ = api_get(url)
 
-        assert_response_status(response_status, 200)
-        result = response_data["results"][0]
-        # Invalid app ignored, returns all apps by default (per design doc)
-        assert "advisor" in result["app_data"]
-        assert "invalid_app" not in result["app_data"]
+        assert_response_status(response_status, 400)
 
     def test_invalid_field_returns_empty_for_app(self, api_get, db_create_host):
         """Valid app with invalid field should return empty object for that app."""
@@ -1603,3 +1587,187 @@ class TestHostViewAppDataSorting:
         results = response_data["results"]
         assert results[0]["app_data"]["patch"]["packages_installable"] == 200
         assert results[1]["app_data"]["patch"]["packages_installable"] == 50
+
+
+class TestHostViewSystemProfileSparseFields:
+    """Test system_profile sparse fields support on the hosts-view endpoint."""
+
+    SP_DATA = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "os_kernel_version": "4.18.2",
+            "host_type": "edge",
+            "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
+        }
+    }
+
+    def test_sp_fields_returns_requested_fields_only(self, api_get, db_create_multiple_hosts):
+        """fields[system_profile]=arch,host_type should return only those SP fields."""
+        db_create_multiple_hosts(how_many=2, extra_data={**self.SP_DATA})
+
+        url = build_host_view_url(query="?fields[system_profile]=arch,host_type")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        for result in response_data["results"]:
+            assert "system_profile" in result
+            assert "arch" in result["system_profile"]
+            assert "host_type" in result["system_profile"]
+            assert "os_kernel_version" not in result["system_profile"]
+            assert "owner_id" not in result["system_profile"]
+
+    def test_no_sp_fields_omits_system_profile(self, api_get, db_create_multiple_hosts):
+        """When fields[system_profile] is not requested, system_profile should not appear."""
+        db_create_multiple_hosts(how_many=2, extra_data={**self.SP_DATA})
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        for result in response_data["results"]:
+            assert "system_profile" not in result
+
+    def test_sp_fields_with_app_data_fields(self, api_get, db_create_host):
+        """Both fields[system_profile] and fields[advisor] should work together."""
+        host = db_create_host(extra_data={**self.SP_DATA})
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        url = build_host_view_url(query="?fields[system_profile]=arch&fields[advisor]=recommendations")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+
+        assert "system_profile" in result
+        assert result["system_profile"]["arch"] == "x86_64"
+        assert "host_type" not in result["system_profile"]
+
+        assert "advisor" in result["app_data"]
+        assert result["app_data"]["advisor"]["recommendations"] == 5
+        assert "incidents" not in result["app_data"]["advisor"]
+
+    def test_sp_fields_app_data_still_defaults_to_all(self, api_get, db_create_host):
+        """Requesting only fields[system_profile] should still return all app_data by default."""
+        host = db_create_host(extra_data={**self.SP_DATA})
+        db_create_host_app_data(host.id, host.org_id, "advisor", recommendations=5, incidents=2)
+
+        url = build_host_view_url(query="?fields[system_profile]=arch")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+
+        assert "system_profile" in result
+        assert result["system_profile"]["arch"] == "x86_64"
+
+        # app_data should default to all apps when only SP fields are specified
+        assert "advisor" in result["app_data"]
+        assert "recommendations" in result["app_data"]["advisor"]
+        assert "incidents" in result["app_data"]["advisor"]
+
+    def test_host_without_sp_data_returns_empty_sp(self, api_get, db_create_host):
+        """Host without system_profile data should return an empty system_profile object."""
+        db_create_host()
+
+        url = build_host_view_url(query="?fields[system_profile]=arch,host_type")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        assert "system_profile" in result
+        assert result["system_profile"] == {}
+
+
+class TestHostViewSystemProfileFiltering:
+    """Test system_profile filtering support on the hosts-view endpoint."""
+
+    def test_filter_by_host_type(self, api_get, db_create_multiple_hosts):
+        """filter[system_profile][host_type][eq]=edge should return only edge hosts."""
+        db_create_multiple_hosts(how_many=2, extra_data={"system_profile_facts": {"host_type": "edge"}})
+        db_create_multiple_hosts(how_many=1, extra_data={"system_profile_facts": {"host_type": None}})
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=edge")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+
+    def test_sp_filter_combined_with_app_filter(self, api_get, db_create_host):
+        """system_profile and app_data filters should work together."""
+        host_match = db_create_host(
+            extra_data={"display_name": "matching-host.example.com", "system_profile_facts": {"host_type": "edge"}}
+        )
+        host_wrong_type = db_create_host(
+            extra_data={"display_name": "wrong-type.example.com", "system_profile_facts": {"host_type": None}}
+        )
+        host_no_vuln = db_create_host(
+            extra_data={"display_name": "no-vuln.example.com", "system_profile_facts": {"host_type": "edge"}}
+        )
+
+        db_create_host_app_data(host_match.id, host_match.org_id, "vulnerability", critical_cves=5)
+        db_create_host_app_data(host_wrong_type.id, host_wrong_type.org_id, "vulnerability", critical_cves=10)
+        db_create_host_app_data(host_no_vuln.id, host_no_vuln.org_id, "vulnerability", critical_cves=0)
+
+        url = build_host_view_url(
+            query="?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert response_data["results"][0]["display_name"] == "matching-host.example.com"
+
+    def test_nested_sp_filter_combined_with_app_filter(self, api_get, db_create_host):
+        """Nested system_profile filters should combine correctly with app filters."""
+        host_match = db_create_host(
+            extra_data={
+                "display_name": "matching-rhel.example.com",
+                "system_profile_facts": {"operating_system": {"name": "RHEL", "major": 9, "minor": 1}},
+            }
+        )
+        host_wrong_os = db_create_host(
+            extra_data={
+                "display_name": "wrong-os.example.com",
+                "system_profile_facts": {"operating_system": {"name": "CentOS Linux", "major": 8, "minor": 0}},
+            }
+        )
+        host_no_vuln = db_create_host(
+            extra_data={
+                "display_name": "no-vuln-rhel.example.com",
+                "system_profile_facts": {"operating_system": {"name": "RHEL", "major": 8, "minor": 8}},
+            }
+        )
+
+        db_create_host_app_data(host_match.id, host_match.org_id, "vulnerability", critical_cves=5)
+        db_create_host_app_data(host_wrong_os.id, host_wrong_os.org_id, "vulnerability", critical_cves=10)
+        db_create_host_app_data(host_no_vuln.id, host_no_vuln.org_id, "vulnerability", critical_cves=0)
+
+        url = build_host_view_url(
+            query="?filter[system_profile][operating_system][name][eq]=RHEL"
+            "&filter[vulnerability][critical_cves][gte]=1"
+        )
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert response_data["results"][0]["display_name"] == "matching-rhel.example.com"
+
+    def test_sp_filter_with_sp_fields(self, api_get, db_create_multiple_hosts):
+        """SP filtering and SP sparse fields should work together."""
+        db_create_multiple_hosts(
+            how_many=2,
+            extra_data={"system_profile_facts": {"host_type": "edge", "arch": "x86_64"}},
+        )
+        db_create_multiple_hosts(
+            how_many=1, extra_data={"system_profile_facts": {"host_type": None, "arch": "aarch64"}}
+        )
+
+        url = build_host_view_url(query="?filter[system_profile][host_type][eq]=edge&fields[system_profile]=arch")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+        for result in response_data["results"]:
+            assert "system_profile" in result
+            assert result["system_profile"]["arch"] == "x86_64"
+            assert "host_type" not in result["system_profile"]

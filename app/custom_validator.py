@@ -53,24 +53,44 @@ class CustomParameterValidator(ParameterValidator):
         super().__init__(*args, **kwargs)
         self.sp_spec = system_profile_spec
 
+    def _resolve_query_params(self, request):
+        query_params = {k: request.query_params.getlist(k) for k in request.query_params}
+        return self.uri_parser.resolve_query(query_params)
+
+    def _validate_system_profile_field_names(self, fields):
+        query_fields = fields.get("system_profile", {}).keys()
+        for field in query_fields:
+            if field not in self.sp_spec:
+                flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
+
+    def _validate_sparse_fields(self, fields):
+        if not fields or "system_profile" not in fields:
+            flask.abort(400)
+
+        self._validate_system_profile_field_names(fields)
+
+    def _validate_host_view_sparse_fields(self, fields):
+        if not fields:
+            flask.abort(400)
+
+        if "system_profile" in fields:
+            self._validate_system_profile_field_names(fields)
+
     def validate_query_parameter_list(self, request, security_params=None):
-        for param in [
-            p
-            for p in self.parameters.get("query", [])
-            if p.get("x-validator") == "sparseFields"
-            and request.query.get(p["name"]) in request.get("query_string").decode()
-        ]:
-            query_params = {k: request.query_params.getlist(k) for k in request.query_params}
-            query_params = self.uri_parser.resolve_query(query_params)
-            fields = query_params.get(param["name"])
-            if any(item.startswith("system_profile") for item in fields):
-                query_fields = list(fields.get("system_profile").keys())
-                system_profile_schema = self.sp_spec
-                for field in query_fields:
-                    if field not in system_profile_schema.keys():
-                        flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
-            else:
-                flask.abort(400)
+        query_params = self._resolve_query_params(request)
+
+        for param in self.parameters.get("query", []):
+            validator_name = param.get("x-validator")
+            param_name = param.get("name")
+
+            if validator_name not in {"sparseFields", "hostViewSparseFields"} or param_name not in query_params:
+                continue
+
+            fields = query_params.get(param_name)
+            if validator_name == "sparseFields":
+                self._validate_sparse_fields(fields)
+            elif validator_name == "hostViewSparseFields":
+                self._validate_host_view_sparse_fields(fields)
 
         return super().validate_query_parameter_list(request, security_params)
 
