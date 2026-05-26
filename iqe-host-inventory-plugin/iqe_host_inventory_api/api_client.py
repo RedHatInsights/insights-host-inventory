@@ -15,11 +15,11 @@ import os
 import re
 import tempfile
 from multiprocessing.pool import ThreadPool
-from urllib.parse import quote
 
 # python 2 and python 3 compatibility library
 import six
 from dateutil.parser import parse
+from six.moves.urllib.parse import quote
 
 import iqe_host_inventory_api.models
 from iqe_host_inventory_api import rest
@@ -50,7 +50,7 @@ class ApiClient:
         to the API. More threads means more concurrent API requests.
     """
 
-    PRIMITIVE_TYPES = (float, bool, bytes, str) + (int,)
+    PRIMITIVE_TYPES = (float, bool, bytes, six.text_type) + six.integer_types
     NATIVE_TYPES_MAPPING = {
         "int": int,
         "long": int if six.PY3 else long,  # noqa: F821
@@ -260,11 +260,11 @@ class ApiClient:
             # model definition for request.
             obj_dict = {
                 obj.attribute_map[attr]: getattr(obj, attr)
-                for attr, _ in obj.openapi_types.items()
+                for attr, _ in six.iteritems(obj.openapi_types)
                 if getattr(obj, attr) is not None
             }
 
-        return {key: self.sanitize_for_serialization(val) for key, val in obj_dict.items()}
+        return {key: self.sanitize_for_serialization(val) for key, val in six.iteritems(obj_dict)}
 
     def deserialize(self, response, response_type):
         """Deserializes response into an object.
@@ -306,7 +306,7 @@ class ApiClient:
 
             if klass.startswith("dict("):
                 sub_kls = re.match(r"dict\(([^,]*), (.*)\)", klass).group(2)
-                return {k: self.__deserialize(v, sub_kls) for k, v in data.items()}
+                return {k: self.__deserialize(v, sub_kls) for k, v in six.iteritems(data)}
 
             # convert str to class
             if klass in self.NATIVE_TYPES_MAPPING:
@@ -510,7 +510,7 @@ class ApiClient:
         new_params = []
         if collection_formats is None:
             collection_formats = {}
-        for k, v in params.items() if isinstance(params, dict) else params:
+        for k, v in six.iteritems(params) if isinstance(params, dict) else params:
             if k in collection_formats:
                 collection_format = collection_formats[k]
                 if collection_format == "multi":
@@ -538,7 +538,7 @@ class ApiClient:
         params = []
 
         if files:
-            for k, v in files.items():
+            for k, v in six.iteritems(files):
                 if not v:
                     continue
                 file_names = v if type(v) is list else [v]
@@ -639,7 +639,7 @@ class ApiClient:
         try:
             return klass(data)
         except UnicodeEncodeError:
-            return str(data)
+            return six.text_type(data)
         except TypeError:
             return data
 
@@ -696,7 +696,7 @@ class ApiClient:
 
         kwargs = {}
         if data is not None and klass.openapi_types is not None and isinstance(data, (list, dict)):
-            for attr, attr_type in klass.openapi_types.items():
+            for attr, attr_type in six.iteritems(klass.openapi_types):
                 if klass.attribute_map[attr] in data:
                     value = data[klass.attribute_map[attr]]
                     kwargs[attr] = self.__deserialize(value, attr_type)
