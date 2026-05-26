@@ -27,11 +27,11 @@ class SystemProfileDnfModule:
       attribute_map (dict): The key is attribute name
                             and the value is json key in definition.
     """
-    openapi_types = {"name": "str", "stream": "str"}
+    openapi_types = {"name": "str", "stream": "str", "status": "list[str]"}
 
-    attribute_map = {"name": "name", "stream": "stream"}
+    attribute_map = {"name": "name", "stream": "stream", "status": "status"}
 
-    def __init__(self, name=None, stream=None, local_vars_configuration=None):
+    def __init__(self, name=None, stream=None, status=None, local_vars_configuration=None):
         """SystemProfileDnfModule - a model defined in OpenAPI"""
         if local_vars_configuration is None:
             local_vars_configuration = Configuration()
@@ -39,12 +39,15 @@ class SystemProfileDnfModule:
 
         self._name = None
         self._stream = None
+        self._status = None
         self.discriminator = None
 
         if name is not None:
             self.name = name
         if stream is not None:
             self.stream = stream
+        if status is not None:
+            self.status = status
 
     @property
     def name(self):
@@ -103,6 +106,37 @@ class SystemProfileDnfModule:
             )
 
         self._stream = stream
+
+    @property
+    def status(self):
+        """Gets the status of this SystemProfileDnfModule.  # noqa: E501
+
+
+        :return: The status of this SystemProfileDnfModule.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._status
+
+    @status.setter
+    def status(self, status):
+        """Sets the status of this SystemProfileDnfModule.
+
+
+        :param status: The status of this SystemProfileDnfModule.  # noqa: E501
+        :type: list[str]
+        """
+        allowed_values = ["default", "enabled", "installed"]
+        if self.local_vars_configuration.client_side_validation and not set(status).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `status` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(status) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._status = status
 
     def to_dict(self):
         """Returns the model properties as a dict"""

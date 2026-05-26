@@ -1981,7 +1981,7 @@ class SystemProfile:
         :param host_type: The host_type of this SystemProfile.  # noqa: E501
         :type: str
         """
-        allowed_values = ["edge", "cluster"]
+        allowed_values = ["edge", "cluster", "conventional"]
         if (
             self.local_vars_configuration.client_side_validation
             and host_type not in allowed_values

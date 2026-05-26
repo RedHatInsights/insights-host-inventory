@@ -47,6 +47,8 @@ FORBIDDEN_OR_NOT_FOUND = (403, 404)
 _COLLECTION_PARAMS = (
     "group_name",
     "group_id",
+    "workspace_name",
+    "workspace_id",
     "staleness",
     "tags",
     "registered_with",

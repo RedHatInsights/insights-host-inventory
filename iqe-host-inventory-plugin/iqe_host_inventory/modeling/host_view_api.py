@@ -34,7 +34,8 @@ APP_NAMES = (
 )
 
 _COLLECTION_PARAMS = (
-    "group_name",
+    "workspace_id",
+    "workspace_name",
     "staleness",
     "tags",
     "registered_with",
@@ -123,7 +124,7 @@ class HostViewAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
+        workspace_name: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -149,7 +150,7 @@ class HostViewAPIWrapper(BaseEntity):
         :param str | datetime updated_end: Only show hosts modified before this date
         :param str | datetime last_check_in_start: Only show hosts last checked in after this date
         :param str | datetime last_check_in_end: Only show hosts last checked in before this date
-        :param list[str] group_name: Filter hosts by group_name (OR logic)
+        :param list[str] workspace_name: Filter hosts by workspace_name (OR logic)
         :param list[str] staleness: Filter hosts by staleness (OR logic)
             Valid options: fresh, stale, stale_warning, unknown
         :param list[str] tags: Filter hosts by tags (OR logic). Format: namespace/key=value
@@ -187,7 +188,7 @@ class HostViewAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
+            workspace_name=workspace_name,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -223,7 +224,7 @@ class HostViewAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
+        workspace_name: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -254,7 +255,7 @@ class HostViewAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
+            workspace_name=workspace_name,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,

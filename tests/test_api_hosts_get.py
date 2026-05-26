@@ -799,7 +799,8 @@ def test_get_host_with_escaped_special_characters(namespace, key, value, mq_crea
 
 
 @pytest.mark.parametrize("num_groups", (1, 3, 5))
-def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups, group_param_to_use):
     hosts_per_group = 3
     for i in range(num_groups):
         db_create_group_with_hosts(f"existing_group_{i}", hosts_per_group)
@@ -807,7 +808,7 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
     # Some other group that we don't want to see in the response
     db_create_group_with_hosts("some_other_group", 5)
 
-    group_name_params = "&".join([f"group_name=EXISTING_GROUP_{i}" for i in range(num_groups)])
+    group_name_params = "&".join([f"{group_param_to_use}_name=EXISTING_GROUP_{i}" for i in range(num_groups)])
     url = build_hosts_url(query=f"?{group_name_params}")
 
     response_status, response_data = api_get(url)
@@ -819,13 +820,16 @@ def test_query_using_group_name(db_create_group_with_hosts, api_get, num_groups)
         assert result["groups"][0]["ungrouped"] is False
 
 
-def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_specific_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_ungrouped_hosts(
+    db_create_group_with_hosts, mq_create_three_specific_hosts, api_get, group_param_to_use
+):
     # Create 3 hosts that are not in a group
     ungrouped_hosts = mq_create_three_specific_hosts
 
     # Also create 5 hosts that are in a group
     db_create_group_with_hosts("group_with_hosts", 5)
-    url = build_hosts_url(query="?group_name=")
+    url = build_hosts_url(query=f"?{group_param_to_use}_name=")
 
     response_status, response_data = api_get(url)
 
@@ -834,10 +838,11 @@ def test_query_ungrouped_hosts(db_create_group_with_hosts, mq_create_three_speci
 
 
 @pytest.mark.parametrize("ungrouped", (True, False))
-def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_hosts, api_get, group_param_to_use):
     # Create a host in the "ungrouped" group
     ungrouped_group_id = db_create_group_with_hosts("test_group", 1, ungrouped).id
-    url = build_hosts_url(query="?group_name=test_group")
+    url = build_hosts_url(query=f"?{group_param_to_use}_name=test_group")
 
     response_status, response_data = api_get(url)
 
@@ -847,7 +852,8 @@ def test_query_hosts_with_group_data_kessel(ungrouped, db_create_group_with_host
     assert group_result["ungrouped"] is ungrouped
 
 
-def test_query_using_group_id(db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_using_group_id(db_create_group_with_hosts, api_get, group_param_to_use):
     """Test filtering hosts by group_id parameter."""
     hosts_per_group = 3
     group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
@@ -857,7 +863,7 @@ def test_query_using_group_id(db_create_group_with_hosts, api_get):
     db_create_group_with_hosts("other_group", 5)
 
     # Query using group_id
-    url = build_hosts_url(query=f"?group_id={group1.id}")
+    url = build_hosts_url(query=f"?{group_param_to_use}_id={group1.id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -867,7 +873,8 @@ def test_query_using_group_id(db_create_group_with_hosts, api_get):
         assert result["groups"][0]["name"] == "test_group_1"
 
 
-def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get, group_param_to_use):
     """Test filtering hosts by multiple group_id parameters."""
     hosts_per_group = 3
     group1 = db_create_group_with_hosts("test_group_1", hosts_per_group)
@@ -877,7 +884,7 @@ def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
     db_create_group_with_hosts("other_group", 5)
 
     # Query using multiple group_ids
-    url = build_hosts_url(query=f"?group_id={group1.id}&group_id={group2.id}")
+    url = build_hosts_url(query=f"?{group_param_to_use}_id={group1.id}&{group_param_to_use}_id={group2.id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -886,7 +893,8 @@ def test_query_using_multiple_group_ids(db_create_group_with_hosts, api_get):
     assert returned_group_ids == {str(group1.id), str(group2.id)}
 
 
-def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get, group_param_to_use):
     """
     Test that group_id filter returns correct hosts even when multiple groups have the same name.
     This is the key requirement from RHINENG-17234: with Kessel, multiple groups can have
@@ -898,7 +906,7 @@ def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get
     group2 = db_create_group_with_hosts("duplicate_name", 5)
 
     # Query using group_id for the first group
-    url = build_hosts_url(query=f"?group_id={group1.id}")
+    url = build_hosts_url(query=f"?{group_param_to_use}_id={group1.id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -909,7 +917,7 @@ def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get
         assert result["groups"][0]["name"] == "duplicate_name"
 
     # Query using group_id for the second group
-    url = build_hosts_url(query=f"?group_id={group2.id}")
+    url = build_hosts_url(query=f"?{group_param_to_use}_id={group2.id}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
@@ -920,10 +928,11 @@ def test_query_group_id_with_duplicate_names(db_create_group_with_hosts, api_get
         assert result["groups"][0]["name"] == "duplicate_name"
 
 
-def test_query_group_id_rejects_invalid_uuid(api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_group_id_rejects_invalid_uuid(api_get, group_param_to_use):
     """Test that group_id parameter rejects non-UUID values."""
     # Try with an invalid UUID
-    url = build_hosts_url(query="?group_id=invalid-uuid")
+    url = build_hosts_url(query=f"?{group_param_to_use}_id=invalid-uuid")
     response_status, response_data = api_get(url)
 
     # Should return 400 Bad Request for invalid UUID
@@ -934,30 +943,54 @@ def test_query_group_id_rejects_invalid_uuid(api_get):
     assert "pattern" in response_data["detail"].lower() or "uuid" in response_data["detail"].lower()
 
 
-def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_group_name_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get, group_param_to_use):
     """Test that using both group_name and group_id together returns 400 error."""
     group = db_create_group_with_hosts("test_group", 3)
 
     # Try using both filters together
-    url = build_hosts_url(query=f"?group_name=test_group&group_id={group.id}")
+    url = build_hosts_url(query=f"?{group_param_to_use}_name=test_group&{group_param_to_use}_id={group.id}")
     response_status, response_data = api_get(url)
 
     # Should return 400 Bad Request
     assert response_status == 400
 
     # Verify error message mentions both parameters
-    assert "group_name" in response_data["detail"].lower()
-    assert "group_id" in response_data["detail"].lower()
+    assert f"{group_param_to_use}_name" in response_data["detail"].lower()
+    assert f"{group_param_to_use}_id" in response_data["detail"].lower()
 
 
-def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts):
+def test_query_workspace_and_group_name_mix_not_allowed(db_create_group_with_hosts, api_get):
+    """Test that workspace_name and group_name filters cannot be used together."""
+    db_create_group_with_hosts("group_a", 2)
+    db_create_group_with_hosts("group_b", 2)
+
+    url = build_hosts_url(query="?workspace_name=GROUP_A&group_name=GROUP_B")
+    response_status, _ = api_get(url)
+
+    assert response_status == 400
+
+
+def test_query_workspace_and_group_id_mutually_exclusive(db_create_group_with_hosts, api_get):
+    """Test that using both workspace_name and group_id together returns 400 error."""
+    group = db_create_group_with_hosts("test_workspace", 3)
+
+    url = build_hosts_url(query=f"?workspace_name=test_workspace&group_id={group.id}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert "group_id" in response_data["detail"].lower() or "workspace_id" in response_data["detail"].lower()
+
+
+@pytest.mark.parametrize("group_param_to_use", ("workspace", "group"))
+def test_query_group_id_nonexistent_uuid(api_get, db_create_group_with_hosts, group_param_to_use):
     """Test that a syntactically valid but nonexistent group_id returns no results."""
     # Create some hosts in an existing group so we have data present
     db_create_group_with_hosts("existing_group", 3)
 
     # Use a random UUID that does not correspond to any group
-    nonexistent_group_id = str(uuid.uuid4())
-    url = build_hosts_url(query=f"?group_id={nonexistent_group_id}")
+    nonexistent_workspace_id = str(uuid.uuid4())
+    url = build_hosts_url(query=f"?{group_param_to_use}_id={nonexistent_workspace_id}")
     response_status, response_data = api_get(url)
 
     # Expected behavior: 200 OK with no matching results

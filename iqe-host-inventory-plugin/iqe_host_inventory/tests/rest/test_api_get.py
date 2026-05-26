@@ -892,7 +892,7 @@ def test_get_hosts_valid_parameters_combinations(
         tags=str_tags,
         updated_start=updated_hosts[4].updated,
         updated_end=updated_end_host.updated,
-        group_name=[group_name],
+        workspace_name=[group_name],
     )
     assert response.count == 1
     assert response.results[0].id == updated_hosts[1].id
@@ -1287,7 +1287,7 @@ def test_get_hosts_by_group_id(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
-def test_get_hosts_with_group_name_and_group_id(host_inventory: ApplicationHostInventory):
+def test_get_hosts_with_workspace_name_and_workspace_id(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-21927
 
@@ -1302,8 +1302,12 @@ def test_get_hosts_with_group_name_and_group_id(host_inventory: ApplicationHostI
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
-        host_inventory.apis.hosts.get_hosts(group_name=[group_name], group_id=[group.id])
+    with raises_apierror(
+        400,
+        "Cannot use both 'workspace_name'/'group_name' and 'workspace_id'/'group_id' "
+        "filters together. Please use only one workspace filter parameter.",
+    ):
+        host_inventory.apis.hosts.get_hosts(workspace_name=[group_name], workspace_id=[group.id])
 
 
 @pytest.mark.ephemeral

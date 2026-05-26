@@ -7,7 +7,7 @@ from api import flask_json_response
 from api import metrics
 from api import pagination_params
 from api.host_query_db import get_tag_list as get_tag_list_db
-from api.validation import check_group_name_and_id
+from api.parsing import _normalize_workspace_filters
 from app.auth.rbac import KesselResourceTypes
 from app.instrumentation import log_get_tags_failed
 from app.instrumentation import log_get_tags_succeeded
@@ -35,7 +35,9 @@ def get_tags(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    workspace_name=None,
     group_id=None,
+    workspace_id=None,
     order_by=None,
     order_how=None,
     page=None,
@@ -46,9 +48,7 @@ def get_tags(
     filter=None,
     rbac_filter=None,
 ):
-    # Validate mutually exclusive group filters
-    check_group_name_and_id(group_name, group_id)
-
+    workspace_name, workspace_id = _normalize_workspace_filters(group_name, workspace_name, group_id, workspace_id)
     limit, offset = pagination_params(page, per_page)
     escaped_search = None
     if search:
@@ -72,8 +72,8 @@ def get_tags(
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
-            group_id=group_id,
+            group_name=workspace_name,
+            group_id=workspace_id,
             order_by=order_by,
             order_how=order_how,
             staleness=staleness,

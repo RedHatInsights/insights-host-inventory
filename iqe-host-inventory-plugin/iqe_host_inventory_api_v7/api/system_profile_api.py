@@ -50,7 +50,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -88,7 +90,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -152,7 +154,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -190,7 +194,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -254,7 +258,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -292,7 +298,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -432,7 +438,9 @@ class SystemProfileApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -472,7 +480,7 @@ class SystemProfileApi:
 
         :param search: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
         :type search: str
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -543,7 +551,9 @@ class SystemProfileApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -583,7 +593,7 @@ class SystemProfileApi:
 
         :param search: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
         :type search: str
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -654,7 +664,9 @@ class SystemProfileApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -694,7 +706,7 @@ class SystemProfileApi:
 
         :param search: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's namespace, key, and/or value is used for matching.
         :type search: str
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -833,7 +845,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -871,7 +885,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -935,7 +949,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -973,7 +989,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
@@ -1037,7 +1053,9 @@ class SystemProfileApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         per_page: Annotated[
             Annotated[int, Field(le=100, strict=True, ge=1)] | None,
@@ -1075,7 +1093,7 @@ class SystemProfileApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param per_page: A number of items to return per page.
         :type per_page: int
