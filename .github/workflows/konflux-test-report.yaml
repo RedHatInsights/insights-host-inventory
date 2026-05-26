@@ -1,0 +1,297 @@
+name: Konflux Test Failure Report
+
+on:
+  check_run:
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  checks: read
+
+jobs:
+  report-failures:
+    if: >
+      github.event.check_run.app.slug == 'red-hat-konflux' &&
+      github.event.check_run.conclusion == 'failure' &&
+      contains(github.event.check_run.name, 'insights-hbi-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Extract pipeline run info
+        id: extract
+        env:
+          CHECK_RUN_OUTPUT: ${{ toJSON(github.event.check_run.output) }}
+          CHECK_RUN_NAME: ${{ github.event.check_run.name }}
+          HEAD_SHA: ${{ github.event.check_run.head_sha }}
+        run: |
+          echo "check_run_name=$CHECK_RUN_NAME" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+          SCENARIO=$(echo "$CHECK_RUN_NAME" | grep -oE 'insights-hbi-[a-z]+')
+          echo "scenario=$SCENARIO" >> "$GITHUB_OUTPUT"
+
+          PIPELINERUN=$(echo "$CHECK_RUN_OUTPUT" | jq -r '.text' | grep -oE 'pipelinerun/[a-z0-9-]+' | head -1 | sed 's|pipelinerun/||')
+          echo "pipelinerun=$PIPELINERUN" >> "$GITHUB_OUTPUT"
+
+      - name: Install oc CLI
+        uses: actions/cache@v5
+        id: oc-cache
+        with:
+          path: /usr/local/bin/oc
+          key: oc-cli-4.15.10-linux
+      - name: Download oc CLI
+        if: steps.oc-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.15.10/openshift-client-linux.tar.gz | tar xz -C /usr/local/bin oc kubectl
+
+      - name: Fetch test logs from Konflux
+        id: logs
+        env:
+          KONFLUX_TOKEN: ${{ secrets.KONFLUX_BOT_TOKEN }}
+          KONFLUX_SERVER: https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443
+          KONFLUX_NAMESPACE: insights-management-tenant
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          set +e
+
+          echo "::add-mask::$KONFLUX_TOKEN"
+
+          oc login --token="$KONFLUX_TOKEN" --server="$KONFLUX_SERVER" > /dev/null 2>&1
+          if [ $? -ne 0 ]; then
+            echo "status=log_error" >> "$GITHUB_OUTPUT"
+            echo "Failed to authenticate to Konflux cluster"
+            exit 0
+          fi
+
+          TASKRUN="${PIPELINERUN}-run-iqe-cji"
+          POD_NAME=$(oc get taskrun "$TASKRUN" -n "$KONFLUX_NAMESPACE" -o jsonpath='{.status.podName}' 2>/dev/null)
+
+          if [ -z "$POD_NAME" ]; then
+            echo "status=no_pod" >> "$GITHUB_OUTPUT"
+            echo "Could not find pod for taskrun: $TASKRUN"
+            exit 0
+          fi
+
+          echo "Fetching logs from pod: $POD_NAME"
+          oc logs "$POD_NAME" -n "$KONFLUX_NAMESPACE" -c step-deploy-iqe-cji > /tmp/iqe-logs-raw.txt 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "status=log_error" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          sed -E 's/(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+/\1=***REDACTED***/gI' /tmp/iqe-logs-raw.txt > /tmp/iqe-logs.txt
+          rm -f /tmp/iqe-logs-raw.txt
+
+          echo "status=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Parse test results and build PR comment
+        id: parse
+        if: steps.logs.outputs.status == 'ok'
+        env:
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          python3 << 'PYEOF'
+          import re, os, sys
+
+          scenario = os.environ.get("SCENARIO", "unknown")
+          pipelinerun = os.environ.get("PIPELINERUN", "")
+          github_output = os.environ["GITHUB_OUTPUT"]
+          pipeline_url = (
+              "https://konflux-ui.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com"
+              f"/ns/insights-management-tenant/pipelinerun/{pipelinerun}/logs/run-iqe-cji"
+          )
+
+          with open("/tmp/iqe-logs.txt") as f:
+              logs = f.read()
+
+          logs = re.sub(r'\x1b\[[0-9;]*m', '', logs)
+
+          summary_match = re.search(r'^=+ .*(failed|passed|error).*=+$', logs, re.MULTILINE)
+
+          # ── Infrastructure error (no pytest summary found) ──
+          if not summary_match:
+              if "deploy failed" in logs:
+                  lines = [l for l in logs.splitlines()
+                           if re.search(r'deploy failed|ErrImagePull|timed out waiting', l)]
+                  error_msg = "\n".join(sorted(set(lines))[:20])
+              elif "ApiException" in logs:
+                  all_lines = logs.splitlines()
+                  error_msg = ""
+                  for i, l in enumerate(all_lines):
+                      if "ApiException" in l:
+                          error_msg = "\n".join(all_lines[max(0, i - 2):i + 1])
+                          break
+              elif "Traceback" in logs:
+                  tb = re.search(
+                      r'Traceback \(most recent call last\).*?(?=\n\S|\Z)', logs, re.DOTALL
+                  )
+                  error_msg = tb.group(0)[:2000] if tb else ""
+              elif "Tests FAILED" in logs:
+                  error_msg = "\n".join(logs.splitlines()[-30:])
+              else:
+                  error_msg = "\n".join(logs.splitlines()[-50:])
+
+              error_msg = re.sub(
+                  r'(password|token|secret|credential|bearer|authorization)[=: ]+[^ "]+',
+                  r'\1=***REDACTED***', error_msg, flags=re.IGNORECASE,
+              )[:4000]
+
+              comment = (
+                  f"<!-- konflux-test-report:{scenario} -->\n"
+                  f"## Konflux Test Report: `{scenario}`\n\n"
+                  f"\u26a0\ufe0f **Tests did not run** \u2014 infrastructure/setup error detected.\n\n"
+                  f"<details>\n<summary>Error details</summary>\n\n"
+                  f"```\n{error_msg}\n```\n\n</details>\n\n"
+                  f"---\n"
+                  f"[View pipeline run]({pipeline_url})\n"
+              )
+              with open("/tmp/pr-comment.md", "w") as f:
+                  f.write(comment)
+              with open(github_output, "a") as f:
+                  f.write("type=infra_error\n")
+              sys.exit(0)
+
+          # ── Test results ──
+          summary_line = summary_match.group(0)
+
+          def count(pattern):
+              m = re.search(pattern, summary_line)
+              return int(m.group(1)) if m else 0
+
+          failed  = count(r'(\d+) failed')
+          passed  = count(r'(\d+) passed')
+          skipped = count(r'(\d+) skipped')
+          errors  = count(r'(\d+) errors?')
+          total   = failed + passed + skipped + errors
+
+          # Extract individual failed/errored test entries
+          test_entries = []
+          for line in logs.splitlines():
+              stripped = line.strip()
+              for prefix in ("FAILED ", "ERROR "):
+                  if not stripped.startswith(prefix):
+                      continue
+                  rest = stripped[len(prefix):]
+                  rest = re.sub(r'^iqe-local-plugin/', '', rest)
+                  parts = rest.split(' - ', 1)
+                  name = parts[0].strip()
+                  message = parts[1].strip() if len(parts) > 1 else ""
+                  if name:
+                      # Split "path/to/file.py::Class::method" into module + test
+                      name_parts = name.split("::", 1)
+                      module = name_parts[0] if name_parts else name
+                      test = name_parts[1] if len(name_parts) > 1 else name
+                      test_entries.append({
+                          "module": module,
+                          "test": test,
+                          "message": message,
+                          "kind": prefix.strip(),
+                      })
+                  break
+          test_entries = test_entries[:50]
+
+          # ── Build PR comment ──
+          pass_rate = round(passed / total * 100) if total > 0 else 0
+          bar = "\u2588" * (pass_rate // 10) + "\u2591" * (10 - pass_rate // 10)
+          problem_count = failed + errors
+
+          c = []
+          c.append(f"<!-- konflux-test-report:{scenario} -->")
+          c.append(f"## Konflux Test Report: `{scenario}`\n")
+          c.append("| | Metric | Count |")
+          c.append("|---|--------|------:|")
+          c.append(f"| \U0001f4dd | Tests | {total} |")
+          c.append(f"| \u2705 | Passed | {passed} |")
+          c.append(f"| \u274c | Failed | {failed} |")
+          c.append(f"| \u26a0\ufe0f | Errors | {errors} |")
+          c.append(f"| \u23ed\ufe0f | Skipped | {skipped} |")
+          c.append("")
+          c.append(f"**Pass rate:** `{bar}` {pass_rate}%")
+
+          if problem_count > 0:
+              c.append(f"\n### Failed/Errored Tests ({problem_count})\n")
+              if test_entries:
+                  c.append("| Status | Module | Test | Error |")
+                  c.append("|--------|--------|------|-------|")
+                  for e in test_entries:
+                      status = "\u274c FAILED" if e["kind"] == "FAILED" else "\u26a0\ufe0f ERROR"
+                      msg = e["message"] or "\u2014"
+                      # Escape pipe characters in message so markdown table doesn't break
+                      msg = msg.replace("|", "\\|")
+                      c.append(f"| {status} | `{e['module']}` | `{e['test']}` | {msg} |")
+              else:
+                  c.append("_Could not extract individual test names from logs._")
+
+          c.append(f"\n---\n[View pipeline run]({pipeline_url})")
+
+          with open("/tmp/pr-comment.md", "w") as f:
+              f.write("\n".join(c) + "\n")
+
+          with open(github_output, "a") as f:
+              f.write("type=test_results\n")
+          PYEOF
+
+      - name: Logout from Konflux cluster
+        if: always()
+        run: |
+          oc logout > /dev/null 2>&1 || true
+          rm -f ~/.kube/config
+
+      - name: Find associated PR
+        id: find_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.extract.outputs.head_sha }}
+        run: |
+          PR_NUMBER=$(gh api "repos/${{ github.repository }}/commits/$HEAD_SHA/pulls" --jq '.[0].number' 2>/dev/null || echo "")
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: >
+          (steps.parse.outputs.type == 'test_results' || steps.parse.outputs.type == 'infra_error') &&
+          steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.find_pr.outputs.pr_number }}
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+        run: |
+          BODY=$(cat /tmp/pr-comment.md)
+          MARKER="<!-- konflux-test-report:$SCENARIO -->"
+
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" -f body="$BODY"
+          fi
+
+      - name: Post unavailable logs comment
+        if: steps.logs.outputs.status == 'no_pod' && steps.find_pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.find_pr.outputs.pr_number }}
+          SCENARIO: ${{ steps.extract.outputs.scenario }}
+          PIPELINERUN: ${{ steps.extract.outputs.pipelinerun }}
+        run: |
+          MARKER="<!-- konflux-test-report:$SCENARIO -->"
+          BODY="$MARKER
+          ## Konflux Test Report: \`$SCENARIO\`
+
+          ⚠️ **Could not fetch test logs** — the pipeline run pod has been garbage-collected.
+
+          Pipeline run: \`$PIPELINERUN\`
+
+          ---
+          [View pipeline run](https://konflux-ui.apps.stone-prd-rh01.pg1f.p1.openshiftapps.com/ns/insights-management-tenant/pipelinerun/$PIPELINERUN/logs/run-iqe-cji)
+          "
+
+          EXISTING_COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" 2>/dev/null | head -1)
+
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT_ID" -X PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" -f body="$BODY"
+          fi
