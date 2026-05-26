@@ -20,7 +20,6 @@ class AttrDict(dict):
 
 def get_staleness_timestamps(
     host: Host,
-    staleness_timestamps: Timestamps,
     staleness: AttrDict,
     last_check_in: datetime | None = None,
 ) -> dict:
@@ -31,7 +30,6 @@ def get_staleness_timestamps(
 
     Args:
         host: Host row (used for default reference time when ``last_check_in`` is omitted).
-        staleness_timestamps: Culling offset helpers.
         staleness: Org staleness configuration (conventional_time_to_*).
         last_check_in: Optional reference instant.
 
@@ -44,6 +42,9 @@ def get_staleness_timestamps(
     reference = last_check_in if last_check_in is not None else host.last_check_in
     if reference is None:
         raise ValueError("last_check_in is required (pass last_check_in= or set host.last_check_in).")
+
+    # Load default staleness timestamps from inventory config
+    staleness_timestamps = Timestamps.from_config(inventory_config())
 
     return {
         "stale_timestamp": staleness_timestamps.stale_timestamp(reference, staleness["conventional_time_to_stale"]),
