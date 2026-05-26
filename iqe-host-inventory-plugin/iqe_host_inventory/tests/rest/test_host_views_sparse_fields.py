@@ -300,31 +300,24 @@ class TestSparseFieldsEdgeCases:
         assert result.app_data.vulnerability is None
         assert result.app_data.advisor is None
 
-    def test_invalid_app_name_ignored(
+    def test_invalid_app_name_returns_400(
         self,
         host_inventory: ApplicationHostInventory,
-        setup_host_with_app_data,
     ):
-        """Unrecognized app name in fields parameter falls back to default (all app data returned).
+        """Unknown app name in fields parameter should return 400.
 
         metadata:
             requirements: inv-host-views-sparse-fields
             assignee: adubey
             importance: medium
-            title: Test sparse fields - unrecognized app name falls back to default
+            title: Test sparse fields - unknown app name returns 400
         """
-        host = setup_host_with_app_data("advisor", {"recommendations": 5, "incidents": 2})
+        with pytest.raises(Exception) as exc_info:
+            host_inventory.apis.host_views.get_host_views_response(
+                fields=["[invalid_app]=something"],
+            )
 
-        response = host_inventory.apis.host_views.get_host_views_response(
-            insights_id=host.insights_id,
-            fields=["[invalid_app]=something"],
-        )
-
-        assert response.total == 1
-        result = response.results[0]
-
-        assert result.app_data.advisor is not None
-        assert result.app_data.advisor.recommendations == 5
+        assert "400" in str(exc_info.value)
 
     def test_invalid_field_returns_empty(
         self,
@@ -605,3 +598,97 @@ class TestSparseFieldsDefaultBehavior:
         assert result.app_data.advisor.incidents == 2
         assert result.app_data.vulnerability.total_cves == 10
         assert result.app_data.vulnerability.critical_cves == 2
+
+
+class TestSystemProfileSparseFields:
+    """Test fields[system_profile]=... on the hosts-view endpoint."""
+
+    def test_sp_fields_returns_requested_fields(
+        self,
+        host_inventory: ApplicationHostInventory,
+    ):
+        """fields[system_profile]=arch,host_type returns only those SP fields.
+
+        metadata:
+            requirements: inv-host-views-sp-fields
+            assignee: rantunes
+            importance: high
+            title: Test SP sparse fields on hosts-view
+        """
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"]["arch"] = "x86_64"
+        host_data["system_profile"]["host_type"] = "edge"
+        host = host_inventory.kafka.create_host(host_data=host_data)
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            insights_id=host.insights_id,
+            fields=["[system_profile]=arch,host_type"],
+        )
+
+        assert response.total == 1
+        result = response.results[0]
+
+        sp = result.to_dict().get("system_profile", {})
+        non_null_fields = {k for k, v in sp.items() if v is not None}
+        assert non_null_fields == {"arch", "host_type"}
+
+    def test_no_sp_fields_omits_system_profile(
+        self,
+        host_inventory: ApplicationHostInventory,
+        setup_host_with_app_data,
+    ):
+        """Without fields[system_profile], no system_profile in response.
+
+        metadata:
+            requirements: inv-host-views-sp-fields
+            assignee: rantunes
+            importance: high
+            title: Test default omits system_profile
+        """
+        host = setup_host_with_app_data("advisor", {"recommendations": 5})
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            insights_id=host.insights_id,
+        )
+
+        assert response.total == 1
+        result = response.results[0]
+
+        sp = result.to_dict().get("system_profile")
+        assert sp is None or sp == {}
+
+    def test_sp_fields_combined_with_app_fields(
+        self,
+        host_inventory: ApplicationHostInventory,
+    ):
+        """fields[system_profile]=arch combined with fields[advisor]=recommendations.
+
+        metadata:
+            requirements: inv-host-views-sp-fields
+            assignee: rantunes
+            importance: high
+            title: Test SP fields combined with app data fields
+        """
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"]["arch"] = "x86_64"
+        host = host_inventory.kafka.create_host(host_data=host_data)
+        add_app_data_to_host(
+            host_inventory, host, "advisor", {"recommendations": 5, "incidents": 2}
+        )
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            insights_id=host.insights_id,
+            fields=["[system_profile]=arch", "[advisor]=recommendations"],
+        )
+
+        assert response.total == 1
+        result = response.results[0]
+
+        sp = result.to_dict().get("system_profile", {})
+        sp_fields = {k for k, v in sp.items() if v is not None}
+        assert sp_fields == {"arch"}
+
+        assert result.app_data.advisor is not None
+        advisor_data = result.app_data.advisor.to_dict()
+        assert advisor_data.get("recommendations") == 5
+        assert advisor_data.get("incidents") is None
