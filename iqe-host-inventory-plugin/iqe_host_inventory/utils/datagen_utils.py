@@ -944,10 +944,11 @@ def generate_yum_repo() -> dict[str, str | bool]:
     }
 
 
-def generate_dnf_module() -> dict[str, str]:
+def generate_dnf_module() -> dict[str, str | list[str]]:
     return {
         "name": generate_string_of_length(0, 128),
         "stream": generate_string_of_length(0, 2048),
+        "status": [choice(["default", "enabled", "installed"])],
     }
 
 

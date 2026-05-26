@@ -857,7 +857,7 @@ def test_get_tags_by_group_id(host_inventory: ApplicationHostInventory):
 
 
 @pytest.mark.ephemeral
-def test_get_tags_with_group_name_and_group_id(host_inventory: ApplicationHostInventory):
+def test_get_tags_with_workspace_name_and_workspace_id(host_inventory: ApplicationHostInventory):
     """
     https://issues.redhat.com/browse/RHINENG-21927
 
@@ -873,8 +873,14 @@ def test_get_tags_with_group_name_and_group_id(host_inventory: ApplicationHostIn
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
-        host_inventory.apis.tags.get_tags_response(group_name=[group_name], group_id=[group.id])
+    with raises_apierror(
+        400,
+        "Cannot use both 'workspace_name'/'group_name' and 'workspace_id'/'group_id' "
+        "filters together. Please use only one workspace filter parameter.",
+    ):
+        host_inventory.apis.tags.get_tags_response(
+            workspace_name=[group_name], workspace_id=[group.id]
+        )
 
 
 @pytest.mark.ephemeral

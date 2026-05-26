@@ -7,3 +7,4 @@ from iqe_host_inventory_api.api.hosts_api import HostsApi
 from iqe_host_inventory_api.api.resource_types_api import ResourceTypesApi
 from iqe_host_inventory_api.api.system_profile_api import SystemProfileApi
 from iqe_host_inventory_api.api.tags_api import TagsApi
+from iqe_host_inventory_api.api.views_api import ViewsApi

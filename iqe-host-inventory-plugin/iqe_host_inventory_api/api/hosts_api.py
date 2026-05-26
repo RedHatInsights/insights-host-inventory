@@ -274,7 +274,9 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
         :param list[str] group_id: Filter by group ID (UUID format)
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
@@ -316,7 +318,9 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
         :param list[str] group_id: Filter by group ID (UUID format)
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param list[str] registered_with: Filters out any host not registered by the specified reporters
         :param list[str] system_type: Filters systems by type
         :param list[str] staleness: Culling states of the hosts.
@@ -351,7 +355,9 @@ class HostsApi:
             "last_check_in_start",
             "last_check_in_end",
             "group_name",
+            "workspace_name",
             "group_id",
+            "workspace_id",
             "registered_with",
             "system_type",
             "staleness",
@@ -409,9 +415,15 @@ class HostsApi:
         if "group_name" in local_var_params and local_var_params["group_name"] is not None:
             query_params.append(("group_name", local_var_params["group_name"]))
             collection_formats["group_name"] = "multi"
+        if "workspace_name" in local_var_params and local_var_params["workspace_name"] is not None:
+            query_params.append(("workspace_name", local_var_params["workspace_name"]))
+            collection_formats["workspace_name"] = "multi"
         if "group_id" in local_var_params and local_var_params["group_id"] is not None:
             query_params.append(("group_id", local_var_params["group_id"]))
             collection_formats["group_id"] = "multi"
+        if "workspace_id" in local_var_params and local_var_params["workspace_id"] is not None:
+            query_params.append(("workspace_id", local_var_params["workspace_id"]))
+            collection_formats["workspace_id"] = "multi"
         if (
             "registered_with" in local_var_params
             and local_var_params["registered_with"] is not None
@@ -740,7 +752,9 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
         :param list[str] group_id: Filter by group ID (UUID format)
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -788,7 +802,9 @@ class HostsApi:
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
         :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
         :param list[str] group_id: Filter by group ID (UUID format)
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -829,7 +845,9 @@ class HostsApi:
             "last_check_in_start",
             "last_check_in_end",
             "group_name",
+            "workspace_name",
             "group_id",
+            "workspace_id",
             "branch_id",
             "per_page",
             "page",
@@ -899,9 +917,15 @@ class HostsApi:
         if "group_name" in local_var_params and local_var_params["group_name"] is not None:
             query_params.append(("group_name", local_var_params["group_name"]))
             collection_formats["group_name"] = "multi"
+        if "workspace_name" in local_var_params and local_var_params["workspace_name"] is not None:
+            query_params.append(("workspace_name", local_var_params["workspace_name"]))
+            collection_formats["workspace_name"] = "multi"
         if "group_id" in local_var_params and local_var_params["group_id"] is not None:
             query_params.append(("group_id", local_var_params["group_id"]))
             collection_formats["group_id"] = "multi"
+        if "workspace_id" in local_var_params and local_var_params["workspace_id"] is not None:
+            query_params.append(("workspace_id", local_var_params["workspace_id"]))
+            collection_formats["workspace_id"] = "multi"
         if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
             query_params.append(("branch_id", local_var_params["branch_id"]))
         if "per_page" in local_var_params and local_var_params["per_page"] is not None:
@@ -1933,7 +1957,8 @@ class HostsApi:
         :param datetime updated_end: Only show hosts last modified before the given date
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
-        :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -1980,7 +2005,8 @@ class HostsApi:
         :param datetime updated_end: Only show hosts last modified before the given date
         :param datetime last_check_in_start: Only show hosts last checked in after the given date
         :param datetime last_check_in_end: Only show hosts last checked in before the given date
-        :param list[str] group_name: Filter by group name
+        :param list[str] workspace_name: Filter by workspace name
+        :param list[str] workspace_id: Filter by workspace ID (UUID format)
         :param str branch_id: Filter by branch_id
         :param int per_page: A number of items to return per page.
         :param int page: A page number of the items to return.
@@ -2020,7 +2046,8 @@ class HostsApi:
             "updated_end",
             "last_check_in_start",
             "last_check_in_end",
-            "group_name",
+            "workspace_name",
+            "workspace_id",
             "branch_id",
             "per_page",
             "page",
@@ -2088,9 +2115,12 @@ class HostsApi:
             and local_var_params["last_check_in_end"] is not None
         ):
             query_params.append(("last_check_in_end", local_var_params["last_check_in_end"]))
-        if "group_name" in local_var_params and local_var_params["group_name"] is not None:
-            query_params.append(("group_name", local_var_params["group_name"]))
-            collection_formats["group_name"] = "multi"
+        if "workspace_name" in local_var_params and local_var_params["workspace_name"] is not None:
+            query_params.append(("workspace_name", local_var_params["workspace_name"]))
+            collection_formats["workspace_name"] = "multi"
+        if "workspace_id" in local_var_params and local_var_params["workspace_id"] is not None:
+            query_params.append(("workspace_id", local_var_params["workspace_id"]))
+            collection_formats["workspace_id"] = "multi"
         if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
             query_params.append(("branch_id", local_var_params["branch_id"]))
         if "per_page" in local_var_params and local_var_params["per_page"] is not None:

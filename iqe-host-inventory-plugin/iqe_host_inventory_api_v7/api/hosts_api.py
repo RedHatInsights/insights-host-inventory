@@ -27,6 +27,8 @@ from iqe_host_inventory_api_v7.models.create_check_in import CreateCheckIn
 from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
+from iqe_host_inventory_api_v7.models.host_view_filter_comparison import HostViewFilterComparison
+from iqe_host_inventory_api_v7.models.host_view_query_output import HostViewQueryOutput
 from iqe_host_inventory_api_v7.models.patch_host_in import PatchHostIn
 from iqe_host_inventory_api_v7.models.system_profile_by_host_out import SystemProfileByHostOut
 from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import (
@@ -568,9 +570,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -584,7 +593,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         filter: Annotated[
             dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
@@ -629,15 +640,19 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
         :param staleness: Culling states of the hosts.
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
         :type filter: Dict[str, SystemProfileNestedObjectValue]
@@ -677,7 +692,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -742,9 +759,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -758,7 +782,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         filter: Annotated[
             dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
@@ -803,15 +829,19 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
         :param staleness: Culling states of the hosts.
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
         :type filter: Dict[str, SystemProfileNestedObjectValue]
@@ -851,7 +881,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -916,9 +948,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -932,7 +971,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         filter: Annotated[
             dict[str, dict[str, SystemProfileNestedObjectValue | None]] | None,
@@ -977,15 +1018,19 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
         :param staleness: Culling states of the hosts.
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param filter: Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"
         :type filter: Dict[str, SystemProfileNestedObjectValue]
@@ -1025,7 +1070,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             staleness=staleness,
@@ -1058,7 +1105,9 @@ class HostsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        workspace_name,
         group_id,
+        workspace_id,
         registered_with,
         system_type,
         staleness,
@@ -1075,7 +1124,9 @@ class HostsApi:
 
         _collection_formats: dict[str, str] = {
             "group_name": "multi",
+            "workspace_name": "multi",
             "group_id": "multi",
+            "workspace_id": "multi",
             "registered_with": "multi",
             "system_type": "multi",
             "staleness": "multi",
@@ -1148,8 +1199,14 @@ class HostsApi:
         if group_name is not None:
             _query_params.append(("group_name", group_name))
 
+        if workspace_name is not None:
+            _query_params.append(("workspace_name", workspace_name))
+
         if group_id is not None:
             _query_params.append(("group_id", group_id))
+
+        if workspace_id is not None:
+            _query_params.append(("workspace_id", workspace_id))
 
         if registered_with is not None:
             _query_params.append(("registered_with", registered_with))
@@ -1850,9 +1907,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
@@ -1878,7 +1942,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -1935,8 +2001,12 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -1949,7 +2019,7 @@ class HostsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
@@ -1994,7 +2064,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2066,9 +2138,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
@@ -2094,7 +2173,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -2151,8 +2232,12 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -2165,7 +2250,7 @@ class HostsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
@@ -2210,7 +2295,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2282,9 +2369,16 @@ class HostsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         per_page: Annotated[
@@ -2310,7 +2404,9 @@ class HostsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -2367,8 +2463,12 @@ class HostsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param branch_id: Filter by branch_id
         :type branch_id: str
         :param per_page: A number of items to return per page.
@@ -2381,7 +2481,7 @@ class HostsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
@@ -2426,7 +2526,9 @@ class HostsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             branch_id=branch_id,
             per_page=per_page,
             page=page,
@@ -2464,7 +2566,9 @@ class HostsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        workspace_name,
         group_id,
+        workspace_id,
         branch_id,
         per_page,
         page,
@@ -2486,7 +2590,9 @@ class HostsApi:
 
         _collection_formats: dict[str, str] = {
             "group_name": "multi",
+            "workspace_name": "multi",
             "group_id": "multi",
+            "workspace_id": "multi",
             "staleness": "multi",
             "tags": "multi",
             "registered_with": "multi",
@@ -2562,8 +2668,14 @@ class HostsApi:
         if group_name is not None:
             _query_params.append(("group_name", group_name))
 
+        if workspace_name is not None:
+            _query_params.append(("workspace_name", workspace_name))
+
         if group_id is not None:
             _query_params.append(("group_id", group_id))
+
+        if workspace_id is not None:
+            _query_params.append(("workspace_id", workspace_id))
 
         if branch_id is not None:
             _query_params.append(("branch_id", branch_id))
@@ -4802,6 +4914,847 @@ class HostsApi:
         return self.api_client.param_serialize(
             method="PUT",
             resource_path="/hosts/{host_id_list}/facts/{namespace}",
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth,
+        )
+
+    @validate_call
+    def api_host_views_get_host_views(
+        self,
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        subscription_manager_id: Annotated[
+            StrictStr | None, Field(description="Filter by subscription_manager_id")
+        ] = None,
+        provider_id: Annotated[
+            StrictStr | None, Field(description="Filter by provider_id")
+        ] = None,
+        provider_type: Annotated[
+            StrictStr | None, Field(description="Filter by provider_type")
+        ] = None,
+        updated_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified after the given date"),
+        ] = None,
+        updated_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified before the given date"),
+        ] = None,
+        last_check_in_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in after the given date"),
+        ] = None,
+        last_check_in_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in before the given date"),
+        ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
+        ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[
+            StrictStr | None,
+            Field(
+                description="Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`)."
+            ),
+        ] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        system_type: Annotated[
+            list[StrictStr] | None, Field(description="Filters systems by type")
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            Field(
+                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            Field(
+                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> HostViewQueryOutput:
+        """Read aggregated host and application data
+
+        Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
+
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param subscription_manager_id: Filter by subscription_manager_id
+        :type subscription_manager_id: str
+        :param provider_id: Filter by provider_id
+        :type provider_id: str
+        :param provider_type: Filter by provider_type
+        :type provider_type: str
+        :param updated_start: Only show hosts last modified after the given date
+        :type updated_start: datetime
+        :param updated_end: Only show hosts last modified before the given date
+        :type updated_end: datetime
+        :param last_check_in_start: Only show hosts last checked in after the given date
+        :type last_check_in_start: datetime
+        :param last_check_in_end: Only show hosts last checked in before the given date
+        :type last_check_in_end: datetime
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param system_type: Filters systems by type
+        :type system_type: List[str]
+        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
+        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
+        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
+        :type fields: Dict[str, Dict[str, bool]]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_views_get_host_views_serialize(
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            updated_start=updated_start,
+            updated_end=updated_end,
+            last_check_in_start=last_check_in_start,
+            last_check_in_end=last_check_in_end,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
+            branch_id=branch_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            system_type=system_type,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostViewQueryOutput",
+            "400": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+    @validate_call
+    def api_host_views_get_host_views_with_http_info(
+        self,
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        subscription_manager_id: Annotated[
+            StrictStr | None, Field(description="Filter by subscription_manager_id")
+        ] = None,
+        provider_id: Annotated[
+            StrictStr | None, Field(description="Filter by provider_id")
+        ] = None,
+        provider_type: Annotated[
+            StrictStr | None, Field(description="Filter by provider_type")
+        ] = None,
+        updated_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified after the given date"),
+        ] = None,
+        updated_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified before the given date"),
+        ] = None,
+        last_check_in_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in after the given date"),
+        ] = None,
+        last_check_in_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in before the given date"),
+        ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
+        ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[
+            StrictStr | None,
+            Field(
+                description="Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`)."
+            ),
+        ] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        system_type: Annotated[
+            list[StrictStr] | None, Field(description="Filters systems by type")
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            Field(
+                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            Field(
+                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[HostViewQueryOutput]:
+        """Read aggregated host and application data
+
+        Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
+
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param subscription_manager_id: Filter by subscription_manager_id
+        :type subscription_manager_id: str
+        :param provider_id: Filter by provider_id
+        :type provider_id: str
+        :param provider_type: Filter by provider_type
+        :type provider_type: str
+        :param updated_start: Only show hosts last modified after the given date
+        :type updated_start: datetime
+        :param updated_end: Only show hosts last modified before the given date
+        :type updated_end: datetime
+        :param last_check_in_start: Only show hosts last checked in after the given date
+        :type last_check_in_start: datetime
+        :param last_check_in_end: Only show hosts last checked in before the given date
+        :type last_check_in_end: datetime
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param system_type: Filters systems by type
+        :type system_type: List[str]
+        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
+        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
+        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
+        :type fields: Dict[str, Dict[str, bool]]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_views_get_host_views_serialize(
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            updated_start=updated_start,
+            updated_end=updated_end,
+            last_check_in_start=last_check_in_start,
+            last_check_in_end=last_check_in_end,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
+            branch_id=branch_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            system_type=system_type,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostViewQueryOutput",
+            "400": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+    @validate_call
+    def api_host_views_get_host_views_without_preload_content(
+        self,
+        display_name: Annotated[
+            StrictStr | None, Field(description="Filter by display_name (case-insensitive)")
+        ] = None,
+        fqdn: Annotated[
+            StrictStr | None, Field(description="Filter by FQDN (case-insensitive)")
+        ] = None,
+        hostname_or_id: Annotated[
+            StrictStr | None,
+            Field(description="Filter by display_name, fqdn, id (case-insensitive)"),
+        ] = None,
+        insights_id: Annotated[
+            StrictStr | None, Field(description="Filter by insights_id")
+        ] = None,
+        subscription_manager_id: Annotated[
+            StrictStr | None, Field(description="Filter by subscription_manager_id")
+        ] = None,
+        provider_id: Annotated[
+            StrictStr | None, Field(description="Filter by provider_id")
+        ] = None,
+        provider_type: Annotated[
+            StrictStr | None, Field(description="Filter by provider_type")
+        ] = None,
+        updated_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified after the given date"),
+        ] = None,
+        updated_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last modified before the given date"),
+        ] = None,
+        last_check_in_start: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in after the given date"),
+        ] = None,
+        last_check_in_end: Annotated[
+            datetime | None,
+            Field(description="Only show hosts last checked in before the given date"),
+        ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
+        ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
+        per_page: Annotated[
+            Annotated[int, Field(le=100, strict=True, ge=1)] | None,
+            Field(description="A number of items to return per page."),
+        ] = None,
+        page: Annotated[
+            Annotated[int, Field(le=21474837, strict=True, ge=1)] | None,
+            Field(description="A page number of the items to return."),
+        ] = None,
+        order_by: Annotated[
+            StrictStr | None,
+            Field(
+                description="Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`)."
+            ),
+        ] = None,
+        order_how: Annotated[
+            Annotated[str, Field(strict=True)] | None,
+            Field(
+                description="Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system"
+            ),
+        ] = None,
+        staleness: Annotated[
+            list[StrictStr] | None,
+            Field(
+                description="Culling states of the hosts. Default: fresh, stale and stale_warning"
+            ),
+        ] = None,
+        tags: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
+        ] = None,
+        registered_with: Annotated[
+            list[StrictStr] | None,
+            Field(description="Filters out any host not registered by the specified reporters"),
+        ] = None,
+        system_type: Annotated[
+            list[StrictStr] | None, Field(description="Filters systems by type")
+        ] = None,
+        filter: Annotated[
+            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            Field(
+                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+            ),
+        ] = None,
+        fields: Annotated[
+            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            Field(
+                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+            ),
+        ] = None,
+        _request_timeout: None
+        | Annotated[StrictFloat, Field(gt=0)]
+        | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
+        _request_auth: dict[StrictStr, Any] | None = None,
+        _content_type: StrictStr | None = None,
+        _headers: dict[StrictStr, Any] | None = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Read aggregated host and application data
+
+        Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
+
+        :param display_name: Filter by display_name (case-insensitive)
+        :type display_name: str
+        :param fqdn: Filter by FQDN (case-insensitive)
+        :type fqdn: str
+        :param hostname_or_id: Filter by display_name, fqdn, id (case-insensitive)
+        :type hostname_or_id: str
+        :param insights_id: Filter by insights_id
+        :type insights_id: str
+        :param subscription_manager_id: Filter by subscription_manager_id
+        :type subscription_manager_id: str
+        :param provider_id: Filter by provider_id
+        :type provider_id: str
+        :param provider_type: Filter by provider_type
+        :type provider_type: str
+        :param updated_start: Only show hosts last modified after the given date
+        :type updated_start: datetime
+        :param updated_end: Only show hosts last modified before the given date
+        :type updated_end: datetime
+        :param last_check_in_start: Only show hosts last checked in after the given date
+        :type last_check_in_start: datetime
+        :param last_check_in_end: Only show hosts last checked in before the given date
+        :type last_check_in_end: datetime
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
+        :param per_page: A number of items to return per page.
+        :type per_page: int
+        :param page: A page number of the items to return.
+        :type page: int
+        :param order_by: Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+        :type order_by: str
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system
+        :type order_how: str
+        :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
+        :type staleness: List[str]
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
+        :type tags: List[str]
+        :param registered_with: Filters out any host not registered by the specified reporters
+        :type registered_with: List[str]
+        :param system_type: Filters systems by type
+        :type system_type: List[str]
+        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
+        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
+        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
+        :type fields: Dict[str, Dict[str, bool]]
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """
+
+        _param = self._api_host_views_get_host_views_serialize(
+            display_name=display_name,
+            fqdn=fqdn,
+            hostname_or_id=hostname_or_id,
+            insights_id=insights_id,
+            subscription_manager_id=subscription_manager_id,
+            provider_id=provider_id,
+            provider_type=provider_type,
+            updated_start=updated_start,
+            updated_end=updated_end,
+            last_check_in_start=last_check_in_start,
+            last_check_in_end=last_check_in_end,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
+            branch_id=branch_id,
+            per_page=per_page,
+            page=page,
+            order_by=order_by,
+            order_how=order_how,
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            system_type=system_type,
+            filter=filter,
+            fields=fields,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index,
+        )
+
+        _response_types_map: dict[str, str | None] = {
+            "200": "HostViewQueryOutput",
+            "400": None,
+        }
+        response_data = self.api_client.call_api(*_param, _request_timeout=_request_timeout)
+        return response_data.response
+
+    def _api_host_views_get_host_views_serialize(
+        self,
+        display_name,
+        fqdn,
+        hostname_or_id,
+        insights_id,
+        subscription_manager_id,
+        provider_id,
+        provider_type,
+        updated_start,
+        updated_end,
+        last_check_in_start,
+        last_check_in_end,
+        workspace_name,
+        workspace_id,
+        branch_id,
+        per_page,
+        page,
+        order_by,
+        order_how,
+        staleness,
+        tags,
+        registered_with,
+        system_type,
+        filter,
+        fields,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: dict[str, str] = {
+            "workspace_name": "multi",
+            "workspace_id": "multi",
+            "staleness": "multi",
+            "tags": "multi",
+            "registered_with": "multi",
+            "system_type": "multi",
+        }
+
+        _path_params: dict[str, str] = {}
+        _query_params: list[tuple[str, str]] = []
+        _header_params: dict[str, str | None] = _headers or {}
+        _form_params: list[tuple[str, str]] = []
+        _files: dict[str, str | bytes] = {}
+        _body_params: bytes | None = None
+
+        # process the path parameters
+        # process the query parameters
+        if display_name is not None:
+            _query_params.append(("display_name", display_name))
+
+        if fqdn is not None:
+            _query_params.append(("fqdn", fqdn))
+
+        if hostname_or_id is not None:
+            _query_params.append(("hostname_or_id", hostname_or_id))
+
+        if insights_id is not None:
+            _query_params.append(("insights_id", insights_id))
+
+        if subscription_manager_id is not None:
+            _query_params.append(("subscription_manager_id", subscription_manager_id))
+
+        if provider_id is not None:
+            _query_params.append(("provider_id", provider_id))
+
+        if provider_type is not None:
+            _query_params.append(("provider_type", provider_type))
+
+        if updated_start is not None:
+            if isinstance(updated_start, datetime):
+                _query_params.append((
+                    "updated_start",
+                    updated_start.strftime(self.api_client.configuration.datetime_format),
+                ))
+            else:
+                _query_params.append(("updated_start", updated_start))
+
+        if updated_end is not None:
+            if isinstance(updated_end, datetime):
+                _query_params.append((
+                    "updated_end",
+                    updated_end.strftime(self.api_client.configuration.datetime_format),
+                ))
+            else:
+                _query_params.append(("updated_end", updated_end))
+
+        if last_check_in_start is not None:
+            if isinstance(last_check_in_start, datetime):
+                _query_params.append((
+                    "last_check_in_start",
+                    last_check_in_start.strftime(self.api_client.configuration.datetime_format),
+                ))
+            else:
+                _query_params.append(("last_check_in_start", last_check_in_start))
+
+        if last_check_in_end is not None:
+            if isinstance(last_check_in_end, datetime):
+                _query_params.append((
+                    "last_check_in_end",
+                    last_check_in_end.strftime(self.api_client.configuration.datetime_format),
+                ))
+            else:
+                _query_params.append(("last_check_in_end", last_check_in_end))
+
+        if workspace_name is not None:
+            _query_params.append(("workspace_name", workspace_name))
+
+        if workspace_id is not None:
+            _query_params.append(("workspace_id", workspace_id))
+
+        if branch_id is not None:
+            _query_params.append(("branch_id", branch_id))
+
+        if per_page is not None:
+            _query_params.append(("per_page", per_page))
+
+        if page is not None:
+            _query_params.append(("page", page))
+
+        if order_by is not None:
+            _query_params.append(("order_by", order_by))
+
+        if order_how is not None:
+            _query_params.append(("order_how", order_how))
+
+        if staleness is not None:
+            _query_params.append(("staleness", staleness))
+
+        if tags is not None:
+            _query_params.append(("tags", tags))
+
+        if registered_with is not None:
+            _query_params.append(("registered_with", registered_with))
+
+        if system_type is not None:
+            _query_params.append(("system_type", system_type))
+
+        if filter is not None:
+            _query_params.append(("filter", filter))
+
+        if fields is not None:
+            _query_params.append(("fields", fields))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+        # set the HTTP header `Accept`
+        _header_params["Accept"] = self.api_client.select_header_accept(["application/json"])
+
+        # authentication setting
+        _auth_settings: list[str] = ["ApiKeyAuth"]
+
+        return self.api_client.param_serialize(
+            method="GET",
+            resource_path="/beta/hosts-view",
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

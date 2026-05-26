@@ -33,10 +33,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -74,7 +74,7 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *http://localhost*
+All URIs are relative to */api/inventory/v1*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
@@ -105,6 +105,7 @@ Class | Method | HTTP request | Description
 *HostsApi* | [**api_host_merge_facts**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_merge_facts) | **PATCH** /hosts/{host_id_list}/facts/{namespace} | Merge facts under a namespace
 *HostsApi* | [**api_host_patch_host_by_id**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_patch_host_by_id) | **PATCH** /hosts/{host_id_list} | Update hosts
 *HostsApi* | [**api_host_replace_facts**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_replace_facts) | **PUT** /hosts/{host_id_list}/facts/{namespace} | Replace facts under a namespace
+*HostsApi* | [**api_host_views_get_host_views**](iqe_host_inventory_api_v7/docs/HostsApi.md#api_host_views_get_host_views) | **GET** /beta/hosts-view | Read aggregated host and application data
 *ResourceTypesApi* | [**api_resource_type_get_resource_type_groups_list**](iqe_host_inventory_api_v7/docs/ResourceTypesApi.md#api_resource_type_get_resource_type_groups_list) | **GET** /resource-types/inventory-groups | Get the list of inventory groups in resource-types format
 *ResourceTypesApi* | [**api_resource_type_get_resource_type_list**](iqe_host_inventory_api_v7/docs/ResourceTypesApi.md#api_resource_type_get_resource_type_list) | **GET** /resource-types | Get the list of resource types
 *SystemProfileApi* | [**api_system_profile_get_operating_system**](iqe_host_inventory_api_v7/docs/SystemProfileApi.md#api_system_profile_get_operating_system) | **GET** /system_profile/operating_system | get all operating system versions and counts on the account
@@ -112,18 +113,28 @@ Class | Method | HTTP request | Description
 *SystemProfileApi* | [**api_system_profile_get_sap_system**](iqe_host_inventory_api_v7/docs/SystemProfileApi.md#api_system_profile_get_sap_system) | **GET** /system_profile/sap_system | get all sap system values and counts on the account
 *SystemProfileApi* | [**api_system_profile_validate_schema**](iqe_host_inventory_api_v7/docs/SystemProfileApi.md#api_system_profile_validate_schema) | **POST** /system_profile/validate_schema | validate system profile schema
 *TagsApi* | [**api_tag_get_tags**](iqe_host_inventory_api_v7/docs/TagsApi.md#api_tag_get_tags) | **GET** /tags | Get the active host tags for a given account
+*ViewsApi* | [**api_views_clone_view**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_clone_view) | **POST** /beta/views/{view_id}/clone | Clone an inventory view
+*ViewsApi* | [**api_views_create_view**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_create_view) | **POST** /beta/views | Create a new inventory view
+*ViewsApi* | [**api_views_delete_view**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_delete_view) | **DELETE** /beta/views/{view_id} | Delete an inventory view
+*ViewsApi* | [**api_views_get_view_by_id**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_get_view_by_id) | **GET** /beta/views/{view_id} | Get a single inventory view
+*ViewsApi* | [**api_views_get_views_list**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_get_views_list) | **GET** /beta/views | Read the list of inventory views
+*ViewsApi* | [**api_views_update_view**](iqe_host_inventory_api_v7/docs/ViewsApi.md#api_views_update_view) | **PUT** /beta/views/{view_id} | Update an inventory view
 
 
 ## Documentation For Models
 
  - [ActiveTag](iqe_host_inventory_api_v7/docs/ActiveTag.md)
  - [ActiveTags](iqe_host_inventory_api_v7/docs/ActiveTags.md)
+ - [AdvisorAppData](iqe_host_inventory_api_v7/docs/AdvisorAppData.md)
+ - [AppSortableFields](iqe_host_inventory_api_v7/docs/AppSortableFields.md)
  - [CanonicalFactsIn](iqe_host_inventory_api_v7/docs/CanonicalFactsIn.md)
  - [CanonicalFactsInAllOfBiosUuid](iqe_host_inventory_api_v7/docs/CanonicalFactsInAllOfBiosUuid.md)
  - [CanonicalFactsInAllOfInsightsId](iqe_host_inventory_api_v7/docs/CanonicalFactsInAllOfInsightsId.md)
  - [CanonicalFactsInAllOfSatelliteId](iqe_host_inventory_api_v7/docs/CanonicalFactsInAllOfSatelliteId.md)
  - [CanonicalFactsInAllOfSubscriptionManagerId](iqe_host_inventory_api_v7/docs/CanonicalFactsInAllOfSubscriptionManagerId.md)
  - [CanonicalFactsOut](iqe_host_inventory_api_v7/docs/CanonicalFactsOut.md)
+ - [ComplianceAppData](iqe_host_inventory_api_v7/docs/ComplianceAppData.md)
+ - [ConsumerApplicationsData](iqe_host_inventory_api_v7/docs/ConsumerApplicationsData.md)
  - [CreateCheckIn](iqe_host_inventory_api_v7/docs/CreateCheckIn.md)
  - [FactSet](iqe_host_inventory_api_v7/docs/FactSet.md)
  - [GroupIn](iqe_host_inventory_api_v7/docs/GroupIn.md)
@@ -134,10 +145,16 @@ Class | Method | HTTP request | Description
  - [HostOut](iqe_host_inventory_api_v7/docs/HostOut.md)
  - [HostQueryOutput](iqe_host_inventory_api_v7/docs/HostQueryOutput.md)
  - [HostSystemProfileOut](iqe_host_inventory_api_v7/docs/HostSystemProfileOut.md)
+ - [HostViewFilterComparison](iqe_host_inventory_api_v7/docs/HostViewFilterComparison.md)
+ - [HostViewHost](iqe_host_inventory_api_v7/docs/HostViewHost.md)
+ - [HostViewQueryOutput](iqe_host_inventory_api_v7/docs/HostViewQueryOutput.md)
+ - [MalwareAppData](iqe_host_inventory_api_v7/docs/MalwareAppData.md)
  - [NotFoundErrorResponse](iqe_host_inventory_api_v7/docs/NotFoundErrorResponse.md)
  - [PaginationOut](iqe_host_inventory_api_v7/docs/PaginationOut.md)
+ - [PatchAppData](iqe_host_inventory_api_v7/docs/PatchAppData.md)
  - [PatchHostIn](iqe_host_inventory_api_v7/docs/PatchHostIn.md)
  - [PerReporterStaleness](iqe_host_inventory_api_v7/docs/PerReporterStaleness.md)
+ - [RemediationsAppData](iqe_host_inventory_api_v7/docs/RemediationsAppData.md)
  - [ResourceTypesGroupsQueryOutput](iqe_host_inventory_api_v7/docs/ResourceTypesGroupsQueryOutput.md)
  - [ResourceTypesOut](iqe_host_inventory_api_v7/docs/ResourceTypesOut.md)
  - [ResourceTypesPaginationOut](iqe_host_inventory_api_v7/docs/ResourceTypesPaginationOut.md)
@@ -187,6 +204,14 @@ Class | Method | HTTP request | Description
  - [SystemProfileYumRepo](iqe_host_inventory_api_v7/docs/SystemProfileYumRepo.md)
  - [TagCountOut](iqe_host_inventory_api_v7/docs/TagCountOut.md)
  - [TagsOut](iqe_host_inventory_api_v7/docs/TagsOut.md)
+ - [ViewColumnConfig](iqe_host_inventory_api_v7/docs/ViewColumnConfig.md)
+ - [ViewConfiguration](iqe_host_inventory_api_v7/docs/ViewConfiguration.md)
+ - [ViewIn](iqe_host_inventory_api_v7/docs/ViewIn.md)
+ - [ViewOut](iqe_host_inventory_api_v7/docs/ViewOut.md)
+ - [ViewPatch](iqe_host_inventory_api_v7/docs/ViewPatch.md)
+ - [ViewSortConfig](iqe_host_inventory_api_v7/docs/ViewSortConfig.md)
+ - [ViewsListOut](iqe_host_inventory_api_v7/docs/ViewsListOut.md)
+ - [VulnerabilityAppData](iqe_host_inventory_api_v7/docs/VulnerabilityAppData.md)
 
 
 <a id="documentation-for-authorization"></a>
