@@ -19,7 +19,6 @@ from marshmallow import ValidationError
 
 from api import api_operation
 from api import custom_escape
-from api.host_query import staleness_timestamps
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
@@ -36,8 +35,6 @@ from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.culling import Conditions
-from app.culling import Timestamps
-from app.culling import _Config as CullingConfig
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
 from app.exceptions import ValidationException
@@ -1671,9 +1668,8 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=14))
         staleness = get_sys_default_staleness()
-        actual = serialize_host(host, Timestamps(config), False, ("tags",), staleness=staleness)
+        actual = serialize_host(host, staleness, False, ("tags",))
 
         expected = {
             **canonical_facts,
@@ -1700,7 +1696,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
             "culled_timestamp": _timestamp_to_str(
                 _add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
-            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, Timestamps(config)),
+            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
         }
         expected["insights_id"] = str(expected["insights_id"])
         expected["subscription_manager_id"] = str(expected["subscription_manager_id"])
@@ -1739,9 +1735,8 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                 for k, v in host_attr_data.items():
                     setattr(host, k, v)
 
-                staleness_offset = staleness_timestamps()
                 staleness = get_sys_default_staleness()
-                actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+                actual = serialize_host(host, staleness, False, ("tags",))
                 expected = {
                     "insights_id": DEFAULT_INSIGHTS_ID,
                     "fqdn": None,
@@ -1771,7 +1766,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     "culled_timestamp": _timestamp_to_str(
                         _add_seconds(host_attr_data["last_check_in"], CONVENTIONAL_TIME_TO_DELETE_SECONDS)
                     ),
-                    "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, staleness_offset),
+                    "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
                 }
 
                 assert expected == actual
@@ -1798,9 +1793,8 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
             for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
                 setattr(host, k, v)
 
-            config = CullingConfig(timedelta(days=stale_warning_offset_seconds), timedelta(days=culled_offset_seconds))
             staleness = get_sys_default_staleness()
-            serialized = serialize_host(host, Timestamps(config), False, staleness=staleness)
+            serialized = serialize_host(host, staleness, False)
 
             assert (
                 _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
@@ -1831,10 +1825,8 @@ def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flas
         host.stale_warning_timestamp = bogus + timedelta(days=1)
         host.deletion_timestamp = bogus + timedelta(days=2)
 
-        config = CullingConfig(stale_warning_offset_delta=timedelta(days=7), culled_offset_delta=timedelta(days=30))
         staleness = get_sys_default_staleness()
-        st_helper = Timestamps(config)
-        expected = get_staleness_timestamps(host, st_helper, staleness)
+        expected = get_staleness_timestamps(host, staleness)
         assert host.stale_timestamp != expected["stale_timestamp"]
         assert host.stale_warning_timestamp != expected["stale_warning_timestamp"]
         assert host.deletion_timestamp != expected["culled_timestamp"]
@@ -1843,7 +1835,7 @@ def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flas
             expected["stale_timestamp"],
             expected["stale_warning_timestamp"],
         )
-        serialized = serialize_host(host, st_helper, False, additional_fields=("state",), staleness=staleness)
+        serialized = serialize_host(host, staleness, False, additional_fields=("state",))
         assert serialized["stale_timestamp"] == _timestamp_to_str(expected["stale_timestamp"])
         assert serialized["stale_warning_timestamp"] == _timestamp_to_str(expected["stale_warning_timestamp"])
         assert serialized["culled_timestamp"] == _timestamp_to_str(expected["culled_timestamp"])
@@ -1909,9 +1901,8 @@ def test_with_all_fields_serialization_serialize_host_mocked(
         for k, v in host_attr_data.items():
             setattr(host, k, v)
 
-        staleness_offset = staleness_timestamps()
         staleness = get_sys_default_staleness()
-        actual = serialize_host(host, staleness_offset, False, ("tags",), staleness=staleness)
+        actual = serialize_host(host, staleness, False, ("tags",))
         expected = {
             **serialized_canonical_facts,
             **unchanged_data,
@@ -1930,7 +1921,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             "culled_timestamp": _timestamp_to_str(
                 host_attr_data["last_check_in"] + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
             ),
-            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness, staleness_offset),
+            "per_reporter_staleness": _serialize_per_reporter_staleness(host, staleness),
         }
 
         assert expected == actual
