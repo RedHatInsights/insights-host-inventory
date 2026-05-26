@@ -153,6 +153,8 @@ Class | Method | HTTP request | Description
  - [HostQueryOutput](iqe_host_inventory_api/docs/HostQueryOutput.md)
  - [HostQueryOutputAllOf](iqe_host_inventory_api/docs/HostQueryOutputAllOf.md)
  - [HostSystemProfileOut](iqe_host_inventory_api/docs/HostSystemProfileOut.md)
+ - [HostViewCombinedFields](iqe_host_inventory_api/docs/HostViewCombinedFields.md)
+ - [HostViewCombinedFilterValue](iqe_host_inventory_api/docs/HostViewCombinedFilterValue.md)
  - [HostViewFilterComparison](iqe_host_inventory_api/docs/HostViewFilterComparison.md)
  - [HostViewHost](iqe_host_inventory_api/docs/HostViewHost.md)
  - [HostViewHostAllOf](iqe_host_inventory_api/docs/HostViewHostAllOf.md)
