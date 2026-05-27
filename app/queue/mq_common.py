@@ -11,6 +11,10 @@ logger = get_logger(__name__)
 @metrics.common_message_parsing_time.time()
 def common_message_parser(message: str | bytes):
     try:
+        if not message:
+            logger.warning("Received empty message from message queue, skipping.")
+            return
+
         # Due to RHCLOUD-3610 we're receiving messages with invalid unicode code points (invalid surrogate pairs)
         # Python pretty much ignores that but it is not possible to store such strings in the database (db INSERTS
         # blow up)
@@ -21,4 +25,4 @@ def common_message_parser(message: str | bytes):
         # otherwise an exception in thrown in the logging code
         logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
         metrics.common_message_parsing_failure.labels("invalid").inc()
-        raise
+        return
