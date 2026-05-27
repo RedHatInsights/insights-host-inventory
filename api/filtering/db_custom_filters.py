@@ -429,7 +429,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Escape special `LIKE` characters: \, %, _
+            # Then, convert user's wildcard `*` to SQL wildcard `%`
+            value = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
