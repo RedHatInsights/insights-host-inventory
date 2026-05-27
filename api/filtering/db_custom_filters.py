@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
+from sqlalchemy.sql.expression import escape_like
 
 from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
 from api.filtering.filtering_common import FIELD_FILTER_TO_PYTHON_CAST
@@ -134,6 +135,32 @@ def _convert_dict_to_json_path_and_value(
         if val == "":
             return (key,), None, ""
         return (key,), None, val
+
+
+def _get_spec_for_deepest_param(sp_spec: dict, filter_param: dict, parent_node: str = "system_profile") -> dict:
+    """Recursively traverses the filter object and system profile spec to find the spec for the deepest field."""
+    # If the node is an array, that's as far as we go
+    if sp_spec.get("is_array") is True:
+        return sp_spec
+
+    # Skip through "children" nodes in the spec
+    if "children" in sp_spec:
+        return _get_spec_for_deepest_param(sp_spec["children"], filter_param, parent_node)
+
+    key = next(iter(filter_param.keys()))
+
+    # If the current key is a comparator, we're already at the deepest node
+    if key in POSTGRES_COMPARATOR_LOOKUP.keys():
+        return sp_spec
+
+    # Make sure the requested field is in the spec
+    _check_field_in_spec(sp_spec, key, parent_node)
+    val = filter_param[key]
+
+    if isinstance(val, dict) and key in sp_spec:
+        return _get_spec_for_deepest_param(sp_spec[key], filter_param[key], key)
+
+    return sp_spec[key]
 
 
 # Gets the deepest node in the "filter" object, and looks up its field_filter in sp_spec
@@ -403,7 +430,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
     else:
         # Main SP filters
         field_input = filter_param[field_name]
-        field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
+        full_spec = system_profile_spec()
+        field_filter = _get_field_filter_for_deepest_param(full_spec, filter_param)
+        field_spec = _get_spec_for_deepest_param(full_spec, filter_param)
 
         logger.debug(f"generating filter: field: {field_name}, type: {field_filter}, field_input: {field_input}")
 
@@ -414,7 +443,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         # This allows searching within the stringified array rather than trying to navigate
         # into array elements with invalid JSONB path syntax.
         if field_filter == "array" and jsonb_path:
-            column_spec = system_profile_spec().get(column.key, {})
+            column_spec = full_spec.get(column.key, {})
             jsonb_path = _truncate_path_at_array(column_spec, jsonb_path)
 
         # The first node in jsonb_path is the column name
@@ -429,7 +458,11 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # First, escape any existing wildcards (e.g. '%', '_')
+            value = escape_like(value, escape="\\")
+            # Then, if the field supports wildcards, convert '*' to '%'
+            if field_spec.get("x-wildcard"):
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
