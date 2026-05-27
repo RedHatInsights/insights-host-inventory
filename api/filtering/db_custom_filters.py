@@ -39,6 +39,60 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _escape_aware_wildcard_replace(value: str) -> str:
+    """
+    Replace unescaped asterisks with SQL wildcards (%) while preserving escaped ones.
+
+    This function handles:
+    - Unescaped * becomes %
+    - Escaped \\* becomes literal *
+    - Escaped \\% becomes literal %
+    - Escaped \\\\ becomes literal \\
+
+    Args:
+        value: The input string that may contain wildcards and escape sequences
+
+    Returns:
+        String with proper SQL wildcard replacements
+    """
+    if not value:
+        return value
+
+    result = []
+    i = 0
+    while i < len(value):
+        if value[i] == '\\' and i + 1 < len(value):
+            # Handle escape sequences
+            next_char = value[i + 1]
+            if next_char == '*':
+                # Escaped asterisk - treat as literal *
+                result.append('*')
+                i += 2
+            elif next_char == '%':
+                # Escaped percent - treat as literal %
+                result.append('%')
+                i += 2
+            elif next_char == '\\':
+                # Escaped backslash - treat as literal \
+                result.append('\\')
+                i += 2
+            else:
+                # Backslash followed by other character - keep both
+                result.append('\\')
+                result.append(next_char)
+                i += 2
+        elif value[i] == '*':
+            # Unescaped asterisk - convert to SQL wildcard
+            result.append('%')
+            i += 1
+        else:
+            # Regular character
+            result.append(value[i])
+            i += 1
+
+    return ''.join(result)
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -427,9 +481,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, replace * with % while respecting escaping)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _escape_aware_wildcard_replace(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

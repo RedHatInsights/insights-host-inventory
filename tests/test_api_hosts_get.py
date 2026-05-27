@@ -1556,6 +1556,98 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
 
 
 @pytest.mark.parametrize(
+    "filter_value,hostname_match,hostname_nomatch,should_match",
+    (
+        # Basic wildcard functionality (should still work)
+        ("test*", "test123", "other123", True),
+        ("*test", "mytest", "testmy", True),
+        ("*test*", "mytestdata", "nodata", True),
+
+        # URL-encoded asterisks should be treated as literals
+        ("test%2A", "test*", "test123", True),
+        ("%2Atest", "*test", "mytest", True),
+        ("test%2Avalue", "test*value", "testXvalue", True),
+
+        # Backslash-escaped asterisks should be treated as literals
+        ("test\\*", "test*", "test123", True),
+        ("\\*test", "*test", "mytest", True),
+        ("test\\*value", "test*value", "testXvalue", True),
+
+        # Backslash-escaped percent signs should be treated as literals
+        ("test\\%", "test%", "test123", True),
+        ("\\%test", "%test", "mytest", True),
+
+        # Mixed literal and wildcard characters
+        ("test\\**", "test*123", "test123", True),
+        ("*test\\*", "mytest*", "mytest123", True),
+        ("test\\*value*", "test*valueX", "testXvalueX", True),
+
+        # Escaped backslashes
+        ("test\\\\*", "test\\123", "test*123", True),
+        ("\\\\*test", "\\mytest", "*test", True),
+
+        # Multiple escapes
+        ("test\\*\\%*", "test*%123", "test*123", True),
+        ("\\*test\\**", "*test*123", "*test123", True),
+
+        # Edge cases - empty and single characters
+        ("*", "anything", "", True),
+        ("\\*", "*", "anything", True),
+        ("%2A", "*", "anything", True),
+
+        # Negative test cases (should not match)
+        ("test\\*", "test123", "test*", False),
+        ("test%2A", "test123", "test*", False),
+        ("*test\\*", "mytest123", "mytest*", False),
+    ),
+)
+def test_wildcard_escaping_in_system_profile_filters(db_create_host, api_get, filter_value, hostname_match, hostname_nomatch, should_match):
+    """Test that wildcard escaping works correctly in system profile filters.
+
+    This test verifies:
+    - URL-encoded asterisks (%2A) are treated as literal asterisks
+    - Backslash-escaped asterisks (\\*) are treated as literal asterisks
+    - Backslash-escaped percent signs (\\%) are treated as literal percent signs
+    - Mixed literal and wildcard characters work correctly
+    - Existing wildcard functionality remains intact
+    """
+    # Create host that should match the filter
+    match_host_data = {
+        "hostname": hostname_match,
+        "system_profile_facts": {
+            "arch": hostname_match,  # Use hostname as arch value for testing
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_host_data).id)
+
+    # Create host that should not match the filter
+    nomatch_host_data = {
+        "hostname": hostname_nomatch,
+        "system_profile_facts": {
+            "arch": hostname_nomatch,  # Use hostname as arch value for testing
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
+
+    # Test the filter
+    url = build_hosts_url(query=f"?filter[system_profile][arch]={filter_value}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    if should_match:
+        # The match host should be in results, nomatch should not
+        assert match_host_id in response_ids
+        assert nomatch_host_id not in response_ids
+    else:
+        # The nomatch host should be in results, match should not
+        assert nomatch_host_id in response_ids
+        assert match_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
     "sp_filter_param",
     (
         # Non-object JSON values: must not be treated as deep object filters
