@@ -287,10 +287,10 @@
             "$ref": "#/components/parameters/systemTypeParam"
           },
           {
-            "$ref": "#/components/parameters/hostViewAppFilterParam"
+            "$ref": "#/components/parameters/hostViewCombinedFilterParam"
           },
           {
-            "$ref": "#/components/parameters/hostViewFieldsParam"
+            "$ref": "#/components/parameters/hostViewCombinedFieldsParam"
           }
         ],
         "responses": {
@@ -2490,47 +2490,29 @@
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
-      "hostViewFieldsParam": {
-        "in": "query",
-        "name": "fields",
-        "required": false,
-        "description": "Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).",
-        "style": "deepObject",
-        "explode": true,
-        "example": {
-          "app_data": true,
-          "advisor": [
-            "recommendations"
-          ],
-          "vulnerability": [
-            "critical_cves"
-          ]
-        },
-        "schema": {
-          "$ref": "#/components/schemas/HostViewFieldsObject"
-        }
-      },
-      "hostViewAppFilterParam": {
+      "hostViewCombinedFilterParam": {
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.",
+        "description": "Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"",
         "style": "deepObject",
         "explode": true,
-        "example": {
-          "vulnerability": {
-            "critical_cves": {
-              "gte": "1"
-            }
-          },
-          "patch": {
-            "template": {
-              "eq": "production"
-            }
-          }
-        },
+        "example": {},
         "schema": {
-          "$ref": "#/components/schemas/HostViewApplicationFilter"
+          "$ref": "#/components/schemas/HostViewCombinedFilter"
+        }
+      },
+      "hostViewCombinedFieldsParam": {
+        "in": "query",
+        "name": "fields",
+        "required": false,
+        "description": "Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"",
+        "style": "deepObject",
+        "explode": true,
+        "x-validator": "hostViewSparseFields",
+        "example": {},
+        "schema": {
+          "$ref": "#/components/schemas/HostViewCombinedFields"
         }
       },
       "hostViewOrderByParam": {
@@ -3460,23 +3442,60 @@
           }
         }
       },
-      "HostViewFieldsObject": {
+      "HostViewCombinedFilter": {
         "type": "object",
-        "description": "Sparse fieldset declaration for application data (per JSON:API specification).\nWhen omitted, all fields from all applications are returned by default.\n\nUsage Examples:\n- No parameter: Returns all app data (default behavior)\n- fields[advisor]=true: Returns all fields for advisor\n- fields[advisor]=recommendations: Returns only specified field\n- fields[advisor]=recommendations&fields[vulnerability]=critical_cves: Multiple apps\n- fields[advisor]= (empty): Returns no fields for advisor (per JSON:API spec)\n\nAvailable Applications and Fields:\n- advisor: recommendations, incidents\n- vulnerability: total_cves, critical_cves, high_severity_cves, cves_with_security_rules, cves_with_known_exploits\n- patch: advisories_rhsa_applicable, advisories_rhba_applicable, advisories_rhea_applicable, advisories_other_applicable, advisories_rhsa_installable, advisories_rhba_installable, advisories_rhea_installable, advisories_other_installable, packages_applicable, packages_installable, packages_installed, template_name, template_uuid\n- remediations: remediations_plans\n- compliance: policies, last_scan\n- malware: last_status, last_matches, total_matches, last_scan\n",
+        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field → operator → value` structure.",
         "additionalProperties": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          },
-          "description": "Map of field names to include. Keys are field names, values are always true."
+          "$ref": "#/components/schemas/HostViewCombinedFilterValue"
         }
       },
-      "HostViewApplicationFilter": {
+      "HostViewCombinedFilterValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
+          },
+          {
+            "$ref": "#/components/schemas/HostViewApplicationFilterField"
+          }
+        ]
+      },
+      "HostViewSparseFieldSelection": {
         "type": "object",
-        "description": "Structure for the `filter[app_name][field][operator]=value` syntax applied to application metrics.",
         "additionalProperties": {
-          "$ref": "#/components/schemas/HostViewApplicationFilterField"
-        }
+          "type": "boolean"
+        },
+        "description": "Map of field names to include. Keys are field names, values are always true."
+      },
+      "HostViewCombinedFields": {
+        "type": "object",
+        "description": "Combined sparse fieldset supporting both system_profile and application data fields. The `system_profile` key selects system profile fields, while all other keys select application data fields. The `app_data` key is an explicit shorthand to request all app data. When omitted, all application data is returned by default but no system_profile data is included.",
+        "properties": {
+          "system_profile": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "app_data": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "advisor": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "vulnerability": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "remediations": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "malware": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          }
+        },
+        "additionalProperties": false
       },
       "HostViewApplicationFilterField": {
         "type": "object",
