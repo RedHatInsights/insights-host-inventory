@@ -1654,7 +1654,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/66f1b92c744faa7af26d0952e9ec706c41ff252196f11e7e6b804e537f9f257f-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/b1904b97f61346aa2449f7c4fdcf43c73d1da5bf642835bb19e064ae12350929-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 52945
-    checksum: sha256:66f1b92c744faa7af26d0952e9ec706c41ff252196f11e7e6b804e537f9f257f
+    checksum: sha256:b1904b97f61346aa2449f7c4fdcf43c73d1da5bf642835bb19e064ae12350929
