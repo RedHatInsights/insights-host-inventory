@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from urllib.parse import unquote
 
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -427,9 +428,40 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
+        if value:
+            # URL-decode the value that was passed in as-is from the parser
+            value = unquote(value)
+
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Per RHINENG-4809, we must escape literal backslashes and special SQL
+            # characters, and convert the user-facing wildcard `*` to the SQL wildcard `%`.
+            # This is done via a character-by-character parsing loop.
+            new_value = ""
+            i = 0
+            while i < len(value):
+                char = value[i]
+                if char == "\\":  # API-level escape character
+                    if i + 1 < len(value):
+                        next_char = value[i + 1]
+                        if next_char == "*":  # Escaped wildcard for literal asterisk
+                            new_value += "*"
+                            i += 1  # Skip the next character
+                        elif next_char == "\\":  # API-level escaped backslash (e.g., \\) -> literal \
+                            new_value += "\\\\"
+                            i += 1  # Skip the next character
+                        else:  # A backslash followed by any other character is a literal backslash
+                            new_value += "\\\\"
+                    else:  # Trailing backslash -> literal \
+                        new_value += "\\\\"
+                elif char == "*":  # User-facing wildcard
+                    new_value += "%"
+                elif char in ("%", "_"):  # SQL wildcard characters to be treated as literals
+                    new_value += f"\\{char}"
+                else:
+                    new_value += char
+                i += 1
+            value = new_value
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
