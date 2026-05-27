@@ -95,7 +95,9 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None =
     return result
 
 
-def _build_host_view_response(total, page, per_page, host_list, fields=None):
+def _build_host_view_response(
+    total, page, per_page, host_list, fields=None, additional_fields=(), system_profile_fields=None
+):
     """Build the response for the hosts-view endpoint."""
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
@@ -105,7 +107,7 @@ def _build_host_view_response(total, page, per_page, host_list, fields=None):
 
     results = []
     for host in host_list:
-        host_data = serialize_host(host, staleness, False)
+        host_data = serialize_host(host, staleness, False, additional_fields, system_profile_fields)
         host_data["app_data"] = app_data_map.get(str(host.id), {})
         results.append(host_data)
 
@@ -160,11 +162,14 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     - Malware (detection status)
     - Image Builder (image info)
 
-    The `fields` parameter controls which application data is included:
-    - No fields parameter → all applications included (default)
-    - fields[advisor]=true → only advisor data (all fields)
-    - fields[advisor]=recommendations,incidents → specific fields only
-    - fields[advisor]= (empty) → no fields for that app (per JSON:API spec)
+    The `fields` parameter controls both system_profile and application data:
+    - fields[system_profile]=arch,host_type → return specific SP fields
+    - fields[advisor]=recommendations,incidents → specific app_data fields only
+    - No fields parameter → all app_data included, no system_profile (default)
+
+    The `filter` parameter supports both system_profile and application data:
+    - filter[system_profile][host_type][eq]=edge → filter by SP fields
+    - filter[vulnerability][critical_cves][gte]=1 → filter by app_data fields
 
     Supports sorting by app data fields using the format "app:field"
     (e.g., "vulnerability:critical_cves", "advisor:recommendations").
@@ -172,9 +177,11 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     total = 0
     host_list = ()
 
+    # Extract system_profile fields for the DB query layer; the rest is for app_data
+    sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
+
     try:
-        # Unified function handles both standard and app field sorting
-        host_list, total = get_host_list_for_views(
+        host_list, total, additional_fields, system_profile_fields = get_host_list_for_views(
             display_name=display_name,
             fqdn=fqdn,
             hostname_or_id=hostname_or_id,
@@ -197,13 +204,15 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
-            fields=None,
+            fields=sp_fields,
             rbac_filter=rbac_filter,
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
         flask.abort(400, str(e))
 
-    json_data = _build_host_view_response(total, page, per_page, host_list, fields)
+    json_data = _build_host_view_response(
+        total, page, per_page, host_list, fields, additional_fields, system_profile_fields
+    )
 
     return flask_json_response(json_data)
