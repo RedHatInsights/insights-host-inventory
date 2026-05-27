@@ -34,7 +34,8 @@ logger = get_logger(__name__)
 OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
 OTEL_SQL_ENABLED = os.getenv("OTEL_SQL_ENABLED", "true").lower() == "true"
 OTEL_SQL_COMMENTER_ENABLED = os.getenv("OTEL_SQL_COMMENTER_ENABLED", "false").lower() == "true"
-OTEL_HTTP_ENABLED = os.getenv("OTEL_HTTP_ENABLED", "true").lower() == "true"
+OTEL_HTTP_INBOUND_ENABLED = os.getenv("OTEL_HTTP_INBOUND_ENABLED", "true").lower() == "true"
+OTEL_HTTP_OUTBOUND_ENABLED = os.getenv("OTEL_HTTP_OUTBOUND_ENABLED", "true").lower() == "true"
 OTEL_MQ_ENABLED = os.getenv("OTEL_MQ_ENABLED", "true").lower() == "true"
 OTEL_SAMPLING_RATE = min(max(float(os.getenv("OTEL_SAMPLING_RATE", "1.0")), 0.0), 1.0)
 
@@ -132,7 +133,7 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     _otel_initialized_pid = os.getpid()
     logger.info("OpenTelemetry initialized for service=%s version=%s", service_name, service_version)
     logger.info(
-        "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http=%s "
+        "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http_inbound=%s http_outbound=%s "
         "bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
         "compression=%s attr_limit=%d attr_len_limit=%d "
         "mq_enabled=%s "
@@ -140,7 +141,8 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         OTEL_SAMPLING_RATE,
         OTEL_SQL_ENABLED,
         OTEL_SQL_COMMENTER_ENABLED,
-        OTEL_HTTP_ENABLED,
+        OTEL_HTTP_INBOUND_ENABLED,
+        OTEL_HTTP_OUTBOUND_ENABLED,
         OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BSP_SCHEDULE_DELAY,
@@ -160,7 +162,7 @@ def instrument_flask_app(flask_app):
     Each HTTP request becomes a span with method, path, status code,
     plus HBI-specific attributes (org_id, request_id).
     """
-    if not OTEL_ENABLED:
+    if not OTEL_ENABLED or not OTEL_HTTP_INBOUND_ENABLED:
         return
 
     from opentelemetry.instrumentation.flask import FlaskInstrumentor
@@ -231,11 +233,11 @@ def instrument_kafka_consumer(consumer):
 def instrument_outbound_http():
     """Instrument outbound HTTP calls (e.g., RBAC) with OpenTelemetry.
 
-    Controlled by OTEL_HTTP_ENABLED. Automatically creates spans for all
+    Controlled by OTEL_HTTP_OUTBOUND_ENABLED. Automatically creates spans for all
     requests made via the `requests` library, including trace context
     propagation to downstream services.
     """
-    if not OTEL_ENABLED or not OTEL_HTTP_ENABLED:
+    if not OTEL_ENABLED or not OTEL_HTTP_OUTBOUND_ENABLED:
         return
 
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
