@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC
+from datetime import datetime
 from typing import Any
 from typing import TypedDict
 from uuid import UUID
@@ -270,6 +271,10 @@ def serialize_host(
             if for_mq and host.groups
             else host.groups or []
         )
+
+    if for_mq and st_timestamps["stale_timestamp"] >= datetime.now(UTC):
+        serialized_host.pop("reporter", None)
+        serialized_host.pop("stale_timestamp", None)
 
     return serialized_host
 
