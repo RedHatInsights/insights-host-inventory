@@ -395,6 +395,52 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _prepare_wildcard_pattern(value: str) -> str:
+    """
+    Prepare a string for use in a PostgreSQL ILIKE clause.
+
+    - Replaces user-provided '*' with SQL '%' wildcard.
+    - Handles escaped '*' (\\*) as a literal asterisk.
+    - Handles escaped '\\' (\\\\) as a literal backslash.
+    - Escapes SQL-native wildcards '%' and '_' in the input.
+    """
+    result = []
+    i = 0
+    n = len(value)
+    while i < n:
+        char = value[i]
+        if char == "\\":
+            if i + 1 < n:
+                next_char = value[i + 1]
+                if next_char == "*":
+                    result.append("*")
+                    i += 2
+                elif next_char == "\\":
+                    result.append("\\")
+                    i += 2
+                else:
+                    # It's a literal backslash followed by a normal char
+                    result.append("\\")
+                    i += 1
+            else:
+                # Trailing backslash
+                result.append("\\")
+                i += 1
+        elif char == "*":
+            result.append("%")
+            i += 1
+        elif char == "%":
+            result.append("\\%")
+            i += 1
+        elif char == "_":
+            result.append("\\_")
+            i += 1
+        else:
+            result.append(char)
+            i += 1
+    return "".join(result)
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -429,7 +475,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _prepare_wildcard_pattern(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
