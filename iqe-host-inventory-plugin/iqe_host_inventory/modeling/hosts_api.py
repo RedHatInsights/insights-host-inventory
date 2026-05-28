@@ -143,8 +143,10 @@ class HostsAPIWrapper(BaseEntity):
     @contextmanager
     def async_api(self) -> Generator[None]:
         self.raw_api.api_client.pool_threads = multiprocessing.cpu_count()
-        yield
-        self.raw_api.api_client.pool_threads = 1
+        try:
+            yield
+        finally:
+            self.raw_api.api_client.pool_threads = 1
 
     @check_org_id
     def get_hosts_response(
@@ -1907,14 +1909,16 @@ class HostsAPIWrapper(BaseEntity):
             return current_total == initial_total + delta
 
         initial_total = fetch_total()
-        yield
-
-        final_total = accept_when(
-            fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert total_changed(final_total), (
-            f"Hosts count changed from {initial_total} to {final_total}, expected delta: {delta}"
-        )
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert total_changed(final_total), (
+                f"Hosts count changed from {initial_total} to {final_total}, "
+                f"expected delta: {delta}"
+            )
 
     @contextmanager
     def verify_host_count_not_changed(
@@ -1939,12 +1943,13 @@ class HostsAPIWrapper(BaseEntity):
             return current_total != initial_total
 
         initial_total = fetch_total()
-        yield
-
-        final_total = accept_when(
-            fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert not total_changed(final_total)
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert not total_changed(final_total)
 
     def get_host_pagination_info(self, per_page: int = 10) -> PaginationInfo:
         """Get hosts pagination info, return PaginationInfo
