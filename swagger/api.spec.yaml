@@ -1680,14 +1680,34 @@ components:
           # App fields
           - advisor:recommendations
           - advisor:incidents
+          - advisor:critical
+          - advisor:important
+          - advisor:moderate
+          - advisor:low
           - vulnerability:total_cves
           - vulnerability:critical_cves
+          - vulnerability:high_severity_cves
+          - vulnerability:cves_with_security_rules
+          - vulnerability:cves_with_known_exploits
           - patch:advisories_rhsa_installable
+          - patch:advisories_rhba_installable
+          - patch:advisories_rhea_installable
+          - patch:advisories_other_installable
+          - patch:advisories_rhsa_applicable
+          - patch:advisories_rhba_applicable
+          - patch:advisories_rhea_applicable
+          - patch:advisories_other_applicable
           - patch:packages_installable
+          - patch:packages_applicable
+          - patch:packages_installed
+          - patch:template_name
           - remediations:remediations_plans
           - compliance:last_scan
+          - compliance:policies_count
           - malware:last_matches
+          - malware:total_matches
           - malware:last_scan
+          - malware:last_status
     confirmDeleteAll:
       in: query
       name: confirm_delete_all
@@ -2319,6 +2339,10 @@ components:
           nullable: true
           items:
             type: object
+        policies_count:
+          type: integer
+          minimum: 0
+          description: Number of compliance policies (computed from policies array length)
         last_scan:
           type: string
           format: date-time
@@ -2435,35 +2459,75 @@ components:
         **Advisor**
         - `advisor:recommendations` - Number of Advisor recommendations
         - `advisor:incidents` - Number of Advisor incidents
+        - `advisor:critical` - Critical severity recommendations
+        - `advisor:important` - Important severity recommendations
+        - `advisor:moderate` - Moderate severity recommendations
+        - `advisor:low` - Low severity recommendations
 
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
+        - `vulnerability:high_severity_cves` - High severity CVEs
+        - `vulnerability:cves_with_security_rules` - CVEs with security rules
+        - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
         **Patch**
         - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
+        - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
+        - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
+        - `patch:advisories_other_installable` - Number of other installable advisories
+        - `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories
+        - `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories
+        - `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories
+        - `patch:advisories_other_applicable` - Number of other applicable advisories
         - `patch:packages_installable` - Number of installable packages
+        - `patch:packages_applicable` - Number of applicable packages
+        - `patch:packages_installed` - Number of installed packages
+        - `patch:template_name` - Patch template name
 
         **Remediations**
         - `remediations:remediations_plans` - Active remediation plans count
 
         **Compliance**
         - `compliance:last_scan` - Last compliance scan timestamp
+        - `compliance:policies_count` - Number of compliance policies
 
         **Malware**
         - `malware:last_matches` - Malware matches count
+        - `malware:total_matches` - Total malware matches count
         - `malware:last_scan` - Last malware scan timestamp
+        - `malware:last_status` - Last malware detection status
       enum:
         - advisor:recommendations
         - advisor:incidents
+        - advisor:critical
+        - advisor:important
+        - advisor:moderate
+        - advisor:low
         - vulnerability:total_cves
         - vulnerability:critical_cves
+        - vulnerability:high_severity_cves
+        - vulnerability:cves_with_security_rules
+        - vulnerability:cves_with_known_exploits
         - patch:advisories_rhsa_installable
+        - patch:advisories_rhba_installable
+        - patch:advisories_rhea_installable
+        - patch:advisories_other_installable
+        - patch:advisories_rhsa_applicable
+        - patch:advisories_rhba_applicable
+        - patch:advisories_rhea_applicable
+        - patch:advisories_other_applicable
         - patch:packages_installable
+        - patch:packages_applicable
+        - patch:packages_installed
+        - patch:template_name
         - remediations:remediations_plans
         - compliance:last_scan
+        - compliance:policies_count
         - malware:last_matches
+        - malware:total_matches
         - malware:last_scan
+        - malware:last_status
     SystemProfileByHostOut:
       title: A host system profile query result
       description: Structure of the output of the host system profile query
