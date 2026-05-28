@@ -267,6 +267,7 @@ class HBIMessageConsumerBase:
             attributes=self._message_span_attrs(msg, **{"hbi.slow_message": True, "hbi.duration_ms": duration_ms}),
             start_time=start_ns,
         )
+        self._enrich_span_from_threadctx(span)
         span.end(end_time=end_ns)
 
     def _process_single_message(self, msg) -> None:
@@ -284,6 +285,20 @@ class HBIMessageConsumerBase:
         else:
             self._process_message_without_span(msg)
 
+    def _enrich_span_from_threadctx(self, span) -> None:
+        """Add rh.org_id and rh.request_id to a span from thread-local storage.
+
+        Must be called after handle_message(), which populates threadctx.
+        """
+        if not span or not span.is_recording():
+            return
+        org_id = getattr(threadctx, "org_id", None)
+        if org_id:
+            span.set_attribute("rh.org_id", org_id)
+        request_id = getattr(threadctx, "request_id", None)
+        if request_id:
+            span.set_attribute("rh.request_id", request_id)
+
     def _process_message_with_span(self, msg) -> None:
         """Process a message with a full tracing span (used when spans are enabled or on retry)."""
         with tracer.start_as_current_span(
@@ -294,12 +309,15 @@ class HBIMessageConsumerBase:
                 self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
                 metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
                 self.success_metric.inc()
+                self._enrich_span_from_threadctx(span)
             except OperationalError as oe:
+                self._enrich_span_from_threadctx(span)
                 span.set_status(StatusCode.ERROR, str(oe))
                 span.record_exception(oe)
                 logger.error(f"Could not access DB {str(oe)}")
                 sys.exit(3)
             except Exception as exc:
+                self._enrich_span_from_threadctx(span)
                 span.set_status(StatusCode.ERROR, str(exc))
                 span.record_exception(exc)
                 self.failure_metric.inc()
@@ -335,6 +353,7 @@ class HBIMessageConsumerBase:
             attributes=self._message_span_attrs(msg, **{"hbi.error": True}),
             start_time=start_ns,
         )
+        self._enrich_span_from_threadctx(span)
         span.set_status(StatusCode.ERROR, str(exc))
         span.record_exception(exc)
         span.end(end_time=end_ns)
