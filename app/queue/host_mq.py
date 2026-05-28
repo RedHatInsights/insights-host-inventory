@@ -370,6 +370,8 @@ class HBIMessageConsumerBase:
 
         batch_span = trace.get_current_span()
         if OTEL_MQ_ENABLED and batch_span.is_recording():
+            topic = valid_messages[0].topic() or "unknown"
+            batch_span.update_name(f"{topic} process")
             batch_span.set_attribute("messaging.batch.message_count", len(valid_messages))
 
         with no_expire_on_commit(db.session):
