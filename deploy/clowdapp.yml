@@ -276,8 +276,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -413,8 +415,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -569,8 +573,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -672,8 +678,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -813,8 +821,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -912,8 +922,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -1085,8 +1097,10 @@ objects:
             value: ${OTEL_SQL_ENABLED}
           - name: OTEL_SQL_COMMENTER_ENABLED
             value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_ENABLED
-            value: ${OTEL_HTTP_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
@@ -2907,8 +2921,11 @@ parameters:
 - name: OTEL_SQL_COMMENTER_ENABLED
   description: Enable SQLCommenter (adds trace context to SQL comments)
   value: 'false'
-- name: OTEL_HTTP_ENABLED
-  description: Enable outbound HTTP request tracing
+- name: OTEL_HTTP_INBOUND_ENABLED
+  description: Enable Flask inbound HTTP request tracing
+  value: 'true'
+- name: OTEL_HTTP_OUTBOUND_ENABLED
+  description: Enable outbound HTTP request tracing (requests library)
   value: 'true'
 - name: OTEL_SAMPLING_RATE
   description: Trace sampling ratio (0.0-1.0). 1.0 = all traces
