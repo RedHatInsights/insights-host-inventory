@@ -153,7 +153,8 @@ class AccountStalenessAPIWrapper(BaseEntity):
         with suppress(ApiException):
             self.delete_staleness()
 
-        yield
-
-        with suppress(ApiException):
-            self.delete_staleness()
+        try:
+            yield
+        finally:
+            with suppress(ApiException):
+                self.delete_staleness()

@@ -1287,12 +1287,13 @@ class GroupsAPIWrapper(BaseEntity):
             return current_total == initial_total + delta
 
         initial_total = get_total()
-        yield
-
-        final_total = accept_when(
-            get_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert total_changed(final_total)
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                get_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert total_changed(final_total)
 
     @contextlib.contextmanager
     def verify_group_count_not_changed(
@@ -1317,9 +1318,10 @@ class GroupsAPIWrapper(BaseEntity):
             return current_total != initial_total
 
         initial_total = get_total()
-        yield
-
-        final_total = accept_when(
-            get_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert not total_changed(final_total)
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                get_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert not total_changed(final_total)
