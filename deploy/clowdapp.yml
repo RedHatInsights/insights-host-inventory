@@ -1782,7 +1782,7 @@ objects:
           - name: ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE
             value: ${ASSIGN_UNGROUPED_GROUPS_BATCH_SIZE}
         resources: *ungroupedHostResources
-    - name: remove-null-values-in-workloads-fields-data
+    - name: remove-null-workload-values
       restartPolicy: OnFailure
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
@@ -2856,13 +2856,13 @@ parameters:
 
 # -- Remove null values in workloads fields data Job --
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN
-  description: Whether the remove-null-values-in-workloads-fields-data script should run in dry-run mode
+  description: Whether the remove-null-workload-values script should run in dry-run mode
   value: 'true'
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_BATCH_SIZE
-  description: The batch size to use for the remove-null-values-in-workloads-fields-data script.
+  description: The batch size to use for the remove-null-workload-values script.
   value: '500'
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_SUSPEND_JOB
-  description: Whether to suspend the remove-null-values-in-workloads-fields-data job
+  description: Whether to suspend the remove-null-workload-values job
   value: 'true'
 
 # -- Downgrade Alembic revision Job --
