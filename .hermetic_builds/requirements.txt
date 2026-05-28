@@ -312,9 +312,9 @@ jsonschema-specifications==2025.9.1 \
     # via
     #   jsonschema
     #   openapi-schema-validator
-kessel-sdk==2.6.0 \
-    --hash=sha256:8812cdfeb5ccedae331c5be0d5b84545136fc715ab02d9a6bfe078b8c33330b0 \
-    --hash=sha256:d510d6a76fdc0869bbd6dace629b885fc576f6cfab9001bb47aa40fe768812bc
+kessel-sdk==2.6.1 \
+    --hash=sha256:3d70353d83ae154e2560d39e1cf446197de0d54226a0cb0df70b184a8faffc6e \
+    --hash=sha256:98e5ba223b235a3b6f6ca7b1dc62213e93b6cbee62ee02f67f1afd8c178eecea
     # via insights-host-inventory
 launchdarkly-eventsource==1.5.1 \
     --hash=sha256:43dfbc14a3962c9bce252320d690cdcbfda0ca00501226d517ae77e60f570d44 \
