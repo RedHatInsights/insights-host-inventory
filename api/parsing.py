@@ -9,6 +9,9 @@ from connexion.utils import coerce_type
 
 _BOOL_STRINGS = {"true": True, "false": False}
 
+# Placeholder for URL-encoded asterisks to preserve them during URL decoding
+_ENCODED_ASTERISK_PLACEHOLDER = "__ENCODED_ASTERISK_PLACEHOLDER__"
+
 
 def _normalize_workspace_filters(
     group_name: str | list[str] | None,
@@ -102,6 +105,11 @@ def custom_fields_parser(root_key, key_path, val):
     return (root_key, [root], True)
 
 
+def _preserve_encoded_asterisks(value: str) -> str:
+    """Replace URL-encoded asterisks (%2A) with a placeholder to preserve them during URL decoding."""
+    return value.replace("%2A", _ENCODED_ASTERISK_PLACEHOLDER)
+
+
 class customURIParser(OpenAPIURIParser):
     # Override resolve_params to allow reserved characters in query params
     def resolve_params(self, params, _in):
@@ -127,15 +135,30 @@ class customURIParser(OpenAPIURIParser):
             if param_schema and param_schema["type"] == "array":
                 # resolve variable re-assignment, handle explode
                 if _in == "query":
-                    values = [quote(value) for value in values]
+                    # Preserve URL-encoded asterisks by replacing them with a placeholder before URL decoding
+                    values = [quote(_preserve_encoded_asterisks(value)) for value in values]
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
                 if _in == "query":
+                    # Unquote but keep placeholders intact
                     resolved_param[k] = [unquote(value) for value in self._split(values, param_defn, _in)]
                 else:
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:
-                resolved_param[k] = values[-1]
+                # For single values, also preserve URL-encoded asterisks
+                if _in == "query" and isinstance(values, list):
+                    # Handle list of values - preserve encoded asterisks in each value
+                    processed_values = []
+                    for value in values:
+                        preserved = _preserve_encoded_asterisks(value)
+                        processed_values.append(unquote(preserved))  # Keep placeholders intact
+                    resolved_param[k] = processed_values[-1]  # Take the last value as before
+                elif _in == "query" and isinstance(values, str):
+                    # Handle single string value
+                    preserved = _preserve_encoded_asterisks(values)
+                    resolved_param[k] = unquote(preserved)  # Keep placeholders intact
+                else:
+                    resolved_param[k] = values[-1] if isinstance(values, list) else values
 
             # Skip coercion for 'fields' parameter - it uses a custom format that
             # doesn't match the OpenAPI schema structure (custom_fields_parser transforms
@@ -227,12 +250,26 @@ class customURIParser(OpenAPIURIParser):
         # this indicates an array parameter.
         # in this case we want to add all the values, not just the 0th
         if k == "":
-            prev[prev_k] = v
+            # For array parameters, preserve encoded asterisks in each value
+            processed_values = []
+            for value in v:
+                if isinstance(value, str):
+                    preserved = _preserve_encoded_asterisks(value)
+                    processed_values.append(unquote(preserved))  # Keep placeholders intact
+                else:
+                    processed_values.append(value)
+            prev[prev_k] = processed_values
         else:
             if len(v) > 1:
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             # Try to parse the value as JSON object
             leaf_value = v[0]
+
+            # For string values, preserve encoded asterisks during URL decoding
+            if isinstance(leaf_value, str):
+                preserved = _preserve_encoded_asterisks(leaf_value)
+                leaf_value = unquote(preserved)  # Keep placeholders intact
+
             # Use the full parameter path for the error message (e.g., "filter[system_profile]")
             full_param_path = f"{root_key}[{']['.join(key_path)}]"
             parsed = customURIParser._try_parse_json(leaf_value, param_name=full_param_path)

@@ -30,6 +30,9 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
 
+# Placeholder for URL-encoded asterisks (must match the one in api/parsing.py)
+_ENCODED_ASTERISK_PLACEHOLDER = "__ENCODED_ASTERISK_PLACEHOLDER__"
+
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
@@ -429,7 +432,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # First convert unescaped asterisks to SQL wildcards, then restore literal asterisks from placeholders
+            value = value.replace("*", "%")  # Convert unescaped asterisks to SQL wildcards
+            value = value.replace(_ENCODED_ASTERISK_PLACEHOLDER, "*")  # Restore literal asterisks
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
