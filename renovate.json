@@ -11,7 +11,14 @@
       "at any time"
     ]
   },
-  "pip_requirements": {
-    "enabled": false
-  }
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["^openapi-"],
+      "groupName": "openapi"
+    },
+    {
+      "matchPackagePatterns": ["^opentelemetry-"],
+      "groupName": "opentelemetry"
+    }
+  ]
 }
