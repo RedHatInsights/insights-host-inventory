@@ -2967,64 +2967,59 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
         # URL-encoded asterisks (%2A) should be treated as literal asterisks
         ("test%2Avalue", ["test*value"]),  # %2A should match literal *
         ("test%2avalue", ["test*value"]),  # %2a (lowercase) should also match literal *
-        ("prefix%2A", ["prefix*"]),       # %2A at end
-        ("%2Asuffix", ["*suffix"]),       # %2A at start
-        ("%2A%2A", ["**"]),               # Multiple %2A
-        
+        ("prefix%2A", ["prefix*"]),  # %2A at end
+        ("%2Asuffix", ["*suffix"]),  # %2A at start
+        ("%2A%2A", ["**"]),  # Multiple %2A
         # Unencoded asterisks should work as wildcards
         ("test*value", ["test123value", "testABCvalue", "testvalue"]),  # * as wildcard
-        ("*value", ["testvalue", "123value", "value"]),                 # * at start
-        ("test*", ["test123", "testABC", "test"]),                      # * at end
-        ("*", ["test*value", "test123value", "anything"]),              # * matches all
-        
+        ("*value", ["testvalue", "123value", "value"]),  # * at start
+        ("test*", ["test123", "testABC", "test"]),  # * at end
+        ("*", ["test*value", "test123value", "anything"]),  # * matches all
         # Mixed scenarios
-        ("test%2A*", ["test*123", "test*ABC", "test*"]),               # literal * + wildcard
-        ("*%2Avalue", ["prefix*value", "123*value", "*value"]),        # wildcard + literal *
-        
+        ("test%2A*", ["test*123", "test*ABC", "test*"]),  # literal * + wildcard
+        ("*%2Avalue", ["prefix*value", "123*value", "*value"]),  # wildcard + literal *
         # Edge cases
-        ("", []),                                                       # Empty string
-        ("exact", ["exact"]),                                          # Exact match, no wildcards
-        ("no%20match", []),                                            # %20 is space, not asterisk
+        ("", []),  # Empty string
+        ("exact", ["exact"]),  # Exact match, no wildcards
+        ("no%20match", []),  # %20 is space, not asterisk
     ],
 )
 def test_wildcard_url_encoded_asterisk_handling(db_create_host, api_get, filter_value, expected_matches):
     """Test that URL-encoded asterisks (%2A) are treated as literal characters in wildcard fields."""
     # Create test hosts with various insights_client_version values
     test_values = [
-        "test*value",      # Contains literal asterisk
-        "test123value",    # Matches test*value wildcard
-        "testABCvalue",    # Matches test*value wildcard  
-        "testvalue",       # Matches test*value wildcard
-        "prefix*",         # Contains literal asterisk at end
-        "*suffix",         # Contains literal asterisk at start
-        "**",              # Contains multiple literal asterisks
-        "test*123",        # Contains literal asterisk + other chars
-        "test*ABC",        # Contains literal asterisk + other chars
-        "test*",           # Contains literal asterisk at end
-        "prefix*value",    # Contains literal asterisk in middle
-        "123*value",       # Contains literal asterisk in middle
-        "*value",          # Contains literal asterisk at start
-        "exact",           # No asterisks
-        "anything",        # Random value
-        "test",            # Partial match for test*
-        "value",           # Partial match for *value
-        "123",             # Random number
+        "test*value",  # Contains literal asterisk
+        "test123value",  # Matches test*value wildcard
+        "testABCvalue",  # Matches test*value wildcard
+        "testvalue",  # Matches test*value wildcard
+        "prefix*",  # Contains literal asterisk at end
+        "*suffix",  # Contains literal asterisk at start
+        "**",  # Contains multiple literal asterisks
+        "test*123",  # Contains literal asterisk + other chars
+        "test*ABC",  # Contains literal asterisk + other chars
+        "test*",  # Contains literal asterisk at end
+        "prefix*value",  # Contains literal asterisk in middle
+        "123*value",  # Contains literal asterisk in middle
+        "*value",  # Contains literal asterisk at start
+        "exact",  # No asterisks
+        "anything",  # Random value
+        "test",  # Partial match for test*
+        "value",  # Partial match for *value
+        "123",  # Random number
     ]
-    
+
     # Create hosts with these values
     host_data = []
     for value in test_values:
-        host = db_create_host(extra_data={
-            "system_profile_facts": {"insights_client_version": value}
-        })
+        host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": value}})
         host_data.append((str(host.id), value))
-    
+
     # Query using the filter value
     url = build_hosts_url(query=f"?filter[system_profile][insights_client_version]={filter_value}")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
-    
+
     # Get the actual values from the response
     actual_values = []
     for result in response_data["results"]:
@@ -3033,14 +3028,13 @@ def test_wildcard_url_encoded_asterisk_handling(db_create_host, api_get, filter_
             if host_id == result["id"]:
                 actual_values.append(value)
                 break
-    
+
     # Sort both lists for comparison
     actual_values.sort()
     expected_matches.sort()
-    
+
     assert actual_values == expected_matches, (
-        f"Filter '{filter_value}' expected to match {expected_matches}, "
-        f"but got {actual_values}"
+        f"Filter '{filter_value}' expected to match {expected_matches}, but got {actual_values}"
     )
 
 
@@ -3048,25 +3042,23 @@ def test_wildcard_backslash_escaping_compatibility(db_create_host, api_get):
     """Test that backslash escaping still works correctly and doesn't interfere with URL-encoded asterisks."""
     # Create test hosts
     test_values = [
-        "test\\*literal",   # Backslash-escaped asterisk (should be literal)
-        "test*wildcard",    # Unescaped asterisk (should be wildcard)
-        "test\\\\*mixed",   # Escaped backslash + wildcard asterisk
+        "test\\*literal",  # Backslash-escaped asterisk (should be literal)
+        "test*wildcard",  # Unescaped asterisk (should be wildcard)
+        "test\\\\*mixed",  # Escaped backslash + wildcard asterisk
     ]
-    
+
     host_data = []
     for value in test_values:
-        host = db_create_host(extra_data={
-            "system_profile_facts": {"insights_client_version": value}
-        })
+        host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": value}})
         host_data.append((str(host.id), value))
-    
+
     # Test backslash-escaped asterisk (should match literally)
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=test\\*literal")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
     assert len(response_data["results"]) == 1
-    
+
     # Find the matched value
     matched_value = None
     for result in response_data["results"]:
@@ -3074,7 +3066,7 @@ def test_wildcard_backslash_escaping_compatibility(db_create_host, api_get):
             if host_id == result["id"]:
                 matched_value = value
                 break
-    
+
     assert matched_value == "test\\*literal"
 
 
@@ -3082,51 +3074,49 @@ def test_wildcard_complex_mixed_scenarios(db_create_host, api_get):
     """Test complex scenarios with both URL-encoded and unencoded asterisks."""
     # Create test hosts with complex patterns
     test_values = [
-        "app*v1.2*final",      # Multiple wildcards
-        "app*v1.2*final",      # Exact duplicate for testing
+        "app*v1.2*final",  # Multiple wildcards
+        "app*v1.2*final",  # Exact duplicate for testing
         "app123v1.2456final",  # Should match app*v1.2*final
         "appXYZv1.2ABCfinal",  # Should match app*v1.2*final
-        "app*literal*test",    # Contains literal asterisks
-        "different*pattern",   # Different pattern
+        "app*literal*test",  # Contains literal asterisks
+        "different*pattern",  # Different pattern
     ]
-    
+
     host_data = []
     for value in test_values:
-        host = db_create_host(extra_data={
-            "system_profile_facts": {"insights_client_version": value}
-        })
+        host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": value}})
         host_data.append((str(host.id), value))
-    
+
     # Test 1: URL-encoded asterisk should match literal asterisk
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=app%2Aliteral%2Atest")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
     assert len(response_data["results"]) == 1
-    
+
     matched_value = None
     for result in response_data["results"]:
         for host_id, value in host_data:
             if host_id == result["id"]:
                 matched_value = value
                 break
-    
+
     assert matched_value == "app*literal*test"
-    
+
     # Test 2: Unencoded asterisk should work as wildcard
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=app*v1.2*final")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
     assert len(response_data["results"]) >= 3  # Should match multiple hosts
-    
+
     matched_values = []
     for result in response_data["results"]:
         for host_id, value in host_data:
             if host_id == result["id"]:
                 matched_values.append(value)
                 break
-    
+
     # Should include the exact matches and wildcard matches
     expected_matches = ["app*v1.2*final", "app123v1.2456final", "appXYZv1.2ABCfinal"]
     for expected in expected_matches:
@@ -3136,22 +3126,20 @@ def test_wildcard_complex_mixed_scenarios(db_create_host, api_get):
 def test_wildcard_edge_cases_and_error_handling(db_create_host, api_get):
     """Test edge cases and ensure proper error handling."""
     # Create a test host
-    host = db_create_host(extra_data={
-        "system_profile_facts": {"insights_client_version": "test.version"}
-    })
-    
+    db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "test.version"}})
+
     # Test with malformed URL encoding (should be handled gracefully)
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=test%2")
     response_status, response_data = api_get(url)
-    
+
     # Should not crash, should return 200 with no matches
     assert response_status == 200
     assert len(response_data["results"]) == 0
-    
+
     # Test with multiple consecutive URL-encoded asterisks
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=test%2A%2A%2Avalue")
     response_status, response_data = api_get(url)
-    
+
     # Should not crash
     assert response_status == 200
 
@@ -3159,23 +3147,21 @@ def test_wildcard_edge_cases_and_error_handling(db_create_host, api_get):
 def test_wildcard_non_wildcard_fields_unaffected(db_create_host, api_get):
     """Test that non-wildcard fields are not affected by the asterisk handling changes."""
     # Create test host with arch field (which is not a wildcard field)
-    host = db_create_host(extra_data={
-        "system_profile_facts": {"arch": "x86_64"}
-    })
-    
+    host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64"}})
+
     # Test that URL-encoded asterisk in non-wildcard field works normally
     # (should be decoded to literal asterisk and match exactly)
     url = build_hosts_url(query="?filter[system_profile][arch]=x86%2A64")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
     # Should not match because arch is "x86_64", not "x86*64"
     assert len(response_data["results"]) == 0
-    
+
     # Test normal exact match still works
     url = build_hosts_url(query="?filter[system_profile][arch]=x86_64")
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == str(host.id)
@@ -3186,19 +3172,17 @@ def test_wildcard_backward_compatibility(db_create_host, api_get):
     # Create test hosts with various insights_client_version values
     test_values = [
         "3.0.1-2.el4_2",
-        "3.0.5-1.el7_1", 
+        "3.0.5-1.el7_1",
         "3.1.0-1.el8_1",
         "2.9.8-1.el6_2",
         "4.0.0-1.el9_1",
     ]
-    
+
     host_data = []
     for value in test_values:
-        host = db_create_host(extra_data={
-            "system_profile_facts": {"insights_client_version": value}
-        })
+        host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": value}})
         host_data.append((str(host.id), value))
-    
+
     # Test existing wildcard patterns still work
     test_cases = [
         ("3.0.*", ["3.0.1-2.el4_2", "3.0.5-1.el7_1"]),
@@ -3206,24 +3190,23 @@ def test_wildcard_backward_compatibility(db_create_host, api_get):
         ("3.*", ["3.0.1-2.el4_2", "3.0.5-1.el7_1", "3.1.0-1.el8_1"]),
         ("*", test_values),  # Should match all
     ]
-    
+
     for pattern, expected_matches in test_cases:
         url = build_hosts_url(query=f"?filter[system_profile][insights_client_version]={pattern}")
         response_status, response_data = api_get(url)
-        
+
         assert response_status == 200
-        
+
         matched_values = []
         for result in response_data["results"]:
             for host_id, value in host_data:
                 if host_id == result["id"]:
                     matched_values.append(value)
                     break
-        
+
         matched_values.sort()
         expected_matches.sort()
-        
+
         assert matched_values == expected_matches, (
-            f"Pattern '{pattern}' expected to match {expected_matches}, "
-            f"but got {matched_values}"
+            f"Pattern '{pattern}' expected to match {expected_matches}, but got {matched_values}"
         )

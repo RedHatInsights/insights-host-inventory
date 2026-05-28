@@ -132,8 +132,10 @@ class customURIParser(OpenAPIURIParser):
                 # handle array styles
                 if _in == "query":
                     # Mark URL-encoded asterisks before unquoting
-                    resolved_param[k] = [self._mark_encoded_asterisks_and_unquote(value)
-                                       for value in self._split(values, param_defn, _in)]
+                    resolved_param[k] = [
+                        self._mark_encoded_asterisks_and_unquote(value)
+                        for value in self._split(values, param_defn, _in)
+                    ]
                 else:
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:
