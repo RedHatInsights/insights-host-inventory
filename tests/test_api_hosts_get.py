@@ -2986,7 +2986,8 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
     ],
 )
 def test_url_encoded_asterisk_handling(db_create_host, api_get, filter_param, expected_matches):
-    """Test that URL-encoded asterisks (%2A) are treated as literal characters while unencoded asterisks (*) work as wildcards."""
+    """Test that URL-encoded asterisks (%2A) are treated as literal characters while unencoded asterisks (*) work as
+    wildcards."""
 
     # Create test hosts with various insights_client_version values
     test_values = [
@@ -3187,7 +3188,9 @@ def test_url_encoded_asterisk_array_filters(db_create_host, api_get):
         ("os_kernel_version", "[os_kernel_version]=4.18.*", ["4.18.0", "4.18.1", "4.18.*"]),  # Wildcard
     ],
 )
-def test_url_encoded_asterisk_other_wildcard_fields(db_create_host, api_get, field_name, filter_param, expected_matches):
+def test_url_encoded_asterisk_other_wildcard_fields(
+    db_create_host, api_get, field_name, filter_param, expected_matches
+):
     """Test URL-encoded asterisks work correctly with other wildcard-enabled fields."""
 
     # Create test data based on field type
@@ -3211,18 +3214,14 @@ def test_url_encoded_asterisk_other_wildcard_fields(db_create_host, api_get, fie
         created_hosts[value] = str(host.id)
 
     # Test the filter
-    url = build_hosts_url(
-        query=f"?filter[system_profile]{filter_param}&fields[system_profile]={field_name}"
-    )
+    url = build_hosts_url(query=f"?filter[system_profile]{filter_param}&fields[system_profile]={field_name}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
 
     # Get the field values from the response
     actual_matches = [
-        host["system_profile"][field_name]
-        for host in response_data["results"]
-        if field_name in host["system_profile"]
+        host["system_profile"][field_name] for host in response_data["results"] if field_name in host["system_profile"]
     ]
 
     # Verify we got the expected matches
@@ -3243,7 +3242,7 @@ def test_url_encoded_asterisk_non_wildcard_field_exact_match(db_create_host, api
             }
         }
     )
-    host2 = db_create_host(
+    db_create_host(
         extra_data={
             "system_profile_facts": {
                 "arch": "x86_64",  # No asterisk

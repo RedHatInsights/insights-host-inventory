@@ -436,6 +436,8 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             value = value.replace("*", "%")  # Convert unescaped asterisks to SQL wildcards
             value = value.replace(_ENCODED_ASTERISK_PLACEHOLDER, "*")  # Restore literal asterisks
 
+            # Keep using ILIKE for case-insensitive matching, even without wildcards
+
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
