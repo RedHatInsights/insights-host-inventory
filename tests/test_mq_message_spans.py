@@ -38,7 +38,7 @@ def consumer():
             self.notification_event_producer = MagicMock()
             self.processed_rows = []
             self._is_retry = False
-            self._handler = MagicMock(return_value=OperationResult(None, None, None, None, None, lambda: None))
+            self._handler = MagicMock(return_value=OperationResult(None, None, None, None, lambda: None))
 
         def handle_message(self, message, headers=None):
             return self._handler(message, headers=headers)

@@ -28,7 +28,6 @@ from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.filtering.db_filters import update_query_for_owner_id
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -344,9 +343,9 @@ def get_host_list_for_views(
     registered_with: list[str] | None,
     system_type: list[str] | None,
     filter: dict | None,
-    fields: dict | None,  # noqa: ARG001
+    fields: dict | None,
     rbac_filter: dict | None,
-) -> tuple[list[Host], int]:
+) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Get host list for views endpoint with unified sorting support.
 
@@ -355,7 +354,7 @@ def get_host_list_for_views(
     and adds the required JOIN when needed.
 
     Returns:
-        Tuple of (host_list, total_count)
+        Tuple of (host_list, total_count, additional_fields, system_profile_fields)
     """
     all_filters, query_base = query_filters(
         fqdn,
@@ -390,11 +389,10 @@ def get_host_list_for_views(
                 app_sort_model, and_(Host.org_id == app_sort_model.org_id, Host.id == app_sort_model.host_id)
             )
 
-    # Reuse _get_host_list_using_filters with app fields enabled, no system_profile support
-    items, count, _, _ = _get_host_list_using_filters(
-        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields=None, allow_app_fields=True
+    items, count, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields=fields, allow_app_fields=True
     )
-    return items, count
+    return items, count, additional_fields, system_profile_fields
 
 
 def _find_hosts_entities_query(
@@ -910,7 +908,6 @@ def get_hosts_to_export(
     if rbac_filter is None:
         rbac_filter = {}
 
-    st_timestamps = staleness_timestamps()
     staleness = get_staleness_obj(identity.org_id)
 
     q_filters, _ = query_filters(
@@ -942,7 +939,7 @@ def get_hosts_to_export(
         logger.debug(f"Number of hosts to be exported: {num_hosts}")
 
         for host in db.session.scalars(export_host_query):
-            yield serialize_host_for_export_svc(host, staleness_timestamps=st_timestamps, staleness=staleness)
+            yield serialize_host_for_export_svc(host, staleness=staleness)
 
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e

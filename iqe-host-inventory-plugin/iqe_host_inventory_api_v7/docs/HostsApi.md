@@ -1,6 +1,6 @@
 # iqe_host_inventory_api_v7.HostsApi
 
-All URIs are relative to *http://localhost*
+All URIs are relative to */api/inventory/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -17,6 +17,7 @@ Method | HTTP request | Description
 [**api_host_merge_facts**](HostsApi.md#api_host_merge_facts) | **PATCH** /hosts/{host_id_list}/facts/{namespace} | Merge facts under a namespace
 [**api_host_patch_host_by_id**](HostsApi.md#api_host_patch_host_by_id) | **PATCH** /hosts/{host_id_list} | Update hosts
 [**api_host_replace_facts**](HostsApi.md#api_host_replace_facts) | **PUT** /hosts/{host_id_list}/facts/{namespace} | Replace facts under a namespace
+[**api_host_views_get_host_views**](HostsApi.md#api_host_views_get_host_views) | **GET** /beta/hosts-view | Read aggregated host and application data
 
 
 # **api_host_delete_all_hosts**
@@ -35,10 +36,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -112,10 +113,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -179,7 +180,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_delete_hosts_by_filter**
-> api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
+> api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, workspace_name=workspace_name, group_id=group_id, workspace_id=workspace_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
 
 Delete the entire list of hosts filtered by the given parameters
 
@@ -195,10 +196,10 @@ from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import 
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -227,17 +228,19 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
     last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
     group_name = ['group_name_example'] # List[str] | Filter by group name (optional)
+    workspace_name = ['workspace_name_example'] # List[str] | Filter by workspace name (optional)
     group_id = ['group_id_example'] # List[str] | Filter by group ID (UUID format) (optional)
+    workspace_id = ['workspace_id_example'] # List[str] | Filter by workspace ID (UUID format) (optional)
     registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
     system_type = ['system_type_example'] # List[str] | Filters systems by type (optional)
     staleness = ['staleness_example'] # List[str] | Culling states of the hosts. (optional)
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # List[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
     filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
     subscription_manager_id = 'subscription_manager_id_example' # str | Filter by subscription_manager_id (optional)
 
     try:
         # Delete the entire list of hosts filtered by the given parameters
-        api_instance.api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
+        api_instance.api_host_delete_hosts_by_filter(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, workspace_name=workspace_name, group_id=group_id, workspace_id=workspace_id, registered_with=registered_with, system_type=system_type, staleness=staleness, tags=tags, filter=filter, subscription_manager_id=subscription_manager_id)
     except Exception as e:
         print("Exception when calling HostsApi->api_host_delete_hosts_by_filter: %s\n" % e)
 ```
@@ -260,11 +263,13 @@ Name | Type | Description  | Notes
  **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
  **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
  **group_name** | [**List[str]**](str.md)| Filter by group name | [optional]
+ **workspace_name** | [**List[str]**](str.md)| Filter by workspace name | [optional]
  **group_id** | [**List[str]**](str.md)| Filter by group ID (UUID format) | [optional]
+ **workspace_id** | [**List[str]**](str.md)| Filter by workspace ID (UUID format) | [optional]
  **registered_with** | [**List[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
  **system_type** | [**List[str]**](str.md)| Filters systems by type | [optional]
  **staleness** | [**List[str]**](str.md)| Culling states of the hosts. | [optional]
- **tags** | [**List[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**List[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **filter** | [**Dict[str, SystemProfileNestedObjectValue]**](SystemProfileNestedObjectValue.md)| Filters hosts based on system_profile fields. For example: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;workloads\&quot;: {\&quot;sap\&quot;: {\&quot;sap_system\&quot;: {\&quot;eq\&quot;: \&quot;true\&quot;}}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][sap_system][eq]&#x3D;true\&quot; &lt;br /&gt;&lt;br /&gt; To get \&quot;edge\&quot; hosts, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;host_type\&quot;: {\&quot;eq\&quot;: \&quot;edge\&quot;}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][host_type][eq]&#x3D;edge\&quot; &lt;br /&gt;&lt;br /&gt; To get hosts with an specific operating system, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;operating_system\&quot;: {\&quot;name\&quot;: {\&quot;eq\&quot;: \&quot;rhel\&quot;}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][name][eq]&#x3D;rhel\&quot; | [optional]
  **subscription_manager_id** | **str**| Filter by subscription_manager_id | [optional]
 
@@ -308,10 +313,10 @@ from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import 
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -401,10 +406,10 @@ from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -467,7 +472,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_host_get_host_list**
-> HostQueryOutput api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+> HostQueryOutput api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, workspace_name=workspace_name, group_id=group_id, workspace_id=workspace_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
 
 Read the entire list of hosts
 
@@ -484,10 +489,10 @@ from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import 
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -517,14 +522,16 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
     last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
     group_name = ['group_name_example'] # List[str] | Filter by group name (optional)
+    workspace_name = ['workspace_name_example'] # List[str] | Filter by workspace name (optional)
     group_id = ['group_id_example'] # List[str] | Filter by group ID (UUID format) (optional)
+    workspace_id = ['workspace_id_example'] # List[str] | Filter by workspace ID (UUID format) (optional)
     branch_id = 'branch_id_example' # str | Filter by branch_id (optional)
     per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
     page = 1 # int | A page number of the items to return. (optional) (default to 1)
     order_by = 'order_by_example' # str | Ordering field name (optional)
     order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system (optional)
     staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # List[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
     registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
     system_type = ['system_type_example'] # List[str] | Filters systems by type (optional)
     filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
@@ -532,7 +539,7 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
 
     try:
         # Read the entire list of hosts
-        api_response = api_instance.api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, group_id=group_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+        api_response = api_instance.api_host_get_host_list(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, group_name=group_name, workspace_name=workspace_name, group_id=group_id, workspace_id=workspace_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
         print("The response of HostsApi->api_host_get_host_list:\n")
         pprint(api_response)
     except Exception as e:
@@ -558,14 +565,16 @@ Name | Type | Description  | Notes
  **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
  **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
  **group_name** | [**List[str]**](str.md)| Filter by group name | [optional]
+ **workspace_name** | [**List[str]**](str.md)| Filter by workspace name | [optional]
  **group_id** | [**List[str]**](str.md)| Filter by group ID (UUID format) | [optional]
+ **workspace_id** | [**List[str]**](str.md)| Filter by workspace ID (UUID format) | [optional]
  **branch_id** | **str**| Filter by branch_id | [optional]
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **order_by** | **str**| Ordering field name | [optional]
  **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system | [optional]
  **staleness** | [**List[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
- **tags** | [**List[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**List[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **registered_with** | [**List[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
  **system_type** | [**List[str]**](str.md)| Filters systems by type | [optional]
  **filter** | [**Dict[str, SystemProfileNestedObjectValue]**](SystemProfileNestedObjectValue.md)| Filters hosts based on system_profile fields. For example: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;workloads\&quot;: {\&quot;sap\&quot;: {\&quot;sap_system\&quot;: {\&quot;eq\&quot;: \&quot;true\&quot;}}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][sap_system][eq]&#x3D;true\&quot; &lt;br /&gt;&lt;br /&gt; To get \&quot;edge\&quot; hosts, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;host_type\&quot;: {\&quot;eq\&quot;: \&quot;edge\&quot;}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][host_type][eq]&#x3D;edge\&quot; &lt;br /&gt;&lt;br /&gt; To get hosts with an specific operating system, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;operating_system\&quot;: {\&quot;name\&quot;: {\&quot;eq\&quot;: \&quot;rhel\&quot;}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][name][eq]&#x3D;rhel\&quot; | [optional]
@@ -610,10 +619,10 @@ from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import 
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -703,10 +712,10 @@ from iqe_host_inventory_api_v7.models.tag_count_out import TagCountOut
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -791,10 +800,10 @@ from iqe_host_inventory_api_v7.models.tags_out import TagsOut
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -883,10 +892,10 @@ from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -967,10 +976,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -1052,10 +1061,10 @@ from iqe_host_inventory_api_v7.models.patch_host_in import PatchHostIn
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -1136,10 +1145,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -1201,5 +1210,132 @@ void (empty response body)
 **200** | Successfully replaced facts. |  -  |
 **400** | Invalid request. |  -  |
 **404** | Host or namespace not found. |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_host_views_get_host_views**
+> HostViewQueryOutput api_host_views_get_host_views(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, workspace_name=workspace_name, workspace_id=workspace_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+
+Read aggregated host and application data
+
+Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
+
+### Example
+
+* Api Key Authentication (ApiKeyAuth):
+
+```python
+import iqe_host_inventory_api_v7
+from iqe_host_inventory_api_v7.models.host_view_filter_comparison import HostViewFilterComparison
+from iqe_host_inventory_api_v7.models.host_view_query_output import HostViewQueryOutput
+from iqe_host_inventory_api_v7.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to /api/inventory/v1
+# See configuration.py for a list of all supported configuration parameters.
+configuration = iqe_host_inventory_api_v7.Configuration(
+    host = "/api/inventory/v1"
+)
+
+# The client must configure the authentication and authorization parameters
+# in accordance with the API server security policy.
+# Examples for each auth method are provided below, use the example that
+# satisfies your auth use case.
+
+# Configure API key authorization: ApiKeyAuth
+configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+
+# Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
+# configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
+
+# Enter a context with an instance of the API client
+with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = iqe_host_inventory_api_v7.HostsApi(api_client)
+    display_name = 'display_name_example' # str | Filter by display_name (case-insensitive) (optional)
+    fqdn = 'fqdn_example' # str | Filter by FQDN (case-insensitive) (optional)
+    hostname_or_id = 'hostname_or_id_example' # str | Filter by display_name, fqdn, id (case-insensitive) (optional)
+    insights_id = 'insights_id_example' # str | Filter by insights_id (optional)
+    subscription_manager_id = 'subscription_manager_id_example' # str | Filter by subscription_manager_id (optional)
+    provider_id = 'provider_id_example' # str | Filter by provider_id (optional)
+    provider_type = 'provider_type_example' # str | Filter by provider_type (optional)
+    updated_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last modified after the given date (optional)
+    updated_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last modified before the given date (optional)
+    last_check_in_start = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in after the given date (optional)
+    last_check_in_end = '2013-10-20T19:20:30+01:00' # datetime | Only show hosts last checked in before the given date (optional)
+    workspace_name = ['workspace_name_example'] # List[str] | Filter by workspace name (optional)
+    workspace_id = ['workspace_id_example'] # List[str] | Filter by workspace ID (UUID format) (optional)
+    branch_id = 'branch_id_example' # str | Filter by branch_id (optional)
+    per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
+    page = 1 # int | A page number of the items to return. (optional) (default to 1)
+    order_by = 'order_by_example' # str | Ordering field for host views. Accepts standard host columns or application metrics using `app:field` format. Use together with `order_how`. **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in` **App fields:** See `AppSortableFields` schema for the full list of available application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`). (optional)
+    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system (optional)
+    staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
+    tags = ['tags_example'] # List[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
+    registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
+    system_type = ['system_type_example'] # List[str] | Filters systems by type (optional)
+    filter = {'key': iqe_host_inventory_api_v7.Dict[str, HostViewFilterComparison]()} # Dict[str, Dict[str, HostViewFilterComparison]] | Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`. (optional)
+    fields = {'key': iqe_host_inventory_api_v7.Dict[str, bool]()} # Dict[str, Dict[str, bool]] | Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification). (optional)
+
+    try:
+        # Read aggregated host and application data
+        api_response = api_instance.api_host_views_get_host_views(display_name=display_name, fqdn=fqdn, hostname_or_id=hostname_or_id, insights_id=insights_id, subscription_manager_id=subscription_manager_id, provider_id=provider_id, provider_type=provider_type, updated_start=updated_start, updated_end=updated_end, last_check_in_start=last_check_in_start, last_check_in_end=last_check_in_end, workspace_name=workspace_name, workspace_id=workspace_id, branch_id=branch_id, per_page=per_page, page=page, order_by=order_by, order_how=order_how, staleness=staleness, tags=tags, registered_with=registered_with, system_type=system_type, filter=filter, fields=fields)
+        print("The response of HostsApi->api_host_views_get_host_views:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling HostsApi->api_host_views_get_host_views: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **display_name** | **str**| Filter by display_name (case-insensitive) | [optional]
+ **fqdn** | **str**| Filter by FQDN (case-insensitive) | [optional]
+ **hostname_or_id** | **str**| Filter by display_name, fqdn, id (case-insensitive) | [optional]
+ **insights_id** | **str**| Filter by insights_id | [optional]
+ **subscription_manager_id** | **str**| Filter by subscription_manager_id | [optional]
+ **provider_id** | **str**| Filter by provider_id | [optional]
+ **provider_type** | **str**| Filter by provider_type | [optional]
+ **updated_start** | **datetime**| Only show hosts last modified after the given date | [optional]
+ **updated_end** | **datetime**| Only show hosts last modified before the given date | [optional]
+ **last_check_in_start** | **datetime**| Only show hosts last checked in after the given date | [optional]
+ **last_check_in_end** | **datetime**| Only show hosts last checked in before the given date | [optional]
+ **workspace_name** | [**List[str]**](str.md)| Filter by workspace name | [optional]
+ **workspace_id** | [**List[str]**](str.md)| Filter by workspace ID (UUID format) | [optional]
+ **branch_id** | **str**| Filter by branch_id | [optional]
+ **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
+ **page** | **int**| A page number of the items to return. | [optional] [default to 1]
+ **order_by** | **str**| Ordering field for host views. Accepts standard host columns or application metrics using &#x60;app:field&#x60; format. Use together with &#x60;order_how&#x60;. **Host fields:** &#x60;display_name&#x60;, &#x60;group_name&#x60;, &#x60;updated&#x60;, &#x60;operating_system&#x60;, &#x60;last_check_in&#x60; **App fields:** See &#x60;AppSortableFields&#x60; schema for the full list of available application sort fields (e.g. &#x60;vulnerability:critical_cves&#x60;, &#x60;advisor:recommendations&#x60;). | [optional]
+ **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system | [optional]
+ **staleness** | [**List[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
+ **tags** | [**List[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
+ **registered_with** | [**List[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
+ **system_type** | [**List[str]**](str.md)| Filters systems by type | [optional]
+ **filter** | [**Dict[str, Dict[str, HostViewFilterComparison]]**](Dict[str, HostViewFilterComparison].md)| Filters on aggregated application data using the syntax &#x60;filter[app_name][field_name][operator]&#x3D;value&#x60;. Supported operators are &#x60;eq&#x60;, &#x60;ne&#x60;, &#x60;gte&#x60;, and &#x60;lte&#x60;. For example: &#x60;filter[vulnerability][critical_cves][gte]&#x3D;1&#x60; or &#x60;filter[patch][template][eq]&#x3D;production&#x60;. | [optional]
+ **fields** | [**Dict[str, Dict[str, bool]]**](Dict[str, bool].md)| Selects which application objects (or sub-fields) should be joined into the host view response. Use &#x60;fields[advisor]&#x3D;recommendations&#x60; to request specific fields, or &#x60;fields[advisor]&#x3D;recommendations&amp;fields[vulnerability]&#x3D;critical_cves&#x60; for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification). | [optional]
+
+### Return type
+
+[**HostViewQueryOutput**](HostViewQueryOutput.md)
+
+### Authorization
+
+[ApiKeyAuth](../README.md#ApiKeyAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | Successfully read host views. |  -  |
+**400** | Invalid request. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

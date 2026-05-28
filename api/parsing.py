@@ -10,6 +10,49 @@ from connexion.utils import coerce_type
 _BOOL_STRINGS = {"true": True, "false": False}
 
 
+def _normalize_workspace_filters(
+    group_name: str | list[str] | None,
+    workspace_name: str | list[str] | None,
+    group_id: str | list[str] | None,
+    workspace_id: str | list[str] | None,
+) -> tuple[list[str] | None, list[str] | None]:
+    """
+    Backwards compatibility: support both workspace_name/group_name and workspace_id/group_id filters.
+        - If both group_name and workspace_name we abort with 400 error since they are mutually exclusive
+        - If both group_id and workspace_id we abort with 400 error since they are mutually exclusive
+        - Validate that the resulting workspace_name and workspace_id filters are not used simultaneously
+
+        This allows clients to use either the old "group" parameters or the new "workspace" parameters
+        and still supports breaking existing integrations,
+        while ensuring that they don't mix filtering strategies in a single request.
+
+    Args:
+        workspace_name: Workspace name filter value (optional)
+        workspace_id: Workspace ID filter value (optional)
+
+    Raises:
+        flask.abort(400): If both filters are provided simultaneously or if group and workspace filters are mixed
+    """
+    if workspace_name and group_name:
+        raise BadRequestProblem("Cannot use both 'group_name' and 'workspace_name' filters together.")
+    if workspace_id and group_id:
+        raise BadRequestProblem("Cannot use both 'group_id' and 'workspace_id' filters together.")
+
+    workspace_name = workspace_name or group_name
+    workspace_id = workspace_id or group_id
+
+    if workspace_name and workspace_id:
+        raise BadRequestProblem(
+            "Cannot use both 'workspace_name'/'group_name' and 'workspace_id'/'group_id' filters together. "
+            "Please use only one workspace filter parameter.",
+        )
+
+    workspace_name = [workspace_name] if isinstance(workspace_name, str) else workspace_name
+    workspace_id = [workspace_id] if isinstance(workspace_id, str) else workspace_id
+
+    return workspace_name, workspace_id
+
+
 def _coerce_query_value(value):
     """Coerce string query parameter values to native Python types.
 

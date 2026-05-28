@@ -19,6 +19,7 @@ from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from marshmallow import validate
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
@@ -36,7 +37,6 @@ from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
-from app.culling import Timestamps
 from app.exceptions import InventoryException
 from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
@@ -172,7 +172,7 @@ class HostAppDataSchema(Schema):
 
 
 class HostAppOperationSchema(Schema):
-    org_id = fields.Str(required=True)
+    org_id = fields.Str(required=True, validate=validate.Length(min=1, max=36))
     timestamp = fields.DateTime(required=True)
     hosts = fields.List(fields.Nested(HostAppDataSchema), required=True)
 
@@ -183,14 +183,12 @@ class OperationResult:
         self,
         row: Model,
         pm: dict[str, Any] | None,
-        st: Timestamps | None,
         so: AttrDict | None,
         et: EventType | None,
         sl: Callable,
     ):
         self.row = row
         self.platform_metadata = pm
-        self.staleness_timestamps = st
         self.staleness_object = so
         self.event_type = et
         self.success_logger = sl
@@ -459,7 +457,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     group,
                     None,
                     None,
-                    None,
                     EventType.created,
                     partial(log_create_group_via_mq, logger, workspace["id"]),
                 )
@@ -480,7 +477,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                None,
                 EventType.updated,
                 partial(log_update_group_via_mq, logger, workspace["id"]),
             )
@@ -492,7 +488,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                 event_producer=self.event_producer,
             )
             return OperationResult(
-                None,
                 None,
                 None,
                 None,
@@ -542,13 +537,11 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 host_row, operation_result, identity, success_logger = self.process_message(
                     host, platform_metadata, validated_operation_msg.get("operation_args", {})
                 )
-                staleness_timestamps = Timestamps.from_config(inventory_config())
                 event_type = operation_results_to_event_type(operation_result)
 
                 return OperationResult(
                     host_row,
                     platform_metadata,
-                    staleness_timestamps,
                     get_staleness_obj(identity.org_id),
                     event_type,
                     success_logger,
@@ -761,7 +754,6 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 None,
                 None,
                 None,
-                None,
                 partial(log_host_app_data_upsert_via_mq, logger, application, org_id, []),
             )
 
@@ -769,7 +761,6 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
 
         host_ids = [str(host["host_id"]) for host in valid_hosts_list]
         return OperationResult(
-            None,
             None,
             None,
             None,
@@ -842,6 +833,17 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
                 **validated_data,
             }
             valid_hosts_list.append(row_data)
+
+            logger.info(
+                "Validated host app data for %s",
+                application,
+                extra={
+                    "application": str(application),
+                    "org_id": org_id,
+                    "host_id": str(host_id),
+                    "validated_data": validated_data,
+                },
+            )
 
         return valid_hosts_list
 
@@ -1073,7 +1075,6 @@ def parse_operation_message(
             _inc_parsing_failure(parsing_failure_metric, "error", application)
             raise
 
-        logger.debug("parsed_message: %s", parsed_operation)
         return parsed_operation
 
 
@@ -1144,7 +1145,8 @@ def write_add_update_event_message(
         current_operation="write_message_batch",
         inventory_id=result.row.id,
     ) as tracker_ctx:
-        output_host = serialize_host(result.row, result.staleness_timestamps, staleness=result.staleness_object)
+        staleness = result.staleness_object or get_staleness_obj(result.row.org_id)
+        output_host = serialize_host(result.row, staleness)
         insights_id = str(result.row.insights_id)
         event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
 

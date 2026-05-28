@@ -1419,7 +1419,7 @@ def test_delete_bulk_combination_all(
             tags=str_tags,
             updated_start=updated_hosts[4].updated,
             updated_end=updated_end_host.updated,
-            group_name=[group_name],
+            workspace_name=[group_name],
         )
         host_inventory.apis.hosts.wait_for_deleted(updated_hosts[1])
 
@@ -1433,7 +1433,7 @@ def test_delete_bulk_combination_all(
         tags=str_tags,
         updated_start=updated_hosts[4].updated,
         updated_end=updated_end_host.updated,
-        group_name=[group_name],
+        workspace_name=[group_name],
     )
     assert response.total == 0
     host_inventory.apis.hosts.verify_not_deleted([updated_hosts[0], *updated_hosts[2:]])
@@ -2132,8 +2132,14 @@ def test_delete_bulk_with_group_name_and_group_id(host_inventory: ApplicationHos
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(400, "Cannot use both 'group_name' and 'group_id' filters together"):
-        host_inventory.apis.hosts.delete_filtered(group_name=[group_name], group_id=[group.id])
+    with raises_apierror(
+        400,
+        "Cannot use both 'workspace_name'/'group_name' and 'workspace_id'/'group_id' "
+        "filters together. Please use only one workspace filter parameter.",
+    ):
+        host_inventory.apis.hosts.delete_filtered(
+            workspace_name=[group_name], workspace_id=[group.id]
+        )
 
 
 @pytest.mark.ephemeral

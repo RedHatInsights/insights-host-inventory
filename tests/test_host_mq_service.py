@@ -21,7 +21,6 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
-from api.host_query import staleness_timestamps
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
@@ -3142,7 +3141,6 @@ def test_write_add_update_event_message(mocker):
     result = OperationResult(
         row=FakeHostRow(),
         pm={"request_id": "abc"},
-        st=None,
         so=None,
         et=EventType.created,
         sl=mock_success_logger,
@@ -3192,7 +3190,6 @@ def test_write_add_update_event_message_skips_deleted_host(mocker):
     result = OperationResult(
         row=host_row,
         pm={"request_id": "abc"},
-        st=None,
         so=None,
         et=EventType.created,
         sl=mock_success_logger,
@@ -3228,13 +3225,11 @@ def test_mq_serialize_host_per_reporter_staleness_datetime_format(flask_app, moc
     host.per_reporter_staleness = {"puptoo": "2024-06-15T10:00:00+00:00"}
 
     with flask_app.app.app_context():
-        st = staleness_timestamps()
         staleness_obj = get_staleness_obj(USER_IDENTITY["org_id"])
 
         result = OperationResult(
             row=host,
             pm={"request_id": "mq-test"},
-            st=st,
             so=staleness_obj,
             et=EventType.created,
             sl=mocker.Mock(),

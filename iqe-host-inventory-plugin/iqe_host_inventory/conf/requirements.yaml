@@ -807,3 +807,11 @@ inv-host-views-sorting:
 inv-host-views-sparse-fields:
   summary: Users can request specific fields through the `GET /beta/hosts-view` endpoint using sparse fieldsets
   priority: high
+
+inv-host-views-sp-filter:
+  summary: Users can filter by system_profile fields on the `GET /beta/hosts-view` endpoint
+  priority: high
+
+inv-host-views-sp-fields:
+  summary: Users can request specific system_profile fields on the `GET /beta/hosts-view` endpoint
+  priority: high

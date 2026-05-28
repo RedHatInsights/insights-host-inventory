@@ -35,10 +35,10 @@ import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
+    host = "http://localhost/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -48,7 +48,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
+    host = "http://localhost/api/inventory/v1",
     api_key = {
         'x-rh-identity': 'YOUR_API_KEY'
     }
@@ -79,7 +79,7 @@ with iqe_host_inventory_api.ApiClient(configuration) as api_client:
 
 ## Documentation for API Endpoints
 
-All URIs are relative to *http://localhost*
+All URIs are relative to *http://localhost/api/inventory/v1*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
@@ -118,6 +118,12 @@ Class | Method | HTTP request | Description
 *SystemProfileApi* | [**api_system_profile_get_sap_system**](iqe_host_inventory_api/docs/SystemProfileApi.md#api_system_profile_get_sap_system) | **GET** /system_profile/sap_system | get all sap system values and counts on the account
 *SystemProfileApi* | [**api_system_profile_validate_schema**](iqe_host_inventory_api/docs/SystemProfileApi.md#api_system_profile_validate_schema) | **POST** /system_profile/validate_schema | validate system profile schema
 *TagsApi* | [**api_tag_get_tags**](iqe_host_inventory_api/docs/TagsApi.md#api_tag_get_tags) | **GET** /tags | Get the active host tags for a given account
+*ViewsApi* | [**api_views_clone_view**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_clone_view) | **POST** /beta/views/{view_id}/clone | Clone an inventory view
+*ViewsApi* | [**api_views_create_view**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_create_view) | **POST** /beta/views | Create a new inventory view
+*ViewsApi* | [**api_views_delete_view**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_delete_view) | **DELETE** /beta/views/{view_id} | Delete an inventory view
+*ViewsApi* | [**api_views_get_view_by_id**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_get_view_by_id) | **GET** /beta/views/{view_id} | Get a single inventory view
+*ViewsApi* | [**api_views_get_views_list**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_get_views_list) | **GET** /beta/views | Read the list of inventory views
+*ViewsApi* | [**api_views_update_view**](iqe_host_inventory_api/docs/ViewsApi.md#api_views_update_view) | **PUT** /beta/views/{view_id} | Update an inventory view
 
 
 ## Documentation For Models
@@ -147,6 +153,8 @@ Class | Method | HTTP request | Description
  - [HostQueryOutput](iqe_host_inventory_api/docs/HostQueryOutput.md)
  - [HostQueryOutputAllOf](iqe_host_inventory_api/docs/HostQueryOutputAllOf.md)
  - [HostSystemProfileOut](iqe_host_inventory_api/docs/HostSystemProfileOut.md)
+ - [HostViewCombinedFields](iqe_host_inventory_api/docs/HostViewCombinedFields.md)
+ - [HostViewCombinedFilterValue](iqe_host_inventory_api/docs/HostViewCombinedFilterValue.md)
  - [HostViewFilterComparison](iqe_host_inventory_api/docs/HostViewFilterComparison.md)
  - [HostViewHost](iqe_host_inventory_api/docs/HostViewHost.md)
  - [HostViewHostAllOf](iqe_host_inventory_api/docs/HostViewHostAllOf.md)
@@ -211,6 +219,14 @@ Class | Method | HTTP request | Description
  - [TagCountOutAllOf](iqe_host_inventory_api/docs/TagCountOutAllOf.md)
  - [TagsOut](iqe_host_inventory_api/docs/TagsOut.md)
  - [TagsOutAllOf](iqe_host_inventory_api/docs/TagsOutAllOf.md)
+ - [ViewColumnConfig](iqe_host_inventory_api/docs/ViewColumnConfig.md)
+ - [ViewConfiguration](iqe_host_inventory_api/docs/ViewConfiguration.md)
+ - [ViewIn](iqe_host_inventory_api/docs/ViewIn.md)
+ - [ViewOut](iqe_host_inventory_api/docs/ViewOut.md)
+ - [ViewPatch](iqe_host_inventory_api/docs/ViewPatch.md)
+ - [ViewSortConfig](iqe_host_inventory_api/docs/ViewSortConfig.md)
+ - [ViewsListOut](iqe_host_inventory_api/docs/ViewsListOut.md)
+ - [ViewsListOutAllOf](iqe_host_inventory_api/docs/ViewsListOutAllOf.md)
  - [VulnerabilityAppData](iqe_host_inventory_api/docs/VulnerabilityAppData.md)
 
 

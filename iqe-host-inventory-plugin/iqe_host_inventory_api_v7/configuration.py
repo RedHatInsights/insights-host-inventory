@@ -98,7 +98,7 @@ class Configuration:
         ssl_ca_cert=None,
     ) -> None:
         """Constructor"""
-        self._base_path = "http://localhost" if host is None else host
+        self._base_path = "/api/inventory/v1" if host is None else host
         """Default Base url
         """
         self.server_index = 0 if server_index is None and host is None else server_index
@@ -424,8 +424,8 @@ class Configuration:
         """
         return [
             {
-                "url": "",
-                "description": "No description provided",
+                "url": "/api/inventory/v1",
+                "description": "API server",
             }
         ]
 

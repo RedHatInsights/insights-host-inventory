@@ -763,7 +763,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         group_type: Annotated[
@@ -789,7 +789,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param group_type: The type of workspaces that should be returned.
         :type group_type: str
@@ -855,7 +855,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         group_type: Annotated[
@@ -881,7 +881,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param group_type: The type of workspaces that should be returned.
         :type group_type: str
@@ -947,7 +947,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         group_type: Annotated[
@@ -973,7 +973,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param group_type: The type of workspaces that should be returned.
         :type group_type: str
@@ -1108,7 +1108,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         _request_timeout: None
@@ -1131,7 +1131,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1198,7 +1198,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         _request_timeout: None
@@ -1221,7 +1221,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -1288,7 +1288,7 @@ class GroupsApi:
         order_how: Annotated[
             Annotated[str, Field(strict=True)] | None,
             Field(
-                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count"
+                description="Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated"
             ),
         ] = None,
         _request_timeout: None
@@ -1311,7 +1311,7 @@ class GroupsApi:
         :type page: int
         :param order_by: Ordering field name
         :type order_by: str
-        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count
+        :param order_how: Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated
         :type order_how: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
@@ -2233,7 +2233,9 @@ class GroupsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -2283,7 +2285,7 @@ class GroupsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
@@ -2385,7 +2387,9 @@ class GroupsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -2435,7 +2439,7 @@ class GroupsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
@@ -2537,7 +2541,9 @@ class GroupsApi:
         ] = None,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -2587,7 +2593,7 @@ class GroupsApi:
         :type order_how: str
         :param staleness: Culling states of the hosts. Default: fresh, stale and stale_warning
         :type staleness: List[str]
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]

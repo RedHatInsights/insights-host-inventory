@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from iqe_host_inventory.fixtures.host_views_fixtures import add_app_data_to_host
 from iqe_host_inventory.utils.datagen_utils import generate_host_app_data
 from iqe_host_inventory_api import ApiException
 
@@ -831,3 +832,105 @@ class TestCombinedApps:
             )
             assert excinfo.value.status == 400
             assert "Invalid operator" in excinfo.value.body
+
+
+# ---------------------------------------------------------------------------
+# System Profile Filter Tests
+# ---------------------------------------------------------------------------
+
+
+class TestSystemProfileFilter:
+    """Test filter[system_profile][...] on the hosts-view endpoint."""
+
+    def test_filter_by_host_type(
+        self,
+        host_inventory: ApplicationHostInventory,
+    ):
+        """filter[system_profile][host_type][eq]=edge returns only edge hosts.
+
+        metadata:
+            requirements: inv-host-views-sp-filter
+            assignee: rantunes
+            importance: high
+            title: Test SP filter by host_type on hosts-view
+        """
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"]["host_type"] = "edge"
+        edge_host = host_inventory.kafka.create_host(host_data=host_data)
+
+        host_data2 = host_inventory.datagen.create_host_data()
+        host_data2["system_profile"].pop("host_type", None)
+        non_edge_host = host_inventory.kafka.create_host(host_data=host_data2)
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            filter=["[system_profile][host_type][eq]=edge"],
+        )
+        response_ids = {h.id for h in response.results}
+
+        assert edge_host.id in response_ids
+        assert non_edge_host.id not in response_ids
+
+    def test_sp_filter_combined_with_app_filter(
+        self,
+        host_inventory: ApplicationHostInventory,
+        setup_host_with_app_data,
+    ):
+        """SP filter + app data filter use AND logic.
+
+        metadata:
+            requirements: inv-host-views-sp-filter
+            assignee: rantunes
+            importance: high
+            title: Test SP filter combined with app data filter
+        """
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"]["host_type"] = "edge"
+        edge_host = host_inventory.kafka.create_host(host_data=host_data)
+        add_app_data_to_host(host_inventory, edge_host, "vulnerability", {"critical_cves": 5})
+
+        host_data2 = host_inventory.datagen.create_host_data()
+        host_data2["system_profile"].pop("host_type", None)
+        non_edge_host = host_inventory.kafka.create_host(host_data=host_data2)
+        add_app_data_to_host(host_inventory, non_edge_host, "vulnerability", {"critical_cves": 10})
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            filter=[
+                "[system_profile][host_type][eq]=edge",
+                "[vulnerability][critical_cves][gte]=1",
+            ],
+        )
+        response_ids = {h.id for h in response.results}
+
+        assert edge_host.id in response_ids
+        assert non_edge_host.id not in response_ids
+
+    def test_sp_filter_with_sp_fields(
+        self,
+        host_inventory: ApplicationHostInventory,
+    ):
+        """SP filter and SP sparse fields work together.
+
+        metadata:
+            requirements: inv-host-views-sp-filter, inv-host-views-sp-fields
+            assignee: rantunes
+            importance: high
+            title: Test SP filter combined with SP sparse fields
+        """
+        host_data = host_inventory.datagen.create_host_data()
+        host_data["system_profile"]["host_type"] = "edge"
+        host_data["system_profile"]["arch"] = "x86_64"
+        edge_host = host_inventory.kafka.create_host(host_data=host_data)
+
+        response = host_inventory.apis.host_views.get_host_views_response(
+            insights_id=edge_host.insights_id,
+            filter=["[system_profile][host_type][eq]=edge"],
+            fields=["[system_profile]=arch"],
+        )
+
+        assert response.total == 1
+        result = response.results[0]
+
+        sp = result.to_dict().get("system_profile", {})
+        sp_fields = {k for k, v in sp.items() if v is not None}
+        assert "arch" in sp_fields
+        assert "host_type" not in sp_fields
