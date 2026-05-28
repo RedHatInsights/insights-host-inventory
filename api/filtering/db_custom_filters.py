@@ -61,36 +61,36 @@ def _escape_aware_wildcard_replace(value: str) -> str:
     result = []
     i = 0
     while i < len(value):
-        if value[i] == '\\' and i + 1 < len(value):
+        if value[i] == "\\" and i + 1 < len(value):
             # Handle escape sequences
             next_char = value[i + 1]
-            if next_char == '*':
+            if next_char == "*":
                 # Escaped asterisk - treat as literal *
-                result.append('*')
+                result.append("*")
                 i += 2
-            elif next_char == '%':
+            elif next_char == "%":
                 # Escaped percent - treat as literal %
-                result.append('%')
+                result.append("%")
                 i += 2
-            elif next_char == '\\':
+            elif next_char == "\\":
                 # Escaped backslash - treat as literal \
-                result.append('\\')
+                result.append("\\")
                 i += 2
             else:
                 # Backslash followed by other character - keep both
-                result.append('\\')
+                result.append("\\")
                 result.append(next_char)
                 i += 2
-        elif value[i] == '*':
+        elif value[i] == "*":
             # Unescaped asterisk - convert to SQL wildcard
-            result.append('%')
+            result.append("%")
             i += 1
         else:
             # Regular character
             result.append(value[i])
             i += 1
 
-    return ''.join(result)
+    return "".join(result)
 
 
 # Utility class to facilitate OS filter comparison

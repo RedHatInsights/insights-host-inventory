@@ -1562,83 +1562,66 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
         ("test*", "test123", "other123", True),
         ("*test", "mytest", "testmy", True),
         ("*test*", "mytestdata", "nodata", True),
-
         # URL-encoded asterisks should be treated as literals
         ("test%2A", "test*", "test123", True),
         ("%2Atest", "*test", "mytest", True),
         ("test%2Avalue", "test*value", "testXvalue", True),
-
         # Backslash-escaped asterisks should be treated as literals
         ("test\\*", "test*", "test123", True),
         ("\\*test", "*test", "mytest", True),
         ("test\\*value", "test*value", "testXvalue", True),
-
         # Backslash-escaped percent signs should be treated as literals
         ("test\\%", "test%", "test123", True),
         ("\\%test", "%test", "mytest", True),
-
         # Mixed literal and wildcard characters
         ("test\\**", "test*123", "test123", True),
         ("*test\\*", "mytest*", "mytest123", True),
         ("test\\*value*", "test*valueX", "testXvalueX", True),
-
         # Escaped backslashes
         ("test\\\\*", "test\\123", "test*123", True),
         ("\\\\*test", "\\mytest", "*test", True),
-
         # Multiple escapes
         ("test\\*\\%*", "test*%123", "test*123", True),
         ("\\*test\\**", "*test*123", "*test123", True),
-
         # Edge cases - empty and single characters
         ("*", "anything", "", True),
         ("\\*", "*", "anything", True),
         ("%2A", "*", "anything", True),
-
         # Negative test cases (should not match)
         ("test\\*", "test123", "test*", False),
         # Additional comprehensive edge cases for wildcard escaping
-        
         # Complex URL-encoded scenarios
         ("test%2A%2A", "test**", "test*", True),
         ("%2A%2A", "**", "*", True),
         ("data%2Atest%2A", "data*test*", "datatestX", True),
-        
         # Complex backslash escaping scenarios
         ("test\\*\\*", "test**", "test*", True),
         ("\\*\\*", "**", "*", True),
         ("data\\*test\\*", "data*test*", "datatestX", True),
-        
         # Mixed URL-encoded and backslash escaping
         ("test%2A\\*", "test**", "test*X", True),
         ("\\*%2A", "**", "*X", True),
         ("%2A\\*test", "**test", "*Xtest", True),
-        
         # Triple and quadruple escaping
         ("test\\\\\\*", "test\\*", "test\\X", True),
         ("\\\\\\*test", "\\*test", "\\Xtest", True),
         ("test\\\\\\\\*", "test\\\\123", "test\\*", True),
-        
         # Percent sign escaping combinations
         ("test\\%\\%", "test%%", "test%", True),
         ("\\%\\%test", "%%test", "%test", True),
         ("data\\%test\\%", "data%test%", "datatestX", True),
-        
         # Complex mixed scenarios
         ("\\*test\\%value*", "*test%valueX", "*testXvalueX", True),
         ("*\\%test\\**", "X%test*Y", "X%testXY", True),
         ("%2Atest\\%*value", "*test%Xvalue", "*testXvalue", True),
-        
         # Edge case: only escape characters
         ("\\\\", "\\", "X", True),
         ("\\%", "%", "X", True),
         ("%2A%2A%2A", "***", "**", True),
         ("\\*\\*\\*", "***", "**", True),
-        
         # Case sensitivity with escaping
         ("Test\\*", "Test*", "test*", True),
         ("TEST%2A", "TEST*", "test*", True),
-        
         # Additional negative test cases
         ("test\\%", "test123", "test%", False),
         ("%2A%2A", "*", "**", False),
@@ -1649,7 +1632,9 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
         ("*test\\*", "mytest123", "mytest*", False),
     ),
 )
-def test_wildcard_escaping_in_system_profile_filters(db_create_host, api_get, filter_value, hostname_match, hostname_nomatch, should_match):
+def test_wildcard_escaping_in_system_profile_filters(
+    db_create_host, api_get, filter_value, hostname_match, hostname_nomatch, should_match
+):
     """Test that wildcard escaping works correctly in system profile filters.
 
     This test verifies:
@@ -1664,7 +1649,7 @@ def test_wildcard_escaping_in_system_profile_filters(db_create_host, api_get, fi
         "hostname": hostname_match,
         "system_profile_facts": {
             "arch": hostname_match,  # Use hostname as arch value for testing
-        }
+        },
     }
     match_host_id = str(db_create_host(extra_data=match_host_data).id)
 
@@ -1673,7 +1658,7 @@ def test_wildcard_escaping_in_system_profile_filters(db_create_host, api_get, fi
         "hostname": hostname_nomatch,
         "system_profile_facts": {
             "arch": hostname_nomatch,  # Use hostname as arch value for testing
-        }
+        },
     }
     nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
 
@@ -1716,7 +1701,9 @@ def test_wildcard_escaping_in_system_profile_filters(db_create_host, api_get, fi
         ("bootc_status.booted.image", "quay.io%2A", "quay.io*", "quay.io123"),
     ),
 )
-def test_wildcard_escaping_across_different_fields(db_create_host, api_get, field_name, filter_value, match_value, nomatch_value):
+def test_wildcard_escaping_across_different_fields(
+    db_create_host, api_get, field_name, filter_value, match_value, nomatch_value
+):
     """Test that wildcard escaping works correctly across different system profile fields."""
     # Create host that should match the filter
     match_sp_data = {"system_profile_facts": {}}
@@ -1730,9 +1717,9 @@ def test_wildcard_escaping_across_different_fields(db_create_host, api_get, fiel
         nested_data[parts[-1]] = match_value
     else:
         match_sp_data["system_profile_facts"][field_name] = match_value
-    
+
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
-    
+
     # Create host that should not match the filter
     nomatch_sp_data = {"system_profile_facts": {}}
     if "." in field_name:
@@ -1745,9 +1732,9 @@ def test_wildcard_escaping_across_different_fields(db_create_host, api_get, fiel
         nested_data[parts[-1]] = nomatch_value
     else:
         nomatch_sp_data["system_profile_facts"][field_name] = nomatch_value
-    
+
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
-    
+
     # Build the filter URL based on field structure
     if "." in field_name:
         # Handle nested fields
@@ -1756,17 +1743,16 @@ def test_wildcard_escaping_across_different_fields(db_create_host, api_get, fiel
         url = build_hosts_url(query=f"?filter[system_profile]{filter_path}={filter_value}")
     else:
         url = build_hosts_url(query=f"?filter[system_profile][{field_name}]={filter_value}")
-    
+
     response_status, response_data = api_get(url)
-    
+
     assert response_status == 200
-    
+
     response_ids = [result["id"] for result in response_data["results"]]
-    
+
     # The match host should be in results, nomatch should not
     assert match_host_id in response_ids
     assert nomatch_host_id not in response_ids
-
 
 
 def test_query_all_sp_filters_json_invalid_object_notation(api_get, sp_filter_param):
