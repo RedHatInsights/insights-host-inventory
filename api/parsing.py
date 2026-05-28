@@ -131,11 +131,14 @@ class customURIParser(OpenAPIURIParser):
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
                 if _in == "query":
-                    resolved_param[k] = [unquote(value) for value in self._split(values, param_defn, _in)]
+                    # Mark URL-encoded asterisks before unquoting
+                    resolved_param[k] = [self._mark_encoded_asterisks_and_unquote(value)
+                                       for value in self._split(values, param_defn, _in)]
                 else:
                     resolved_param[k] = self._split(values, param_defn, _in)
             else:
-                resolved_param[k] = values[-1]
+                # Mark URL-encoded asterisks before unquoting for single values
+                resolved_param[k] = self._mark_encoded_asterisks_and_unquote(values[-1])
 
             # Skip coercion for 'fields' parameter - it uses a custom format that
             # doesn't match the OpenAPI schema structure (custom_fields_parser transforms
@@ -144,6 +147,29 @@ class customURIParser(OpenAPIURIParser):
                 resolved_param[k] = coerce_type(param_defn, resolved_param[k], "parameter", k)
 
         return resolved_param
+
+    @staticmethod
+    def _mark_encoded_asterisks_and_unquote(value):
+        """
+        Mark URL-encoded asterisks with a special escape sequence before URL decoding.
+
+        This preserves the information about which asterisks were URL-encoded (%2A)
+        so they can be treated as literal characters rather than wildcards in the
+        filtering logic.
+
+        Args:
+            value: The URL-encoded value
+
+        Returns:
+            The URL-decoded value with escaped asterisks marked
+        """
+        # First, mark URL-encoded asterisks with a special escape sequence
+        # %2A (uppercase) and %2a (lowercase) both represent asterisk
+        value = value.replace("%2A", "__ESCAPED_ASTERISK__")
+        value = value.replace("%2a", "__ESCAPED_ASTERISK__")
+
+        # Then perform normal URL decoding
+        return unquote(value)
 
     @staticmethod
     def _try_parse_json(value, param_name=None):
