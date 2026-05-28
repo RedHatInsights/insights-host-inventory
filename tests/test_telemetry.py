@@ -118,6 +118,32 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
         importlib.reload(telemetry_mod)
 
 
+def test_flask_instrumentation_skipped_when_inbound_disabled(monkeypatch):
+    """instrument_flask_app is a no-op when OTEL_HTTP_INBOUND_ENABLED=false."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_INBOUND_ENABLED": "false"})
+
+    with patch("opentelemetry.instrumentation.flask.FlaskInstrumentor") as mock_instrumentor:
+        flask_app = MagicMock()
+        telemetry_mod.instrument_flask_app(flask_app)
+        mock_instrumentor.assert_not_called()
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_flask_instrumentation_runs_when_inbound_enabled(monkeypatch):
+    """instrument_flask_app instruments when OTEL_HTTP_INBOUND_ENABLED=true."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_INBOUND_ENABLED": "true"})
+
+    with patch("opentelemetry.instrumentation.flask.FlaskInstrumentor") as mock_cls:
+        instance = MagicMock()
+        mock_cls.return_value = instance
+        flask_app = MagicMock()
+        telemetry_mod.instrument_flask_app(flask_app)
+        instance.instrument_app.assert_called_once()
+
+    _cleanup_telemetry(monkeypatch)
+
+
 def _reload_telemetry(monkeypatch, env_overrides):
     """Reload the telemetry module with the given env var overrides applied."""
     for key, value in env_overrides.items():
@@ -232,8 +258,8 @@ def test_sql_commenter_toggled_by_env(monkeypatch):
 
 
 def test_http_instrumentation_skipped_when_disabled(monkeypatch):
-    """instrument_outbound_http is a no-op when OTEL_HTTP_ENABLED=false."""
-    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_ENABLED": "false"})
+    """instrument_outbound_http is a no-op when OTEL_HTTP_OUTBOUND_ENABLED=false."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_OUTBOUND_ENABLED": "false"})
 
     with patch("opentelemetry.instrumentation.requests.RequestsInstrumentor") as mock_instrumentor:
         telemetry_mod.instrument_outbound_http()
@@ -243,8 +269,8 @@ def test_http_instrumentation_skipped_when_disabled(monkeypatch):
 
 
 def test_http_instrumentation_runs_when_enabled(monkeypatch):
-    """instrument_outbound_http instruments when OTEL_HTTP_ENABLED=true."""
-    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_ENABLED": "true"})
+    """instrument_outbound_http instruments when OTEL_HTTP_OUTBOUND_ENABLED=true."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_HTTP_OUTBOUND_ENABLED": "true"})
 
     with patch("opentelemetry.instrumentation.requests.RequestsInstrumentor") as mock_cls:
         instance = MagicMock()
@@ -305,7 +331,8 @@ def test_config_defaults_without_env_vars(monkeypatch):
         "OTEL_MQ_ENABLED",
         "OTEL_SQL_ENABLED",
         "OTEL_SQL_COMMENTER_ENABLED",
-        "OTEL_HTTP_ENABLED",
+        "OTEL_HTTP_INBOUND_ENABLED",
+        "OTEL_HTTP_OUTBOUND_ENABLED",
         "OTEL_SAMPLING_RATE",
         "OTEL_BSP_MAX_QUEUE_SIZE",
         "OTEL_BSP_MAX_EXPORT_BATCH_SIZE",
@@ -326,7 +353,8 @@ def test_config_defaults_without_env_vars(monkeypatch):
     assert telemetry_mod.OTEL_MQ_ENABLED is True
     assert telemetry_mod.OTEL_SQL_ENABLED is True
     assert telemetry_mod.OTEL_SQL_COMMENTER_ENABLED is False
-    assert telemetry_mod.OTEL_HTTP_ENABLED is True
+    assert telemetry_mod.OTEL_HTTP_INBOUND_ENABLED is True
+    assert telemetry_mod.OTEL_HTTP_OUTBOUND_ENABLED is True
     assert telemetry_mod.OTEL_SAMPLING_RATE == 1.0
     assert telemetry_mod.OTEL_BSP_MAX_QUEUE_SIZE == 8192
     assert telemetry_mod.OTEL_BSP_MAX_EXPORT_BATCH_SIZE == 256
