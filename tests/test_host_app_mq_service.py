@@ -108,6 +108,14 @@ class TestHostAppMessageConsumerValidation:
         with pytest.raises(ValidationError):
             host_app_consumer.handle_message(json.dumps(message), headers=headers)
 
+    def test_empty_org_id_raises_validation_error(self, host_app_consumer):
+        """Test that an empty org_id is rejected during schema validation."""
+        message = create_host_app_message(org_id="", host_id=generate_uuid(), data={"cves_by_severity_total": 0})
+
+        headers = [("application", b"advisor"), ("request_id", generate_uuid().encode("utf-8"))]
+        with pytest.raises(ValidationError, match="org_id"):
+            host_app_consumer.handle_message(json.dumps(message), headers=headers)
+
 
 class TestHostAppMessageConsumerAllApplications:
     """Test HostAppMessageConsumer with all application types using parametrized tests."""

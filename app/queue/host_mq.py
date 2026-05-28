@@ -19,6 +19,7 @@ from flask_sqlalchemy.model import Model
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
+from marshmallow import validate
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import UniqueViolation
@@ -171,7 +172,7 @@ class HostAppDataSchema(Schema):
 
 
 class HostAppOperationSchema(Schema):
-    org_id = fields.Str(required=True)
+    org_id = fields.Str(required=True, validate=validate.Length(min=1, max=36))
     timestamp = fields.DateTime(required=True)
     hosts = fields.List(fields.Nested(HostAppDataSchema), required=True)
 
@@ -833,6 +834,17 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             }
             valid_hosts_list.append(row_data)
 
+            logger.info(
+                "Validated host app data for %s",
+                application,
+                extra={
+                    "application": str(application),
+                    "org_id": org_id,
+                    "host_id": str(host_id),
+                    "validated_data": validated_data,
+                },
+            )
+
         return valid_hosts_list
 
     def _upsert_hosts(
@@ -1063,7 +1075,6 @@ def parse_operation_message(
             _inc_parsing_failure(parsing_failure_metric, "error", application)
             raise
 
-        logger.debug("parsed_message: %s", parsed_operation)
         return parsed_operation
 
 
