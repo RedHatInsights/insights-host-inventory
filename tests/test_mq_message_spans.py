@@ -212,6 +212,39 @@ def test_error_span_includes_org_id_from_threadctx(otel_spans, consumer, monkeyp
     assert spans[0].attributes["rh.request_id"] == "error_req"
 
 
+def test_slow_span_includes_org_id_and_request_id_from_threadctx(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 30)
+
+    start_ns = 1_000_000_000_000
+    end_ns = start_ns + 40_000_000  # 40ms > 30ms threshold
+    call_count = {"n": 0}
+
+    def fake_time_ns():
+        call_count["n"] += 1
+        return start_ns if call_count["n"] == 1 else end_ns
+
+    monkeypatch.setattr("app.queue.host_mq.time.time_ns", fake_time_ns)
+
+    from app.logging import threadctx
+
+    def populate_threadctx(*args, **kwargs):
+        threadctx.org_id = "slow_org"
+        threadctx.request_id = "slow_req"
+        return consumer._handler.return_value
+
+    consumer._handler.side_effect = populate_threadctx
+
+    consumer._process_single_message(FakeMessage())
+
+    spans = otel_spans.get_finished_spans()
+    slow_spans = [s for s in spans if s.attributes.get("hbi.slow_message")]
+    assert len(slow_spans) == 1
+    assert slow_spans[0].attributes["rh.org_id"] == "slow_org"
+    assert slow_spans[0].attributes["rh.request_id"] == "slow_req"
+
+
 def test_span_without_threadctx_has_no_rh_attributes(otel_spans, consumer, monkeypatch):
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
