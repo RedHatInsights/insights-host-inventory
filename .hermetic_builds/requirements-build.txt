@@ -679,9 +679,9 @@ trove-classifiers==2025.5.9.12 \
     --hash=sha256:7ca7c8a7a76e2cd314468c677c69d12cc2357711fcab4a60f87994c1589e5cb5 \
     --hash=sha256:e381c05537adac78881c8fa345fd0e9970159f4e4a04fcc42cfd3129cca640ce
     # via hatchling
-types-cffi==1.17.0.20250523 \
-    --hash=sha256:e7110f314c65590533adae1b30763be08ca71ad856a1ae3fe9b9d8664d49ec22 \
-    --hash=sha256:e98c549d8e191f6220e440f9f14315d6775a21a0e588c32c20476be885b2fad9
+types-cffi==1.17.0.20260307 \
+    --hash=sha256:1a4f1168d43ed8cd2b0ed40a3eb870cda685a154d98478b0a65862084f190a02 \
+    --hash=sha256:89b5b2c798d32fc6e3304903ed99af93fd608b741483ce7d57fa69eda40430e5
     # via
     #   -r requirements-build.in
     #   types-pyopenssl
