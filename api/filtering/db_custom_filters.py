@@ -429,7 +429,14 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Handle escaped asterisks (\\*) as literals while treating unescaped asterisks (*) as wildcards
+            # 1) Replace \\* with a temporary placeholder to preserve literal asterisks
+            # 2) Replace * with % for SQL LIKE patterns (wildcards)
+            # 3) Replace the placeholder back to * for literal asterisks
+            temp_placeholder = "___LITERAL_ASTERISK___"
+            value = value.replace("\\*", temp_placeholder)  # Preserve escaped asterisks
+            value = value.replace("*", "%")  # Convert wildcards to SQL LIKE pattern
+            value = value.replace(temp_placeholder, "*")  # Restore literal asterisks
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

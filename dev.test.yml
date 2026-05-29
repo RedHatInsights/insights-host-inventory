@@ -1,0 +1,66 @@
+# Auto-generated minimal compose for agent test infrastructure.
+# Uses named volumes instead of host bind mounts for rootless podman compatibility.
+services:
+  db:
+    container_name: hbi-test-db
+    image: docker.io/library/postgres:16.4
+    command: postgres -c wal_level=logical
+    environment:
+      POSTGRES_PASSWORD: insights
+      POSTGRES_USER: insights
+      PGUSER: insights
+      POSTGRES_DB: insights
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready"
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    container_name: hbi-test-zk
+    image: docker.io/confluentinc/cp-zookeeper:7.4.4
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_SERVER_ID: 1
+
+  kafka:
+    container_name: hbi-test-kafka
+    image: docker.io/confluentinc/cp-kafka:7.4.4
+    ports:
+      - "29092:29092"
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: DOCKER://kafka:29092,LOCALHOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      KAFKA_BROKER_ID: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:32181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+
+  redis:
+    container_name: hbi-test-redis
+    image: docker.io/library/redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
