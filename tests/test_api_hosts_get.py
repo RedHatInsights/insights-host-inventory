@@ -3079,8 +3079,9 @@ def test_multiple_escaped_asterisks(db_create_host, api_get):
         ("bios_release_date", "2023-*-15", "2023-\\*-15", True),
     ],
 )
-def test_escaped_asterisk_across_wildcard_fields(db_create_host, api_get, field_name, field_value, filter_value, 
-                                                 should_match):
+def test_escaped_asterisk_across_wildcard_fields(
+    db_create_host, api_get, field_name, field_value, filter_value, should_match
+):
     """Test escaped asterisk handling across different wildcard-enabled fields."""
     host_data = {
         "system_profile_facts": {
@@ -3159,10 +3160,10 @@ def test_mixed_escaped_and_wildcard_asterisks(db_create_host, api_get):
     "os_release_value,filter_pattern,should_match",
     [
         ("RHEL*8.5", "RHEL\\*8.5", True),  # Exact match with escaped asterisk
-        ("RHEL*8.5", "RHEL*8.5", True),    # Wildcard matches literal asterisk
-        ("RHEL*8.5", "RHEL*", True),       # Wildcard pattern matches
-        ("RHEL8.5", "RHEL\\*8.5", False), # Escaped asterisk doesn't match without literal asterisk
-        ("RHEL8.5", "RHEL*8.5", True),    # Wildcard matches
+        ("RHEL*8.5", "RHEL*8.5", True),  # Wildcard matches literal asterisk
+        ("RHEL*8.5", "RHEL*", True),  # Wildcard pattern matches
+        ("RHEL8.5", "RHEL\\*8.5", False),  # Escaped asterisk doesn't match without literal asterisk
+        ("RHEL8.5", "RHEL*8.5", True),  # Wildcard matches
     ],
 )
 def test_os_release_asterisk_patterns(db_create_host, api_get, os_release_value, filter_pattern, should_match):
