@@ -336,15 +336,12 @@ class HBIMessageConsumerBase:
                 self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
                 metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
                 self.success_metric.inc()
-                self._enrich_span_from_threadctx(span)
             except OperationalError as oe:
-                self._enrich_span_from_threadctx(span)
                 span.set_status(StatusCode.ERROR, str(oe))
                 span.record_exception(oe)
                 logger.error(f"Could not access DB {str(oe)}")
                 sys.exit(3)
             except Exception as exc:
-                self._enrich_span_from_threadctx(span)
                 span.set_status(StatusCode.ERROR, str(exc))
                 span.record_exception(exc)
                 self.failure_metric.inc()
