@@ -20,5 +20,8 @@
       "matchPackagePatterns": ["^opentelemetry-"],
       "groupName": "opentelemetry"
     }
-  ]
+  ],
+  "pip_requirements": {
+    "enabled": false
+  }
 }
