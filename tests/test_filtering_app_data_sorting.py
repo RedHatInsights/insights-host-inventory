@@ -67,6 +67,54 @@ class TestResolveAppSort:
         assert model is HostAppDataMalware
         assert column.key == "last_matches"
 
+    def test_malware_last_status(self):
+        """malware:last_status should resolve to correct model and column."""
+        result = resolve_app_sort("malware:last_status")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataMalware
+        assert column.key == "last_status"
+
+    def test_compliance_policies_count(self):
+        """compliance:policies_count should resolve to correct model and column."""
+        result = resolve_app_sort("compliance:policies_count")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataCompliance
+        assert column.key == "policies_count"
+
+    def test_patch_template_name(self):
+        """patch:template_name should resolve to correct model and column."""
+        result = resolve_app_sort("patch:template_name")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataPatch
+        assert column.key == "template_name"
+
+    def test_vulnerability_high_severity_cves(self):
+        """vulnerability:high_severity_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:high_severity_cves")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "high_severity_cves"
+
+    def test_vulnerability_cves_with_security_rules(self):
+        """vulnerability:cves_with_security_rules should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:cves_with_security_rules")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "cves_with_security_rules"
+
+    def test_vulnerability_cves_with_known_exploits(self):
+        """vulnerability:cves_with_known_exploits should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:cves_with_known_exploits")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "cves_with_known_exploits"
+
     # --- Non-app fields return None ---
 
     def test_none_returns_none(self):
@@ -211,6 +259,7 @@ class TestAppSortFieldMap:
             "patch:packages_installable",
             "patch:packages_applicable",
             "patch:packages_installed",
+            "patch:template_name",
         }
 
     def test_exact_remediations_fields(self):
@@ -227,6 +276,7 @@ class TestAppSortFieldMap:
         comp_keys = {k for k in field_map if k.startswith("compliance:")}
         assert comp_keys == {
             "compliance:last_scan",
+            "compliance:policies_count",
         }
 
     def test_exact_malware_fields(self):
@@ -237,6 +287,7 @@ class TestAppSortFieldMap:
             "malware:last_matches",
             "malware:total_matches",
             "malware:last_scan",
+            "malware:last_status",
         }
 
     def test_no_unexpected_app_namespaces(self):

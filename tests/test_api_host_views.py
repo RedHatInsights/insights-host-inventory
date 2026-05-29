@@ -1430,6 +1430,104 @@ class TestHostViewAppDataSorting:
         assert results[0]["app_data"]["malware"]["last_matches"] == 5
         assert results[1]["app_data"]["malware"]["last_matches"] == 0
 
+    def test_sort_by_malware_last_status(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by malware:last_status should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "malware", last_status="clean")
+        db_create_host_app_data(host2.id, host2.org_id, "malware", last_status="infected")
+
+        url = build_host_view_url(query="?order_by=malware:last_status&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["malware"]["last_status"] == "clean"
+        assert results[1]["app_data"]["malware"]["last_status"] == "infected"
+
+    def test_sort_by_compliance_policies_count(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by compliance:policies_count should order hosts by number of policies."""
+        host_few = db_create_host(extra_data={"display_name": "host-few.example.com"})
+        host_many = db_create_host(extra_data={"display_name": "host-many.example.com"})
+
+        db_create_host_app_data(host_few.id, host_few.org_id, "compliance", policies=[{"name": "alpha"}])
+        db_create_host_app_data(
+            host_many.id, host_many.org_id, "compliance", policies=[{"name": "beta"}, {"name": "gamma"}]
+        )
+
+        url = build_host_view_url(query="?order_by=compliance:policies_count&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-many.example.com"
+        assert results[1]["display_name"] == "host-few.example.com"
+
+    def test_sort_by_patch_template_name(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by patch:template_name should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "patch", template_name="alpha-template")
+        db_create_host_app_data(host2.id, host2.org_id, "patch", template_name="zeta-template")
+
+        url = build_host_view_url(query="?order_by=patch:template_name&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["patch"]["template_name"] == "alpha-template"
+        assert results[1]["app_data"]["patch"]["template_name"] == "zeta-template"
+
+    def test_sort_by_vulnerability_high_severity_cves(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:high_severity_cves should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "vulnerability", high_severity_cves=3)
+        db_create_host_app_data(host2.id, host2.org_id, "vulnerability", high_severity_cves=15)
+
+        url = build_host_view_url(query="?order_by=vulnerability:high_severity_cves&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"]["high_severity_cves"] == 15
+        assert results[1]["app_data"]["vulnerability"]["high_severity_cves"] == 3
+
+    def test_sort_by_vulnerability_cves_with_security_rules(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:cves_with_security_rules should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "vulnerability", cves_with_security_rules=1)
+        db_create_host_app_data(host2.id, host2.org_id, "vulnerability", cves_with_security_rules=8)
+
+        url = build_host_view_url(query="?order_by=vulnerability:cves_with_security_rules&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"]["cves_with_security_rules"] == 8
+        assert results[1]["app_data"]["vulnerability"]["cves_with_security_rules"] == 1
+
+    def test_sort_by_vulnerability_cves_with_known_exploits(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:cves_with_known_exploits should work correctly."""
+        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
+        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
+
+        db_create_host_app_data(host1.id, host1.org_id, "vulnerability", cves_with_known_exploits=2)
+        db_create_host_app_data(host2.id, host2.org_id, "vulnerability", cves_with_known_exploits=12)
+
+        url = build_host_view_url(query="?order_by=vulnerability:cves_with_known_exploits&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"]["cves_with_known_exploits"] == 12
+        assert results[1]["app_data"]["vulnerability"]["cves_with_known_exploits"] == 2
+
     def test_sort_default_order_how_is_asc(self, api_get, db_create_host, db_create_host_app_data):
         """When order_how is not specified, default to ASC for app sort fields."""
         host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
