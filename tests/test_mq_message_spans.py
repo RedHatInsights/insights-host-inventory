@@ -1,5 +1,6 @@
 """Tests for MQ per-message span controls (OTEL_MQ_MESSAGE_SPANS_ENABLED / OTEL_MQ_SLOW_MESSAGE_MS)."""
 
+import contextlib
 import importlib
 from unittest.mock import MagicMock
 
@@ -44,6 +45,17 @@ def consumer():
             return self._handler(message, headers=headers)
 
     return _TestConsumer()
+
+
+@pytest.fixture(autouse=True)
+def _clean_threadctx():
+    """Ensure threadctx.org_id and request_id don't leak between tests."""
+    yield
+    from app.logging import threadctx
+
+    for attr in ("org_id", "request_id"):
+        with contextlib.suppress(AttributeError):
+            delattr(threadctx, attr)
 
 
 def test_span_emitted_when_enabled(otel_spans, consumer, monkeypatch):
@@ -153,6 +165,103 @@ def test_no_spans_when_mq_tracing_disabled(otel_spans, consumer, monkeypatch):
     consumer._process_single_message(FakeMessage())
 
     assert len(otel_spans.get_finished_spans()) == 0
+
+
+def test_span_includes_org_id_and_request_id_from_threadctx(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    from app.logging import threadctx
+
+    def populate_threadctx(*args, **kwargs):
+        threadctx.org_id = "test_org_123"
+        threadctx.request_id = "req-abc-456"
+        return consumer._handler.return_value
+
+    consumer._handler.side_effect = populate_threadctx
+
+    consumer._process_single_message(FakeMessage())
+
+    spans = otel_spans.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].attributes["rh.org_id"] == "test_org_123"
+    assert spans[0].attributes["rh.request_id"] == "req-abc-456"
+
+
+def test_error_span_includes_org_id_from_threadctx(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    from app.logging import threadctx
+
+    def raise_with_threadctx(*args, **kwargs):
+        threadctx.org_id = "error_org"
+        threadctx.request_id = "error_req"
+        raise ValueError("boom")
+
+    consumer._handler.side_effect = raise_with_threadctx
+
+    consumer._process_single_message(FakeMessage())
+
+    spans = otel_spans.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].status.status_code == trace.StatusCode.ERROR
+    assert spans[0].attributes["rh.org_id"] == "error_org"
+    assert spans[0].attributes["rh.request_id"] == "error_req"
+
+
+def test_slow_span_includes_org_id_and_request_id_from_threadctx(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 30)
+
+    start_ns = 1_000_000_000_000
+    end_ns = start_ns + 40_000_000  # 40ms > 30ms threshold
+    call_count = {"n": 0}
+
+    def fake_time_ns():
+        call_count["n"] += 1
+        return start_ns if call_count["n"] == 1 else end_ns
+
+    monkeypatch.setattr("app.queue.host_mq.time.time_ns", fake_time_ns)
+
+    from app.logging import threadctx
+
+    def populate_threadctx(*args, **kwargs):
+        threadctx.org_id = "slow_org"
+        threadctx.request_id = "slow_req"
+        return consumer._handler.return_value
+
+    consumer._handler.side_effect = populate_threadctx
+
+    consumer._process_single_message(FakeMessage())
+
+    spans = otel_spans.get_finished_spans()
+    slow_spans = [s for s in spans if s.attributes.get("hbi.slow_message")]
+    assert len(slow_spans) == 1
+    assert slow_spans[0].attributes["rh.org_id"] == "slow_org"
+    assert slow_spans[0].attributes["rh.request_id"] == "slow_req"
+
+
+def test_span_without_threadctx_has_no_rh_attributes(otel_spans, consumer, monkeypatch):
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    from app.logging import threadctx
+
+    for attr in ("org_id", "request_id"):
+        with contextlib.suppress(AttributeError):
+            delattr(threadctx, attr)
+
+    consumer._process_single_message(FakeMessage())
+
+    spans = otel_spans.get_finished_spans()
+    assert len(spans) == 1
+    assert "rh.org_id" not in spans[0].attributes
+    assert "rh.request_id" not in spans[0].attributes
 
 
 def test_config_defaults(monkeypatch):
