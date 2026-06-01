@@ -2514,9 +2514,9 @@ parameters:
 - description: Replica count for mq-workspaces consumer
   name: REPLICAS_WORKSPACES
   value: "1"
-- description: Replica count for mq-workspaces-bulk consumer
+- description: Replica count for mq-workspaces-bulk consumer (0 until migration is active)
   name: REPLICAS_WORKSPACES_BULK
-  value: "1"
+  value: "0"
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
   value: "2"
