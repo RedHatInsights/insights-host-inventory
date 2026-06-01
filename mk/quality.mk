@@ -9,7 +9,7 @@ test:
 	pytest --cov=.
 
 style:
-	unset REQUESTS_CA_BUNDLE && pre-commit run --all-files
+	pre-commit run --all-files
 
 scan_project:
 	./sonarqube.sh
