@@ -7,6 +7,7 @@ from app.instrumentation import message_produced
 from app.logging import get_logger
 from app.queue.metrics import produce_large_message_failure
 from app.queue.metrics import produced_message_size
+from app.telemetry import instrument_kafka_producer
 
 logger = get_logger(__name__)
 
@@ -57,7 +58,8 @@ class NullEventProducer:
 class EventProducer:
     def __init__(self, config, topic):
         logger.info("Starting EventProducer()")
-        self._kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
+        kafka_producer = KafkaProducer({"bootstrap.servers": config.bootstrap_servers, **config.kafka_producer})
+        self._kafka_producer = instrument_kafka_producer(kafka_producer)
         self.mq_topic = topic
 
     def write_event(self, event, key, headers, *, wait=False):
@@ -71,7 +73,13 @@ class EventProducer:
         try:
             messageDetails = MessageDetails(topic, v, h, k)
 
-            self._kafka_producer.produce(topic, v, k, callback=messageDetails.on_delivered, headers=h)
+            self._kafka_producer.produce(
+                topic=topic,
+                value=v,
+                key=k,
+                callback=messageDetails.on_delivered,
+                headers=h,
+            )
             if wait:
                 self._kafka_producer.flush()
             else:

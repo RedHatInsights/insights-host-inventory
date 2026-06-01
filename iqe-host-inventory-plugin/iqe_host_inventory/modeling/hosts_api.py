@@ -143,8 +143,10 @@ class HostsAPIWrapper(BaseEntity):
     @contextmanager
     def async_api(self) -> Generator[None]:
         self.raw_api.api_client.pool_threads = multiprocessing.cpu_count()
-        yield
-        self.raw_api.api_client.pool_threads = 1
+        try:
+            yield
+        finally:
+            self.raw_api.api_client.pool_threads = 1
 
     @check_org_id
     def get_hosts_response(
@@ -161,8 +163,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -203,8 +205,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -232,11 +234,11 @@ class HostsAPIWrapper(BaseEntity):
         :param int page: A page number of the items to return
             Default: 1
         :param str order_by: Ordering field name
-            Valid options: display_name, group_name, updated, operating_system
+            Valid options: display_name, workspace_name, updated, operating_system
             Default: display_name
         :param str order_how: Direction of the ordering
             Valid options: ASC, DESC
-            Default: ASC for display_name and group_name, DESC for update and operating_system
+            Default: ASC for display_name and workspace_name, DESC for update and operating_system
         :return HostQueryOutput: Response from GET /hosts
         """
         path = "/hosts"
@@ -252,8 +254,8 @@ class HostsAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
-            group_id=group_id,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -289,8 +291,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -325,8 +327,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -373,8 +375,8 @@ class HostsAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
-            group_id=group_id,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -942,8 +944,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -975,8 +977,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1016,8 +1018,8 @@ class HostsAPIWrapper(BaseEntity):
                 updated_end=updated_end,
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
-                group_name=group_name,
-                group_id=group_id,
+                workspace_name=workspace_name,
+                workspace_id=workspace_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
@@ -1109,8 +1111,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1141,8 +1143,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1178,8 +1180,8 @@ class HostsAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
-            group_id=group_id,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -1587,8 +1589,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1626,8 +1628,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1664,8 +1666,8 @@ class HostsAPIWrapper(BaseEntity):
             updated_end=updated_end,
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
-            group_name=group_name,
-            group_id=group_id,
+            workspace_name=workspace_name,
+            workspace_id=workspace_id,
             staleness=staleness,
             tags=tags,
             registered_with=registered_with,
@@ -1693,8 +1695,8 @@ class HostsAPIWrapper(BaseEntity):
                 updated_end=updated_end,
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
-                group_name=group_name,
-                group_id=group_id,
+                workspace_name=workspace_name,
+                workspace_id=workspace_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
@@ -1719,8 +1721,8 @@ class HostsAPIWrapper(BaseEntity):
         updated_end: str | datetime | None = None,
         last_check_in_start: str | datetime | None = None,
         last_check_in_end: str | datetime | None = None,
-        group_name: list[str] | None = None,
-        group_id: list[str] | None = None,
+        workspace_name: list[str] | None = None,
+        workspace_id: list[str] | None = None,
         staleness: list[str] | None = None,
         tags: list[str] | None = None,
         registered_with: list[str] | None = None,
@@ -1753,8 +1755,8 @@ class HostsAPIWrapper(BaseEntity):
         :param str | datetime last_check_in_end:
             Only show hosts last checked in before the given date
             Format: datetime or str in ISO 8601 datetime format
-        :param list[str] group_name: Filter hosts by group_name, uses OR logic
-        :param list[str] group_id: Filter hosts by group_id (UUID), uses OR logic
+        :param list[str] workspace_name: Filter hosts by workspace_name, uses OR logic
+        :param list[str] workspace_id: Filter hosts by workspace_id (UUID), uses OR logic
         :param list[str] staleness: Filter hosts by staleness, uses OR logic
             Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
         :param list[str] tags: Filter hosts by whole tags, uses OR logic
@@ -1795,8 +1797,8 @@ class HostsAPIWrapper(BaseEntity):
                 updated_end=updated_end,
                 last_check_in_start=last_check_in_start,
                 last_check_in_end=last_check_in_end,
-                group_name=group_name,
-                group_id=group_id,
+                workspace_name=workspace_name,
+                workspace_id=workspace_id,
                 staleness=staleness,
                 tags=tags,
                 registered_with=registered_with,
@@ -1907,14 +1909,16 @@ class HostsAPIWrapper(BaseEntity):
             return current_total == initial_total + delta
 
         initial_total = fetch_total()
-        yield
-
-        final_total = accept_when(
-            fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert total_changed(final_total), (
-            f"Hosts count changed from {initial_total} to {final_total}, expected delta: {delta}"
-        )
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert total_changed(final_total), (
+                f"Hosts count changed from {initial_total} to {final_total}, "
+                f"expected delta: {delta}"
+            )
 
     @contextmanager
     def verify_host_count_not_changed(
@@ -1939,12 +1943,13 @@ class HostsAPIWrapper(BaseEntity):
             return current_total != initial_total
 
         initial_total = fetch_total()
-        yield
-
-        final_total = accept_when(
-            fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
-        )
-        assert not total_changed(final_total)
+        try:
+            yield
+        finally:
+            final_total = accept_when(
+                fetch_total, is_valid=total_changed, delay=delay, retries=retries, error=None
+            )
+            assert not total_changed(final_total)
 
     def get_host_pagination_info(self, per_page: int = 10) -> PaginationInfo:
         """Get hosts pagination info, return PaginationInfo

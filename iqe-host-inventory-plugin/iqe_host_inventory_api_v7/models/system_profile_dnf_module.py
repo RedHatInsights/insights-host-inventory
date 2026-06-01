@@ -22,6 +22,7 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 
 
 class SystemProfileDnfModule(BaseModel):
@@ -31,8 +32,22 @@ class SystemProfileDnfModule(BaseModel):
 
     name: Annotated[str, Field(strict=True, max_length=128)] | None = None
     stream: Annotated[str, Field(strict=True, max_length=2048)] | None = None
+    status: list[Annotated[str, Field(strict=True, max_length=64)]] | None = None
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["name", "stream"]
+    __properties: ClassVar[list[str]] = ["name", "stream", "status"]
+
+    @field_validator("status")
+    def status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        for i in value:
+            if i not in {"default", "enabled", "installed"}:
+                raise ValueError(
+                    "each list item must be one of ('default', 'enabled', 'installed')"
+                )
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -90,7 +105,11 @@ class SystemProfileDnfModule(BaseModel):
         if not isinstance(obj, dict):
             return cls.model_validate(obj)
 
-        _obj = cls.model_validate({"name": obj.get("name"), "stream": obj.get("stream")})
+        _obj = cls.model_validate({
+            "name": obj.get("name"),
+            "stream": obj.get("stream"),
+            "status": obj.get("status"),
+        })
         # store additional fields in additional_properties
         for _key in obj.keys():
             if _key not in cls.__properties:

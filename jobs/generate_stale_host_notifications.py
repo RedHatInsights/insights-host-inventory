@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import sys
 from datetime import UTC
 from datetime import datetime
@@ -49,7 +49,6 @@ def _create_host_operation_result(host: Host, identity: Identity, logger: Logger
     return OperationResult(
         host,
         {"b64_identity": to_auth_header(identity)} if identity else None,
-        None,
         None,
         None,
         partial(log_host_stale_notification_succeeded, logger, host.id, control_rule="STALE_HOST_NOTIFICATION"),

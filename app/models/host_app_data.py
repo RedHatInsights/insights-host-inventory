@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect as python_inspect
 from functools import cache
 
+from sqlalchemy import Computed
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import inspect
@@ -158,6 +159,7 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
         "packages_installable",
         "packages_applicable",
         "packages_installed",
+        "template_name",
     )
     __filterable_fields__ = (
         "advisories_rhsa_installable",
@@ -192,7 +194,6 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
     packages_installable = db.Column(db.Integer, nullable=True)
     packages_installed = db.Column(db.Integer, nullable=True)
 
-    # Template info (not sortable - string/UUID fields)
     template_name = db.Column(db.String(255), nullable=True)
     template_uuid = db.Column(UUID(as_uuid=True), nullable=True)
 
@@ -209,20 +210,21 @@ class HostAppDataRemediations(HostAppDataMixin, db.Model):
 class HostAppDataCompliance(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_compliance"
     __app_name__ = "compliance"
-    __sortable_fields__ = ("last_scan",)
+    __sortable_fields__ = ("last_scan", "policies_count")
     __filterable_fields__ = ("last_scan",)
 
     policies = db.Column(JSONB, nullable=True)
+    policies_count = db.Column(db.Integer, Computed("jsonb_array_length(COALESCE(policies, '[]'::jsonb))"))
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
 class HostAppDataMalware(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_malware"
     __app_name__ = "malware"
-    __sortable_fields__ = ("last_matches", "total_matches", "last_scan")
+    __sortable_fields__ = ("last_matches", "total_matches", "last_scan", "last_status")
     __filterable_fields__ = ("last_matches", "total_matches", "last_scan", "last_status")
 
-    last_status = db.Column(db.String(50), nullable=True)  # Not sortable - string field
+    last_status = db.Column(db.String(50), nullable=True)
     last_matches = db.Column(db.Integer, nullable=True)
     total_matches = db.Column(db.Integer, nullable=True)
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)

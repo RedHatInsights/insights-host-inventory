@@ -16,7 +16,6 @@ from api.cache import delete_cached_system_keys
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import build_paginated_host_list_response
-from api.host_query import staleness_timestamps
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_id_by_insights_id
 from api.host_query_db import get_host_ids_list
@@ -24,8 +23,8 @@ from api.host_query_db import get_host_list as get_host_list_from_db
 from api.host_query_db import get_host_list_by_id_list
 from api.host_query_db import get_host_tags_list_by_id_list
 from api.host_query_db import get_sparse_system_profile
+from api.parsing import _normalize_workspace_filters
 from api.staleness_query import get_staleness_obj
-from api.validation import check_group_name_and_id
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
@@ -85,7 +84,9 @@ def get_host_list(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    workspace_name=None,
     group_id=None,
+    workspace_id=None,
     tags=None,
     page=1,
     per_page=100,
@@ -103,8 +104,7 @@ def get_host_list(
     owner_id = None
     current_identity = get_current_identity()
 
-    # Validate mutually exclusive group filters
-    check_group_name_and_id(group_name, group_id)
+    workspace_name, workspace_id = _normalize_workspace_filters(group_name, workspace_name, group_id, workspace_id)
 
     has_complex_params = any(
         [
@@ -117,8 +117,8 @@ def get_host_list(
             updated_end,
             last_check_in_start,
             last_check_in_end,
-            group_name,
-            group_id,
+            workspace_name,
+            workspace_id,
             tags,
             order_by,
             order_how,
@@ -159,8 +159,8 @@ def get_host_list(
             updated_end,
             last_check_in_start,
             last_check_in_end,
-            group_name,
-            group_id,
+            workspace_name,
+            workspace_id,
             tags,
             page,
             per_page,
@@ -205,7 +205,9 @@ def delete_hosts_by_filter(
     last_check_in_start=None,
     last_check_in_end=None,
     group_name=None,
+    workspace_name=None,
     group_id=None,
+    workspace_id=None,
     registered_with=None,
     system_type=None,
     staleness=None,
@@ -213,8 +215,7 @@ def delete_hosts_by_filter(
     filter=None,
     rbac_filter=None,
 ):
-    # Validate mutually exclusive group filters
-    check_group_name_and_id(group_name, group_id)
+    workspace_name, workspace_id = _normalize_workspace_filters(group_name, workspace_name, group_id, workspace_id)
 
     if not any(
         [
@@ -229,8 +230,8 @@ def delete_hosts_by_filter(
             updated_end,
             last_check_in_start,
             last_check_in_end,
-            group_name,
-            group_id,
+            workspace_name,
+            workspace_id,
             registered_with,
             system_type,
             staleness,
@@ -254,8 +255,8 @@ def delete_hosts_by_filter(
             updated_end,
             last_check_in_start,
             last_check_in_end,
-            group_name,
-            group_id,
+            workspace_name,
+            workspace_id,
             registered_with,
             system_type,
             staleness,
@@ -440,7 +441,7 @@ def patch_host_by_id(host_id_list, body, rbac_filter=None):
         if db.session.is_modified(host):
             db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+            serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
             owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
@@ -481,18 +482,24 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
     query = Host.query.outerjoin(HostGroupAssoc).filter(*filters).group_by(Host.org_id, Host.id)
 
     if rbac_filter and "groups" in rbac_filter:
-        count_before_rbac_filter = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+        count_before_rbac_filter = find_non_culled_hosts(
+            update_query_for_owner_id(current_identity, query), current_identity.org_id
+        ).count()
         filters += (HostGroupAssoc.group_id.in_(rbac_filter["groups"]),)
 
         query = Host.query.outerjoin(HostGroupAssoc).filter(*filters).group_by(Host.org_id, Host.id)
 
         if (
             count_before_rbac_filter
-            != find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).count()
+            != find_non_culled_hosts(
+                update_query_for_owner_id(current_identity, query), current_identity.org_id
+            ).count()
         ):
             flask.abort(HTTPStatus.FORBIDDEN, "You do not have access to all of the requested hosts.")
 
-    hosts_to_update = find_non_culled_hosts(update_query_for_owner_id(current_identity, query)).all()
+    hosts_to_update = find_non_culled_hosts(
+        update_query_for_owner_id(current_identity, query), current_identity.org_id
+    ).all()
 
     logger.debug("hosts_to_update:%s", hosts_to_update)
 
@@ -516,7 +523,7 @@ def update_facts_by_namespace(operation, host_id_list, namespace, fact_dict, rba
         if db.session.is_modified(host):
             db.session.flush()  # Trigger outbox event listeners before commit
             db.session.commit()
-            serialized_host = serialize_host(host, staleness_timestamps(), staleness=staleness)
+            serialized_host = serialize_host(host, staleness=staleness)
             _emit_patch_event(serialized_host, host)
             insights_id = serialize_uuid(host.insights_id)
             owner_id = serialize_uuid(host.static_system_profile.owner_id) if host.static_system_profile else None
@@ -572,10 +579,9 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
         existing_host._update_last_check_in_date()
-        existing_host._update_staleness_timestamps()
         db.session.flush()  # Trigger outbox event listeners before commit
         db.session.commit()
-        serialized_host = serialize_host(existing_host, staleness_timestamps(), staleness=staleness)
+        serialized_host = serialize_host(existing_host, staleness=staleness)
         _emit_patch_event(serialized_host, existing_host)
         insights_id = serialize_uuid(existing_host.insights_id)
         static_sp = existing_host.static_system_profile

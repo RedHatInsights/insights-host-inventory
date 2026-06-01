@@ -13,7 +13,6 @@ from typing import Any
 import attr
 from iqe.base.modeling import BaseEntity
 
-from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import check_org_id
 from iqe_host_inventory.utils.staleness_utils import extract_staleness_fields
 from iqe_host_inventory_api_v7 import AccountsStalenessApi
@@ -84,7 +83,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
         immutable_time_to_stale: int | None = None,
         immutable_time_to_stale_warning: int | None = None,
         immutable_time_to_delete: int | None = None,
-        wait_for_host_events: bool = True,
         **api_kwargs: Any,
     ) -> StalenessOutput:
         """Create a staleness record. Currently, these values can only be set at the account level.
@@ -95,12 +93,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
         :param int immutable_time_to_stale: host state fresh->stale in seconds
         :param int immutable_time_to_stale_warning: host state stale->stale warning in seconds
         :param int immutable_time_to_delete: host state stale warning->culled in seconds
-        :param bool wait_for_host_events: whether to wait for kafka host events
-            Updates to staleness will generate host events with updated staleness timestamps for
-            all hosts. If you don't read these events now (by using this parameter), it is possible
-            that subsequent `kafka.create_hosts` will return these staleness events instead of the
-            new updated events.
-            Default: True, but the waiting will happen only if we are in an ephemeral environment
         :return StalenessOutput: Created staleness (response from POST /account/staleness)
         """
         staleness_in = StalenessIn(
@@ -111,10 +103,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
             immutable_time_to_stale_warning=immutable_time_to_stale_warning,
             immutable_time_to_delete=immutable_time_to_delete,
         )
-        if wait_for_host_events:
-            with self.wait_for_host_events():
-                with self._host_inventory.apis.measure_time("POST /account/staleness"):
-                    return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
         with self._host_inventory.apis.measure_time("POST /account/staleness"):
             return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
 
@@ -128,7 +116,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
         immutable_time_to_stale: int | None = None,
         immutable_time_to_stale_warning: int | None = None,
         immutable_time_to_delete: int | None = None,
-        wait_for_host_events: bool = True,
         **api_kwargs: Any,
     ) -> StalenessOutput:
         """Update the staleness record.
@@ -139,12 +126,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
         :param int immutable_time_to_stale: host state fresh->stale in seconds
         :param int immutable_time_to_stale_warning: host state stale->stale warning in seconds
         :param int immutable_time_to_delete: host state stale warning->culled in seconds
-        :param bool wait_for_host_events: whether to wait for kafka host events
-            Updates to staleness will generate host events with updated staleness timestamps for
-            all hosts. If you don't read these events now (by using this parameter), it is possible
-            that subsequent `kafka.create_hosts` will return these staleness events instead of the
-            new updated events.
-            Default: True, but the waiting will happen only if we are in an ephemeral environment
         :return StalenessOutput: Updated staleness (response from PATCH /account/staleness)
         """
         staleness_in = StalenessIn(
@@ -155,30 +136,15 @@ class AccountStalenessAPIWrapper(BaseEntity):
             immutable_time_to_stale_warning=immutable_time_to_stale_warning,
             immutable_time_to_delete=immutable_time_to_delete,
         )
-
-        if wait_for_host_events:
-            with self.wait_for_host_events():
-                with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
-                    return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
         with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
             return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
 
     @check_org_id
-    def delete_staleness(self, wait_for_host_events: bool = True, **api_kwargs: Any) -> None:
+    def delete_staleness(self, **api_kwargs: Any) -> None:
         """Delete the staleness record.
 
-        :param bool wait_for_host_events: whether to wait for kafka host events
-            Updates to staleness will generate host events with updated staleness timestamps for
-            all hosts. If you don't read these events now (by using this parameter), it is possible
-            that subsequent `kafka.create_hosts` will return these staleness events instead of the
-            new updated events.
-            Default: True, but the waiting will happen only if we are in an ephemeral environment
         :return None:
         """
-        if wait_for_host_events:
-            with self.wait_for_host_events():
-                with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
-                    return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
         with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
             return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
 
@@ -187,28 +153,8 @@ class AccountStalenessAPIWrapper(BaseEntity):
         with suppress(ApiException):
             self.delete_staleness()
 
-        yield
-
-        with suppress(ApiException):
-            self.delete_staleness()
-
-    @contextmanager
-    def wait_for_host_events(self) -> Generator[None]:
-        if not self.application.user_provider_keycloak:
-            # Skip if we are not in an ephemeral environment
+        try:
             yield
-            return
-
-        # Go through all kafka messages to prevent conflicts when waiting for host events
-        # Unfortunately, this doesn't work: https://issues.redhat.com/browse/IQE-3555
-        self._host_inventory.kafka._consumer.mini_drain()
-
-        hosts = self._host_inventory.apis.hosts.get_all_hosts()
-        values = [host.insights_id for host in hosts]
-
-        yield
-
-        if values:
-            self._host_inventory.kafka.wait_for_filtered_host_messages(
-                HostWrapper.insights_id, values
-            )
+        finally:
+            with suppress(ApiException):
+                self.delete_staleness()

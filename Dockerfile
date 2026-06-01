@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.7-1778636767 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1780277870 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -17,7 +17,7 @@ WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
     microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make git && \
-    microdnf update -y gnupg2 glib2 && \
+    microdnf update -y gnupg2 glib2 libcap && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
     rpm -qa | sort > packages-after-devel-install.txt && \
@@ -44,8 +44,8 @@ COPY inv_mq_service.py inv_mq_service.py
 COPY inv_export_service.py inv_export_service.py
 COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
+COPY pyproject.toml pyproject.toml
+COPY uv.lock uv.lock
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -54,13 +54,15 @@ COPY wait_for_migrations.py wait_for_migrations.py
 COPY jobs/ jobs/
 
 ENV PIP_NO_CACHE_DIR=1
-ENV PIPENV_CLEAR=1
-ENV PIPENV_VENV_IN_PROJECT=1
+ENV UV_COMPILE_BYTECODE=1
 
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install pipenv && \
-    python3 -m pip install dumb-init && \
-    pipenv install --system
+RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['uv']['required-version'])") && \
+    python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install "uv==${UV_VERSION}" dumb-init && \
+    uv sync --frozen --no-dev && \
+    chown -R 1001:0 "$APP_ROOT/.venv"
+
+ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
 # remove devel packages that were only necessary for psycopg2 to compile
 RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \

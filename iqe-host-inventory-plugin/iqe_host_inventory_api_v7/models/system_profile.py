@@ -159,7 +159,7 @@ class SystemProfile(BaseModel):
         default=None,
         description="Indicates whether the host is part of a marketplace install from AWS, Azure, etc.",
     )
-    host_type: Annotated[str, Field(strict=True, max_length=4)] | None = Field(
+    host_type: Annotated[str, Field(strict=True, max_length=12)] | None = Field(
         default=None, description="Indicates the type of host."
     )
     greenboot_status: Annotated[str, Field(strict=True, max_length=5)] | None = Field(
@@ -349,8 +349,8 @@ class SystemProfile(BaseModel):
         if value is None:
             return value
 
-        if value not in {"edge", "cluster"}:
-            raise ValueError("must be one of enum values ('edge', 'cluster')")
+        if value not in {"edge", "cluster", "conventional"}:
+            raise ValueError("must be one of enum values ('edge', 'cluster', 'conventional')")
         return value
 
     @field_validator("greenboot_status")

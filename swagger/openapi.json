@@ -67,7 +67,13 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/workspaceNameListParam"
+          },
+          {
             "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceIdListParam"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -163,7 +169,13 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/workspaceNameListParam"
+          },
+          {
             "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceIdListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -242,7 +254,10 @@
             "$ref": "#/components/parameters/lastCheckInEnd"
           },
           {
-            "$ref": "#/components/parameters/groupNameListParam"
+            "$ref": "#/components/parameters/workspaceNameListParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceIdListParam"
           },
           {
             "$ref": "#/components/parameters/branchId"
@@ -272,10 +287,10 @@
             "$ref": "#/components/parameters/systemTypeParam"
           },
           {
-            "$ref": "#/components/parameters/hostViewAppFilterParam"
+            "$ref": "#/components/parameters/hostViewCombinedFilterParam"
           },
           {
-            "$ref": "#/components/parameters/hostViewFieldsParam"
+            "$ref": "#/components/parameters/hostViewCombinedFieldsParam"
           }
         ],
         "responses": {
@@ -1352,7 +1367,13 @@
             "$ref": "#/components/parameters/groupNameListParam"
           },
           {
+            "$ref": "#/components/parameters/workspaceNameListParam"
+          },
+          {
             "$ref": "#/components/parameters/groupIdListParam"
+          },
+          {
+            "$ref": "#/components/parameters/workspaceIdListParam"
           },
           {
             "$ref": "#/components/parameters/registered_with"
@@ -2475,47 +2496,29 @@
           "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
-      "hostViewFieldsParam": {
-        "in": "query",
-        "name": "fields",
-        "required": false,
-        "description": "Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).",
-        "style": "deepObject",
-        "explode": true,
-        "example": {
-          "app_data": true,
-          "advisor": [
-            "recommendations"
-          ],
-          "vulnerability": [
-            "critical_cves"
-          ]
-        },
-        "schema": {
-          "$ref": "#/components/schemas/HostViewFieldsObject"
-        }
-      },
-      "hostViewAppFilterParam": {
+      "hostViewCombinedFilterParam": {
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.",
+        "description": "Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"",
         "style": "deepObject",
         "explode": true,
-        "example": {
-          "vulnerability": {
-            "critical_cves": {
-              "gte": "1"
-            }
-          },
-          "patch": {
-            "template": {
-              "eq": "production"
-            }
-          }
-        },
+        "example": {},
         "schema": {
-          "$ref": "#/components/schemas/HostViewApplicationFilter"
+          "$ref": "#/components/schemas/HostViewCombinedFilter"
+        }
+      },
+      "hostViewCombinedFieldsParam": {
+        "in": "query",
+        "name": "fields",
+        "required": false,
+        "description": "Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"",
+        "style": "deepObject",
+        "explode": true,
+        "x-validator": "hostViewSparseFields",
+        "example": {},
+        "schema": {
+          "$ref": "#/components/schemas/HostViewCombinedFields"
         }
       },
       "hostViewOrderByParam": {
@@ -2533,14 +2536,34 @@
             "last_check_in",
             "advisor:recommendations",
             "advisor:incidents",
+            "advisor:critical",
+            "advisor:important",
+            "advisor:moderate",
+            "advisor:low",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
+            "vulnerability:high_severity_cves",
+            "vulnerability:cves_with_security_rules",
+            "vulnerability:cves_with_known_exploits",
             "patch:advisories_rhsa_installable",
+            "patch:advisories_rhba_installable",
+            "patch:advisories_rhea_installable",
+            "patch:advisories_other_installable",
+            "patch:advisories_rhsa_applicable",
+            "patch:advisories_rhba_applicable",
+            "patch:advisories_rhea_applicable",
+            "patch:advisories_other_applicable",
             "patch:packages_installable",
+            "patch:packages_applicable",
+            "patch:packages_installed",
+            "patch:template_name",
             "remediations:remediations_plans",
             "compliance:last_scan",
+            "compliance:policies_count",
             "malware:last_matches",
-            "malware:last_scan"
+            "malware:total_matches",
+            "malware:last_scan",
+            "malware:last_status"
           ]
         }
       },
@@ -2566,6 +2589,7 @@
         "in": "query",
         "name": "group_name",
         "description": "Filter by group name",
+        "deprecated": true,
         "required": false,
         "schema": {
           "type": "array",
@@ -2578,6 +2602,31 @@
         "in": "query",
         "name": "group_id",
         "description": "Filter by group ID (UUID format)",
+        "deprecated": true,
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/NonStrictUUID"
+          }
+        }
+      },
+      "workspaceNameListParam": {
+        "in": "query",
+        "name": "workspace_name",
+        "description": "Filter by workspace name",
+        "required": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "workspaceIdListParam": {
+        "in": "query",
+        "name": "workspace_id",
+        "description": "Filter by workspace ID (UUID format)",
         "required": false,
         "schema": {
           "type": "array",
@@ -3395,6 +3444,11 @@
               "type": "object"
             }
           },
+          "policies_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of compliance policies (computed from policies array length)"
+          },
           "last_scan": {
             "type": "string",
             "format": "date-time",
@@ -3426,23 +3480,60 @@
           }
         }
       },
-      "HostViewFieldsObject": {
+      "HostViewCombinedFilter": {
         "type": "object",
-        "description": "Sparse fieldset declaration for application data (per JSON:API specification).\nWhen omitted, all fields from all applications are returned by default.\n\nUsage Examples:\n- No parameter: Returns all app data (default behavior)\n- fields[advisor]=true: Returns all fields for advisor\n- fields[advisor]=recommendations: Returns only specified field\n- fields[advisor]=recommendations&fields[vulnerability]=critical_cves: Multiple apps\n- fields[advisor]= (empty): Returns no fields for advisor (per JSON:API spec)\n\nAvailable Applications and Fields:\n- advisor: recommendations, incidents\n- vulnerability: total_cves, critical_cves, high_severity_cves, cves_with_security_rules, cves_with_known_exploits\n- patch: advisories_rhsa_applicable, advisories_rhba_applicable, advisories_rhea_applicable, advisories_other_applicable, advisories_rhsa_installable, advisories_rhba_installable, advisories_rhea_installable, advisories_other_installable, packages_applicable, packages_installable, packages_installed, template_name, template_uuid\n- remediations: remediations_plans\n- compliance: policies, last_scan\n- malware: last_status, last_matches, total_matches, last_scan\n",
+        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field → operator → value` structure.",
         "additionalProperties": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          },
-          "description": "Map of field names to include. Keys are field names, values are always true."
+          "$ref": "#/components/schemas/HostViewCombinedFilterValue"
         }
       },
-      "HostViewApplicationFilter": {
+      "HostViewCombinedFilterValue": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
+          },
+          {
+            "$ref": "#/components/schemas/HostViewApplicationFilterField"
+          }
+        ]
+      },
+      "HostViewSparseFieldSelection": {
         "type": "object",
-        "description": "Structure for the `filter[app_name][field][operator]=value` syntax applied to application metrics.",
         "additionalProperties": {
-          "$ref": "#/components/schemas/HostViewApplicationFilterField"
-        }
+          "type": "boolean"
+        },
+        "description": "Map of field names to include. Keys are field names, values are always true."
+      },
+      "HostViewCombinedFields": {
+        "type": "object",
+        "description": "Combined sparse fieldset supporting both system_profile and application data fields. The `system_profile` key selects system profile fields, while all other keys select application data fields. The `app_data` key is an explicit shorthand to request all app data. When omitted, all application data is returned by default but no system_profile data is included.",
+        "properties": {
+          "system_profile": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "app_data": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "advisor": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "vulnerability": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "remediations": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "compliance": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          },
+          "malware": {
+            "$ref": "#/components/schemas/HostViewSparseFieldSelection"
+          }
+        },
+        "additionalProperties": false
       },
       "HostViewApplicationFilterField": {
         "type": "object",
@@ -3485,18 +3576,38 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:critical` - Critical severity recommendations\n- `advisor:important` - Important severity recommendations\n- `advisor:moderate` - Moderate severity recommendations\n- `advisor:low` - Low severity recommendations\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n- `vulnerability:high_severity_cves` - High severity CVEs\n- `vulnerability:cves_with_security_rules` - CVEs with security rules\n- `vulnerability:cves_with_known_exploits` - CVEs with known exploits\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:advisories_rhba_installable` - Number of RHBA installable advisories\n- `patch:advisories_rhea_installable` - Number of RHEA installable advisories\n- `patch:advisories_other_installable` - Number of other installable advisories\n- `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories\n- `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories\n- `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories\n- `patch:advisories_other_applicable` - Number of other applicable advisories\n- `patch:packages_installable` - Number of installable packages\n- `patch:packages_applicable` - Number of applicable packages\n- `patch:packages_installed` - Number of installed packages\n- `patch:template_name` - Patch template name\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n- `compliance:policies_count` - Number of compliance policies\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:total_matches` - Total malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n- `malware:last_status` - Last malware detection status\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
+          "advisor:critical",
+          "advisor:important",
+          "advisor:moderate",
+          "advisor:low",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
+          "vulnerability:high_severity_cves",
+          "vulnerability:cves_with_security_rules",
+          "vulnerability:cves_with_known_exploits",
           "patch:advisories_rhsa_installable",
+          "patch:advisories_rhba_installable",
+          "patch:advisories_rhea_installable",
+          "patch:advisories_other_installable",
+          "patch:advisories_rhsa_applicable",
+          "patch:advisories_rhba_applicable",
+          "patch:advisories_rhea_applicable",
+          "patch:advisories_other_applicable",
           "patch:packages_installable",
+          "patch:packages_applicable",
+          "patch:packages_installed",
+          "patch:template_name",
           "remediations:remediations_plans",
           "compliance:last_scan",
+          "compliance:policies_count",
           "malware:last_matches",
-          "malware:last_scan"
+          "malware:total_matches",
+          "malware:last_scan",
+          "malware:last_status"
         ]
       },
       "SystemProfileByHostOut": {

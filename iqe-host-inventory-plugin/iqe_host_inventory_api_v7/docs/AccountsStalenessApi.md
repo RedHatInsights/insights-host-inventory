@@ -1,6 +1,6 @@
 # iqe_host_inventory_api_v7.AccountsStalenessApi
 
-All URIs are relative to *http://localhost*
+All URIs are relative to */api/inventory/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -30,10 +30,10 @@ from iqe_host_inventory_api_v7.models.staleness_output import StalenessOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -115,10 +115,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -196,10 +196,10 @@ from iqe_host_inventory_api_v7.models.staleness_output import StalenessOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -278,10 +278,10 @@ from iqe_host_inventory_api_v7.models.staleness_output import StalenessOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -361,10 +361,10 @@ from iqe_host_inventory_api_v7.models.staleness_output import StalenessOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters

@@ -13,6 +13,8 @@ Do not edit the class manually.
 # import models into model package
 from iqe_host_inventory_api_v7.models.active_tag import ActiveTag
 from iqe_host_inventory_api_v7.models.active_tags import ActiveTags
+from iqe_host_inventory_api_v7.models.advisor_app_data import AdvisorAppData
+from iqe_host_inventory_api_v7.models.app_sortable_fields import AppSortableFields
 from iqe_host_inventory_api_v7.models.canonical_facts_in import CanonicalFactsIn
 from iqe_host_inventory_api_v7.models.canonical_facts_in_all_of_bios_uuid import (
     CanonicalFactsInAllOfBiosUuid,
@@ -27,6 +29,8 @@ from iqe_host_inventory_api_v7.models.canonical_facts_in_all_of_subscription_man
     CanonicalFactsInAllOfSubscriptionManagerId,
 )
 from iqe_host_inventory_api_v7.models.canonical_facts_out import CanonicalFactsOut
+from iqe_host_inventory_api_v7.models.compliance_app_data import ComplianceAppData
+from iqe_host_inventory_api_v7.models.consumer_applications_data import ConsumerApplicationsData
 from iqe_host_inventory_api_v7.models.create_check_in import CreateCheckIn
 from iqe_host_inventory_api_v7.models.fact_set import FactSet
 from iqe_host_inventory_api_v7.models.group_in import GroupIn
@@ -37,10 +41,16 @@ from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
 from iqe_host_inventory_api_v7.models.host_system_profile_out import HostSystemProfileOut
+from iqe_host_inventory_api_v7.models.host_view_filter_comparison import HostViewFilterComparison
+from iqe_host_inventory_api_v7.models.host_view_host import HostViewHost
+from iqe_host_inventory_api_v7.models.host_view_query_output import HostViewQueryOutput
+from iqe_host_inventory_api_v7.models.malware_app_data import MalwareAppData
 from iqe_host_inventory_api_v7.models.not_found_error_response import NotFoundErrorResponse
 from iqe_host_inventory_api_v7.models.pagination_out import PaginationOut
+from iqe_host_inventory_api_v7.models.patch_app_data import PatchAppData
 from iqe_host_inventory_api_v7.models.patch_host_in import PatchHostIn
 from iqe_host_inventory_api_v7.models.per_reporter_staleness import PerReporterStaleness
+from iqe_host_inventory_api_v7.models.remediations_app_data import RemediationsAppData
 from iqe_host_inventory_api_v7.models.resource_types_groups_query_output import (
     ResourceTypesGroupsQueryOutput,
 )
@@ -138,3 +148,11 @@ from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai_gpu_model
 from iqe_host_inventory_api_v7.models.system_profile_yum_repo import SystemProfileYumRepo
 from iqe_host_inventory_api_v7.models.tag_count_out import TagCountOut
 from iqe_host_inventory_api_v7.models.tags_out import TagsOut
+from iqe_host_inventory_api_v7.models.view_column_config import ViewColumnConfig
+from iqe_host_inventory_api_v7.models.view_configuration import ViewConfiguration
+from iqe_host_inventory_api_v7.models.view_in import ViewIn
+from iqe_host_inventory_api_v7.models.view_out import ViewOut
+from iqe_host_inventory_api_v7.models.view_patch import ViewPatch
+from iqe_host_inventory_api_v7.models.view_sort_config import ViewSortConfig
+from iqe_host_inventory_api_v7.models.views_list_out import ViewsListOut
+from iqe_host_inventory_api_v7.models.vulnerability_app_data import VulnerabilityAppData

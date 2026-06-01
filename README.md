@@ -58,7 +58,7 @@ Before starting, ensure you have the following installed on your system:
 
 - **Podman**: For running containers and services.
 - **Python 3.12.x**: The recommended version for this project.
-- **pipenv**: For managing Python dependencies.
+- **[uv](https://docs.astral.sh/uv/)**: For managing Python dependencies (`uv sync`, `uv run`, …). Install with your package manager or the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Environment setup
 
@@ -128,13 +128,13 @@ source .env
 1. **Install dependencies**:
 
 ```bash
-pipenv install --dev
+uv sync
 ```
 
 2. **Activate virtual environment**:
 
 ```bash
-pipenv shell
+source .venv/bin/activate
 ```
 
 ### Create database data directory
@@ -245,7 +245,7 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 #### Run the Export Service
 
 ```bash
-pipenv shell
+source .venv/bin/activate
 make run_inv_export_service
 ```
 
@@ -603,25 +603,32 @@ so deploying new version of it to Prod is very rare), and we don't need to make 
 config changes, it is preferred to use
 [app-interface-bot](https://gitlab.cee.redhat.com/osbuild/app-interface-bot) to create the
 release MR. This bot automatically scans the repositories and creates a release MR with the latest
-commits. It also adds all released PRs and linked Jira cards to the description of the MR.
+commits. It also adds all released PRs and linked Jira cards to the description of the MR,
+and it closes the released Jira cards when the app-interface release MR is merged. For that,
+the Jira cards need to be mentioned in the PR title, and they have to be in "Release pending" state.
 
 To run the app-interface-bot go to
 [pipelines](https://gitlab.cee.redhat.com/osbuild/app-interface-bot/-/pipelines) and click
 "New pipeline" in the top right corner of the page. Now select "host-inventory" as `HMS_SERVICE`,
 and put "master" (to release the latest commit) to `HOST_INVENTORY_BACKEND` and `CYNDI_OPERATOR`
-variables. If the CI is failing in GitHub on the latest commit for an irrelevant reason, and you are
-sure that it is OK, also choose "--force" on the `FORCE` variable. Now you can click "New pipeline"
+variables. Also, choose "--force" on the `FORCE` variable. The *FORCE* will skip validation of
+GitHub check runs on the commit. We are not running any tests in these checks and they can fail
+intermittently, for example because of some unrelated Konflux issue. If any relevant check fails
+and a new image is not built or pushed to quay, the app-interface MR checks won't pass and it
+won't allow us to merge the release MR anyway. Now you can click "New pipeline"
 and the bot will create the release MR for you in a few seconds. When it's done, it will send a
-Slack message to `#insights-experiences-release` channel with the link to the MR
+Slack message to `#insights-release` channel with the link to the MR
 ([example](https://redhat-internal.slack.com/archives/C061D8JQ8BE/p1756802843458909)).
 
 The bot is configured to automatically create these release MRs on Mondays. Every time
-it does so, carefully check if the release doesn't need any config change. For example, if the
-release includes a DB migration, then there is a high chance that we want to reduce the number of
-MQ replicas during this migration. In that case, feel free to close the MR either manually, or by
-creating a new [pipeline](https://gitlab.cee.redhat.com/osbuild/app-interface-bot/-/pipelines) and
-adding the MR ID to the `CLOSE_MR` variable. Then you can create a new release MR manually with
-everything that's needed, and you can copy the description from the bot's release MR.
+it does so, carefully check if the release doesn't include a DB migration. At the time of writing
+this documentation, there is a bug in clowder which causes our `run-db-migrations` job to run with
+an old image. Because of this, we have to release one commit before the desired one
+(e.g. `master - 1`), and then do another release with the desired commit (e.g. `master`).
+A PR attempting to fix this is open: [clowder#1779](https://github.com/RedHatInsights/clowder/pull/1779)
+
+If you want to close an MR created by the release bot, trigger a new [pipeline](https://gitlab.cee.redhat.com/osbuild/app-interface-bot/-/pipelines) and
+add the MR ID to the `CLOSE_MR` variable.
 
 For the CI pipeline to run tests on your fork, you'll need to add
 [@devtools-bot](https://gitlab.cee.redhat.com/devtools-bot) as a Maintainer. See this
@@ -796,7 +803,7 @@ Slash commands are markdown files in `.claude/commands/` that instruct Claude Co
 | `/hbi-api-tags` | `.claude/commands/hbi-api-tags.md` | Query tags (list active tags, search, per-host tags and counts) |
 | `/hbi-api-system-profile` | `.claude/commands/hbi-api-system-profile.md` | Query system profiles (per-host, OS distribution, SAP system data and SIDs) |
 | `/hbi-api-staleness` | `.claude/commands/hbi-api-staleness.md` | Query and manage staleness configuration (get, set, reset to defaults) |
-| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref Pipfile.lock/Dockerfile, produce Jira-formatted output |
+| `/hbi-vuln-triage` | `.claude/commands/hbi-vuln-triage.md` | Triage container vulnerability reports: dedup, cross-ref `uv.lock`/Dockerfile, produce Jira-formatted output |
 
 ### HBI Make Targets
 

@@ -1,6 +1,6 @@
 # iqe_host_inventory_api_v7.GroupsApi
 
-All URIs are relative to *http://localhost*
+All URIs are relative to */api/inventory/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -34,10 +34,10 @@ from iqe_host_inventory_api_v7.models.group_out_with_host_count import GroupOutW
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -119,10 +119,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -196,10 +196,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -275,10 +275,10 @@ from iqe_host_inventory_api_v7.models.group_query_output import GroupQueryOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -300,7 +300,7 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
     page = 1 # int | A page number of the items to return. (optional) (default to 1)
     order_by = 'order_by_example' # str | Ordering field name (optional)
-    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
+    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated (optional)
     group_type = 'standard' # str | The type of workspaces that should be returned. (optional) (default to 'standard')
 
     try:
@@ -323,7 +323,7 @@ Name | Type | Description  | Notes
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **order_by** | **str**| Ordering field name | [optional]
- **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count | [optional]
+ **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated | [optional]
  **group_type** | **str**| The type of workspaces that should be returned. | [optional] [default to &#39;standard&#39;]
 
 ### Return type
@@ -365,10 +365,10 @@ from iqe_host_inventory_api_v7.models.group_query_output import GroupQueryOutput
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -390,7 +390,7 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     per_page = 50 # int | A number of items to return per page. (optional) (default to 50)
     page = 1 # int | A page number of the items to return. (optional) (default to 1)
     order_by = 'order_by_example' # str | Ordering field name (optional)
-    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count (optional)
+    order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated (optional)
 
     try:
         # Find groups by their IDs
@@ -412,7 +412,7 @@ Name | Type | Description  | Notes
  **per_page** | **int**| A number of items to return per page. | [optional] [default to 50]
  **page** | **int**| A page number of the items to return. | [optional] [default to 1]
  **order_by** | **str**| Ordering field name | [optional]
- **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count | [optional]
+ **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC for host_count and updated | [optional]
 
 ### Return type
 
@@ -455,10 +455,10 @@ from iqe_host_inventory_api_v7.models.group_out_with_host_count import GroupOutW
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -538,10 +538,10 @@ from iqe_host_inventory_api_v7.models.group_out_with_host_count import GroupOutW
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -620,10 +620,10 @@ import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -701,10 +701,10 @@ from iqe_host_inventory_api_v7.models.system_profile_nested_object_value import 
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "http://localhost"
+    host = "/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -732,7 +732,7 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     order_by = 'order_by_example' # str | Ordering field name (optional)
     order_how = 'order_how_example' # str | Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system (optional)
     staleness = ["fresh","stale","stale_warning"] # List[str] | Culling states of the hosts. Default: fresh, stale and stale_warning (optional) (default to ["fresh","stale","stale_warning"])
-    tags = ['tags_example'] # List[str] | filters out hosts not tagged by the given tags (optional)
+    tags = ['tags_example'] # List[str] | Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). (optional)
     registered_with = ['registered_with_example'] # List[str] | Filters out any host not registered by the specified reporters (optional)
     filter = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\" (optional)
     fields = {'key': iqe_host_inventory_api_v7.SystemProfileNestedObjectValue()} # Dict[str, SystemProfileNestedObjectValue] | Fetches only mentioned system_profile fields. For example, <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": [\"arch\", \"host_type\"]} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,host_type\" (optional)
@@ -763,7 +763,7 @@ Name | Type | Description  | Notes
  **order_by** | **str**| Ordering field name | [optional]
  **order_how** | **str**| Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC for updated and operating_system | [optional]
  **staleness** | [**List[str]**](str.md)| Culling states of the hosts. Default: fresh, stale and stale_warning | [optional] [default to [&quot;fresh&quot;,&quot;stale&quot;,&quot;stale_warning&quot;]]
- **tags** | [**List[str]**](str.md)| filters out hosts not tagged by the given tags | [optional]
+ **tags** | [**List[str]**](str.md)| Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security&#x3D;strict,env/type&#x3D;prod). | [optional]
  **registered_with** | [**List[str]**](str.md)| Filters out any host not registered by the specified reporters | [optional]
  **filter** | [**Dict[str, SystemProfileNestedObjectValue]**](SystemProfileNestedObjectValue.md)| Filters hosts based on system_profile fields. For example: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;workloads\&quot;: {\&quot;sap\&quot;: {\&quot;sap_system\&quot;: {\&quot;eq\&quot;: \&quot;true\&quot;}}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][sap_system][eq]&#x3D;true\&quot; &lt;br /&gt;&lt;br /&gt; To get \&quot;edge\&quot; hosts, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;host_type\&quot;: {\&quot;eq\&quot;: \&quot;edge\&quot;}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][host_type][eq]&#x3D;edge\&quot; &lt;br /&gt;&lt;br /&gt; To get hosts with an specific operating system, use this explicit filter: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: {\&quot;operating_system\&quot;: {\&quot;name\&quot;: {\&quot;eq\&quot;: \&quot;rhel\&quot;}}}} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?filter[system_profile][name][eq]&#x3D;rhel\&quot; | [optional]
  **fields** | [**Dict[str, SystemProfileNestedObjectValue]**](SystemProfileNestedObjectValue.md)| Fetches only mentioned system_profile fields. For example, &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;{\&quot;system_profile\&quot;: [\&quot;arch\&quot;, \&quot;host_type\&quot;]} &lt;br /&gt;&lt;br /&gt; which equates to the URL param: &lt;br /&gt;&lt;br /&gt; &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;\&quot;?fields[system_profile]&#x3D;arch,host_type\&quot; | [optional]

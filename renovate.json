@@ -4,13 +4,23 @@
     "github>RedHatInsights/konflux-pipelines//renovate/foreman_satellite/renovate.json"
   ],
   "ignorePaths": [
-    "Pipfile"
+    "Pipfile.iqe"
   ],
   "tekton": {
     "schedule": [
       "at any time"
     ]
   },
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["^openapi-"],
+      "groupName": "openapi"
+    },
+    {
+      "matchPackagePatterns": ["^opentelemetry-"],
+      "groupName": "opentelemetry"
+    }
+  ],
   "pip_requirements": {
     "enabled": false
   }

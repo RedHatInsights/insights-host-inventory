@@ -1,6 +1,6 @@
 # iqe_host_inventory_api.SystemProfileApi
 
-All URIs are relative to *http://localhost*
+All URIs are relative to *http://localhost/api/inventory/v1*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -26,10 +26,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
+    host = "http://localhost/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -39,7 +39,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
+    host = "http://localhost/api/inventory/v1",
     api_key = {
         'x-rh-identity': 'YOUR_API_KEY'
     }
@@ -115,10 +115,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
+    host = "http://localhost/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -128,7 +128,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
+    host = "http://localhost/api/inventory/v1",
     api_key = {
         'x-rh-identity': 'YOUR_API_KEY'
     }
@@ -206,10 +206,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
+    host = "http://localhost/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -219,7 +219,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
+    host = "http://localhost/api/inventory/v1",
     api_key = {
         'x-rh-identity': 'YOUR_API_KEY'
     }
@@ -295,10 +295,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
-# Defining the host is optional and defaults to http://localhost
+# Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost"
+    host = "http://localhost/api/inventory/v1"
 )
 
 # The client must configure the authentication and authorization parameters
@@ -308,7 +308,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost",
+    host = "http://localhost/api/inventory/v1",
     api_key = {
         'x-rh-identity': 'YOUR_API_KEY'
     }

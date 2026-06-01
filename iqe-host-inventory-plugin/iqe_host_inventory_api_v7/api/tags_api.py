@@ -46,7 +46,9 @@ class TagsApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
         order_how: Annotated[
@@ -113,9 +115,16 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -142,7 +151,7 @@ class TagsApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param order_by: Ordering field name
         :type order_by: str
@@ -178,8 +187,12 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -227,7 +240,9 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -254,7 +269,9 @@ class TagsApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
         order_how: Annotated[
@@ -321,9 +338,16 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -350,7 +374,7 @@ class TagsApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param order_by: Ordering field name
         :type order_by: str
@@ -386,8 +410,12 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -435,7 +463,9 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -462,7 +492,9 @@ class TagsApi:
         self,
         tags: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
-            Field(description="filters out hosts not tagged by the given tags"),
+            Field(
+                description="Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod)."
+            ),
         ] = None,
         order_by: Annotated[StrictStr | None, Field(description="Ordering field name")] = None,
         order_how: Annotated[
@@ -529,9 +561,16 @@ class TagsApi:
         group_name: Annotated[
             list[StrictStr] | None, Field(description="Filter by group name")
         ] = None,
+        workspace_name: Annotated[
+            list[StrictStr] | None, Field(description="Filter by workspace name")
+        ] = None,
         group_id: Annotated[
             list[Annotated[str, Field(strict=True)]] | None,
             Field(description="Filter by group ID (UUID format)"),
+        ] = None,
+        workspace_id: Annotated[
+            list[Annotated[str, Field(strict=True)]] | None,
+            Field(description="Filter by workspace ID (UUID format)"),
         ] = None,
         registered_with: Annotated[
             list[StrictStr] | None,
@@ -558,7 +597,7 @@ class TagsApi:
 
         Required permissions: inventory:hosts:read
 
-        :param tags: filters out hosts not tagged by the given tags
+        :param tags: Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).
         :type tags: List[str]
         :param order_by: Ordering field name
         :type order_by: str
@@ -594,8 +633,12 @@ class TagsApi:
         :type last_check_in_end: datetime
         :param group_name: Filter by group name
         :type group_name: List[str]
+        :param workspace_name: Filter by workspace name
+        :type workspace_name: List[str]
         :param group_id: Filter by group ID (UUID format)
         :type group_id: List[str]
+        :param workspace_id: Filter by workspace ID (UUID format)
+        :type workspace_id: List[str]
         :param registered_with: Filters out any host not registered by the specified reporters
         :type registered_with: List[str]
         :param system_type: Filters systems by type
@@ -643,7 +686,9 @@ class TagsApi:
             last_check_in_start=last_check_in_start,
             last_check_in_end=last_check_in_end,
             group_name=group_name,
+            workspace_name=workspace_name,
             group_id=group_id,
+            workspace_id=workspace_id,
             registered_with=registered_with,
             system_type=system_type,
             filter=filter,
@@ -681,7 +726,9 @@ class TagsApi:
         last_check_in_start,
         last_check_in_end,
         group_name,
+        workspace_name,
         group_id,
+        workspace_id,
         registered_with,
         system_type,
         filter,
@@ -697,7 +744,9 @@ class TagsApi:
             "tags": "multi",
             "staleness": "multi",
             "group_name": "multi",
+            "workspace_name": "multi",
             "group_id": "multi",
+            "workspace_id": "multi",
             "registered_with": "multi",
             "system_type": "multi",
         }
@@ -789,8 +838,14 @@ class TagsApi:
         if group_name is not None:
             _query_params.append(("group_name", group_name))
 
+        if workspace_name is not None:
+            _query_params.append(("workspace_name", workspace_name))
+
         if group_id is not None:
             _query_params.append(("group_id", group_id))
+
+        if workspace_id is not None:
+            _query_params.append(("workspace_id", workspace_id))
 
         if registered_with is not None:
             _query_params.append(("registered_with", registered_with))
