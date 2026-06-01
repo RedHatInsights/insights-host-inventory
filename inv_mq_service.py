@@ -5,9 +5,11 @@ from prometheus_client import start_http_server
 from api.cache import init_cache
 from app import create_app
 from app.common import get_build_version
+from app.config import Config
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import create_event_producer
+from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -20,7 +22,7 @@ from lib.handlers import register_shutdown
 logger = get_logger("host_mq_service")
 
 
-def build_topic_to_consumer_map(config) -> dict:
+def build_topic_to_consumer_map(config: Config) -> dict[str, type[HBIMessageConsumerBase]]:
     return {
         config.host_ingress_topic: IngressMessageConsumer,
         config.system_profile_topic: SystemProfileMessageConsumer,

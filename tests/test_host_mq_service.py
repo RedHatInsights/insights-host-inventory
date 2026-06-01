@@ -3014,11 +3014,14 @@ def test_workspace_mq_delete_with_host_deleted_mid_process(
 
 
 def test_workspace_bulk_topic_uses_workspace_consumer():
-    """The outbox.event.workspace-bulk topic should be mapped to WorkspaceMessageConsumer."""
+    """The outbox.event.workspace and workspace-bulk topics should be mapped to WorkspaceMessageConsumer."""
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
 
     topic_to_hbi_consumer = build_topic_to_consumer_map(config)
+
+    assert config.workspaces_topic is not None
+    assert topic_to_hbi_consumer[config.workspaces_topic] is WorkspaceMessageConsumer
 
     assert config.workspaces_bulk_topic is not None
     assert topic_to_hbi_consumer[config.workspaces_bulk_topic] is WorkspaceMessageConsumer
