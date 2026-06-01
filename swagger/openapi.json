@@ -2536,14 +2536,34 @@
             "last_check_in",
             "advisor:recommendations",
             "advisor:incidents",
+            "advisor:critical",
+            "advisor:important",
+            "advisor:moderate",
+            "advisor:low",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
+            "vulnerability:high_severity_cves",
+            "vulnerability:cves_with_security_rules",
+            "vulnerability:cves_with_known_exploits",
             "patch:advisories_rhsa_installable",
+            "patch:advisories_rhba_installable",
+            "patch:advisories_rhea_installable",
+            "patch:advisories_other_installable",
+            "patch:advisories_rhsa_applicable",
+            "patch:advisories_rhba_applicable",
+            "patch:advisories_rhea_applicable",
+            "patch:advisories_other_applicable",
             "patch:packages_installable",
+            "patch:packages_applicable",
+            "patch:packages_installed",
+            "patch:template_name",
             "remediations:remediations_plans",
             "compliance:last_scan",
+            "compliance:policies_count",
             "malware:last_matches",
-            "malware:last_scan"
+            "malware:total_matches",
+            "malware:last_scan",
+            "malware:last_status"
           ]
         }
       },
@@ -3424,6 +3444,11 @@
               "type": "object"
             }
           },
+          "policies_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of compliance policies (computed from policies array length)"
+          },
           "last_scan": {
             "type": "string",
             "format": "date-time",
@@ -3551,18 +3576,38 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:critical` - Critical severity recommendations\n- `advisor:important` - Important severity recommendations\n- `advisor:moderate` - Moderate severity recommendations\n- `advisor:low` - Low severity recommendations\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n- `vulnerability:high_severity_cves` - High severity CVEs\n- `vulnerability:cves_with_security_rules` - CVEs with security rules\n- `vulnerability:cves_with_known_exploits` - CVEs with known exploits\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:advisories_rhba_installable` - Number of RHBA installable advisories\n- `patch:advisories_rhea_installable` - Number of RHEA installable advisories\n- `patch:advisories_other_installable` - Number of other installable advisories\n- `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories\n- `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories\n- `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories\n- `patch:advisories_other_applicable` - Number of other applicable advisories\n- `patch:packages_installable` - Number of installable packages\n- `patch:packages_applicable` - Number of applicable packages\n- `patch:packages_installed` - Number of installed packages\n- `patch:template_name` - Patch template name\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n- `compliance:policies_count` - Number of compliance policies\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:total_matches` - Total malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n- `malware:last_status` - Last malware detection status\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
+          "advisor:critical",
+          "advisor:important",
+          "advisor:moderate",
+          "advisor:low",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
+          "vulnerability:high_severity_cves",
+          "vulnerability:cves_with_security_rules",
+          "vulnerability:cves_with_known_exploits",
           "patch:advisories_rhsa_installable",
+          "patch:advisories_rhba_installable",
+          "patch:advisories_rhea_installable",
+          "patch:advisories_other_installable",
+          "patch:advisories_rhsa_applicable",
+          "patch:advisories_rhba_applicable",
+          "patch:advisories_rhea_applicable",
+          "patch:advisories_other_applicable",
           "patch:packages_installable",
+          "patch:packages_applicable",
+          "patch:packages_installed",
+          "patch:template_name",
           "remediations:remediations_plans",
           "compliance:last_scan",
+          "compliance:policies_count",
           "malware:last_matches",
-          "malware:last_scan"
+          "malware:total_matches",
+          "malware:last_scan",
+          "malware:last_status"
         ]
       },
       "SystemProfileByHostOut": {
