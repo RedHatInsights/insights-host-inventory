@@ -37,7 +37,6 @@ from app.models import db
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
 from app.queue.host_mq import MAX_RETRIES
-from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import OperationResult
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -45,6 +44,7 @@ from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
+from inv_mq_service import build_topic_to_consumer_map
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.db_utils import minimal_db_host
@@ -3018,13 +3018,7 @@ def test_workspace_bulk_topic_uses_workspace_consumer():
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
 
-    topic_to_hbi_consumer = {
-        config.host_ingress_topic: IngressMessageConsumer,
-        config.system_profile_topic: SystemProfileMessageConsumer,
-        config.workspaces_topic: WorkspaceMessageConsumer,
-        config.workspaces_bulk_topic: WorkspaceMessageConsumer,
-        config.host_app_data_topic: HostAppMessageConsumer,
-    }
+    topic_to_hbi_consumer = build_topic_to_consumer_map(config)
 
     assert config.workspaces_bulk_topic is not None
     assert topic_to_hbi_consumer[config.workspaces_bulk_topic] is WorkspaceMessageConsumer

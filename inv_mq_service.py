@@ -8,7 +8,6 @@ from app.common import get_build_version
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.event_producer import create_event_producer
-from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import HostAppMessageConsumer
 from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
@@ -21,6 +20,16 @@ from lib.handlers import register_shutdown
 logger = get_logger("host_mq_service")
 
 
+def build_topic_to_consumer_map(config) -> dict:
+    return {
+        config.host_ingress_topic: IngressMessageConsumer,
+        config.system_profile_topic: SystemProfileMessageConsumer,
+        config.workspaces_topic: WorkspaceMessageConsumer,
+        config.workspaces_bulk_topic: WorkspaceMessageConsumer,
+        config.host_app_data_topic: HostAppMessageConsumer,
+    }
+
+
 def main():
     init_otel(service_name="host-inventory-mq", service_version=get_build_version())
 
@@ -29,13 +38,7 @@ def main():
     init_cache(config, application)
     start_http_server(config.metrics_port)
 
-    topic_to_hbi_consumer: dict[str, HBIMessageConsumerBase] = {
-        config.host_ingress_topic: IngressMessageConsumer,
-        config.system_profile_topic: SystemProfileMessageConsumer,
-        config.workspaces_topic: WorkspaceMessageConsumer,
-        config.workspaces_bulk_topic: WorkspaceMessageConsumer,
-        config.host_app_data_topic: HostAppMessageConsumer,
-    }
+    topic_to_hbi_consumer = build_topic_to_consumer_map(config)
 
     consumer = create_consumer(config)
     consumer.subscribe([config.kafka_consumer_topic])
