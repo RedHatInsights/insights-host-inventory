@@ -33,6 +33,7 @@ def main():
         config.host_ingress_topic: IngressMessageConsumer,
         config.system_profile_topic: SystemProfileMessageConsumer,
         config.workspaces_topic: WorkspaceMessageConsumer,
+        config.workspaces_bulk_topic: WorkspaceMessageConsumer,
         config.host_app_data_topic: HostAppMessageConsumer,
     }
 
