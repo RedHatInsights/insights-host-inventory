@@ -16,13 +16,13 @@ ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make git && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python3.14 python3.14-pip rsync tar procps-ng make git && \
     microdnf update -y gnupg2 glib2 libcap && \
     rpm -qa | sort > packages-before-devel-install.txt && \
-    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
+    microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.14-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
     rpm -qa | sort > packages-after-devel-install.txt && \
-    ln -s /usr/bin/python3.12 /usr/bin/python && \
-    ln -s /usr/bin/python3.12 /usr/bin/python3
+    ln -s /usr/bin/python3.14 /usr/bin/python && \
+    ln -s /usr/bin/python3.14 /usr/bin/python3
 
 # Install librdkafka
 COPY --from=kafka_build /usr/lib/librdkafka*.so* /usr/lib/
@@ -65,7 +65,7 @@ RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
 # remove devel packages that were only necessary for psycopg2 to compile
-RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-static gcc-c++ && \
+RUN microdnf remove  -y  libpq-devel python3.14-devel gcc cargo rust rust-std-static gcc-c++ && \
     microdnf clean all
 
 ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib

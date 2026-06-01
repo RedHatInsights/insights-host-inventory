@@ -501,7 +501,7 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
                     partial(log_create_group_via_mq, logger, workspace["id"]),
                 )
 
-            except (IntegrityError, UniqueViolation):
+            except IntegrityError, UniqueViolation:
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
                 db.session.rollback()
 

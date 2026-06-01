@@ -23,7 +23,7 @@ class CustomResponseValidator(AbstractResponseBodyValidator):
     def validator(self) -> Draft4Validator:
         return Draft4ResponseValidator(self._schema, format_checker=draft4_format_checker)
 
-    def _parse(self, stream: typing.Generator[bytes, None, None]) -> typing.Any:
+    def _parse(self, stream: typing.Generator[bytes]) -> typing.Any:
         body = b"".join(stream).decode(self._encoding)
 
         if not body:

@@ -40,7 +40,7 @@ def get_current_db_revision(engine, schema: str) -> str | None:
             result = conn.execute(text(f"SELECT version_num FROM {schema}.alembic_version"))
             row = result.fetchone()
             return row[0] if row else None
-    except (OperationalError, ProgrammingError):
+    except OperationalError, ProgrammingError:
         # Table doesn't exist yet or connection failed
         return None
 

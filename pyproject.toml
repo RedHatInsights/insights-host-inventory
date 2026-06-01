@@ -45,7 +45,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 line-length = 119
 lint.select = [
   # flake8-unused-arguments
@@ -101,7 +101,7 @@ dev = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 # Start off with these
 warn_unused_configs = true
 warn_redundant_casts = true

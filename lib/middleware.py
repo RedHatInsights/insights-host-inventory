@@ -256,7 +256,7 @@ def _get_group_list_from_resource_definition(resource_definition: dict) -> list[
                 for gid in group_list:
                     if gid is not None:
                         UUID(gid)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 abort(
                     HTTPStatus.SERVICE_UNAVAILABLE,
                     "Received invalid UUIDs for attributeFilter.value in RBAC response.",
