@@ -57,7 +57,7 @@ Interactive setup that asks the user preferences before configuring the environm
    - Run `podman compose -f dev.yml up -d`
 
    **If Podman services = Minimal:**
-   - Run `podman compose -f dev.yml up -d db kafka zookeeper`
+   - Run `podman compose -f dev.yml up -d db kafka`
 
    **If Podman services != Skip:**
    - Wait for PostgreSQL: poll `podman compose -f dev.yml exec -T db pg_isready -h db`

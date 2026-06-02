@@ -24,24 +24,20 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     services:
-      zookeeper:
-        image: confluentinc/cp-zookeeper:7.9.7
-        env:
-          ZOOKEEPER_CLIENT_PORT: 32181
-          ZOOKEEPER_SERVER_ID: 1
-        ports:
-          - 32181:32181
-
       kafka:
         image: confluentinc/cp-kafka:8.2.1
         env:
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_BROKER_ID: 1
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: DOCKER://0.0.0.0:29092,LOCALHOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+          KAFKA_ADVERTISED_LISTENERS: DOCKER://${KAFKA_QUEUE_HOST-kafka}:${KAFKA_QUEUE_PORT-29092},LOCALHOST://localhost:${KAFKA_QUEUE_PORT-9092}
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,LOCALHOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_ZOOKEEPER_CONNECT: zookeeper:32181
           KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+          CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
         ports:
           - 29092:29092
         options: >-

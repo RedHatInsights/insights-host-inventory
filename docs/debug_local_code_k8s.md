@@ -1,6 +1,6 @@
 # Debugging Local Code with Services Deployed into Kubernetes Namespaces
 
-This guide covers debugging Host Based Inventory code that runs locally while connecting to services deployed in Kubernetes (Minikube or Ephemeral cluster). This setup requires database, Kafka broker, Kafka Zookeeper, Debezium Connector, and RBAC services.
+This guide covers debugging Host Based Inventory code that runs locally while connecting to services deployed in Kubernetes (Minikube or Ephemeral cluster). This setup requires database, Kafka broker, Debezium Connector, and RBAC services.
 
 ## Prerequisites
 
