@@ -22,11 +22,13 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
 from api.staleness_query import get_staleness_obj
+from app import create_app
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -42,6 +44,7 @@ from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
+from inv_mq_service import build_topic_to_consumer_map
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.db_utils import minimal_db_host
@@ -3008,6 +3011,77 @@ def test_workspace_mq_delete_with_host_deleted_mid_process(
     assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
     # host_id_list[1] was deleted, so skip it
     assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+
+
+def test_workspace_bulk_topic_uses_workspace_consumer():
+    """The outbox.event.workspace and workspace-bulk topics should be mapped to WorkspaceMessageConsumer."""
+    application = create_app(RuntimeEnvironment.SERVICE)
+    config = application.app.config["INVENTORY_CONFIG"]
+
+    topic_to_hbi_consumer = build_topic_to_consumer_map(config)
+
+    assert config.workspaces_topic is not None
+    assert topic_to_hbi_consumer[config.workspaces_topic] is WorkspaceMessageConsumer
+
+    assert config.workspaces_bulk_topic is not None
+    assert topic_to_hbi_consumer[config.workspaces_bulk_topic] is WorkspaceMessageConsumer
+
+
+@pytest.mark.parametrize(
+    "workspace_type",
+    (
+        "standard",
+        "ungrouped-hosts",
+    ),
+)
+def test_workspace_bulk_mq_create(workspace_message_consumer_mock, workspace_type, db_get_group_by_id):
+    """Bulk workspace consumer processes create events the same as the regular consumer."""
+    workspace_id = generate_uuid()
+    workspace_name = "bulk-workspace"
+    workspace_created = "2025-01-15T12:00:00+00:00"
+    workspace_modified = "2025-01-15T13:00:00+00:00"
+    message = generate_kessel_workspace_message(
+        "create",
+        str(workspace_id),
+        workspace_name,
+        workspace_type,
+        created=workspace_created,
+        modified=workspace_modified,
+    )
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == workspace_name
+    assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
+    assert found_group.created_on == datetime.fromisoformat(workspace_created)
+    assert found_group.modified_on == datetime.fromisoformat(workspace_modified)
+
+
+def test_workspace_bulk_mq_batch_creates(workspace_message_consumer_mock, db_get_group_by_id):
+    """Multiple workspace create events processed in sequence (simulating a batch)."""
+    workspace_ids = [generate_uuid() for _ in range(5)]
+    for i, ws_id in enumerate(workspace_ids):
+        message = generate_kessel_workspace_message("create", str(ws_id), f"bulk-workspace-{i}")
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+
+    for i, ws_id in enumerate(workspace_ids):
+        found_group = db_get_group_by_id(ws_id)
+        assert found_group is not None
+        assert found_group.name == f"bulk-workspace-{i}"
+
+
+def test_workspace_bulk_mq_create_duplicate_skips(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id
+):
+    """Duplicate workspace create events are silently skipped."""
+    workspace_id = db_create_group("bulk-workspace-original").id
+
+    duplicate_message = generate_kessel_workspace_message("create", str(workspace_id), "bulk-workspace-duplicate")
+    workspace_message_consumer_mock.handle_message(json.dumps(duplicate_message))
+
+    found_group = db_get_group_by_id(workspace_id)
+    assert found_group.name == "bulk-workspace-original"
 
 
 @pytest.mark.parametrize(

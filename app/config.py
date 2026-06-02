@@ -134,6 +134,7 @@ class Config:
         self.payload_tracker_kafka_topic = topic("platform.payload-status")
         self.export_service_topic = topic(os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests"))
         self.workspaces_topic = topic(os.environ.get("KAFKA_WORKSPACES_TOPIC"))
+        self.workspaces_bulk_topic = topic(os.environ.get("KAFKA_WORKSPACES_BULK_TOPIC"))
         self.host_app_data_topic = topic(os.environ.get("KAFKA_HOST_APP_DATA_TOPIC"))
 
         self.bootstrap_servers = ",".join(app_common_python.KafkaServers)
@@ -189,6 +190,7 @@ class Config:
         self.notification_topic = os.environ.get("KAFKA_NOTIFICATION_TOPIC", "platform.notifications.ingress")
         self.export_service_topic = os.environ.get("KAFKA_EXPORT_SERVICE_TOPIC", "platform.export.requests")
         self.workspaces_topic = os.environ.get("KAFKA_WORKSPACES_TOPIC", "outbox.event.workspace")
+        self.workspaces_bulk_topic = os.environ.get("KAFKA_WORKSPACES_BULK_TOPIC", "outbox.event.workspace-bulk")
         self.host_app_data_topic = os.environ.get("KAFKA_HOST_APP_DATA_TOPIC", "platform.inventory.host-apps")
         self.bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
         self.event_topic = os.environ.get("KAFKA_EVENT_TOPIC", "platform.inventory.events")
