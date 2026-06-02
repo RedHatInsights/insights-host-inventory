@@ -18,7 +18,11 @@
     },
     {
       "matchPackagePatterns": ["^opentelemetry-"],
-      "groupName": "opentelemetry"
+      "groupName": "opentelemetry",
+      "ignoreUnstable": false
     }
-  ]
+  ],
+  "pip_requirements": {
+    "enabled": false
+  }
 }

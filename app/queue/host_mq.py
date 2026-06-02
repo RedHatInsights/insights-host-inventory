@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from collections.abc import Callable
+from contextlib import contextmanager
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -254,6 +255,39 @@ class HBIMessageConsumerBase:
         attrs.update(extra)
         return attrs
 
+    @contextmanager
+    def _message_span(self, msg, **extra_attrs):
+        """Create a per-message span that automatically enriches from threadctx on exit.
+
+        Enrichment is deferred to span exit because handle_message() populates
+        threadctx during processing. Using this context manager means callers
+        never need to call _enrich_span_from_threadctx manually.
+        """
+        with tracer.start_as_current_span(
+            f"mq.process {msg.topic()}",
+            attributes=self._message_span_attrs(msg, **extra_attrs),
+        ) as span:
+            try:
+                yield span
+            finally:
+                self._enrich_span_from_threadctx(span)
+
+    @contextmanager
+    def _retroactive_span(self, msg, start_ns: int, **extra_attrs):
+        """Create a retroactive span that automatically enriches from threadctx.
+
+        Unlike _message_span, retroactive spans are always created after
+        handle_message() has already run (or raised), so threadctx is
+        already populated and enrichment can happen eagerly.
+        """
+        span = tracer.start_span(
+            f"mq.process {msg.topic()}",
+            attributes=self._message_span_attrs(msg, **extra_attrs),
+            start_time=start_ns,
+        )
+        self._enrich_span_from_threadctx(span)
+        yield span
+
     def _emit_slow_message_span(self, msg, start_ns: int, end_ns: int) -> None:
         """Emit a retroactive span for a message that exceeded the slow threshold."""
         if not OTEL_MQ_ENABLED:
@@ -262,12 +296,9 @@ class HBIMessageConsumerBase:
         if duration_ms < OTEL_MQ_SLOW_MESSAGE_MS:
             return
 
-        span = tracer.start_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **{"hbi.slow_message": True, "hbi.duration_ms": duration_ms}),
-            start_time=start_ns,
-        )
-        span.end(end_time=end_ns)
+        extra = {"hbi.slow_message": True, "hbi.duration_ms": duration_ms}
+        with self._retroactive_span(msg, start_ns, **extra) as span:
+            span.end(end_time=end_ns)
 
     def _process_single_message(self, msg) -> None:
         """Process a single Kafka message, conditionally emitting a child span.
@@ -284,12 +315,23 @@ class HBIMessageConsumerBase:
         else:
             self._process_message_without_span(msg)
 
+    def _enrich_span_from_threadctx(self, span) -> None:
+        """Add rh.org_id and rh.request_id to a span from thread-local storage.
+
+        Called automatically by _message_span and _retroactive_span context managers.
+        """
+        if not span or not span.is_recording():
+            return
+        org_id = getattr(threadctx, "org_id", None)
+        if org_id:
+            span.set_attribute("rh.org_id", org_id)
+        request_id = getattr(threadctx, "request_id", None)
+        if request_id:
+            span.set_attribute("rh.request_id", request_id)
+
     def _process_message_with_span(self, msg) -> None:
         """Process a message with a full tracing span (used when spans are enabled or on retry)."""
-        with tracer.start_as_current_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **{"hbi.retry": self._is_retry}),
-        ) as span:
+        with self._message_span(msg, **{"hbi.retry": self._is_retry}) as span:
             try:
                 self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
                 metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
@@ -330,14 +372,10 @@ class HBIMessageConsumerBase:
         if not OTEL_MQ_ENABLED:
             return
         end_ns = time.time_ns()
-        span = tracer.start_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **{"hbi.error": True}),
-            start_time=start_ns,
-        )
-        span.set_status(StatusCode.ERROR, str(exc))
-        span.record_exception(exc)
-        span.end(end_time=end_ns)
+        with self._retroactive_span(msg, start_ns, **{"hbi.error": True}) as span:
+            span.set_status(StatusCode.ERROR, str(exc))
+            span.record_exception(exc)
+            span.end(end_time=end_ns)
 
     def _process_batch(self) -> None:
         """Process a single batch of messages from Kafka.
