@@ -474,10 +474,10 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):
         payload_schema = parse_operation_message(message, DebeziumEnvelopeSchema)
         validated_operation_msg = parse_operation_message(payload_schema["payload"], WorkspaceOperationSchema)
-        initialize_thread_local_storage(None)  # No request_id for workspace MQ
-        operation = validated_operation_msg["operation"]
         org_id = validated_operation_msg["org_id"]
+        operation = validated_operation_msg["operation"]
         workspace = validated_operation_msg["workspace"]
+        initialize_thread_local_storage(None, org_id=org_id)
         identity = create_mock_identity_with_org_id(org_id)
         identity.account_number = validated_operation_msg["account_number"]
         logger.info(f"Received {operation} message for workspace ID {workspace['id']}")
@@ -556,7 +556,8 @@ class HostMessageConsumer(HBIMessageConsumerBase):
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
 
         request_id = platform_metadata.get("request_id")
-        initialize_thread_local_storage(request_id)
+        host_data = validated_operation_msg["data"]
+        initialize_thread_local_storage(request_id, org_id=host_data.get("org_id"))
 
         payload_tracker = get_payload_tracker(request_id=request_id)
 
@@ -564,7 +565,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
             payload_tracker, received_status_message="message received", current_operation="handle_message"
         ):
             try:
-                host = validated_operation_msg["data"]
+                host = host_data
                 if host.get("reporter") in ["rhsm-conduit", "rhsm-system-profile-bridge"] and get_flag_value(
                     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS, host["org_id"]
                 ):
@@ -762,8 +763,6 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             metrics.host_app_data_failure.labels(application=application_str, reason="unknown_application").inc()
             raise ValidationException(str(e)) from e
 
-        initialize_thread_local_storage(request_id)
-
         validated_msg = parse_operation_message(
             message,
             HostAppOperationSchema,
@@ -772,6 +771,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             application=application,
         )
 
+        initialize_thread_local_storage(request_id, org_id=validated_msg.get("org_id"))
         return self.process_message(application, validated_msg)
 
     def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
