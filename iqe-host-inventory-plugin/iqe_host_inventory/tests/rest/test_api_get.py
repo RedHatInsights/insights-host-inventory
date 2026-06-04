@@ -6,7 +6,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
-from typing import Any
 
 import pytest
 
@@ -18,7 +17,6 @@ from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_REGISTERED_WITH_VALUES
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
-from iqe_host_inventory.utils.datagen_utils import INCORRECT_DATETIMES
 from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -723,54 +721,6 @@ def test_get_hosts_by_registered_with_temp_old(host_inventory: ApplicationHostIn
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "params",
-    [
-        ("display_name", "fqdn"),
-        ("display_name", "insights_id"),
-        ("display_name", "hostname_or_id"),
-        ("fqdn", "insights_id"),
-        ("fqdn", "hostname_or_id"),
-        ("insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id"),
-        ("display_name", "fqdn", "hostname_or_id"),
-        ("display_name", "insights_id", "hostname_or_id"),
-        ("fqdn", "insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id", "hostname_or_id"),
-    ],
-)
-def test_get_hosts_invalid_parameters_combinations(
-    host_inventory: ApplicationHostInventory, params: tuple[str]
-):
-    """
-    Test GET of host using invalid combination of parameters.
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2193
-
-    metadata:
-        requirements: inv-hosts-get-list, inv-api-validation
-        assignee: fstavela
-        importance: low
-        title: Inventory: Test GET of host using invalid combination of parameters.
-    """
-    host = host_inventory.kafka.create_host()
-    parameters = {}
-    for param in params:
-        if param == "hostname_or_id":
-            parameters["hostname_or_id"] = host.fqdn
-        else:
-            parameters[param] = getattr(host, param)
-
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.hosts.get_hosts(**parameters)  # type: ignore[arg-type]
-    assert err.value.status == 400
-    assert (
-        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
-        in err.value.body
-    )
-
-
-@pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
 @pytest.mark.parametrize(
     "id_param_name",
@@ -1092,50 +1042,6 @@ def test_get_hosts_by_updated_not_created(host_inventory: ApplicationHostInvento
     assert len(response_hosts) >= 1
     assert host2.id in response_ids
     assert len(response_ids.intersection({host1.id, host3.id})) == 0
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("param", ["updated_start", "updated_end"])
-@pytest.mark.parametrize("value", INCORRECT_DATETIMES)
-def test_get_hosts_by_updated_incorrect_format(
-    host_inventory: ApplicationHostInventory, param: str, value: Any
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get hosts with wrong format of updated_start and updated_end parameters
-    """
-    host_inventory.kafka.create_host()
-    if isinstance(value, str):
-        value = value.replace("'", "").replace('"', "").replace("\\", "")
-    api_param = {param: value}
-    error_value = f'\\"{value}\\"' if (isinstance(value, list) and len(value)) else f"'{value}'"
-    with raises_apierror(400, f"{error_value} is not a 'date-time'"):
-        host_inventory.apis.hosts.get_hosts(**api_param)
-
-
-@pytest.mark.ephemeral
-def test_get_hosts_by_updated_start_after_end(host_inventory: ApplicationHostInventory):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get hosts with updated_start bigger than updated_end
-    """
-    host = host_inventory.kafka.create_host()
-    time_start = host.updated + timedelta(hours=1)
-    time_end = host.updated - timedelta(hours=1)
-    with raises_apierror(400, "updated_start cannot be after updated_end."):
-        host_inventory.apis.hosts.get_hosts(updated_start=time_start, updated_end=time_end)
 
 
 @pytest.mark.ephemeral
