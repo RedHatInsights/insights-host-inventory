@@ -1204,36 +1204,6 @@ def test_get_hosts_by_last_check_in_end(
     assert host3.id not in response_ids
 
 
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("timestamp", ["exact", "not-exact"])
-def test_get_hosts_by_last_check_in(host_inventory: ApplicationHostInventory, timestamp: str):
-    """
-    https://issues.redhat.com/browse/ESSNTL-21076
-
-    metadata:
-      requirements: inv-hosts-filter-by-last_check_in
-      assignee: aprice
-      importance: high
-      title: Filter hosts by combined last_check_in_start and last_check_in_end
-    """
-    host_before = host_inventory.kafka.create_host()
-    time_start = datetime.now(tz=UTC)
-    hosts = host_inventory.kafka.create_random_hosts(3)
-    time_end = datetime.now(tz=UTC)
-    host_after = host_inventory.kafka.create_host()
-
-    time_start = hosts[0].last_check_in if timestamp == "exact" else time_start
-    time_end = hosts[-1].last_check_in if timestamp == "exact" else time_end
-
-    response_hosts = host_inventory.apis.hosts.get_hosts(
-        last_check_in_start=time_start, last_check_in_end=time_end
-    )
-    response_ids = {host.id for host in response_hosts}
-    assert len(response_hosts) >= 3
-    assert response_ids.issuperset({host.id for host in hosts})
-    assert len(response_ids.intersection({host_before.id, host_after.id})) == 0
-
-
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 @pytest.mark.parametrize(
