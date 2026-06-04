@@ -93,6 +93,16 @@ objects:
     appName: host-inventory
     jobs:
       - remove-null-workload-values
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: update-staleness-${UPDATE_STALENESS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - update-staleness
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -111,4 +121,6 @@ parameters:
 - name: POPULATE_HOST_TYPE_RUN_NUMBER
   value: '1'
 - name: REMOVE_NULL_WORKLOAD_VALUES_RUN_NUMBER
+  value: '1'
+- name: UPDATE_STALENESS_RUN_NUMBER
   value: '1'
