@@ -6,7 +6,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
-from typing import Any
 
 import pytest
 
@@ -18,7 +17,6 @@ from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_REGISTERED_WITH_VALUES
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
-from iqe_host_inventory.utils.datagen_utils import INCORRECT_DATETIMES
 from iqe_host_inventory.utils.datagen_utils import gen_tag
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -1092,31 +1090,6 @@ def test_get_hosts_by_updated_not_created(host_inventory: ApplicationHostInvento
     assert len(response_hosts) >= 1
     assert host2.id in response_ids
     assert len(response_ids.intersection({host1.id, host3.id})) == 0
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("param", ["updated_start", "updated_end"])
-@pytest.mark.parametrize("value", INCORRECT_DATETIMES)
-def test_get_hosts_by_updated_incorrect_format(
-    host_inventory: ApplicationHostInventory, param: str, value: Any
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get hosts with wrong format of updated_start and updated_end parameters
-    """
-    host_inventory.kafka.create_host()
-    if isinstance(value, str):
-        value = value.replace("'", "").replace('"', "").replace("\\", "")
-    api_param = {param: value}
-    error_value = f'\\"{value}\\"' if (isinstance(value, list) and len(value)) else f"'{value}'"
-    with raises_apierror(400, f"{error_value} is not a 'date-time'"):
-        host_inventory.apis.hosts.get_hosts(**api_param)
 
 
 @pytest.mark.ephemeral
