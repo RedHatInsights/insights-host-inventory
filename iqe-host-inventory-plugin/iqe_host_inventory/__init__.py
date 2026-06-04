@@ -4,9 +4,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import attr
+from iqe.base._kafka import declare_shared_consumer
 from iqe.base.application.plugins import ApplicationPlugin
 from iqe.base.application.plugins import ApplicationPluginException
 from iqe.base.application.plugins.service_objects import RESTPluginService
+
+from .modeling.kafka_interaction import HBI_REQUESTED_KAFKA_PARSER
+from .modeling.kafka_interaction import HBI_REQUESTED_KAFKA_TOPICS
 
 if TYPE_CHECKING:
     from . import modeling
@@ -38,6 +42,10 @@ class ApplicationHostInventory(ApplicationPlugin):
 
     v7_notifications_v1 = RESTPluginService.declare("v7_notifications_v1")
     v7_integrations_v1 = RESTPluginService.declare("v7_integrations_v1")
+
+    kafka_consumer = declare_shared_consumer(
+        HBI_REQUESTED_KAFKA_PARSER, HBI_REQUESTED_KAFKA_TOPICS
+    )
 
     @cached_property
     def datagen(self) -> kafka_interaction.HBIKafkaDatagen:
