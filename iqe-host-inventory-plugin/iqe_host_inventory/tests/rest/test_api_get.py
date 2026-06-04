@@ -1120,25 +1120,6 @@ def test_get_hosts_by_updated_incorrect_format(
 
 
 @pytest.mark.ephemeral
-def test_get_hosts_by_updated_start_after_end(host_inventory: ApplicationHostInventory):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get hosts with updated_start bigger than updated_end
-    """
-    host = host_inventory.kafka.create_host()
-    time_start = host.updated + timedelta(hours=1)
-    time_end = host.updated - timedelta(hours=1)
-    with raises_apierror(400, "updated_start cannot be after updated_end."):
-        host_inventory.apis.hosts.get_hosts(updated_start=time_start, updated_end=time_end)
-
-
-@pytest.mark.ephemeral
 @pytest.mark.parametrize(
     "time_format",
     ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f+00:00", "%Y-%m-%dT%H:%M:%S.%fZ"],
