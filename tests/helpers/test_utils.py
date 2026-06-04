@@ -33,7 +33,7 @@ SYSTEM_IDENTITY: dict[str, Any] = {
 }
 
 IDENTITY_WITHOUT_HOSTS: dict[str, Any] = {
-    # dnah stands for "do not add hosts" for this org.
+    # Dummy identity. dnah stands for "do not add hosts" for this org. Used in `test_no_hosts_in_org()`.
     "account_number": "dnah",
     "org_id": "dnah",
     "type": "User",
