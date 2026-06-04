@@ -1111,10 +1111,10 @@ def test_query_hosts_filter_last_check_in_both_same(mq_create_or_update_host, ap
     assert response_data["results"][0]["id"] != nomatch_host.id
 
 
-def test_query_hosts_filter_last_check_in_invalid_format(api_get, subtests):
+def test_query_hosts_filter_last_check_in_and_updated_invalid_format(api_get, subtests):
     invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
     for invalid_format in invalid_formats:
-        for param in ("last_check_in_start", "last_check_in_end"):
+        for param in ("last_check_in_start", "last_check_in_end", "updated_start", "updated_end"):
             with subtests.test(invalid_format=invalid_format, param=param):
                 url = build_hosts_url(query=f"?{param}={invalid_format}")
                 response_status, response_data = api_get(url)
