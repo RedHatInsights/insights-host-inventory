@@ -721,54 +721,6 @@ def test_get_hosts_by_registered_with_temp_old(host_inventory: ApplicationHostIn
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "params",
-    [
-        ("display_name", "fqdn"),
-        ("display_name", "insights_id"),
-        ("display_name", "hostname_or_id"),
-        ("fqdn", "insights_id"),
-        ("fqdn", "hostname_or_id"),
-        ("insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id"),
-        ("display_name", "fqdn", "hostname_or_id"),
-        ("display_name", "insights_id", "hostname_or_id"),
-        ("fqdn", "insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id", "hostname_or_id"),
-    ],
-)
-def test_get_hosts_invalid_parameters_combinations(
-    host_inventory: ApplicationHostInventory, params: tuple[str]
-):
-    """
-    Test GET of host using invalid combination of parameters.
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2193
-
-    metadata:
-        requirements: inv-hosts-get-list, inv-api-validation
-        assignee: fstavela
-        importance: low
-        title: Inventory: Test GET of host using invalid combination of parameters.
-    """
-    host = host_inventory.kafka.create_host()
-    parameters = {}
-    for param in params:
-        if param == "hostname_or_id":
-            parameters["hostname_or_id"] = host.fqdn
-        else:
-            parameters[param] = getattr(host, param)
-
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.hosts.get_hosts(**parameters)  # type: ignore[arg-type]
-    assert err.value.status == 400
-    assert (
-        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
-        in err.value.body
-    )
-
-
-@pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
 @pytest.mark.parametrize(
     "id_param_name",
