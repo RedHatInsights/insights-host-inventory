@@ -67,7 +67,7 @@ def _read_env_staleness_values(logger: Logger) -> dict[str, int]:
     values: dict[str, int] = {}
     for field, env_var in env_mapping.items():
         raw = os.environ.get(env_var)
-        if raw is not None:
+        if raw is not None and raw.strip():
             try:
                 values[field] = int(raw)
             except ValueError:
@@ -150,8 +150,11 @@ def run(
                 session.add(new_row)
             logger.info("Created staleness row for org_id=%s", org_id)
 
-        StalenessCache.delete(org_id)
-        logger.info("Invalidated staleness cache for org_id=%s", org_id)
+        try:
+            StalenessCache.delete(org_id)
+            logger.info("Invalidated staleness cache for org_id=%s", org_id)
+        except Exception:
+            logger.exception("Failed to invalidate cache for org_id=%s (DB write succeeded)", org_id)
 
 
 if __name__ == "__main__":
