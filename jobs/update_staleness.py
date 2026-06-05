@@ -55,7 +55,7 @@ STALENESS_FIELDS = (
 )
 
 
-def _read_env_staleness_values() -> dict[str, int]:
+def _read_env_staleness_values(logger: Logger) -> dict[str, int]:
     """Read optional staleness env vars and return only those that are set."""
     env_mapping = {
         "conventional_time_to_stale": "CONVENTIONAL_TIME_TO_STALE",
@@ -66,7 +66,11 @@ def _read_env_staleness_values() -> dict[str, int]:
     for field, env_var in env_mapping.items():
         raw = os.environ.get(env_var)
         if raw is not None:
-            values[field] = int(raw)
+            try:
+                values[field] = int(raw)
+            except ValueError:
+                logger.error("%s must be an integer, got: %r", env_var, raw)
+                sys.exit(1)
     return values
 
 
@@ -98,7 +102,7 @@ def run(
 
     dry_run = os.environ.get("DRY_RUN", "true").lower() == "true"
 
-    explicit_values = _read_env_staleness_values()
+    explicit_values = _read_env_staleness_values(logger)
     if not explicit_values:
         logger.error("At least one CONVENTIONAL_TIME_TO_* env var must be set.")
         sys.exit(1)

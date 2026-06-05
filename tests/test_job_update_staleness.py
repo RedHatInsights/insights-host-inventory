@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,8 @@ from jobs.update_staleness import _merge_with_defaults
 from jobs.update_staleness import _read_env_staleness_values
 from jobs.update_staleness import run
 
+_logger = logging.getLogger("test_update_staleness")
+
 CUSTOM_ORG_ID = "update-staleness-test-org"
 CUSTOM_STALE = 200000
 CUSTOM_WARNING = 700000
@@ -21,7 +24,7 @@ CUSTOM_DELETE = 3000000
 
 def test_read_env_no_vars_set():
     with patch.dict("os.environ", {}, clear=True):
-        assert _read_env_staleness_values() == {}
+        assert _read_env_staleness_values(_logger) == {}
 
 
 def test_read_env_all_vars_set():
@@ -31,7 +34,7 @@ def test_read_env_all_vars_set():
         "CONVENTIONAL_TIME_TO_DELETE": "300",
     }
     with patch.dict("os.environ", env, clear=True):
-        result = _read_env_staleness_values()
+        result = _read_env_staleness_values(_logger)
     assert result == {
         "conventional_time_to_stale": 100,
         "conventional_time_to_stale_warning": 200,
@@ -42,8 +45,22 @@ def test_read_env_all_vars_set():
 def test_read_env_partial_vars():
     env = {"CONVENTIONAL_TIME_TO_DELETE": "999"}
     with patch.dict("os.environ", env, clear=True):
-        result = _read_env_staleness_values()
+        result = _read_env_staleness_values(_logger)
     assert result == {"conventional_time_to_delete": 999}
+
+
+def test_read_env_non_integer_exits():
+    env = {"CONVENTIONAL_TIME_TO_STALE": "abc"}
+    with patch.dict("os.environ", env, clear=True), pytest.raises(SystemExit) as exc_info:
+        _read_env_staleness_values(_logger)
+    assert exc_info.value.code == 1
+
+
+def test_read_env_empty_string_exits():
+    env = {"CONVENTIONAL_TIME_TO_DELETE": ""}
+    with patch.dict("os.environ", env, clear=True), pytest.raises(SystemExit) as exc_info:
+        _read_env_staleness_values(_logger)
+    assert exc_info.value.code == 1
 
 
 # -- _merge_with_defaults -----------------------------------------------------
@@ -103,13 +120,10 @@ def test_run_creates_new_row(flask_app, _staleness_env):
     with flask_app.app.app_context():
         assert _get_staleness_row(CUSTOM_ORG_ID) is None
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with patch("jobs.update_staleness.StalenessCache") as mock_cache:
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         row = _get_staleness_row(CUSTOM_ORG_ID)
@@ -134,13 +148,10 @@ def test_run_updates_existing_row(flask_app, _staleness_env, monkeypatch):
     new_stale = 150000
     monkeypatch.setenv("CONVENTIONAL_TIME_TO_STALE", str(new_stale))
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
-    with patch("jobs.update_staleness.StalenessCache"):
-        run(logger, session, flask_app)
+    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+        run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         row = _get_staleness_row(CUSTOM_ORG_ID)
@@ -148,6 +159,7 @@ def test_run_updates_existing_row(flask_app, _staleness_env, monkeypatch):
         assert row.conventional_time_to_stale == new_stale
         assert row.conventional_time_to_stale_warning == CUSTOM_WARNING
         assert row.conventional_time_to_delete == CUSTOM_DELETE
+        mock_cache.delete.assert_called_once_with(CUSTOM_ORG_ID)
 
 
 def test_run_partial_create_uses_system_defaults(flask_app, monkeypatch):
@@ -157,13 +169,10 @@ def test_run_partial_create_uses_system_defaults(flask_app, monkeypatch):
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_STALE_WARNING", raising=False)
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_DELETE", raising=False)
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with patch("jobs.update_staleness.StalenessCache"):
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         row = _get_staleness_row(CUSTOM_ORG_ID)
@@ -191,13 +200,10 @@ def test_run_partial_update_preserves_existing(flask_app, monkeypatch):
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_STALE", raising=False)
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_STALE_WARNING", raising=False)
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with patch("jobs.update_staleness.StalenessCache"):
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         row = _get_staleness_row(CUSTOM_ORG_ID)
@@ -214,13 +220,10 @@ def test_run_dry_run_does_not_write(flask_app, monkeypatch):
     monkeypatch.setenv("CONVENTIONAL_TIME_TO_DELETE", str(CUSTOM_DELETE))
     monkeypatch.setenv("DRY_RUN", "true")
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with patch("jobs.update_staleness.StalenessCache") as mock_cache:
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
 
     with flask_app.app.app_context():
         assert _get_staleness_row(CUSTOM_ORG_ID) is None
@@ -231,13 +234,10 @@ def test_run_missing_org_id_exits(flask_app, monkeypatch):
     monkeypatch.setenv("STALENESS_ORG_ID", "")
     monkeypatch.setenv("CONVENTIONAL_TIME_TO_STALE", "100")
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with pytest.raises(SystemExit) as exc_info:
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
     assert exc_info.value.code == 1
 
 
@@ -247,13 +247,10 @@ def test_run_no_staleness_env_vars_exits(flask_app, monkeypatch):
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_STALE_WARNING", raising=False)
     monkeypatch.delenv("CONVENTIONAL_TIME_TO_DELETE", raising=False)
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with pytest.raises(SystemExit) as exc_info:
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
     assert exc_info.value.code == 1
 
 
@@ -265,14 +262,29 @@ def test_run_invalid_values_exits(flask_app, monkeypatch):
     monkeypatch.setenv("CONVENTIONAL_TIME_TO_DELETE", "3000000")
     monkeypatch.setenv("DRY_RUN", "false")
 
-    import logging
-
-    logger = logging.getLogger("test_update_staleness")
     session = db.session
 
     with pytest.raises(SystemExit) as exc_info:
-        run(logger, session, flask_app)
+        run(_logger, session, flask_app)
     assert exc_info.value.code == 1
 
     with flask_app.app.app_context():
         assert _get_staleness_row(CUSTOM_ORG_ID) is None
+
+
+def test_run_dry_run_defaults_to_true_when_unset(flask_app, monkeypatch):
+    """DRY_RUN should default to true when the env var is not set."""
+    monkeypatch.setenv("STALENESS_ORG_ID", CUSTOM_ORG_ID)
+    monkeypatch.setenv("CONVENTIONAL_TIME_TO_STALE", str(CUSTOM_STALE))
+    monkeypatch.setenv("CONVENTIONAL_TIME_TO_STALE_WARNING", str(CUSTOM_WARNING))
+    monkeypatch.setenv("CONVENTIONAL_TIME_TO_DELETE", str(CUSTOM_DELETE))
+    monkeypatch.delenv("DRY_RUN", raising=False)
+
+    session = db.session
+
+    with patch("jobs.update_staleness.StalenessCache") as mock_cache:
+        run(_logger, session, flask_app)
+
+    with flask_app.app.app_context():
+        assert _get_staleness_row(CUSTOM_ORG_ID) is None
+        mock_cache.delete.assert_not_called()
