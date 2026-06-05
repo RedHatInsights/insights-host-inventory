@@ -56,7 +56,9 @@ STALENESS_FIELDS = (
 
 
 def _read_env_staleness_values(logger: Logger) -> dict[str, int]:
-    """Read optional staleness env vars and return only those that are set."""
+    """Read optional staleness env vars and return only those that are set.
+    At least one of these staleness env vars must be set.
+    """
     env_mapping = {
         "conventional_time_to_stale": "CONVENTIONAL_TIME_TO_STALE",
         "conventional_time_to_stale_warning": "CONVENTIONAL_TIME_TO_STALE_WARNING",
