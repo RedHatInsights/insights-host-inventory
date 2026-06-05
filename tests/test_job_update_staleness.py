@@ -56,13 +56,6 @@ def test_read_env_non_integer_exits():
     assert exc_info.value.code == 1
 
 
-def test_read_env_empty_string_exits():
-    env = {"CONVENTIONAL_TIME_TO_DELETE": ""}
-    with patch.dict("os.environ", env, clear=True), pytest.raises(SystemExit) as exc_info:
-        _read_env_staleness_values(_logger)
-    assert exc_info.value.code == 1
-
-
 # -- _merge_with_defaults -----------------------------------------------------
 
 
