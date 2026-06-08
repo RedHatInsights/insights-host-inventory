@@ -394,6 +394,10 @@ def _extract_workloads_boolean_filter(filter_param: dict) -> tuple[tuple[str, ..
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
+    # Canonical form: {"workloads": {"sap": {"sap_system": "true"}}}
+    if field_name == "workloads":
+        return _build_workloads_filter_from_canonical(filter_param)
+
     if field_name not in WORKLOADS_FIELDS:
         return build_single_filter(filter_param)
 
@@ -412,19 +416,38 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     else:
         workloads_filter = {"workloads": filter_param}
 
-    # Try containment optimization for boolean fields with equality operators
+    return _try_containment_or_fallback(workloads_filter, raw_value)
+
+
+def _build_workloads_filter_from_canonical(filter_param: dict) -> ColumnElement:
+    """Handle the canonical workloads form: {"workloads": {"sap": {"sap_system": "true"}}}."""
+    # Extract the deepest leaf value for not_nil detection
+    raw_value = filter_param.get("workloads")
+    return _try_containment_or_fallback(filter_param, raw_value)
+
+
+def _try_containment_or_fallback(workloads_filter: dict, raw_value) -> ColumnElement:
+    """Try containment optimization for boolean fields, fall back to standard filter."""
     extracted = _extract_workloads_boolean_filter(workloads_filter)
     if extracted is not None:
         jsonb_path, bool_val = extracted
         if bool_val is not None:
             return _build_workloads_containment_filter(HostDynamicSystemProfile.workloads, jsonb_path, bool_val)
-        # bool_val is None means nil/not_nil; check which one
-        if isinstance(raw_value, dict) and len(raw_value) == 1:
-            token = next(iter(raw_value.values()))
-            if isinstance(token, str) and token.lower() == "not_nil":
-                return _build_workloads_not_nil_boolean_filter(HostDynamicSystemProfile.workloads, jsonb_path)
+        # bool_val is None means nil/not_nil; extract the leaf token
+        leaf_token = _extract_leaf_token(raw_value)
+        if leaf_token == "not_nil":
+            return _build_workloads_not_nil_boolean_filter(HostDynamicSystemProfile.workloads, jsonb_path)
 
     return build_single_filter(workloads_filter)
+
+
+def _extract_leaf_token(value) -> str | None:
+    """Recursively extract the leaf string token from a nested dict filter value."""
+    if isinstance(value, str):
+        return value.lower()
+    if isinstance(value, dict) and len(value) == 1:
+        return _extract_leaf_token(next(iter(value.values())))
+    return None
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
