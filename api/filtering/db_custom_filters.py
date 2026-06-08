@@ -356,19 +356,37 @@ def _build_workloads_containment_filter(column: Column, jsonb_path: tuple[str, .
     return column.op("@>")(type_coerce(containment_doc, JSONB))
 
 
-def _extract_workloads_boolean_value(filter_param: dict) -> bool | None:
-    """Extract a boolean value from a workload filter if it's a simple boolean equality check.
+def _build_workloads_not_nil_boolean_filter(column: Column, jsonb_path: tuple[str, ...]) -> ColumnElement:
+    """Build a 'field is not nil' filter for boolean fields.
 
-    Returns the boolean value if the filter resolves to a boolean true/false check,
-    or None if it's a nil/not_nil check or non-boolean filter.
+    Uses: column @> {...: true} OR column @> {...: false}
+    This tests that the field has ANY boolean value (i.e., it exists and is not null).
     """
-    _, pg_op, value = _convert_dict_to_json_path_and_value(filter_param)
+    return _build_workloads_containment_filter(column, jsonb_path, True) | _build_workloads_containment_filter(
+        column, jsonb_path, False
+    )
 
-    if isinstance(value, str) and value.lower() in ("nil", "not_nil"):
+
+def _extract_workloads_boolean_filter(filter_param: dict) -> tuple[tuple[str, ...], bool | None] | None:
+    """Extract boolean filter info from a workloads filter dict (must include the top-level key).
+
+    Returns:
+    - (jsonb_path, True/False) for simple boolean equality (only when operator is eq/IS/None)
+    - (jsonb_path, None) for nil/not_nil (caller decides how to handle)
+    - None if the deepest field is not boolean or the operator is incompatible
+    """
+    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
+    if field_filter != "boolean":
         return None
 
-    if pg_op in (ColumnOperators.is_, None) and isinstance(value, str) and value.lower() in ("true", "false"):
-        return value.lower() == "true"
+    _, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(filter_param)
+
+    if isinstance(value, str):
+        token = value.lower()
+        if token in ("nil", "not_nil"):
+            return jsonb_path, None
+        if token in ("true", "false") and pg_op in (ColumnOperators.is_, ColumnOperators.__eq__, None):
+            return jsonb_path, token == "true"
 
     return None
 
@@ -381,53 +399,32 @@ def _build_workloads_filter(filter_param: dict) -> ColumnElement:
 
     raw_value = filter_param.get(field_name)
 
+    # Map legacy SAP field names to their nested workloads structure
     if field_name == "sap_system":
-        bool_val = _extract_workloads_boolean_value({"sap_system": raw_value})
-        if bool_val is not None:
-            return _build_workloads_containment_filter(
-                HostDynamicSystemProfile.workloads, ("sap", "sap_system"), bool_val
-            )
-        if bool_val is None and isinstance(raw_value, dict):
-            token = next(iter(raw_value.values()), None)
-            if isinstance(token, str) and token.lower() == "not_nil":
-                return HostDynamicSystemProfile.workloads.op("@>")(
-                    type_coerce({"sap": {"sap_system": True}}, JSONB)
-                ) | HostDynamicSystemProfile.workloads.op("@>")(type_coerce({"sap": {"sap_system": False}}, JSONB))
         workloads_filter = {"workloads": {"sap": filter_param}}
-        return build_single_filter(workloads_filter)
-
-    if field_name == "sap_sids":
+    elif field_name == "sap_sids":
         workloads_filter = {"workloads": {"sap": {"sids": raw_value}}}
         return build_single_filter(workloads_filter)
-
-    if field_name in ("sap_instance_number", "sap_version"):
-        # e.g. sap_version -> workloads.sap.version
+    elif field_name in ("sap_instance_number", "sap_version"):
         inner_name = field_name.replace("sap_", "")
         workloads_filter = {"workloads": {"sap": {inner_name: raw_value}}}
         return build_single_filter(workloads_filter)
+    else:
+        workloads_filter = {"workloads": filter_param}
 
-    # For other workload boolean fields, try containment optimization
-    workloads_filter = {"workloads": filter_param}
-    bool_val = _try_extract_nested_boolean_value(workloads_filter)
-    if bool_val is not None:
-        _, jsonb_path, _, _ = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
-        return _build_workloads_containment_filter(HostDynamicSystemProfile.workloads, jsonb_path, bool_val)
+    # Try containment optimization for boolean fields with equality operators
+    extracted = _extract_workloads_boolean_filter(workloads_filter)
+    if extracted is not None:
+        jsonb_path, bool_val = extracted
+        if bool_val is not None:
+            return _build_workloads_containment_filter(HostDynamicSystemProfile.workloads, jsonb_path, bool_val)
+        # bool_val is None means nil/not_nil; check which one
+        if isinstance(raw_value, dict) and len(raw_value) == 1:
+            token = next(iter(raw_value.values()))
+            if isinstance(token, str) and token.lower() == "not_nil":
+                return _build_workloads_not_nil_boolean_filter(HostDynamicSystemProfile.workloads, jsonb_path)
 
     return build_single_filter(workloads_filter)
-
-
-def _try_extract_nested_boolean_value(filter_param: dict) -> bool | None:
-    """Try to extract a boolean value from a nested workload filter."""
-    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
-    if field_filter != "boolean":
-        return None
-
-    _, _, _, value = _convert_dict_to_column_jsonb_path_pg_op_value(filter_param)
-    if isinstance(value, str) and value.lower() in ("nil", "not_nil"):
-        return None
-    if isinstance(value, str) and value.lower() in ("true", "false"):
-        return value.lower() == "true"
-    return None
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
