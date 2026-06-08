@@ -242,7 +242,7 @@ def _stale_timestamp_per_reporter_filter(
             )
 
             rep_condition = or_(
-                not_(Host.per_reporter_staleness.has_key(rep)),  # No reporter
+                not_(Host.reporters.any(rep)),
                 reporter_culled,
             )
             and_conditions.append(rep_condition)
@@ -252,7 +252,7 @@ def _stale_timestamp_per_reporter_filter(
         # Positive: include hosts with this reporter (not culled)
         or_filter = []
         for rep in reporter_list:
-            conditions = [Host.per_reporter_staleness.has_key(rep)]
+            conditions = [Host.reporters.any(rep)]
 
             reporter_not_culled = and_(
                 func.jsonb_typeof(Host.per_reporter_staleness[rep]) == "string",
