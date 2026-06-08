@@ -269,7 +269,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 class Host(LimitedHost):
     reporter = db.Column(db.String(255), nullable=False)
     per_reporter_staleness = db.Column(JSONB, nullable=False)
-    reporters = db.Column(ARRAY(db.String(255)), nullable=True)
+    reporters = db.Column(ARRAY(db.String(255)), nullable=False, server_default="{}")
     display_name_reporter = db.Column(db.String(255))
 
     def __init__(
@@ -463,8 +463,7 @@ class Host(LimitedHost):
 
         self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
         orm.attributes.flag_modified(self, "per_reporter_staleness")
-
-        self.reporters = sorted(self.per_reporter_staleness.keys())
+        self._sync_reporters()
 
     def _update_last_check_in_date(self):
         self.last_check_in = _time_now()
@@ -580,6 +579,10 @@ class Host(LimitedHost):
 
         logger.debug("Reports from %s are not stale", reporter)
         return False
+
+    def _sync_reporters(self):
+        """Keep the reporters array in sync with per_reporter_staleness keys."""
+        self.reporters = sorted(self.per_reporter_staleness.keys()) if self.per_reporter_staleness else []
 
     @validates("per_reporter_staleness")
     def _validate_per_reporter_staleness(self, _key, value):

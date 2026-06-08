@@ -11,7 +11,7 @@ This migration:
 4. Drops the old 142GB GIN index on per_reporter_staleness
 
 Revision ID: a1b2c3d4e5f7
-Revises: b3e9f1a2d7c4
+Revises: e8f9a0b1c2d3
 Create Date: 2026-06-08 17:30:00.000000
 
 """
@@ -30,16 +30,21 @@ logger = get_logger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = "a1b2c3d4e5f7"
-down_revision = "b3e9f1a2d7c4"
+down_revision = "e8f9a0b1c2d3"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    # Step 1: Add the reporters column
+    # Step 1: Add the reporters column with a server default of empty array
     op.add_column(
         "hosts",
-        sa.Column("reporters", sa.ARRAY(sa.String(255)), nullable=True),
+        sa.Column(
+            "reporters",
+            sa.ARRAY(sa.String(255)),
+            nullable=False,
+            server_default="{}",
+        ),
         schema=INVENTORY_SCHEMA,
     )
 
@@ -49,8 +54,8 @@ def upgrade():
         text(f"""
             UPDATE {INVENTORY_SCHEMA}.hosts
             SET reporters = (
-                SELECT ARRAY_AGG(key ORDER BY key)
-                FROM jsonb_object_keys(per_reporter_staleness) AS key
+                SELECT ARRAY_AGG(t.key ORDER BY t.key)
+                FROM jsonb_object_keys(per_reporter_staleness) AS t(key)
             )
             WHERE per_reporter_staleness IS NOT NULL
               AND per_reporter_staleness != '{{}}'::jsonb
