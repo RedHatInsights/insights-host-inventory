@@ -45,21 +45,12 @@ def upgrade():
 
 
 def downgrade():
-    op.add_column(
-        "hosts",
-        sa.Column("stale_timestamp", sa.DateTime(timezone=True), nullable=True),
-        schema=INVENTORY_SCHEMA,
-    )
-    op.add_column(
-        "hosts",
-        sa.Column("stale_warning_timestamp", sa.DateTime(timezone=True), nullable=True),
-        schema=INVENTORY_SCHEMA,
-    )
-    op.add_column(
-        "hosts",
-        sa.Column("deletion_timestamp", sa.DateTime(timezone=True), nullable=True),
-        schema=INVENTORY_SCHEMA,
-    )
+    for column_name in STALENESS_COLUMNS:
+        op.add_column(
+            "hosts",
+            sa.Column(column_name, sa.DateTime(timezone=True), nullable=True),
+            schema=INVENTORY_SCHEMA,
+        )
     create_partitioned_table_index(
         table_name="hosts",
         index_name=INDEX_NAME,
