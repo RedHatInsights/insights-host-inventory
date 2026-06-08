@@ -103,7 +103,7 @@ def verify_staleness(
     assert reporter_staleness.check_in_succeeded
 
     assert_datetimes_equal(reporter_staleness.last_check_in, host.last_check_in)
-    # update to check for the calculatd values
+    # update to check for the calculated values
     assert_datetimes_equal(
         host.stale_timestamp,
         reporter_staleness.stale_timestamp,

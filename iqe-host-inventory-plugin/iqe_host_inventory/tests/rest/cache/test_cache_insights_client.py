@@ -426,7 +426,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_create_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    initial_timestamp = response[0].last_check_in
+    initial_timestamp = response[0].stale_timestamp
 
     # Create staleness config to invalidate the cache
     host_inventory.apis.account_staleness.create_staleness(conventional_time_to_stale=100)

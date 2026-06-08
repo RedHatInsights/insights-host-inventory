@@ -271,20 +271,6 @@ def test_host_models_missing_reporter_field():
         Host(**values)
 
 
-def test_host_schema_timezone_enforced():
-    host = {
-        "fqdn": "scooby.doo.com",
-        "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
-        "stale_timestamp": now().replace(tzinfo=None).isoformat(),
-        "reporter": "test",
-    }
-    with pytest.raises(MarshmallowValidationError) as exception:
-        HostSchema().load(host)
-
-    assert "Not a valid aware datetime" in str(exception.value)
-
-
 @pytest.mark.parametrize(
     "tags",
     [

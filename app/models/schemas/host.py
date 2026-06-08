@@ -460,7 +460,6 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
 
 class HostSchema(LimitedHostSchema):
-    stale_timestamp = fields.AwareDateTime(required=False)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
