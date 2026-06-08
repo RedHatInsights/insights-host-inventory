@@ -437,7 +437,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_create_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    assert response[0].last_check_in != initial_timestamp
+    assert response[0].stale_timestamp != initial_timestamp
 
 
 @iqe_blocker(iqe_blocker.jira("RHINENG-18758", category=iqe_blocker.PRODUCT_ISSUE))
@@ -468,7 +468,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_update_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    initial_timestamp = response[0].last_check_in
+    initial_timestamp = response[0].stale_timestamp
 
     # Update staleness config to invalidate the cache
     host_inventory.apis.account_staleness.update_staleness(conventional_time_to_stale=100)
@@ -479,7 +479,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_update_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    assert response[0].last_check_in != initial_timestamp
+    assert response[0].stale_timestamp != initial_timestamp
 
 
 @iqe_blocker(iqe_blocker.jira("RHINENG-18758", category=iqe_blocker.PRODUCT_ISSUE))
@@ -510,7 +510,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    initial_timestamp = response[0].last_check_in
+    initial_timestamp = response[0].stale_timestamp
 
     # Delete staleness config to invalidate the cache
     host_inventory.apis.account_staleness.delete_staleness()
@@ -521,7 +521,7 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_staleness(
     response = host_inventory_cert_auth.apis.hosts.get_hosts(insights_id=host.insights_id)
     assert len(response) == 1
     assert response[0].id == host.id
-    assert response[0].last_check_in != initial_timestamp
+    assert response[0].stale_timestamp != initial_timestamp
 
 
 @pytest.mark.usefixtures("hbi_cert_auth_upload_prepare_host_module")
