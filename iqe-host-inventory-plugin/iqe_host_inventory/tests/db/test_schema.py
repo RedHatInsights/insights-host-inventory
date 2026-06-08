@@ -99,7 +99,9 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "where h.org_id IN ('00000000')"
         "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # noqa: E501
         "   and (h.host_type IS NULL OR h.host_type <> 'edge')"
-        "   and h.last_check_in + make_interval(secs => coalesce(s.conventional_time_to_stale, 104400)) > NOW() - make_interval(days => 2592000)"
+        "   and h.last_check_in + make_interval(secs => coalesce(s.conventional_time_to_stale, "
+        "104400)) > NOW() - make_interval(secs => coalesce(s.conventional_time_to_delete, "
+        "2592000))"
     )
 
     inventory_db_session.execute(query)
