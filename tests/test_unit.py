@@ -1784,17 +1784,17 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
                 for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
                     setattr(host, k, v)
 
-            staleness = get_sys_default_staleness()
-            serialized = serialize_host(host, staleness, False)
+                staleness = get_sys_default_staleness()
+                serialized = serialize_host(host, staleness, False)
 
-            assert (
-                _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
-                == serialized["stale_warning_timestamp"]
-            )
-            assert (
-                _timestamp_to_str(_add_seconds(host.last_check_in, culled_offset_seconds))
-                == serialized["culled_timestamp"]
-            )
+                assert (
+                    _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
+                    == serialized["stale_warning_timestamp"]
+                )
+                assert (
+                    _timestamp_to_str(_add_seconds(host.last_check_in, culled_offset_seconds))
+                    == serialized["culled_timestamp"]
+                )
 
 
 def test_serialize_host_lifecycle_fields_from_last_check_in(flask_app):

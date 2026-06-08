@@ -127,7 +127,6 @@ def check_host_timestamps(
     This function is used to check the host timestamps after an API update of a host."""
 
     def _extract_timestamps(data: dict) -> dict[str, datetime]:
-        # figure out what to do here
         timestamps = {
             "updated": data.pop("updated"),
             "stale_timestamp": data.pop("stale_timestamp"),

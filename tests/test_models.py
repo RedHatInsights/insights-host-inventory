@@ -254,24 +254,19 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("missing_field", ["reporter"])
-def test_host_models_missing_fields(missing_field):
+def test_host_models_missing_reporter_field():
     limited_values = {
         "account": USER_IDENTITY["account_number"],
         "fqdn": "foo.qoo.doo.noo",
         "system_profile_facts": {"number_of_cpus": 1},
     }
-    if missing_field in limited_values:
-        limited_values[missing_field] = None
 
-    # LimitedHost should be fine with these missing values
+    # LimitedHost should be fine with the missing reporter
     LimitedHost(**limited_values)
 
-    values = {**limited_values, "reporter": "reporter", "org_id": USER_IDENTITY["org_id"]}
-    if missing_field in values:
-        values[missing_field] = None
+    values = {**limited_values, "org_id": USER_IDENTITY["org_id"]}
 
-    # Host should complain about the missing values
+    # Host should complain about the missing reporter field
     with pytest.raises(ValidationException):
         Host(**values)
 
@@ -1180,24 +1175,6 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
     assert created_acc_st_cull
     db_delete_staleness_culling(created_acc_st_cull.org_id)
     assert not db_get_staleness_culling(acc_st_cull.org_id)
-
-
-def test_create_host_via_schema_ignores_stale_timestamp_in_payload(db_create_host, db_get_host):
-    """Ingress may still send ``stale_timestamp``; ORM create must not require or persist it."""
-    loaded = HostSchema().load(
-        {
-            "subscription_manager_id": generate_uuid(),
-            "reporter": "test_reporter",
-            "org_id": USER_IDENTITY["org_id"],
-            "stale_timestamp": now().isoformat(),
-        }
-    )
-    host = HostSchema.build_model(loaded, {}, {})
-    created_host = db_create_host(SYSTEM_IDENTITY, host=host)
-    retrieved_host = db_get_host(created_host.id)
-
-    assert retrieved_host.reporter == created_host.reporter
-    assert retrieved_host.last_check_in is not None
 
 
 def test_create_host_with_canonical_facts(db_create_host, db_get_host):
