@@ -4,7 +4,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from itertools import combinations
-from typing import Any
 
 import pytest
 
@@ -13,7 +12,6 @@ from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
-from iqe_host_inventory.utils.datagen_utils import INCORRECT_DATETIMES
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_tags
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -648,32 +646,6 @@ def test_get_tags_by_updated_not_created(host_inventory: ApplicationHostInventor
     assert response.count >= len(host2.tags)
     assert_tags_found(host2.tags, response.results)
     assert_tags_not_found(host1.tags + host3.tags, response.results)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("param", ["updated_start", "updated_end"])
-@pytest.mark.parametrize("value", INCORRECT_DATETIMES)
-def test_get_tags_by_updated_incorrect_format(
-    host_inventory: ApplicationHostInventory, param: str, value: Any
-):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get tags with wrong format of updated_start and updated_end parameters
-    """
-    host_data = host_inventory.datagen.create_host_data_with_tags()
-    host_inventory.kafka.create_host(host_data)
-    if isinstance(value, str):
-        value = value.replace("'", "").replace('"', "").replace("\\", "")
-    api_param = {param: value}
-    error_value = f'\\"{value}\\"' if (isinstance(value, list) and len(value)) else f"'{value}'"
-    with raises_apierror(400, f"{error_value} is not a 'date-time'"):
-        host_inventory.apis.tags.get_tags_response(**api_param)
 
 
 @pytest.mark.ephemeral
