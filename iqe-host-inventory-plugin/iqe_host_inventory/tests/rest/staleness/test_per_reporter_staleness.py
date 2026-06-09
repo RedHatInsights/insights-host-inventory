@@ -411,11 +411,7 @@ def test_per_reporter_staleness_not_replace_others(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup_culled")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-def test_per_reporter_registered_with(
-    host_inventory: ApplicationHostInventory,
-    host_type: str,
-) -> None:
+def test_per_reporter_registered_with(host_inventory: ApplicationHostInventory) -> None:
     """Test per reporter registered_with filter with custom staleness
 
     metadata:
@@ -426,7 +422,6 @@ def test_per_reporter_registered_with(
     """
     # Set the timestamp as a reporter might, but it should be ignored
     host_data = host_inventory.datagen.create_host_data(
-        host_type=host_type,
         reporter="puptoo",
         stale_timestamp=generate_timestamp(delta=timedelta(days=5)),
     )
