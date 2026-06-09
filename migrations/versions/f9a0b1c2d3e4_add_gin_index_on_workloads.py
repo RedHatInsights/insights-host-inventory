@@ -4,12 +4,11 @@ Now that workload boolean filters use the @> containment operator instead of
 CAST(#>> ... AS BOOLEAN), a GIN index can accelerate these queries. The GIN
 index supports @>, ?, ?|, and ?& operators on JSONB columns.
 
-This replaces the previously dropped idx_system_profiles_dynamic_workloads_gin
-which was unused because the old filter used #>> (path extraction) which is not
-GIN-indexable.
+This replaces the previously dropped idx_sp_dynamic_workloads_gin which was
+unused because the old filter used #>> (path extraction) which is not GIN-indexable.
 
 Revision ID: f9a0b1c2d3e4
-Revises: b3e9f1a2d7c4
+Revises: e8f9a0b1c2d3
 Create Date: 2026-06-08 17:20:00.000000
 
 """
@@ -20,7 +19,7 @@ from utils.partitioned_table_index_helper import drop_partitioned_table_index
 
 # revision identifiers, used by Alembic.
 revision = "f9a0b1c2d3e4"
-down_revision = "b3e9f1a2d7c4"
+down_revision = "e8f9a0b1c2d3"
 branch_labels = None
 depends_on = None
 

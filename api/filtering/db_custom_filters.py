@@ -390,120 +390,109 @@ def _build_workloads_object_presence_filter(
     return expr
 
 
-def _extract_workloads_boolean_filter(filter_param: dict) -> tuple[tuple[str, ...], bool | None] | None:
-    """Extract boolean filter info from a workloads filter dict (must include the top-level key).
+class _WorkloadsLeafInfo:
+    """Normalized leaf information for a workloads filter."""
 
-    Returns:
-    - (jsonb_path, True/False) for simple boolean equality (only when operator is eq/IS/None)
-    - (jsonb_path, None) for nil/not_nil (caller decides how to handle)
-    - None if the deepest field is not boolean or the operator is incompatible
+    __slots__ = ("jsonb_path", "field_filter", "pg_op", "value")
+
+    def __init__(self, jsonb_path: tuple[str, ...], field_filter: str, pg_op, value: str | None):
+        self.jsonb_path = jsonb_path
+        self.field_filter = field_filter
+        self.pg_op = pg_op
+        self.value = value
+
+
+def _extract_workloads_leaf_info(workloads_filter: dict) -> _WorkloadsLeafInfo | None:
+    """Extract normalized leaf info from a canonical workloads filter dict.
+
+    Resolves field type, JSONB path, operator, and value in one pass.
+    Handles value-as-comparator override (e.g. [is]=not_nil).
+    Returns None if the deepest field is not boolean or object.
     """
-    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), filter_param)
-    if field_filter != "boolean":
+    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), workloads_filter)
+    if field_filter not in ("boolean", "object"):
         return None
 
-    _, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(filter_param)
+    _, jsonb_path, pg_op, raw_value = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
 
-    if isinstance(value, str):
-        token = value.lower()
-        if token in ("nil", "not_nil"):
-            return jsonb_path, None
-        if token in ("true", "false") and pg_op in (ColumnOperators.is_, ColumnOperators.__eq__, None):
-            return jsonb_path, token == "true"
+    # Handle value-as-comparator override (e.g. [is]=not_nil → pg_op becomes is_not)
+    value: str | None = raw_value
+    if isinstance(raw_value, str) and raw_value in POSTGRES_COMPARATOR_LOOKUP:
+        pg_op = POSTGRES_COMPARATOR_LOOKUP[raw_value]
+        value = None
+    elif isinstance(raw_value, str):
+        value = raw_value.lower()
+
+    return _WorkloadsLeafInfo(jsonb_path=jsonb_path, field_filter=field_filter, pg_op=pg_op, value=value)
+
+
+def _build_workloads_leaf_filter(workloads_filter: dict) -> ColumnElement | None:
+    """Attempt to build an optimized containment filter for a canonical workloads dict.
+
+    Returns a ColumnElement if the filter can be optimized, or None to fall back.
+    """
+    info = _extract_workloads_leaf_info(workloads_filter)
+    if info is None:
+        return None
+
+    col = HostDynamicSystemProfile.workloads
+
+    if info.field_filter == "boolean":
+        if info.value in ("true", "false") and info.pg_op in (
+            ColumnOperators.is_,
+            ColumnOperators.__eq__,
+            None,
+        ):
+            return _build_workloads_containment_filter(col, info.jsonb_path, info.value == "true")
+
+        if info.pg_op == ColumnOperators.is_not or info.value == "not_nil":
+            return _build_workloads_not_nil_boolean_filter(col, info.jsonb_path)
+
+    if info.field_filter == "object":
+        if info.pg_op == ColumnOperators.is_not:
+            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=False)
+        if info.pg_op == ColumnOperators.is_:
+            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=True)
 
     return None
+
+
+def _normalize_workloads_filter(filter_param: dict) -> dict:
+    """Normalize any workloads filter (legacy or canonical) into canonical form.
+
+    Canonical form: {"workloads": {"sap": {"sap_system": "true"}}}
+    """
+    field_name = next(iter(filter_param.keys()))
+
+    if field_name == "workloads":
+        return filter_param
+
+    if field_name == "sap_system":
+        return {"workloads": {"sap": filter_param}}
+
+    if field_name == "sap_sids":
+        return {"workloads": {"sap": {"sids": filter_param[field_name]}}}
+
+    if field_name in ("sap_instance_number", "sap_version"):
+        inner_name = field_name.replace("sap_", "")
+        return {"workloads": {"sap": {inner_name: filter_param[field_name]}}}
+
+    return {"workloads": filter_param}
 
 
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
-    # Canonical form: {"workloads": {"sap": {"sap_system": "true"}}}
-    if field_name == "workloads":
-        return _build_workloads_filter_from_canonical(filter_param)
-
-    if field_name not in WORKLOADS_FIELDS:
+    if field_name not in WORKLOADS_FIELDS and field_name != "workloads":
         return build_single_filter(filter_param)
 
-    raw_value = filter_param.get(field_name)
+    workloads_filter = _normalize_workloads_filter(filter_param)
 
-    # Map legacy SAP field names to their nested workloads structure
-    if field_name == "sap_system":
-        workloads_filter = {"workloads": {"sap": filter_param}}
-    elif field_name == "sap_sids":
-        workloads_filter = {"workloads": {"sap": {"sids": raw_value}}}
-        return build_single_filter(workloads_filter)
-    elif field_name in ("sap_instance_number", "sap_version"):
-        inner_name = field_name.replace("sap_", "")
-        workloads_filter = {"workloads": {"sap": {inner_name: raw_value}}}
-        return build_single_filter(workloads_filter)
-    else:
-        workloads_filter = {"workloads": filter_param}
-
-    return _try_containment_or_fallback(workloads_filter, raw_value)
-
-
-def _build_workloads_filter_from_canonical(filter_param: dict) -> ColumnElement:
-    """Handle the canonical workloads form: {"workloads": {"sap": {"sap_system": "true"}}}."""
-    # Extract the deepest leaf value for not_nil detection
-    raw_value = filter_param.get("workloads")
-    return _try_containment_or_fallback(filter_param, raw_value)
-
-
-def _try_containment_or_fallback(workloads_filter: dict, raw_value) -> ColumnElement:
-    """Try containment optimization for boolean and object-type fields, fall back to standard filter."""
-    extracted = _extract_workloads_boolean_filter(workloads_filter)
-    if extracted is not None:
-        jsonb_path, bool_val = extracted
-        if bool_val is not None:
-            return _build_workloads_containment_filter(HostDynamicSystemProfile.workloads, jsonb_path, bool_val)
-        # bool_val is None means nil/not_nil; extract the leaf token
-        leaf_token = _extract_leaf_token(raw_value)
-        if leaf_token == "not_nil":
-            return _build_workloads_not_nil_boolean_filter(HostDynamicSystemProfile.workloads, jsonb_path)
-
-    # For object-type workloads, use @> containment with empty object for nil/not_nil.
-    # e.g. ansible[not_nil] -> workloads @> '{"ansible": {}}'  (GIN-indexable)
-    object_presence = _extract_workloads_object_presence(workloads_filter)
-    if object_presence is not None:
-        jsonb_path, negate = object_presence
-        return _build_workloads_object_presence_filter(HostDynamicSystemProfile.workloads, jsonb_path, negate)
+    leaf_filter = _build_workloads_leaf_filter(workloads_filter)
+    if leaf_filter is not None:
+        return leaf_filter
 
     return build_single_filter(workloads_filter)
-
-
-def _extract_leaf_token(value) -> str | None:
-    """Recursively extract the leaf string token from a nested dict filter value."""
-    if isinstance(value, str):
-        return value.lower()
-    if isinstance(value, dict) and len(value) == 1:
-        return _extract_leaf_token(next(iter(value.values())))
-    return None
-
-
-def _extract_workloads_object_presence(
-    workloads_filter: dict,
-) -> tuple[tuple[str, ...], bool] | None:
-    """Detect object-type workload nil/not_nil and return (jsonb_path, negate).
-
-    Returns (path, False) for not_nil, (path, True) for nil, or None if not applicable.
-    Only applies when the deepest field in the filter is an object type (e.g. ansible, mssql).
-    """
-    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), workloads_filter)
-    if field_filter != "object":
-        return None
-
-    _, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
-
-    # Handle value-as-comparator override (e.g. [is]=not_nil → pg_op=is_, value="not_nil")
-    if isinstance(value, str) and value in POSTGRES_COMPARATOR_LOOKUP:
-        pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
-
-    if pg_op == ColumnOperators.is_not:
-        return jsonb_path, False  # not_nil → @> (no negate)
-    elif pg_op == ColumnOperators.is_:
-        return jsonb_path, True  # nil → NOT @> (negate)
-
-    return None
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
