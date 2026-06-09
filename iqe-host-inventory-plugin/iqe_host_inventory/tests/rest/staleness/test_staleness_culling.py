@@ -23,6 +23,8 @@ from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_st
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
+from iqe_host_inventory.utils.tag_utils import assert_tags_found
+from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 
 logger = logging.getLogger(__name__)
@@ -79,21 +81,22 @@ def timezone_fixture(request: pytest.FixtureRequest) -> timezone:
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_list_hosts_by_staleness(host_inventory: ApplicationHostInventory) -> None:
+def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInventory) -> None:
     """
-    Filter hosts by staleness values - fresh, stale, stale_warning.
+    Filter hosts and tags by staleness values - fresh, stale, stale_warning.
 
     1. Create some hosts spanning all staleness states
     2. Retrieve these hosts filtering by state
     3. Verify that only the proper hosts are returned
+    4. Verify that /tags also respects the staleness filter
 
     metadata:
-        requirements: inv-hosts-filter-by-staleness, inv-staleness-hosts
+        requirements: inv-hosts-filter-by-staleness, inv-staleness-hosts, inv-tags-get-list
         assignee: fstavela
         importance: critical
-        title: Inventory: Filter hosts by staleness values - fresh, stale, stale_warning.
+        title: Inventory: Filter hosts and tags by staleness values
     """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(6)
+    hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(6)
 
     hosts = create_hosts_fresh_stale_stalewarning(
         host_inventory,
@@ -110,13 +113,24 @@ def test_list_hosts_by_staleness(host_inventory: ApplicationHostInventory) -> No
 
     http_host_ids: dict[str, set[str]] = {}
 
-    for state in ["fresh", "stale", "stale_warning"]:
+    states = ["fresh", "stale", "stale_warning"]
+    for state in states:
         response = host_inventory.apis.hosts.get_hosts(staleness=[state])
         response_ids = {host.id for host in response}
         known_response_ids = all_hosts.intersection(response_ids)
         http_host_ids[state] = known_response_ids
 
     assert http_host_ids == expected_host_ids
+
+    for state in states:
+        response = host_inventory.apis.tags.get_tags_response(staleness=[state])
+        state_tags = [tag for host in hosts[state] for tag in host.tags]
+        other_tags = [tag for s in states if s != state for host in hosts[s] for tag in host.tags]
+
+        assert response.count >= len(state_tags)
+        assert len(response.results) == response.count
+        assert_tags_found(state_tags, response.results)
+        assert_tags_not_found(other_tags, response.results)
 
 
 @pytest.mark.ephemeral
