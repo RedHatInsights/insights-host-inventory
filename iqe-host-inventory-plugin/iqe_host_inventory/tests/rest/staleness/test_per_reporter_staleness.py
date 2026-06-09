@@ -8,30 +8,22 @@ metadata:
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 from datetime import timedelta
 from time import sleep
 
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import assert_datetimes_equal
 from iqe_host_inventory.utils import assert_datetimes_mismatch
-from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_timestamp
-from iqe_host_inventory.utils.datagen_utils import generate_uuid
-from iqe_host_inventory.utils.staleness_utils import DELTAS
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_DELETE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE_WARNING
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import gen_staleness_settings
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
-from iqe_host_inventory.utils.tag_utils import assert_tags_found
-from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
 from iqe_host_inventory_api.models import HostOut
 from iqe_host_inventory_api.models import PerReporterStaleness
 
@@ -511,167 +503,3 @@ def test_per_reporter_registered_with(
         hostname_or_id=host.id, registered_with=["yupana"]
     )
     assert len(response) == 0
-
-
-def create_hosts_reporter_state(
-    host_inventory: ApplicationHostInventory,
-    host_type: str = "conventional",
-    host_count: int = 2,
-    reporters: list[str] | None = None,
-    with_tags: bool = False,
-    deltas: DELTAS = (15, 30, 45),
-) -> dict[str, list[HostWrapper]]:
-    """
-    Helper function that creates hosts for each combination of reporters and
-    staleness states (fresh, stale, stale_warning).
-
-    :param host_type: "conventional" or "edge"
-    :param host_count: host count per reporter per state (default is 2)
-    :param reporters: list of reporters
-    :param with_tags: create tags for hosts?
-    """
-    if reporters is None:
-        reporters = ["puptoo", "yupana"]
-
-    fresh_hosts_data = []
-    stale_hosts_data = []
-    stale_warning_hosts_data = []
-
-    if with_tags:
-        create_host_data = host_inventory.datagen.create_n_hosts_data_with_tags
-    else:
-        create_host_data = host_inventory.datagen.create_n_hosts_data
-
-    for reporter in reporters:
-        fresh_hosts_data.extend(
-            create_host_data(
-                host_count,
-                host_type=host_type,
-                reporter=reporter,
-            )
-        )
-        stale_hosts_data.extend(
-            create_host_data(
-                host_count,
-                host_type=host_type,
-                reporter=reporter,
-            )
-        )
-        stale_warning_hosts_data.extend(
-            create_host_data(
-                host_count,
-                host_type=host_type,
-                reporter=reporter,
-            )
-        )
-
-    return create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data,
-        stale_hosts_data,
-        stale_warning_hosts_data,
-        host_type=host_type,
-        deltas=deltas,
-    )
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_get_hosts_filter_by_reporter_state(host_inventory: ApplicationHostInventory) -> None:
-    """Test GET /hosts filtering by reporter and state combination
-
-    metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-reporter
-        assignee: msager
-        importance: high
-        title: Test GET /hosts filtering by reporter and state combination
-    """
-    hosts = create_hosts_reporter_state(host_inventory)
-
-    all_host_ids = {host.id for state in hosts.keys() for host in hosts[state]}
-
-    for state in ["fresh", "stale", "stale_warning"]:
-        for reporter, range_min, range_max in [("puptoo", 0, 2), ("yupana", 2, 4)]:
-            response = host_inventory.apis.hosts.get_hosts(
-                staleness=[state], registered_with=[reporter]
-            )
-            response_expected_ids = {host.id for host in response} & all_host_ids
-            assert response_expected_ids == {host.id for host in hosts[state][range_min:range_max]}
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_hosts_filter_by_reporter_state(host_inventory: ApplicationHostInventory) -> None:
-    """Test /DELETE hosts filtering by reporter and state combination
-
-    metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-reporter
-        assignee: msager
-        importance: high
-        title: Test /DELETE hosts filtering by reporter and state combination
-    """
-    hosts = create_hosts_reporter_state(host_inventory, deltas=(20, 40, 60))
-
-    all_host_ids = {host.id for state in hosts.keys() for host in hosts[state]}
-    to_be_deleted = deepcopy(all_host_ids)
-
-    for state in ["fresh", "stale", "stale_warning"]:
-        for reporter, range_min, range_max in [("puptoo", 0, 2), ("yupana", 2, 4)]:
-            response = host_inventory.apis.hosts.get_hosts(
-                staleness=[state], registered_with=[reporter]
-            )
-            response_expected_ids = {host.id for host in response} & all_host_ids
-            assert response_expected_ids == {host.id for host in hosts[state][range_min:range_max]}
-
-            host_inventory.apis.hosts.delete_filtered(
-                staleness=[state], registered_with=[reporter]
-            )
-            host_inventory.apis.hosts.wait_for_deleted(hosts[state][range_min:range_max])
-            to_be_deleted -= response_expected_ids
-
-            # If we get this far, the correct hosts were deleted.  Make sure no
-            # other hosts were also deleted.
-            response = host_inventory.apis.hosts.get_hosts_by_id(list(to_be_deleted))
-            assert len(response) == len(to_be_deleted)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_get_tags_filter_by_reporter_state(host_inventory: ApplicationHostInventory) -> None:
-    """Test GET /tags filtering by reporter and state combination
-
-    metadata:
-        requirements: inv-staleness-hosts, inv-tags-get-list, inv-hosts-filter-by-reporter
-        assignee: msager
-        importance: high
-        title: Test GET /tags filtering by reporter and state combination
-    """
-    reporters = ["puptoo", "yupana", generate_uuid()]
-    states = ["fresh", "stale", "stale_warning"]
-
-    hosts = create_hosts_reporter_state(
-        host_inventory,
-        host_count=1,
-        reporters=reporters,
-        with_tags=True,
-    )
-
-    unexpected_tags = flatten(hosts[state][2].tags for state in states)
-
-    # There are 3 hosts in each state (9 total).  They correspond to reporters
-    # "puptoo", "yupana", and a randomly named one.  Retrieve tags filtering by
-    # each reporter+state combo and validate.  Also, verify that no unexpected
-    # tags are returned.  These latter tags correspond to the random reporter
-    # across all states.
-
-    for state in states:
-        for idx, reporter in enumerate(reporters[0:2]):
-            response = host_inventory.apis.tags.get_tags_response(
-                staleness=[state], registered_with=[reporter]
-            )
-            expected_tags = hosts[state][idx].tags
-
-            assert response.count >= len(expected_tags)
-            assert len(response.results) == response.count
-            assert_tags_found(expected_tags, response.results)
-            assert_tags_not_found(unexpected_tags, response.results)

@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from confluent_kafka import KafkaException
+from pytest_mock import MockerFixture
 
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
@@ -25,6 +26,7 @@ from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_custom_rbac_response
+from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_host
 from tests.helpers.mq_utils import MockEventProducer
@@ -1034,3 +1036,32 @@ def test_delete_hosts_filtered_default_staleness(
     # Verify that all hosts were deleted
     for host_id in host_ids:
         assert not db_get_host(host_id), f"Host {host_id} should have been deleted"
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_hosts_filter_by_reporter_and_staleness(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests,
+):
+    hosts = create_hosts_by_reporter_and_staleness(db_create_host, mocker)
+    all_host_ids = {str(hosts[s][r].id) for s in hosts for r in hosts[s]}
+
+    for state in ("fresh", "stale", "stale_warning"):
+        for reporter in ("puptoo", "yupana"):
+            with subtests.test(state=state, reporter=reporter):
+                target_id = str(hosts[state][reporter].id)
+
+                response_status, response_data = api_delete_filtered_hosts(
+                    query_parameters={"staleness": [state], "registered_with": reporter}
+                )
+                assert response_status == 202
+                assert response_data["hosts_deleted"] >= 1
+
+                assert not db_get_host(target_id), f"Host {target_id} should have been deleted"
+                all_host_ids.discard(target_id)
+
+                for remaining_id in all_host_ids:
+                    assert db_get_host(remaining_id), f"Host {remaining_id} should not have been deleted"
