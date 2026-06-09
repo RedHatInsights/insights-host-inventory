@@ -2147,7 +2147,7 @@ objects:
   kind: ClowdJobInvocation
   metadata:
     annotations:
-      clowder.redhat.com/expected-image-tag: ${IMAGE_TAG}
+      clowder.redhat.com/expected-image-tag: ${EXPECTED_IMAGE_TAG}
     labels:
       app: host-inventory
     name: run-db-migrations-${IMAGE_TAG}
@@ -2487,6 +2487,9 @@ parameters:
 - description: Image tag
   name: IMAGE_TAG
   required: true
+- description: Expected image tag for migration CJI gate. Leave empty to skip the check (e.g. ephemeral).
+  name: EXPECTED_IMAGE_TAG
+  value: ""
 - name: APP_NAME
   value: inventory
 - name: LOG_LEVEL
