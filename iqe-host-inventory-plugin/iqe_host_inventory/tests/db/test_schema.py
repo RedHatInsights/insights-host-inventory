@@ -79,7 +79,7 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "rhsm_products.products, "
         "qpc_prods.qpc_products, "
         "qpc_certs.qpc_product_ids, "
-        "system_profile.system_profile_product_ids, "
+        "system_profile.system_profile_product_ids "
         "from hosts h "
         "left join system_profiles_static sps on h.org_id = sps.org_id and h.id = sps.host_id "
         "left join system_profiles_dynamic spd on h.org_id = spd.org_id and h.id = spd.host_id "

@@ -319,6 +319,12 @@ def test_patch_host_doesnt_update_last_check_in(
     assert host.org_id == hbi_default_org_id
     assert host_response.id == host.id
     assert_datetimes_equal(host_response.last_check_in, host_before_patch.last_check_in)
+    # make sure staleness timestamps are stayed the same
+    assert_datetimes_equal(host_response.stale_timestamp, host_before_patch.stale_timestamp)
+    assert_datetimes_equal(
+        host_response.stale_warning_timestamp, host_before_patch.stale_warning_timestamp
+    )
+    assert_datetimes_equal(host_response.culled_timestamp, host_before_patch.culled_timestamp)
 
     assert host_response.updated != host_before_patch.updated, (
         "Host's field 'updated' should be updated after patching host's name."
