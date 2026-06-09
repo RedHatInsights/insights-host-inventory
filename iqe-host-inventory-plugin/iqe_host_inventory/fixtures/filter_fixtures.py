@@ -180,7 +180,7 @@ def setup_hosts_for_filtering(
     yield _setup_hosts
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def setup_hosts_for_operating_system_filtering(
     host_inventory: ApplicationHostInventory, host_inventory_secondary: ApplicationHostInventory
 ) -> tuple[list[HostOut], list[list[StructuredTag]]]:
@@ -206,7 +206,7 @@ def setup_hosts_for_operating_system_filtering(
             )
         )
     primary_hosts = host_inventory.upload.create_hosts(
-        hosts_data=hosts_data, cleanup_scope="module"
+        hosts_data=hosts_data, cleanup_scope="class"
     )
     tags = host_inventory.apis.hosts.get_host_tags(primary_hosts)
     sorted_tags.extend(tags[host.id] for host in primary_hosts)
@@ -221,7 +221,7 @@ def setup_hosts_for_operating_system_filtering(
             )
         )
     secondary_hosts = host_inventory_secondary.upload.create_hosts(
-        hosts_data=hosts_data, cleanup_scope="module"
+        hosts_data=hosts_data, cleanup_scope="class"
     )
     tags = host_inventory_secondary.apis.hosts.get_host_tags(secondary_hosts)
     sorted_tags.extend(tags[host.id] for host in secondary_hosts)
