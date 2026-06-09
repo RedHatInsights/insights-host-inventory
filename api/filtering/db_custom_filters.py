@@ -367,6 +367,29 @@ def _build_workloads_not_nil_boolean_filter(column: Column, jsonb_path: tuple[st
     )
 
 
+def _build_workloads_object_presence_filter(
+    column: Column, jsonb_path: tuple[str, ...], negate: bool
+) -> ColumnElement:
+    """Build an object-key existence filter using @> containment with an empty object.
+
+    Generates: workloads @> '{"ansible": {}}'::jsonb  (for not_nil)
+           or: workloads IS NULL OR NOT (workloads @> '{"ansible": {}}'::jsonb)  (for nil)
+
+    The nil case needs the IS NULL fallback because NULL @> anything = NULL,
+    and NOT NULL = NULL (falsy), whereas the old #>> IS NULL correctly matched NULL columns.
+    """
+    containment_doc: dict = {}
+    current = containment_doc
+    for key in jsonb_path:
+        current[key] = {}
+        current = current[key]
+
+    expr = column.op("@>")(type_coerce(containment_doc, JSONB))
+    if negate:
+        return column.is_(None) | ~expr
+    return expr
+
+
 def _extract_workloads_boolean_filter(filter_param: dict) -> tuple[tuple[str, ...], bool | None] | None:
     """Extract boolean filter info from a workloads filter dict (must include the top-level key).
 
@@ -427,7 +450,7 @@ def _build_workloads_filter_from_canonical(filter_param: dict) -> ColumnElement:
 
 
 def _try_containment_or_fallback(workloads_filter: dict, raw_value) -> ColumnElement:
-    """Try containment optimization for boolean fields, fall back to standard filter."""
+    """Try containment optimization for boolean and object-type fields, fall back to standard filter."""
     extracted = _extract_workloads_boolean_filter(workloads_filter)
     if extracted is not None:
         jsonb_path, bool_val = extracted
@@ -438,6 +461,13 @@ def _try_containment_or_fallback(workloads_filter: dict, raw_value) -> ColumnEle
         if leaf_token == "not_nil":
             return _build_workloads_not_nil_boolean_filter(HostDynamicSystemProfile.workloads, jsonb_path)
 
+    # For object-type workloads, use @> containment with empty object for nil/not_nil.
+    # e.g. ansible[not_nil] -> workloads @> '{"ansible": {}}'  (GIN-indexable)
+    object_presence = _extract_workloads_object_presence(workloads_filter)
+    if object_presence is not None:
+        jsonb_path, negate = object_presence
+        return _build_workloads_object_presence_filter(HostDynamicSystemProfile.workloads, jsonb_path, negate)
+
     return build_single_filter(workloads_filter)
 
 
@@ -447,6 +477,32 @@ def _extract_leaf_token(value) -> str | None:
         return value.lower()
     if isinstance(value, dict) and len(value) == 1:
         return _extract_leaf_token(next(iter(value.values())))
+    return None
+
+
+def _extract_workloads_object_presence(
+    workloads_filter: dict,
+) -> tuple[tuple[str, ...], bool] | None:
+    """Detect object-type workload nil/not_nil and return (jsonb_path, negate).
+
+    Returns (path, False) for not_nil, (path, True) for nil, or None if not applicable.
+    Only applies when the deepest field in the filter is an object type (e.g. ansible, mssql).
+    """
+    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), workloads_filter)
+    if field_filter != "object":
+        return None
+
+    _, jsonb_path, pg_op, value = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
+
+    # Handle value-as-comparator override (e.g. [is]=not_nil → pg_op=is_, value="not_nil")
+    if isinstance(value, str) and value in POSTGRES_COMPARATOR_LOOKUP:
+        pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
+
+    if pg_op == ColumnOperators.is_not:
+        return jsonb_path, False  # not_nil → @> (no negate)
+    elif pg_op == ColumnOperators.is_:
+        return jsonb_path, True  # nil → NOT @> (negate)
+
     return None
 
 
