@@ -88,7 +88,6 @@ def test_update_existing_host_fix_display_name_using_existing_fqdn(db_create_hos
         insights_id=insights_id,
         display_name="",
         reporter="puptoo",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(input_host)
@@ -114,7 +113,6 @@ def test_update_existing_host_display_name_changing_fqdn(db_create_host):
         insights_id=insights_id,
         display_name="",
         reporter="puptoo",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(input_host)
@@ -136,7 +134,6 @@ def test_update_existing_host_update_display_name_from_id_using_existing_fqdn(db
         insights_id=insights_id,
         fqdn=expected_fqdn,
         reporter="puptoo",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(input_host)
@@ -163,7 +160,6 @@ def test_update_existing_host_fix_display_name_using_input_fqdn(db_create_host):
         subscription_manager_id=subman_id,
         display_name="",
         reporter="puptoo",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(input_host)
@@ -194,7 +190,6 @@ def test_update_existing_host_fix_display_name_using_id(db_create_host):
         insights_id=insights_id,
         display_name="",
         reporter="puptoo",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(input_host)
@@ -259,40 +254,21 @@ def test_host_schema_invalid_tags(tags):
     assert error_messages["tags"] == {0: {"key": ["Missing data for required field."]}}
 
 
-@pytest.mark.parametrize("missing_field", ["stale_timestamp", "reporter"])
-def test_host_models_missing_fields(missing_field):
+def test_host_models_missing_reporter_field():
     limited_values = {
         "account": USER_IDENTITY["account_number"],
         "fqdn": "foo.qoo.doo.noo",
         "system_profile_facts": {"number_of_cpus": 1},
     }
-    if missing_field in limited_values:
-        limited_values[missing_field] = None
 
-    # LimitedHost should be fine with these missing values
+    # LimitedHost should be fine with the missing reporter
     LimitedHost(**limited_values)
 
-    values = {**limited_values, "stale_timestamp": now(), "reporter": "reporter", "org_id": USER_IDENTITY["org_id"]}
-    if missing_field in values:
-        values[missing_field] = None
+    values = {**limited_values, "org_id": USER_IDENTITY["org_id"]}
 
-    # Host should complain about the missing values
+    # Host should complain about the missing reporter field
     with pytest.raises(ValidationException):
         Host(**values)
-
-
-def test_host_schema_timezone_enforced():
-    host = {
-        "fqdn": "scooby.doo.com",
-        "display_name": "display_name",
-        "account": USER_IDENTITY["account_number"],
-        "stale_timestamp": now().replace(tzinfo=None).isoformat(),
-        "reporter": "test",
-    }
-    with pytest.raises(MarshmallowValidationError) as exception:
-        HostSchema().load(host)
-
-    assert "Not a valid aware datetime" in str(exception.value)
 
 
 @pytest.mark.parametrize(
@@ -410,7 +386,6 @@ def test_host_model_default_id(db_create_host):
         account=USER_IDENTITY["account_number"],
         subscription_manager_id=generate_uuid(),
         reporter="yupana",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
     db_create_host(host=host)
@@ -423,7 +398,6 @@ def test_host_model_default_timestamps(db_create_host):
         account=USER_IDENTITY["account_number"],
         subscription_manager_id=generate_uuid(),
         reporter="yupana",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
 
@@ -437,48 +411,11 @@ def test_host_model_default_timestamps(db_create_host):
     assert host.modified_on < after_commit
 
 
-def test_host_stale_timestamp_nullable_on_insert(db_create_host):
-    """The hosts table allows inserting a row with stale_timestamp NULL."""
-    host = Host(
-        account=USER_IDENTITY["account_number"],
-        subscription_manager_id=generate_uuid(),
-        reporter="yupana",
-        org_id=USER_IDENTITY["org_id"],
-    )
-    host.stale_timestamp = None
-    db_create_host(host=host)
-    db.session.refresh(host)
-    assert host.stale_timestamp is None
-
-
-def test_host_stale_timestamp_nullable_update_to_null(db_create_host):
-    """An existing row may update stale_timestamp from a value to NULL."""
-    host = Host(
-        account=USER_IDENTITY["account_number"],
-        subscription_manager_id=generate_uuid(),
-        reporter="yupana",
-        org_id=USER_IDENTITY["org_id"],
-    )
-    db_create_host(host=host)
-    assert host.stale_timestamp is None
-
-    host.stale_timestamp = now()
-    db.session.commit()
-    db.session.refresh(host)
-    assert host.stale_timestamp is not None
-
-    host.stale_timestamp = None
-    db.session.commit()
-    db.session.refresh(host)
-    assert host.stale_timestamp is None
-
-
 def test_host_model_updated_timestamp(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
         subscription_manager_id=generate_uuid(),
         reporter="yupana",
-        stale_timestamp=now(),
         org_id=USER_IDENTITY["org_id"],
     )
 
@@ -499,7 +436,6 @@ def test_host_model_timestamp_timezones(db_create_host):
     host = Host(
         account=USER_IDENTITY["account_number"],
         subscription_manager_id=generate_uuid(),
-        stale_timestamp=now(),
         reporter="ingress",
         org_id=USER_IDENTITY["org_id"],
     )
@@ -518,7 +454,6 @@ def test_host_model_constraints(field, value, db_create_host):
     values = {
         "account": USER_IDENTITY["account_number"],
         "subscription_manager_id": generate_uuid(),
-        "stale_timestamp": now(),
         "org_id": USER_IDENTITY["org_id"],
         **{field: value},
     }
@@ -533,13 +468,10 @@ def test_host_model_constraints(field, value, db_create_host):
 
 
 def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime_mock):
-    stale_timestamp = models_datetime_mock + timedelta(days=1)
-
     input_host = Host(
         subscription_manager_id=generate_uuid(),
         display_name="display_name",
         reporter="puptoo",
-        stale_timestamp=stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
     created_host = db_create_host(host=input_host)
@@ -549,14 +481,11 @@ def test_create_host_sets_per_reporter_staleness(db_create_host, models_datetime
 
 
 def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
-    puptoo_stale_timestamp = models_datetime_mock + timedelta(days=1)
-
     subman_id = generate_uuid()
     input_host = Host(
         subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
-        stale_timestamp=puptoo_stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
 
@@ -565,13 +494,10 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     # per_reporter_staleness now stores only last_check_in timestamp strings
     assert existing_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
-    puptoo_stale_timestamp += timedelta(days=1)
-
     update_host = Host(
         subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="puptoo",
-        stale_timestamp=puptoo_stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(update_host)
@@ -579,13 +505,10 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
     # datetime will not change because the datetime.now() method is patched
     assert existing_host.per_reporter_staleness == {"puptoo": models_datetime_mock.isoformat()}
 
-    yupana_stale_timestamp = puptoo_stale_timestamp + timedelta(days=1)
-
     update_host = Host(
         subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
-        stale_timestamp=yupana_stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(update_host)
@@ -599,26 +522,21 @@ def test_update_per_reporter_staleness(db_create_host, models_datetime_mock):
 
 @pytest.mark.parametrize("new_reporter", ("satellite", "discovery"))
 def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models_datetime_mock, new_reporter):
-    yupana_stale_timestamp = models_datetime_mock + timedelta(days=1)
     subman_id = generate_uuid()
     input_host = Host(
         subscription_manager_id=subman_id,
         display_name="display_name",
         reporter="yupana",
-        stale_timestamp=yupana_stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host = db_create_host(host=input_host)
 
     assert existing_host.per_reporter_staleness == {"yupana": models_datetime_mock.isoformat()}
 
-    yupana_stale_timestamp += timedelta(days=1)
-
     update_host = Host(
         subscription_manager_id=subman_id,
         display_name="display_name",
         reporter=new_reporter,
-        stale_timestamp=yupana_stale_timestamp,
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host.update(update_host)
@@ -630,13 +548,11 @@ def test_update_per_reporter_staleness_yupana_replacement(db_create_host, models
 
 def test_reporter_stale_non_string_scalar_errors(db_create_host):
     """Non-string JSONB values must not be treated as stale; reject with ValidationException."""
-    stale_timestamp = now() + timedelta(days=1)
     host = db_create_host(
         host=Host(
             subscription_manager_id=generate_uuid(),
             display_name="display_name",
             reporter="puptoo",
-            stale_timestamp=stale_timestamp,
             org_id=USER_IDENTITY["org_id"],
         )
     )
@@ -1251,22 +1167,6 @@ def test_delete_staleness_culling(db_create_staleness_culling, db_delete_stalene
     assert not db_get_staleness_culling(acc_st_cull.org_id)
 
 
-def test_create_host_validate_staleness(db_create_host, db_get_host):
-    host_data = {
-        "subscription_manager_id": generate_uuid(),
-        "stale_timestamp": now(),
-        "reporter": "test_reporter",
-    }
-
-    created_host = db_create_host(SYSTEM_IDENTITY, extra_data=host_data)
-    retrieved_host = db_get_host(created_host.id)
-
-    assert retrieved_host.stale_timestamp is None
-    assert retrieved_host.stale_warning_timestamp is None
-    assert retrieved_host.deletion_timestamp is None
-    assert retrieved_host.reporter == host_data["reporter"]
-
-
 def test_create_host_with_canonical_facts(db_create_host, db_get_host):
     host_data = {
         "insights_id": generate_uuid(),
@@ -1835,7 +1735,6 @@ def test_host_init_raises_when_no_canonical_facts():
             account=USER_IDENTITY["account_number"],
             org_id=USER_IDENTITY["org_id"],
             reporter="test",
-            stale_timestamp=now(),
         )
 
 
@@ -1850,7 +1749,6 @@ def test_host_init_raises_when_only_non_id_canonical_facts():
             account=USER_IDENTITY["account_number"],
             org_id=USER_IDENTITY["org_id"],
             reporter="test",
-            stale_timestamp=now(),
             fqdn="only-fqdn.example.com",
         )
 
@@ -1870,7 +1768,6 @@ def test_host_init_with_subscription_manager_id_sets_id(flask_app):
             account=USER_IDENTITY["account_number"],
             org_id=USER_IDENTITY["org_id"],
             reporter="test",
-            stale_timestamp=now(),
             subscription_manager_id=subscription_manager_id,
         )
 
@@ -2702,14 +2599,13 @@ def test_host_schema_logs_partial_migration_state(mocker):
     assert "sending_both_formats=True" in call_args  # Mixed state
 
 
-def test_update_display_name_skips_when_unchanged(db_create_host, models_datetime_mock):
+def test_update_display_name_skips_when_unchanged(db_create_host):
     """When display_name and reporter are the same, no assignment should happen."""
     insights_id = generate_uuid()
     input_host = Host(
         insights_id=insights_id,
         display_name="my-host",
         reporter="puptoo",
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host = db_create_host(host=input_host)
@@ -2726,14 +2622,13 @@ def test_update_display_name_skips_when_unchanged(db_create_host, models_datetim
     assert existing_host.display_name_reporter == original_reporter
 
 
-def test_update_display_name_writes_when_changed(db_create_host, models_datetime_mock):
+def test_update_display_name_writes_when_changed(db_create_host):
     """When display_name differs, it should be updated."""
     insights_id = generate_uuid()
     input_host = Host(
         insights_id=insights_id,
         display_name="old-name",
         reporter="puptoo",
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host = db_create_host(host=input_host)
@@ -2744,14 +2639,13 @@ def test_update_display_name_writes_when_changed(db_create_host, models_datetime
     assert existing_host.display_name_reporter == "puptoo"
 
 
-def test_update_display_name_writes_when_reporter_changed(db_create_host, models_datetime_mock):
+def test_update_display_name_writes_when_reporter_changed(db_create_host):
     """When display_name is the same but reporter differs, it should update."""
     insights_id = generate_uuid()
     input_host = Host(
         insights_id=insights_id,
         display_name="my-host",
         reporter="puptoo",
-        stale_timestamp=models_datetime_mock + timedelta(days=1),
         org_id=USER_IDENTITY["org_id"],
     )
     existing_host = db_create_host(host=input_host)

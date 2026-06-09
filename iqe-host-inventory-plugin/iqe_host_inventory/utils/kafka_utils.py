@@ -391,9 +391,6 @@ def check_mq_create_or_update_event_host_data(
         culled_timestamp=event_host_data.pop("culled_timestamp"),
         staleness_settings=staleness_settings,
     )
-    expected_host_data.pop("stale_timestamp", None)
-    expected_host_data.pop("stale_warning_timestamp", None)
-    expected_host_data.pop("culled_timestamp", None)
 
     check_prs_timestamps(
         event_host_data.pop("per_reporter_staleness"),

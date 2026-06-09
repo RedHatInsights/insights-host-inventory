@@ -9,7 +9,6 @@ from jobs.host_sync_group_data import run as host_group_sync_run
 from jobs.host_synchronizer import run as host_synchronizer_run
 from tests.helpers.db_utils import minimal_db_host
 from tests.helpers.mq_utils import assert_synchronize_event_is_valid
-from tests.helpers.test_utils import get_staleness_timestamps
 
 
 @pytest.mark.parametrize("ungrouped", [True, False])
@@ -24,9 +23,7 @@ def test_synchronize_host_event(
     inventory_config,
     ungrouped,
 ):
-    staleness_timestamps = get_staleness_timestamps()
-
-    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+    host = minimal_db_host(reporter="some reporter")
     created_host = db_create_host(host=host)
 
     created_group = db_create_group("sync-test-group", ungrouped=ungrouped)
@@ -87,9 +84,7 @@ def test_synchronize_grouped_host_event(
     inventory_config,
     ungrouped,
 ):
-    staleness_timestamps = get_staleness_timestamps()
-
-    host = minimal_db_host(stale_timestamp=staleness_timestamps["culled"], reporter="some reporter")
+    host = minimal_db_host(reporter="some reporter")
     created_host = db_create_host(host=host)
     created_host_id = created_host.id
 
