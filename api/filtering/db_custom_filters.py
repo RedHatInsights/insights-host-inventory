@@ -511,8 +511,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         field_name = jsonb_path[-1] if jsonb_path else field_name
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
-        # Use the default comparator for the field type, if not provided
-        if not pg_op or not value:
+        # Use the default comparator for the field type, if not provided.
+        # Skip override when pg_op is already is_/is_not (nil/not_nil comparators set value="").
+        if (not pg_op or not value) and pg_op not in (ColumnOperators.is_, ColumnOperators.is_not):
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
