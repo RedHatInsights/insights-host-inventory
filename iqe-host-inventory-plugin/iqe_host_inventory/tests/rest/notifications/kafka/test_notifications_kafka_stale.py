@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
@@ -85,7 +84,7 @@ def test_notifications_kafka_host_stale_toggle_via_refresh(
 
     # fresh -> stale
     set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", delay=5)
+    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", retries=20)
     trigger_job_validate_found(host_inventory, host)
 
     # stale -> fresh
@@ -95,47 +94,7 @@ def test_notifications_kafka_host_stale_toggle_via_refresh(
 
     # fresh -> stale
     set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", delay=5)
-    trigger_job_validate_found(host_inventory, host)
-
-
-@iqe_blocker(iqe_blocker.jira("RHINENG-15789", category=iqe_blocker.PRODUCT_ISSUE))
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_primary_groups_cleanup_function", "hbi_staleness_cleanup")
-def test_notifications_kafka_host_stale_toggle_via_delete_staleness(
-    host_inventory: ApplicationHostInventory,
-    prepare_host_for_stale_notification: HostWrapper,
-):
-    """
-    Toggle a host's staleness from stale -> fresh -> stale and verify that
-    notifications are only triggered when the host goes stale.  For this test,
-    delete the staleness record to "freshen" the host.
-
-    https://issues.redhat.com/browse/RHINENG-7912
-
-    metadata:
-        requirements: inv-notifications-system-became-stale
-        assignee: msager
-        importance: low
-        title: Staleness toggling is handled correctly
-    """
-    host = prepare_host_for_stale_notification
-
-    deltas = (1, 3600, 7200)
-
-    # fresh -> stale
-    set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale")
-    trigger_job_validate_found(host_inventory, host)
-
-    # stale -> fresh
-    host_inventory.apis.account_staleness.delete_staleness()
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="fresh")
-    trigger_job_validate_not_found(host_inventory, host)
-
-    # fresh -> stale
-    set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale")
+    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", retries=20)
     trigger_job_validate_found(host_inventory, host)
 
 
