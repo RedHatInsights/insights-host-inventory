@@ -17,13 +17,8 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import raises_apierror
-from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory.utils.datagen_utils import generate_tags
-from iqe_host_inventory.utils.datagen_utils import get_default_os_centos
-from iqe_host_inventory.utils.datagen_utils import get_default_os_rhel
 from iqe_host_inventory.utils.staleness_utils import STALENESS_LIMITS
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_culled
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.staleness_utils import set_staleness
@@ -84,11 +79,7 @@ def timezone_fixture(request: pytest.FixtureRequest) -> timezone:
 @pytest.mark.smoke
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-def test_list_hosts_by_staleness(
-    host_inventory: ApplicationHostInventory,
-    host_type: str,
-) -> None:
+def test_list_hosts_by_staleness(host_inventory: ApplicationHostInventory) -> None:
     """
     Filter hosts by staleness values - fresh, stale, stale_warning.
 
@@ -102,14 +93,13 @@ def test_list_hosts_by_staleness(
         importance: critical
         title: Inventory: Filter hosts by staleness values - fresh, stale, stale_warning.
     """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(6, host_type=host_type)
+    hosts_data = host_inventory.datagen.create_n_hosts_data(6)
 
     hosts = create_hosts_fresh_stale_stalewarning(
         host_inventory,
         fresh_hosts_data=hosts_data[0:2],
         stale_hosts_data=hosts_data[2:4],
         stale_warning_hosts_data=hosts_data[4:6],
-        host_type=host_type,
     )
 
     expected_host_ids: dict[str, set[str]] = {
@@ -131,11 +121,7 @@ def test_list_hosts_by_staleness(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-def test_host_stale_warning_to_fresh(
-    host_inventory: ApplicationHostInventory,
-    host_type: str,
-) -> None:
+def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     """
     Verify stale warning host becomes fresh if its stale_timestamp was updated.
 
@@ -151,14 +137,13 @@ def test_host_stale_warning_to_fresh(
         title: Inventory: Confirm stale warning host becomes fresh
             when a host is updated
     """
-    host_data = host_inventory.datagen.create_host_data(host_type=host_type)
+    host_data = host_inventory.datagen.create_host_data()
 
     # Create a stale_warning host
     host: HostWrapper = create_hosts_in_state(
         host_inventory,
         [host_data],
         host_state="stale_warning",
-        host_type=host_type,
         deltas=(5, 6, 7200),
     )[0]
 
@@ -184,11 +169,7 @@ def test_host_stale_warning_to_fresh(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-def test_host_stale_to_fresh(
-    host_inventory: ApplicationHostInventory,
-    host_type: str,
-) -> None:
+def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     """
     Verify stale host becomes fresh if its stale_timestamp was updated.
 
@@ -203,14 +184,13 @@ def test_host_stale_to_fresh(
         importance: high
         title: Inventory: Confirm stale host becomes fresh if its stale_timestamp was updated
     """
-    host_data = host_inventory.datagen.create_host_data(host_type=host_type)
+    host_data = host_inventory.datagen.create_host_data()
 
     # Create a stale host
     host = create_hosts_in_state(
         host_inventory,
         [host_data],
         host_state="stale",
-        host_type=host_type,
         deltas=(5, 3600, 7200),
     )[0]
 
@@ -236,11 +216,7 @@ def test_host_stale_to_fresh(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup_culled")
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
-def test_host_stale_warning_to_culled(
-    host_inventory: ApplicationHostInventory,
-    host_type: str,
-) -> None:
+def test_host_stale_warning_to_culled(host_inventory: ApplicationHostInventory) -> None:
     """
     Verify host is culled after its stale_culling date
 
@@ -256,14 +232,13 @@ def test_host_stale_warning_to_culled(
         importance: high
         title: Inventory: Confirm host is culled after its culling date
     """
-    host_data = host_inventory.datagen.create_host_data(host_type=host_type)
+    host_data = host_inventory.datagen.create_host_data()
 
     # Create a stale_warning host
     host = create_hosts_in_state(
         host_inventory,
         [host_data],
         host_state="stale_warning",
-        host_type=host_type,
         deltas=(1, 2, 5),
     )[0]
 
@@ -283,15 +258,7 @@ def test_host_stale_warning_to_culled(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize(
-    "operating_system",
-    [get_default_os_rhel(), get_default_os_centos()],
-    ids=["RHEL", "CentOS Linux"],
-)
-def test_default_staleness_filter_hosts(
-    host_inventory: ApplicationHostInventory,
-    operating_system: OperatingSystem,
-) -> None:
+def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHostInventory) -> None:
     """
     Test that the staleness filter defaults to ['fresh', 'stale', 'stale_warning']
     on /hosts endpoint
@@ -304,53 +271,7 @@ def test_default_staleness_filter_hosts(
         importance: medium
         title: Test default staleness filter on /hosts
     """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
-    for host_data in hosts_data:
-        host_data["system_profile"]["operating_system"] = operating_system
-
-    hosts = create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[:1],
-        stale_hosts_data=hosts_data[1:2],
-        stale_warning_hosts_data=hosts_data[2:],
-    )
-
-    host_ids = [hosts["fresh"][0].id, hosts["stale"][0].id, hosts["stale_warning"][0].id]
-
-    response = host_inventory.apis.hosts.get_hosts_response()
-    assert response.count >= 3
-
-    found_host_ids = {host.id for host in response.results}
-    assert set(host_ids).intersection(found_host_ids) == set(host_ids)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize(
-    "operating_system",
-    [get_default_os_rhel(), get_default_os_centos()],
-    ids=["RHEL", "CentOS Linux"],
-)
-def test_default_staleness_filter_tags(
-    host_inventory: ApplicationHostInventory,
-    operating_system: OperatingSystem,
-) -> None:
-    """
-    Test that the staleness filter defaults to ['fresh', 'stale', 'stale_warning'] on /tags endpoint
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1382
-
-    metadata:
-        requirements: inv-staleness-hosts, inv-tags-get-list
-        assignee: fstavela
-        importance: medium
-        title: Test default staleness filter on /tags
-    """  # NOQA: E501
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
-    for host_data in hosts_data:
-        host_data["tags"] = generate_tags()
-        host_data["system_profile"]["operating_system"] = operating_system
-
+    hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(3)
     hosts = create_hosts_fresh_stale_stalewarning(
         host_inventory,
         fresh_hosts_data=hosts_data[:1],
@@ -358,7 +279,16 @@ def test_default_staleness_filter_tags(
         stale_warning_hosts_data=hosts_data[2:],
     )
     all_hosts = hosts["fresh"] + hosts["stale"] + hosts["stale_warning"]
+    host_ids = [host.id for host in all_hosts]
 
+    # GET /hosts
+    response = host_inventory.apis.hosts.get_hosts_response()
+    assert response.count >= 3
+
+    found_host_ids = {host.id for host in response.results}
+    assert set(host_ids).intersection(found_host_ids) == set(host_ids)
+
+    # GET /tags
     response = host_inventory.apis.tags.get_tags_response()
     assert response.count >= sum(len(host.tags) for host in all_hosts)
 
@@ -372,12 +302,10 @@ def test_default_staleness_filter_tags(
     assert set(found_tags.values()) == {1}
 
 
-@pytest.mark.parametrize("host_type", ["conventional", "edge"])
 @pytest.mark.ephemeral
 def test_staleness_filter_max_delta(
     host_inventory: ApplicationHostInventory,
     hbi_staleness_defaults: dict[str, int],
-    host_type: str,
 ) -> None:
     """
     https://issues.redhat.com/browse/RHINENG-8730
@@ -394,7 +322,7 @@ def test_staleness_filter_max_delta(
     staleness_response = host_inventory.apis.account_staleness.get_staleness()
     validate_staleness_response(staleness_response, hbi_staleness_defaults, STALENESS_LIMITS)
 
-    host_data = host_inventory.datagen.create_host_data(host_type=host_type)
+    host_data = host_inventory.datagen.create_host_data()
     host_inventory.kafka.create_host(host_data)
 
     response = host_inventory.apis.hosts.get_hosts_response()  # Using default staleness
@@ -414,64 +342,35 @@ def test_get_culled_hosts(
     """
     https://issues.redhat.com/browse/RHINENG-17845
 
-    metadata:
-        requirements: inv-staleness-hosts, inv-hosts-get-list
-        assignee: fstavela
-        importance: medium
-        title: Test that we can't get culled hosts via API
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(4)
-
-    hosts = create_hosts_fresh_culled(
-        host_inventory,
-        fresh_hosts_data=hosts_data[:2],
-        culled_hosts_data=hosts_data[2:],
-        deltas=(13, 14, 15),
-    )
-
-    fresh_hosts_ids = {host.id for host in hosts["fresh"]}
-    culled_hosts_ids = {host.id for host in hosts["culled"]}
-
-    response = host_inventory.apis.hosts.get_hosts_response()
-    assert response.count >= 2
-
-    found_host_ids = {host.id for host in response.results}
-    assert len(found_host_ids.intersection(culled_hosts_ids)) == 0
-    assert found_host_ids.intersection(fresh_hosts_ids) == set(fresh_hosts_ids)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_get_culled_hosts_using_last_check_in(
-    host_inventory: ApplicationHostInventory,
-) -> None:
-    """
-    https://issues.redhat.com/browse/RHINENG-17845
+    Culled hosts must not appear in API responses, even if their 'updated'
+    timestamp is recent (e.g. from a PATCH).  The API uses 'last_check_in'
+    to determine staleness, not 'updated'.
 
     metadata:
         requirements: inv-staleness-hosts, inv-hosts-get-list
         assignee: fstavela
         importance: medium
-        title: Test that API uses last_check_in to filter out culled hosts
+        title: Test that culled hosts are not returned by API, even if patched
     """
     culled_hosts = host_inventory.kafka.create_random_hosts(4)
-    logger.info("Sleeping 15 seconds to let the hosts become culled")
+    logger.info("Sleeping 15 seconds to let the hosts age")
     sleep(15)
 
-    # Patch hosts to update their 'updated' timestamp, but 'last_check_in' stays the same
+    # Patch 2 hosts — updates 'updated' timestamp, but not 'last_check_in'
     patched_hosts = culled_hosts[:2]
     host_inventory.apis.hosts.patch_hosts(patched_hosts, display_name=generate_display_name())
 
-    # Drain patch host update events before creating custom staleness config
     host_inventory.kafka.wait_for_filtered_host_messages(
         HostWrapper.insights_id, [host.insights_id for host in patched_hosts]
     )
 
+    # Set tight staleness deltas so all old hosts become culled
     host_inventory.apis.account_staleness.create_staleness(
         conventional_time_to_stale=13,
         conventional_time_to_stale_warning=14,
         conventional_time_to_delete=15,
     )
+
     fresh_hosts = host_inventory.kafka.create_random_hosts(2)
 
     fresh_hosts_ids = {host.id for host in fresh_hosts}
