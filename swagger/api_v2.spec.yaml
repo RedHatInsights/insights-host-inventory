@@ -1,0 +1,3119 @@
+# NOTE: Using OpenAPI 3.0.0 because Connexion 3.3 (our routing framework) does not
+# support OpenAPI 3.1 or 3.2. See https://github.com/spec-first/connexion/issues/1396
+openapi: 3.0.0
+info:
+  description: REST interface for the Insights Platform Host Inventory application.
+  version: 2.0.0
+  title: Insights Host Inventory V2 REST Interface
+servers:
+  - url: /api/inventory/v2
+    description: V2 API server
+externalDocs:
+  description: How to use the Red Hat Insights API
+  url: https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index
+paths:
+  /hosts:
+    get:
+      operationId: api.v2.host.get_host_list
+      tags:
+        - hosts
+      summary: Read the entire list of hosts
+      description: >-
+        Read the entire list of all hosts available to the account.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/subscriptionManagerId'
+        - $ref: '#/components/parameters/providerId'
+        - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/updatedStart'
+        - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/lastCheckInStart'
+        - $ref: '#/components/parameters/lastCheckInEnd'
+        - $ref: '#/components/parameters/workspaceNameListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
+        - $ref: '#/components/parameters/branchId'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
+        - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/fields_param'
+      responses:
+        '200':
+          description: Successfully read the hosts list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
+    delete:
+      operationId: api.v2.host.delete_hosts_by_filter
+      tags:
+        - hosts
+      summary: Delete the entire list of hosts filtered by the given parameters
+      description: >-
+        Delete the entire list of hosts filtered by the given parameters.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/providerId'
+        - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/updatedStart'
+        - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/lastCheckInStart'
+        - $ref: '#/components/parameters/lastCheckInEnd'
+        - $ref: '#/components/parameters/workspaceNameListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
+        - $ref: '#/components/parameters/stalenessNoDefaultsParam'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/subscriptionManagerId'
+      responses:
+        '202':
+          description: Request for deletion of filtered hosts has been accepted.
+        '400':
+          description: Invalid request.
+  /hosts/all:
+    delete:
+      operationId: api.v2.host.delete_all_hosts
+      tags:
+        - hosts
+      summary: Delete all hosts on the account
+      description: >-
+        Delete all hosts on the account.  The request must include "confirm_delete_all=true".
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/confirmDeleteAll'
+      responses:
+        '202':
+          description: Request for deleting all hosts has been accepted.
+        '400':
+          description: Invalid request.
+  /hosts/checkin:
+    post:
+      operationId: api.v2.host.host_checkin
+      tags:
+        - hosts
+      summary: Update staleness timestamps for a host matching the provided facts
+      description: >-
+        Finds a host and updates its staleness timestamps.
+        It uses the supplied canonical facts to determine which host to update.
+        By default, the staleness timestamp is set to 1 hour from when the request is received;
+        however, this can be overridden by supplying the interval.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create a check-in record for a host.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckIn'
+      responses:
+        '201':
+          description: Successfully checked in Host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostOut'
+        '404':
+          description: Not Found.
+  '/hosts/{host_id_list}':
+    get:
+      tags:
+        - hosts
+      summary: Find hosts by their IDs
+      description: >-
+        Find one or more hosts by their ID.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/fields_param'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - hosts
+      summary: Delete hosts by IDs
+      description: >-
+        Delete hosts by IDs
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      operationId: api.v2.host.delete_host_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
+      responses:
+        '200':
+          description: Successfully deleted hosts.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags:
+        - hosts
+      summary: Update hosts
+      description: >-
+        Update hosts
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      operationId: api.v2.host.patch_host_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
+      requestBody:
+        description: A group of fields to be updated on the hosts
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchHostIn'
+      responses:
+        '200':
+          description: Successfully updated the hosts.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  '/hosts/{host_id_list}/facts/{namespace}':
+    patch:
+      tags:
+        - hosts
+      summary: Merge facts under a namespace
+      description: >-
+        Merge one or multiple hosts facts under a namespace.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      operationId: api.v2.host.merge_facts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
+      requestBody:
+        description: A dictionary with the new facts to merge with the original ones.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Facts'
+      responses:
+        '200':
+          description: Successfully merged facts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host or namespace not found.
+    put:
+      tags:
+        - hosts
+      summary: Replace facts under a namespace
+      description: >-
+        Replace facts under a namespace
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+      operationId: api.v2.host.replace_facts
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
+      requestBody:
+        description: A dictionary with the new facts to replace the original ones.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Facts'
+      responses:
+        '200':
+          description: Successfully replaced facts.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host or namespace not found.
+  '/hosts/{host_id_list}/system_profile':
+    get:
+      tags:
+        - hosts
+      summary: Return one or more hosts system profile
+      description: >-
+        Find one or more hosts by their ID and return the id and system profile
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_system_profile_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/branchId'
+        - $ref: '#/components/parameters/fields_param'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileByHostOut'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  '/hosts/{host_id_list}/tags':
+    get:
+      tags:
+        - hosts
+      summary: Get the tags on a host
+      description: >-
+        Get the tags on a host
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/tagOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: Successfully found tags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagsOut'
+        '400':
+          description: Invalid request.
+  '/hosts/{host_id_list}/tags/count':
+    get:
+      tags:
+        - hosts
+      summary: Get the number of tags on a host or hosts
+      description: >-
+        Get the number of tags on a host or hosts
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_tag_count
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/tagOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+      responses:
+        '200':
+          description: Successfully found tag count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagCountOut'
+        '400':
+          description: Invalid request.
+  '/host_exists':
+    get:
+      tags:
+        - hosts
+      summary: Find one host by insights_id, if it exists
+      description: >-
+        Find one host by insights_id, if it exists.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_exists
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/insightsId'
+      responses:
+        '200':
+          description: Found a matching host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostIdOut'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Host not found.
+        '409':
+          description: Multiple matching hosts detected.
+  /resource-types:
+    get:
+      operationId: api.v2.resource_type.get_resource_type_list
+      tags:
+        - resource-types
+      summary: Get the list of resource types
+      description: >-
+        Returns the list of available RBAC resource types.
+        <br /><br />
+        Required permissions: rbac:*:*
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/resourceTypesPerPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      responses:
+        '200':
+          description: Successfully read the resource types list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypesQueryOutput'
+        '400':
+          description: Resource types not found.
+
+  /resource-types/inventory-groups:
+    get:
+      operationId: api.v2.resource_type.get_resource_type_groups_list
+      tags:
+        - resource-types
+      summary: Get the list of inventory groups in resource-types format
+      description: >-
+        Returns the list of groups in the current account.
+        <br /><br />
+        Required permissions: rbac:*:*
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/groupName'
+        - $ref: '#/components/parameters/resourceTypesPerPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      responses:
+        '200':
+          description: Successfully read the resource-types groups list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceTypesGroupsQueryOutput'
+        '400':
+          description: Groups not found.
+
+  /tags:
+    get:
+      tags:
+        - tags
+      summary: Get the active host tags for a given account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.tag.get_tags
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/tagsOrderByParam'
+        - $ref: '#/components/parameters/tagsOrderHowParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/providerId'
+        - $ref: '#/components/parameters/providerType'
+        - $ref: '#/components/parameters/updatedStart'
+        - $ref: '#/components/parameters/updatedEnd'
+        - $ref: '#/components/parameters/lastCheckInStart'
+        - $ref: '#/components/parameters/lastCheckInEnd'
+        - $ref: '#/components/parameters/workspaceNameListParam'
+        - $ref: '#/components/parameters/workspaceIdListParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/systemTypeParam'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveTags'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/sap_system:
+    get:
+      tags:
+        - system_profile
+      summary: get all sap system values and counts on the account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.system_profile.get_sap_system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+          description: sap_system values and counts for the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileSapSystemOut'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/sap_sids:
+    get:
+      tags:
+        - system_profile
+      summary: get all sap sids values and counts on the account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.system_profile.get_sap_sids
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+          description: sap_system values and counts for the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileSapSystemOut'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/operating_system:
+    get:
+      tags:
+        - system_profile
+      summary: get all operating system versions and counts on the account
+      description: >-
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.system_profile.get_operating_system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+      responses:
+        '200':
+          description: operating system versions and counts on the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileOperatingSystemOut'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/PageOutOfBounds'
+
+  /system_profile/validate_schema:
+    post:
+      tags:
+        - system_profile
+      summary: validate system profile schema
+      description: >-
+        Validates System Profile data from recent Kafka messages against a given spec,
+        and compares it with the current one. Only HBI Admins can access this endpoint.
+      operationId: api.v2.system_profile.validate_schema
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: repo_fork
+          schema:
+            type: string
+          description: The fork of the inventory-schemas repo to use
+        - in: query
+          name: repo_branch
+          schema:
+            type: string
+          description: The branch of the inventory-schemas repo to use
+          required: true
+        - in: query
+          name: days
+          schema:
+            type: integer
+            minimum: 1
+          description: How many days worth of data to validate
+        - in: query
+          name: max_messages
+          schema:
+            type: integer
+            minimum: 1
+            default: 10000
+          description: Stops polling when this number of messages has been collected
+      responses:
+        '200':
+          description: Host validation results
+        '403':
+          description: Forbidden
+
+  /account/staleness:
+    get:
+      operationId: api.v2.staleness.get_staleness
+      tags:
+        - accounts_staleness
+      summary: Read the entire list of account staleness
+      description: >-
+        Read the entire list of all accounts staleness available.
+        Required permissions: staleness:staleness:read
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully read the staleness account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
+    post:
+      operationId: api.v2.staleness.create_staleness
+      tags:
+        - accounts_staleness
+      summary: Create account staleness record
+      description: >-
+        Create account staleness record.
+        Required permissions: staleness:staleness:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create a record for a account staleness.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StalenessIn'
+      responses:
+        '201':
+          description: Successfully account staleness created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
+    patch:
+      operationId: api.v2.staleness.update_staleness
+      tags:
+        - accounts_staleness
+      summary: Update account staleness record
+      description: >-
+        Update account staleness record.
+        Required permissions: staleness:staleness:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to update a record for a account staleness.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StalenessIn'
+      responses:
+        '200':
+          description: Successfully account staleness updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Staleness record not found.
+    delete:
+      operationId: api.v2.staleness.delete_staleness
+      tags:
+        - accounts_staleness
+      summary: Delete an account staleness
+      description: >-
+        Delete an account staleness
+        <br /><br />
+        Required permissions: staleness:staleness:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Successfully deleted account staleness.
+        '400':
+          description: Invalid request.
+        '404':
+          description: Account Staleness not found.
+
+  /account/staleness/defaults:
+    get:
+      operationId: api.v2.staleness.get_default_staleness
+      tags:
+        - accounts_staleness
+      summary: Read the entire list of account staleness
+      description: >-
+        Read the entire list of all accounts staleness available.
+        Required permissions: staleness:staleness:read
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully read the staleness account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StalenessOutput'
+        '400':
+          description: "Invalid request."
+
+  /host-views:
+    get:
+      operationId: api.v2.views.get_views_list
+      tags:
+        - host-views
+      summary: Read the list of inventory views
+      description: >-
+        Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and
+        private views owned by the requester. <br /><br /> Required permissions: inventory:views:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+      responses:
+        '200':
+          description: Successfully read the views list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewsListOut'
+        '403':
+          description: Forbidden - identity type not supported or missing username.
+    post:
+      operationId: api.v2.views.create_view
+      tags:
+        - host-views
+      summary: Create a new inventory view
+      description: >-
+        Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br
+        /><br /> Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        description: Data required to create a new inventory view.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewIn'
+      responses:
+        '201':
+          description: Successfully created the inventory view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '400':
+          description: Invalid request.
+        '403':
+          description: Forbidden - identity type not supported or missing username.
+  /host-views/{view_id}:
+    get:
+      operationId: api.v2.views.get_view_by_id
+      tags:
+        - host-views
+      summary: Get a single inventory view
+      description: >-
+        Returns the full details and configuration for a single inventory view. The view must be visible to the requesting
+        user. <br /><br /> Required permissions: inventory:views:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/viewId'
+      responses:
+        '200':
+          description: Successfully returned the inventory view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '403':
+          description: Forbidden - identity type not supported or missing username.
+        '404':
+          description: View not found or not visible to the requesting user.
+    put:
+      operationId: api.v2.views.update_view
+      tags:
+        - host-views
+      summary: Update an inventory view
+      description: >-
+        Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator
+        can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/viewId'
+      requestBody:
+        description: Data with which to update the inventory view.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ViewPatch'
+      responses:
+        '200':
+          description: Successfully updated the inventory view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '400':
+          description: Invalid request.
+        '403':
+          description: Forbidden - not the view owner or view is a system view.
+        '404':
+          description: View not found or not visible to the requesting user.
+    delete:
+      operationId: api.v2.views.delete_view
+      tags:
+        - host-views
+      summary: Delete an inventory view
+      description: >-
+        Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br
+        /> Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/viewId'
+      responses:
+        '204':
+          description: Successfully deleted the inventory view.
+        '403':
+          description: Forbidden - not the view owner or view is a system view.
+        '404':
+          description: View not found or not visible to the requesting user.
+  /host-views/{view_id}/clone:
+    post:
+      operationId: api.v2.views.clone_view
+      tags:
+        - host-views
+      summary: Clone an inventory view
+      description: >-
+        Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The
+        cloned view name is prefixed with "Copy of ". <br /><br /> Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/viewId'
+      responses:
+        '201':
+          description: Successfully cloned the inventory view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '403':
+          description: Forbidden - identity type not supported or missing username.
+        '404':
+          description: Source view not found or not visible to the requesting user.
+  /workspaces:
+    get:
+      operationId: api.v2.group.get_group_list
+      tags:
+        - workspaces
+      summary: Read the entire list of groups
+      description: >-
+        Read the entire list of all groups available to the account.
+        <br /><br />
+        Required permissions: inventory:groups:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/groupName'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/groupOrderByParam'
+        - $ref: '#/components/parameters/groupOrderHowParam'
+        - $ref: '#/components/parameters/workspaceTypeParam'
+      responses:
+        '200':
+          description: Successfully read the groups list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceQueryOutput'
+        '400':
+          description: Groups not found.
+
+    post:
+      operationId: api.v2.group.create_group
+      tags:
+        - workspaces
+      summary: Create a new group matching the provided name and list of hosts IDs
+      description: >-
+        Creates a new group containing the hosts associated with the host IDs provided.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create a record for a group.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceIn'
+      responses:
+        '201':
+          description: Successfully created new Group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
+        "400":
+          "description": "Invalid request."
+        "403":
+          "description": "Forbidden - Invalid RBAC permission."
+  '/workspaces/{workspace_id}':
+    patch:
+      operationId: api.v2.group.patch_group_by_id
+      tags:
+        - workspaces
+      summary: Update group information
+      description: >-
+        Update group information, removing any existing host associations from the group.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+      requestBody:
+        description: A dictionary with new information with which to update the original group.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceIn'
+      responses:
+        '200':
+          description: Group information successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  '/workspaces/{workspace_id_list}':
+    get:
+      operationId: api.v2.group.get_groups_by_id
+      tags:
+        - workspaces
+      summary: Find groups by their IDs
+      description: >-
+        Find one or more groups by their IDs.
+        <br /><br />
+        Required permissions: inventory:groups:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/groupOrderByParam'
+        - $ref: '#/components/parameters/groupOrderHowParam'
+      responses:
+        '200':
+          description: Successfully searched for groups.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceQueryOutput'
+        '400':
+          description: Invalid request.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      operationId: api.v2.group.delete_groups
+      tags:
+        - workspaces
+      summary: Delete a list of groups
+      description: >-
+        Delete a list of groups.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceIdList'
+      responses:
+        '204':
+          description: The groups were successfully deleted.
+        '400':
+          description: Invalid request.
+  '/workspaces/{workspace_id}/hosts/{host_id_list}':
+    delete:
+      operationId: api.v2.host_group.delete_hosts_from_group
+      tags:
+        - workspaces
+      summary: Delete one or more hosts from a group
+      description: >-
+        Delete one or more hosts from a group.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '204':
+          description: Successfully deleted hosts.
+        '400':
+          description: Invalid request.
+  '/workspaces/{workspace_id}/hosts':
+    get:
+      operationId: api.v2.host_group.get_host_list_by_group
+      tags:
+        - workspaces
+      summary: Read the list of hosts in a group
+      description: >-
+        Read the list of all hosts in a specific group.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+        - $ref: '#/components/parameters/displayName'
+        - $ref: '#/components/parameters/fqdn'
+        - $ref: '#/components/parameters/hostnameOrId'
+        - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/stalenessParam'
+        - $ref: '#/components/parameters/tagsParam'
+        - $ref: '#/components/parameters/registered_with'
+        - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/fields_param'
+      responses:
+        '200':
+          description: Successfully read the hosts in the group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
+        '404':
+          description: Group not found.
+    post:
+      operationId: api.v2.host_group.add_host_list_to_group
+      tags:
+        - workspaces
+      summary: Add host IDs to the provided group
+      description: >-
+        Adds the host list in the request body to the provided group.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/workspaceId'
+      requestBody:
+        description: A list of hosts IDs to associate with the provided group.
+        required: true
+        x-body-name: host_id_list
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostIds'
+      responses:
+        '200':
+          description: Hosts successfully or already previously associated with group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
+        '400':
+          description: Invalid request.
+        '404':
+          description: Group not found.
+  '/workspaces/hosts/{host_id_list}':
+    delete:
+      operationId: api.v2.group.delete_hosts_from_different_groups
+      tags:
+        - workspaces
+      summary: Delete a list of hosts from the groups they are in
+      description: >-
+        Delete a list of hosts from the groups they are in.
+        <br /><br />
+        Required permissions: inventory:groups:write
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+      responses:
+        '204':
+          description: The hosts were successfully removed from their groups.
+        '400':
+          description: Invalid request.
+        '404':
+          description: The provided hosts are ungrouped.
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.auth.bearer_token_handler
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-rh-identity
+      description: >-
+        Base64-encoded JSON identity header provided by 3Scale. Contains an
+        org_id of the user issuing the request. Format of the JSON:
+        {"identity": {"org_id": "12345678"}}
+      x-apikeyInfoFunc: app.auth.authentication_header_handler
+  parameters:
+    pageParam:
+      $ref: 'pagination.yaml#/components/parameters/pageParam'
+    perPageParam:
+      $ref: 'pagination.yaml#/components/parameters/perPageParam'
+    resourceTypesPerPageParam:
+      $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
+    hostId:
+      in: path
+      name: host_id
+      description: Host (system) ID.
+      required: true
+      schema:
+        $ref: '#/components/schemas/NonStrictUUID'
+    hostIdList:
+      in: path
+      name: host_id_list
+      description: A comma-separated list of host IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    branchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Filter by branch_id
+      required: false
+    displayName:
+      in: query
+      name: display_name
+      schema:
+        type: string
+      description: Filter by display_name (case-insensitive)
+      required: false
+    fqdn:
+      in: query
+      name: fqdn
+      schema:
+        type: string
+      description: Filter by FQDN (case-insensitive)
+      required: false
+    hostnameOrId:
+      in: query
+      name: hostname_or_id
+      schema:
+        type: string
+      description: Filter by display_name, fqdn, id (case-insensitive)
+      required: false
+    insightsId:
+      in: query
+      name: insights_id
+      schema:
+        type: string
+        format: uuid
+      description: Filter by insights_id
+      required: false
+    subscriptionManagerId:
+      in: query
+      name: subscription_manager_id
+      schema:
+        type: string
+        format: uuid
+      description: Filter by subscription_manager_id
+      required: false
+    providerId:
+      in: query
+      name: provider_id
+      schema:
+        type: string
+      description: Filter by provider_id
+      required: false
+    providerType:
+      in: query
+      name: provider_type
+      schema:
+        type: string
+        enum:
+          - alibaba
+          - aws
+          - azure
+          - discovery
+          - gcp
+          - ibm
+      description: Filter by provider_type
+      required: false
+    updatedStart:
+      in: query
+      name: updated_start
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts last modified after the given date
+    updatedEnd:
+      in: query
+      name: updated_end
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts last modified before the given date
+    lastCheckInStart:
+      in: query
+      name: last_check_in_start
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts last checked in after the given date
+    lastCheckInEnd:
+      in: query
+      name: last_check_in_end
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts last checked in before the given date
+    factsNamespace:
+      in: path
+      name: namespace
+      description: A namespace of the merged facts.
+      required: true
+      schema:
+        type: string
+    hostOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - display_name
+          - workspace_name
+          - updated
+          - operating_system
+          - last_check_in
+      description: Ordering field name
+    tagOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - display_name
+          - workspace_name
+          - updated
+          - last_check_in
+      description: Ordering field name
+    groupOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - name
+          - host_count
+          - modified
+      description: Ordering field name
+    hostOrderHowParam:
+      in: query
+      name: order_how
+      required: false
+      schema:
+        $ref: '#/components/schemas/OrderHow'
+      description: >-
+        Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC
+        for updated and operating_system
+    groupOrderHowParam:
+      in: query
+      name: order_how
+      required: false
+      schema:
+        $ref: '#/components/schemas/OrderHow'
+      description: >-
+        Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
+        for host_count and updated
+    workspaceTypeParam:
+      in: query
+      name: group_type
+      required: false
+      schema:
+        type: string
+        default: standard
+        enum:
+          - standard
+          - ungrouped-hosts
+          - all
+      description: >-
+        The type of workspaces that should be returned.
+    stalenessParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+            - unknown
+        default:
+          - fresh
+          - stale
+          - stale_warning
+      description: "Culling states of the hosts. Default: fresh, stale and stale_warning"
+    stalenessNoDefaultsParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+            - unknown
+      description: "Culling states of the hosts."
+    tagsParam:
+      name: tags
+      in: query
+      description: 'Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).'
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=/]+)?$'
+    tagsOrderByParam:
+      in: query
+      name: order_by
+      required: false
+      schema:
+        type: string
+        default: tag
+        enum:
+          - tag
+          - count
+      description: Ordering field name
+    tagsOrderHowParam:
+      in: query
+      name: order_how
+      required: false
+      description: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
+      schema:
+        $ref: '#/components/schemas/OrderHow'
+    searchParam:
+      in: query
+      name: search
+      required: false
+      description: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's
+        namespace, key, and/or value is used for matching.
+      schema:
+        type: string
+    registered_with:
+      in: query
+      name: registered_with
+      required: false
+      description: Filters out any host not registered by the specified reporters
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - insights
+            - yupana
+            - satellite
+            - discovery
+            - puptoo
+            - rhsm-conduit
+            - cloud-connector
+            - "!yupana"
+            - "!satellite"
+            - "!discovery"
+            - "!puptoo"
+            - "!rhsm-conduit"
+            - "!cloud-connector"
+    systemTypeParam:
+      in: query
+      name: system_type
+      required: false
+      description: Filters systems by type
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - conventional
+            - bootc
+            - edge
+            - cluster
+    filter_param:
+      in: query
+      name: filter
+      required: false
+      description: >-
+        Filters hosts based on system_profile fields. For example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
+        <br /><br />
+        To get "edge" hosts, use this explicit filter:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
+        <br /><br />
+        To get hosts with an specific operating system, use this explicit filter:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"
+      style: deepObject
+      explode: true
+      example: {}
+      schema:
+        $ref: '#/components/schemas/SystemProfileNestedObject'
+    fields_param:
+      in: query
+      name: fields
+      required: false
+      description: >-
+        Fetches only mentioned system_profile fields. For example,
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"
+      style: deepObject
+      explode: true
+      x-validator: sparseFields
+      example: {}
+      schema:
+        $ref: '#/components/schemas/SystemProfileNestedObject'
+    hostViewCombinedFilterParam:
+      in: query
+      name: filter
+      required: false
+      description: >-
+        Filters hosts based on system_profile fields and/or application data metrics.
+        Both filter types can be combined in a single request.
+        <br /><br />
+        **System profile filters** use the syntax
+        `filter[system_profile][field][operator]=value`. For example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel"
+        <br /><br />
+        **Application data filters** use the syntax
+        `filter[app_name][field_name][operator]=value`. For example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[vulnerability][critical_cves][gte]=1"
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[patch][template_name][eq]=production"
+        <br /><br />
+        **Combined** example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"
+      style: deepObject
+      explode: true
+      example: {}
+      schema:
+        $ref: '#/components/schemas/HostViewCombinedFilter'
+    hostViewCombinedFieldsParam:
+      in: query
+      name: fields
+      required: false
+      description: >-
+        Selects which system_profile fields and/or application data fields to include
+        in the response. Both can be requested in a single call.
+        <br /><br />
+        **System profile fields:** `fields[system_profile]=arch,host_type` returns
+        only the requested system_profile fields on each host. When not specified,
+        no system_profile data is returned (default behavior).
+        <br /><br />
+        **Application data fields:** `fields[advisor]=recommendations` returns only
+        the requested fields for that application. When not specified, all fields from
+        all applications are returned by default.
+        <br /><br />
+        **Application shorthand:** `fields[app_data]=true` explicitly requests all
+        application data for all apps.
+        <br /><br />
+        **Combined** example:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations"
+      style: deepObject
+      explode: true
+      x-validator: hostViewSparseFields
+      example: {}
+      schema:
+        $ref: '#/components/schemas/HostViewCombinedFields'
+    hostViewOrderByParam:
+      name: order_by
+      in: query
+      required: false
+      description: >-
+        Ordering field for host views. Accepts standard host columns or application
+        metrics using `app:field` format. Use together with `order_how`.
+
+        **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in`
+
+        **App fields:** See `AppSortableFields` schema for the full list of available
+        application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
+      schema:
+        type: string
+        enum:
+          # Host fields
+          - display_name
+          - workspace_name
+          - updated
+          - operating_system
+          - last_check_in
+          - advisor:recommendations
+          - advisor:incidents
+          - advisor:critical
+          - advisor:important
+          - advisor:moderate
+          - advisor:low
+          - vulnerability:total_cves
+          - vulnerability:critical_cves
+          - vulnerability:high_severity_cves
+          - vulnerability:cves_with_security_rules
+          - vulnerability:cves_with_known_exploits
+          - patch:advisories_rhsa_installable
+          - patch:advisories_rhba_installable
+          - patch:advisories_rhea_installable
+          - patch:advisories_other_installable
+          - patch:advisories_rhsa_applicable
+          - patch:advisories_rhba_applicable
+          - patch:advisories_rhea_applicable
+          - patch:advisories_other_applicable
+          - patch:packages_installable
+          - patch:packages_applicable
+          - patch:packages_installed
+          - patch:template_name
+          - remediations:remediations_plans
+          - compliance:last_scan
+          - compliance:policies_count
+          - malware:last_matches
+          - malware:total_matches
+          - malware:last_scan
+          - malware:last_status
+    confirmDeleteAll:
+      in: query
+      name: confirm_delete_all
+      schema:
+        type: boolean
+      description: Confirmation to delete all hosts on the account
+      required: false
+    groupName:
+      in: query
+      name: name
+      schema:
+        type: string
+      description: Filter by group name
+      required: false
+    groupNameListParam:
+      in: query
+      name: group_name
+      description: Filter by group name
+      deprecated: true
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+    groupIdListParam:
+      in: query
+      name: group_id
+      description: Filter by group ID (UUID format)
+      deprecated: true
+      required: false
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    workspaceNameListParam:
+      in: query
+      name: workspace_name
+      description: Filter by workspace name
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+    workspaceIdListParam:
+      in: query
+      name: workspace_id
+      description: Filter by workspace ID (UUID format)
+      required: false
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    groupId:
+      in: path
+      name: group_id
+      description: Group ID.
+      required: true
+      schema:
+        $ref: '#/components/schemas/NonStrictUUID'
+    groupIdList:
+      in: path
+      name: group_id_list
+      description: A comma-separated list of group IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+    viewId:
+      in: path
+      name: view_id
+      description: View ID.
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    workspaceId:
+      in: path
+      name: workspace_id
+      description: Workspace ID.
+      required: true
+      schema:
+        $ref: '#/components/schemas/NonStrictUUID'
+    workspaceIdList:
+      in: path
+      name: workspace_id_list
+      description: A comma-separated list of workspace IDs.
+      required: true
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/NonStrictUUID'
+  schemas:
+    SystemProfileOperatingSystemOut:
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        results:
+          description: The list of operating_system values on the account
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  major:
+                    type: integer
+                    nullable: true
+                  minor:
+                    type: integer
+                    nullable: true
+              count:
+                type: integer
+
+    SystemProfileSapSystemOut:
+      type: object
+      properties:
+        total:
+          $ref: '#/components/schemas/Total'
+        count:
+          $ref: '#/components/schemas/Count'
+        results:
+          description: The list of sap_system values on the account
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                oneOf:
+                  - type: string
+                  - type: boolean
+              count:
+                type: integer
+
+    TagsOut:
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          properties:
+            results:
+              description: The list of tags on the systems
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StructuredTag'
+    StructuredTag:
+      type: object
+      properties:
+        namespace:
+          type: string
+          nullable: true
+        key:
+          type: string
+        value:
+          type: string
+          nullable: true
+    TagCountOut:
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          properties:
+            results:
+              description: The list of tags on the systems
+              type: object
+              additionalProperties:
+                type: integer
+    Facts:
+      title: Host facts
+      description: A set of string facts about a host.
+      type: object
+      example:
+        fact1: value1
+        fact2: value2
+    FactSet:
+      title: Host facts under a namespace
+      description: A set of string facts belonging to a single namespace.
+      properties:
+        namespace:
+          type: string
+          minLength: 1
+          description: A namespace the facts belong to.
+        facts:
+          type: object
+          description: The facts themselves.
+          example:
+            fact1: value1
+            fact2: value2
+      required:
+        - namespace
+        - facts
+    NonNullableString:
+      type: string
+      nullable: false
+    NonNullableStringArray:
+      type: array
+      items:
+        type: string
+      nullable: false
+    HyphenatedUuid:
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    InsightsId:
+      description: >-
+        An ID defined in /etc/insights-client/machine-id. This field is
+        considered a canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    SubscriptionManagerId:
+      description: >-
+        A Red Hat Subcription Manager ID of a RHEL host.  This field is
+        considered to be a canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    SatelliteId:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host.  This field is considered to
+        be a canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    BiosUuid:
+      description: >-
+        A UUID of the host machine BIOS.  This field is considered to be a
+        canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    IpAddresses:
+      description: >-
+        Host’s network IP addresses.  This field is considered to be a
+        canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 10.10.0.1
+        - 10.0.0.2
+    Fqdn:
+      description: >-
+        A host’s Fully Qualified Domain Name.  This field is considered to
+        be a canonical fact.
+      type: string
+      nullable: true
+      example: my.host.example.com
+    MacAddresses:
+      description: >-
+        Host’s network interfaces MAC addresses.  This field is considered
+        to be a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 'c2:00:d0:c8:61:01'
+    ProviderId:
+      description: >-
+        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is one of the canonical facts and does not
+        work without provider_type.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
+    ProviderType:
+      description: >-
+        Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
+        This field is one of the canonical facts and does not workout provider_id.
+      type: string
+      nullable: true
+      example: aws
+    AccountNumber:
+      description: A Red Hat Account number that owns the host.
+      type: string
+      nullable: true
+      example: '000102'
+      deprecated: true
+    OrgId:
+      description: The Org ID of the tenant that owns the host.
+      type: string
+      example: '000102'
+    CanonicalFactsIn:
+      allOf:
+        - properties:
+            insights_id:
+              allOf:
+                - $ref: "#/components/schemas/InsightsId"
+                - $ref: "#/components/schemas/HyphenatedUuid"
+            subscription_manager_id:
+              allOf:
+                - $ref: "#/components/schemas/SubscriptionManagerId"
+                - $ref: "#/components/schemas/HyphenatedUuid"
+            satellite_id:
+              allOf:
+                - $ref: "#/components/schemas/SatelliteId"
+                - $ref: "#/components/schemas/HyphenatedUuid"
+            bios_uuid:
+              allOf:
+                - $ref: "#/components/schemas/BiosUuid"
+                - $ref: "#/components/schemas/HyphenatedUuid"
+            ip_addresses:
+              $ref: "#/components/schemas/NonNullableStringArray"
+            fqdn:
+              $ref: "#/components/schemas/NonNullableString"
+            mac_addresses:
+              $ref: "#/components/schemas/NonNullableStringArray"
+            provider_id:
+              $ref: "#/components/schemas/NonNullableString"
+            provider_type:
+              $ref: "#/components/schemas/NonNullableString"
+        - anyOf:
+            - required:
+                - insights_id
+            - required:
+                - subscription_manager_id
+            - required:
+                - satellite_id
+            - required:
+                - bios_uuid
+            - required:
+                - ip_addresses
+            - required:
+                - fqdn
+            - required:
+                - mac_addresses
+            - required:
+                - provider_id
+                - provider_type
+    CanonicalFactsOut:
+      type: object
+      properties:
+        insights_id:
+          $ref: "#/components/schemas/InsightsId"
+        subscription_manager_id:
+          $ref: "#/components/schemas/SubscriptionManagerId"
+        satellite_id:
+          $ref: "#/components/schemas/SatelliteId"
+        bios_uuid:
+          $ref: "#/components/schemas/BiosUuid"
+        ip_addresses:
+          $ref: "#/components/schemas/IpAddresses"
+        fqdn:
+          $ref: "#/components/schemas/Fqdn"
+        mac_addresses:
+          $ref: "#/components/schemas/MacAddresses"
+        provider_id:
+          $ref: "#/components/schemas/ProviderId"
+        provider_type:
+          $ref: "#/components/schemas/ProviderType"
+    CreateCheckIn:
+      title: Check-in data
+      description: >-
+        Data required to create a check-in record for a host.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CanonicalFactsIn'
+        - properties:
+            checkin_frequency:
+              description: How long from now to expect another check-in (in minutes).
+              type: integer
+              minimum: 1
+              maximum: 2880
+              example: 1440
+    HostOut:
+      title: Host Out
+      description: >-
+        Data of a single host belonging to an account. Represents the hosts
+        without its Inventory metadata.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CanonicalFactsOut'
+        - properties:
+            display_name:
+              description: >-
+                A host’s human-readable display name, e.g. in a form of a domain
+                name.
+              type: string
+              example: host1.mydomain.com
+              nullable: true
+            ansible_host:
+              description: >-
+                The ansible host name for remediations
+              type: string
+              example: host1.mydomain.com
+              nullable: true
+            account:
+              $ref: "#/components/schemas/AccountNumber"
+            org_id:
+              $ref: "#/components/schemas/OrgId"
+            id:
+              description: >-
+                A durable and reliable platform-wide host identifier. Applications
+                should use this identifier to reference hosts.
+              type: string
+              example: 3f01b55457674041b75e41829bcee1dc
+            created:
+              description: A timestamp when the entry was created.
+              type: string
+              format: date-time
+            updated:
+              description: A timestamp when the entry was last updated.
+              type: string
+              format: date-time
+            facts:
+              description: A set of facts belonging to the host.
+              type: array
+              items:
+                $ref: '#/components/schemas/FactSet'
+            stale_timestamp:
+              description: Timestamp from which the host is considered stale.
+              type: string
+              format: date-time
+              nullable: true
+            stale_warning_timestamp:
+              description: >-
+                Timestamp from which the host is considered too stale to be listed without an explicit
+                toggle.
+              type: string
+              format: date-time
+              nullable: true
+            culled_timestamp:
+              description: Timestamp from which the host is considered deleted.
+              type: string
+              format: date-time
+              nullable: true
+            reporter:
+              description: Reporting source of the host. Used when updating the stale_timestamp.
+              type: string
+              nullable: true
+            per_reporter_staleness:
+              description: >-
+                Reporting source of the last checkin status, stale_timestamp, and last_check_in.
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/PerReporterStaleness'
+            groups:
+              description: >-
+                The workspaces that the host belongs to, if any.
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkspaceOut'
+            system_profile:
+              $ref: '#/components/schemas/SystemProfile'
+            last_check_in:
+              type: string
+              format: date-time
+            openshift_cluster_id:
+              description: >-
+                The OpenShift cluster ID that the host belongs to, if any.
+              type: string
+              nullable: true
+            host_apps:
+              description: Application-specific metrics and metadata associated with a host.
+              $ref: '#/components/schemas/ConsumerApplicationsData'
+          required:
+            - org_id
+    HostIdOut:
+      title: A Host ID query result
+      description: >-
+        A single Host ID that belongs to a host.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/HostId'
+    HostQueryOutput:
+      title: A Host Inventory query result
+      description: >-
+        A paginated host search query result with host entries and their
+        Inventory metadata.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual host search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostOut'
+    HostViewQueryOutput:
+      title: Inventory view query result
+      description: A paginated host view that optionally includes application data joins.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Combined host and application entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostViewHost'
+    HostViewHost:
+      title: Host with application data
+      allOf:
+        - $ref: '#/components/schemas/HostOut'
+        - type: object
+          properties:
+            app_data:
+              $ref: '#/components/schemas/ConsumerApplicationsData'
+    ConsumerApplicationsData:
+      type: object
+      description: Application-specific metrics and metadata associated with a host.
+      properties:
+        advisor:
+          $ref: '#/components/schemas/AdvisorAppData'
+        vulnerability:
+          $ref: '#/components/schemas/VulnerabilityAppData'
+        patch:
+          $ref: '#/components/schemas/PatchAppData'
+        remediations:
+          $ref: '#/components/schemas/RemediationsAppData'
+        compliance:
+          $ref: '#/components/schemas/ComplianceAppData'
+        malware:
+          $ref: '#/components/schemas/MalwareAppData'
+      additionalProperties: false
+    AdvisorAppData:
+      type: object
+      properties:
+        recommendations:
+          type: integer
+          minimum: 0
+          nullable: true
+        incidents:
+          type: integer
+          minimum: 0
+          nullable: true
+        critical:
+          type: integer
+          minimum: 0
+          nullable: true
+        important:
+          type: integer
+          minimum: 0
+          nullable: true
+        moderate:
+          type: integer
+          minimum: 0
+          nullable: true
+        low:
+          type: integer
+          minimum: 0
+          nullable: true
+    VulnerabilityAppData:
+      type: object
+      properties:
+        total_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        critical_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        high_severity_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        cves_with_security_rules:
+          type: integer
+          minimum: 0
+          nullable: true
+        cves_with_known_exploits:
+          type: integer
+          minimum: 0
+          nullable: true
+    PatchAppData:
+      type: object
+      properties:
+        advisories_rhsa_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhba_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhsa_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhba_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installed:
+          type: integer
+          minimum: 0
+          nullable: true
+        template_name:
+          type: string
+          nullable: true
+        template_uuid:
+          type: string
+          format: uuid
+          nullable: true
+    RemediationsAppData:
+      type: object
+      properties:
+        remediations_plans:
+          type: integer
+          minimum: 0
+          nullable: true
+    ComplianceAppData:
+      type: object
+      properties:
+        policies:
+          type: array
+          nullable: true
+          items:
+            type: object
+        policies_count:
+          type: integer
+          minimum: 0
+          description: Number of compliance policies (computed from policies array length)
+        last_scan:
+          type: string
+          format: date-time
+          nullable: true
+    MalwareAppData:
+      type: object
+      properties:
+        last_status:
+          type: string
+          nullable: true
+        last_matches:
+          type: integer
+          minimum: 0
+          nullable: true
+        total_matches:
+          type: integer
+          minimum: 0
+          nullable: true
+        last_scan:
+          type: string
+          format: date-time
+          nullable: true
+    HostViewCombinedFilter:
+      type: object
+      description: >-
+        Combined filter supporting both system_profile and application data filtering.
+        The `system_profile` key accepts nested system profile filters
+        (using the SystemProfileNestedObject structure), while all other keys
+        (e.g., advisor, vulnerability, patch) are validated as application metric
+        filters with `field → operator → value` structure.
+      additionalProperties:
+        $ref: '#/components/schemas/HostViewCombinedFilterValue'
+    HostViewCombinedFilterValue:
+      anyOf:
+        - $ref: '#/components/schemas/SystemProfileNestedObject'
+        - $ref: '#/components/schemas/HostViewApplicationFilterField'
+    HostViewSparseFieldSelection:
+      type: object
+      additionalProperties:
+        type: boolean
+      description: Map of field names to include. Keys are field names, values are always true.
+    HostViewCombinedFields:
+      type: object
+      description: >-
+        Combined sparse fieldset supporting both system_profile and application data
+        fields. The `system_profile` key selects system profile fields, while all
+        other keys select application data fields. The `app_data` key is an explicit
+        shorthand to request all app data. When omitted, all application
+        data is returned by default but no system_profile data is included.
+      properties:
+        system_profile:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        app_data:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        advisor:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        vulnerability:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        patch:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        remediations:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        compliance:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+        malware:
+          $ref: '#/components/schemas/HostViewSparseFieldSelection'
+      additionalProperties: false
+    HostViewApplicationFilterField:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/HostViewFilterComparison'
+    HostViewFilterComparison:
+      type: object
+      description: |
+        Supported comparison operators for application metrics filtering.
+
+        **Value comparisons:**
+        - `eq` - Equal to
+        - `ne` - Not equal to
+        - `gt` - Greater than
+        - `lt` - Less than
+        - `gte` - Greater than or equal to
+        - `lte` - Less than or equal to
+
+        **Null checks:**
+        - `nil` - Field is null/missing
+        - `not_nil` - Field is not null/exists
+      additionalProperties: false
+      properties:
+        eq:
+          type: string
+        ne:
+          type: string
+        gt:
+          type: string
+        lt:
+          type: string
+        gte:
+          type: string
+        lte:
+          type: string
+        nil:
+          type: boolean
+          description: When true, matches hosts where this field is null/missing.
+        not_nil:
+          type: boolean
+          description: When true, matches hosts where this field exists and is not null.
+    AppSortableFields:
+      type: string
+      description: |
+        Application data fields available for sorting in the /hosts-view endpoint.
+        Use format `app_name:field_name` with the `order_by` parameter.
+
+        **Advisor**
+        - `advisor:recommendations` - Number of Advisor recommendations
+        - `advisor:incidents` - Number of Advisor incidents
+        - `advisor:critical` - Critical severity recommendations
+        - `advisor:important` - Important severity recommendations
+        - `advisor:moderate` - Moderate severity recommendations
+        - `advisor:low` - Low severity recommendations
+
+        **Vulnerability**
+        - `vulnerability:total_cves` - Total CVE count
+        - `vulnerability:critical_cves` - Critical severity CVEs
+        - `vulnerability:high_severity_cves` - High severity CVEs
+        - `vulnerability:cves_with_security_rules` - CVEs with security rules
+        - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
+
+        **Patch**
+        - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
+        - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
+        - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
+        - `patch:advisories_other_installable` - Number of other installable advisories
+        - `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories
+        - `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories
+        - `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories
+        - `patch:advisories_other_applicable` - Number of other applicable advisories
+        - `patch:packages_installable` - Number of installable packages
+        - `patch:packages_applicable` - Number of applicable packages
+        - `patch:packages_installed` - Number of installed packages
+        - `patch:template_name` - Patch template name
+
+        **Remediations**
+        - `remediations:remediations_plans` - Active remediation plans count
+
+        **Compliance**
+        - `compliance:last_scan` - Last compliance scan timestamp
+        - `compliance:policies_count` - Number of compliance policies
+
+        **Malware**
+        - `malware:last_matches` - Malware matches count
+        - `malware:total_matches` - Total malware matches count
+        - `malware:last_scan` - Last malware scan timestamp
+        - `malware:last_status` - Last malware detection status
+      enum:
+        - advisor:recommendations
+        - advisor:incidents
+        - advisor:critical
+        - advisor:important
+        - advisor:moderate
+        - advisor:low
+        - vulnerability:total_cves
+        - vulnerability:critical_cves
+        - vulnerability:high_severity_cves
+        - vulnerability:cves_with_security_rules
+        - vulnerability:cves_with_known_exploits
+        - patch:advisories_rhsa_installable
+        - patch:advisories_rhba_installable
+        - patch:advisories_rhea_installable
+        - patch:advisories_other_installable
+        - patch:advisories_rhsa_applicable
+        - patch:advisories_rhba_applicable
+        - patch:advisories_rhea_applicable
+        - patch:advisories_other_applicable
+        - patch:packages_installable
+        - patch:packages_applicable
+        - patch:packages_installed
+        - patch:template_name
+        - remediations:remediations_plans
+        - compliance:last_scan
+        - compliance:policies_count
+        - malware:last_matches
+        - malware:total_matches
+        - malware:last_scan
+        - malware:last_status
+    SystemProfileByHostOut:
+      title: A host system profile query result
+      description: Structure of the output of the host system profile query
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual host search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostSystemProfileOut'
+    HostSystemProfileOut:
+      title: Structure of an individual host system profile output
+      description: Individual host record that contains only the host id and system profile
+      type: object
+      properties:
+        id:
+          type: string
+        system_profile:
+          $ref: '#/components/schemas/SystemProfile'
+    PatchHostIn:
+      title: Host data
+      description: >-
+        Data of a single host to be updated.
+      type: object
+      properties:
+        ansible_host:
+          description: >-
+            The ansible host name for remediations
+          type: string
+          example: host1.mydomain.com
+        display_name:
+          description: >-
+            A host’s human-readable display name, e.g. in a form of a domain
+            name.
+          type: string
+          example: host1.mydomain.com
+
+    TimeStamp:
+      type: string
+      format: date-time
+      example: '2020-02-10T08:07:03.354307+00:00'
+
+    PerReporterStaleness:
+      type: object
+      properties:
+        last_check_in:
+          $ref: '#/components/schemas/TimeStamp'
+        stale_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        stale_warning_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        culled_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        check_in_succeeded:
+          type: boolean
+    ActiveTags:
+      title: Host data
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              type: array
+              items:
+                title: ActiveTag
+                description: Information about a host tag
+                type: object
+                required:
+                  - tag
+                  - count
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/StructuredTag'
+                  count:
+                    description: The number of hosts with the given tag. If the value is null this indicates that the
+                      count is unknown.
+                    type: integer
+                    nullable: true
+      example:
+        total: 3
+        count: 3
+        page: 1
+        per_page: 50
+        results:
+          - tag:
+              namespace: Sat
+              key: env
+              value: prod
+            count: 3
+          - tag:
+              namespace: aws
+              key: region
+              value: us-east-1
+            count: 1
+          - tag:
+              namespace: insights-client
+              key: web
+              value:
+            count: -1
+    GroupName:
+      description: >-
+        A group’s human-readable name.
+      type: string
+      nullable: false
+      example: sre-group
+    NonStrictUUID:
+      type: string
+      pattern:
+        ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$
+      format: uuid
+      example: bA6deCFc19564430AB814bf8F70E8cEf
+    SystemDefaultId:
+      type: string
+      enum:
+        - system_default
+      example: system_default
+    GroupId:
+      description: >-
+        A durable and reliable platform-wide group identifier. Applications
+        should use this identifier to reference groups.
+      $ref: '#/components/schemas/NonStrictUUID'
+    HostId:
+      description: >-
+        A durable and reliable platform-wide group identifier. Applications
+        should use this identifier to reference hosts.
+      $ref: '#/components/schemas/NonStrictUUID'
+    HostIds:
+      description: A comma-separated list of host IDs that belong to the group.
+      type: array
+      nullable: true
+      items:
+        $ref: '#/components/schemas/NonStrictUUID'
+    StalenessId:
+      description: Account Staleness UID
+      oneOf:
+        - $ref: '#/components/schemas/NonStrictUUID'
+        - $ref: '#/components/schemas/SystemDefaultId'
+
+    HostCount:
+      description: The number of hosts associated with the group.
+      type: integer
+      example: 3
+    GroupIn:
+      title: Group In
+      description: >-
+        Data of a single group belonging to an account.
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/GroupName"
+        host_ids:
+          $ref: "#/components/schemas/HostIds"
+    GroupOutWithHostCount:
+      title: Group properties with host count
+      description: >-
+        Data of a single group belonging to an account.
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GroupOut"
+        - properties:
+            host_count:
+              $ref: "#/components/schemas/HostCount"
+    GroupOut:
+      title: Group Out Properties
+      description: >-
+        Data of a single group belonging to an account.
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/GroupId"
+        name:
+          $ref: "#/components/schemas/GroupName"
+        account:
+          $ref: "#/components/schemas/AccountNumber"
+        org_id:
+          $ref: "#/components/schemas/OrgId"
+        ungrouped:
+          description: Whether the group is the "ungrouped hosts" group
+          type: boolean
+        created:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
+    GroupQueryOutput:
+      title: An Inventory Groups query result
+      description: >-
+        A paginated group search query result with group entries and their
+        Inventory metadata.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual group search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupOutWithHostCount'
+    ResourceTypesOut:
+      title: A resource type query result
+      description: >-
+        Data describing a single resource-types RBAC object.
+      type: object
+      properties:
+        value:
+          description: The name of the resource type
+          type: string
+        path:
+          description: The path for the RBAC endpoint for the resource type
+          type: string
+        count:
+          type: integer
+    ResourceTypesQueryOutput:
+      title: A resource-types query result
+      description: >-
+        A paginated list of resource-types RBAC objects.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ResourceTypesPaginationOut'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              description: Actual resource-types object data.
+              type: array
+              items:
+                $ref: '#/components/schemas/ResourceTypesOut'
+    ResourceTypesGroupsQueryOutput:
+      title: An Inventory Groups query result in resource-types response format
+      description: >-
+        A paginated group search query result with group entries and their
+        Inventory metadata in paginated resource-types response format.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ResourceTypesPaginationOut'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              description: Actual group search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
+    StalenessTimeout:
+      type: integer
+      minimum: 1
+
+    StalenessIn:
+      title: Account Staleness In
+      description: >-
+        Data of a single account staleness.
+      type: object
+      properties:
+        conventional_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        conventional_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_stale_warning:
+          $ref: '#/components/schemas/StalenessTimeout'
+        immutable_time_to_delete:
+          $ref: '#/components/schemas/StalenessTimeout'
+    StalenessOutput:
+      title: Account Staleness Out
+      description: >-
+        Data of a account staleness.
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/StalenessIn"
+        - required:
+            - conventional_time_to_stale
+            - conventional_time_to_stale_warning
+            - conventional_time_to_delete
+            - immutable_time_to_stale
+            - immutable_time_to_stale_warning
+            - immutable_time_to_delete
+        - properties:
+            id:
+              $ref: "#/components/schemas/StalenessId"
+            org_id:
+              $ref: "#/components/schemas/OrgId"
+            created:
+              description: A timestamp when the entry was created.
+              type: string
+              format: date-time
+              nullable: true
+            updated:
+              nullable: true
+              description: A timestamp when the entry was last updated.
+              type: string
+              format: date-time
+          required:
+            - id
+            - org_id
+            - created
+            - updated
+    OrderHow:
+      type: string
+      pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
+
+
+    # include renames for system_profile
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    SystemProfileNestedObject:
+      $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+    SystemProfileDiskDevice:
+      $ref: 'system_profile.spec.yaml#/$defs/DiskDevice'
+    SystemProfileYumRepo:
+      $ref: 'system_profile.spec.yaml#/$defs/YumRepo'
+    SystemProfileDnfModule:
+      $ref: 'system_profile.spec.yaml#/$defs/DnfModule'
+    SystemProfileInstalledProduct:
+      $ref: 'system_profile.spec.yaml#/$defs/InstalledProduct'
+    SystemProfileNetworkInterface:
+      $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
+    SystemProfileInterSystemsRunningInstance:
+      $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
+
+
+    # Inventory Views schemas
+    ViewColumnConfig:
+      title: View Column Configuration
+      description: Configuration for a single column in a view.
+      type: object
+      required:
+        - key
+      properties:
+        key:
+          description: >-
+            The column key identifier, e.g. "insights_id",
+            "compliance.last_scan", "advisor.recommendations".
+          type: string
+        visible:
+          description: Whether the column is visible in the view.
+          type: boolean
+          default: true
+    ViewSortConfig:
+      title: View Sort Configuration
+      description: Sort configuration for a view.
+      type: object
+      required:
+        - key
+      properties:
+        key:
+          description: The column key to sort by.
+          type: string
+        direction:
+          description: The sort direction.
+          type: string
+          enum:
+            - asc
+            - desc
+          default: desc
+    ViewConfiguration:
+      title: View Configuration
+      description: >-
+        The full visual configuration for an inventory view, including
+        column layout, sort order, and active filters.
+      type: object
+      required:
+        - columns
+      properties:
+        columns:
+          description: Ordered list of column configurations.
+          type: array
+          items:
+            $ref: '#/components/schemas/ViewColumnConfig'
+        sort:
+          $ref: '#/components/schemas/ViewSortConfig'
+        filters:
+          description: >-
+            Active filter criteria. Keys are filter names, values are
+            arrays of selected filter values.
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    ViewIn:
+      title: View Create Payload
+      description: Data required to create a new inventory view.
+      type: object
+      required:
+        - name
+        - configuration
+      properties:
+        name:
+          description: The display name for the view.
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          description: An optional description of the view.
+          type: string
+          maxLength: 2048
+          nullable: true
+        configuration:
+          $ref: '#/components/schemas/ViewConfiguration'
+        org_wide:
+          description: >-
+            If true, the view is visible to all users in the organization.
+            If false, only the creator can see it.
+          type: boolean
+          default: false
+    ViewPatch:
+      title: View Update Payload
+      description: Data for updating an existing inventory view. All fields are optional.
+      type: object
+      properties:
+        name:
+          description: The display name for the view.
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          description: An optional description of the view.
+          type: string
+          maxLength: 2048
+          nullable: true
+        configuration:
+          $ref: '#/components/schemas/ViewConfiguration'
+        org_wide:
+          description: >-
+            If true, the view is visible to all users in the organization.
+            If false, only the creator can see it.
+          type: boolean
+    ViewOut:
+      title: View Response
+      description: Full representation of an inventory view returned by the API.
+      type: object
+      properties:
+        id:
+          description: The unique identifier of the view.
+          type: string
+          format: uuid
+        org_id:
+          description: >-
+            The organization ID that owns the view. Null for system views.
+          type: string
+          nullable: true
+        name:
+          description: The display name for the view.
+          type: string
+        description:
+          description: An optional description of the view.
+          type: string
+          nullable: true
+        configuration:
+          $ref: '#/components/schemas/ViewConfiguration'
+        org_wide:
+          description: Whether the view is visible to the entire organization.
+          type: boolean
+        is_system_view:
+          description: >-
+            True if this is a read-only system view (Red Hat preset).
+            System views cannot be updated or deleted, but can be cloned.
+          type: boolean
+        is_owner:
+          description: >-
+            True if the requesting user is the creator of this view.
+            Only the owner can update or delete a view.
+          type: boolean
+        created_by:
+          description: The username of the view creator.
+          type: string
+          nullable: true
+        created_at:
+          description: Timestamp when the view was created.
+          type: string
+          format: date-time
+        updated_at:
+          description: Timestamp when the view was last updated.
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - configuration
+        - org_wide
+        - is_system_view
+        - is_owner
+        - created_at
+        - updated_at
+    ViewsListOut:
+      title: Views List Response
+      description: A paginated list of inventory views.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: List of inventory views.
+              type: array
+              items:
+                $ref: '#/components/schemas/ViewOut'
+
+    # include renames for pagination
+    PaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/PaginationOut'
+    Total:
+      $ref: 'pagination.yaml#/components/schemas/Total'
+    Count:
+      $ref: 'pagination.yaml#/components/schemas/Count'
+    Page:
+      $ref: 'pagination.yaml#/components/schemas/Page'
+    PerPage:
+      $ref: 'pagination.yaml#/components/schemas/PerPage'
+    ResourceTypesPaginationOut:
+      $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+
+    NotFoundErrorResponse:
+      title: Not Found Error Response
+      description: Error response returned when one or more requested resources are not found.
+      type: object
+      properties:
+        status:
+          description: The HTTP status code.
+          type: integer
+          example: 404
+        title:
+          description: A short summary of the error.
+          type: string
+          example: Not Found
+        detail:
+          description: A human-readable description of the error.
+          type: string
+          example: One or more requested resources were not found.
+        not_found_ids:
+          description: >-
+            A list of IDs that were requested but not found. This field is included
+            when specific IDs can be identified as missing.
+          type: array
+          items:
+            type: string
+            format: uuid
+          example:
+            - 22cd8e39-13bb-4d02-8316-84b850dc5136
+        type:
+          description: The type of the error.
+          type: string
+          example: about:blank
+      required:
+        - status
+        - title
+        - detail
+
+
+    WorkspaceOut:
+      title: Workspace Out Properties
+      description: >-
+        Data of a single workspace belonging to an account.
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/GroupId"
+        name:
+          $ref: "#/components/schemas/GroupName"
+        account:
+          $ref: "#/components/schemas/AccountNumber"
+        org_id:
+          $ref: "#/components/schemas/OrgId"
+        ungrouped:
+          description: Whether the group is the "ungrouped hosts" group
+          type: boolean
+        created:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        modified:
+          description: A timestamp when the entry was last modified.
+          type: string
+          format: date-time
+        parent_id:
+          description: The parent workspace ID for hierarchical organization.
+          type: string
+          format: uuid
+          nullable: true
+        description:
+          description: A free-text description of the workspace.
+          type: string
+          nullable: true
+        type:
+          description: The workspace classification type.
+          type: string
+          nullable: true
+    WorkspaceOutWithHostCount:
+      title: Workspace properties with host count
+      description: Data of a single workspace belonging to an account.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/WorkspaceOut'
+        - properties:
+            host_count:
+              $ref: '#/components/schemas/HostCount'
+    WorkspaceIn:
+      title: Workspace In
+      description: >-
+        Data of a single workspace belonging to an account.
+      type: object
+      properties:
+        name:
+          $ref: "#/components/schemas/GroupName"
+        host_ids:
+          $ref: "#/components/schemas/HostIds"
+        description:
+          description: A free-text description of the workspace.
+          type: string
+          nullable: true
+        type:
+          description: The workspace classification type.
+          type: string
+          nullable: true
+        parent_id:
+          description: The parent workspace ID for hierarchical organization.
+          type: string
+          format: uuid
+          nullable: true
+    WorkspaceQueryOutput:
+      title: An Inventory Workspaces query result
+      description: A paginated workspace search query result with workspace entries and their Inventory metadata.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual workspace search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
+  responses:
+    PageOutOfBounds:
+      description: Requested page is outside of the range of available pages
+    NotFoundError:
+      description: One or more requested resources were not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundErrorResponse'
