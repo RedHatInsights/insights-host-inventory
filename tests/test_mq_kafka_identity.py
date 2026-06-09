@@ -34,6 +34,26 @@ def _assert_host_not_in_db(org_id: str, subscription_manager_id: str) -> None:
     assert result is None
 
 
+def _make_consumer(mocker: MockFixture, notification_event_producer: Any) -> IngressMessageConsumer:
+    return IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), notification_event_producer)
+
+
+def _make_identity_metadata(identity: dict[str, Any]) -> dict[str, str]:
+    return {
+        "request_id": generate_uuid(),
+        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
+        "b64_identity": get_encoded_idstr(identity),
+    }
+
+
+def _owner_id_for_identity(identity: dict[str, Any]) -> str:
+    try:
+        cn = identity["system"]["cn"]
+        return cn if cn else generate_uuid()
+    except (KeyError, TypeError):
+        return generate_uuid()
+
+
 # --- Positive: system identity with correct owner_id ---
 
 
@@ -173,7 +193,7 @@ def test_owner_id_different_from_cn(mocker: MockFixture) -> None:
     )
 
     message = wrap_message(host.data(), "add_host", get_platform_metadata())
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException) as ve:
         consumer.handle_message(json.dumps(message))
@@ -210,7 +230,7 @@ def test_no_identity_and_no_rhsm_reporter(mocker: MockFixture) -> None:
     platform_metadata.pop("b64_identity")
 
     message = wrap_message(host.data(), "add_host", platform_metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
@@ -231,7 +251,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker: MockFixture) -> None:
     platform_metadata = get_platform_metadata()
     platform_metadata.pop("b64_identity")
     message = wrap_message(host.data(), "add_host", platform_metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
     mock_notification_event_producer.write_event.assert_called_once()
@@ -245,11 +265,7 @@ def test_non_rhsm_reporter_and_no_identity(mocker: MockFixture) -> None:
 def test_add_host_with_invalid_identity(mocker: MockFixture, mq_create_or_update_host: Callable) -> None:
     identity = deepcopy(USER_IDENTITY)
     identity["account_number"] = -5
-    metadata = {
-        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
-        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": get_encoded_idstr(identity),
-    }
+    metadata = _make_identity_metadata(identity)
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host()
     with pytest.raises(ValidationException):
@@ -328,7 +344,7 @@ def test_create_rhsm_reporter_without_subscription_manager_id(
         platform_metadata.pop("b64_identity")
 
     message = wrap_message(host_data, "add_host", platform_metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
@@ -364,7 +380,7 @@ def test_create_host_wrong_org_id(mocker: MockFixture, identity: dict[str, Any],
 
     metadata = get_platform_metadata(wrong_identity)
     message = wrap_message(host.data(), "add_host", metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
@@ -385,7 +401,7 @@ def test_create_host_without_metadata(mocker: MockFixture, has_owner_id: bool) -
         host.system_profile = {"owner_id": generate_uuid()}
 
     message = wrap_message(host.data(), "add_host")
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
@@ -537,22 +553,11 @@ def test_create_host_wrong_identity(mocker: MockFixture, identity: dict[str, Any
     org_id = identity.get("org_id", SYSTEM_IDENTITY["org_id"])
     host = minimal_host(org_id=org_id)
     if has_owner_id:
-        try:
-            cn = identity["system"]["cn"]
-            if cn:
-                host.system_profile = {"owner_id": cn}
-            else:
-                host.system_profile = {"owner_id": generate_uuid()}
-        except (KeyError, TypeError):
-            host.system_profile = {"owner_id": generate_uuid()}
+        host.system_profile = {"owner_id": _owner_id_for_identity(identity)}
 
-    metadata = {
-        "request_id": generate_uuid(),
-        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": get_encoded_idstr(identity),
-    }
+    metadata = _make_identity_metadata(identity)
     message = wrap_message(host.data(), "add_host", metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(ValidationException):
         consumer.handle_message(json.dumps(message))
@@ -570,22 +575,11 @@ def test_create_host_identity_missing_org_id(
 
     host = minimal_host()
     if has_owner_id:
-        try:
-            cn = identity["system"]["cn"]
-            if cn:
-                host.system_profile = {"owner_id": cn}
-            else:
-                host.system_profile = {"owner_id": generate_uuid()}
-        except (KeyError, TypeError):
-            host.system_profile = {"owner_id": generate_uuid()}
+        host.system_profile = {"owner_id": _owner_id_for_identity(identity)}
 
-    metadata = {
-        "request_id": generate_uuid(),
-        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": get_encoded_idstr(identity),
-    }
+    metadata = _make_identity_metadata(identity)
     message = wrap_message(host.data(), "add_host", metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(KeyError):
         consumer.handle_message(json.dumps(message))
@@ -610,7 +604,7 @@ def test_create_host_unwrapped_empty_identity(mocker: MockFixture, has_owner_id:
         "b64_identity": b64_identity,
     }
     message = wrap_message(host.data(), "add_host", metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
+    consumer = _make_consumer(mocker, mock_notification_event_producer)
 
     with pytest.raises(TypeError):
         consumer.handle_message(json.dumps(message))
