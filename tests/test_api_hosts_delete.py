@@ -1065,3 +1065,134 @@ def test_delete_hosts_filter_by_reporter_and_staleness(
 
                 for remaining_id in all_host_ids:
                     assert db_get_host(remaining_id), f"Host {remaining_id} should not have been deleted"
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_hosts_filtered_by_all_parameters(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+):
+    """
+    Test DELETE /hosts with all filter parameters combined.
+    Creates 7 hosts: 1 target matching all filters and 6 decoys, each differing
+    in exactly one dimension. Verifies only the target is deleted.
+
+    Filters tested: display_name, provider_type, staleness, tags, group_name, registered_with.
+    """
+    target_display_name = "target-host"
+    other_display_name = "other-host"
+    target_tags = {"ns": {"k": ["v"]}}
+    other_tags = {"ns2": {"k2": ["v2"]}}
+    target_provider_type = "aws"
+    other_provider_type = "ibm"
+    target_provider_id = "i-target-001"
+    other_provider_id = "i-other-001"
+    target_reporter = "puptoo"
+    other_reporter = "yupana"
+
+    stale_timestamp = now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
+
+    # Host 3 (stale) — created with early last_check_in so it's in "stale" state
+    with mock.patch("app.models.utils.datetime", **{"now.return_value": stale_timestamp}):
+        host3 = db_create_host(
+            extra_data={
+                "display_name": target_display_name,
+                "provider_type": target_provider_type,
+                "provider_id": target_provider_id,
+                "tags": target_tags,
+                "reporter": target_reporter,
+            }
+        )
+
+    # Hosts 0 (target), 1, 2, 4, 5, 6 — created with current timestamp (fresh)
+    host0_target = db_create_host(
+        extra_data={
+            "display_name": target_display_name,
+            "provider_type": target_provider_type,
+            "provider_id": target_provider_id,
+            "tags": target_tags,
+            "reporter": target_reporter,
+        }
+    )
+    # host1: wrong display_name
+    host1 = db_create_host(
+        extra_data={
+            "display_name": other_display_name,
+            "provider_type": target_provider_type,
+            "provider_id": target_provider_id,
+            "tags": target_tags,
+            "reporter": target_reporter,
+        }
+    )
+    # host2: wrong provider_type
+    host2 = db_create_host(
+        extra_data={
+            "display_name": target_display_name,
+            "provider_type": other_provider_type,
+            "provider_id": other_provider_id,
+            "tags": target_tags,
+            "reporter": target_reporter,
+        }
+    )
+    # host4: wrong tags
+    host4 = db_create_host(
+        extra_data={
+            "display_name": target_display_name,
+            "provider_type": target_provider_type,
+            "provider_id": target_provider_id,
+            "tags": other_tags,
+            "reporter": target_reporter,
+        }
+    )
+    # host5: no group (excluded by group_name filter)
+    host5 = db_create_host(
+        extra_data={
+            "display_name": target_display_name,
+            "provider_type": target_provider_type,
+            "provider_id": target_provider_id,
+            "tags": target_tags,
+            "reporter": target_reporter,
+        }
+    )
+    # host6: wrong reporter
+    host6 = db_create_host(
+        extra_data={
+            "display_name": target_display_name,
+            "provider_type": target_provider_type,
+            "provider_id": target_provider_id,
+            "tags": target_tags,
+            "reporter": other_reporter,
+        }
+    )
+
+    # Create group and assign all hosts except host5
+    group = db_create_group("test-group")
+    for host in (host0_target, host1, host2, host3, host4, host6):
+        db_create_host_group_assoc(host.id, group.id)
+
+    # Save host IDs before the API call (the session may detach host objects)
+    target_id = str(host0_target.id)
+    decoy_ids = [str(h.id) for h in (host1, host2, host3, host4, host5, host6)]
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={
+            "display_name": target_display_name,
+            "provider_type": target_provider_type,
+            "staleness": ["fresh"],
+            "tags": "ns/k=v",
+            "group_name": group.name,
+            "registered_with": target_reporter,
+        }
+    )
+
+    assert response_status == 202
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(target_id), "Target host should have been deleted"
+
+    for host_id in decoy_ids:
+        assert db_get_host(host_id), f"Host {host_id} should not have been deleted"
