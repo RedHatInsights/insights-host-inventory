@@ -242,6 +242,8 @@ objects:
       podSpec:
         <<: [ *gunicornPodSpec, *readProbes ]
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: APP_NAME
             value: ${APP_NAME}
           - name: PATH_PREFIX
@@ -381,6 +383,8 @@ objects:
         <<: *gunicornPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: APP_NAME
             value: ${APP_NAME}
           - name: PATH_PREFIX
@@ -517,6 +521,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -640,6 +646,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -765,6 +773,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -886,6 +896,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -1016,6 +1028,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -1146,6 +1160,8 @@ objects:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./inv_export_service.py"]
         env:
+        - name: OPENSHIFT_BUILD_COMMIT
+          value: ${IMAGE_TAG}
         - name: INVENTORY_LOG_LEVEL
           value: DEBUG
         - name: INVENTORY_DB_SSL_MODE
@@ -1193,6 +1209,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
