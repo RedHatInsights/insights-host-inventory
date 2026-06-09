@@ -8,8 +8,6 @@ from urllib.parse import quote
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.tests.rest.test_filter_hosts import FILTER_OS_DISPLAY_NAME
 from iqe_host_inventory.tests.rest.test_filter_hosts import format_sap_sids_filters
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
@@ -23,7 +21,6 @@ from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
 from iqe_host_inventory_api import ActiveTags
 from iqe_host_inventory_api import ApiException
-from iqe_host_inventory_api import HostOut
 from iqe_host_inventory_api import StructuredTag
 
 pytestmark = [pytest.mark.backend]
@@ -960,122 +957,10 @@ def test_filter_tags_by_system_profile_bootc_status_host_type(
     assert_tags_not_found(not_expected_tags, response.results)
 
 
-# NOTE: test_filter_tags_by_system_profile_operating_system has been moved to
-# test_filter_hosts.py::TestOperatingSystemFiltering to share the expensive
-# setup_hosts_for_operating_system_filtering fixture with other OS filtering tests.
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "params, expected_hosts",
-    [
-        (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=not_nil"], [3]),
-        (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=nil"], [0]),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=8.6",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[rhc_client_id][]=not_nil",
-            ],
-            [3, 4],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=8.6",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[rhc_client_id][]=nil",
-            ],
-            [0, 1],
-        ),
-    ],
-    ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
-)
-def test_filter_tags_by_system_profile_os_rhc(
-    setup_hosts_for_os_rhc_filtering: list[HostWrapper],
-    host_inventory: ApplicationHostInventory,
-    params: list[str],
-    expected_hosts: list[int],
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-9784
-
-    metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
-                    inv-hosts-get-by-sp-scalar-fields
-      assignee: fstavela
-      importance: high
-      title: Inventory: filter tags by operating_system & rhc_client_id
-    """
-    hosts = setup_hosts_for_os_rhc_filtering
-    expected_tags = flatten(hosts[i].tags for i in expected_hosts)
-    not_expected_tags = flatten(
-        hosts[i].tags for i in range(len(hosts)) if i not in expected_hosts
-    )
-
-    filter = [f"{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
-
-
-@pytest.mark.parametrize(
-    "params, expected_hosts",
-    [
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=7.10",
-            ],
-            [1],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=8.0",
-            ],
-            [],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[operating_system][RHEL][version][eq][]=8.0",
-            ],
-            [1],
-        ),
-    ],
-    ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
-)
-def test_filter_tags_by_system_profile_os_display_name(
-    setup_hosts_for_os_display_name_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
-    host_inventory: ApplicationHostInventory,
-    params: list[str],
-    expected_hosts: list[int],
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-10785
-
-    metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
-                    inv-hosts-filter-by-display_name
-      assignee: fstavela
-      importance: high
-      title: Inventory: filter tags by operating_system & display_name
-    """
-    _, tags = setup_hosts_for_os_display_name_filtering
-    expected_tags = flatten(tags[i] for i in expected_hosts)
-    not_expected_tags = flatten(tags[i] for i in range(len(tags)) if i not in expected_hosts)
-
-    filter = [f"{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(
-        filter=filter, display_name=f"{FILTER_OS_DISPLAY_NAME}-1"
-    )
-    log_response_tags_indices(tags, response)
-
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+# NOTE: test_filter_tags_by_system_profile_operating_system,
+# test_filter_tags_by_system_profile_os_rhc, and
+# test_filter_tags_by_system_profile_os_display_name have been moved to
+# test_filter_hosts.py to share the expensive setup fixtures with other OS filtering tests.
 
 
 @pytest.mark.ephemeral
