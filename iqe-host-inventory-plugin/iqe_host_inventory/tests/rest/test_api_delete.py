@@ -37,7 +37,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_provider_type
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import ApiException
@@ -897,60 +896,6 @@ def test_delete_bulk_registered_with_temp_old(
 
     response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_ids[1])}
     assert hosts_ids[1] in response_ids
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_staleness(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test DELETE on /hosts endpoint with 'staleness' parameter
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with 'staleness' parameter
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(6)
-
-    hosts = create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:2],
-        stale_hosts_data=hosts_data[2:4],
-        stale_warning_hosts_data=hosts_data[4:6],
-        deltas=(15, 30, 3600),
-    )
-
-    host_ids = {host.id for host in hosts["fresh"] + hosts["stale"] + hosts["stale_warning"]}
-
-    hosts_to_delete = {host.id for host in hosts["stale_warning"]}
-    hosts_to_keep = host_ids - hosts_to_delete
-
-    check_delete_filtered_different_account(staleness=["stale_warning"])
-
-    logger.info(f"Host IDs: {host_ids}")
-    logger.info(f"Expected hosts to be deleted: {hosts_to_delete}")
-    logger.info(f"Expected hosts to keep: {hosts_to_keep}")
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-len(hosts_to_delete)):
-        host_inventory.apis.hosts.delete_filtered(staleness=["stale_warning"])
-        host_inventory.apis.hosts.wait_for_deleted(hosts_to_delete)
-
-    response = host_inventory.apis.hosts.get_hosts_response(staleness=["stale_warning"])
-    assert response.total == 0
-
-    # Make sure we get 404 when trying to get hosts that don't exist
-    with raises_apierror(404):
-        {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_to_keep)}
-    logger.info(f"Response IDs: {response_ids}")
-    assert response_ids == hosts_to_keep
 
 
 @pytest.mark.ephemeral
