@@ -24,6 +24,8 @@ from app.models import HostSchema
 from app.models import LimitedHost
 from app.models import LimitedHostSchema
 from app.models.constants import WORKLOADS_FIELDS
+from app.models.system_profile_transformer import DYNAMIC_FIELDS
+from app.models.system_profile_transformer import STATIC_FIELDS
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
@@ -124,6 +126,27 @@ def remove_null_canonical_facts(serialized_host: dict):
             del serialized_host[field_name]
 
 
+_STATIC_FIELD_SET = set(STATIC_FIELDS)
+_DYNAMIC_FIELD_SET = set(DYNAMIC_FIELDS) | WORKLOADS_FIELDS
+
+
+def _determine_profile_sources(requested_fields: set[str] | None) -> tuple[str, ...]:
+    """Determine which profile relationships to access based on requested fields.
+
+    Avoids triggering lazy loads on relationships whose data isn't needed.
+    """
+    if not requested_fields:
+        return ("static_system_profile", "dynamic_system_profile")
+
+    sources = []
+    if requested_fields & _STATIC_FIELD_SET:
+        sources.append("static_system_profile")
+    if requested_fields & _DYNAMIC_FIELD_SET:
+        sources.append("dynamic_system_profile")
+
+    return tuple(sources) if sources else ("static_system_profile", "dynamic_system_profile")
+
+
 def build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
     """
     Build system profile dict from static and dynamic tables.
@@ -148,7 +171,9 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
         if requested_workload_subfields and not workloads_explicitly_requested:
             requested_fields.add("workloads")
 
-    for attr_name in ("static_system_profile", "dynamic_system_profile"):
+    sources_to_check = _determine_profile_sources(requested_fields)
+
+    for attr_name in sources_to_check:
         try:
             profile_source = getattr(host, attr_name, None)
             if not profile_source:
@@ -170,7 +195,6 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
                     system_profile[field_name] = serializer(value) if serializer else value
 
         except DetachedInstanceError:
-            # Relationship not loaded - skip this source
             pass
 
     return system_profile

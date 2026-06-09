@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import load_only
+from sqlalchemy.orm import noload
 from sqlalchemy.sql import expression
 from sqlalchemy.sql.expression import ColumnElement
 
@@ -135,14 +136,19 @@ def _get_host_list_using_filters(
         # Load full ORM objects (needed for relationships)
         base_query = _find_hosts_entities_query(query=query_base, columns=None, order_by=param_order_by)
 
-        # Conditionally join related tables based on requested fields
+        # Conditionally join related tables based on requested fields.
+        # Use noload() as a safety net to prevent accidental lazy loads.
         requested_keys = set(sp_fields_map.keys())
 
         if requested_keys & set(STATIC_FIELDS) or param_order_by in ORDER_BY_STATIC_PROFILE_FIELDS:
             base_query = base_query.options(joinedload(Host.static_system_profile))
+        else:
+            base_query = base_query.options(noload(Host.static_system_profile))
 
         if requested_keys & (set(DYNAMIC_FIELDS) | WORKLOADS_FIELDS):
             base_query = base_query.options(joinedload(Host.dynamic_system_profile))
+        else:
+            base_query = base_query.options(noload(Host.dynamic_system_profile))
     else:
         base_query = _find_hosts_entities_query(
             query=query_base, columns=DEFAULT_COLUMNS.copy(), order_by=param_order_by
