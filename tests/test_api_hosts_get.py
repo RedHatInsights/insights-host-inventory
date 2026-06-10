@@ -38,6 +38,7 @@ from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.test_utils import IDENTITY_WITHOUT_HOSTS
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -2890,3 +2891,13 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
 
     assert response_status == 200
     assert response_data["results"] == []
+
+
+def test_no_hosts_in_org(api_get):
+    """Test no hosts are returned if for empty organization."""
+
+    url = build_hosts_url()
+    response_status, response_data = api_get(url, identity=IDENTITY_WITHOUT_HOSTS)
+    assert response_status == 200
+    assert response_data["results"] == []
+    assert response_data["count"] == response_data["total"] == 0
