@@ -4,9 +4,6 @@ from collections import Counter
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory_api import ApiTypeError
-from iqe_host_inventory_api import HostOut
-from iqe_host_inventory_api import StructuredTag
 
 logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
@@ -72,17 +69,9 @@ def test_sap_systems_pagination(host_inventory: ApplicationHostInventory):
     paginate_test_impl(host_inventory.apis.system_profile.get_sap_systems_response)
 
 
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("setup_hosts_for_operating_system_filtering")
-def test_operating_systems_pagination(host_inventory: ApplicationHostInventory):
-    """
-    metadata:
-        requirements: inv-pagination, inv-system_profile-operating_system
-        assignee: fstavela
-        importance: medium
-        title: Inventory: operating_system pagination
-    """
-    paginate_test_impl(host_inventory.apis.system_profile.get_operating_systems_response)
+# NOTE: test_operating_systems_pagination has been moved to
+# test_filter_hosts.py::TestOperatingSystemFiltering to share the expensive
+# setup_hosts_for_operating_system_filtering fixture with other OS filtering tests.
 
 
 @pytest.mark.ephemeral
@@ -185,58 +174,7 @@ def test_system_profile_sap_sids_search(
     assert all("BC" in result.value for result in api_results)
 
 
-@pytest.mark.ephemeral
-def test_system_profile_endpoint_operating_system(
-    setup_hosts_for_operating_system_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test enumerating all operating_system values in system_profile
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2751
-
-    metadata:
-        requirements: inv-system_profile-operating_system
-        assignee: fstavela
-        importance: high
-        title: Inventory: operating_system values enumerating
-    """
-    hosts, _ = setup_hosts_for_operating_system_filtering
-    hosts = hosts[:7]  # We don't want hosts from different account
-    valid_values: Counter[str] = Counter()
-    for host in hosts:
-        response = host_inventory.apis.hosts.get_host_system_profile(host)
-        operating_system = response.system_profile.operating_system
-        if operating_system is not None:
-            os_string = os_dict_to_str(operating_system.to_dict())
-            valid_values.update([os_string])
-
-    api_results = host_inventory.apis.system_profile.get_operating_systems()
-    items = {}
-    for result in api_results:
-        items[os_dict_to_str(result.value)] = result.count
-    assert all(value in items for value in valid_values.keys())
-    assert all(items[os_string] >= count for os_string, count in valid_values.items())
-
-    for value, count in items.items():
-        parameters = os_filter_param(value)
-        api_result = host_inventory.apis.hosts.get_hosts_response(filter=[parameters])
-        assert api_result.total == count
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("setup_hosts_for_operating_system_filtering")
-def test_system_profile_operating_system_search(host_inventory: ApplicationHostInventory):
-    """
-    Test that search parameter is not allowed on /system_profile/operating_system endpoint
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2923
-
-    metadata:
-        requirements: inv-system_profile-operating_system
-        assignee: fstavela
-        importance: medium
-        title: test search parameter on /system_profile/operating_system endpoint
-    """
-    with pytest.raises(ApiTypeError):
-        host_inventory.apis.system_profile.get_operating_systems(search="test")
+# NOTE: test_system_profile_endpoint_operating_system and
+# test_system_profile_operating_system_search have been moved to
+# test_filter_hosts.py::TestOperatingSystemFiltering to share the expensive
+# setup_hosts_for_operating_system_filtering fixture with other OS filtering tests.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from random import randint
 from urllib.parse import quote
 
@@ -10,13 +11,21 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.kafka_interaction import SAP_FILTER_DISPLAY_NAME
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.tests.rest.test_system_profile_endpoints import os_dict_to_str
+from iqe_host_inventory.tests.rest.test_system_profile_endpoints import os_filter_param
+from iqe_host_inventory.tests.rest.test_system_profile_endpoints import paginate_test_impl
+from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
+from iqe_host_inventory.utils.tag_utils import assert_tags_found
+from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
+from iqe_host_inventory_api import ActiveTags
 from iqe_host_inventory_api import ApiException
+from iqe_host_inventory_api import ApiTypeError
 from iqe_host_inventory_api import HostOut
 from iqe_host_inventory_api import HostQueryOutput
 from iqe_host_inventory_api import StructuredTag
@@ -148,122 +157,402 @@ def test_filter_hosts_by_system_profile_sap_sids(
     assert response_ids & all_hosts_ids == expected_ids
 
 
-@pytest.mark.smoke
-@pytest.mark.parametrize(
-    "params, expected_hosts",
-    [
-        (["[RHEL][version][lt][]=7.10"], [0]),
-        (["[RHEL][version][lte][]=7.10"], [0, 1]),
-        (["[RHEL][version][gte][]=7.10"], [1, 2]),
-        (["[RHEL][version][gt][]=7.10"], [2]),
-        (["[RHEL][version][lt][]=7.6"], [0]),
-        (["[RHEL][version][lte][]=7.6"], [0]),
-        (["[RHEL][version][gte][]=7.6"], [1, 2]),
-        (["[RHEL][version][gt][]=7.6"], [1, 2]),
-        (["[RHEL][version][lt][]=7"], []),
-        (["[RHEL][version][lte][]=7"], [0, 1]),
-        (["[RHEL][version][gte][]=7"], [0, 1, 2]),
-        (["[RHEL][version][gt][]=7"], [2]),
-        (["[RHEL][version][gt][]=8"], []),
-        (["[RHEL][version][gte][]=8"], [2]),
-        (["[RHEL][version][gte][]=7.10", "[RHEL][version][lte][]=7.10"], [1]),
-        (["[RHEL][version][gt][]=7", "[RHEL][version][lt][]=8"], []),
-        # TODO: Uncomment when https://issues.redhat.com/browse/RHINENG-18750 is fixed
-        # (["[RHEL][version][gte][]=7", "[RHEL][version][lte][]=8"], [0, 1, 2]),
-        (["[RHEL][version][eq][]=7"], [0, 1]),
-        (["[RHEL][version][eq][]=8"], [2]),
-        (["[RHEL][version][eq][]=7.10"], [1]),
-        (["[RHEL][version][eq][]=7.1"], []),
-        (["[RHEL][version][eq][]=7.5", "[RHEL][version][eq][]=8.0"], [0, 2]),
-        (["[RHEL][version][eq][]=7.6", "[RHEL][version][eq][]=8.0"], [2]),
-        (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8.0"], [0, 1, 2]),
-        (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8"], [0, 1, 2]),
-        (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=7"], [0, 1]),
-        (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.10"], [0, 2]),
-        (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.5"], [0, 1, 2]),
-        (
-            [
-                "[RHEL][version][eq][]=7.5",
-                "[RHEL][version][eq][]=7.10",
-                "[RHEL][version][eq][]=8.0",
-            ],
-            [0, 1, 2],
-        ),
-        (
-            ["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8", "[RHEL][version][eq][]=7.5"],
-            [0, 1, 2],
-        ),
-        (
-            ["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=7.5", "[RHEL][version][eq][]=8.0"],
-            [0, 1, 2],
-        ),
-        (
-            ["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.6", "[RHEL][version][lt][]=8"],
-            [0, 1],
-        ),
-        (["[CentOS Linux][version][lt][]=7.10"], [3]),
-        (["[CentOS Linux][version][lte][]=7.10"], [3, 4]),
-        (["[CentOS Linux][version][gte][]=7.10"], [4, 5]),
-        (["[CentOS Linux][version][gt][]=7.10"], [5]),
-        (["[CentOS Linux][version][gte][]=7.10", "[CentOS Linux][version][lte][]=7.10"], [4]),
-        (["[CentOS Linux][version][eq][]=7"], [3, 4]),
-        (["[CentOS Linux][version][eq][]=7.10"], [4]),
-        (["[CentOS Linux][version][eq][]=7.5", "[CentOS Linux][version][eq][]=8.0"], [3, 5]),
-        (["[RHEL][version][eq][]=7.5", "[CentOS Linux][version][eq][]=8.0"], [0, 5]),
-        (["=nil"], [6]),
-        (["=not_nil"], [0, 1, 2, 3, 4, 5]),
-        (["[]=nil", "[]=not_nil"], [0, 1, 2, 3, 4, 5, 6]),
-        (["[name][neq]=RHEL"], [3, 4, 5]),
-        (["[name][eq]=RHEL"], [0, 1, 2]),
-        (["[name][neq]=Centos linux"], [0, 1, 2]),
-        (["[name][eq]=Centos Linux"], [3, 4, 5]),
-        (["[name][neq][]=CentOS Linux", "[name][neq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
-        (["[name][eq][]=CentOS Linux", "[name][eq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
-        (["[name][eq]=Centos Linux", "[CentOS Linux][version][eq][]=7.10"], [3, 4, 5]),
-        (["[name][eq]=Centos Linux", "[RHEL][version][eq][]=7.10"], [1, 3, 4, 5]),
-        (["[name][neq]=RHEL", "[RHEL][version][eq][]=7.10"], [1, 3, 4, 5]),
-        (["[name][eq]=RHEL", "[RHEL][version][eq][]=7.10"], [0, 1, 2]),
-    ],
-    ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
-)
-# TODO: Enable case_insensitive filtering  https://issues.redhat.com/browse/RHINENG-15761
-@pytest.mark.parametrize("case_insensitive", [False], ids=["case sensitive"])
-# @pytest.mark.parametrize(
-#     "case_insensitive", [False, True], ids=["case sensitive", "case insensitive"]
-# )
-def test_filter_hosts_by_system_profile_operating_system(
-    host_inventory: ApplicationHostInventory,
-    setup_hosts_for_operating_system_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
-    hbi_default_org_id: str,
-    params: list[str],
-    expected_hosts: list[int],
-    case_insensitive: bool,
-):
-    """
-    https://issues.redhat.com/browse/RHCLOUD-13904
+def _log_response_tags_indices(my_tags: list[list[StructuredTag]], response: ActiveTags):
+    response_tags = [res_item.tag for res_item in response.results]
+    response_tags_indices = set()
+    for res_tag in response_tags:
+        found_index = -1
+        for i, tag_list in enumerate(my_tags):
+            search_list = [tag.to_dict() for tag in tag_list]
+            if res_tag in search_list:
+                found_index = i
+                break
+        if found_index != -1:
+            response_tags_indices.add(found_index)
+    logger.info(f"Response tags indices: {response_tags_indices}")
 
-    metadata:
-      requirements: inv-hosts-filter-by-sp-operating_system
-      assignee: fstavela
-      importance: high
-      title: Inventory: filter hosts by operating_system
-    """
-    hosts, _ = setup_hosts_for_operating_system_filtering
-    expected_ids = {hosts[i].id for i in expected_hosts}
-    not_expected_ids = {host.id for host in hosts} - expected_ids
 
-    filter = [
-        f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
-    ]
-    response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
-    response_ids = {host.id for host in response.results}
-    log_response_hosts_indices(hosts, response_ids)
+# All tests that use the setup_hosts_for_operating_system_filtering fixture are grouped here
+# so that the expensive fixture (which creates 14 hosts across two accounts) runs only once.
+@pytest.mark.usefixtures("setup_hosts_for_operating_system_filtering")
+class TestOperatingSystemFiltering:
+    @pytest.mark.smoke
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (["[RHEL][version][lt][]=7.10"], [0]),
+            (["[RHEL][version][lte][]=7.10"], [0, 1]),
+            (["[RHEL][version][gte][]=7.10"], [1, 2]),
+            (["[RHEL][version][gt][]=7.10"], [2]),
+            (["[RHEL][version][lt][]=7.6"], [0]),
+            (["[RHEL][version][lte][]=7.6"], [0]),
+            (["[RHEL][version][gte][]=7.6"], [1, 2]),
+            (["[RHEL][version][gt][]=7.6"], [1, 2]),
+            (["[RHEL][version][lt][]=7"], []),
+            (["[RHEL][version][lte][]=7"], [0, 1]),
+            (["[RHEL][version][gte][]=7"], [0, 1, 2]),
+            (["[RHEL][version][gt][]=7"], [2]),
+            (["[RHEL][version][gt][]=8"], []),
+            (["[RHEL][version][gte][]=8"], [2]),
+            (["[RHEL][version][gte][]=7.10", "[RHEL][version][lte][]=7.10"], [1]),
+            (["[RHEL][version][gt][]=7", "[RHEL][version][lt][]=8"], []),
+            # TODO: Uncomment when https://issues.redhat.com/browse/RHINENG-18750 is fixed
+            # (["[RHEL][version][gte][]=7", "[RHEL][version][lte][]=8"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7"], [0, 1]),
+            (["[RHEL][version][eq][]=8"], [2]),
+            (["[RHEL][version][eq][]=7.10"], [1]),
+            (["[RHEL][version][eq][]=7.1"], []),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][eq][]=8.0"], [0, 2]),
+            (["[RHEL][version][eq][]=7.6", "[RHEL][version][eq][]=8.0"], [2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8.0"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=7"], [0, 1]),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.10"], [0, 2]),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.5"], [0, 1, 2]),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][eq][]=7.10",
+                    "[RHEL][version][eq][]=8.0",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7",
+                    "[RHEL][version][eq][]=8",
+                    "[RHEL][version][eq][]=7.5",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7",
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][eq][]=8.0",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][gt][]=7.6",
+                    "[RHEL][version][lt][]=8",
+                ],
+                [0, 1],
+            ),
+            (["[CentOS Linux][version][lt][]=7.10"], [3]),
+            (["[CentOS Linux][version][lte][]=7.10"], [3, 4]),
+            (["[CentOS Linux][version][gte][]=7.10"], [4, 5]),
+            (["[CentOS Linux][version][gt][]=7.10"], [5]),
+            (
+                [
+                    "[CentOS Linux][version][gte][]=7.10",
+                    "[CentOS Linux][version][lte][]=7.10",
+                ],
+                [4],
+            ),
+            (["[CentOS Linux][version][eq][]=7"], [3, 4]),
+            (["[CentOS Linux][version][eq][]=7.10"], [4]),
+            (
+                [
+                    "[CentOS Linux][version][eq][]=7.5",
+                    "[CentOS Linux][version][eq][]=8.0",
+                ],
+                [3, 5],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[CentOS Linux][version][eq][]=8.0",
+                ],
+                [0, 5],
+            ),
+            (["=nil"], [6]),
+            (["=not_nil"], [0, 1, 2, 3, 4, 5]),
+            (["[]=nil", "[]=not_nil"], [0, 1, 2, 3, 4, 5, 6]),
+            (["[name][neq]=RHEL"], [3, 4, 5]),
+            (["[name][eq]=RHEL"], [0, 1, 2]),
+            (["[name][neq]=Centos linux"], [0, 1, 2]),
+            (["[name][eq]=Centos Linux"], [3, 4, 5]),
+            (["[name][neq][]=CentOS Linux", "[name][neq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
+            (["[name][eq][]=CentOS Linux", "[name][eq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
+            (
+                ["[name][eq]=Centos Linux", "[CentOS Linux][version][eq][]=7.10"],
+                [3, 4, 5],
+            ),
+            (
+                ["[name][eq]=Centos Linux", "[RHEL][version][eq][]=7.10"],
+                [1, 3, 4, 5],
+            ),
+            (["[name][neq]=RHEL", "[RHEL][version][eq][]=7.10"], [1, 3, 4, 5]),
+            (["[name][eq]=RHEL", "[RHEL][version][eq][]=7.10"], [0, 1, 2]),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
+    )
+    # TODO: Enable case_insensitive filtering  https://issues.redhat.com/browse/RHINENG-15761
+    @pytest.mark.parametrize("case_insensitive", [False], ids=["case sensitive"])
+    # @pytest.mark.parametrize(
+    #     "case_insensitive", [False, True], ids=["case sensitive", "case insensitive"]
+    # )
+    def test_filter_hosts_by_system_profile_operating_system(
+        self,
+        host_inventory: ApplicationHostInventory,
+        setup_hosts_for_operating_system_filtering: tuple[
+            list[HostOut], list[list[StructuredTag]]
+        ],
+        hbi_default_org_id: str,
+        params: list[str],
+        expected_hosts: list[int],
+        case_insensitive: bool,
+    ):
+        """
+        https://issues.redhat.com/browse/RHCLOUD-13904
 
-    assert response.count >= len(expected_hosts)
-    assert response_ids & expected_ids == expected_ids
-    assert len(response_ids & not_expected_ids) == 0
-    for response_host in response.results:
-        assert response_host.org_id == hbi_default_org_id
+        metadata:
+          requirements: inv-hosts-filter-by-sp-operating_system
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter hosts by operating_system
+        """
+        hosts, _ = setup_hosts_for_operating_system_filtering
+        expected_ids = {hosts[i].id for i in expected_hosts}
+        not_expected_ids = {host.id for host in hosts} - expected_ids
+
+        filter = [
+            f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
+        ]
+        response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
+        response_ids = {host.id for host in response.results}
+        log_response_hosts_indices(hosts, response_ids)
+
+        assert response.count >= len(expected_hosts)
+        assert response_ids & expected_ids == expected_ids
+        assert len(response_ids & not_expected_ids) == 0
+        for response_host in response.results:
+            assert response_host.org_id == hbi_default_org_id
+
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (["[RHEL][version][lt][]=7.10"], [0]),
+            (["[RHEL][version][lte][]=7.10"], [0, 1]),
+            (["[RHEL][version][gte][]=7.10"], [1, 2]),
+            (["[RHEL][version][gt][]=7.10"], [2]),
+            (["[RHEL][version][lt][]=7.6"], [0]),
+            (["[RHEL][version][lte][]=7.6"], [0]),
+            (["[RHEL][version][gte][]=7.6"], [1, 2]),
+            (["[RHEL][version][gt][]=7.6"], [1, 2]),
+            (["[RHEL][version][lt][]=7"], []),
+            (["[RHEL][version][lte][]=7"], [0, 1]),
+            (["[RHEL][version][gte][]=7"], [0, 1, 2]),
+            (["[RHEL][version][gt][]=7"], [2]),
+            (["[RHEL][version][gt][]=8"], []),
+            (["[RHEL][version][gte][]=8"], [2]),
+            (["[RHEL][version][gte][]=7.10", "[RHEL][version][lte][]=7.10"], [1]),
+            (["[RHEL][version][gt][]=7", "[RHEL][version][lt][]=8"], []),
+            # TODO: Uncomment when https://issues.redhat.com/browse/RHINENG-18750 is fixed
+            # (["[RHEL][version][gte][]=7", "[RHEL][version][lte][]=8"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7"], [0, 1]),
+            (["[RHEL][version][eq][]=8"], [2]),
+            (["[RHEL][version][eq][]=7.10"], [1]),
+            (["[RHEL][version][eq][]=7.1"], []),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][eq][]=8.0"], [0, 2]),
+            (["[RHEL][version][eq][]=7.6", "[RHEL][version][eq][]=8.0"], [2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8.0"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=8"], [0, 1, 2]),
+            (["[RHEL][version][eq][]=7", "[RHEL][version][eq][]=7"], [0, 1]),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.10"], [0, 2]),
+            (["[RHEL][version][eq][]=7.5", "[RHEL][version][gt][]=7.5"], [0, 1, 2]),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][eq][]=7.10",
+                    "[RHEL][version][eq][]=8.0",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7",
+                    "[RHEL][version][eq][]=8",
+                    "[RHEL][version][eq][]=7.5",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7",
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][eq][]=8.0",
+                ],
+                [0, 1, 2],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[RHEL][version][gt][]=7.6",
+                    "[RHEL][version][lt][]=8",
+                ],
+                [0, 1],
+            ),
+            (["[CentOS Linux][version][lt][]=7.10"], [3]),
+            (["[CentOS Linux][version][lte][]=7.10"], [3, 4]),
+            (["[CentOS Linux][version][gte][]=7.10"], [4, 5]),
+            (["[CentOS Linux][version][gt][]=7.10"], [5]),
+            (
+                [
+                    "[CentOS Linux][version][gte][]=7.10",
+                    "[CentOS Linux][version][lte][]=7.10",
+                ],
+                [4],
+            ),
+            (["[CentOS Linux][version][eq][]=7"], [3, 4]),
+            (["[CentOS Linux][version][eq][]=7.10"], [4]),
+            (
+                [
+                    "[CentOS Linux][version][eq][]=7.5",
+                    "[CentOS Linux][version][eq][]=8.0",
+                ],
+                [3, 5],
+            ),
+            (
+                [
+                    "[RHEL][version][eq][]=7.5",
+                    "[CentOS Linux][version][eq][]=8.0",
+                ],
+                [0, 5],
+            ),
+            (["=nil"], [6]),
+            (["=not_nil"], [0, 1, 2, 3, 4, 5]),
+            (["[]=nil", "[]=not_nil"], [0, 1, 2, 3, 4, 5, 6]),
+            (["[name][neq]=RHEL"], [3, 4, 5]),
+            (["[name][eq]=RHEL"], [0, 1, 2]),
+            (["[name][neq]=Centos Linux"], [0, 1, 2]),
+            (["[name][eq]=Centos Linux"], [3, 4, 5]),
+            (["[name][neq][]=CentOS Linux", "[name][neq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
+            (["[name][eq][]=CentOS Linux", "[name][eq][]=RHEL"], [0, 1, 2, 3, 4, 5]),
+            (
+                ["[name][eq]=Centos Linux", "[CentOS Linux][version][eq][]=7.10"],
+                [3, 4, 5],
+            ),
+            (
+                ["[name][eq]=Centos Linux", "[RHEL][version][eq][]=7.10"],
+                [1, 3, 4, 5],
+            ),
+            (["[name][neq]=RHEL", "[RHEL][version][eq][]=7.10"], [1, 3, 4, 5]),
+            (["[name][eq]=RHEL", "[RHEL][version][eq][]=7.10"], [0, 1, 2]),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
+    )
+    # TODO: Enable case_insensitive filtering  https://issues.redhat.com/browse/RHINENG-15761
+    @pytest.mark.parametrize("case_insensitive", [False], ids=["case sensitive"])
+    # @pytest.mark.parametrize(
+    #     "case_insensitive", [False, True], ids=["case sensitive", "case insensitive"]
+    # )
+    def test_filter_tags_by_system_profile_operating_system(
+        self,
+        setup_hosts_for_operating_system_filtering: tuple[
+            list[HostOut], list[list[StructuredTag]]
+        ],
+        host_inventory: ApplicationHostInventory,
+        params: list[str],
+        expected_hosts: list[int],
+        case_insensitive: bool,
+    ):
+        """
+        https://issues.redhat.com/browse/RHINENG-10785
+
+        metadata:
+          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter tags by operating_system
+        """
+        _, tags = setup_hosts_for_operating_system_filtering
+        expected_tags = flatten(tags[i] for i in expected_hosts)
+        not_expected_tags = flatten(tags[i] for i in range(len(tags)) if i not in expected_hosts)
+
+        filter = [
+            f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
+        ]
+        # There are too many "module" scoped hosts with tags, 50 isn't enough
+        response = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100)
+        _log_response_tags_indices(tags, response)
+
+        assert response.count >= len(expected_tags)
+        assert_tags_found(expected_tags, response.results)
+        assert_tags_not_found(not_expected_tags, response.results)
+
+    @pytest.mark.ephemeral
+    def test_operating_systems_pagination(self, host_inventory: ApplicationHostInventory):
+        """
+        metadata:
+            requirements: inv-pagination, inv-system_profile-operating_system
+            assignee: fstavela
+            importance: medium
+            title: Inventory: operating_system pagination
+        """
+        paginate_test_impl(host_inventory.apis.system_profile.get_operating_systems_response)
+
+    @pytest.mark.ephemeral
+    def test_system_profile_endpoint_operating_system(
+        self,
+        setup_hosts_for_operating_system_filtering: tuple[
+            list[HostOut], list[list[StructuredTag]]
+        ],
+        host_inventory: ApplicationHostInventory,
+    ):
+        """
+        Test enumerating all operating_system values in system_profile
+
+        JIRA: https://issues.redhat.com/browse/ESSNTL-2751
+
+        metadata:
+            requirements: inv-system_profile-operating_system
+            assignee: fstavela
+            importance: high
+            title: Inventory: operating_system values enumerating
+        """
+        hosts, _ = setup_hosts_for_operating_system_filtering
+        hosts = hosts[:7]  # We don't want hosts from different account
+        valid_values: Counter[str] = Counter()
+        for host in hosts:
+            response = host_inventory.apis.hosts.get_host_system_profile(host)
+            operating_system = response.system_profile.operating_system
+            if operating_system is not None:
+                os_string = os_dict_to_str(operating_system.to_dict())
+                valid_values.update([os_string])
+
+        api_results = host_inventory.apis.system_profile.get_operating_systems()
+        items = {}
+        for result in api_results:
+            items[os_dict_to_str(result.value)] = result.count
+        assert all(value in items for value in valid_values.keys())
+        assert all(items[os_string] >= count for os_string, count in valid_values.items())
+
+        for value, count in items.items():
+            parameters = os_filter_param(value)
+            api_result = host_inventory.apis.hosts.get_hosts_response(filter=[parameters])
+            assert api_result.total == count
+
+    @pytest.mark.ephemeral
+    def test_system_profile_operating_system_search(
+        self, host_inventory: ApplicationHostInventory
+    ):
+        """
+        Test that search parameter is not allowed on /system_profile/operating_system endpoint
+
+        JIRA: https://issues.redhat.com/browse/ESSNTL-2923
+
+        metadata:
+            requirements: inv-system_profile-operating_system
+            assignee: fstavela
+            importance: medium
+            title: test search parameter on /system_profile/operating_system endpoint
+        """
+        with pytest.raises(ApiTypeError):
+            host_inventory.apis.system_profile.get_operating_systems(search="test")
 
 
 @pytest.mark.ephemeral
@@ -1182,125 +1471,248 @@ def test_filter_hosts_by_system_profile_bootc_status_host_type(
     assert len(response_ids & not_expected_ids) == 0
 
 
-@pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "params, expected_hosts",
-    [
-        (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=not_nil"], [3]),
-        (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=nil"], [0]),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=8.6",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[rhc_client_id][]=not_nil",
-            ],
-            [3, 4],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=8.6",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[rhc_client_id][]=nil",
-            ],
-            [0, 1],
-        ),
-    ],
-    ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
-)
-def test_filter_hosts_by_system_profile_os_rhc(
-    setup_hosts_for_os_rhc_filtering: list[HostWrapper],
-    host_inventory: ApplicationHostInventory,
-    hbi_default_org_id: str,
-    params: list[str],
-    expected_hosts: list[int],
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-9784
-
-    metadata:
-      requirements: inv-hosts-filter-by-sp-operating_system,
-                    inv-hosts-get-by-sp-scalar-fields
-      assignee: fstavela
-      importance: high
-      title: Inventory: filter hosts by operating_system & rhc_client_id
-    """
-    hosts = setup_hosts_for_os_rhc_filtering
-    expected_ids = {hosts[i].id for i in expected_hosts}
-    not_expected_ids = {host.id for host in hosts} - expected_ids
-
-    filter = [f"{param}" for param in params]
-    response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
-    response_ids = {host.id for host in response.results}
-    log_response_hosts_indices(hosts, response_ids)
-
-    assert response.count >= len(expected_hosts)
-    assert response_ids & expected_ids == expected_ids
-    assert len(response_ids & not_expected_ids) == 0
-    for response_host in response.results:
-        assert response_host.org_id == hbi_default_org_id
-
-
-@pytest.mark.parametrize(
-    "params, expected_hosts",
-    [
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=7.10",
-            ],
-            [1],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=8.0",
-            ],
-            [],
-        ),
-        (
-            [
-                "[operating_system][RHEL][version][eq][]=7.5",
-                "[operating_system][RHEL][version][eq][]=7.10",
-                "[operating_system][RHEL][version][eq][]=8.0",
-            ],
-            [1],
-        ),
-    ],
-    ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
-)
-def test_filter_hosts_by_system_profile_os_display_name(
-    setup_hosts_for_os_display_name_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
-    host_inventory: ApplicationHostInventory,
-    hbi_default_org_id: str,
-    params: list[str],
-    expected_hosts: list[int],
-):
-    """
-    https://issues.redhat.com/browse/RHINENG-10785
-
-    metadata:
-      requirements: inv-hosts-filter-by-sp-operating_system,
-                    inv-hosts-filter-by-display_name
-      assignee: fstavela
-      importance: high
-      title: Inventory: filter hosts by operating_system & display_name
-    """
-    hosts, _ = setup_hosts_for_os_display_name_filtering
-    expected_ids = {hosts[i].id for i in expected_hosts}
-    not_expected_ids = {host.id for host in hosts} - expected_ids
-
-    filter = [f"{param}" for param in params]
-    response = host_inventory.apis.hosts.get_hosts_response(
-        display_name=f"{FILTER_OS_DISPLAY_NAME}-1", filter=filter
+# All tests that use the setup_hosts_for_os_rhc_filtering fixture are grouped here
+# so that the expensive fixture (which creates 12 hosts across two accounts) runs only once.
+@pytest.mark.usefixtures("setup_hosts_for_os_rhc_filtering")
+class TestOsRhcFiltering:
+    @pytest.mark.ephemeral
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=not_nil"], [3]),
+            (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=nil"], [0]),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=8.6",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[rhc_client_id][]=not_nil",
+                ],
+                [3, 4],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=8.6",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[rhc_client_id][]=nil",
+                ],
+                [0, 1],
+            ),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
     )
-    response_ids = {host.id for host in response.results}
-    log_response_hosts_indices(hosts, response_ids)
+    def test_filter_hosts_by_system_profile_os_rhc(
+        self,
+        setup_hosts_for_os_rhc_filtering: list[HostWrapper],
+        host_inventory: ApplicationHostInventory,
+        hbi_default_org_id: str,
+        params: list[str],
+        expected_hosts: list[int],
+    ):
+        """
+        https://issues.redhat.com/browse/RHINENG-9784
 
-    assert response.count >= len(expected_hosts)
-    assert response_ids & expected_ids == expected_ids
-    assert len(response_ids & not_expected_ids) == 0
-    for response_host in response.results:
-        assert response_host.org_id == hbi_default_org_id
+        metadata:
+          requirements: inv-hosts-filter-by-sp-operating_system,
+                        inv-hosts-get-by-sp-scalar-fields
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter hosts by operating_system & rhc_client_id
+        """
+        hosts = setup_hosts_for_os_rhc_filtering
+        expected_ids = {hosts[i].id for i in expected_hosts}
+        not_expected_ids = {host.id for host in hosts} - expected_ids
+
+        filter = [f"{param}" for param in params]
+        response = host_inventory.apis.hosts.get_hosts_response(filter=filter)
+        response_ids = {host.id for host in response.results}
+        log_response_hosts_indices(hosts, response_ids)
+
+        assert response.count >= len(expected_hosts)
+        assert response_ids & expected_ids == expected_ids
+        assert len(response_ids & not_expected_ids) == 0
+        for response_host in response.results:
+            assert response_host.org_id == hbi_default_org_id
+
+    @pytest.mark.ephemeral
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=not_nil"], [3]),
+            (["[operating_system][RHEL][version][eq][]=8.6", "[rhc_client_id][]=nil"], [0]),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=8.6",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[rhc_client_id][]=not_nil",
+                ],
+                [3, 4],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=8.6",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[rhc_client_id][]=nil",
+                ],
+                [0, 1],
+            ),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
+    )
+    def test_filter_tags_by_system_profile_os_rhc(
+        self,
+        setup_hosts_for_os_rhc_filtering: list[HostWrapper],
+        host_inventory: ApplicationHostInventory,
+        params: list[str],
+        expected_hosts: list[int],
+    ):
+        """
+        https://issues.redhat.com/browse/RHINENG-9784
+
+        metadata:
+          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
+                        inv-hosts-get-by-sp-scalar-fields
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter tags by operating_system & rhc_client_id
+        """
+        hosts = setup_hosts_for_os_rhc_filtering
+        expected_tags = flatten(hosts[i].tags for i in expected_hosts)
+        not_expected_tags = flatten(
+            hosts[i].tags for i in range(len(hosts)) if i not in expected_hosts
+        )
+
+        filter = [f"{param}" for param in params]
+        response = host_inventory.apis.tags.get_tags_response(filter=filter)
+        assert response.count >= len(expected_tags)
+        assert_tags_found(expected_tags, response.results)
+        assert_tags_not_found(not_expected_tags, response.results)
+
+
+# All tests that use the setup_hosts_for_os_display_name_filtering fixture are grouped here
+# so that the expensive fixture (which creates 6 hosts across two accounts) runs only once.
+@pytest.mark.usefixtures("setup_hosts_for_os_display_name_filtering")
+class TestOsDisplayNameFiltering:
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                ],
+                [1],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=8.0",
+                ],
+                [],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[operating_system][RHEL][version][eq][]=8.0",
+                ],
+                [1],
+            ),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
+    )
+    def test_filter_hosts_by_system_profile_os_display_name(
+        self,
+        setup_hosts_for_os_display_name_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
+        host_inventory: ApplicationHostInventory,
+        hbi_default_org_id: str,
+        params: list[str],
+        expected_hosts: list[int],
+    ):
+        """
+        https://issues.redhat.com/browse/RHINENG-10785
+
+        metadata:
+          requirements: inv-hosts-filter-by-sp-operating_system,
+                        inv-hosts-filter-by-display_name
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter hosts by operating_system & display_name
+        """
+        hosts, _ = setup_hosts_for_os_display_name_filtering
+        expected_ids = {hosts[i].id for i in expected_hosts}
+        not_expected_ids = {host.id for host in hosts} - expected_ids
+
+        filter = [f"{param}" for param in params]
+        response = host_inventory.apis.hosts.get_hosts_response(
+            display_name=f"{FILTER_OS_DISPLAY_NAME}-1", filter=filter
+        )
+        response_ids = {host.id for host in response.results}
+        log_response_hosts_indices(hosts, response_ids)
+
+        assert response.count >= len(expected_hosts)
+        assert response_ids & expected_ids == expected_ids
+        assert len(response_ids & not_expected_ids) == 0
+        for response_host in response.results:
+            assert response_host.org_id == hbi_default_org_id
+
+    @pytest.mark.parametrize(
+        "params, expected_hosts",
+        [
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                ],
+                [1],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=8.0",
+                ],
+                [],
+            ),
+            (
+                [
+                    "[operating_system][RHEL][version][eq][]=7.5",
+                    "[operating_system][RHEL][version][eq][]=7.10",
+                    "[operating_system][RHEL][version][eq][]=8.0",
+                ],
+                [1],
+            ),
+        ],
+        ids=lambda param: "&".join(param) if param and isinstance(param[0], str) else None,
+    )
+    def test_filter_tags_by_system_profile_os_display_name(
+        self,
+        setup_hosts_for_os_display_name_filtering: tuple[list[HostOut], list[list[StructuredTag]]],
+        host_inventory: ApplicationHostInventory,
+        params: list[str],
+        expected_hosts: list[int],
+    ):
+        """
+        https://issues.redhat.com/browse/RHINENG-10785
+
+        metadata:
+          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
+                        inv-hosts-filter-by-display_name
+          assignee: fstavela
+          importance: high
+          title: Inventory: filter tags by operating_system & display_name
+        """
+        _, tags = setup_hosts_for_os_display_name_filtering
+        expected_tags = flatten(tags[i] for i in expected_hosts)
+        not_expected_tags = flatten(tags[i] for i in range(len(tags)) if i not in expected_hosts)
+
+        filter = [f"{param}" for param in params]
+        response = host_inventory.apis.tags.get_tags_response(
+            filter=filter, display_name=f"{FILTER_OS_DISPLAY_NAME}-1"
+        )
+        _log_response_tags_indices(tags, response)
+
+        assert response.count >= len(expected_tags)
+        assert_tags_found(expected_tags, response.results)
+        assert_tags_not_found(not_expected_tags, response.results)
 
 
 @pytest.mark.ephemeral
