@@ -138,13 +138,13 @@ def _determine_profile_sources(requested_fields: set[str] | None) -> tuple[str, 
     if not requested_fields:
         return ("static_system_profile", "dynamic_system_profile")
 
-    sources = []
+    sources: tuple[str, ...] = ()
     if requested_fields & _STATIC_FIELD_SET:
-        sources.append("static_system_profile")
+        sources += ("static_system_profile",)
     if requested_fields & _DYNAMIC_FIELD_SET:
-        sources.append("dynamic_system_profile")
+        sources += ("dynamic_system_profile",)
 
-    return tuple(sources) if sources else ("static_system_profile", "dynamic_system_profile")
+    return sources or ("static_system_profile", "dynamic_system_profile")
 
 
 def build_system_profile_from_normalized(host: Host, system_profile_fields: list[str] | None = None) -> dict:
