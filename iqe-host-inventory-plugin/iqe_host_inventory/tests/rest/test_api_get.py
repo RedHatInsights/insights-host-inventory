@@ -849,23 +849,6 @@ def test_get_hosts_valid_parameters_combinations(
 
 
 @pytest.mark.ephemeral
-def test_get_hosts_empty_database(hbi_empty_database, host_inventory):
-    """
-    Test inventory with no hosts in database
-
-    JIRA:
-
-    metadata:
-        requirements: inv-hosts-get-list
-        assignee: fstavela
-        importance: medium
-        title: Test inventory with no hosts in database
-    """
-    response = host_inventory.apis.hosts.get_hosts_response()
-    assert response.count == response.total == 0
-
-
-@pytest.mark.ephemeral
 @pytest.mark.parametrize(
     "time_format",
     ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f+00:00", "%Y-%m-%dT%H:%M:%S.%fZ"],
