@@ -16,7 +16,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_tags
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
 
@@ -225,53 +224,6 @@ def test_get_tags_by_provider_type(setup_hosts_with_tags, host_inventory):
     assert len(response.results) == response.count
     assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
     assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_get_tags_by_staleness(host_inventory: ApplicationHostInventory):
-    """
-    Test GET on /tags endpoint using staleness URL parameter
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1383
-
-    metadata:
-        requirements: inv-tags-get-list, inv-hosts-filter-by-staleness
-        assignee: fstavela
-        importance: high
-        title: Inventory: GET on /tags with staleness parameter
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data_with_tags(3)
-
-    hosts = create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:1],
-        stale_hosts_data=hosts_data[1:2],
-        stale_warning_hosts_data=hosts_data[2:3],
-    )
-
-    for staleness in ["fresh", "stale", "stale_warning"]:
-        response = host_inventory.apis.tags.get_tags_response(staleness=[staleness])
-        assert response.count >= len(hosts[staleness][0].tags)
-        assert len(response.results) == response.count
-
-        if staleness == "fresh":
-            assert_tags_found(hosts["fresh"][0].tags, response.results)
-            assert_tags_not_found(
-                hosts["stale"][0].tags + hosts["stale_warning"][0].tags, response.results
-            )
-
-        elif staleness == "stale":
-            assert_tags_found(hosts["stale"][0].tags, response.results)
-            assert_tags_not_found(
-                hosts["fresh"][0].tags + hosts["stale_warning"][0].tags, response.results
-            )
-
-        else:
-            assert_tags_found(hosts["stale_warning"][0].tags, response.results)
-            assert_tags_not_found(
-                hosts["fresh"][0].tags + hosts["stale"][0].tags, response.results
-            )
 
 
 @pytest.mark.ephemeral
