@@ -2901,3 +2901,132 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_wildcard_asterisk_escaping_literal_match(db_create_host, api_get):
+    """Test that literal asterisks in data are properly escaped and don't interfere with wildcard matching."""
+    # Create hosts with different insights_client_version values
+    literal_asterisk_host = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0*beta"}}
+    )
+    wildcard_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1beta"}})
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "2.9.5"}})
+
+    # Query with wildcard pattern - should match both literal asterisk and wildcard pattern
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0*beta")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # Should match both hosts that start with "3.0" and end with "beta"
+    assert str(literal_asterisk_host.id) in response_ids
+    assert str(wildcard_match_host.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_wildcard_special_chars_escaping(db_create_host, api_get):
+    """Test that special SQL characters are properly escaped in wildcard fields."""
+    # Create hosts with special characters that could interfere with SQL ILIKE
+    percent_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0%beta"}})
+    underscore_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0_beta"}})
+    backslash_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0\\beta"}})
+    normal_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.beta"}})
+
+    # Query with wildcard that should match all hosts starting with "3.0" and ending with "beta"
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0*beta")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # All hosts should match because the special characters are properly escaped
+    # and don't interfere with the wildcard pattern
+    assert str(percent_host.id) in response_ids
+    assert str(underscore_host.id) in response_ids
+    assert str(backslash_host.id) in response_ids
+    assert str(normal_host.id) in response_ids
+
+
+def test_wildcard_mixed_escaped_and_unescaped_asterisks(db_create_host, api_get):
+    """Test that literal asterisks in data don't break wildcard patterns."""
+    # Create hosts with different patterns including literal asterisks
+    complex_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.*beta"}})
+    literal_only_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0*beta"}})
+    wildcard_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1beta"}})
+
+    # Query with wildcard pattern that should match all versions starting with "3.0" and ending with "beta"
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0*beta")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # Should match all hosts that fit the pattern
+    assert str(complex_host.id) in response_ids
+    assert str(literal_only_host.id) in response_ids
+    assert str(wildcard_match_host.id) in response_ids
+
+
+def test_wildcard_bootc_status_escaping(db_create_host, api_get):
+    """Test wildcard escaping in nested JSON fields like bootc_status."""
+    # Create hosts with different bootc image patterns
+    literal_asterisk_host = db_create_host(
+        extra_data={"system_profile_facts": {"bootc_status": {"booted": {"image": "quay.io*centos/image:latest"}}}}
+    )
+    wildcard_match_host = db_create_host(
+        extra_data={"system_profile_facts": {"bootc_status": {"booted": {"image": "quay.io/centos/image:latest"}}}}
+    )
+    no_match_host = db_create_host(
+        extra_data={"system_profile_facts": {"bootc_status": {"booted": {"image": "registry.redhat.io/image:latest"}}}}
+    )
+
+    # Query with wildcard pattern - should match both quay.io hosts
+    url = build_hosts_url(query="?filter[system_profile][bootc_status][booted][image]=quay.io*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # Should match both quay.io hosts (literal asterisk and normal)
+    assert str(literal_asterisk_host.id) in response_ids
+    assert str(wildcard_match_host.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_wildcard_functionality_preserved(db_create_host, api_get):
+    """Test that normal wildcard functionality still works after escaping fix."""
+    # Create hosts with different patterns
+    match_host_1 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-beta"}})
+    match_host_2 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.2-beta"}})
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "2.9.5"}})
+
+    # Query with normal wildcard - should work as before
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # Should match both hosts with 3.0.x pattern
+    assert str(match_host_1.id) in response_ids
+    assert str(match_host_2.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_wildcard_exact_match_with_special_chars(db_create_host, api_get):
+    """Test exact matching when no wildcards are used, even with special characters."""
+    # Create hosts with exact values including special characters
+    exact_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0\\beta"}})
+    different_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.beta"}})
+
+    # Query for exact match with backslash - should only match the exact value
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0\\beta")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = {result["id"] for result in response_data["results"]}
+
+    # Should only match the exact host with backslash
+    assert str(exact_match_host.id) in response_ids
+    assert str(different_host.id) not in response_ids

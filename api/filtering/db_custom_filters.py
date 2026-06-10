@@ -427,11 +427,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
-
-        # Handle special values and casting
+        # Handle special values and casting first
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
             value = None
@@ -446,6 +442,15 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
+
+        # Handle wildcard fields (use ILIKE, replace * with %) - only for actual ILIKE operations
+        if pg_op == ColumnOperators.ilike and value is not None:
+            # Escape special SQL ILIKE characters first, then convert asterisks to wildcards
+            # This ensures proper escaping for literal backslashes, percent signs, and underscores
+            escaped_value = value.replace("\\", "\\\\")  # Escape backslashes first
+            escaped_value = escaped_value.replace("%", "\\%")  # Escape percent signs
+            escaped_value = escaped_value.replace("_", "\\_")  # Escape underscores
+            value = escaped_value.replace("*", "%")  # Convert asterisks to SQL wildcards
 
         # "contains" is not a column operator, so we have to do it manually
         if pg_op == "contains":
