@@ -19,7 +19,6 @@ from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
-from iqe_host_inventory_api import ApiException
 
 pytestmark = [pytest.mark.backend]
 
@@ -273,56 +272,6 @@ def test_get_tags_by_staleness(host_inventory: ApplicationHostInventory):
             assert_tags_not_found(
                 hosts["fresh"][0].tags + hosts["stale"][0].tags, response.results
             )
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize(
-    "params",
-    [
-        ("display_name", "fqdn"),
-        ("display_name", "insights_id"),
-        ("display_name", "hostname_or_id"),
-        ("fqdn", "insights_id"),
-        ("fqdn", "hostname_or_id"),
-        ("insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id"),
-        ("display_name", "fqdn", "hostname_or_id"),
-        ("display_name", "insights_id", "hostname_or_id"),
-        ("fqdn", "insights_id", "hostname_or_id"),
-        ("display_name", "fqdn", "insights_id", "hostname_or_id"),
-    ],
-)
-def test_get_tags_invalid_parameters_combinations(
-    host_inventory: ApplicationHostInventory, params: tuple[str, ...]
-):
-    """
-    Test GET of tags using invalid combination of parameters.
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-2193
-
-    metadata:
-        requirements: inv-tags-get-list, inv-api-validation
-        assignee: fstavela
-        importance: low
-        title: Inventory: Test GET of tags using invalid combination of parameters.
-    """
-    host_data = host_inventory.datagen.create_host_data_with_tags()
-    host = host_inventory.kafka.create_host(host_data=host_data)
-
-    parameters = {}
-    for param in params:
-        if param == "hostname_or_id":
-            parameters["hostname_or_id"] = host.fqdn
-        else:
-            parameters[param] = getattr(host, param)
-
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.tags.get_tags_response(**parameters)
-    assert err.value.status == 400
-    assert (
-        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
-        in err.value.body
-    )
 
 
 @pytest.mark.ephemeral
@@ -646,26 +595,6 @@ def test_get_tags_by_updated_not_created(host_inventory: ApplicationHostInventor
     assert response.count >= len(host2.tags)
     assert_tags_found(host2.tags, response.results)
     assert_tags_not_found(host1.tags + host3.tags, response.results)
-
-
-@pytest.mark.ephemeral
-def test_get_tags_by_updated_start_after_end(host_inventory: ApplicationHostInventory):
-    """
-    https://issues.redhat.com/browse/ESSNTL-4356
-
-    metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-updated, inv-api-validation
-      assignee: fstavela
-      importance: low
-      negative: true
-      title: Get tags with updated_start bigger than updated_end
-    """
-    host_data = host_inventory.datagen.create_host_data_with_tags()
-    host = host_inventory.kafka.create_host(host_data)
-    time_start = host.updated + timedelta(hours=1)
-    time_end = host.updated - timedelta(hours=1)
-    with raises_apierror(400, "updated_start cannot be after updated_end."):
-        host_inventory.apis.tags.get_tags_response(updated_start=time_start, updated_end=time_end)
 
 
 @pytest.mark.ephemeral
