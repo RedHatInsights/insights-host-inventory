@@ -2921,6 +2921,60 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
     assert response_data["results"] == []
 
 
+def test_url_encoded_asterisk_literal_match(db_create_host, api_get):
+    """Test that URL-encoded asterisks (%2A) are treated as literal asterisk characters, not wildcards.
+
+    This test verifies the fix for RHINENG-4809 where URL-encoded asterisks in system profile
+    wildcard filters should be treated as literal asterisks rather than wildcards.
+    """
+    # Create a host with a system profile field containing literal asterisk characters
+    # Using insights_client_version which is a wildcard field
+    host_with_asterisk = db_create_host(
+        extra_data={
+            "system_profile_facts": {
+                "insights_client_version": "3.0*1",  # Contains literal asterisk
+                "host_type": "edge",
+            }
+        }
+    )
+
+    # Create a host without asterisk for comparison
+    host_without_asterisk = db_create_host(
+        extra_data={
+            "system_profile_facts": {
+                "insights_client_version": "3.0.1",  # No asterisk
+                "host_type": "edge",
+            }
+        }
+    )
+
+    # Test 1: URL-encoded asterisk (%2A) should match literal asterisk exactly
+    url_encoded = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0%2A1")
+    response_status, response_data = api_get(url_encoded)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_asterisk.id)
+
+    # Test 2: Regular asterisk (*) should work as wildcard and match both hosts
+    wildcard_url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0*1")
+    response_status, response_data = api_get(wildcard_url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_with_asterisk.id) in result_ids
+    assert str(host_without_asterisk.id) in result_ids
+
+    # Test 3: Exact match without wildcards should only match the exact value
+    exact_url = build_hosts_url(query="?filter[system_profile][insights_client_version][eq]=3.0.1")
+    response_status, response_data = api_get(exact_url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_without_asterisk.id)
+
+
 def test_no_hosts_in_org(api_get):
     """Test no hosts are returned if for empty organization."""
 

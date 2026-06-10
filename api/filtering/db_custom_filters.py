@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import urllib.parse
 from collections.abc import Callable
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -37,6 +39,33 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _process_wildcard_value(value: str) -> str:
+    """Process wildcard value, preserving URL-encoded asterisks as literal asterisks.
+
+    This function checks the raw query string to determine if asterisks were originally
+    URL-encoded as %2A (indicating literal asterisks) vs. raw * (indicating wildcards).
+    """
+    try:
+        # Access the raw query string to check for URL-encoded asterisks
+        raw_query = flask.request.query_string.decode("utf-8")
+
+        # If the raw query contains %2A or %2a, it means the user intended literal asterisks
+        if "%2A" in raw_query or "%2a" in raw_query:
+            # For values that were URL-encoded, we need to be more careful
+            # Check if this specific value was URL-encoded
+            encoded_value = urllib.parse.quote(value, safe="")
+            if encoded_value in raw_query:
+                # This value was URL-encoded, so asterisks should be treated as literals
+                # Don't convert asterisks to wildcards
+                return value
+    except Exception:
+        # If we can't access the raw query string, fall back to default behavior
+        pass
+
+    # Default behavior: convert asterisks to SQL wildcards
+    return value.replace("*", "%")
 
 
 # Utility class to facilitate OS filter comparison
@@ -429,7 +458,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
