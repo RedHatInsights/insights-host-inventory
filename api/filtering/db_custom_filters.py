@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+import flask
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -395,6 +396,26 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _detect_url_encoded_asterisks() -> bool:
+    """
+    Detect if the query string likely contains URL-encoded asterisks that should be treated as literals.
+
+    This is a heuristic approach since by the time we get here, %2A has already been decoded to *.
+    We check the raw query string to see if it contained %2A.
+    """
+    try:
+        # Access the raw query string from Flask request
+        if flask.has_request_context():
+            query_string = flask.request.query_string.decode("utf-8")
+            # Check if the query string contains %2A (case insensitive)
+            return "%2A" in query_string.upper()
+    except Exception:
+        # If we can't access the request context or query string, fall back to default behavior
+        pass
+
+    return False
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -428,8 +449,17 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
+        # For URL-encoded asterisks (%2A), they should be treated as literal asterisks
+        # For unencoded asterisks (*), they should be treated as wildcards
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if the original query contained URL-encoded asterisks
+            if _detect_url_encoded_asterisks():
+                # If URL-encoded asterisks were detected, treat all asterisks as literals
+                # by not converting them to % wildcards
+                pass  # Keep asterisks as literal characters
+            else:
+                # Normal wildcard processing: convert * to % for SQL ILIKE
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
