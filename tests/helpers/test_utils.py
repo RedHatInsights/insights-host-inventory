@@ -32,6 +32,15 @@ SYSTEM_IDENTITY: dict[str, Any] = {
     "type": "System",
 }
 
+IDENTITY_WITHOUT_HOSTS: dict[str, Any] = {
+    # Dummy identity. dnah stands for "do not add hosts" for this org. Used in `test_no_hosts_in_org()`.
+    "account_number": "dnah",
+    "org_id": "dnah",
+    "type": "User",
+    "auth_type": "basic-auth",
+    "user": {"email": "dnah@redhat.com", "first_name": "dont", "username": "dnah@redhat.com"},
+}
+
 USER_IDENTITY: dict[str, Any] = {
     "account_number": "test",
     "org_id": "test",

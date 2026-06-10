@@ -159,6 +159,9 @@ def _get_host_list_using_filters(
     # Count distinct host IDs to avoid overcountiung when JOINs are involved
     count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
 
+    if count_total == 0:
+        return [], 0, additional_fields, system_profile_fields
+
     ordered_query = filtered_query.order_by(
         *params_to_order_by(param_order_by, param_order_how, allow_app_fields=allow_app_fields)
     )

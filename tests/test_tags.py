@@ -478,3 +478,33 @@ def test_query_tags_group_id_nonexistent_uuid(api_get, db_create_group_with_host
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        (f"fqdn={generate_uuid()}&display_name={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (
+            f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"
+        ),
+    ),
+)
+def test_query_tags_by_conflicting_ids(api_get, query):
+    """Test that querying tags with multiple conflicting ID parameters returns 400."""
+    url = build_tags_url(query=f"?{query}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert (
+        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        in response_data["detail"]
+    )
