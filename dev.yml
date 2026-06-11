@@ -27,7 +27,7 @@ services:
 
     export-service:
       container_name: export-service
-      image: quay.io/cloudservices/export-service
+      image: quay.io/redhat-services-prod/hcc-integrations-tenant/export-service
       environment:
         - PGSQL_PORT=5432
         - PGSQL_HOSTNAME=db
