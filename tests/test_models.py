@@ -1204,6 +1204,10 @@ def test_add_delete_host_group_happy(
     [
         {"name": ""},  # Name cannot be blank
         {"name": "a" * 256},  # Name must be 255 chars or less
+        {"name": "test!group"},  # Special characters not allowed
+        {"name": "test@group"},  # Special characters not allowed
+        {"name": "name/slashes"},  # Special characters not allowed
+        {"name": "name.dots"},  # Special characters not allowed
         {"host_ids": ["asdf", "foobar"]},  # Host IDs must be in UUID format
         {"foo": "bar"},  # Field does not exist
     ],
