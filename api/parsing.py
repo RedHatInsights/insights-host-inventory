@@ -3,6 +3,7 @@ import re
 from urllib.parse import quote
 from urllib.parse import unquote
 
+import flask
 from connexion.exceptions import BadRequestProblem
 from connexion.uri_parsing import OpenAPIURIParser
 from connexion.utils import coerce_type
@@ -61,6 +62,63 @@ def _coerce_query_value(value):
     validation against ``type: boolean`` properties succeeds.
     """
     return _BOOL_STRINGS.get(value.lower(), value) if isinstance(value, str) else value
+
+
+def _check_for_escaped_asterisks_in_query_string(filter_value: str) -> str:
+    """Check if the current request's query string contains %2A for this filter value.
+
+    This is a workaround for the fact that URL decoding happens before our custom parser
+    gets involved. We check the raw query string to see if asterisks were originally
+    URL-encoded as %2A, and if so, we mark them as escaped.
+    """
+    if not isinstance(filter_value, str) or "*" not in filter_value:
+        return filter_value
+
+    try:
+        # Get the raw query string from the Flask request
+        query_string = flask.request.query_string.decode("utf-8")
+
+        # Check if this filter value appears in the query string with %2A
+        if "%2A" in query_string:
+            # Create a version of the filter value with %2A instead of *
+            encoded_version = filter_value.replace("*", "%2A")
+
+            # If this encoded version appears in the query string, then the asterisks
+            # in this filter value were originally URL-encoded
+            if encoded_version in query_string:
+                escaped_value = filter_value.replace("*", "\\*")
+                return escaped_value
+
+            # For mixed cases, we need to be more sophisticated
+            # Check if there's a partial match where some asterisks were encoded
+            # This is a more complex heuristic for mixed literal/wildcard patterns
+            parts = filter_value.split("*")
+            if len(parts) > 1:
+                # Try to reconstruct what the original query might have looked like
+                # by checking different combinations of encoded/unencoded asterisks
+                for i in range(1, len(parts)):
+                    # Try encoding the first i asterisks
+                    test_pattern = "%2A".join(parts[: i + 1])
+                    if i < len(parts) - 1:
+                        test_pattern += "*" + "*".join(parts[i + 1 :])
+
+                    if test_pattern in query_string:
+                        # Found a match - the first i asterisks were encoded
+                        result_parts = []
+                        for j, part in enumerate(parts):
+                            result_parts.append(part)
+                            if j < len(parts) - 1:  # Not the last part
+                                if j < i:  # This asterisk was encoded
+                                    result_parts.append("\\*")
+                                else:  # This asterisk was not encoded
+                                    result_parts.append("*")
+                        result = "".join(result_parts)
+                        return result
+    except Exception:
+        # If anything goes wrong, just return the original value
+        pass
+
+    return filter_value
 
 
 def custom_fields_parser(root_key, key_path, val):
@@ -227,12 +285,23 @@ class customURIParser(OpenAPIURIParser):
         # this indicates an array parameter.
         # in this case we want to add all the values, not just the 0th
         if k == "":
-            prev[prev_k] = v
+            # Apply escaped asterisk handling to array values for filter parameters
+            processed_values = []
+            for val in v:
+                if isinstance(val, str) and root_key == "filter":
+                    val = _check_for_escaped_asterisks_in_query_string(val)
+                processed_values.append(val)
+            prev[prev_k] = processed_values
         else:
             if len(v) > 1:
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             # Try to parse the value as JSON object
             leaf_value = v[0]
+
+            # Apply escaped asterisk handling to single values for filter parameters
+            if isinstance(leaf_value, str) and root_key == "filter":
+                leaf_value = _check_for_escaped_asterisks_in_query_string(leaf_value)
+
             # Use the full parameter path for the error message (e.g., "filter[system_profile]")
             full_param_path = f"{root_key}[{']['.join(key_path)}]"
             parsed = customURIParser._try_parse_json(leaf_value, param_name=full_param_path)

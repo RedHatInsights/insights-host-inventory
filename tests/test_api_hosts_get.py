@@ -2929,3 +2929,228 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+# Tests for RHINENG-4809: URL-encoded asterisks (%2A) should be treated as literal characters
+
+
+def test_url_encoded_asterisk_literal_match_display_name(db_create_host, api_get):
+    """Test that URL-encoded %2A matches literal asterisk characters in display_name."""
+    # Create hosts with different patterns
+    host_with_literal_asterisk = db_create_host(extra_data={"display_name": "test*host"})
+    db_create_host(extra_data={"display_name": "testhost"})
+    db_create_host(extra_data={"display_name": "testXhost"})
+
+    # Test URL-encoded %2A should match only the literal asterisk
+    url = build_hosts_url(query="?display_name=test%2Ahost")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_literal_asterisk.id)
+
+
+def test_unencoded_asterisk_wildcard_match_display_name(db_create_host, api_get):
+    """Test that unencoded * continues to work as wildcard in display_name."""
+    # Create hosts with various patterns
+    host_exact_match = db_create_host(extra_data={"display_name": "testhost"})
+    host_wildcard_match = db_create_host(extra_data={"display_name": "test123host"})
+    host_literal_asterisk = db_create_host(extra_data={"display_name": "test*host"})
+    host_no_match = db_create_host(extra_data={"display_name": "different"})
+
+    # Test unencoded * should work as wildcard
+    url = build_hosts_url(query="?display_name=test*host")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 3  # All three test*host patterns should match
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_exact_match.id) in result_ids
+    assert str(host_wildcard_match.id) in result_ids
+    assert str(host_literal_asterisk.id) in result_ids
+    assert str(host_no_match.id) not in result_ids
+
+
+def test_mixed_literal_and_wildcard_asterisks_display_name(db_create_host, api_get):
+    """Test mixed patterns with both literal (*) and wildcard asterisks in display_name."""
+    # Create hosts with complex patterns
+    host_literal_then_anything = db_create_host(extra_data={"display_name": "app*v1.2"})
+    host_literal_then_specific = db_create_host(extra_data={"display_name": "app*v1.2.final"})
+    host_no_literal_asterisk = db_create_host(extra_data={"display_name": "appXv1.2"})
+
+    # Test pattern: app%2A* (literal asterisk followed by wildcard)
+    # Should match "app*v1.2" and "app*v1.2.final" but not "appXv1.2"
+    url = build_hosts_url(query="?display_name=app%2A*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_literal_then_anything.id) in result_ids
+    assert str(host_literal_then_specific.id) in result_ids
+    assert str(host_no_literal_asterisk.id) not in result_ids
+
+
+def test_system_profile_url_encoded_asterisk_literal_insights_client_version(db_create_host, api_get):
+    """Test URL-encoded asterisks in system profile insights_client_version field."""
+    # Create hosts with literal asterisks in system profile
+    host_with_asterisk = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-1.el4_2"}}
+    )
+    db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-1.el4_2"}})
+    db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}})
+
+    # Test URL-encoded %2A should match only literal asterisk in system profile
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-1.el4_2")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_asterisk.id)
+
+
+def test_system_profile_unencoded_asterisk_wildcard_insights_client_version(db_create_host, api_get):
+    """Test unencoded asterisks work as wildcards in system profile insights_client_version field."""
+    # Create hosts with various version patterns
+    host_301 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-1.el4_2"}})
+    host_305 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}})
+    host_literal_asterisk = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-1.el4_2"}}
+    )
+    host_no_match = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "2.9.1-1.el4_2"}})
+
+    # Test unencoded * should work as wildcard in system profile
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 3  # 3.0.1, 3.0.5, 3.0.*
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_301.id) in result_ids
+    assert str(host_305.id) in result_ids
+    assert str(host_literal_asterisk.id) in result_ids
+    assert str(host_no_match.id) not in result_ids
+
+
+def test_system_profile_array_filter_url_encoded_asterisk(db_create_host, api_get):
+    """Test URL-encoded asterisks in system profile array filters."""
+    # Create hosts with literal asterisks in array fields
+    host_with_asterisk = db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABC*123", "DEF456"]}})
+    db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABC123", "DEF456"]}})
+    db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABCX123", "DEF456"]}})
+
+    # Test URL-encoded %2A should match only literal asterisk in array field
+    url = build_hosts_url(query="?filter[system_profile][sap_sids][contains][]=ABC%2A123")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_asterisk.id)
+
+
+def test_system_profile_array_filter_unencoded_asterisk_wildcard(db_create_host, api_get):
+    """Test unencoded asterisks in system profile array filters.
+
+    NOTE: Array wildcard matching is not currently supported. The contains operation
+    for arrays uses PostgreSQL's @> operator which only does exact matching.
+    This test verifies the current behavior where only exact matches are returned.
+    """
+    # Create hosts with various SID patterns
+    host_abc123 = db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABC123", "DEF456"]}})
+    host_abcdef = db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABCDEF", "GHI789"]}})
+    host_literal_asterisk = db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["ABC*123", "DEF456"]}})
+    host_no_match = db_create_host(extra_data={"system_profile_facts": {"sap_sids": ["XYZ123", "DEF456"]}})
+
+    # Test unencoded * in array field - currently only matches literal "ABC*" values
+    # Array wildcard matching is not implemented yet
+    url = build_hosts_url(query="?filter[system_profile][sap_sids][contains][]=ABC*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    # Currently only matches hosts with literal "ABC*" in their array
+    assert len(response_data["results"]) == 1
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_literal_asterisk.id) in result_ids
+    # These would match if array wildcard matching was implemented:
+    assert str(host_abc123.id) not in result_ids  # Would match ABC* pattern
+    assert str(host_abcdef.id) not in result_ids  # Would match ABC* pattern
+    assert str(host_no_match.id) not in result_ids
+
+
+def test_backward_compatibility_existing_wildcard_queries(db_create_host, api_get):
+    """Test that existing wildcard queries continue to work unchanged."""
+    # Create hosts to test existing wildcard patterns
+    host_insights_client_1 = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}}
+    )
+    host_insights_client_2 = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}}
+    )
+    host_literal_asterisk = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-1.el4_2"}}
+    )
+    host_no_match = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "2.9.1-1.el4_2"}})
+
+    # Test existing wildcard pattern should continue to work
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 3  # All 3.0.* versions including literal asterisk
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert str(host_insights_client_1.id) in result_ids
+    assert str(host_insights_client_2.id) in result_ids
+    assert str(host_literal_asterisk.id) in result_ids
+    assert str(host_no_match.id) not in result_ids
+
+
+@pytest.mark.parametrize(
+    "field_name,field_value",
+    [
+        ("display_name", "test*app"),
+        ("fqdn", "host*.example.com"),
+    ],
+)
+def test_url_encoded_asterisk_various_host_fields(db_create_host, api_get, field_name, field_value):
+    """Test URL-encoded asterisks work correctly across different host fields."""
+    # Create host with literal asterisk in the specified field
+    host_with_asterisk = db_create_host(extra_data={field_name: field_value})
+
+    # Create host that would match if asterisk was treated as wildcard
+    wildcard_value = field_value.replace("*", "X")
+    db_create_host(extra_data={field_name: wildcard_value})
+
+    # Test URL-encoded asterisk should match only literal asterisk
+    encoded_value = field_value.replace("*", "%2A")
+    url = build_hosts_url(query=f"?{field_name}={encoded_value}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_asterisk.id)
+
+
+@pytest.mark.parametrize(
+    "sp_field,sp_value",
+    [
+        ("insights_client_version", "3.0.*-1.el4_2"),
+        ("insights_client_version", "edge*server"),
+    ],
+)
+def test_url_encoded_asterisk_various_system_profile_fields(db_create_host, api_get, sp_field, sp_value):
+    """Test URL-encoded asterisks work correctly across different system profile fields."""
+    # Create host with literal asterisk in the specified system profile field
+    host_with_asterisk = db_create_host(extra_data={"system_profile_facts": {sp_field: sp_value}})
+
+    # Create host that would match if asterisk was treated as wildcard
+    wildcard_value = sp_value.replace("*", "X")
+    db_create_host(extra_data={"system_profile_facts": {sp_field: wildcard_value}})
+
+    # Test URL-encoded asterisk should match only literal asterisk
+    encoded_value = sp_value.replace("*", "%2A")
+    url = build_hosts_url(query=f"?filter[system_profile][{sp_field}]={encoded_value}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == str(host_with_asterisk.id)

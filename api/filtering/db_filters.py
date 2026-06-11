@@ -152,7 +152,31 @@ def hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list
 
 
 def _display_name_filter(display_name: str) -> list:
-    return [Host.display_name.ilike(f"%{display_name.replace('*', '%')}%")]
+    r"""Filter hosts by display name, handling escaped asterisks properly.
+
+    This function processes wildcard patterns, handling escaped asterisks.
+    Converts escaped asterisks (\*) to literal asterisks and unescaped asterisks (*) to SQL wildcards (%).
+    """
+    from api.parsing import _check_for_escaped_asterisks_in_query_string
+
+    # Apply URL encoding detection to handle %2A -> \* conversion
+    processed_display_name = _check_for_escaped_asterisks_in_query_string(display_name)
+
+    # Process wildcard patterns, handling escaped asterisks
+    if not isinstance(processed_display_name, str):
+        processed_value = processed_display_name
+    else:
+        # First, replace escaped asterisks with a temporary placeholder
+        temp_placeholder = "__LITERAL_ASTERISK__"
+        processed_value = processed_display_name.replace(r"\*", temp_placeholder)
+
+        # Then replace unescaped asterisks with SQL wildcards
+        processed_value = processed_value.replace("*", "%")
+
+        # Finally, restore literal asterisks
+        processed_value = processed_value.replace(temp_placeholder, "*")
+
+    return [Host.display_name.ilike(f"%{processed_value}%")]
 
 
 def _tags_filter(string_tags: list[str]) -> list:
@@ -375,7 +399,31 @@ def _build_filter(filter: dict) -> tuple[list, set]:
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
-    wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
+    r"""Filter hosts by hostname or ID, handling escaped asterisks properly.
+
+    This function processes wildcard patterns, handling escaped asterisks.
+    Converts escaped asterisks (\*) to literal asterisks and unescaped asterisks (*) to SQL wildcards (%).
+    """
+    from api.parsing import _check_for_escaped_asterisks_in_query_string
+
+    # Apply URL encoding detection to handle %2A -> \* conversion
+    processed_hostname_or_id = _check_for_escaped_asterisks_in_query_string(hostname_or_id)
+
+    # Process wildcard patterns, handling escaped asterisks
+    if not isinstance(processed_hostname_or_id, str):
+        processed_value = processed_hostname_or_id
+    else:
+        # First, replace escaped asterisks with a temporary placeholder
+        temp_placeholder = "__LITERAL_ASTERISK__"
+        processed_value = processed_hostname_or_id.replace(r"\*", temp_placeholder)
+
+        # Then replace unescaped asterisks with SQL wildcards
+        processed_value = processed_value.replace("*", "%")
+
+        # Finally, restore literal asterisks
+        processed_value = processed_value.replace(temp_placeholder, "*")
+
+    wildcard_id = f"%{processed_value}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
         Host.fqdn.ilike(wildcard_id),

@@ -395,6 +395,27 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """Process wildcard patterns, handling escaped asterisks.
+
+    Converts escaped asterisks (\\*) to literal asterisks and unescaped asterisks (*) to SQL wildcards (%).
+    """
+    if not isinstance(value, str):
+        return value
+
+    # First, replace escaped asterisks with a temporary placeholder
+    temp_placeholder = "__LITERAL_ASTERISK__"
+    value = value.replace("\\*", temp_placeholder)
+
+    # Then replace unescaped asterisks with SQL wildcards
+    value = value.replace("*", "%")
+
+    # Finally, restore literal asterisks
+    value = value.replace(temp_placeholder, "*")
+
+    return value
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -427,9 +448,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, process escaped asterisks)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
