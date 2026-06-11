@@ -72,6 +72,7 @@ DEFAULT_FIELDS = (
     "created",
     "updated",
     "groups",
+    "workspace",
     "last_check_in",
     "openshift_cluster_id",
 )
@@ -294,6 +295,11 @@ def serialize_host(
             if for_mq and host.groups
             else host.groups or []
         )
+
+    # Workspace is the single object from groups (hosts belong to at most one workspace)
+    if "workspace" in fields:
+        groups = serialized_host.get("groups", host.groups or [])
+        serialized_host["workspace"] = groups[0] if groups else None
 
     return serialized_host
 

@@ -1674,6 +1674,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
         expected = {
             **canonical_facts,
             **unchanged_data,
+            "workspace": None,
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
@@ -1752,6 +1753,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     **unchanged_data,
                     "facts": [],
                     "groups": [],
+                    "workspace": None,
                     "tags": [],
                     "id": str(host_attr_data["id"]),
                     "created": _timestamp_to_str(host_attr_data["created_on"]),
@@ -1906,6 +1908,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
         expected = {
             **serialized_canonical_facts,
             **unchanged_data,
+            "workspace": None,
             "facts": serialize_facts.return_value,
             "tags": serialize_tags.return_value,
             "id": str(host_attr_data["id"]),
