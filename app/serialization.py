@@ -296,9 +296,10 @@ def serialize_host(
             else host.groups or []
         )
 
-    # Workspace is the single object from groups (hosts belong to at most one workspace)
+    # Workspace is the single object from groups (hosts belong to at most one workspace).
+    # Prefer the already-serialized groups list; fall back to the raw JSONB column (also dicts).
     if "workspace" in fields:
-        groups = serialized_host.get("groups", host.groups or [])
+        groups = serialized_host.get("groups") if "groups" in serialized_host else (host.groups or [])
         serialized_host["workspace"] = groups[0] if groups else None
 
     return serialized_host

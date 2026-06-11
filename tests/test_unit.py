@@ -1707,6 +1707,48 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
         assert expected == actual
 
 
+def test_workspace_field_serialization(flask_app):
+    with flask_app.app.app_context():
+        group_data = [{"id": "11111111-1111-1111-1111-111111111111", "name": "test-workspace", "ungrouped": False}]
+        host = Host(
+            org_id="some org_id",
+            subscription_manager_id=generate_uuid(),
+            stale_timestamp=now(),
+            reporter="puptoo",
+            groups=group_data,
+        )
+        host.id = uuid4()
+        host.created_on = now()
+        host.modified_on = now()
+        host.last_check_in = now()
+
+        staleness = get_sys_default_staleness()
+
+        actual = serialize_host(host, staleness, False)
+        assert actual["workspace"] == group_data[0]
+        assert actual["groups"] == group_data
+
+        actual_mq = serialize_host(host, staleness, True)
+        assert actual_mq["workspace"]["id"] == group_data[0]["id"]
+        assert actual_mq["workspace"]["name"] == group_data[0]["name"]
+
+        empty_host = Host(
+            org_id="some org_id",
+            subscription_manager_id=generate_uuid(),
+            stale_timestamp=now(),
+            reporter="puptoo",
+            groups=[],
+        )
+        empty_host.id = uuid4()
+        empty_host.created_on = now()
+        empty_host.modified_on = now()
+        empty_host.last_check_in = now()
+
+        actual_empty = serialize_host(empty_host, staleness, False)
+        assert actual_empty["workspace"] is None
+        assert actual_empty["groups"] == []
+
+
 def test_with_only_required_fields_serialization_serialize_host_compound(subtests, flask_app):
     with flask_app.app.app_context():
         for group_data in ({"groups": None}, {"groups": []}, {}):
