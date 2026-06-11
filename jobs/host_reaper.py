@@ -104,6 +104,7 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
                 hosts_processed = 0
 
             deletions_remaining -= hosts_processed
+            session.expunge_all()
 
 
 if __name__ == "__main__":
