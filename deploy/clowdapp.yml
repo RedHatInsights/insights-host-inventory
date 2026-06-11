@@ -242,6 +242,8 @@ objects:
       podSpec:
         <<: [ *gunicornPodSpec, *readProbes ]
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: APP_NAME
             value: ${APP_NAME}
           - name: PATH_PREFIX
@@ -381,6 +383,8 @@ objects:
         <<: *gunicornPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: APP_NAME
             value: ${APP_NAME}
           - name: PATH_PREFIX
@@ -517,6 +521,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -640,6 +646,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -765,6 +773,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -886,6 +896,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -1010,12 +1022,146 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_WORKSPACES_MQ}
             memory: ${MEMORY_REQUEST_WORKSPACES_MQ}
+    - name: mq-workspaces-bulk
+      replicas: ${{REPLICAS_WORKSPACES_BULK}}
+      podSpec:
+        <<: *mqPodSpec
+        initContainers: *migrationWaitInitContainer
+        env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
+          - name: CONSOLEDOT_HOSTNAME
+            value: ${CONSOLEDOT_HOSTNAME}
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: CONNEXION_LOG_LEVEL
+            value: ${CONNEXION_LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: KAFKA_HOST_INGRESS_GROUP
+            value: ${KAFKA_HOST_INGRESS_GROUP}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: KAFKA_SYSTEM_PROFILE_TOPIC
+            value: ${KAFKA_SYSTEM_PROFILE_TOPIC}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - name: OTEL_ENABLED
+            value: ${OTEL_ENABLED}
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+          - name: OTEL_SQL_ENABLED
+            value: ${OTEL_SQL_ENABLED}
+          - name: OTEL_SQL_COMMENTER_ENABLED
+            value: ${OTEL_SQL_COMMENTER_ENABLED}
+          - name: OTEL_HTTP_INBOUND_ENABLED
+            value: ${OTEL_HTTP_INBOUND_ENABLED}
+          - name: OTEL_HTTP_OUTBOUND_ENABLED
+            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
+          - name: OTEL_SAMPLING_RATE
+            value: ${OTEL_SAMPLING_RATE}
+          - name: OTEL_BSP_MAX_QUEUE_SIZE
+            value: ${OTEL_BSP_MAX_QUEUE_SIZE}
+          - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
+            value: ${OTEL_BSP_MAX_EXPORT_BATCH_SIZE}
+          - name: OTEL_BSP_SCHEDULE_DELAY
+            value: ${OTEL_BSP_SCHEDULE_DELAY}
+          - name: OTEL_BSP_EXPORT_TIMEOUT
+            value: ${OTEL_BSP_EXPORT_TIMEOUT}
+          - name: OTEL_EXPORTER_OTLP_COMPRESSION
+            value: ${OTEL_EXPORTER_OTLP_COMPRESSION}
+          - name: OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT
+            value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
+          - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
+            value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+          - name: OTEL_MQ_ENABLED
+            value: ${OTEL_MQ_ENABLED}
+          - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+            value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+          - name: OTEL_MQ_SLOW_MESSAGE_MS
+            value: ${OTEL_MQ_SLOW_MESSAGE_MS}
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
+            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
+          - name: INVENTORY_API_CACHE_TYPE
+            value: "${INVENTORY_API_CACHE_TYPE}"
+          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
+            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
+          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
+            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
+          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
+            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
+          - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
+            value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
+          - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
+            value: "${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS}"
+          - name: UNLEASH_URL
+            value: ${UNLEASH_URL}
+          - <<: *unleashToken
+            name: UNLEASH_TOKEN
+          - name: BYPASS_UNLEASH
+            value: ${BYPASS_UNLEASH}
+          - name: UNLEASH_REFRESH_INTERVAL
+            value: ${UNLEASH_REFRESH_INTERVAL}
+          - name: MQ_DB_BATCH_MAX_SECONDS
+            value: ${MQ_DB_BATCH_MAX_SECONDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+          - name: KAFKA_CONSUMER_TOPIC
+            value: ${KAFKA_WORKSPACES_BULK_TOPIC}
+          - name: KAFKA_WORKSPACES_BULK_TOPIC
+            value: ${KAFKA_WORKSPACES_BULK_TOPIC}
+          - name: MQ_DB_BATCH_MAX_MESSAGES
+            value: ${MQ_WORKSPACES_BULK_DB_BATCH_MAX_MESSAGES}
+          - name: OUTBOX_USE_BATCHED_QUERIES
+            value: ${OUTBOX_USE_BATCHED_QUERIES}
+          - name: CONSUMER_MQ_BROKER
+            value: ${CONSUMER_MQ_BROKER}
+          - <<: *rbacPsks
+            name: RBAC_PSKS
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+        livenessProbe:
+          <<: *mqLivenessProbe
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        readinessProbe:
+          <<: *mqReadinessProbe
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_WORKSPACES_BULK_MQ}
+            memory: ${MEMORY_LIMIT_WORKSPACES_BULK_MQ}
+          requests:
+            cpu: ${CPU_REQUEST_WORKSPACES_BULK_MQ}
+            memory: ${MEMORY_REQUEST_WORKSPACES_BULK_MQ}
     - name: export-service
       minReplicas: ${{REPLICAS_EXPORT_SVC}}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args: ["./inv_export_service.py"]
         env:
+        - name: OPENSHIFT_BUILD_COMMIT
+          value: ${IMAGE_TAG}
         - name: INVENTORY_LOG_LEVEL
           value: DEBUG
         - name: INVENTORY_DB_SSL_MODE
@@ -1063,6 +1209,8 @@ objects:
         <<: *mqPodSpec
         initContainers: *migrationWaitInitContainer
         env:
+          - name: OPENSHIFT_BUILD_COMMIT
+            value: ${IMAGE_TAG}
           - name: CONSOLEDOT_HOSTNAME
             value: ${CONSOLEDOT_HOSTNAME}
           - name: INVENTORY_LOG_LEVEL
@@ -1904,6 +2052,71 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_POPULATE_HOST_TYPE_JOB}
             memory: ${MEMORY_REQUEST_POPULATE_HOST_TYPE_JOB}
+    - name: update-staleness
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/update_staleness.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: DRY_RUN
+            value: ${UPDATE_STALENESS_DRY_RUN}
+          - name: SUSPEND_JOB
+            value: ${UPDATE_STALENESS_SUSPEND_JOB}
+          - name: STALENESS_ORG_ID
+            value: ${UPDATE_STALENESS_ORG_ID}
+          - name: CONVENTIONAL_TIME_TO_STALE
+            value: ${UPDATE_STALENESS_TIME_TO_STALE}
+          - name: CONVENTIONAL_TIME_TO_STALE_WARNING
+            value: ${UPDATE_STALENESS_TIME_TO_STALE_WARNING}
+          - name: CONVENTIONAL_TIME_TO_DELETE
+            value: ${UPDATE_STALENESS_TIME_TO_DELETE}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_UPDATE_STALENESS_JOB}
+            memory: ${MEMORY_LIMIT_UPDATE_STALENESS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_UPDATE_STALENESS_JOB}
+            memory: ${MEMORY_REQUEST_UPDATE_STALENESS_JOB}
     - name: run-db-migrations
       restartPolicy: OnFailure
       podSpec:
@@ -2008,6 +2221,8 @@ objects:
         partitions: ${{NUMBER_OF_KAFKA_EXPORT_SERVICE_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_KESSEL_WORKSPACES_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS}}
+      - topicName: ${KAFKA_WORKSPACES_BULK_TOPIC}
+        partitions: ${{NUMBER_OF_KAFKA_WORKSPACES_BULK_TOPIC_PARTITIONS}}
       - topicName: ${KAFKA_HOST_APP_DATA_TOPIC}
         partitions: ${{NUMBER_OF_KAFKA_HOST_APP_DATA_TOPIC_PARTITIONS}}
 # This CJI runs the DB migrations each time we deploy a new image.
@@ -2382,6 +2597,9 @@ parameters:
 - description: Replica count for mq-workspaces consumer
   name: REPLICAS_WORKSPACES
   value: "1"
+- description: Replica count for mq-workspaces-bulk consumer (0 until migration is active)
+  name: REPLICAS_WORKSPACES_BULK
+  value: "0"
 - description: Replica count for export-service
   name: REPLICAS_EXPORT_SVC
   value: "2"
@@ -2445,6 +2663,14 @@ parameters:
 - name: MEMORY_REQUEST_WORKSPACES_MQ
   value: 512Mi
 - name: MEMORY_LIMIT_WORKSPACES_MQ
+  value: 1Gi
+- name: CPU_REQUEST_WORKSPACES_BULK_MQ
+  value: 250m
+- name: CPU_LIMIT_WORKSPACES_BULK_MQ
+  value: 500m
+- name: MEMORY_REQUEST_WORKSPACES_BULK_MQ
+  value: 512Mi
+- name: MEMORY_LIMIT_WORKSPACES_BULK_MQ
   value: 1Gi
 - name: CPU_REQUEST_EXPORT_SVC
   value: 250m
@@ -2536,6 +2762,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_POPULATE_HOST_TYPE_JOB
   value: 512Mi
+- name: CPU_REQUEST_UPDATE_STALENESS_JOB
+  value: 250m
+- name: CPU_LIMIT_UPDATE_STALENESS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_UPDATE_STALENESS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_UPDATE_STALENESS_JOB
+  value: 512Mi
 - name: CPU_REQUEST_DB_MIGRATIONS_JOB
   value: 250m
 - name: CPU_LIMIT_DB_MIGRATIONS_JOB
@@ -2615,6 +2849,12 @@ parameters:
   value: outbox.event.workspace
 - name: NUMBER_OF_KAFKA_KESSEL_WORKSPACES_TOPIC_PARTITIONS
   description: Number of partitions for the Kafka kessel workspaces topic
+  value: '1'
+- name: KAFKA_WORKSPACES_BULK_TOPIC
+  description: The Kafka topic for bulk Workspace migration data
+  value: outbox.event.workspace-bulk
+- name: NUMBER_OF_KAFKA_WORKSPACES_BULK_TOPIC_PARTITIONS
+  description: Number of partitions for the Kafka workspaces-bulk topic
   value: '1'
 - name: PAYLOAD_TRACKER_KAFKA_TOPIC
   description: The topic for payload tracker
@@ -2765,6 +3005,8 @@ parameters:
   value: '1'
 - name: MQ_WORKSPACES_DB_BATCH_MAX_MESSAGES
   value: '1'
+- name: MQ_WORKSPACES_BULK_DB_BATCH_MAX_MESSAGES
+  value: '100'
 - name: MQ_HOST_APP_DATA_DB_BATCH_MAX_MESSAGES
   value: '1'
 - name: MQ_DB_BATCH_MAX_SECONDS
@@ -2853,6 +3095,26 @@ parameters:
 - name: POPULATE_HOST_TYPE_BATCH_SIZE
   description: Number of hosts to process per batch in the populate-host-type job
   value: '500'
+
+# -- Update staleness Job --
+- name: UPDATE_STALENESS_DRY_RUN
+  description: Whether the update-staleness job should run in dry-run mode
+  value: 'true'
+- name: UPDATE_STALENESS_SUSPEND_JOB
+  description: Whether the update-staleness job should be suspended
+  value: 'true'
+- name: UPDATE_STALENESS_ORG_ID
+  description: The org_id to create or update custom staleness for
+  value: ''
+- name: UPDATE_STALENESS_TIME_TO_STALE
+  description: conventional_time_to_stale value in seconds (optional)
+  value: ''
+- name: UPDATE_STALENESS_TIME_TO_STALE_WARNING
+  description: conventional_time_to_stale_warning value in seconds (optional)
+  value: ''
+- name: UPDATE_STALENESS_TIME_TO_DELETE
+  description: conventional_time_to_delete value in seconds (optional)
+  value: ''
 
 # -- Remove null values in workloads fields data Job --
 - name: REMOVE_NULL_VALUES_WORKLOADS_FIELDS_DRY_RUN

@@ -35,9 +35,11 @@ from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_custom_rbac_response
+from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
+from tests.helpers.test_utils import IDENTITY_WITHOUT_HOSTS
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -496,14 +498,25 @@ def test_query_using_non_existent_fqdn(api_get):
         (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
         (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
         (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (
+            f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"
+        ),
     ),
 )
 def test_query_by_conflitcting_ids(api_get, query):
     # Not allowed to query on more than one of these fields at once
     url = build_hosts_url(query=f"?{query}")
-    response_status, _ = api_get(url)
+    response_status, response_body = api_get(url)
 
     assert response_status == 400
+    assert (
+        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        in response_body["detail"]
+    )
 
 
 def test_query_using_display_name_substring(mq_create_three_specific_hosts, api_get, subtests):
@@ -1100,10 +1113,10 @@ def test_query_hosts_filter_last_check_in_both_same(mq_create_or_update_host, ap
     assert response_data["results"][0]["id"] != nomatch_host.id
 
 
-def test_query_hosts_filter_last_check_in_invalid_format(api_get, subtests):
+def test_query_hosts_filter_last_check_in_and_updated_invalid_format(api_get, subtests):
     invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
     for invalid_format in invalid_formats:
-        for param in ("last_check_in_start", "last_check_in_end"):
+        for param in ("last_check_in_start", "last_check_in_end", "updated_start", "updated_end"):
             with subtests.test(invalid_format=invalid_format, param=param):
                 url = build_hosts_url(query=f"?{param}={invalid_format}")
                 response_status, response_data = api_get(url)
@@ -1424,6 +1437,33 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             assert count == len(response_data["results"])
 
 
+def test_get_hosts_filter_by_reporter_and_staleness(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests: SubTests,
+) -> None:
+    reporters = ("puptoo", "yupana")
+    states = ("fresh", "stale", "stale_warning")
+    hosts = create_hosts_by_reporter_and_staleness(db_create_host, mocker, reporters=reporters)
+
+    for state in states:
+        for reporter in reporters:
+            with subtests.test(state=state, reporter=reporter):
+                url = build_hosts_url(query=f"?staleness={state}&registered_with={reporter}")
+                response_status, response_data = api_get(url)
+                assert response_status == 200
+
+                expected_id = str(hosts[state][reporter].id)
+                result_ids = {h["id"] for h in response_data["results"]}
+                assert expected_id in result_ids
+
+                unexpected_ids = {
+                    str(hosts[s][r].id) for s in states for r in reporters if (s, r) != (state, reporter)
+                }
+                assert not result_ids & unexpected_ids
+
+
 @pytest.mark.parametrize(
     "sp_filter_param",
     (
@@ -1501,9 +1541,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "workloads": {
                 "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
                 "mssql": {"version": "15.3"},
-                "ansible": {
-                    "controller_version": "1.0",
-                },
+                "ansible": {"controller_version": "1.0"},
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
                     "gpu_models": [
@@ -1720,11 +1758,7 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
     db_create_host(extra_data=nomatch_sp_data)
 
     # This host has none of the fields, so it shouldn't be returned either
-    nomatch_sp_data = {
-        "system_profile_facts": {
-            "bios_vendor": "ex1",
-        }
-    }
+    nomatch_sp_data = {"system_profile_facts": {"bios_vendor": "ex1"}}
     db_create_host(extra_data=nomatch_sp_data)
 
     url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
@@ -1762,51 +1796,19 @@ def test_query_all_sp_filters_not_found(db_create_host, api_get, sp_filter_param
 )
 def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filter_param):
     # Create host with this system profile
-    match_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "RHEL",
-                "major": "8",
-                "minor": "11",
-            }
-        }
-    }
+    match_sp_data = {"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "8", "minor": "11"}}}
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
 
     # Create host with differing SP
-    nomatch_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "RHEL",
-                "major": "7",
-                "minor": "12",
-            }
-        }
-    }
+    nomatch_sp_data = {"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "7", "minor": "12"}}}
     nomatch_host_id_1 = str(db_create_host(extra_data=nomatch_sp_data).id)
 
     # Create host with differing SP
-    nomatch_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "RHEL",
-                "major": "7",
-                "minor": "5",
-            }
-        }
-    }
+    nomatch_sp_data = {"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "7", "minor": "5"}}}
     nomatch_host_id_2 = str(db_create_host(extra_data=nomatch_sp_data).id)
 
     # Create host with differing SP
-    nomatch_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "CentOS",
-                "major": "7",
-                "minor": "0",
-            }
-        }
-    }
+    nomatch_sp_data = {"system_profile_facts": {"operating_system": {"name": "CentOS", "major": "7", "minor": "0"}}}
     nomatch_host_id_3 = str(db_create_host(extra_data=nomatch_sp_data).id)
 
     url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
@@ -1836,27 +1838,11 @@ def test_query_all_sp_filters_operating_system(db_create_host, api_get, sp_filte
 )
 def test_query_sp_filters_operating_system_name(db_create_host, api_get, sp_filter_param, match):
     # Create host with this OS
-    match_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "CentOS",
-                "major": "8",
-                "minor": "11",
-            }
-        }
-    }
+    match_sp_data = {"system_profile_facts": {"operating_system": {"name": "CentOS", "major": "8", "minor": "11"}}}
     match_host_id = str(db_create_host(extra_data=match_sp_data).id)
 
     # Create host with differing OS
-    nomatch_sp_data = {
-        "system_profile_facts": {
-            "operating_system": {
-                "name": "RHEL",
-                "major": "7",
-                "minor": "12",
-            }
-        }
-    }
+    nomatch_sp_data = {"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "7", "minor": "12"}}}
     nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
 
     url = build_hosts_url(query=f"?filter[system_profile][operating_system]{sp_filter_param}")
@@ -2167,35 +2153,15 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
 
 def test_query_hosts_multiple_os(api_get, db_create_host, subtests):
     sp_facts_list = [
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
-            "host_type": "edge",
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
-            "host_type": "edge",
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 8},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 7, "minor": 10},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 8, "minor": 0},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 8, "minor": 5},
-        },
-        {
-            "operating_system": {"name": "RHEL", "major": 9, "minor": 1},
-        },
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 7}, "host_type": "edge"},
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 8}, "host_type": "edge"},
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 7}},
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 8}},
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 8}},
+        {"operating_system": {"name": "RHEL", "major": 7, "minor": 10}},
+        {"operating_system": {"name": "RHEL", "major": 8, "minor": 0}},
+        {"operating_system": {"name": "RHEL", "major": 8, "minor": 5}},
+        {"operating_system": {"name": "RHEL", "major": 9, "minor": 1}},
     ]
 
     for sp_facts in sp_facts_list:
@@ -2441,12 +2407,7 @@ def test_query_by_staleness(
     mocker: MockerFixture,
     subtests: SubTests,
 ) -> None:
-    expected_staleness_results_map = {
-        "fresh": 3,
-        "stale": 4,
-        "stale_warning": 2,
-        "culled": 10,
-    }
+    expected_staleness_results_map = {"fresh": 3, "stale": 4, "stale_warning": 2, "culled": 10}
     staleness_timestamp_map = {
         "fresh": now(),
         "stale": now() - timedelta(days=3),
@@ -2958,3 +2919,13 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
 
     assert response_status == 200
     assert response_data["results"] == []
+
+
+def test_no_hosts_in_org(api_get):
+    """Test no hosts are returned if for empty organization."""
+
+    url = build_hosts_url()
+    response_status, response_data = api_get(url, identity=IDENTITY_WITHOUT_HOSTS)
+    assert response_status == 200
+    assert response_data["results"] == []
+    assert response_data["count"] == response_data["total"] == 0

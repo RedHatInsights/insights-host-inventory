@@ -13,6 +13,7 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_tags_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
+from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import run_rbac_test
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -152,6 +153,40 @@ def test_get_list_of_tags_with_host_filters_via_db(db_create_multiple_hosts, api
                 assert response_data["results"][0]["tag"]["key"] == tag_key
                 assert response_data["results"][0]["tag"]["value"] == tag_value
                 assert response_data["results"][0]["count"] == 1
+
+
+def test_get_tags_filter_by_reporter_and_staleness(db_create_host, api_get, mocker, subtests):
+    reporters = ("puptoo", "yupana")
+    states = ("fresh", "stale", "stale_warning")
+
+    tag_data = {
+        (state, reporter): {
+            "tags": _deserialize_tags_dict({f"ns-{state}-{reporter}": {f"key-{state}-{reporter}": ["v1"]}})
+        }
+        for state in states
+        for reporter in reporters
+    }
+
+    create_hosts_by_reporter_and_staleness(db_create_host, mocker, reporters=reporters, extra_data_per_host=tag_data)
+
+    for state in states:
+        for reporter in reporters:
+            with subtests.test(state=state, reporter=reporter):
+                url = build_tags_url(query=f"?staleness={state}&registered_with={reporter}")
+                response_status, response_data = api_get(url)
+
+                assert_response_status(response_status, 200)
+                assert response_data["total"] >= 1
+
+                result_tags = {(r["tag"]["namespace"], r["tag"]["key"]) for r in response_data["results"]}
+                expected_ns = f"ns-{state}-{reporter}"
+                expected_key = f"key-{state}-{reporter}"
+                assert (expected_ns, expected_key) in result_tags
+
+                unexpected_tags = {
+                    (f"ns-{s}-{r}", f"key-{s}-{r}") for s in states for r in reporters if (s, r) != (state, reporter)
+                }
+                assert not result_tags & unexpected_tags
 
 
 def test_get_tags_count_of_host_that_does_not_exist(api_get):
@@ -381,10 +416,10 @@ def test_query_tags_filter_last_check_in_both_same(db_create_host, api_get):
     assert response_data["results"][0]["tag"]["value"] == match_value
 
 
-def test_query_tags_filter_last_check_in_invalid_format(api_get, subtests):
+def test_query_tags_filter_last_check_in_and_updated_invalid_format(api_get, subtests):
     invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
     for invalid_format in invalid_formats:
-        for param in ("last_check_in_start", "last_check_in_end"):
+        for param in ("last_check_in_start", "last_check_in_end", "updated_start", "updated_end"):
             with subtests.test(invalid_format=invalid_format, param=param):
                 url = build_tags_url(query=f"?{param}={invalid_format}")
                 response_status, response_data = api_get(url)
@@ -478,3 +513,33 @@ def test_query_tags_group_id_nonexistent_uuid(api_get, db_create_group_with_host
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    (
+        (f"fqdn={generate_uuid()}&display_name={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"hostname_or_id={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&fqdn={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"display_name={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (f"fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"),
+        (
+            f"display_name={generate_uuid()}&fqdn={generate_uuid()}&insights_id={generate_uuid()}&hostname_or_id={generate_uuid()}"
+        ),
+    ),
+)
+def test_query_tags_by_conflicting_ids(api_get, query):
+    """Test that querying tags with multiple conflicting ID parameters returns 400."""
+    url = build_tags_url(query=f"?{query}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 400
+    assert (
+        "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
+        in response_data["detail"]
+    )

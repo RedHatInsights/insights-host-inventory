@@ -31,17 +31,18 @@ dependencies = [
     "flask-caching",
     "redis",
     "ratelimit",
-    "confluent-kafka==2.14.0",
+    "confluent-kafka==2.14.2",
     "kessel-sdk[auth]~=2.6.0",
-    "opentelemetry-api~=1.41.1",
-    "opentelemetry-sdk~=1.41.1",
-    "opentelemetry-exporter-otlp-proto-http~=1.41.1",
-    "opentelemetry-instrumentation-flask==0.62b1",
-    "opentelemetry-instrumentation-sqlalchemy==0.62b1",
-    "opentelemetry-instrumentation-requests==0.62b1",
+    "opentelemetry-api~=1.42.1",
+    "opentelemetry-sdk~=1.42.1",
+    "opentelemetry-exporter-otlp-proto-http~=1.42.1",
+    "opentelemetry-instrumentation-flask==0.63b1",
+    "opentelemetry-instrumentation-sqlalchemy==0.63b1",
+    "opentelemetry-instrumentation-requests==0.63b1",
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.7.0",
     "rpds-py==0.30.0",
+    "starlette~=1.0.1",
 ]
 
 [tool.ruff]
@@ -166,7 +167,7 @@ ignore_errors = true
 [tool.uv]
 package = false
 default-groups = "all"
-required-version = "0.11.11"
+required-version = "0.11.19"
 
 [[tool.uv.index]]
 name = "pypi"

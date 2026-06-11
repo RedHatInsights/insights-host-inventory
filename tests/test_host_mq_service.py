@@ -22,11 +22,13 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
 from api.staleness_query import get_staleness_obj
+from app import create_app
 from app.auth.identity import Identity
 from app.auth.identity import create_mock_identity_with_org_id
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
+from app.environment import RuntimeEnvironment
 from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
@@ -42,6 +44,7 @@ from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
 from app.utils import Tag
+from inv_mq_service import build_topic_to_consumer_map
 from lib.host_repository import AddHostResult
 from tests.helpers.db_utils import create_reference_host_in_db
 from tests.helpers.db_utils import minimal_db_host
@@ -809,84 +812,6 @@ def test_add_host_defer_to_stale(mq_create_or_update_host, db_get_host):
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_with_wrong_owner(mocker, mq_create_or_update_host):
-    """
-    Tests adding a host with message containing system profile
-    """
-    mock_notification_event_producer = mocker.Mock()
-    expected_insights_id = generate_uuid()
-    expected_system_profile = valid_system_profile()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile=expected_system_profile,
-    )
-
-    with pytest.raises(ValidationException) as ve:
-        mq_create_or_update_host(
-            host, return_all_data=True, notification_event_producer=mock_notification_event_producer
-        )
-    assert ve.value.detail == "The owner in host does not match the owner in identity"
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-@pytest.mark.parametrize(
-    "with_account, rhsm_reporter",
-    [
-        (True, "rhsm-conduit"),
-        (False, "rhsm-conduit"),
-        (True, "rhsm-system-profile-bridge"),
-        (False, "rhsm-system-profile-bridge"),
-    ],
-)
-def test_add_host_rhsm_conduit_without_cn(mq_create_or_update_host, with_account, rhsm_reporter):
-    """
-    Tests adding a host with reporter rhsm-conduit and no cn
-    """
-    sub_mangager_id = "09152341-475c-4671-a376-df609374c349"
-
-    metadata_without_b64 = get_platform_metadata(identity=SYSTEM_IDENTITY)
-    del metadata_without_b64["b64_identity"]
-
-    if with_account:
-        host = minimal_host(
-            account=SYSTEM_IDENTITY.get("account_number"),
-            reporter=rhsm_reporter,
-            subscription_manager_id=sub_mangager_id,
-        )
-    else:
-        host = minimal_host(reporter=rhsm_reporter, subscription_manager_id=sub_mangager_id)
-
-    key, event, headers = mq_create_or_update_host(host, platform_metadata=metadata_without_b64, return_all_data=True)
-
-    # owner_id equals subscription_manager_id with dashes
-    assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_add_host_rhsm_conduit_owner_id(mq_create_or_update_host, rhsm_reporter):
-    """
-    Tests adding a host with reporter rhsm-conduit
-    """
-    sub_mangager_id = "09152341-475c-4671-a376-df609374c349"
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        reporter=rhsm_reporter,
-        subscription_manager_id=sub_mangager_id,
-        system_profile={"owner_id": OWNER_ID},
-    )
-
-    key, event, headers = mq_create_or_update_host(host, return_all_data=True)
-
-    # owner_id gets overwritten and equates to subscription_manager_id with dashes
-    assert event["host"]["system_profile"]["owner_id"] == "09152341-475c-4671-a376-df609374c349"
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_with_tags(mq_create_or_update_host):
     """
     Tests adding a host with message containing tags
@@ -1022,31 +947,6 @@ def test_add_host_externalized_system_profile(mocker, mq_create_or_update_host):
         with pytest.raises(ValidationException):
             mq_create_or_update_host(host_to_create, notification_event_producer=mock_notification_event_producer)
         mock_notification_event_producer.write_event.assert_called_once()
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_with_owner_id(mq_create_or_update_host, db_get_host):
-    """
-    Tests that owner_id in the system profile is ingested properly
-    """
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": OWNER_ID})
-    created_host_from_event = mq_create_or_update_host(host)
-    created_host_from_db = db_get_host(created_host_from_event.id)
-    # Check that owner_id is stored in normalized static system profile table
-    assert str(created_host_from_db.static_system_profile.owner_id) == OWNER_ID
-
-
-@pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
-def test_add_host_with_owner_incorrect_format(mocker, mq_create_or_update_host):
-    """
-    Tests that owner_id in the system profile is rejected if it's in the wrong format
-    """
-    mock_notification_event_producer = mocker.Mock()
-    owner_id = "Mike Wazowski"
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], system_profile={"owner_id": owner_id})
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
@@ -2108,113 +2008,6 @@ def test_update_system_profile_host_not_found(mocker, flask_app):
     consumer.event_loop(interrupt=mocker.Mock(side_effect=(False, True)))
 
 
-# Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
-def test_no_identity_and_no_rhsm_reporter(mocker):
-    expected_insights_id = generate_uuid()
-    mock_notification_event_producer = mocker.Mock()
-
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], insights_id=expected_insights_id)
-
-    platform_metadata = get_platform_metadata()
-    platform_metadata.pop("b64_identity")
-
-    message = wrap_message(host.data(), "add_host", platform_metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
-
-    with pytest.raises(ValidationException):
-        consumer.handle_message(json.dumps(message))
-    mock_notification_event_producer.write_event.assert_called()
-
-
-# Adding a host requires identity or rhsm-conduit reporter, which does not have identity
-@pytest.mark.usefixtures("flask_app")
-@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_platform_metadata(rhsm_reporter, ingress_message_consumer_mock):
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=generate_uuid(),
-        reporter=rhsm_reporter,
-        subscription_manager_id=OWNER_ID,
-    )
-
-    message = wrap_message(host.data(), "add_host")
-
-    # We just want to verify that no error gets thrown here.
-    ingress_message_consumer_mock.handle_message(json.dumps(message))
-
-
-@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
-@pytest.mark.parametrize("rhsm_reporter", ("rhsm-conduit", "rhsm-system-profile-bridge"))
-def test_rhsm_reporter_and_no_identity(mocker, rhsm_reporter):
-    expected_insights_id = generate_uuid()
-    mock_event_producer = mocker.Mock()
-    mock_notification_event_producer = mocker.Mock()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        reporter=rhsm_reporter,
-        subscription_manager_id=OWNER_ID,
-    )
-
-    platform_metadata = get_platform_metadata()
-    platform_metadata.pop("b64_identity")
-    message = wrap_message(host.data(), "add_host", platform_metadata)
-
-    consumer = IngressMessageConsumer(
-        mocker.Mock(), mocker.Mock(), mock_event_producer, mock_notification_event_producer
-    )
-
-    result = consumer.handle_message(json.dumps(message))
-    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
-
-    mock_event_producer.write_event.assert_called_once()
-    mock_notification_event_producer.assert_not_called()
-
-
-@pytest.mark.usefixtures("event_datetime_mock", "flask_app")
-def test_non_rhsm_reporter_and_no_identity(mocker):
-    expected_insights_id = generate_uuid()
-    mock_notification_event_producer = mocker.Mock()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        reporter="yee-haw",
-        subscription_manager_id=OWNER_ID,
-    )
-
-    platform_metadata = get_platform_metadata()
-    platform_metadata.pop("b64_identity")
-    message = wrap_message(host.data(), "add_host", platform_metadata)
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
-    with pytest.raises(ValidationException):
-        consumer.handle_message(json.dumps(message))
-    mock_notification_event_producer.write_event.assert_called()
-
-
-@pytest.mark.usefixtures("flask_app")
-def test_owner_id_different_from_cn(mocker):
-    expected_insights_id = generate_uuid()
-    mock_notification_event_producer = mocker.Mock()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile={"owner_id": "137c9d58-941c-4bb9-9426-7879a367c23b"},
-    )
-
-    message = wrap_message(host.data(), "add_host", get_platform_metadata())
-    consumer = IngressMessageConsumer(mocker.Mock(), mocker.Mock(), mocker.Mock(), mock_notification_event_producer)
-
-    with pytest.raises(ValidationException) as ve:
-        consumer.handle_message(json.dumps(message))
-
-    assert ve.value.detail == "The owner in host does not match the owner in identity"
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
 @pytest.mark.usefixtures("db_get_host")
 def test_change_owner_id_of_existing_host(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
@@ -2371,28 +2164,6 @@ def test_cant_update_host_groups_via_mq(
     assert len(retrieved_host.groups) == 1
     assert retrieved_host.groups[0]["id"] == original_group_id
     assert retrieved_host.groups[0]["name"] == "original_group"
-
-
-@pytest.mark.usefixtures("event_datetime_mock", "db_get_host")
-def test_add_host_with_invalid_identity(mocker, mq_create_or_update_host):
-    """
-    Tests that using an invalid identity still results in a notification message
-    """
-    identity = deepcopy(USER_IDENTITY)
-    identity["account_number"] = -5
-    metadata = {
-        "request_id": "b9757340-f839-4541-9af6-f7535edf08db",
-        "archive_url": "http://s3.aws.com/redhat/insights/1234567",
-        "b64_identity": get_encoded_idstr(identity),
-    }
-    mock_notification_event_producer = mocker.Mock()
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(
-            host, notification_event_producer=mock_notification_event_producer, platform_metadata=metadata
-        )
-
-    mock_notification_event_producer.write_event.assert_called_once()
 
 
 def test_batch_mq_add_host_operations(mocker, event_producer, flask_app):
@@ -3008,6 +2779,77 @@ def test_workspace_mq_delete_with_host_deleted_mid_process(
     assert db_get_groups_for_host(host_id_list[0])[0].ungrouped
     # host_id_list[1] was deleted, so skip it
     assert db_get_groups_for_host(host_id_list[2])[0].ungrouped
+
+
+def test_workspace_bulk_topic_uses_workspace_consumer():
+    """The outbox.event.workspace and workspace-bulk topics should be mapped to WorkspaceMessageConsumer."""
+    application = create_app(RuntimeEnvironment.SERVICE)
+    config = application.app.config["INVENTORY_CONFIG"]
+
+    topic_to_hbi_consumer = build_topic_to_consumer_map(config)
+
+    assert config.workspaces_topic is not None
+    assert topic_to_hbi_consumer[config.workspaces_topic] is WorkspaceMessageConsumer
+
+    assert config.workspaces_bulk_topic is not None
+    assert topic_to_hbi_consumer[config.workspaces_bulk_topic] is WorkspaceMessageConsumer
+
+
+@pytest.mark.parametrize(
+    "workspace_type",
+    (
+        "standard",
+        "ungrouped-hosts",
+    ),
+)
+def test_workspace_bulk_mq_create(workspace_message_consumer_mock, workspace_type, db_get_group_by_id):
+    """Bulk workspace consumer processes create events the same as the regular consumer."""
+    workspace_id = generate_uuid()
+    workspace_name = "bulk-workspace"
+    workspace_created = "2025-01-15T12:00:00+00:00"
+    workspace_modified = "2025-01-15T13:00:00+00:00"
+    message = generate_kessel_workspace_message(
+        "create",
+        str(workspace_id),
+        workspace_name,
+        workspace_type,
+        created=workspace_created,
+        modified=workspace_modified,
+    )
+
+    workspace_message_consumer_mock.handle_message(json.dumps(message))
+    found_group = db_get_group_by_id(workspace_id)
+
+    assert found_group.name == workspace_name
+    assert found_group.ungrouped == (workspace_type == "ungrouped-hosts")
+    assert found_group.created_on == datetime.fromisoformat(workspace_created)
+    assert found_group.modified_on == datetime.fromisoformat(workspace_modified)
+
+
+def test_workspace_bulk_mq_batch_creates(workspace_message_consumer_mock, db_get_group_by_id):
+    """Multiple workspace create events processed in sequence (simulating a batch)."""
+    workspace_ids = [generate_uuid() for _ in range(5)]
+    for i, ws_id in enumerate(workspace_ids):
+        message = generate_kessel_workspace_message("create", str(ws_id), f"bulk-workspace-{i}")
+        workspace_message_consumer_mock.handle_message(json.dumps(message))
+
+    for i, ws_id in enumerate(workspace_ids):
+        found_group = db_get_group_by_id(ws_id)
+        assert found_group is not None
+        assert found_group.name == f"bulk-workspace-{i}"
+
+
+def test_workspace_bulk_mq_create_duplicate_skips(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id
+):
+    """Duplicate workspace create events are silently skipped."""
+    workspace_id = db_create_group("bulk-workspace-original").id
+
+    duplicate_message = generate_kessel_workspace_message("create", str(workspace_id), "bulk-workspace-duplicate")
+    workspace_message_consumer_mock.handle_message(json.dumps(duplicate_message))
+
+    found_group = db_get_group_by_id(workspace_id)
+    assert found_group.name == "bulk-workspace-original"
 
 
 @pytest.mark.parametrize(

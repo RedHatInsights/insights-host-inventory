@@ -1,7 +1,6 @@
 # mypy: disallow-untyped-defs
 
 import logging
-from time import sleep
 
 import pytest
 
@@ -162,15 +161,13 @@ def test_export_hosts_mixed_states(host_inventory: ApplicationHostInventory) -> 
         stale_hosts_data,
         stale_warning_hosts_data,
         culled_hosts_data,
-        deltas=(30, 60, 90),
+        deltas=(20, 40, 60),
     )
 
     fresh_hosts_ids = {host.id for host in hosts["fresh"]}
     stale_hosts_ids = {host.id for host in hosts["stale"]}
     stale_warning_hosts_ids = {host.id for host in hosts["stale_warning"]}
     culled_hosts_ids = {host.id for host in hosts["culled"]}
-
-    sleep(3)  # Probably not needed, but just in case...
 
     # Verify the culled hosts are no longer available
     with raises_apierror(404):
