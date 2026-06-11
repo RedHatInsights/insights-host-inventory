@@ -320,7 +320,7 @@ def test_groups_create_validate_name_wrong_length(host_inventory, group_name):
       negative: true
       title: Try to create a group with the name of a wrong length
     """
-    with raises_apierror(400, "'name': ['Length must be between 1 and 255.']"):
+    with raises_apierror(400, "Length must be between 1 and 255."):
         host_inventory.apis.groups.create_group(group_name, wait_for_created=False)
 
     if group_name != "":
