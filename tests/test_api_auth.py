@@ -45,7 +45,20 @@ def invalid_identities(identity_type: IdentityType) -> list[dict[str, Any]]:
         no_system = deepcopy(base_identity)
         no_system.pop("system")
 
-        identities += [no_cert_type, no_cn, no_system]
+        blank_cn = deepcopy(base_identity)
+        blank_cn["system"]["cn"] = ""
+
+        invalid_cert_type = deepcopy(base_identity)
+        invalid_cert_type["system"]["cert_type"] = "invalid"
+
+        blank_cert_type = deepcopy(base_identity)
+        blank_cert_type["system"]["cert_type"] = ""
+
+        blank_system = deepcopy(base_identity)
+        blank_system["system"].pop("cn")
+        blank_system["system"].pop("cert_type")
+
+        identities += [no_cert_type, no_cn, no_system, blank_cn, invalid_cert_type, blank_cert_type, blank_system]
 
     if identity_type == IdentityType.SERVICE_ACCOUNT:
         base_identity = deepcopy(SERVICE_ACCOUNT_IDENTITY)
@@ -59,7 +72,24 @@ def invalid_identities(identity_type: IdentityType) -> list[dict[str, Any]]:
         no_service_account = deepcopy(base_identity)
         no_service_account.pop("service_account")
 
-        identities += [no_client_id, no_username, no_service_account]
+        blank_client_id = deepcopy(base_identity)
+        blank_client_id["service_account"]["client_id"] = ""
+
+        blank_username = deepcopy(base_identity)
+        blank_username["service_account"]["username"] = ""
+
+        blank_service_account = deepcopy(base_identity)
+        blank_service_account["service_account"].pop("client_id")
+        blank_service_account["service_account"].pop("username")
+
+        identities += [
+            no_client_id,
+            no_username,
+            no_service_account,
+            blank_client_id,
+            blank_username,
+            blank_service_account,
+        ]
 
     if identity_type == IdentityType.X509:
         base_identity = deepcopy(X509_IDENTITY)
@@ -82,13 +112,41 @@ def invalid_identities(identity_type: IdentityType) -> list[dict[str, Any]]:
     no_org_id = deepcopy(base_identity)
     no_org_id.pop("org_id")
 
+    blank_org_id = deepcopy(base_identity)
+    blank_org_id["org_id"] = ""
+
     no_type = deepcopy(base_identity)
     no_type.pop("type")
+
+    invalid_type = deepcopy(base_identity)
+    invalid_type["type"] = "Invalid"
+
+    blank_type = deepcopy(base_identity)
+    blank_type["type"] = ""
 
     no_auth_type = deepcopy(base_identity)
     no_auth_type.pop("auth_type")
 
-    return identities + [no_org_id, no_type, no_auth_type]
+    invalid_auth_type = deepcopy(base_identity)
+    invalid_auth_type["auth_type"] = "invalid-auth"
+
+    invalid_auth_type_2 = deepcopy(base_identity)
+    invalid_auth_type_2["auth_type"] = "classic-proxy"
+
+    blank_auth_type = deepcopy(base_identity)
+    blank_auth_type["auth_type"] = ""
+
+    return identities + [
+        no_org_id,
+        blank_org_id,
+        no_type,
+        invalid_type,
+        blank_type,
+        no_auth_type,
+        invalid_auth_type,
+        invalid_auth_type_2,
+        blank_auth_type,
+    ]
 
 
 def invalid_payloads(identity_type: IdentityType) -> tuple[bytes, ...]:
@@ -137,6 +195,30 @@ def test_validate_valid_identity(flask_client: TestClient, remove_account_number
     payload = create_identity_payload(test_identity)
     response = flask_client.get(HOST_URL, headers={"x-rh-identity": payload})
     assert response.status_code == 200  # OK
+
+
+@pytest.mark.parametrize("remove_account_number", (True, False))
+@pytest.mark.parametrize(
+    "identity",
+    (USER_IDENTITY, SERVICE_ACCOUNT_IDENTITY),
+    ids=("user", "service-account"),
+)
+@pytest.mark.usefixtures("event_producer")
+def test_validate_valid_identity_create_group(api_create_group, remove_account_number, identity):
+    test_identity = deepcopy(identity)
+    if remove_account_number:
+        test_identity.pop("account_number", None)
+
+    group_data = {"name": f"identity-test-group-{generate_uuid()[:8]}"}
+    response_status, response_data = api_create_group(group_data, identity=test_identity)
+
+    assert response_status == 201
+    assert response_data["org_id"] == test_identity["org_id"]
+
+    if remove_account_number:
+        assert response_data.get("account") is None
+    else:
+        assert response_data["account"] == identity["account_number"]
 
 
 def test_validate_x509_non_rhsm_identity_with_org_id(flask_client: TestClient):
