@@ -1,7 +1,7 @@
 """Drop hosts staleness columns and covering index
 
 Revision ID: f8a9b0c1d2e3
-Revises: c5d6e7f8a9b0
+Revises: d7e8f9a0b1c2
 Create Date: 2026-05-25 12:00:00.000000
 
 Phase 3 of compute-on-read: remove persisted staleness columns and the covering
@@ -26,7 +26,7 @@ from utils.partitioned_table_index_helper import drop_partitioned_table_index
 
 # revision identifiers, used by Alembic.
 revision = "f8a9b0c1d2e3"
-down_revision = "c5d6e7f8a9b0"
+down_revision = "d7e8f9a0b1c2"
 branch_labels = None
 depends_on = None
 
