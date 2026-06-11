@@ -23,7 +23,7 @@ from utils.partitioned_table_index_helper import drop_partitioned_table_index
 
 # revision identifiers, used by Alembic.
 revision = "e8f9a0b1c2d3"
-down_revision = "d7e8f9a0b1c2"
+down_revision = "f8a9b0c1d2e3"
 branch_labels = None
 depends_on = None
 
