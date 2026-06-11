@@ -40,6 +40,18 @@ HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
 HOST_VIEW_URL = f"{BASE_URL}/beta/hosts-view"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
+INVALID_GROUP_NAMES = [
+    "test!group",
+    "test@group",
+    "test#group",
+    "test$group",
+    "name/with/slashes",
+    "name.with.dots",
+    "name+plus",
+    "name&ampersand",
+    "name(parens)",
+    "name<angle>",
+]
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
