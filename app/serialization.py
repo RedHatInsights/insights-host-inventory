@@ -158,6 +158,21 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
 
     requested_fields = set(system_profile_fields) if system_profile_fields else None
 
+    # Legacy field name mappings for backward compatibility
+    legacy_field_mappings = {
+        "os_os_kernel_version": "os_kernel_version",
+    }
+
+    # Apply legacy field mappings and track original field names for response
+    original_to_mapped = {}
+    if requested_fields:
+        mapped_fields = set()
+        for field in requested_fields:
+            mapped_field = legacy_field_mappings.get(field, field)
+            mapped_fields.add(mapped_field)
+            original_to_mapped[mapped_field] = field
+        requested_fields = mapped_fields
+
     # Check if 'workloads' should be fetched implicitly to extract sub-fields later (backward compatibility)
     requested_workload_subfields = set()
     workloads_explicitly_requested = False
@@ -196,6 +211,14 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
 
         except DetachedInstanceError:
             pass
+
+    # Map field names back to original names for backward compatibility
+    if original_to_mapped:
+        mapped_system_profile = {}
+        for field_name, value in system_profile.items():
+            original_field_name = original_to_mapped.get(field_name, field_name)
+            mapped_system_profile[original_field_name] = value
+        system_profile = mapped_system_profile
 
     return system_profile
 

@@ -16,6 +16,11 @@ _normalizer = SystemProfileNormalizer()
 STATIC_FIELDS = list(_normalizer.get_static_fields())
 DYNAMIC_FIELDS = list(_normalizer.get_dynamic_fields())
 
+# Legacy field name mappings for backward compatibility
+LEGACY_FIELD_MAPPINGS = {
+    "os_os_kernel_version": "os_kernel_version",
+}
+
 
 def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """
@@ -33,7 +38,13 @@ def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict
     static_data = {}
     dynamic_data = {}
 
+    # Apply legacy field mappings first
+    mapped_system_profile_data = {}
     for key, value in system_profile_data.items():
+        mapped_key = LEGACY_FIELD_MAPPINGS.get(key, key)
+        mapped_system_profile_data[mapped_key] = value
+
+    for key, value in mapped_system_profile_data.items():
         if value is None:
             pass
         elif key in STATIC_FIELDS:

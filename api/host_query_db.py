@@ -775,12 +775,23 @@ def get_sparse_system_profile(
     # Track if we need to fetch workloads for backward compatibility
     requested_sp_fields_dict: dict[str, bool] = fields.get("system_profile", {}) if fields else {}  # type: ignore[assignment]
     requested_sp_fields = list(requested_sp_fields_dict.keys()) if isinstance(requested_sp_fields_dict, dict) else []
-    workloads_requested = "workloads" in requested_sp_fields
+
+    # Legacy field name mappings for backward compatibility
+    legacy_field_mappings = {
+        "os_os_kernel_version": "os_kernel_version",
+    }
+
+    # Apply legacy field mappings
+    mapped_sp_fields = []
+    for field in requested_sp_fields:
+        mapped_field = legacy_field_mappings.get(field, field)
+        mapped_sp_fields.append(mapped_field)
+    workloads_requested = "workloads" in mapped_sp_fields
     workloads_compat_enabled = get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id)
     workloads_needed_for_compat = (
         workloads_compat_enabled
-        and requested_sp_fields
-        and any(field in legacy_workload_fields for field in requested_sp_fields)
+        and mapped_sp_fields
+        and any(field in legacy_workload_fields for field in mapped_sp_fields)
     )
 
     needs_static_join = False
@@ -789,7 +800,7 @@ def get_sparse_system_profile(
     if fields and fields.get("system_profile"):
         # If backward compatibility is enabled and legacy fields are requested,
         # also fetch workloads field so we can populate legacy fields from it
-        fields_to_fetch = deepcopy(requested_sp_fields)
+        fields_to_fetch = deepcopy(mapped_sp_fields)
         if workloads_needed_for_compat and not workloads_requested:
             fields_to_fetch.append("workloads")
     else:
@@ -853,6 +864,32 @@ def get_sparse_system_profile(
                     for field in legacy_workload_fields:
                         if field in host_data["system_profile"] and field not in requested_sp_fields:
                             del host_data["system_profile"][field]
+
+    # Apply reverse mapping for legacy field names when returning all fields
+    if not requested_sp_fields:
+        reverse_legacy_mappings = {v: k for k, v in legacy_field_mappings.items()}
+        for host_data in result_list:
+            if host_data["system_profile"]:
+                reversed_system_profile = {}
+                for field_name, value in host_data["system_profile"].items():
+                    # Use the original legacy field name if this field was mapped
+                    original_field_name = reverse_legacy_mappings.get(field_name, field_name)
+                    reversed_system_profile[original_field_name] = value
+                host_data["system_profile"] = reversed_system_profile
+
+    # Filter system_profile fields to only include requested ones when specific fields are requested
+    # Also handle legacy field name mapping in the response
+    if requested_sp_fields:
+        for host_data in result_list:
+            if host_data["system_profile"]:
+                # Keep only the fields that were explicitly requested, using original field names
+                filtered_system_profile = {}
+                for original_field in requested_sp_fields:
+                    mapped_field = legacy_field_mappings.get(original_field, original_field)
+                    if mapped_field in host_data["system_profile"]:
+                        # Use the original field name in the response for backward compatibility
+                        filtered_system_profile[original_field] = host_data["system_profile"][mapped_field]
+                host_data["system_profile"] = filtered_system_profile
 
     return query_results.total, result_list
 

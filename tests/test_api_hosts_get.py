@@ -389,9 +389,9 @@ def test_get_hosts_invalid_deep_object_params(query_params, api_get):
 
 def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
     for query in (
-        "?fields[system_profile]=os_kernel_version&order_how=ASC",
-        "?fields[system_profile]=os_kernel_version&order_by=modified",
-        "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
+        "?fields[system_profile]=os_os_kernel_version&order_how=ASC",
+        "?fields[system_profile]=os_os_kernel_version&order_by=modified",
+        "?fields[system_profile]=os_os_kernel_version&order_how=display_name&order_by=NOO",
         # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
         # or until we make a workaround and re-enable strict_validation.
         # "?fields[foo]=bar",
@@ -1273,7 +1273,7 @@ def test_query_sp_by_id_list_sparse(
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
+            "os_os_kernel_version": "4.18.2",
             "host_type": "edge",
             "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         }
@@ -1283,7 +1283,7 @@ def test_query_sp_by_id_list_sparse(
     host_list_url = build_hosts_url(host_list_or_id=created_hosts[:num_hosts_to_query])
     url = f"{host_list_url}/system_profile?order_by={order_by}&order_how={order_how}"
     if sparse_request:
-        url += "&fields[system_profile]=arch,os_kernel_version,installed_packages,host_type"
+        url += "&fields[system_profile]=arch,os_os_kernel_version,installed_packages,host_type"
 
     response_status, response_data = api_get(url)
 
@@ -1294,7 +1294,7 @@ def test_query_sp_by_id_list_sparse(
 
         # "!=" works as an XOR
         assert sparse_request != ("owner_id" in response_host["system_profile"])
-        for fact in ["arch", "os_kernel_version", "host_type"]:
+        for fact in ["arch", "os_os_kernel_version", "host_type"]:
             assert fact in response_host["system_profile"]
 
 
@@ -1303,7 +1303,7 @@ def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
+            "os_os_kernel_version": "4.18.2",
             "host_type": "edge",
             "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         }
@@ -1320,7 +1320,7 @@ def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
         assert "system_profile" in result
         assert "arch" in result["system_profile"]
         assert "host_type" in result["system_profile"]
-        assert "os_kernel_version" not in result["system_profile"]
+        assert "os_os_kernel_version" not in result["system_profile"]
         assert "owner_id" not in result["system_profile"]
 
 
@@ -1329,7 +1329,7 @@ def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
+            "os_os_kernel_version": "4.18.2",
             "host_type": "edge",
             "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         }
@@ -1346,7 +1346,7 @@ def test_query_sys_profile_with_sql_characters(db_create_multiple_hosts, api_get
         assert "system_profile" in result
         assert "arch" in result["system_profile"]
         assert "host_type" in result["system_profile"]
-        assert "os_kernel_version" not in result["system_profile"]
+        assert "os_os_kernel_version" not in result["system_profile"]
         assert "owner_id" not in result["system_profile"]
 
 
@@ -1355,14 +1355,14 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
     sp_data = {
         "system_profile_facts": {
             "arch": "x86_64",
-            "os_kernel_version": "4.18.2",
+            "os_os_kernel_version": "4.18.2",
             "host_type": "edge",
             "owner_id": "1b36b20f-7fa0-4454-a6d2-008294e06378",
         }
     }
     created_hosts = db_create_multiple_hosts(how_many=3, extra_data=sp_data)
     url = build_hosts_url(
-        host_list_or_id=created_hosts[0].id, query="?fields[system_profile]=os_kernel_version,owner_id"
+        host_list_or_id=created_hosts[0].id, query="?fields[system_profile]=os_os_kernel_version,owner_id"
     )
 
     response_status, response_data = api_get(url)
@@ -1374,7 +1374,7 @@ def test_query_by_id_sparse_fields(db_create_multiple_hosts, api_get):
         assert "system_profile" in result
         assert "arch" not in result["system_profile"]
         assert "host_type" not in result["system_profile"]
-        assert "os_kernel_version" in result["system_profile"]
+        assert "os_os_kernel_version" in result["system_profile"]
         assert "owner_id" in result["system_profile"]
 
 
