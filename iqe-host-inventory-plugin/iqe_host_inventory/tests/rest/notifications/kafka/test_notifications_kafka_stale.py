@@ -12,6 +12,7 @@ from iqe_host_inventory.utils.notifications_utils import check_stale_notificatio
 from iqe_host_inventory.utils.notifications_utils import check_stale_notifications_headers
 from iqe_host_inventory.utils.notifications_utils import create_host_data_for_notification_tests
 from iqe_host_inventory.utils.notifications_utils import execute_stale_host_notification
+from iqe_host_inventory.utils.staleness_utils import get_staleness_defaults
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 from iqe_host_inventory_api import GroupOutWithHostCount
 
@@ -90,6 +91,16 @@ def test_notifications_kafka_host_stale_toggle_via_refresh(
     # stale -> fresh
     host_inventory.kafka.create_host(host_data)
     host_inventory.apis.hosts.wait_for_staleness(host, staleness="fresh")
+    # Keep host fresh while the notification CJI runs (can take minutes).
+    defaults = get_staleness_defaults()
+    set_staleness(
+        host_inventory,
+        (
+            defaults["conventional_time_to_stale"],
+            defaults["conventional_time_to_stale_warning"],
+            defaults["conventional_time_to_delete"],
+        ),
+    )
     trigger_job_validate_not_found(host_inventory, host)
 
     # fresh -> stale

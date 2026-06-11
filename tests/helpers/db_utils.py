@@ -1,6 +1,4 @@
 import logging
-from datetime import timedelta
-from random import randint
 from typing import Any
 from typing import Literal
 
@@ -91,7 +89,6 @@ def db_host(**values):
         "mac_addresses": ["aa:bb:cc:dd:ee:ff"],
         "facts": {"ns1": {"key1": "value1"}},
         "tags": {"ns1": {"key1": ["val1", "val2"], "key2": ["val1"]}, "SPECIAL": {"tag": ["ToFind"]}},
-        "stale_timestamp": (now() + timedelta(days=randint(1, 7))),
         "reporter": "test-reporter",
         **values,
     }
@@ -123,16 +120,16 @@ def db_staleness_culling(**values):
     return Staleness(**data)
 
 
-def create_reference_host_in_db(insights_id, reporter, system_profile, stale_timestamp):
+def create_reference_host_in_db(insights_id, reporter, system_profile, last_check_in):
     host = Host(
         org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=insights_id,
         display_name="display_name",
         reporter=reporter,
-        stale_timestamp=stale_timestamp,
     )
     db.session.add(host)
     db.session.flush()
+    host.last_check_in = last_check_in
     if system_profile:
         host.update_system_profile(system_profile)
     db.session.commit()

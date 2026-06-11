@@ -65,10 +65,6 @@ def _update_host_data(  # NOQA: C901
 ):
     # Non identifiers fields
     for key in list(host_data.keys()):
-        # ESSNTL-5571: Remove this stale_timestamp check once it's removed from host_data
-        if key == "stale_timestamp":
-            continue
-
         if key not in NO_UPDATE_FIELDS:
             if other_fields_action is FieldAction.scrub:
                 del host_data[key]
@@ -108,10 +104,6 @@ def _check_host_data(
     response_host = host_inventory.apis.hosts.get_hosts_by_id_response(host_id).results[0]
 
     for key, value in host_data.items():
-        # ESSNTL-5571:: Remove this stale_timestamp check once it's removed from host_data
-        if key == "stale_timestamp":
-            continue
-
         if key == "tags":
             response_value = host_inventory.apis.hosts.get_host_tags_response(host_id).results[
                 host_id

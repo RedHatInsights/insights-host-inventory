@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from app.auth.identity import from_auth_header
+from app.models import db
 from app.queue.event_producer import MessageDetails
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_canonical_facts
@@ -87,7 +88,6 @@ def test_checkin_canonical_facts(
     record = db_get_host(created_host.id)
 
     assert record.modified_on > updated_time
-    assert record.stale_timestamp == created_host.stale_timestamp
     assert record.reporter == created_host.reporter
 
     assert_patch_event_is_valid(
@@ -464,10 +464,12 @@ def test_add_facts_to_multiple_culled_hosts(db_create_multiple_hosts, api_patch,
             conventional_time_to_delete=1,
         )
 
-        staleness_timestamps = get_staleness_timestamps()
-        created_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
-        )
+        created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
+
+        culled_last_check_in = get_staleness_timestamps()["culled"]
+        for host in created_hosts:
+            host.last_check_in = culled_last_check_in
+        db.session.commit()
 
         facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 

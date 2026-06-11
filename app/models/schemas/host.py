@@ -460,7 +460,6 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
 
 class HostSchema(LimitedHostSchema):
-    stale_timestamp = fields.AwareDateTime(required=False)
     reporter = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=255))
 
     @staticmethod
@@ -477,7 +476,6 @@ class HostSchema(LimitedHostSchema):
             tags=tags,
             tags_alt=tags_alt,
             system_profile_facts=data.get("system_profile", {}),
-            stale_timestamp=data.get("stale_timestamp"),
             reporter=data["reporter"],
             groups=data.get("groups", []),
             insights_id=data.get("insights_id"),
