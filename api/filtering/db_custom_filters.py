@@ -39,6 +39,55 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _escape_sql_like_pattern(value: str) -> str:
+    """
+    Convert URL-encoded asterisk patterns to SQL LIKE patterns.
+
+    Handles:
+    - Escaped asterisks (\\*) as literal asterisks
+    - Unescaped asterisks (*) as SQL wildcards (%)
+    - URL-encoded backslashes (%5C)
+
+    Examples:
+    - "3.0\\*" -> "3.0*" (literal asterisk)
+    - "3.0*" -> "3.0%" (wildcard)
+    - "3.0\\\\*" -> "3.0\\*" (escaped backslash + literal asterisk)
+    """
+    import re
+
+    # First, handle URL-encoded backslashes if present
+    # %5C is URL encoding for backslash
+    value = value.replace("%5C", "\\")
+
+    # Use regex to find patterns of backslashes followed by asterisks
+    # This handles multiple levels of escaping
+    def replace_asterisk(match):
+        backslashes = match.group(1)
+        asterisk = match.group(2)
+
+        # Count the number of backslashes
+        num_backslashes = len(backslashes)
+
+        if num_backslashes % 2 == 1:
+            # Odd number of backslashes means the asterisk is escaped
+            # Remove one backslash and keep asterisk as literal
+            return backslashes[:-1] + asterisk
+        else:
+            # Even number of backslashes means the asterisk is not escaped
+            # Keep all backslashes and convert asterisk to wildcard
+            return backslashes + "%"
+
+    # Pattern to match backslashes followed by asterisk
+    pattern = r"(\\*)(\*)"
+    result = re.sub(pattern, replace_asterisk, value)
+
+    # Handle standalone asterisks that weren't preceded by backslashes
+    # These should become wildcards
+    result = re.sub(r"(?<!\\)\*", "%", result)
+
+    return result
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -427,9 +476,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, escape asterisks properly)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _escape_sql_like_pattern(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
