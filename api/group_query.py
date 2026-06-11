@@ -93,11 +93,14 @@ def get_group_list_from_db(filters, page, per_page, param_order_by, param_order_
         else GROUPS_ORDER_HOW_MAPPING[order_by_str]
     )
 
-    # Order the list of groups, then offset and limit based on page and per_page
+    query = Group.query
+
+    # Only JOIN hosts_groups when ordering by host_count (needs COUNT aggregate).
+    if order_by_str == "host_count":
+        query = query.outerjoin(HostGroupAssoc).group_by(Group.id)
+
     group_list = (
-        Group.query.outerjoin(HostGroupAssoc)
-        .filter(*filters)
-        .group_by(Group.id)
+        query.filter(*filters)
         .order_by(order_how_func(order_by))
         .order_by(Group.id)
         .offset((page - 1) * per_page)
