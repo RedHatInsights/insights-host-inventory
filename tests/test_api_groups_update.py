@@ -8,8 +8,10 @@ from dateutil import parser
 
 from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
+from app.models.schemas.mq import GROUP_NAME_VALIDATION_ERROR
 from app.serialization import serialize_rbac_workspace_with_host_count
 from lib.host_repository import get_host_counts_batch
+from tests.helpers.api_utils import INVALID_GROUP_NAMES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -228,6 +230,22 @@ def test_patch_group_no_name(db_create_group_with_hosts, api_patch_group, db_get
     assert db_get_group_by_id(group.id).name == "test_group"
 
     # Make sure no events got produced
+    assert event_producer.write_event.call_count == 0
+
+
+@pytest.mark.parametrize("new_name", INVALID_GROUP_NAMES[:5])
+def test_patch_group_invalid_characters(
+    db_create_group_with_hosts, api_patch_group, db_get_group_by_id, event_producer, mocker, new_name
+):
+    mocker.patch.object(event_producer, "write_event")
+    group = db_create_group_with_hosts("test_group", 2)
+    patch_doc = {"name": new_name}
+
+    response_status, response_data = api_patch_group(group.id, patch_doc)
+
+    assert_response_status(response_status, 400)
+    assert GROUP_NAME_VALIDATION_ERROR in str(response_data["detail"])
+    assert db_get_group_by_id(group.id).name == "test_group"
     assert event_producer.write_event.call_count == 0
 
 
