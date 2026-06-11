@@ -2229,6 +2229,8 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
+    annotations:
+      clowder.redhat.com/expected-image-tag: ${IMAGE_TAG}
     labels:
       app: host-inventory
     name: run-db-migrations-${IMAGE_TAG}
