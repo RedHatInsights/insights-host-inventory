@@ -180,7 +180,7 @@ def setup_hosts_for_filtering(
     yield _setup_hosts
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def setup_hosts_for_operating_system_filtering(
     host_inventory: ApplicationHostInventory, host_inventory_secondary: ApplicationHostInventory
 ) -> tuple[list[HostOut], list[list[StructuredTag]]]:
@@ -206,7 +206,7 @@ def setup_hosts_for_operating_system_filtering(
             )
         )
     primary_hosts = host_inventory.upload.create_hosts(
-        hosts_data=hosts_data, cleanup_scope="module"
+        hosts_data=hosts_data, cleanup_scope="class"
     )
     tags = host_inventory.apis.hosts.get_host_tags(primary_hosts)
     sorted_tags.extend(tags[host.id] for host in primary_hosts)
@@ -221,7 +221,7 @@ def setup_hosts_for_operating_system_filtering(
             )
         )
     secondary_hosts = host_inventory_secondary.upload.create_hosts(
-        hosts_data=hosts_data, cleanup_scope="module"
+        hosts_data=hosts_data, cleanup_scope="class"
     )
     tags = host_inventory_secondary.apis.hosts.get_host_tags(secondary_hosts)
     sorted_tags.extend(tags[host.id] for host in secondary_hosts)
@@ -229,7 +229,7 @@ def setup_hosts_for_operating_system_filtering(
     return primary_hosts + secondary_hosts, sorted_tags
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def setup_hosts_for_os_rhc_filtering(
     host_inventory: ApplicationHostInventory, host_inventory_secondary: ApplicationHostInventory
 ) -> list[HostWrapper]:
@@ -256,20 +256,18 @@ def setup_hosts_for_os_rhc_filtering(
             hosts_data[i * 3 + 2]["system_profile"].pop("operating_system", None)
 
     # Create hosts in the primary account
-    hosts = host_inventory.kafka.create_hosts(
-        hosts_data=hosts_data_primary, cleanup_scope="module"
-    )
+    hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data_primary, cleanup_scope="class")
 
     # Create hosts in the secondary account
     hosts_secondary = host_inventory_secondary.kafka.create_hosts(
         hosts_data=hosts_data_secondary,
-        cleanup_scope="module",
+        cleanup_scope="class",
     )
 
     return hosts + hosts_secondary
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def setup_hosts_for_os_display_name_filtering(
     host_inventory: ApplicationHostInventory,
     host_inventory_secondary: ApplicationHostInventory,
@@ -279,32 +277,29 @@ def setup_hosts_for_os_display_name_filtering(
     os_list = [generate_operating_system("RHEL", major, minor) for major, minor in os_versions]
 
     # Create hosts in the primary account
-    hosts = []
-    tags = []
-    for i, operating_system in enumerate(os_list):
-        host = host_inventory.upload.create_host(
-            operating_system=operating_system,
-            display_name=f"{FILTER_OS_DISPLAY_NAME}-{i}",
-            cleanup_scope="module",
-        )
-        host_tags = host_inventory.apis.hosts.get_host_tags_response(host).results[host.id]
-        hosts.append(host)
-        tags.append(host_tags)
+    hosts_data = [
+        HostData(operating_system=os, display_name=f"{FILTER_OS_DISPLAY_NAME}-{i}")
+        for i, os in enumerate(os_list)
+    ]
+    primary_hosts = host_inventory.upload.create_hosts(
+        hosts_data=hosts_data, cleanup_scope="class"
+    )
+    sorted_tags = []
+    tags = host_inventory.apis.hosts.get_host_tags(primary_hosts)
+    sorted_tags.extend(tags[host.id] for host in primary_hosts)
 
     # Create hosts in the secondary account
-    for i, operating_system in enumerate(os_list):
-        host = host_inventory_secondary.upload.create_host(
-            operating_system=operating_system,
-            display_name=f"{FILTER_OS_DISPLAY_NAME}-{i}",
-            cleanup_scope="module",
-        )
-        host_tags = host_inventory_secondary.apis.hosts.get_host_tags_response(host).results[
-            host.id
-        ]
-        hosts.append(host)
-        tags.append(host_tags)
+    hosts_data = [
+        HostData(operating_system=os, display_name=f"{FILTER_OS_DISPLAY_NAME}-{i}")
+        for i, os in enumerate(os_list)
+    ]
+    secondary_hosts = host_inventory_secondary.upload.create_hosts(
+        hosts_data=hosts_data, cleanup_scope="class"
+    )
+    tags = host_inventory_secondary.apis.hosts.get_host_tags(secondary_hosts)
+    sorted_tags.extend(tags[host.id] for host in secondary_hosts)
 
-    return hosts, tags
+    return primary_hosts + secondary_hosts, sorted_tags
 
 
 @pytest.fixture

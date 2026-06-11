@@ -104,7 +104,7 @@ def test_reaper_script(
         stale_hosts_data,
         stale_warning_hosts_data,
         culled_hosts_data,
-        deltas=(60, 120, 180),
+        deltas=(40, 80, 120),
     )
 
     fresh_hosts_ids = {host.id for host in hosts["fresh"]}

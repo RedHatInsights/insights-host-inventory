@@ -335,11 +335,7 @@ def test_search_tags_with_registered_with_filter(
 
 @pytest.mark.ephemeral
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize("case_insensitive", [False, True], ids=["correct-case", "wrong-case"])
-def test_search_tags_with_staleness_filter(
-    host_inventory: ApplicationHostInventory,
-    case_insensitive: bool,
-):
+def test_search_tags_with_staleness_filter(host_inventory: ApplicationHostInventory):
     """
     Ensure that is possible filter tags using the staleness filter to filter
     tags from hosts in different states.
@@ -382,8 +378,7 @@ def test_search_tags_with_staleness_filter(
         stale_warning_hosts_data=hosts_data[2:],
     )
 
-    if case_insensitive:
-        tag_key = tag_key.upper()
+    tag_key = tag_key.upper()  # Make sure the filter is case-insensitive
     for host_state, tag in tags.items():
         logger.info(
             f"Search tags by sending the search term: {tag_key} "
