@@ -12,7 +12,7 @@ Production evidence:
     that modifies last_check_in (~800M+ writes/month across partitions)
 
 Revision ID: e8f9a0b1c2d3
-Revises: d7e8f9a0b1c2
+Revises: f8a9b0c1d2e3
 Create Date: 2026-06-08 17:10:00.000000
 
 """
