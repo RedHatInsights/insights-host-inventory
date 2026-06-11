@@ -74,16 +74,14 @@ def _attrdict_from_custom_staleness(config: dict[str, int]) -> AttrDict:
 
 
 @patch("tests.helpers.api_utils.db.session.commit")
-def test_create_host_with_reporter_defaults_stale_timestamp_to_last_check_in_plus_conventional_delay(
-    _mock_commit,
-) -> None:
-    """When ``stale_timestamp`` is omitted, derive it from ``last_check_in`` and the conventional stale delay."""
+def test_create_host_with_reporter_sets_last_check_in(_mock_commit) -> None:
+    """``create_host_with_reporter`` persists PRS and ``last_check_in`` only (no staleness columns)."""
     last_check_in = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
     captured_kwargs: dict[str, Any] = {}
 
     def fake_db_create_host(**kwargs):
         captured_kwargs.update(kwargs)
-        return SimpleNamespace()
+        return SimpleNamespace(last_check_in=None)
 
     host = create_host_with_reporter(
         db_create_host=fake_db_create_host,
@@ -91,12 +89,10 @@ def test_create_host_with_reporter_defaults_stale_timestamp_to_last_check_in_plu
         last_check_in=last_check_in,
     )
 
-    expected_stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
-
     extra = captured_kwargs["extra_data"]
     assert extra["reporter"] == "some-reporter"
+    assert "stale_timestamp" not in extra
     assert host.last_check_in == last_check_in
-    assert host.stale_timestamp == expected_stale_timestamp
 
 
 def test_registered_with_filter_handles_multi_reporter_hosts(
@@ -237,7 +233,7 @@ def test_registered_with_staleness_filter_iso_string_values(
     assert len(resp["results"]) == 2
 
 
-def test_calculated_timestamps_match_stored_timestamps(
+def test_per_reporter_staleness_timestamps_match_host_level_timestamps(
     db_create_staleness_culling: Callable[..., object],
     db_create_host: Callable[..., Host],
     db_get_hosts: Callable[..., Query],
@@ -364,14 +360,7 @@ def test_registered_with_filter_puptoo_reporter_without_puptoo_prs(
         ).id
     )
 
-    normal_host_id = str(
-        create_host_with_reporter(
-            db_create_host,
-            "puptoo",
-            _now,
-            stale_timestamp=_now + timedelta(seconds=CUSTOM_STALENESS_HOST_BECAME_STALE["conventional_time_to_stale"]),
-        ).id
-    )
+    normal_host_id = str(create_host_with_reporter(db_create_host, "puptoo", _now).id)
 
     other_host_id = str(
         db_create_host(
@@ -403,7 +392,6 @@ def test_serialize_per_reporter_staleness_datetime_string_format(flask_app):
         host = Host(
             subscription_manager_id=generate_uuid(),
             reporter="puptoo",
-            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {"puptoo": last_check_in_str}
@@ -426,7 +414,6 @@ def test_serialize_per_reporter_staleness_datetime_object_format(flask_app):
         host = Host(
             subscription_manager_id=generate_uuid(),
             reporter="puptoo",
-            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {"puptoo": last_check_in_dt}
@@ -448,7 +435,6 @@ def test_serialize_per_reporter_staleness_multiple_flat_reporters(flask_app):
         host = Host(
             subscription_manager_id=generate_uuid(),
             reporter="puptoo",
-            stale_timestamp=datetime.now(UTC),
             org_id=USER_IDENTITY["org_id"],
         )
         host.per_reporter_staleness = {

@@ -338,7 +338,6 @@ inv-per-reporter-staleness:
   summary: Store staleness data for each reporter
   description: >
     Inventory should store staleness data for each reporter that updates the host.
-    Global `stale_timestamp` should be set after each update by any reporter.
   priority: high
 
 inv-db-schema:
@@ -658,7 +657,6 @@ inv-staleness-hosts:
     Then they are stale until their stale_warning_timestamp is older than current datetime.
     Then they are in a stale_warning state until their culled_timestamp is older than current datetime.
     Then they are in a culled state and will be deleted by the next run of host reaper.
-    stale_timestamp is set by the reporter when the host is created and is updated each time the host is updated.
     Usually, stale_timestamp is set to 28 hours in the future.
     stale_warning_timestamp is automatically set to stale_timestamp + 7 days.
     culled_timestamp is automatically set to stale_warning_timestamp + 16 days.

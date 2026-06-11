@@ -127,7 +127,6 @@ INVALID_HOST_FIELDS: tuple[dict, ...] = (
     {"tags": None},
     {"system_profile": None},
     {"reporter": None},
-    {"stale_timestamp": None},
     # --- Invalid types ---
     {"display_name": ["list"]},
     {"display_name": {}},

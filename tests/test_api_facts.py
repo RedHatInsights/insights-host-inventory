@@ -1,8 +1,6 @@
-from datetime import datetime
-from unittest.mock import patch
-
 import pytest
 
+from app.models import db
 from tests.helpers.api_utils import HOST_WRITE_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import RBACFilterOperation
@@ -125,22 +123,26 @@ def test_replace_empty_facts_on_multiple_hosts(db_create_multiple_hosts, db_get_
 
 
 @pytest.mark.system_culling
-def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_put):
-    with patch("app.models.utils.datetime") as mock_datetime:
-        mock_datetime.now.return_value = datetime(year=2023, month=4, day=2)
-        mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
+def test_replace_facts_on_multiple_culled_hosts(db_create_multiple_hosts, api_put, db_create_staleness_culling):
+    """Culled hosts are excluded via compute-on-read (``last_check_in`` + org delete window)."""
+    db_create_staleness_culling(
+        conventional_time_to_stale=1,
+        conventional_time_to_stale_warning=1,
+        conventional_time_to_delete=1,
+    )
 
-        staleness_timestamps = get_staleness_timestamps()
+    created_hosts = db_create_multiple_hosts(how_many=2, extra_data={"facts": DB_FACTS})
 
-        created_hosts = db_create_multiple_hosts(
-            how_many=2, extra_data={"facts": DB_FACTS, "stale_timestamp": staleness_timestamps["culled"]}
-        )
+    culled_last_check_in = get_staleness_timestamps()["culled"]
+    for host in created_hosts:
+        host.last_check_in = culled_last_check_in
+    db.session.commit()
 
-        facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
+    facts_url = build_facts_url(host_list_or_id=created_hosts, namespace=DB_FACTS_NAMESPACE)
 
-        # Try to replace the facts on a host that has been marked as culled
-        response_status, _ = api_put(facts_url, DB_NEW_FACTS)
-        assert_response_status(response_status, expected_status=404)
+    # Try to replace the facts on hosts that are culled by last_check_in
+    response_status, _ = api_put(facts_url, DB_NEW_FACTS)
+    assert_response_status(response_status, expected_status=404)
 
 
 @pytest.mark.usefixtures("enable_rbac", "event_producer_mock")

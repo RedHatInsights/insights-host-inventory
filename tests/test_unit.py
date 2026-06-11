@@ -1190,7 +1190,6 @@ def test_with_all_fields_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts=host_input["system_profile"],
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=host_input["groups"],
             insights_id=host_input.get("insights_id"),
@@ -1268,7 +1267,6 @@ def test_without_facts_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts=host_input["system_profile"],
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=host_input["groups"],
             insights_id=host_input.get("insights_id"),
@@ -1346,7 +1344,6 @@ def test_without_tags_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts=host_input["system_profile"],
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=host_input["groups"],
             insights_id=host_input.get("insights_id"),
@@ -1427,7 +1424,6 @@ def test_without_display_name_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts=host_input["system_profile"],
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=host_input["groups"],
             insights_id=host_input.get("insights_id"),
@@ -1503,7 +1499,6 @@ def test_without_system_profile_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts={},
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=host_input["groups"],
             insights_id=host_input.get("insights_id"),
@@ -1567,7 +1562,6 @@ def test_without_groups_serialization_deserialize_host_mocked(
             tags=deserialize_tags.return_value,
             tags_alt=[],
             system_profile_facts=host_input["system_profile"],
-            stale_timestamp=host_input["stale_timestamp"],
             reporter=host_input["reporter"],
             groups=[],
             insights_id=host_input.get("insights_id"),
@@ -1650,7 +1644,6 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
                 "some namespace": {"some key": "some value"},
                 "another namespace": {"another key": "another value"},
             },
-            "stale_timestamp": now(),
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -1717,7 +1710,6 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     "reporter": "yupana",
                 }
                 host_init_data = {
-                    "stale_timestamp": now(),
                     "subscription_manager_id": generate_uuid(),
                     **unchanged_data,
                     "facts": {},
@@ -1781,33 +1773,32 @@ def test_stale_timestamp_config_serialization_serialize_host_compound(subtests, 
                 stale_warning_offset_seconds=stale_warning_offset_seconds,
                 culled_offset_seconds=culled_offset_seconds,
             ):
-                stale_timestamp = now() + timedelta(days=1)
-            host = Host(
-                subscription_manager_id=generate_uuid(),
-                facts={},
-                stale_timestamp=stale_timestamp,
-                reporter="some reporter",
-                org_id=USER_IDENTITY["org_id"],
-            )
+                host = Host(
+                    subscription_manager_id=generate_uuid(),
+                    facts={},
+                    reporter="some reporter",
+                    org_id=USER_IDENTITY["org_id"],
+                )
+                host.last_check_in = now() + timedelta(days=1)
 
-            for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
-                setattr(host, k, v)
+                for k, v in (("id", uuid4()), ("created_on", now()), ("modified_on", now())):
+                    setattr(host, k, v)
 
-            staleness = get_sys_default_staleness()
-            serialized = serialize_host(host, staleness, False)
+                staleness = get_sys_default_staleness()
+                serialized = serialize_host(host, staleness, False)
 
-            assert (
-                _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
-                == serialized["stale_warning_timestamp"]
-            )
-            assert (
-                _timestamp_to_str(_add_seconds(host.last_check_in, culled_offset_seconds))
-                == serialized["culled_timestamp"]
-            )
+                assert (
+                    _timestamp_to_str(_add_seconds(host.last_check_in, stale_warning_offset_seconds))
+                    == serialized["stale_warning_timestamp"]
+                )
+                assert (
+                    _timestamp_to_str(_add_seconds(host.last_check_in, culled_offset_seconds))
+                    == serialized["culled_timestamp"]
+                )
 
 
-def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flask_app):
-    """Serialize API lifecycle timestamps from last_check_in + org offsets, not ORM staleness columns."""
+def test_serialize_host_lifecycle_fields_from_last_check_in(flask_app):
+    """Serialize API lifecycle timestamps from last_check_in + org offsets (compute-on-read)."""
     with flask_app.app.app_context():
         ref = datetime(2019, 6, 15, 8, 30, 0, tzinfo=UTC)
         host = Host(
@@ -1820,16 +1811,9 @@ def test_serialize_host_lifecycle_fields_ignore_persisted_staleness_columns(flas
         host.created_on = now()
         host.modified_on = now()
         host.last_check_in = ref
-        bogus = now() + timedelta(days=365 * 12)
-        host.stale_timestamp = bogus
-        host.stale_warning_timestamp = bogus + timedelta(days=1)
-        host.deletion_timestamp = bogus + timedelta(days=2)
 
         staleness = get_sys_default_staleness()
         expected = get_staleness_timestamps(host, staleness)
-        assert host.stale_timestamp != expected["stale_timestamp"]
-        assert host.stale_warning_timestamp != expected["stale_warning_timestamp"]
-        assert host.deletion_timestamp != expected["culled_timestamp"]
 
         expected_state = Conditions.find_host_state(
             expected["stale_timestamp"],
@@ -1868,8 +1852,6 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             {"namespace": "some namespace", "key": "another key", "value": "value"},
             {"namespace": "another namespace", "key": "key", "value": "value"},
         ]
-        stale_timestamp = now()
-
         unchanged_data = {
             "display_name": "some display name",
             "ansible_host": "some ansible host",
@@ -1883,7 +1865,6 @@ def test_with_all_fields_serialization_serialize_host_mocked(
             **canonical_facts,
             **unchanged_data,
             "facts": facts,
-            "stale_timestamp": stale_timestamp,
             "tags": {
                 "some namespace": {"some key": ["some value", "another value"], "another key": ["value"]},
                 "another namespace": {"key": ["value"]},
@@ -1944,7 +1925,6 @@ def test_non_empty_profile_is_not_changed_serialization_serialize_host_system_pr
             subscription_manager_id=generate_uuid(),
             display_name="some display name",
             system_profile_facts=system_profile_facts,
-            stale_timestamp=now(),
             reporter="yupana",
             org_id=USER_IDENTITY["org_id"],
         )
@@ -1960,7 +1940,6 @@ def test_empty_profile_is_empty_dict_serialization_serialize_host_system_profile
         host = Host(
             subscription_manager_id=generate_uuid(),
             display_name="some display name",
-            stale_timestamp=now(),
             reporter="yupana",
             org_id=USER_IDENTITY["org_id"],
         )

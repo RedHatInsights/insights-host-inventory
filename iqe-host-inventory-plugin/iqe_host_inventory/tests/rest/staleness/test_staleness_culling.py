@@ -137,7 +137,7 @@ def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInvento
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
 def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     """
-    Verify stale warning host becomes fresh if its stale_timestamp was updated.
+    Verify stale warning host becomes fresh if its last_check_in was updated.
 
     1. Create a host in stale warning state
     2. Make sure host is returned by GET request with staleness="stale_warning".
@@ -170,7 +170,7 @@ def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # noqa
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]
@@ -185,7 +185,7 @@ def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -
 @pytest.mark.usefixtures("hbi_staleness_cleanup")
 def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     """
-    Verify stale host becomes fresh if its stale_timestamp was updated.
+    Verify stale host becomes fresh if its last_check_in was updated.
 
     1. Create a "stale" host
     2. Make sure host is returned by GET request with staleness="stale".
@@ -196,7 +196,7 @@ def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
         requirements: inv-staleness-hosts, inv-hosts-filter-by-staleness
         assignee: fstavela
         importance: high
-        title: Inventory: Confirm stale host becomes fresh if its stale_timestamp was updated
+        title: Inventory: Confirm stale host becomes fresh if its last_check_in was updated
     """
     host_data = host_inventory.datagen.create_host_data()
 
@@ -217,7 +217,7 @@ def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, stale_timestamp={host.stale_timestamp}"  # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # noqa
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]
