@@ -38,6 +38,7 @@ paths:
         - $ref: '#/components/parameters/lastCheckInEnd'
         - $ref: '#/components/parameters/workspaceNameListParam'
         - $ref: '#/components/parameters/workspaceIdListParam'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
@@ -155,6 +156,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/perPageParam'
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
@@ -184,6 +186,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Successfully deleted hosts.
@@ -208,6 +211,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A group of fields to be updated on the hosts
         required: true
@@ -241,6 +245,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to merge with the original ones.
         required: true
@@ -269,6 +274,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
         - $ref: '#/components/parameters/factsNamespace'
+        - $ref: '#/components/parameters/branchId'
       requestBody:
         description: A dictionary with the new facts to replace the original ones.
         required: true
@@ -301,6 +307,7 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/branchId'
         - $ref: '#/components/parameters/fields_param'
       responses:
         '200':
@@ -1177,6 +1184,13 @@ components:
         type: array
         items:
           $ref: '#/components/schemas/NonStrictUUID'
+    branchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Filter by branch_id
+      required: false
     displayName:
       in: query
       name: display_name
@@ -1349,6 +1363,7 @@ components:
             - fresh
             - stale
             - stale_warning
+            - unknown
         default:
           - fresh
           - stale
@@ -1366,6 +1381,7 @@ components:
             - fresh
             - stale
             - stale_warning
+            - unknown
       description: "Culling states of the hosts."
     tagsParam:
       name: tags
@@ -1413,6 +1429,7 @@ components:
         items:
           type: string
           enum:
+            - insights
             - yupana
             - satellite
             - discovery
