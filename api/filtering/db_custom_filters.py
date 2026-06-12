@@ -30,6 +30,9 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
 
+# Special marker to identify URL-encoded asterisks that should be treated as literals
+_ENCODED_ASTERISK_MARKER = "__ENCODED_ASTERISK__"
+
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
     """Handle empty string values for columns that don't support them."""
@@ -427,8 +430,19 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
+        # Handle URL-encoded asterisks for all field types
+        # Convert the marker back to literal asterisks
+        if _ENCODED_ASTERISK_MARKER in value:
+            if pg_op == ColumnOperators.ilike:
+                # For wildcard fields, first convert regular asterisks to SQL wildcards
+                value = value.replace("*", "%")
+                # Then restore URL-encoded asterisks as escaped literal asterisks
+                value = value.replace(_ENCODED_ASTERISK_MARKER, r"\*")
+            else:
+                # For non-wildcard fields, just convert the marker back to literal asterisk
+                value = value.replace(_ENCODED_ASTERISK_MARKER, "*")
+        elif pg_op == ColumnOperators.ilike:
+            # For wildcard fields without encoded asterisks, convert regular asterisks to SQL wildcards
             value = value.replace("*", "%")
 
         # Handle special values and casting

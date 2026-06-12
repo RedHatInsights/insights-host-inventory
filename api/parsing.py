@@ -6,8 +6,12 @@ from urllib.parse import unquote
 from connexion.exceptions import BadRequestProblem
 from connexion.uri_parsing import OpenAPIURIParser
 from connexion.utils import coerce_type
+from flask import request
 
 _BOOL_STRINGS = {"true": True, "false": False}
+
+# Special marker to preserve URL-encoded asterisks through the parsing pipeline
+_ENCODED_ASTERISK_MARKER = "__ENCODED_ASTERISK__"
 
 
 def _normalize_workspace_filters(
@@ -146,6 +150,53 @@ class customURIParser(OpenAPIURIParser):
         return resolved_param
 
     @staticmethod
+    def _preserve_encoded_asterisks_from_raw_query(value, param_key):
+        """
+        Check the raw query string to see if asterisks were URL-encoded.
+        This works around the fact that by the time we get the parsed parameters,
+        URL decoding has already happened.
+        """
+        try:
+            # Access the raw query string from Flask request
+            raw_query = request.query_string.decode("utf-8")
+
+            # Look for the specific parameter in the raw query
+            # This is a simplified approach - in a real implementation we'd need more robust parsing
+            if param_key in raw_query:
+                # Find the parameter value in the raw query
+                import re
+
+                pattern = re.escape(param_key) + r"=([^&]*)"
+                match = re.search(pattern, raw_query)
+                if match:
+                    raw_value = match.group(1)
+
+                    # If the raw value contains %2A, replace it with our marker
+                    if "%2A" in raw_value.upper():
+                        # URL decode the raw value but preserve our marker
+                        preserved = re.sub(r"%2[Aa]", _ENCODED_ASTERISK_MARKER, raw_value)
+                        decoded = unquote(preserved)
+                        return decoded
+        except Exception:
+            # If we can't access the raw query for any reason, fall back to the original value
+            pass
+
+        return value
+
+    @staticmethod
+    def _preserve_encoded_asterisks(value):
+        """
+        Replace URL-encoded asterisks (%2A) with a special marker before URL decoding.
+        This preserves the distinction between original asterisks (wildcards) and
+        URL-encoded asterisks (literals).
+        """
+        if isinstance(value, str):
+            # Replace %2A (case insensitive) with our special marker
+            result = re.sub(r"%2[Aa]", _ENCODED_ASTERISK_MARKER, value)
+            return result
+        return value
+
+    @staticmethod
     def _try_parse_json(value, param_name=None):
         """
         Try to parse a JSON object string.
@@ -233,6 +284,13 @@ class customURIParser(OpenAPIURIParser):
                 raise BadRequestProblem(f"Param {root_key} must be appended with [] to accept multiple values.")
             # Try to parse the value as JSON object
             leaf_value = v[0]
+
+            # Only apply encoded asterisk preservation to filter parameters
+            if root_key == "filter":
+                # Try to get the original value from the raw query string
+                full_param_key = f"{root_key}[{']['.join(key_path)}]"
+                leaf_value = customURIParser._preserve_encoded_asterisks_from_raw_query(leaf_value, full_param_key)
+
             # Use the full parameter path for the error message (e.g., "filter[system_profile]")
             full_param_path = f"{root_key}[{']['.join(key_path)}]"
             parsed = customURIParser._try_parse_json(leaf_value, param_name=full_param_path)
