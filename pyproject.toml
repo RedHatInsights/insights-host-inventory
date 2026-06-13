@@ -31,7 +31,7 @@ dependencies = [
     "flask-caching",
     "redis",
     "ratelimit",
-    "confluent-kafka==2.14.0",
+    "confluent-kafka==2.14.2",
     "kessel-sdk[auth]~=2.6.0",
     "opentelemetry-api~=1.42.1",
     "opentelemetry-sdk~=1.42.1",
@@ -167,7 +167,7 @@ ignore_errors = true
 [tool.uv]
 package = false
 default-groups = "all"
-required-version = "0.11.11"
+required-version = "0.11.19"
 
 [[tool.uv.index]]
 name = "pypi"

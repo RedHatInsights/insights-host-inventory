@@ -21,6 +21,7 @@ from urllib.parse import urlunsplit
 from uuid import UUID
 
 import dateutil.parser
+from pytest_mock import MockerFixture
 from requests import Response
 
 from app.auth.identity import IdentityType
@@ -39,6 +40,18 @@ HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
 HOST_VIEW_URL = f"{BASE_URL}/beta/hosts-view"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
+INVALID_GROUP_NAMES = [
+    "test!group",
+    "test@group",
+    "test#group",
+    "test$group",
+    "name/with/slashes",
+    "name.with.dots",
+    "name+plus",
+    "name&ampersand",
+    "name(parens)",
+    "name<angle>",
+]
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
@@ -762,13 +775,8 @@ def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
-
-    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
-    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
-    """
+    """Create a host with flat PRS (ISO string per reporter) and ``last_check_in`` set."""
     host = db_create_host(
         extra_data={
             "reporter": reporter,
@@ -778,9 +786,41 @@ def create_host_with_reporter(
         },
     )
     host.last_check_in = last_check_in
-    if stale_timestamp is not None:
-        host.stale_timestamp = stale_timestamp
-    else:
-        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host
+
+
+def create_hosts_by_reporter_and_staleness(
+    db_create_host: Callable[..., Host],
+    mocker: MockerFixture,
+    reporters: tuple[str, ...] = ("puptoo", "yupana"),
+    extra_data_per_host: dict[tuple[str, str], dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Host]]:
+    """Create one host per reporter+staleness-state combination.
+
+    Returns ``{state: {reporter: Host}}`` so callers can look up the expected
+    host for any ``(staleness, registered_with)`` query pair.
+
+    ``extra_data_per_host`` is an optional mapping from ``(state, reporter)``
+    to additional ``extra_data`` keys (e.g. tags) merged into the host.
+    """
+    staleness_timestamps = {
+        "fresh": now(),
+        "stale": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS),
+        "stale_warning": now() - timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS),
+    }
+
+    hosts: dict[str, dict[str, Host]] = {}
+    for state, check_in_ts in staleness_timestamps.items():
+        hosts[state] = {}
+        for reporter in reporters:
+            with mocker.patch("app.models.utils.datetime", **{"now.return_value": check_in_ts}):
+                extra = {
+                    "reporter": reporter,
+                    "per_reporter_staleness": {reporter: check_in_ts.isoformat()},
+                }
+                if extra_data_per_host and (state, reporter) in extra_data_per_host:
+                    extra.update(extra_data_per_host[(state, reporter)])
+                hosts[state][reporter] = db_create_host(extra_data=extra)
+
+    return hosts

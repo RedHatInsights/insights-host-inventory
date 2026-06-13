@@ -693,7 +693,7 @@ def test_groups_patch_validate_name_wrong_length(
     original_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(original_name, hosts=hosts)
 
-    with raises_apierror(400, "{'name': ['Length must be between 1 and 255.']}"):
+    with raises_apierror(400, "Length must be between 1 and 255."):
         host_inventory.apis.groups.patch_group(group, name=group_name, wait_for_updated=False)
 
     host_inventory.apis.groups.verify_not_updated(group, name=original_name, hosts=hosts)

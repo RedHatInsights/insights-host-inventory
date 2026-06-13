@@ -19,9 +19,6 @@ from iqe.base.auth import AuthType
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.tests.rest.test_culling import gen_fresh_date
-from iqe_host_inventory.tests.rest.test_culling import gen_stale_date
-from iqe_host_inventory.tests.rest.test_culling import gen_stale_warning_date
 from iqe_host_inventory.utils import determine_positive_hosts_by_registered_with
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils import get_account_number
@@ -36,8 +33,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_provider_type
 from iqe_host_inventory.utils.datagen_utils import generate_string_of_length
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale
-from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning
 from iqe_host_inventory.utils.staleness_utils import create_hosts_in_state
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import ApiException
@@ -442,17 +437,11 @@ def test_delete_bulk_all_hosts_correct_parameters(
         title: Inventory: Test DELETE on /hosts/all with all required parameters
     """
     hosts_data = host_inventory.datagen.create_n_hosts_data(6)
-    hosts_data[0]["stale_timestamp"] = gen_fresh_date().isoformat()
     hosts_data[0]["insights_id"] = generate_uuid()
-    hosts_data[1]["stale_timestamp"] = gen_fresh_date().isoformat()
     hosts_data[1].pop("insights_id", None)
-    hosts_data[2]["stale_timestamp"] = gen_stale_date().isoformat()
     hosts_data[2]["insights_id"] = generate_uuid()
-    hosts_data[3]["stale_timestamp"] = gen_stale_date().isoformat()
     hosts_data[3].pop("insights_id", None)
-    hosts_data[4]["stale_timestamp"] = gen_stale_warning_date().isoformat()
     hosts_data[4]["insights_id"] = generate_uuid()
-    hosts_data[5]["stale_timestamp"] = gen_stale_warning_date().isoformat()
     hosts_data[5].pop("insights_id", None)
     host_inventory.kafka.create_hosts(
         hosts_data=hosts_data, field_to_match=HostWrapper.subscription_manager_id
@@ -900,60 +889,6 @@ def test_delete_bulk_registered_with_temp_old(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-def test_delete_bulk_staleness(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-):
-    """
-    Test DELETE on /hosts endpoint with 'staleness' parameter
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with 'staleness' parameter
-    """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(6)
-
-    hosts = create_hosts_fresh_stale_stalewarning(
-        host_inventory,
-        fresh_hosts_data=hosts_data[0:2],
-        stale_hosts_data=hosts_data[2:4],
-        stale_warning_hosts_data=hosts_data[4:6],
-        deltas=(15, 30, 3600),
-    )
-
-    host_ids = {host.id for host in hosts["fresh"] + hosts["stale"] + hosts["stale_warning"]}
-
-    hosts_to_delete = {host.id for host in hosts["stale_warning"]}
-    hosts_to_keep = host_ids - hosts_to_delete
-
-    check_delete_filtered_different_account(staleness=["stale_warning"])
-
-    logger.info(f"Host IDs: {host_ids}")
-    logger.info(f"Expected hosts to be deleted: {hosts_to_delete}")
-    logger.info(f"Expected hosts to keep: {hosts_to_keep}")
-
-    with host_inventory.apis.hosts.verify_host_count_changed(-len(hosts_to_delete)):
-        host_inventory.apis.hosts.delete_filtered(staleness=["stale_warning"])
-        host_inventory.apis.hosts.wait_for_deleted(hosts_to_delete)
-
-    response = host_inventory.apis.hosts.get_hosts_response(staleness=["stale_warning"])
-    assert response.total == 0
-
-    # Make sure we get 404 when trying to get hosts that don't exist
-    with raises_apierror(404):
-        {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(host_ids)}
-
-    response_ids = {host.id for host in host_inventory.apis.hosts.get_hosts_by_id(hosts_to_keep)}
-    logger.info(f"Response IDs: {response_ids}")
-    assert response_ids == hosts_to_keep
-
-
-@pytest.mark.ephemeral
 def test_delete_bulk_tags(
     check_delete_filtered_different_account,
     host_inventory: ApplicationHostInventory,
@@ -1297,146 +1232,6 @@ def test_delete_bulk_filter_different_account(
         host_inventory_secondary.apis.hosts.delete_filtered(filter=filter)
 
     host_inventory.apis.hosts.verify_not_deleted(host)
-
-
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_staleness_cleanup")
-@pytest.mark.parametrize(
-    "id_param_name", ["display_name", "fqdn", "insights_id", "subscription_manager_id"]
-)
-def test_delete_bulk_combination_all(
-    check_delete_filtered_different_account,
-    host_inventory: ApplicationHostInventory,
-    id_param_name: str,
-):
-    """
-    Test DELETE on /hosts endpoint with combination of multiple parameters
-
-    JIRA: https://issues.redhat.com/browse/ESSNTL-1509
-
-    metadata:
-        requirements: inv-hosts-delete-filtered-hosts
-        assignee: fstavela
-        importance: high
-        title: Inventory: Test DELETE on /hosts with combination of multiple parameters
-    """
-    # A total of 8 hosts will be created. Host 1 (using 0-based notation) will be
-    # the target host we filter for at the end.  Host 7 will be completely different.
-    # Hosts 0-6 will be mostly the same with these exceptions:
-    #   hosts 1-6 will be in the same group (hosts 0 and 7 won't be in a group)
-    #   host 2 will have a different value for the field that id_param_name represents
-    #   host 3 will have a different provider_type
-    #   host 4 will be stale (the rest will be fresh)
-    #   host 5 will have different tags
-    #   hosts 0-5 will be in the filtered time range
-    #
-    # All provider ids will be unique per host.
-
-    tags = [gen_tag()]
-    str_tags = [convert_tag_to_string(tag) for tag in tags]
-    hosts_data = [host_inventory.datagen.create_host_data()]
-    hosts_data[0][id_param_name] = generate_uuid()
-    hosts_data[0]["provider_id"] = generate_uuid()
-    hosts_data[0]["provider_type"] = "aws"
-    hosts_data[0]["tags"] = tags
-
-    for _ in range(6):
-        hosts_data.append(dict(hosts_data[0]))
-        hosts_data[-1]["provider_id"] = generate_uuid()
-    hosts_data[2][id_param_name] = generate_uuid()
-    hosts_data[3]["provider_type"] = "ibm"
-    hosts_data[5]["tags"] = [gen_tag()]
-
-    hosts_data.append(host_inventory.datagen.create_host_data())
-    hosts_data[-1]["provider_type"] = "gcp"
-    hosts_data[-1]["provider_id"] = generate_uuid()
-
-    hosts = host_inventory.kafka.create_hosts(hosts_data, field_to_match=HostWrapper.provider_id)
-
-    # Assign hosts to group - all except hosts[0] and hosts[-1]
-    group_name = generate_display_name()
-    host_inventory.apis.groups.create_group(group_name, hosts=hosts[1:-1])
-
-    # Step through all events, to remove conflicts during later update
-    provider_ids = [host.provider_id for host in hosts[1:-1]]
-    host_inventory.kafka.wait_for_filtered_host_messages(HostWrapper.provider_id, provider_ids)
-
-    # Group creation corrupted the hosts updated timestamps, so we have to reset
-    # them now.  Update a random field (using rhc_client_id in this case) and
-    # verify the update has completed.
-    rhc_client_id = generate_uuid()
-    for host_data in hosts_data:
-        host_data["system_profile"]["rhc_client_id"] = rhc_client_id
-    updated_hosts = host_inventory.kafka.create_hosts(
-        hosts_data, field_to_match=HostWrapper.provider_id
-    )
-    for host in updated_hosts:
-        host_inventory.apis.hosts.wait_for_system_profile_updated(
-            host.id, rhc_client_id=rhc_client_id
-        )
-
-    # Make host 4 stale and preserve ordering.
-    fresh_hosts_data = hosts_data[0:4] + hosts_data[5:]
-    stale_hosts_data = hosts_data[4:5]
-    hosts_in_state = create_hosts_fresh_stale(
-        host_inventory,
-        fresh_hosts_data,
-        stale_hosts_data,
-        deltas=(15, 3600, 7200),
-        field_to_match=HostWrapper.provider_id,
-    )
-    updated_hosts = (
-        hosts_in_state["fresh"][0:4] + hosts_in_state["stale"] + hosts_in_state["fresh"][4:]
-    )
-
-    # Guarantee that the updated_end host will have a later updated time than
-    # the other hosts in the filtered range
-    updated_end_host = host_inventory.kafka.create_hosts(
-        [hosts_data[5]], field_to_match=HostWrapper.provider_id
-    )[0]
-
-    # Guarantee that the remaining hosts will be outside the filtered range
-    host_inventory.kafka.create_hosts(hosts_data[6:], field_to_match=HostWrapper.provider_id)
-
-    id_param = {id_param_name: hosts_data[1][id_param_name]}
-
-    check_delete_filtered_different_account(
-        **id_param,
-        provider_type=hosts_data[1]["provider_type"],
-        staleness=["fresh"],
-        tags=tags,
-    )
-
-    # Due to how we create a set of mixed-state hosts now, the stale host
-    # (updated_hosts[4]) will have the earliest updated timestamp.  Thus, the
-    # updated_start/updated_end params look a little strange, but they encompass
-    # the first 6 hosts.
-    with host_inventory.apis.hosts.verify_host_count_changed(-1):
-        host_inventory.apis.hosts.delete_filtered(
-            **id_param,
-            provider_type=hosts_data[0]["provider_type"],
-            staleness=["fresh"],
-            tags=str_tags,
-            updated_start=updated_hosts[4].updated,
-            updated_end=updated_end_host.updated,
-            workspace_name=[group_name],
-        )
-        host_inventory.apis.hosts.wait_for_deleted(updated_hosts[1])
-
-    # Step through all events to remove conflicts during teardown
-    host_inventory.kafka.wait_for_filtered_host_messages(HostWrapper.id, [updated_hosts[1].id])
-
-    response = host_inventory.apis.hosts.get_hosts_response(
-        **id_param,
-        provider_type=hosts_data[0]["provider_type"],
-        staleness=["fresh"],
-        tags=str_tags,
-        updated_start=updated_hosts[4].updated,
-        updated_end=updated_end_host.updated,
-        workspace_name=[group_name],
-    )
-    assert response.total == 0
-    host_inventory.apis.hosts.verify_not_deleted([updated_hosts[0], *updated_hosts[2:]])
 
 
 @pytest.mark.ephemeral

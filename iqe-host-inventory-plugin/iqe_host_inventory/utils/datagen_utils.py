@@ -341,14 +341,6 @@ HOST_FIELDS_ = [
         "max_len": 255,
     },
     {
-        "name": "stale_timestamp",
-        "type": "timestamp",
-        "is_required": False,
-        "is_canonical": False,
-        "is_id_fact": False,
-        "is_immutable": False,
-    },
-    {
         "name": "openshift_cluster_id",
         "type": "uuid",
         "is_required": False,
@@ -1024,7 +1016,6 @@ host_field_generators: dict[str, Callable[[], Any]] = {
     "facts": generate_facts,
     "tags": generate_tags,
     "system_profile": create_system_profile_facts,
-    "stale_timestamp": generate_timestamp,
     "reporter": generate_reporter,
     "openshift_cluster_id": generate_uuid,
 }
@@ -1338,7 +1329,6 @@ _EXAMPLE_PAYLOAD: dict[str, str | int | Sequence[object] | dict[str, object]] = 
     ],
     "tags": [],
     "reporter": "iqe-hbi",
-    "stale_timestamp": gen_stale_timestamp(),  # ESSNTL-5571: Remove this when changes are in Prod
 }
 _EXAMPLE_PAYLOAD_WITH_PROFILE_FACTS = copy.deepcopy(_EXAMPLE_PAYLOAD)
 _EXAMPLE_PAYLOAD_WITH_PROFILE_FACTS["system_profile"] = _EXAMPLE_SYSTEM_PROFILE_FACTS

@@ -10,6 +10,7 @@ from ratelimit import RateLimitException
 from api.metrics import api_request_count
 from api.segmentio import segmentio_track
 from app.logging import get_logger
+from app.telemetry import get_tracer
 
 __all__ = ["api_operation"]
 
@@ -19,6 +20,7 @@ PROCESSING_TIME = "processing_time"
 ESCAPE_CHARS = '.?+*|{}[]()"\\#@&<>~$'
 
 logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 def api_operation(old_func):
@@ -70,7 +72,10 @@ def _get_status_code(results):
 
 
 def flask_json_response(json_data, status=HTTPStatus.OK):
-    return flask.Response(ujson.dumps(json_data), status=status, mimetype="application/json")
+    with tracer.start_as_current_span("ujson_encode") as span:
+        body = ujson.dumps(json_data)
+        span.set_attribute("payload_size_bytes", len(body))
+    return flask.Response(body, status=status, mimetype="application/json")
 
 
 def build_collection_response(data, page, per_page, total):

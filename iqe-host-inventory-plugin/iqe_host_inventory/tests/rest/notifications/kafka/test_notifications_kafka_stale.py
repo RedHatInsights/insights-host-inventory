@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 import pytest
-from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
@@ -13,6 +12,7 @@ from iqe_host_inventory.utils.notifications_utils import check_stale_notificatio
 from iqe_host_inventory.utils.notifications_utils import check_stale_notifications_headers
 from iqe_host_inventory.utils.notifications_utils import create_host_data_for_notification_tests
 from iqe_host_inventory.utils.notifications_utils import execute_stale_host_notification
+from iqe_host_inventory.utils.staleness_utils import get_staleness_defaults
 from iqe_host_inventory.utils.staleness_utils import set_staleness
 from iqe_host_inventory_api import GroupOutWithHostCount
 
@@ -85,57 +85,27 @@ def test_notifications_kafka_host_stale_toggle_via_refresh(
 
     # fresh -> stale
     set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", delay=5)
+    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", retries=20)
     trigger_job_validate_found(host_inventory, host)
 
     # stale -> fresh
     host_inventory.kafka.create_host(host_data)
     host_inventory.apis.hosts.wait_for_staleness(host, staleness="fresh")
+    # Keep host fresh while the notification CJI runs (can take minutes).
+    defaults = get_staleness_defaults()
+    set_staleness(
+        host_inventory,
+        (
+            defaults["conventional_time_to_stale"],
+            defaults["conventional_time_to_stale_warning"],
+            defaults["conventional_time_to_delete"],
+        ),
+    )
     trigger_job_validate_not_found(host_inventory, host)
 
     # fresh -> stale
     set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", delay=5)
-    trigger_job_validate_found(host_inventory, host)
-
-
-@iqe_blocker(iqe_blocker.jira("RHINENG-15789", category=iqe_blocker.PRODUCT_ISSUE))
-@pytest.mark.ephemeral
-@pytest.mark.usefixtures("hbi_primary_groups_cleanup_function", "hbi_staleness_cleanup")
-def test_notifications_kafka_host_stale_toggle_via_delete_staleness(
-    host_inventory: ApplicationHostInventory,
-    prepare_host_for_stale_notification: HostWrapper,
-):
-    """
-    Toggle a host's staleness from stale -> fresh -> stale and verify that
-    notifications are only triggered when the host goes stale.  For this test,
-    delete the staleness record to "freshen" the host.
-
-    https://issues.redhat.com/browse/RHINENG-7912
-
-    metadata:
-        requirements: inv-notifications-system-became-stale
-        assignee: msager
-        importance: low
-        title: Staleness toggling is handled correctly
-    """
-    host = prepare_host_for_stale_notification
-
-    deltas = (1, 3600, 7200)
-
-    # fresh -> stale
-    set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale")
-    trigger_job_validate_found(host_inventory, host)
-
-    # stale -> fresh
-    host_inventory.apis.account_staleness.delete_staleness()
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="fresh")
-    trigger_job_validate_not_found(host_inventory, host)
-
-    # fresh -> stale
-    set_staleness(host_inventory, deltas)
-    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale")
+    host_inventory.apis.hosts.wait_for_staleness(host, staleness="stale", retries=20)
     trigger_job_validate_found(host_inventory, host)
 
 

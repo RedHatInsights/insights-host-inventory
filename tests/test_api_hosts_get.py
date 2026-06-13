@@ -35,6 +35,7 @@ from tests.helpers.api_utils import build_system_profile_sap_system_url
 from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.api_utils import create_custom_rbac_response
+from tests.helpers.api_utils import create_hosts_by_reporter_and_staleness
 from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
@@ -1434,6 +1435,33 @@ def test_query_by_registered_with(db_create_multiple_hosts, api_get, subtests):
             response_status, response_data = api_get(url)
             assert response_status == 200
             assert count == len(response_data["results"])
+
+
+def test_get_hosts_filter_by_reporter_and_staleness(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+    mocker: MockerFixture,
+    subtests: SubTests,
+) -> None:
+    reporters = ("puptoo", "yupana")
+    states = ("fresh", "stale", "stale_warning")
+    hosts = create_hosts_by_reporter_and_staleness(db_create_host, mocker, reporters=reporters)
+
+    for state in states:
+        for reporter in reporters:
+            with subtests.test(state=state, reporter=reporter):
+                url = build_hosts_url(query=f"?staleness={state}&registered_with={reporter}")
+                response_status, response_data = api_get(url)
+                assert response_status == 200
+
+                expected_id = str(hosts[state][reporter].id)
+                result_ids = {h["id"] for h in response_data["results"]}
+                assert expected_id in result_ids
+
+                unexpected_ids = {
+                    str(hosts[s][r].id) for s in states for r in reporters if (s, r) != (state, reporter)
+                }
+                assert not result_ids & unexpected_ids
 
 
 @pytest.mark.parametrize(
