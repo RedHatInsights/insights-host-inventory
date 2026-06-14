@@ -109,38 +109,6 @@ paths:
           description: Request for deleting all hosts has been accepted.
         '400':
           description: Invalid request.
-  /hosts/checkin:
-    post:
-      operationId: api.v2.host.host_checkin
-      tags:
-        - hosts
-      summary: Update staleness timestamps for a host matching the provided facts
-      description: >-
-        Finds a host and updates its staleness timestamps.
-        It uses the supplied canonical facts to determine which host to update.
-        By default, the staleness timestamp is set to 1 hour from when the request is received;
-        however, this can be overridden by supplying the interval.
-        <br /><br />
-        Required permissions: inventory:hosts:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to create a check-in record for a host.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCheckIn'
-      responses:
-        '201':
-          description: Successfully checked in Host.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostOut'
-        '404':
-          description: Not Found.
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -226,520 +194,6 @@ paths:
           description: Invalid request.
         '404':
           $ref: '#/components/responses/NotFoundError'
-  '/hosts/{host_id_list}/facts/{namespace}':
-    patch:
-      tags:
-        - hosts
-      summary: Merge facts under a namespace
-      description: >-
-        Merge one or multiple hosts facts under a namespace.
-        <br /><br />
-        Required permissions: inventory:hosts:write
-      operationId: api.v2.host.merge_facts
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/factsNamespace'
-      requestBody:
-        description: A dictionary with the new facts to merge with the original ones.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Facts'
-      responses:
-        '200':
-          description: Successfully merged facts.
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host or namespace not found.
-    put:
-      tags:
-        - hosts
-      summary: Replace facts under a namespace
-      description: >-
-        Replace facts under a namespace
-        <br /><br />
-        Required permissions: inventory:hosts:write
-      security:
-        - ApiKeyAuth: []
-      operationId: api.v2.host.replace_facts
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/factsNamespace'
-      requestBody:
-        description: A dictionary with the new facts to replace the original ones.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Facts'
-      responses:
-        '200':
-          description: Successfully replaced facts.
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host or namespace not found.
-  '/hosts/{host_id_list}/system_profile':
-    get:
-      tags:
-        - hosts
-      summary: Return one or more hosts system profile
-      description: >-
-        Find one or more hosts by their ID and return the id and system profile
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.host.get_host_system_profile_by_id
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/hostOrderHowParam'
-        - $ref: '#/components/parameters/fields_param'
-      responses:
-        '200':
-          description: Successfully searched for hosts.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemProfileByHostOut'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-  '/hosts/{host_id_list}/tags':
-    get:
-      tags:
-        - hosts
-      summary: Get the tags on a host
-      description: >-
-        Get the tags on a host
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.host.get_host_tags
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/tagOrderByParam'
-        - $ref: '#/components/parameters/hostOrderHowParam'
-        - $ref: '#/components/parameters/searchParam'
-      responses:
-        '200':
-          description: Successfully found tags.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TagsOut'
-        '400':
-          description: Invalid request.
-  '/hosts/{host_id_list}/tags/count':
-    get:
-      tags:
-        - hosts
-      summary: Get the number of tags on a host or hosts
-      description: >-
-        Get the number of tags on a host or hosts
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.host.get_host_tag_count
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/tagOrderByParam'
-        - $ref: '#/components/parameters/hostOrderHowParam'
-      responses:
-        '200':
-          description: Successfully found tag count.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TagCountOut'
-        '400':
-          description: Invalid request.
-  '/host_exists':
-    get:
-      tags:
-        - hosts
-      summary: Find one host by insights_id, if it exists
-      description: >-
-        Find one host by insights_id, if it exists.
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.host.get_host_exists
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/insightsId'
-      responses:
-        '200':
-          description: Found a matching host.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostIdOut'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Host not found.
-        '409':
-          description: Multiple matching hosts detected.
-  /resource-types:
-    get:
-      operationId: api.v2.resource_type.get_resource_type_list
-      tags:
-        - resource-types
-      summary: Get the list of resource types
-      description: >-
-        Returns the list of available RBAC resource types.
-        <br /><br />
-        Required permissions: rbac:*:*
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/resourceTypesPerPageParam'
-        - $ref: '#/components/parameters/pageParam'
-      responses:
-        '200':
-          description: Successfully read the resource types list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResourceTypesQueryOutput'
-        '400':
-          description: Resource types not found.
-
-  /resource-types/inventory-groups:
-    get:
-      operationId: api.v2.resource_type.get_resource_type_groups_list
-      tags:
-        - resource-types
-      summary: Get the list of inventory groups in resource-types format
-      description: >-
-        Returns the list of groups in the current account.
-        <br /><br />
-        Required permissions: rbac:*:*
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/groupName'
-        - $ref: '#/components/parameters/resourceTypesPerPageParam'
-        - $ref: '#/components/parameters/pageParam'
-      responses:
-        '200':
-          description: Successfully read the resource-types groups list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ResourceTypesGroupsQueryOutput'
-        '400':
-          description: Groups not found.
-
-  /tags:
-    get:
-      tags:
-        - tags
-      summary: Get the active host tags for a given account
-      description: >-
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.tag.get_tags
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/tagsOrderByParam'
-        - $ref: '#/components/parameters/tagsOrderHowParam'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/searchParam'
-        - $ref: '#/components/parameters/displayName'
-        - $ref: '#/components/parameters/fqdn'
-        - $ref: '#/components/parameters/hostnameOrId'
-        - $ref: '#/components/parameters/insightsId'
-        - $ref: '#/components/parameters/providerId'
-        - $ref: '#/components/parameters/providerType'
-        - $ref: '#/components/parameters/updatedStart'
-        - $ref: '#/components/parameters/updatedEnd'
-        - $ref: '#/components/parameters/lastCheckInStart'
-        - $ref: '#/components/parameters/lastCheckInEnd'
-        - $ref: '#/components/parameters/workspaceNameListParam'
-        - $ref: '#/components/parameters/workspaceIdListParam'
-        - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/systemTypeParam'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: Tags
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ActiveTags'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/PageOutOfBounds'
-
-  /system_profile/sap_system:
-    get:
-      tags:
-        - system_profile
-      summary: get all sap system values and counts on the account
-      description: >-
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.system_profile.get_sap_system
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: sap_system values and counts for the account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemProfileSapSystemOut'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/PageOutOfBounds'
-
-  /system_profile/sap_sids:
-    get:
-      tags:
-        - system_profile
-      summary: get all sap sids values and counts on the account
-      description: >-
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.system_profile.get_sap_sids
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/searchParam'
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: sap_system values and counts for the account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemProfileSapSystemOut'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/PageOutOfBounds'
-
-  /system_profile/operating_system:
-    get:
-      tags:
-        - system_profile
-      summary: get all operating system versions and counts on the account
-      description: >-
-        Required permissions: inventory:hosts:read
-      operationId: api.v2.system_profile.get_operating_system
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/filter_param'
-      responses:
-        '200':
-          description: operating system versions and counts on the account
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemProfileOperatingSystemOut'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/PageOutOfBounds'
-
-  /system_profile/validate_schema:
-    post:
-      tags:
-        - system_profile
-      summary: validate system profile schema
-      description: >-
-        Validates System Profile data from recent Kafka messages against a given spec,
-        and compares it with the current one. Only HBI Admins can access this endpoint.
-      operationId: api.v2.system_profile.validate_schema
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - in: query
-          name: repo_fork
-          schema:
-            type: string
-          description: The fork of the inventory-schemas repo to use
-        - in: query
-          name: repo_branch
-          schema:
-            type: string
-          description: The branch of the inventory-schemas repo to use
-          required: true
-        - in: query
-          name: days
-          schema:
-            type: integer
-            minimum: 1
-          description: How many days worth of data to validate
-        - in: query
-          name: max_messages
-          schema:
-            type: integer
-            minimum: 1
-            default: 10000
-          description: Stops polling when this number of messages has been collected
-      responses:
-        '200':
-          description: Host validation results
-        '403':
-          description: Forbidden
-
-  /account/staleness:
-    get:
-      operationId: api.v2.staleness.get_staleness
-      tags:
-        - accounts_staleness
-      summary: Read the entire list of account staleness
-      description: >-
-        Read the entire list of all accounts staleness available.
-        Required permissions: staleness:staleness:read
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully read the staleness account.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StalenessOutput'
-        '400':
-          description: "Invalid request."
-    post:
-      operationId: api.v2.staleness.create_staleness
-      tags:
-        - accounts_staleness
-      summary: Create account staleness record
-      description: >-
-        Create account staleness record.
-        Required permissions: staleness:staleness:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to create a record for a account staleness.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StalenessIn'
-      responses:
-        '201':
-          description: Successfully account staleness created.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StalenessOutput'
-        '400':
-          description: "Invalid request."
-    patch:
-      operationId: api.v2.staleness.update_staleness
-      tags:
-        - accounts_staleness
-      summary: Update account staleness record
-      description: >-
-        Update account staleness record.
-        Required permissions: staleness:staleness:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to update a record for a account staleness.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StalenessIn'
-      responses:
-        '200':
-          description: Successfully account staleness updated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StalenessOutput'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Staleness record not found.
-    delete:
-      operationId: api.v2.staleness.delete_staleness
-      tags:
-        - accounts_staleness
-      summary: Delete an account staleness
-      description: >-
-        Delete an account staleness
-        <br /><br />
-        Required permissions: staleness:staleness:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      responses:
-        '204':
-          description: Successfully deleted account staleness.
-        '400':
-          description: Invalid request.
-        '404':
-          description: Account Staleness not found.
-
-  /account/staleness/defaults:
-    get:
-      operationId: api.v2.staleness.get_default_staleness
-      tags:
-        - accounts_staleness
-      summary: Read the entire list of account staleness
-      description: >-
-        Read the entire list of all accounts staleness available.
-        Required permissions: staleness:staleness:read
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully read the staleness account.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StalenessOutput'
-        '400':
-          description: "Invalid request."
-
   /host-views:
     get:
       operationId: api.v2.views.get_views_list
@@ -1161,13 +615,6 @@ components:
       $ref: 'pagination.yaml#/components/parameters/perPageParam'
     resourceTypesPerPageParam:
       $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
-    hostId:
-      in: path
-      name: host_id
-      description: Host (system) ID.
-      required: true
-      schema:
-        $ref: '#/components/schemas/NonStrictUUID'
     hostIdList:
       in: path
       name: host_id_list
@@ -1263,13 +710,6 @@ components:
         type: string
         format: date-time
       description: Only show hosts last checked in before the given date
-    factsNamespace:
-      in: path
-      name: namespace
-      description: A namespace of the merged facts.
-      required: true
-      schema:
-        type: string
     hostOrderByParam:
       name: order_by
       in: query
@@ -1281,18 +721,6 @@ components:
           - workspace_name
           - updated
           - operating_system
-          - last_check_in
-      description: Ordering field name
-    tagOrderByParam:
-      name: order_by
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - display_name
-          - workspace_name
-          - updated
           - last_check_in
       description: Ordering field name
     groupOrderByParam:
@@ -1377,32 +805,6 @@ components:
         items:
           type: string
           pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=/]+)?$'
-    tagsOrderByParam:
-      in: query
-      name: order_by
-      required: false
-      schema:
-        type: string
-        default: tag
-        enum:
-          - tag
-          - count
-      description: Ordering field name
-    tagsOrderHowParam:
-      in: query
-      name: order_how
-      required: false
-      description: Direction of the ordering (case-insensitive). Valid values are ASC (default) and DESC.
-      schema:
-        $ref: '#/components/schemas/OrderHow'
-    searchParam:
-      in: query
-      name: search
-      required: false
-      description: Used for searching tags and sap_sids that match the given search string. For searching tags, a tag's
-        namespace, key, and/or value is used for matching.
-      schema:
-        type: string
     registered_with:
       in: query
       name: registered_with
@@ -1490,115 +892,6 @@ components:
       example: {}
       schema:
         $ref: '#/components/schemas/SystemProfileNestedObject'
-    hostViewCombinedFilterParam:
-      in: query
-      name: filter
-      required: false
-      description: >-
-        Filters hosts based on system_profile fields and/or application data metrics.
-        Both filter types can be combined in a single request.
-        <br /><br />
-        **System profile filters** use the syntax
-        `filter[system_profile][field][operator]=value`. For example:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel"
-        <br /><br />
-        **Application data filters** use the syntax
-        `filter[app_name][field_name][operator]=value`. For example:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[vulnerability][critical_cves][gte]=1"
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[patch][template_name][eq]=production"
-        <br /><br />
-        **Combined** example:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"
-      style: deepObject
-      explode: true
-      example: {}
-      schema:
-        $ref: '#/components/schemas/HostViewCombinedFilter'
-    hostViewCombinedFieldsParam:
-      in: query
-      name: fields
-      required: false
-      description: >-
-        Selects which system_profile fields and/or application data fields to include
-        in the response. Both can be requested in a single call.
-        <br /><br />
-        **System profile fields:** `fields[system_profile]=arch,host_type` returns
-        only the requested system_profile fields on each host. When not specified,
-        no system_profile data is returned (default behavior).
-        <br /><br />
-        **Application data fields:** `fields[advisor]=recommendations` returns only
-        the requested fields for that application. When not specified, all fields from
-        all applications are returned by default.
-        <br /><br />
-        **Application shorthand:** `fields[app_data]=true` explicitly requests all
-        application data for all apps.
-        <br /><br />
-        **Combined** example:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations"
-      style: deepObject
-      explode: true
-      x-validator: hostViewSparseFields
-      example: {}
-      schema:
-        $ref: '#/components/schemas/HostViewCombinedFields'
-    hostViewOrderByParam:
-      name: order_by
-      in: query
-      required: false
-      description: >-
-        Ordering field for host views. Accepts standard host columns or application
-        metrics using `app:field` format. Use together with `order_how`.
-
-        **Host fields:** `display_name`, `group_name`, `updated`, `operating_system`, `last_check_in`
-
-        **App fields:** See `AppSortableFields` schema for the full list of available
-        application sort fields (e.g. `vulnerability:critical_cves`, `advisor:recommendations`).
-      schema:
-        type: string
-        enum:
-          # Host fields
-          - display_name
-          - workspace_name
-          - updated
-          - operating_system
-          - last_check_in
-          - advisor:recommendations
-          - advisor:incidents
-          - advisor:critical
-          - advisor:important
-          - advisor:moderate
-          - advisor:low
-          - vulnerability:total_cves
-          - vulnerability:critical_cves
-          - vulnerability:high_severity_cves
-          - vulnerability:cves_with_security_rules
-          - vulnerability:cves_with_known_exploits
-          - patch:advisories_rhsa_installable
-          - patch:advisories_rhba_installable
-          - patch:advisories_rhea_installable
-          - patch:advisories_other_installable
-          - patch:advisories_rhsa_applicable
-          - patch:advisories_rhba_applicable
-          - patch:advisories_rhea_applicable
-          - patch:advisories_other_applicable
-          - patch:packages_installable
-          - patch:packages_applicable
-          - patch:packages_installed
-          - patch:template_name
-          - remediations:remediations_plans
-          - compliance:last_scan
-          - compliance:policies_count
-          - malware:last_matches
-          - malware:total_matches
-          - malware:last_scan
-          - malware:last_status
     confirmDeleteAll:
       in: query
       name: confirm_delete_all
@@ -1613,26 +906,6 @@ components:
         type: string
       description: Filter by group name
       required: false
-    groupNameListParam:
-      in: query
-      name: group_name
-      description: Filter by group name
-      deprecated: true
-      required: false
-      schema:
-        type: array
-        items:
-          type: string
-    groupIdListParam:
-      in: query
-      name: group_id
-      description: Filter by group ID (UUID format)
-      deprecated: true
-      required: false
-      schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/NonStrictUUID'
     workspaceNameListParam:
       in: query
       name: workspace_name
@@ -1647,22 +920,6 @@ components:
       name: workspace_id
       description: Filter by workspace ID (UUID format)
       required: false
-      schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/NonStrictUUID'
-    groupId:
-      in: path
-      name: group_id
-      description: Group ID.
-      required: true
-      schema:
-        $ref: '#/components/schemas/NonStrictUUID'
-    groupIdList:
-      in: path
-      name: group_id_list
-      description: A comma-separated list of group IDs.
-      required: true
       schema:
         type: array
         items:
@@ -1693,64 +950,6 @@ components:
         items:
           $ref: '#/components/schemas/NonStrictUUID'
   schemas:
-    SystemProfileOperatingSystemOut:
-      properties:
-        total:
-          $ref: '#/components/schemas/Total'
-        count:
-          $ref: '#/components/schemas/Count'
-        results:
-          description: The list of operating_system values on the account
-          type: array
-          items:
-            type: object
-            properties:
-              value:
-                type: object
-                properties:
-                  name:
-                    type: string
-                  major:
-                    type: integer
-                    nullable: true
-                  minor:
-                    type: integer
-                    nullable: true
-              count:
-                type: integer
-
-    SystemProfileSapSystemOut:
-      type: object
-      properties:
-        total:
-          $ref: '#/components/schemas/Total'
-        count:
-          $ref: '#/components/schemas/Count'
-        results:
-          description: The list of sap_system values on the account
-          type: array
-          items:
-            type: object
-            properties:
-              value:
-                oneOf:
-                  - type: string
-                  - type: boolean
-              count:
-                type: integer
-
-    TagsOut:
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          properties:
-            results:
-              description: The list of tags on the systems
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/StructuredTag'
     StructuredTag:
       type: object
       properties:
@@ -1762,23 +961,6 @@ components:
         value:
           type: string
           nullable: true
-    TagCountOut:
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          properties:
-            results:
-              description: The list of tags on the systems
-              type: object
-              additionalProperties:
-                type: integer
-    Facts:
-      title: Host facts
-      description: A set of string facts about a host.
-      type: object
-      example:
-        fact1: value1
-        fact2: value2
     FactSet:
       title: Host facts under a namespace
       description: A set of string facts belonging to a single namespace.
@@ -1960,20 +1142,6 @@ components:
           $ref: "#/components/schemas/ProviderId"
         provider_type:
           $ref: "#/components/schemas/ProviderType"
-    CreateCheckIn:
-      title: Check-in data
-      description: >-
-        Data required to create a check-in record for a host.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/CanonicalFactsIn'
-        - properties:
-            checkin_frequency:
-              description: How long from now to expect another check-in (in minutes).
-              type: integer
-              minimum: 1
-              maximum: 2880
-              example: 1440
     HostOut:
       title: Host Out
       description: >-
@@ -2067,14 +1235,6 @@ components:
               $ref: '#/components/schemas/ConsumerApplicationsData'
           required:
             - org_id
-    HostIdOut:
-      title: A Host ID query result
-      description: >-
-        A single Host ID that belongs to a host.
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/HostId'
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
@@ -2091,20 +1251,6 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/HostOut'
-    HostViewQueryOutput:
-      title: Inventory view query result
-      description: A paginated host view that optionally includes application data joins.
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          required:
-            - results
-          properties:
-            results:
-              description: Combined host and application entries.
-              type: array
-              items:
-                $ref: '#/components/schemas/HostViewHost'
     HostViewHost:
       title: Host with application data
       allOf:
@@ -2360,98 +1506,6 @@ components:
         not_nil:
           type: boolean
           description: When true, matches hosts where this field exists and is not null.
-    AppSortableFields:
-      type: string
-      description: |
-        Application data fields available for sorting in the /hosts-view endpoint.
-        Use format `app_name:field_name` with the `order_by` parameter.
-
-        **Advisor**
-        - `advisor:recommendations` - Number of Advisor recommendations
-        - `advisor:incidents` - Number of Advisor incidents
-        - `advisor:critical` - Critical severity recommendations
-        - `advisor:important` - Important severity recommendations
-        - `advisor:moderate` - Moderate severity recommendations
-        - `advisor:low` - Low severity recommendations
-
-        **Vulnerability**
-        - `vulnerability:total_cves` - Total CVE count
-        - `vulnerability:critical_cves` - Critical severity CVEs
-        - `vulnerability:high_severity_cves` - High severity CVEs
-        - `vulnerability:cves_with_security_rules` - CVEs with security rules
-        - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
-
-        **Patch**
-        - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
-        - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
-        - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
-        - `patch:advisories_other_installable` - Number of other installable advisories
-        - `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories
-        - `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories
-        - `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories
-        - `patch:advisories_other_applicable` - Number of other applicable advisories
-        - `patch:packages_installable` - Number of installable packages
-        - `patch:packages_applicable` - Number of applicable packages
-        - `patch:packages_installed` - Number of installed packages
-        - `patch:template_name` - Patch template name
-
-        **Remediations**
-        - `remediations:remediations_plans` - Active remediation plans count
-
-        **Compliance**
-        - `compliance:last_scan` - Last compliance scan timestamp
-        - `compliance:policies_count` - Number of compliance policies
-
-        **Malware**
-        - `malware:last_matches` - Malware matches count
-        - `malware:total_matches` - Total malware matches count
-        - `malware:last_scan` - Last malware scan timestamp
-        - `malware:last_status` - Last malware detection status
-      enum:
-        - advisor:recommendations
-        - advisor:incidents
-        - advisor:critical
-        - advisor:important
-        - advisor:moderate
-        - advisor:low
-        - vulnerability:total_cves
-        - vulnerability:critical_cves
-        - vulnerability:high_severity_cves
-        - vulnerability:cves_with_security_rules
-        - vulnerability:cves_with_known_exploits
-        - patch:advisories_rhsa_installable
-        - patch:advisories_rhba_installable
-        - patch:advisories_rhea_installable
-        - patch:advisories_other_installable
-        - patch:advisories_rhsa_applicable
-        - patch:advisories_rhba_applicable
-        - patch:advisories_rhea_applicable
-        - patch:advisories_other_applicable
-        - patch:packages_installable
-        - patch:packages_applicable
-        - patch:packages_installed
-        - patch:template_name
-        - remediations:remediations_plans
-        - compliance:last_scan
-        - compliance:policies_count
-        - malware:last_matches
-        - malware:total_matches
-        - malware:last_scan
-        - malware:last_status
-    SystemProfileByHostOut:
-      title: A host system profile query result
-      description: Structure of the output of the host system profile query
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          required:
-            - results
-          properties:
-            results:
-              description: Actual host search query result entries.
-              type: array
-              items:
-                $ref: '#/components/schemas/HostSystemProfileOut'
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
@@ -2497,52 +1551,6 @@ components:
           $ref: '#/components/schemas/TimeStamp'
         check_in_succeeded:
           type: boolean
-    ActiveTags:
-      title: Host data
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          required:
-            - results
-          properties:
-            results:
-              type: array
-              items:
-                title: ActiveTag
-                description: Information about a host tag
-                type: object
-                required:
-                  - tag
-                  - count
-                properties:
-                  tag:
-                    $ref: '#/components/schemas/StructuredTag'
-                  count:
-                    description: The number of hosts with the given tag. If the value is null this indicates that the
-                      count is unknown.
-                    type: integer
-                    nullable: true
-      example:
-        total: 3
-        count: 3
-        page: 1
-        per_page: 50
-        results:
-          - tag:
-              namespace: Sat
-              key: env
-              value: prod
-            count: 3
-          - tag:
-              namespace: aws
-              key: region
-              value: us-east-1
-            count: 1
-          - tag:
-              namespace: insights-client
-              key: web
-              value:
-            count: -1
     GroupName:
       description: >-
         A group’s human-readable name.
@@ -2586,16 +1594,6 @@ components:
       description: The number of hosts associated with the group.
       type: integer
       example: 3
-    GroupIn:
-      title: Group In
-      description: >-
-        Data of a single group belonging to an account.
-      type: object
-      properties:
-        name:
-          $ref: "#/components/schemas/GroupName"
-        host_ids:
-          $ref: "#/components/schemas/HostIds"
     GroupOutWithHostCount:
       title: Group properties with host count
       description: >-
@@ -2631,23 +1629,6 @@ components:
           description: A timestamp when the entry was last updated.
           type: string
           format: date-time
-    GroupQueryOutput:
-      title: An Inventory Groups query result
-      description: >-
-        A paginated group search query result with group entries and their
-        Inventory metadata.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          required:
-            - results
-          properties:
-            results:
-              description: Actual group search query result entries.
-              type: array
-              items:
-                $ref: '#/components/schemas/GroupOutWithHostCount'
     ResourceTypesOut:
       title: A resource type query result
       description: >-
@@ -2662,39 +1643,6 @@ components:
           type: string
         count:
           type: integer
-    ResourceTypesQueryOutput:
-      title: A resource-types query result
-      description: >-
-        A paginated list of resource-types RBAC objects.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/ResourceTypesPaginationOut'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              description: Actual resource-types object data.
-              type: array
-              items:
-                $ref: '#/components/schemas/ResourceTypesOut'
-    ResourceTypesGroupsQueryOutput:
-      title: An Inventory Groups query result in resource-types response format
-      description: >-
-        A paginated group search query result with group entries and their
-        Inventory metadata in paginated resource-types response format.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/ResourceTypesPaginationOut'
-        - type: object
-          required:
-            - data
-          properties:
-            data:
-              description: Actual group search query result entries.
-              type: array
-              items:
-                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
     StalenessTimeout:
       type: integer
       minimum: 1
@@ -2717,40 +1665,6 @@ components:
           $ref: '#/components/schemas/StalenessTimeout'
         immutable_time_to_delete:
           $ref: '#/components/schemas/StalenessTimeout'
-    StalenessOutput:
-      title: Account Staleness Out
-      description: >-
-        Data of a account staleness.
-      type: object
-      allOf:
-        - $ref: "#/components/schemas/StalenessIn"
-        - required:
-            - conventional_time_to_stale
-            - conventional_time_to_stale_warning
-            - conventional_time_to_delete
-            - immutable_time_to_stale
-            - immutable_time_to_stale_warning
-            - immutable_time_to_delete
-        - properties:
-            id:
-              $ref: "#/components/schemas/StalenessId"
-            org_id:
-              $ref: "#/components/schemas/OrgId"
-            created:
-              description: A timestamp when the entry was created.
-              type: string
-              format: date-time
-              nullable: true
-            updated:
-              nullable: true
-              description: A timestamp when the entry was last updated.
-              type: string
-              format: date-time
-          required:
-            - id
-            - org_id
-            - created
-            - updated
     OrderHow:
       type: string
       pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
@@ -2761,21 +1675,6 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
     SystemProfileNestedObject:
       $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
-    SystemProfileDiskDevice:
-      $ref: 'system_profile.spec.yaml#/$defs/DiskDevice'
-    SystemProfileYumRepo:
-      $ref: 'system_profile.spec.yaml#/$defs/YumRepo'
-    SystemProfileDnfModule:
-      $ref: 'system_profile.spec.yaml#/$defs/DnfModule'
-    SystemProfileInstalledProduct:
-      $ref: 'system_profile.spec.yaml#/$defs/InstalledProduct'
-    SystemProfileNetworkInterface:
-      $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
-    SystemProfileInterSystemsRunningInstance:
-      $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
-
-
-    # Inventory Views schemas
     ViewColumnConfig:
       title: View Column Configuration
       description: Configuration for a single column in a view.
@@ -3092,8 +1991,6 @@ components:
               items:
                 $ref: '#/components/schemas/WorkspaceOutWithHostCount'
   responses:
-    PageOutOfBounds:
-      description: Requested page is outside of the range of available pages
     NotFoundError:
       description: One or more requested resources were not found.
       content:
