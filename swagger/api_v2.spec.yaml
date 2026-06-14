@@ -892,7 +892,7 @@ paths:
           description: Source view not found or not visible to the requesting user.
   /workspaces:
     get:
-      operationId: api.v2.group.get_group_list
+      operationId: api.v2.workspace.get_workspace_list
       tags:
         - workspaces
       summary: Read the entire list of groups
@@ -920,7 +920,7 @@ paths:
           description: Groups not found.
 
     post:
-      operationId: api.v2.group.create_group
+      operationId: api.v2.workspace.create_workspace
       tags:
         - workspaces
       summary: Create a new group matching the provided name and list of hosts IDs
@@ -951,7 +951,7 @@ paths:
           "description": "Forbidden - Invalid RBAC permission."
   '/workspaces/{workspace_id}':
     patch:
-      operationId: api.v2.group.patch_group_by_id
+      operationId: api.v2.workspace.patch_workspace_by_id
       tags:
         - workspaces
       summary: Update group information
@@ -983,7 +983,7 @@ paths:
           $ref: '#/components/responses/NotFoundError'
   '/workspaces/{workspace_id_list}':
     get:
-      operationId: api.v2.group.get_groups_by_id
+      operationId: api.v2.workspace.get_workspaces_by_id
       tags:
         - workspaces
       summary: Find groups by their IDs
@@ -1011,7 +1011,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
     delete:
-      operationId: api.v2.group.delete_groups
+      operationId: api.v2.workspace.delete_workspaces
       tags:
         - workspaces
       summary: Delete a list of groups
@@ -1030,7 +1030,7 @@ paths:
           description: Invalid request.
   '/workspaces/{workspace_id}/hosts/{host_id_list}':
     delete:
-      operationId: api.v2.host_group.delete_hosts_from_group
+      operationId: api.v2.host_workspace.delete_hosts_from_workspace
       tags:
         - workspaces
       summary: Delete one or more hosts from a group
@@ -1050,7 +1050,7 @@ paths:
           description: Invalid request.
   '/workspaces/{workspace_id}/hosts':
     get:
-      operationId: api.v2.host_group.get_host_list_by_group
+      operationId: api.v2.host_workspace.get_host_list_by_workspace
       tags:
         - workspaces
       summary: Read the list of hosts in a group
@@ -1085,7 +1085,7 @@ paths:
         '404':
           description: Group not found.
     post:
-      operationId: api.v2.host_group.add_host_list_to_group
+      operationId: api.v2.host_workspace.add_host_list_to_workspace
       tags:
         - workspaces
       summary: Add host IDs to the provided group
@@ -1118,7 +1118,7 @@ paths:
           description: Group not found.
   '/workspaces/hosts/{host_id_list}':
     delete:
-      operationId: api.v2.group.delete_hosts_from_different_groups
+      operationId: api.v2.workspace.delete_hosts_from_different_workspaces
       tags:
         - workspaces
       summary: Delete a list of hosts from the groups they are in
