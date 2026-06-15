@@ -228,7 +228,6 @@ def test_host_schema_valid_tags(tags):
         "account": USER_IDENTITY["account_number"],
         "org_id": USER_IDENTITY["org_id"],
         "tags": tags,
-        "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
     validated_host = HostSchema().load(host)
@@ -243,7 +242,6 @@ def test_host_schema_invalid_tags(tags):
         "display_name": "display_name",
         "account": USER_IDENTITY["account_number"],
         "tags": tags,
-        "stale_timestamp": now().isoformat(),
         "reporter": "test",
     }
     with pytest.raises(MarshmallowValidationError) as exception:

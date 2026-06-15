@@ -493,10 +493,10 @@ HBI may at any time stop receiving updates about a given host (e.g. a virtual ma
 
 Depending on its timestamp, each host is in one of these staleness states:
 
-* _fresh_ if the _stale_timestamp_ is in the future
-* _stale_ if the _stale_timestamp_ has already lapsed, but no longer than 7 days ago
-* _stale_warning_ if the host has been stale for at least 7 days, but has not yet been culled
-* _culled_ if the host has been stale for at least 30 days
+* _fresh_ if the derived _stale_timestamp_ (from _last_check_in_ + org offset) is in the future
+* _stale_ if the derived _stale_timestamp_ has lapsed, but the derived _stale_warning_timestamp_ has not
+* _stale_warning_ if the derived _stale_warning_timestamp_ has lapsed, but the host has not yet been culled
+* _culled_ if the derived _culled_timestamp_ has lapsed (default: _last_check_in_ + 30 days)
 
 ![Inventory Staleness](./images/inventory-staleness.png)
 
@@ -1073,9 +1073,7 @@ The view contains the following columns:
 <tr><td><code>display_name</code> </td><td><code>character varying(200)</code> </td><td>no </td><td>A host's human-readable display name.</td></tr>
 <tr><td><code>created</code> </td><td><code>timestamp with time zone</code> </td><td>no </td><td>A timestamp when the record was created.</td></tr>
 <tr><td><code>updated</code> </td><td><code>timestamp with time zone</code> </td><td>no </td><td>A timestamp when the record was last updated.</td></tr>
-<tr><td><code>stale_timestamp</code> </td><td><code>timestamp with time zone</code> </td><td>no </td><td>Timestamp from which the host is considered </td></tr>stale. See <<Host Staleness and Culling>> for details.
-<tr><td><code>stale_warning_timestamp</code> </td><td><code>timestamp with time zone</code> </td><td>no </td><td>Timestamp from which the host is </td></tr>considered too stale to be listed without an explicit toggle. See <<Host Staleness and Culling>> for details.
-<tr><td><code>culled_timestamp</code> </td><td><code>timestamp with time zone</code> </td><td>no </td><td>Timestamp from which the host is considered </td></tr>deleted. See <<Host Staleness and Culling>> for details.
+<tr><td><code>last_check_in</code> </td><td><code>timestamp with time zone</code> </td><td>yes </td><td>Last check-in time; combined with org staleness offsets to derive staleness state. See <<Host Staleness and Culling>> for details.</td></tr>
 <tr><td><code>insights_id</code> </td><td><code>uuid</code></td><td>yes </td><td></td></tr>
 <tr><td><code>reporter</code> </td><td><code>character varying(255)</code></td><td>no </td><td></td></tr>
 <tr><td><code>per_reporter_staleness</code> </td><td><code>jsonb</code></td><td>no </td><td></td></tr>

@@ -890,10 +890,6 @@ def gen_iso8601_datetime(
     ).isoformat()
 
 
-def gen_stale_timestamp() -> str:
-    return gen_iso8601_datetime(start_date="+1d", end_date="+7d")
-
-
 def get_clamped_timestamp(
     clamp: datetime.date | datetime.datetime | datetime.timedelta | str | int,
 ):
