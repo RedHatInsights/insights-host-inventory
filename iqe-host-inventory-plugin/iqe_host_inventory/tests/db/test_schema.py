@@ -79,11 +79,11 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "rhsm_products.products, "
         "qpc_prods.qpc_products, "
         "qpc_certs.qpc_product_ids, "
-        "system_profile.system_profile_product_ids, "
-        "h.stale_timestamp "
+        "system_profile.system_profile_product_ids "
         "from hosts h "
         "left join system_profiles_static sps on h.org_id = sps.org_id and h.id = sps.host_id "
         "left join system_profiles_dynamic spd on h.org_id = spd.org_id and h.id = spd.host_id "
+        "left join staleness s on h.org_id = s.org_id "
         "cross join lateral ( "
         "    select string_agg(items, ',') as products "
         "    from jsonb_array_elements_text(h.facts->'rhsm'->'RH_PROD') as items) rhsm_products "
@@ -99,8 +99,9 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "where h.org_id IN ('00000000')"
         "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # noqa: E501
         "   and (h.host_type IS NULL OR h.host_type <> 'edge')"
-        "   and (stale_timestamp is null "
-        "   or  (NOW() < stale_timestamp + make_interval(days => 30)))"
+        "   and h.last_check_in + make_interval(secs => coalesce(s.conventional_time_to_stale, "
+        "104400)) > NOW() - make_interval(secs => coalesce(s.conventional_time_to_delete, "
+        "2592000))"
     )
 
     inventory_db_session.execute(query)

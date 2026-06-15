@@ -26,6 +26,7 @@ from app.models import LimitedHostSchema
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
+from app.models.views import InventoryView
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
@@ -590,6 +591,22 @@ def serialize_staleness_response(staleness):
         "immutable_time_to_delete": staleness.conventional_time_to_delete,
         "created": _serialize_datetime(staleness.created_on) if staleness.created_on is not None else None,
         "updated": _serialize_datetime(staleness.modified_on) if staleness.modified_on is not None else None,
+    }
+
+
+def serialize_view(view: InventoryView, username: str) -> dict:
+    return {
+        "id": serialize_uuid(view.id),
+        "org_id": view.org_id,
+        "name": view.name,
+        "description": view.description,
+        "is_system_view": view.is_system_view,
+        "configuration": view.configuration,
+        "org_wide": view.org_wide,
+        "is_owner": view.created_by == username,
+        "created_by": view.created_by,
+        "created_at": _serialize_datetime(view.created_on) if view.created_on else None,
+        "updated_at": _serialize_datetime(view.modified_on) if view.modified_on else None,
     }
 
 

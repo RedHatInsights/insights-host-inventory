@@ -59,7 +59,6 @@ class Host(Base):
     tags_alt = Column(JSONB)
     groups = Column(JSONB)
     last_check_in = Column(DateTime(timezone=True))
-    stale_timestamp = Column(DateTime(timezone=True))
     reporter = Column(String())
     per_reporter_staleness = Column(JSONB)
 
@@ -133,7 +132,6 @@ def minimal_db_host(empty_strings: bool = False, **fields: Any) -> dict[str, Any
         "modified_on": datetime.now(UTC),
         "last_check_in": datetime.now(UTC),
         "groups": [],
-        "stale_timestamp": datetime.now(UTC),
         "reporter": "" if empty_strings else "iqe-hbi",
         **fields,
     }

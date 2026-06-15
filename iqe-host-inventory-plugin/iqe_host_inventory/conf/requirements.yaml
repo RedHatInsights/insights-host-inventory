@@ -44,11 +44,9 @@ inv-hosts-filter-by-staleness:
   description: >
     I should be able to filter hosts by their staleness status on GET /hosts endpoint via `staleness` parameter.
     Provider parameter has to be a comma separated list of available values (default settings values):
-    - fresh: hosts that have their stale_timestamp set to future
-    - stale: hosts that have their stale_timestamp set to past and stale_warning_timestamp (stale_timestamp + 7 days)
-             set to future
-    - stale_warning: hosts that have their stale_warning_timestamp set to past and
-             culled_timestamp (stale_warning_timestamp + 7 days) set to future
+    - fresh: hosts whose last_check_in is within the org's conventional_time_to_stale window
+    - stale: hosts whose last_check_in is past the stale threshold but within the stale_warning window
+    - stale_warning: hosts whose last_check_in is past the stale_warning threshold but within the culling window
     The precise definitions and durations for "fresh," "stale," and "stale_warning" host staleness are configurable
     and can vary depending on the specific account settings.
   priority: critical
@@ -338,7 +336,6 @@ inv-per-reporter-staleness:
   summary: Store staleness data for each reporter
   description: >
     Inventory should store staleness data for each reporter that updates the host.
-    Global `stale_timestamp` should be set after each update by any reporter.
   priority: high
 
 inv-db-schema:
@@ -654,14 +651,14 @@ inv-staleness-hosts:
   description: >
     Hosts should go through this staleness cycle when they are not updated regularly:
     fresh -> stale -> stale_warning -> culled.
-    Hosts are fresh until their stale_timestamp is older than current datetime.
-    Then they are stale until their stale_warning_timestamp is older than current datetime.
-    Then they are in a stale_warning state until their culled_timestamp is older than current datetime.
+    Hosts are fresh while last_check_in + conventional_time_to_stale is in the future.
+    Then they are stale until last_check_in + conventional_time_to_stale_warning lapses.
+    Then they are in a stale_warning state until last_check_in + conventional_time_to_delete lapses.
     Then they are in a culled state and will be deleted by the next run of host reaper.
-    stale_timestamp is set by the reporter when the host is created and is updated each time the host is updated.
-    Usually, stale_timestamp is set to 28 hours in the future.
-    stale_warning_timestamp is automatically set to stale_timestamp + 7 days.
-    culled_timestamp is automatically set to stale_warning_timestamp + 16 days.
+    API responses expose stale_timestamp, stale_warning_timestamp, and culled_timestamp as derived values.
+    Usually, stale_timestamp is last_check_in + 28 hours.
+    stale_warning_timestamp is last_check_in + 7 days after the stale threshold.
+    culled_timestamp is last_check_in + 30 days (default culling window).
     Culled hosts should not be accessible.
   priority: high
 

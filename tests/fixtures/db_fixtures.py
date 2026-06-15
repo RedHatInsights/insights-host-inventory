@@ -18,6 +18,7 @@ from app.environment import RuntimeEnvironment
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import InventoryView
 from app.models import Staleness
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
@@ -354,3 +355,43 @@ def db_get_dynamic_system_profile(flask_app):  # noqa: ARG001
         ).first()
 
     return _get_dynamic_system_profile
+
+
+@pytest.fixture(scope="function")
+def db_create_view(flask_app):  # noqa: ARG001
+    def _db_create_view(
+        name="Test View",
+        org_id=SYSTEM_IDENTITY["org_id"],
+        created_by="testuser",
+        configuration=None,
+        org_wide=False,
+    ):
+        view = InventoryView(
+            org_id=org_id,
+            name=name,
+            configuration=configuration or {"columns": [{"key": "display_name", "visible": True}]},
+            org_wide=org_wide,
+            created_by=created_by,
+        )
+        db.session.add(view)
+        db.session.commit()
+        return view
+
+    return _db_create_view
+
+
+@pytest.fixture(scope="function")
+def db_create_system_view(flask_app):  # noqa: ARG001
+    def _db_create_system_view(name="Red Hat Default", configuration=None):
+        view = InventoryView(
+            org_id=None,
+            name=name,
+            configuration=configuration or {"columns": [{"key": "display_name", "visible": True}]},
+            org_wide=True,
+            created_by=None,
+        )
+        db.session.add(view)
+        db.session.commit()
+        return view
+
+    return _db_create_system_view

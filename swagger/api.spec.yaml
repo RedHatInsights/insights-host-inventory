@@ -2661,6 +2661,7 @@ components:
     GroupName:
       description: >-
         A group’s human-readable name.
+        Must contain only letters, numbers, spaces, hyphens, and underscores.
       type: string
       nullable: false
       example: sre-group

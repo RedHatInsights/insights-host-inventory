@@ -14,10 +14,12 @@ from app.auth.identity import Identity
 from app.auth.identity import to_auth_header
 from app.config import Config
 from app.models import Group
+from app.models.schemas.mq import GROUP_NAME_VALIDATION_ERROR
 from app.serialization import serialize_rbac_workspace_with_host_count
 from lib.host_repository import get_host_counts_batch
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import GROUP_WRITE_PROHIBITED_RBAC_RESPONSE_FILES
+from tests.helpers.api_utils import INVALID_GROUP_NAMES
 from tests.helpers.api_utils import assert_group_response
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import create_mock_rbac_response
@@ -96,6 +98,37 @@ def test_create_group_invalid_name(api_create_group, new_name):
     response_status, _ = api_create_group(group_data)
 
     assert_response_status(response_status, expected_status=400)
+
+
+@pytest.mark.parametrize("new_name", INVALID_GROUP_NAMES)
+def test_create_group_invalid_characters(api_create_group, new_name):
+    group_data = {"name": new_name, "host_ids": []}
+
+    response_status, response_data = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=400)
+    assert GROUP_NAME_VALIDATION_ERROR in str(response_data["detail"])
+
+
+@pytest.mark.parametrize(
+    "new_name",
+    [
+        "valid-group-name",
+        "Valid Group Name",
+        "group_with_underscores",
+        "Group-With-Hyphens_And_Underscores 123",
+        "123",
+        "a",
+    ],
+)
+def test_create_group_valid_characters(api_create_group, db_get_group_by_name, event_producer, mocker, new_name):
+    mocker.patch.object(event_producer, "write_event")
+    group_data = {"name": new_name, "host_ids": []}
+
+    response_status, _ = api_create_group(group_data)
+
+    assert_response_status(response_status, expected_status=201)
+    assert db_get_group_by_name(new_name)
 
 
 def test_create_group_null_name(api_create_group):
