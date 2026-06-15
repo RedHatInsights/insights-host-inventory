@@ -9,6 +9,7 @@ from sqlalchemy import String
 from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy import type_coerce
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql.expression import ColumnElement
@@ -337,29 +338,161 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter
         return
 
 
+def _build_workloads_containment_filter(column: Column, jsonb_path: tuple[str, ...], value: bool) -> ColumnElement:
+    """Build a JSONB @> containment filter for workloads boolean fields.
+
+    Generates: workloads @> '{"path": {"to": {"field": true}}}'::jsonb
+    This is GIN-indexable, unlike CAST(workloads #>> '{path,to,field}' AS BOOLEAN).
+    """
+    containment_doc: dict = {}
+    current = containment_doc
+    for i, key in enumerate(jsonb_path):
+        if i == len(jsonb_path) - 1:
+            current[key] = value
+        else:
+            current[key] = {}
+            current = current[key]
+
+    return column.op("@>")(type_coerce(containment_doc, JSONB))
+
+
+def _build_workloads_not_nil_boolean_filter(column: Column, jsonb_path: tuple[str, ...]) -> ColumnElement:
+    """Build a 'field is not nil' filter for boolean fields.
+
+    Uses: column @> {...: true} OR column @> {...: false}
+    This tests that the field has ANY boolean value (i.e., it exists and is not null).
+    """
+    return _build_workloads_containment_filter(column, jsonb_path, True) | _build_workloads_containment_filter(
+        column, jsonb_path, False
+    )
+
+
+def _build_workloads_object_presence_filter(
+    column: Column, jsonb_path: tuple[str, ...], negate: bool
+) -> ColumnElement:
+    """Build an object-key existence filter using @> containment with an empty object.
+
+    Generates: workloads @> '{"ansible": {}}'::jsonb  (for not_nil)
+           or: workloads IS NULL OR NOT (workloads @> '{"ansible": {}}'::jsonb)  (for nil)
+
+    The nil case needs the IS NULL fallback because NULL @> anything = NULL,
+    and NOT NULL = NULL (falsy), whereas the old #>> IS NULL correctly matched NULL columns.
+    """
+    containment_doc: dict = {}
+    current = containment_doc
+    for key in jsonb_path:
+        current[key] = {}
+        current = current[key]
+
+    expr = column.op("@>")(type_coerce(containment_doc, JSONB))
+    if negate:
+        return column.is_(None) | ~expr
+    return expr
+
+
+class _WorkloadsLeafInfo:
+    """Normalized leaf information for a workloads filter."""
+
+    __slots__ = ("jsonb_path", "field_filter", "pg_op", "value")
+
+    def __init__(self, jsonb_path: tuple[str, ...], field_filter: str, pg_op, value: str | None):
+        self.jsonb_path = jsonb_path
+        self.field_filter = field_filter
+        self.pg_op = pg_op
+        self.value = value
+
+
+def _extract_workloads_leaf_info(workloads_filter: dict) -> _WorkloadsLeafInfo | None:
+    """Extract normalized leaf info from a canonical workloads filter dict.
+
+    Resolves field type, JSONB path, operator, and value in one pass.
+    Handles value-as-comparator override (e.g. [is]=not_nil).
+    Returns None if the deepest field is not boolean or object.
+    """
+    field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), workloads_filter)
+    if field_filter not in ("boolean", "object"):
+        return None
+
+    _, jsonb_path, pg_op, raw_value = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
+
+    # Handle value-as-comparator override (e.g. [is]=not_nil → pg_op becomes is_not)
+    value: str | None = raw_value
+    if isinstance(raw_value, str) and raw_value in POSTGRES_COMPARATOR_LOOKUP:
+        pg_op = POSTGRES_COMPARATOR_LOOKUP[raw_value]
+        value = None
+    elif isinstance(raw_value, str):
+        value = raw_value.lower()
+
+    return _WorkloadsLeafInfo(jsonb_path=jsonb_path, field_filter=field_filter, pg_op=pg_op, value=value)
+
+
+def _build_workloads_leaf_filter(workloads_filter: dict) -> ColumnElement | None:
+    """Attempt to build an optimized containment filter for a canonical workloads dict.
+
+    Returns a ColumnElement if the filter can be optimized, or None to fall back.
+    """
+    info = _extract_workloads_leaf_info(workloads_filter)
+    if info is None:
+        return None
+
+    col = HostDynamicSystemProfile.workloads
+
+    if info.field_filter == "boolean":
+        if info.value in ("true", "false") and info.pg_op in (
+            ColumnOperators.is_,
+            ColumnOperators.__eq__,
+            None,
+        ):
+            return _build_workloads_containment_filter(col, info.jsonb_path, info.value == "true")
+
+        if info.pg_op == ColumnOperators.is_not or info.value == "not_nil":
+            return _build_workloads_not_nil_boolean_filter(col, info.jsonb_path)
+
+    if info.field_filter == "object":
+        if info.pg_op == ColumnOperators.is_not:
+            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=False)
+        if info.pg_op == ColumnOperators.is_:
+            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=True)
+
+    return None
+
+
+def _normalize_workloads_filter(filter_param: dict) -> dict:
+    """Normalize any workloads filter (legacy or canonical) into canonical form.
+
+    Canonical form: {"workloads": {"sap": {"sap_system": "true"}}}
+    """
+    field_name = next(iter(filter_param.keys()))
+
+    if field_name == "workloads":
+        return filter_param
+
+    if field_name == "sap_system":
+        return {"workloads": {"sap": filter_param}}
+
+    if field_name == "sap_sids":
+        return {"workloads": {"sap": {"sids": filter_param[field_name]}}}
+
+    if field_name in ("sap_instance_number", "sap_version"):
+        inner_name = field_name.replace("sap_", "")
+        return {"workloads": {"sap": {inner_name: filter_param[field_name]}}}
+
+    return {"workloads": filter_param}
+
+
 def _build_workloads_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
-    if field_name not in WORKLOADS_FIELDS:
+    if field_name not in WORKLOADS_FIELDS and field_name != "workloads":
         return build_single_filter(filter_param)
 
-    raw_value = filter_param.get(field_name)
+    workloads_filter = _normalize_workloads_filter(filter_param)
 
-    if field_name == "sap_system":
-        workloads_filter = {"workloads": {"sap": filter_param}}
-        return build_single_filter(workloads_filter)
+    leaf_filter = _build_workloads_leaf_filter(workloads_filter)
+    if leaf_filter is not None:
+        return leaf_filter
 
-    if field_name == "sap_sids":
-        workloads_filter = {"workloads": {"sap": {"sids": raw_value}}}
-        return build_single_filter(workloads_filter)
-
-    if field_name in ("sap_instance_number", "sap_version"):
-        # e.g. sap_version -> workloads.sap.version
-        inner_name = field_name.replace("sap_", "")
-        workloads_filter = {"workloads": {"sap": {inner_name: raw_value}}}
-        return build_single_filter(workloads_filter)
-
-    return build_single_filter({"workloads": filter_param})
+    return build_single_filter(workloads_filter)
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
@@ -423,8 +556,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         field_name = jsonb_path[-1] if jsonb_path else field_name
         _validate_pg_op_and_value(pg_op, value, field_filter, field_name)
 
-        # Use the default comparator for the field type, if not provided
-        if not pg_op or not value:
+        # Use the default comparator for the field type, if not provided.
+        # Skip override when pg_op is already is_/is_not (nil/not_nil comparators set value="").
+        if (not pg_op or not value) and pg_op not in (ColumnOperators.is_, ColumnOperators.is_not):
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
