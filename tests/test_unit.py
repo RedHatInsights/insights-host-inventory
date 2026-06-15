@@ -1706,7 +1706,6 @@ def test_workspace_field_serialization(flask_app):
         host = Host(
             org_id="some org_id",
             subscription_manager_id=generate_uuid(),
-            stale_timestamp=now(),
             reporter="puptoo",
             groups=group_data,
         )
@@ -1728,7 +1727,6 @@ def test_workspace_field_serialization(flask_app):
         empty_host = Host(
             org_id="some org_id",
             subscription_manager_id=generate_uuid(),
-            stale_timestamp=now(),
             reporter="puptoo",
             groups=[],
         )
@@ -1740,6 +1738,14 @@ def test_workspace_field_serialization(flask_app):
         actual_empty = serialize_host(empty_host, staleness, False)
         assert actual_empty["workspace"] is None
         assert actual_empty["groups"] == []
+
+        actual_empty_mq = serialize_host(empty_host, staleness, True)
+        assert actual_empty_mq["workspace"] is None
+        assert actual_empty_mq["groups"] == []
+
+        actual_empty_mq = serialize_host(empty_host, staleness, True)
+        assert actual_empty_mq["workspace"] is None
+        assert actual_empty_mq["groups"] == []
 
 
 def test_with_only_required_fields_serialization_serialize_host_compound(subtests, flask_app):
