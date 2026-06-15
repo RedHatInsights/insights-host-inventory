@@ -11,7 +11,7 @@ This migration:
 4. Drops the old 142GB GIN index on per_reporter_staleness
 
 Revision ID: a1b2c3d4e5f7
-Revises: e8f9a0b1c2d3
+Revises: f9a0b1c2d3e4
 Create Date: 2026-06-08 17:30:00.000000
 
 """
@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = "a1b2c3d4e5f7"
-down_revision = "e8f9a0b1c2d3"
+down_revision = "f9a0b1c2d3e4"
 branch_labels = None
 depends_on = None
 
