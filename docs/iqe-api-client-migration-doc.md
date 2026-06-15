@@ -9,6 +9,10 @@ The IQE test suite depends on auto-generated OpenAPI bindings (`iqe apigen` / `o
 3. **Tight coupling to spec format** — generated method names like `api_group_get_group_list` are derived from operationIds. Renaming an operationId (which we just did for [V2 workspaces](https://github.com/RedHatInsights/insights-host-inventory/blob/v2-api/swagger/api_v2.spec.yaml)) breaks all call sites
 4. **V2 blocker** — the V2 API spec introduces new endpoints and renames. Regenerating bindings for V2 perpetuates all the above problems. Better to migrate now
 
+### Solution
+
+Replace the auto-generated apigen bindings with a lightweight `BaseAPIWrapper` that uses IQE's built-in `app.http_client` (`RobustSession`) for direct HTTP calls, with a version-aware URL helper so wrappers only specify resource paths (e.g., `/workspaces`). V2 endpoints migrate first as a proof of concept; V1 endpoints remain on apigen until cross-team coordination is complete.
+
 ### Architecture (Current → Target)
 
 **Current:**
