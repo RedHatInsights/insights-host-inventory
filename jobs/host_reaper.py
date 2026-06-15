@@ -90,20 +90,22 @@ def run(config, logger, session, event_producer, notification_event_producer, sh
         while hosts_processed == config.host_delete_chunk_size:
             logger.info(f"Reaper starting batch; {deletions_remaining} remaining.")
             try:
-                events = delete_hosts(
-                    query,
-                    event_producer,
-                    notification_event_producer,
-                    config.host_delete_chunk_size,
-                    shutdown_handler.shut_down,
-                    control_rule="REAPER",
+                hosts_processed = sum(
+                    1
+                    for _ in delete_hosts(
+                        query,
+                        event_producer,
+                        notification_event_producer,
+                        config.host_delete_chunk_size,
+                        shutdown_handler.shut_down,
+                        control_rule="REAPER",
+                    )
                 )
-                hosts_processed = len(list(events))
             except InterruptedError:
-                events = []
                 hosts_processed = 0
 
             deletions_remaining -= hosts_processed
+            session.expunge_all()
 
 
 if __name__ == "__main__":
