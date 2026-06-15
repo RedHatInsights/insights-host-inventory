@@ -81,7 +81,6 @@ DEFAULT_COLUMNS = [
     Host.facts,
     Host.reporter,
     Host.per_reporter_staleness,
-    Host.stale_timestamp,
     Host.created_on,
     Host.modified_on,
     Host.groups,
@@ -811,9 +810,9 @@ def get_sparse_system_profile(
 
     all_filters = host_id_list_filter(host_id_list, identity.org_id) + rbac_permissions_filter(rbac_filter)
 
-    query_base = (
-        db.session.query(Host).outerjoin(HostGroupAssoc).outerjoin(Group).filter(Host.org_id == identity.org_id)
-    )
+    query_base = db.session.query(Host).filter(Host.org_id == identity.org_id)
+    if rbac_filter and "groups" in rbac_filter:
+        query_base = query_base.outerjoin(HostGroupAssoc).outerjoin(Group)
     if needs_static_join:
         query_base = query_base.outerjoin(HostStaticSystemProfile)
     if needs_dynamic_join:

@@ -985,22 +985,6 @@ def test_add_host_with_operating_system_incorrect_format(mocker, mq_create_or_up
         mock_notification_event_producer.write_event.assert_called()
 
 
-@pytest.mark.parametrize("stale_timestamp", ("invalid", datetime.now().isoformat()))
-def test_add_host_with_invalid_stale_timestamp(stale_timestamp, mocker, mq_create_or_update_host):
-    mock_notification_event_producer = mocker.Mock()
-    insights_id = generate_uuid()
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=insights_id,
-        stale_timestamp=stale_timestamp,
-        system_profile={"owner_id": OWNER_ID},
-    )
-
-    with pytest.raises(ValidationException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
 @pytest.mark.xfail(
     reason="Legacy workloads backward compatibility fields (sap_sids, etc.) not yet normalized. "
     "Will be fixed by PR #3108: https://github.com/RedHatInsights/insights-host-inventory/pull/3108"
@@ -1582,42 +1566,6 @@ def test_delete_host_tags(mq_create_or_update_host, db_get_host_by_insights_id, 
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_stale_timestamp(mq_create_or_update_host):
-    """
-    Tests to see if the host is successfully created with both reporter
-    and stale_timestamp set.
-    """
-    expected_insights_id = generate_uuid()
-    stale_timestamp = now()
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        stale_timestamp=stale_timestamp.isoformat(),
-    )
-
-    host_keys_to_check = ["reporter", "stale_timestamp", "culled_timestamp"]
-
-    key, event, _ = mq_create_or_update_host(host, return_all_data=True)
-    updated_timestamp = datetime.fromisoformat(event["host"]["last_check_in"])
-
-    host.stale_timestamp = (updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)).isoformat()
-    expected_results = {
-        "host": {
-            **host.data(),
-            "stale_warning_timestamp": (
-                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS)
-            ).isoformat(),
-            "culled_timestamp": (
-                updated_timestamp + timedelta(seconds=CONVENTIONAL_TIME_TO_DELETE_SECONDS)
-            ).isoformat(),
-        }
-    }
-
-    assert_mq_host_data(key, event, expected_results, host_keys_to_check)
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_without_stale_timestamp(mq_create_or_update_host):
     """
     Tests to see if the host is successfully created without stale_timestamp.
@@ -1694,29 +1642,6 @@ def test_add_host_missing_reporter_field(mocker, mq_create_or_update_host):
     mock_notification_event_producer = mocker.Mock()
     host = minimal_host(account=SYSTEM_IDENTITY["account_number"])
     delattr(host, field_to_remove)
-
-    with pytest.raises(InventoryException):
-        mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
-    mock_notification_event_producer.write_event.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "additional_data",
-    (
-        {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": ""},
-        {"stale_timestamp": "2019-12-16T10:10:06.754201+00:00", "reporter": None},
-        {"stale_timestamp": "not a timestamp", "reporter": "puptoo"},
-        {"stale_timestamp": "", "reporter": "puptoo"},
-        {"stale_timestamp": None, "reporter": "puptoo"},
-    ),
-)
-def test_add_host_stale_timestamp_invalid_culling_fields(mocker, additional_data, mq_create_or_update_host):
-    """
-    tests to check the API will reject a host if it doesn’t have both
-    culling fields. This should raise InventoryException.
-    """
-    mock_notification_event_producer = mocker.Mock()
-    host = minimal_host(account=SYSTEM_IDENTITY["account_number"], **additional_data)
 
     with pytest.raises(InventoryException):
         mq_create_or_update_host(host, notification_event_producer=mock_notification_event_producer)
@@ -1892,7 +1817,6 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
             "workloads": {"crowdstrike": {"falcon_version": "7.2.2"}},
         },
     )
-    input_host.stale_timestamp = None
     input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
     second_host_from_db = db_get_host(second_host_from_event.id)
@@ -2527,7 +2451,6 @@ def test_log_update_system_profile(mq_create_or_update_host, db_get_host, id_typ
     input_host = base_host(
         **{id_type: expected_ids[id_type]}, system_profile={"number_of_cpus": 4, "number_of_sockets": 8}
     )
-    input_host.stale_timestamp = None
     input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
     second_host_from_db = db_get_host(second_host_from_event.id)
@@ -3164,7 +3087,6 @@ def test_update_system_profile_bios_fields(mq_create_or_update_host, db_get_host
             "bios_version": "1.23",
         },
     )
-    input_host.stale_timestamp = None
     input_host.reporter = None
     second_host_from_event = mq_create_or_update_host(input_host, consumer_class=SystemProfileMessageConsumer)
     second_host_from_db = db_get_host(second_host_from_event.id)

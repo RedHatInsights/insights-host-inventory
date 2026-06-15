@@ -28,8 +28,21 @@ class RequiredHostIdListSchema(HostIdListSchema):
         super().validate_host_ids(host_ids, data_key)
 
 
+# Keep in sync with the GroupName description in swagger/api.spec.yaml
+GROUP_NAME_PATTERN = r"^[a-zA-Z0-9 _-]+$"
+GROUP_NAME_VALIDATION_ERROR = "Group name must contain only letters, numbers, spaces, hyphens, and underscores."
+
+
 class InputGroupSchema(HostIdListSchema):
-    name = fields.Str(validate=marshmallow_validate.Length(min=1, max=255))
+    name = fields.Str(
+        validate=marshmallow_validate.And(
+            marshmallow_validate.Length(min=1, max=255),
+            marshmallow_validate.Regexp(
+                GROUP_NAME_PATTERN,
+                error=GROUP_NAME_VALIDATION_ERROR,
+            ),
+        )
+    )
 
     @pre_load
     def strip_whitespace_from_name(self, in_data, **kwargs):

@@ -1,8 +1,11 @@
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.serialization import serialize_host
+from app.telemetry import get_tracer
 
 __all__ = ("build_paginated_host_list_response",)
+
+tracer = get_tracer(__name__)
 
 
 def build_paginated_host_list_response(
@@ -13,9 +16,10 @@ def build_paginated_host_list_response(
 
     json_host_list = host_list
     if serialize_hosts:
-        json_host_list = [
-            serialize_host(host, staleness, False, additional_fields, system_profile_fields) for host in host_list
-        ]
+        with tracer.start_as_current_span("serialize_host_list", attributes={"host_count": len(host_list)}):
+            json_host_list = [
+                serialize_host(host, staleness, False, additional_fields, system_profile_fields) for host in host_list
+            ]
     return {
         "total": total,
         "count": len(json_host_list),

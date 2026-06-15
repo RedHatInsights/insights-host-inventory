@@ -40,6 +40,18 @@ HOST_EXISTS_URL = f"{BASE_URL}/host_exists"
 HOST_VIEW_URL = f"{BASE_URL}/beta/hosts-view"
 LEGACY_HOST_URL = f"{LEGACY_BASE_URL}/hosts"
 GROUP_URL = f"{BASE_URL}/groups"
+INVALID_GROUP_NAMES = [
+    "test!group",
+    "test@group",
+    "test#group",
+    "test$group",
+    "name/with/slashes",
+    "name.with.dots",
+    "name+plus",
+    "name&ampersand",
+    "name(parens)",
+    "name<angle>",
+]
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
@@ -763,13 +775,8 @@ def create_host_with_reporter(
     db_create_host: Callable[..., Host],
     reporter: str,
     last_check_in: datetime,
-    stale_timestamp: datetime | None = None,
 ) -> Host:
-    """Create a host with flat PRS (ISO string per reporter) and a coherent host-level ``stale_timestamp``.
-
-    If ``stale_timestamp`` is omitted, it defaults to ``last_check_in`` plus
-    ``CONVENTIONAL_TIME_TO_STALE_SECONDS`` (global default culling offset).
-    """
+    """Create a host with flat PRS (ISO string per reporter) and ``last_check_in`` set."""
     host = db_create_host(
         extra_data={
             "reporter": reporter,
@@ -779,10 +786,6 @@ def create_host_with_reporter(
         },
     )
     host.last_check_in = last_check_in
-    if stale_timestamp is not None:
-        host.stale_timestamp = stale_timestamp
-    else:
-        host.stale_timestamp = last_check_in + timedelta(seconds=CONVENTIONAL_TIME_TO_STALE_SECONDS)
     db.session.commit()
     return host
 
