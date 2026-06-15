@@ -89,7 +89,7 @@ def get_groups_response(self, *, name=None, per_page=None, page=None,
 
 ### Future: Migrating V1 endpoints to the new wrapper
 
-The `BaseAPIWrapper` is version-aware — it accepts the API version as a parameter, so V1 wrappers can use it by passing `BASE_PATH = "/api/inventory/v1"`. The base class is ready for V1 migration today.
+The `BaseAPIWrapper` is version-aware — it accepts the API version as a parameter, so V1 wrappers can use it by passing `api_version="v1"`. The base class is ready for V1 migration today.
 
 However, **do not migrate V1 endpoints without first coordinating with other IQE plugin teams**. Other plugins depend on the current auto-generated model objects returned by V1 wrappers. Migrating V1 wrappers to return plain dicts would break those plugins. V1 migration requires a coordinated effort across teams to update all callers.
 
