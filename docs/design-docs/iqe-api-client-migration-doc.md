@@ -1,4 +1,4 @@
-## Epic: IQE API Client Migration — Apigen to Direct Requests
+## IQE API Client Migration: Apigen to app.http_client
 
 ### Problem
 
@@ -14,7 +14,7 @@ The IQE test suite depends on auto-generated OpenAPI bindings (`iqe apigen` / `o
 **Current:**
 ```
 Test → Wrapper (GroupsAPIWrapper) → Apigen (GroupsApi) → ApiClient → urllib3
-                                     ↑ ~500KB generated code
+                                     ↑ ~3.7MB generated code
 ```
 
 **Target:**
