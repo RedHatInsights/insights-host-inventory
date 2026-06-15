@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import urllib.parse
 from collections.abc import Callable
 
 from sqlalchemy import Boolean
@@ -37,6 +39,50 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
         raise ValidationException(f"'' is an invalid value for field {column.name}")
 
     return target_field.cast(String)
+
+
+def _escape_wildcard_value(value: str) -> str:
+    """
+    Properly handle wildcard escaping for ILIKE operations.
+
+    URL-encoded asterisks (%2A) and backslashes (%5C) should be treated as literal characters,
+    while unencoded asterisks (*) should remain as wildcards (%).
+
+    Args:
+        value: The filter value that may contain wildcards or URL-encoded literals
+
+    Returns:
+        The value with proper SQL escaping for ILIKE operations
+    """
+    logger.info(f"_escape_wildcard_value called with: {value}")
+
+    # Strategy: Process the string step by step, replacing URL-encoded sequences
+    # with placeholders, then processing unencoded wildcards, then restoring literals
+
+    # Use unique placeholders that won't conflict with real data
+    LITERAL_ASTERISK_PLACEHOLDER = "___LITERAL_ASTERISK___"
+    LITERAL_BACKSLASH_PLACEHOLDER = "___LITERAL_BACKSLASH___"
+
+    # Step 1: Replace URL-encoded asterisks and backslashes with placeholders
+    result = value
+    result = re.sub(r"%2[Aa]", LITERAL_ASTERISK_PLACEHOLDER, result)
+    result = re.sub(r"%5[Cc]", LITERAL_BACKSLASH_PLACEHOLDER, result)
+    logger.info(f"After placeholder replacement: {result}")
+
+    # Step 2: URL-decode the rest (this handles other encoded characters)
+    result = urllib.parse.unquote(result)
+    logger.info(f"After URL decode: {result}")
+
+    # Step 3: Convert unencoded asterisks to SQL wildcards
+    result = result.replace("*", "%")
+    logger.info(f"After wildcard conversion: {result}")
+
+    # Step 4: Restore literal characters with proper SQL escaping
+    result = result.replace(LITERAL_ASTERISK_PLACEHOLDER, "\\*")
+    result = result.replace(LITERAL_BACKSLASH_PLACEHOLDER, "\\\\")
+    logger.info(f"Final result: {result}")
+
+    return result
 
 
 # Utility class to facilitate OS filter comparison
@@ -427,9 +473,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if not pg_op or not value:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, properly escape literals vs wildcards)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _escape_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
