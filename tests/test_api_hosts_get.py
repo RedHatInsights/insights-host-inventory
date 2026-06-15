@@ -2934,7 +2934,7 @@ def test_no_hosts_in_org(api_get):
     assert response_data["count"] == response_data["total"] == 0
 
 
-def test_basic_wildcard_functionality(db_create_host, api_get):
+def test_wildcard_functionality_basic(db_create_host, api_get):
     """Test basic wildcard functionality in system profile filters."""
     # Create hosts with different versions
     host1_id = str(db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1"}}).id)
