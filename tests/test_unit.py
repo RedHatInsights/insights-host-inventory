@@ -1743,10 +1743,6 @@ def test_workspace_field_serialization(flask_app):
         assert actual_empty_mq["workspace"] is None
         assert actual_empty_mq["groups"] == []
 
-        actual_empty_mq = serialize_host(empty_host, staleness, True)
-        assert actual_empty_mq["workspace"] is None
-        assert actual_empty_mq["groups"] == []
-
 
 def test_with_only_required_fields_serialization_serialize_host_compound(subtests, flask_app):
     with flask_app.app.app_context():
