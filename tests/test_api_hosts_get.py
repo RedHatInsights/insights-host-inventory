@@ -2929,3 +2929,126 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+@pytest.mark.parametrize(
+    "field_name,field_value,search_pattern,should_match",
+    [
+        # Test literal asterisk matching with backslash escaping
+        ("insights_client_version", "3.0.*-2.el8", "3.0.\\*-2.el8", True),
+        ("insights_client_version", "3.0.1-2.el8", "3.0.\\*-2.el8", False),
+        ("insights_client_version", "3.0.*-2.el8", "3.0.*-2.el8", True),  # Wildcard still works
+        ("insights_client_version", "3.0.1-2.el8", "3.0.*-2.el8", True),  # Wildcard still works
+        # Test with bios_release_date field
+        ("bios_release_date", "2021-*-15", "2021-\\*-15", True),
+        ("bios_release_date", "2021-01-15", "2021-\\*-15", False),
+        ("bios_release_date", "2021-*-15", "2021-*-15", True),  # Wildcard still works
+        ("bios_release_date", "2021-01-15", "2021-*-15", True),  # Wildcard still works
+        # Test with os_release field (supports wildcards)
+        ("os_release", "RHEL-*", "RHEL-\\*", True),
+        ("os_release", "RHEL-8.5", "RHEL-\\*", False),
+        ("os_release", "RHEL-*", "RHEL-*", True),  # Wildcard still works
+        ("os_release", "RHEL-8.5", "RHEL-*", True),  # Wildcard still works
+        # Test mixed scenarios with both literal and wildcard asterisks
+        ("insights_client_version", "3.0.*-2.el8_*", "3.0.\\*-2.el8_*", True),
+        ("insights_client_version", "3.0.1-2.el8_4", "3.0.\\*-2.el8_*", False),  # First * is literal, second is wildcard
+        ("insights_client_version", "3.0.*-2.el8_4", "3.0.\\*-2.el8_*", True),  # First * is literal, second is wildcard
+    ],
+)
+
+
+def test_system_profile_wildcard_asterisk_escaping(
+    db_create_host, api_get, field_name, field_value, search_pattern, should_match
+):
+    """Test that backslash-escaped asterisks are treated as literal characters in wildcard-enabled fields."""
+
+    # Create system profile data
+    sp_data = {"system_profile_facts": {field_name: field_value}}
+
+    # Create host with the test data
+    host_id = str(db_create_host(extra_data=sp_data).id)
+
+    # Create a non-matching host for comparison
+    nomatch_sp_data = {"system_profile_facts": {field_name: "completely_different_value"}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Query with the search pattern
+    url = build_hosts_url(query=f"?filter[system_profile][{field_name}]={search_pattern}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    if should_match:
+        assert host_id in response_ids, (
+            f"Host with {field_name}='{field_value}' should match pattern '{search_pattern}'"
+        )
+        assert nomatch_host_id not in response_ids
+    else:
+        assert host_id not in response_ids, (
+            f"Host with {field_name}='{field_value}' should NOT match pattern '{search_pattern}'"
+        )
+        assert nomatch_host_id not in response_ids
+
+
+
+
+def test_system_profile_wildcard_url_encoding_asterisk(db_create_host, api_get):
+    """Test that URL-encoded asterisk (%2A) is treated as literal when part of escaped sequence (%5C%2A)."""
+
+    # Create host with literal asterisk in insights_client_version
+    sp_data = {"system_profile_facts": {"insights_client_version": "3.0.*-2.el8"}}
+    host_id = str(db_create_host(extra_data=sp_data).id)
+
+    # Create host with numeric version (should not match literal asterisk search)
+    nomatch_sp_data = {"system_profile_facts": {"insights_client_version": "3.0.1-2.el8"}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Test URL-encoded backslash-asterisk sequence (%5C%2A)
+    # This should be decoded to \* and then treated as literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%5C%2A-2.el8")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert host_id in response_ids, "Host with literal asterisk should match URL-encoded escaped asterisk"
+    assert nomatch_host_id not in response_ids, "Host with numeric version should not match literal asterisk search"
+
+
+
+
+def test_system_profile_wildcard_nested_field_escaping(db_create_host, api_get):
+    """Test asterisk escaping in nested fields like bootc image and mssql version."""
+
+    # Test bootc image field
+    bootc_sp_data = {"system_profile_facts": {"bootc_status": {"booted": {"image": "quay.io/test*image:latest"}}}}
+    bootc_host_id = str(db_create_host(extra_data=bootc_sp_data).id)
+
+    # Test literal asterisk search in bootc image
+    url = build_hosts_url(query="?filter[system_profile][bootc_status][booted][image]=quay.io/test\\*image:latest")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert bootc_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search in nested field"
+
+    # Test mssql version field
+    mssql_sp_data = {"system_profile_facts": {"workloads": {"mssql": {"version": "15.*"}}}}
+    mssql_host_id = str(db_create_host(extra_data=mssql_sp_data).id)
+
+    # Test literal asterisk search in mssql version
+    url = build_hosts_url(query="?filter[system_profile][workloads][mssql][version]=15.\\*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search in mssql version"
+
+    # Test legacy field access
+    url = build_hosts_url(query="?filter[system_profile][mssql][version]=15.\\*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search via legacy access"
