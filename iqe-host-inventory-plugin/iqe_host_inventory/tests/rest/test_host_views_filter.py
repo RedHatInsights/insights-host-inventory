@@ -205,7 +205,7 @@ class TestVulnerability:
         _int_filter_params([
             "total_cves",
             "critical_cves",
-            "high_severity_cves",
+            "important_cves",
             "cves_with_security_rules",
             "cves_with_known_exploits",
         ]),
@@ -249,7 +249,7 @@ class TestVulnerability:
         _nil_filter_params([
             ("total_cves", 1),
             ("critical_cves", 1),
-            ("high_severity_cves", 1),
+            ("important_cves", 1),
             ("cves_with_security_rules", 1),
             ("cves_with_known_exploits", 1),
         ]),

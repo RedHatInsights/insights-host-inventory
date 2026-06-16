@@ -1403,7 +1403,7 @@ HOST_APPS_: list[dict[str, Any]] = [
         "fields": (
             HostAppField("total_cves", "int", 50),
             HostAppField("critical_cves", "int", 5),
-            HostAppField("high_severity_cves", "int", 10),
+            HostAppField("important_cves", "int", 10),
             HostAppField("cves_with_security_rules", "int", 8),
             HostAppField("cves_with_known_exploits", "int", 3),
         ),
