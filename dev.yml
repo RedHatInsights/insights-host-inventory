@@ -226,6 +226,7 @@ services:
           condition: service_healthy
       volumes:
         - .:/opt/app-root/src
+        - /opt/app-root/src/.venv
       command: python3 dev_server.py
       security_opt:
         - label=disable
@@ -261,6 +262,7 @@ services:
           condition: service_healthy
       volumes:
         - .:/opt/app-root/src
+        - /opt/app-root/src/.venv
       command: python3 inv_mq_service.py
       security_opt:
         - label=disable
