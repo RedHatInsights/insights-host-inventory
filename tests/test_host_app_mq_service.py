@@ -457,7 +457,7 @@ class TestHostAppDataValidation:
         vuln_data = {
             "total_cves": 50,
             "critical_cves": 5,
-            "high_severity_cves": 10,
+            "important_cves": 10,
             "cves_with_security_rules": 8,
             "cves_with_known_exploits": 3,
         }
