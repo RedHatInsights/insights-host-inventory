@@ -203,15 +203,505 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     assert response_data["results"][0]["id"] == different_org_host_id
 
 
-@pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-def test_delete_hosts_filter_last_check_in_both_same(db_create_host, db_get_host, api_delete_filtered_hosts):
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_display_name(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_name = "delete-me-display"
+    match_ids = [str(db_create_host(extra_data={"display_name": target_name}).id) for _ in range(3)]
+    nomatch_ids = [str(db_create_host(extra_data={"display_name": "keep-me"}).id) for _ in range(2)]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"display_name": target_name})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 3
+    assert response_data["hosts_deleted"] == 3
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_fqdn(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_fqdn = "delete-me.example.com"
+    match_ids = [str(db_create_host(extra_data={"fqdn": target_fqdn}).id) for _ in range(3)]
+    nomatch_ids = [
+        str(db_create_host(extra_data={"fqdn": "keep-me.example.com"}).id),
+        str(db_create_host().id),
+    ]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"fqdn": target_fqdn})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 3
+    assert response_data["hosts_deleted"] == 3
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_hostname_or_id_display_name(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_name = "hostname-or-id-target"
+    match_id = str(db_create_host(extra_data={"display_name": target_name}).id)
+    nomatch_id = str(db_create_host(extra_data={"display_name": "other-name"}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"hostname_or_id": target_name})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_hostname_or_id_fqdn(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_fqdn = "hostname-or-id.example.com"
+    match_id = str(db_create_host(extra_data={"fqdn": target_fqdn}).id)
+    nomatch_id = str(db_create_host(extra_data={"fqdn": "other.example.com"}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"hostname_or_id": target_fqdn})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_hostname_or_id_uuid(db_create_host, db_get_host, api_delete_filtered_hosts):
+    host = db_create_host()
+    match_id = str(host.id)
+    nomatch_id = str(db_create_host().id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"hostname_or_id": match_id})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_insights_id(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_insights_id = generate_uuid()
+    match_id = str(db_create_host(extra_data={"insights_id": target_insights_id}).id)
+    nomatch_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"insights_id": target_insights_id})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_provider_id(db_create_host, db_get_host, api_delete_filtered_hosts):
+    target_provider_id = generate_uuid()
+    match_id = str(db_create_host(extra_data={"provider_id": target_provider_id, "provider_type": "aws"}).id)
+    nomatch_id = str(db_create_host(extra_data={"provider_id": generate_uuid(), "provider_type": "aws"}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"provider_id": target_provider_id})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_provider_type(db_create_host, db_get_host, api_delete_filtered_hosts):
+    match_ids = [
+        str(db_create_host(extra_data={"provider_type": "ibm", "provider_id": generate_uuid()}).id) for _ in range(3)
+    ]
+    nomatch_ids = [
+        str(db_create_host(extra_data={"provider_type": "aws", "provider_id": generate_uuid()}).id),
+        str(db_create_host().id),
+    ]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"provider_type": "ibm"})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 3
+    assert response_data["hosts_deleted"] == 3
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_tags(db_create_host, db_get_host, api_delete_filtered_hosts):
+    match_ids = [
+        str(db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}}}).id),
+        str(db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}, "ns2": {"k": ["v"]}}}).id),
+    ]
+    nomatch_ids = [
+        str(db_create_host(extra_data={"tags": {"ns2": {"key2": ["val2"]}}}).id),
+        str(db_create_host().id),
+    ]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"tags": "ns1/key1=val1"})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 2
+    assert response_data["hosts_deleted"] == 2
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_tags_multiple(db_create_host, db_get_host, api_delete_filtered_hosts):
+    # Multiple tags use OR logic - any host with at least one of the tags matches
+    tag1 = {"ns1": {"key1": ["val1"]}}
+    tag2 = {"ns2": {"key2": ["val2"]}}
+    both_tags = {"ns1": {"key1": ["val1"]}, "ns2": {"key2": ["val2"]}}
+    other_tag = {"ns3": {"key3": ["val3"]}}
+
+    # All these have at least one of the target tags
+    match_ids = [
+        str(db_create_host(extra_data={"tags": both_tags}).id),
+        str(db_create_host(extra_data={"tags": tag1}).id),
+        str(db_create_host(extra_data={"tags": tag2}).id),
+        str(db_create_host(extra_data={"tags": {**both_tags, "ns3": {"k": ["v"]}}}).id),
+    ]
+    # This one has neither tag
+    nomatch_id = str(db_create_host(extra_data={"tags": other_tag}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"tags": ["ns1/key1=val1", "ns2/key2=val2"]}
+    )
+    assert response_status == 202
+    assert response_data["hosts_found"] == 4
+    assert response_data["hosts_deleted"] == 4
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_group_name(
+    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
+):
+    host_in_group = db_create_host()
+    host_in_other_group = db_create_host()
+    host_ungrouped = db_create_host()
+
+    group = db_create_group("target-group")
+    other_group = db_create_group("other-group")
+    db_create_host_group_assoc(host_in_group.id, group.id)
+    db_create_host_group_assoc(host_in_other_group.id, other_group.id)
+
+    match_id = str(host_in_group.id)
+    nomatch_ids = [str(host_in_other_group.id), str(host_ungrouped.id)]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"group_name": group.name})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(match_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_group_name_case_insensitive(
+    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
+):
+    host = db_create_host()
+    group = db_create_group("My-Group")
+    db_create_host_group_assoc(host.id, group.id)
+    host_id = str(host.id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"group_name": "MY-GROUP"})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] == 1
+    assert not db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_group_name_empty(
+    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
+):
+    grouped_host = db_create_host()
+    ungrouped_host = db_create_host()
+    group = db_create_group("some-group")
+    db_create_host_group_assoc(grouped_host.id, group.id)
+
+    grouped_id = str(grouped_host.id)
+    ungrouped_id = str(ungrouped_host.id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"group_name": ""})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert not db_get_host(ungrouped_id)
+    assert db_get_host(grouped_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_group_name_multiple(
+    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
+):
+    host1 = db_create_host()
+    host2 = db_create_host()
+    host3 = db_create_host()
+    host_other = db_create_host()
+
+    group1 = db_create_group("group-one")
+    group2 = db_create_group("group-two")
+    other_group = db_create_group("group-other")
+    db_create_host_group_assoc(host1.id, group1.id)
+    db_create_host_group_assoc(host2.id, group2.id)
+    db_create_host_group_assoc(host3.id, group2.id)
+    db_create_host_group_assoc(host_other.id, other_group.id)
+
+    match_ids = [str(host1.id), str(host2.id), str(host3.id)]
+    nomatch_id = str(host_other.id)
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"group_name": [group1.name, group2.name]}
+    )
+    assert response_status == 202
+    assert response_data["hosts_found"] == 3
+    assert response_data["hosts_deleted"] == 3
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_group_id(
+    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
+):
+    host_in_group = db_create_host()
+    host_other = db_create_host()
+
+    group = db_create_group("id-group")
+    other_group = db_create_group("other-id-group")
+    db_create_host_group_assoc(host_in_group.id, group.id)
+    db_create_host_group_assoc(host_other.id, other_group.id)
+
+    match_id = str(host_in_group.id)
+    nomatch_id = str(host_other.id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"group_id": str(group.id)})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 1
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(match_id)
+    assert db_get_host(nomatch_id)
+
+
+def test_delete_bulk_group_name_and_group_id_conflict(db_create_group, api_delete_filtered_hosts):
+    group = db_create_group("conflict-group")
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"workspace_name": group.name, "workspace_id": str(group.id)}
+    )
+    assert response_status == 400
+    assert "Cannot use both" in response_data["detail"]
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_registered_with_negative(db_create_host, db_get_host, api_delete_filtered_hosts):
+    satellite_id = str(db_create_host(extra_data={"reporter": "satellite"}).id)
+    puptoo_id = str(db_create_host(extra_data={"reporter": "puptoo"}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"registered_with": "!satellite"})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert db_get_host(satellite_id)
+    assert not db_get_host(puptoo_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_registered_with_old_insights(db_create_host, db_get_host, api_delete_filtered_hosts):
+    insights_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
+    no_insights_host_id = str(
+        db_create_host(
+            extra_data={
+                "insights_id": None,
+                "subscription_manager_id": generate_uuid(),
+            }
+        ).id
+    )
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"registered_with": "insights"})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert not db_get_host(insights_host_id)
+    assert db_get_host(no_insights_host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_filter_operating_system(db_create_host, db_get_host, api_delete_filtered_hosts):
+    match_ids = [
+        str(
+            db_create_host(
+                extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "8", "minor": "4"}}}
+            ).id
+        )
+        for _ in range(2)
+    ]
+    nomatch_ids = [
+        str(
+            db_create_host(
+                extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "7", "minor": "4"}}}
+            ).id
+        ),
+        str(
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {"operating_system": {"name": "CentOS", "major": "7", "minor": "4"}}
+                }
+            ).id
+        ),
+        str(db_create_host().id),
+    ]
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"filter[system_profile][operating_system][RHEL][version][eq][]": "8.4"}
+    )
+    assert response_status == 202
+    assert response_data["hosts_found"] == 2
+    assert response_data["hosts_deleted"] == 2
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_by_filter_operating_system_multiple(db_create_host, db_get_host, api_delete_filtered_hosts):
+    match_84_id = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "8", "minor": "4"}}}
+        ).id
+    )
+    match_83_id = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "8", "minor": "3"}}}
+        ).id
+    )
+    nomatch_id = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "7", "minor": "4"}}}
+        ).id
+    )
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={"filter[system_profile][operating_system][RHEL][version][eq][]": ["8.4", "8.3"]}
+    )
+    assert response_status == 202
+    assert response_data["hosts_found"] == 2
+    assert response_data["hosts_deleted"] == 2
+
+    assert not db_get_host(match_84_id)
+    assert not db_get_host(match_83_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_bulk_timestamp_start(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+    host_before = db_create_host()
+    host_before_id = str(host_before.id)
+
+    host_after_1 = db_create_host()
+    host_after_1_id = str(host_after_1.id)
+    attr = "modified_on" if param_prefix == "updated" else "last_check_in"
+    time_filter = str(getattr(host_after_1, attr))
+
+    db_create_host()  # Additional host after the filter timestamp
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={f"{param_prefix}_start": time_filter})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert db_get_host(host_before_id)
+    assert not db_get_host(host_after_1_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_bulk_timestamp_end(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+    host_before_1 = db_create_host()
+    host_before_1_id = str(host_before_1.id)
+
+    host_before_2 = db_create_host()
+    attr = "modified_on" if param_prefix == "updated" else "last_check_in"
+    time_filter = str(getattr(host_before_2, attr))
+
+    host_after = db_create_host()
+    host_after_id = str(host_after.id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={f"{param_prefix}_end": time_filter})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert not db_get_host(host_before_1_id)
+    assert db_get_host(host_after_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_bulk_timestamp_range(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+    host_before = db_create_host()
+    host_before_id = str(host_before.id)
+
+    host_in_range_1 = db_create_host()
+    host_in_range_1_id = str(host_in_range_1.id)
+    attr = "modified_on" if param_prefix == "updated" else "last_check_in"
+    time_start = str(getattr(host_in_range_1, attr))
+
+    host_in_range_2 = db_create_host()
+    time_end = str(getattr(host_in_range_2, attr))
+
+    host_after = db_create_host()
+    host_after_id = str(host_after.id)
+
+    response_status, response_data = api_delete_filtered_hosts(
+        query_parameters={
+            f"{param_prefix}_start": time_start,
+            f"{param_prefix}_end": time_end,
+        }
+    )
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 1
+
+    assert db_get_host(host_before_id)
+    assert not db_get_host(host_in_range_1_id)
+    assert db_get_host(host_after_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_bulk_timestamp_both_same(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
     match_host = db_create_host()
     match_host_id = str(match_host.id)
-    nomatch_host_id = str(db_create_host().id)
-    response_status, _ = api_delete_filtered_hosts(
+    attr = "modified_on" if param_prefix == "updated" else "last_check_in"
+    time_filter = str(getattr(match_host, attr))
+
+    nomatch_host = db_create_host()
+    nomatch_host_id = str(nomatch_host.id)
+
+    response_status, response_data = api_delete_filtered_hosts(
         query_parameters={
-            "last_check_in_start": match_host.last_check_in,
-            "last_check_in_end": match_host.last_check_in,
+            f"{param_prefix}_start": time_filter,
+            f"{param_prefix}_end": time_filter,
         }
     )
     assert response_status == 202
@@ -219,10 +709,11 @@ def test_delete_hosts_filter_last_check_in_both_same(db_create_host, db_get_host
     assert db_get_host(nomatch_host_id)
 
 
-def test_delete_hosts_filter_last_check_in_invalid_format(api_delete_filtered_hosts, subtests):
-    invalid_formats = ("foobar", "{}", "[]", generate_uuid(), [datetime.now(), datetime.now() - timedelta(days=7)])
+@pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
+def test_delete_bulk_timestamp_incorrect_format(api_delete_filtered_hosts, subtests, param_prefix):
+    invalid_formats = ("foobar", "{}", "[]", generate_uuid())
     for invalid_format in invalid_formats:
-        for param in ("last_check_in_start", "last_check_in_end"):
+        for param in (f"{param_prefix}_start", f"{param_prefix}_end"):
             with subtests.test(invalid_format=invalid_format, param=param):
                 response_status, response_data = api_delete_filtered_hosts(
                     query_parameters={param: str(invalid_format)}
@@ -232,15 +723,125 @@ def test_delete_hosts_filter_last_check_in_invalid_format(api_delete_filtered_ho
 
 
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_hosts_filter_updated_last_check_in_start_after_end(api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_start_after_end(api_delete_filtered_hosts, param_prefix):
     response_status, response_data = api_delete_filtered_hosts(
         query_parameters={
-            f"{param_prefix}_start": datetime.now(),
-            f"{param_prefix}_end": datetime.now() - timedelta(days=1),
+            f"{param_prefix}_start": str(datetime.now()),
+            f"{param_prefix}_end": str(datetime.now() - timedelta(days=1)),
         }
     )
     assert response_status == 400
     assert f"{param_prefix}_start cannot be after {param_prefix}_end." in response_data["detail"]
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("field", ("display_name", "hostname_or_id"))
+def test_delete_bulk_wildcard(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+    match_ids = [
+        str(db_create_host(extra_data={"display_name": "abc12lmxyz", "fqdn": "abc12lmxyz.test"}).id),
+        str(db_create_host(extra_data={"display_name": "qwer12lmst", "fqdn": "qwer12lmst.test"}).id),
+    ]
+    nomatch_id = str(db_create_host(extra_data={"display_name": "nomatchhere", "fqdn": "nomatchhere.test"}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "1*m"})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 2
+
+    for host_id in match_ids:
+        assert not db_get_host(host_id)
+    assert db_get_host(nomatch_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("field", ("display_name", "hostname_or_id"))
+def test_delete_bulk_only_wildcard(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+    host_ids = [str(db_create_host().id) for _ in range(3)]
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "*"})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] >= 3
+
+    for host_id in host_ids:
+        assert not db_get_host(host_id)
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+@pytest.mark.parametrize("field", ("fqdn", "provider_id"))
+def test_delete_bulk_wildcard_not_accepted(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+    extra = {"fqdn": generate_uuid(), "provider_id": generate_uuid(), "provider_type": "aws"}
+    host_id = str(db_create_host(extra_data=extra).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "*"})
+    assert response_status == 202
+    assert response_data["hosts_found"] == 0
+    assert db_get_host(host_id)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        ("display_name", "fqdn"),
+        ("display_name", "insights_id"),
+        ("display_name", "hostname_or_id"),
+        ("fqdn", "insights_id"),
+        ("fqdn", "hostname_or_id"),
+        ("insights_id", "hostname_or_id"),
+        ("display_name", "fqdn", "insights_id"),
+        ("display_name", "fqdn", "hostname_or_id"),
+        ("display_name", "insights_id", "hostname_or_id"),
+        ("fqdn", "insights_id", "hostname_or_id"),
+        ("display_name", "fqdn", "insights_id", "hostname_or_id"),
+    ],
+)
+def test_delete_bulk_invalid_parameter_combinations(api_delete_filtered_hosts, params):
+    parameters = {}
+    for param in params:
+        parameters[param] = generate_uuid() if param == "insights_id" else "test-value"
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters=parameters)
+    assert response_status == 400
+    assert (
+        "Only one of [fqdn, display_name, hostname_or_id, insights_id] "
+        "may be provided at a time." in response_data["detail"]
+    )
+
+
+@pytest.mark.parametrize("field", ("insights_id", "provider_type"))
+def test_delete_bulk_parameters_verification(api_delete_filtered_hosts, field):
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "not-a-valid-value"})
+    assert response_status == 400
+
+
+def test_delete_bulk_without_parameters(api_delete_filtered_hosts):
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={})
+    assert response_status == 400
+    assert "bulk-delete operation needs at least one input property" in response_data["detail"]
+
+
+@pytest.mark.parametrize("confirm_delete_all", (None, False, "random-string", 0, 1))
+def test_delete_bulk_wrong_delete_all_params(api_delete_all_hosts, confirm_delete_all):
+    params = {}
+    if confirm_delete_all is not None:
+        params["confirm_delete_all"] = confirm_delete_all
+
+    response_status, _ = api_delete_all_hosts(params)
+    assert response_status == 400
+
+
+@pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
+def test_delete_bulk_different_account(db_create_host, db_get_host, api_delete_filtered_hosts):
+    secondary_org_id = "different-org-12345"
+    target_name = "cross-account-test"
+
+    primary_id = str(db_create_host(extra_data={"display_name": target_name}).id)
+    secondary_id = str(db_create_host(extra_data={"display_name": target_name, "org_id": secondary_org_id}).id)
+
+    response_status, response_data = api_delete_filtered_hosts(query_parameters={"display_name": target_name})
+    assert response_status == 202
+    assert response_data["hosts_deleted"] == 1
+
+    assert not db_get_host(primary_id)
+    assert db_get_host(secondary_id, org_id=secondary_org_id)
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
