@@ -562,8 +562,15 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
+        if pg_op == ColumnOperators.ilike and isinstance(value, str):
+            # Handle escaped asterisks: \* should be treated as literal *
+            # First, replace \* with a temporary placeholder to protect it
+            temp_placeholder = "__LITERAL_ASTERISK_TEMP__"
+            value = value.replace("\\*", temp_placeholder)
+            # Replace remaining asterisks (wildcards) with %
             value = value.replace("*", "%")
+            # Restore literal asterisks from placeholder
+            value = value.replace(temp_placeholder, "*")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
