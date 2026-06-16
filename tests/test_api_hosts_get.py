@@ -2950,8 +2950,8 @@ def test_no_hosts_in_org(api_get):
         ("os_release", "RHEL-8.5", "RHEL-*", True),  # Wildcard still works
         # Test mixed scenarios with both literal and wildcard asterisks
         ("insights_client_version", "3.0.*-2.el8_*", "3.0.\\*-2.el8_*", True),
-        ("insights_client_version", "3.0.1-2.el8_4", "3.0.\\*-2.el8_*", False),  # First * is literal, second is wildcard
-        ("insights_client_version", "3.0.*-2.el8_4", "3.0.\\*-2.el8_*", True),  # First * is literal, second is wildcard
+        ("insights_client_version", "3.0.1-2.el8_4", "3.0.\\*-2.el8_*", False),  # First * literal, second wildcard
+        ("insights_client_version", "3.0.*-2.el8_4", "3.0.\\*-2.el8_*", True),  # First * literal, second wildcard
     ],
 )
 
@@ -3031,7 +3031,7 @@ def test_system_profile_wildcard_nested_field_escaping(db_create_host, api_get):
 
     assert response_status == 200
     response_ids = [result["id"] for result in response_data["results"]]
-    assert bootc_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search in nested field"
+    assert bootc_host_id in response_ids, "Host with literal asterisk should match escaped search in nested field"
 
     # Test mssql version field
     mssql_sp_data = {"system_profile_facts": {"workloads": {"mssql": {"version": "15.*"}}}}
@@ -3043,7 +3043,7 @@ def test_system_profile_wildcard_nested_field_escaping(db_create_host, api_get):
 
     assert response_status == 200
     response_ids = [result["id"] for result in response_data["results"]]
-    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search in mssql version"
+    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped search in mssql version"
 
     # Test legacy field access
     url = build_hosts_url(query="?filter[system_profile][mssql][version]=15.\\*")
@@ -3051,4 +3051,4 @@ def test_system_profile_wildcard_nested_field_escaping(db_create_host, api_get):
 
     assert response_status == 200
     response_ids = [result["id"] for result in response_data["results"]]
-    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped asterisk search via legacy access"
+    assert mssql_host_id in response_ids, "Host with literal asterisk should match escaped search via legacy access"
