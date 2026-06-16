@@ -11,7 +11,7 @@ The IQE test suite depends on auto-generated OpenAPI bindings (`iqe apigen` / `o
 
 ### Solution
 
-Replace the auto-generated apigen bindings with a lightweight `BaseAPIWrapper` that uses IQE's built-in `app.http_client` (`RobustSession`) for direct HTTP calls, with a version-aware URL helper so wrappers only specify resource paths (e.g., `/workspaces`). V2 endpoints migrate first as a proof of concept; V1 endpoints remain on apigen until cross-team coordination is complete.
+Replace the auto-generated apigen bindings with a lightweight `BaseAPIWrapper` that uses IQE's built-in `app.http_client` (`RobustSession`) for direct HTTP calls. The wrapper reads protocol, hostname, and port from `app.host_inventory.config` and combines them with the versioned API path, so individual wrappers only need to specify the resource path (e.g., `/workspaces`). V2 endpoints migrate first as a proof of concept; V1 endpoints remain on apigen until cross-team coordination is complete.
 
 ### Architecture (Current → Target)
 
@@ -49,11 +49,15 @@ def get_groups_response(self, *, name=None, per_page=None, page=None,
 
 **After (using `app.http_client`):**
 ```python
-# base wrapper — URL helper builds full path from versioned base
+# base wrapper — builds full URL from IQE plugin config + versioned API path
 class BaseAPIWrapper:
     def __init__(self, app, api_version="v2"):
         self._app = app
-        self._base_path = f"/api/inventory/{api_version}"
+        # protocol, hostname, and port come from the IQE plugin config so the
+        # wrapper works across ephemeral, stage, and prod without hardcoding
+        inv_conf = app.host_inventory.config.get("service_objects").get("api").get("config")
+        base_url = f"{inv_conf.get('scheme')}://{inv_conf.get('hostname')}:{inv_conf.get('port')}"
+        self._base_path = f"{base_url}/api/inventory/{api_version}"
 
     @property
     def client(self):
@@ -62,8 +66,8 @@ class BaseAPIWrapper:
     def get(self, path, **kwargs):
         return self.client.get(f"{self._base_path}{path}", **kwargs)
 
-# groups_api.py wrapper
-def get_groups_response(self, *, name=None, per_page=None, page=None,
+# workspaces_api.py wrapper
+def get_workspaces_response(self, *, name=None, per_page=None, page=None,
                         order_by=None, order_how=None):
     params = {k: v for k, v in {
         "name": name, "per_page": per_page, "page": page,
