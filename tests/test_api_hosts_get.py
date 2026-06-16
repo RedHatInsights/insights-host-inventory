@@ -2930,6 +2930,7 @@ def test_no_hosts_in_org(api_get):
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
 
+
 @pytest.mark.parametrize(
     "field_name,field_value,search_pattern,should_match",
     [
@@ -2954,8 +2955,6 @@ def test_no_hosts_in_org(api_get):
         ("insights_client_version", "3.0.*-2.el8_4", "3.0.\\*-2.el8_*", True),  # First * literal, second wildcard
     ],
 )
-
-
 def test_system_profile_wildcard_asterisk_escaping(
     db_create_host, api_get, field_name, field_value, search_pattern, should_match
 ):
