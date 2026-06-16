@@ -9,6 +9,7 @@ from sqlalchemy import case
 from sqlalchemy import cast
 from sqlalchemy import func
 from sqlalchemy import orm
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -268,6 +269,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 class Host(LimitedHost):
     reporter = db.Column(db.String(255), nullable=False)
     per_reporter_staleness = db.Column(JSONB, nullable=False)
+    reporters = db.Column(ARRAY(db.String(255)), nullable=False, server_default="{}")
     display_name_reporter = db.Column(db.String(255))
 
     def __init__(
@@ -461,6 +463,7 @@ class Host(LimitedHost):
 
         self.per_reporter_staleness[reporter] = self.last_check_in.isoformat()
         orm.attributes.flag_modified(self, "per_reporter_staleness")
+        self._sync_reporters()
 
     def _update_last_check_in_date(self):
         self.last_check_in = _time_now()
@@ -577,10 +580,15 @@ class Host(LimitedHost):
         logger.debug("Reports from %s are not stale", reporter)
         return False
 
+    def _sync_reporters(self):
+        """Keep the reporters array in sync with per_reporter_staleness keys."""
+        self.reporters = sorted(self.per_reporter_staleness.keys()) if self.per_reporter_staleness else []
+
     @validates("per_reporter_staleness")
     def _validate_per_reporter_staleness(self, _key, value):
         out: dict[str, str] = {}
         if not value:
+            self.reporters = []
             return out
         for reporter, raw in dict(value).items():
             if isinstance(raw, dict):
@@ -597,6 +605,7 @@ class Host(LimitedHost):
                     f"Invalid per_reporter_staleness: reporter {reporter!r} value must be str or datetime, "
                     f"not {type(raw).__name__}."
                 )
+        self.reporters = sorted(out.keys())
         return out
 
     def __repr__(self):
