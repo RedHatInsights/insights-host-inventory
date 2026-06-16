@@ -125,21 +125,21 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     __sortable_fields__ = (
         "total_cves",
         "critical_cves",
-        "high_severity_cves",
+        "important_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
     __filterable_fields__ = (
         "total_cves",
         "critical_cves",
-        "high_severity_cves",
+        "important_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
 
     total_cves = db.Column(db.Integer, nullable=True)
     critical_cves = db.Column(db.Integer, nullable=True)
-    high_severity_cves = db.Column(db.Integer, nullable=True)
+    important_cves = db.Column(db.Integer, nullable=True)
     cves_with_security_rules = db.Column(db.Integer, nullable=True)
     cves_with_known_exploits = db.Column(db.Integer, nullable=True)
 
