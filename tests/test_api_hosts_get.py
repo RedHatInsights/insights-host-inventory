@@ -2991,8 +2991,6 @@ def test_system_profile_wildcard_asterisk_escaping(
         assert nomatch_host_id not in response_ids
 
 
-
-
 def test_system_profile_wildcard_url_encoding_asterisk(db_create_host, api_get):
     """Test that URL-encoded asterisk (%2A) is treated as literal when part of escaped sequence (%5C%2A)."""
 
@@ -3014,8 +3012,6 @@ def test_system_profile_wildcard_url_encoding_asterisk(db_create_host, api_get):
     response_ids = [result["id"] for result in response_data["results"]]
     assert host_id in response_ids, "Host with literal asterisk should match URL-encoded escaped asterisk"
     assert nomatch_host_id not in response_ids, "Host with numeric version should not match literal asterisk search"
-
-
 
 
 def test_system_profile_wildcard_nested_field_escaping(db_create_host, api_get):
