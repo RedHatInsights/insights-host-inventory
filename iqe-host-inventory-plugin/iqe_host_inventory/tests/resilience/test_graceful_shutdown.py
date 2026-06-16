@@ -226,7 +226,7 @@ def assert_hosts_created_in_database(inventory_db_session, hosts_ids):
     logger.info("Waiting for all hosts to be saved in the database...")
     assert wait_for(
         _assert_hosts_in_database,
-        num_sec=300,
+        timeout=300,
         delay=5,
         message="wait for all hosts to appear in DB",
     )[0]
