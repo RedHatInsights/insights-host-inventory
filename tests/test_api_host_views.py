@@ -1365,85 +1365,37 @@ class TestHostViewAppDataSorting:
         assert results[0]["app_data"]["patch"]["advisories_rhsa_installable"] == 20
         assert results[1]["app_data"]["patch"]["advisories_rhsa_installable"] == 5
 
-    def test_sort_by_patch_advisories_total_installable(self, api_get, db_create_host, db_create_host_app_data):
+    @pytest.mark.parametrize("order_how,expected_order", [("ASC", [0, 2, 5]), ("DESC", [5, 2, 0])])
+    def test_sort_by_patch_advisories_total_installable(
+        self, api_get, db_create_host, db_create_host_app_data, order_how, expected_order
+    ):
         """Sort by patch:advisories_total_installable should sort by the sum of all installable types."""
-        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
-        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
-        host3 = db_create_host(extra_data={"display_name": "host3.example.com"})
+        hosts_data = [
+            {"name": "host-0.example.com", "rhsa": 0, "rhba": 0, "rhea": 0, "other": 0},
+            {"name": "host-2.example.com", "rhsa": 0, "rhba": 1, "rhea": 0, "other": 1},
+            {"name": "host-5.example.com", "rhsa": 3, "rhba": 1, "rhea": 1, "other": 0},
+        ]
 
-        # host1: total = 0 (all zeros)
-        db_create_host_app_data(
-            host1.id,
-            host1.org_id,
-            "patch",
-            advisories_rhsa_installable=0,
-            advisories_rhba_installable=0,
-            advisories_rhea_installable=0,
-            advisories_other_installable=0,
-        )
-        # host2: total = 2 (spread across types, but rhsa=0 — the bug scenario)
-        db_create_host_app_data(
-            host2.id,
-            host2.org_id,
-            "patch",
-            advisories_rhsa_installable=0,
-            advisories_rhba_installable=1,
-            advisories_rhea_installable=0,
-            advisories_other_installable=1,
-        )
-        # host3: total = 5
-        db_create_host_app_data(
-            host3.id,
-            host3.org_id,
-            "patch",
-            advisories_rhsa_installable=3,
-            advisories_rhba_installable=1,
-            advisories_rhea_installable=1,
-            advisories_other_installable=0,
-        )
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "patch",
+                advisories_rhsa_installable=hd["rhsa"],
+                advisories_rhba_installable=hd["rhba"],
+                advisories_rhea_installable=hd["rhea"],
+                advisories_other_installable=hd["other"],
+            )
 
-        url = build_host_view_url(query="?order_by=patch:advisories_total_installable&order_how=ASC")
+        url = build_host_view_url(query=f"?order_by=patch:advisories_total_installable&order_how={order_how}")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
         results = response_data["results"]
-        # Should be ordered: host1 (0), host2 (2), host3 (5)
-        assert results[0]["display_name"] == "host1.example.com"
-        assert results[1]["display_name"] == "host2.example.com"
-        assert results[2]["display_name"] == "host3.example.com"
-
-    def test_sort_by_patch_advisories_total_installable_desc(self, api_get, db_create_host, db_create_host_app_data):
-        """Sort by patch:advisories_total_installable DESC should put highest total first."""
-        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
-        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
-
-        db_create_host_app_data(
-            host1.id,
-            host1.org_id,
-            "patch",
-            advisories_rhsa_installable=1,
-            advisories_rhba_installable=2,
-            advisories_rhea_installable=3,
-            advisories_other_installable=4,
-        )
-        db_create_host_app_data(
-            host2.id,
-            host2.org_id,
-            "patch",
-            advisories_rhsa_installable=0,
-            advisories_rhba_installable=0,
-            advisories_rhea_installable=1,
-            advisories_other_installable=0,
-        )
-
-        url = build_host_view_url(query="?order_by=patch:advisories_total_installable&order_how=DESC")
-        response_status, response_data = api_get(url)
-
-        assert_response_status(response_status, 200)
-        results = response_data["results"]
-        # host1 total=10, host2 total=1
-        assert results[0]["display_name"] == "host1.example.com"
-        assert results[1]["display_name"] == "host2.example.com"
+        result_names = [r["display_name"] for r in results]
+        expected_names = [f"host-{t}.example.com" for t in expected_order]
+        assert result_names == expected_names
 
     def test_sort_by_patch_advisories_total_installable_nulls_last(
         self, api_get, db_create_host, db_create_host_app_data
@@ -1471,83 +1423,37 @@ class TestHostViewAppDataSorting:
         assert results[0]["display_name"] == "host-with-data.example.com"
         assert results[1]["display_name"] == "host-no-data.example.com"
 
-    def test_sort_by_patch_advisories_total_applicable_asc(self, api_get, db_create_host, db_create_host_app_data):
-        """Sort by patch:advisories_total_applicable ASC should sort by the sum of all applicable types."""
-        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
-        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
-        host3 = db_create_host(extra_data={"display_name": "host3.example.com"})
+    @pytest.mark.parametrize("order_how,expected_order", [("ASC", [0, 9, 15]), ("DESC", [15, 9, 0])])
+    def test_sort_by_patch_advisories_total_applicable(
+        self, api_get, db_create_host, db_create_host_app_data, order_how, expected_order
+    ):
+        """Sort by patch:advisories_total_applicable should sort by the sum of all applicable types."""
+        hosts_data = [
+            {"name": "host-0.example.com", "rhsa": 0, "rhba": 0, "rhea": 0, "other": 0},
+            {"name": "host-9.example.com", "rhsa": 3, "rhba": 4, "rhea": 2, "other": 0},
+            {"name": "host-15.example.com", "rhsa": 10, "rhba": 5, "rhea": 0, "other": 0},
+        ]
 
-        # host1: total = 0
-        db_create_host_app_data(
-            host1.id,
-            host1.org_id,
-            "patch",
-            advisories_rhsa_applicable=0,
-            advisories_rhba_applicable=0,
-            advisories_rhea_applicable=0,
-            advisories_other_applicable=0,
-        )
-        # host2: total = 9 (spread across types)
-        db_create_host_app_data(
-            host2.id,
-            host2.org_id,
-            "patch",
-            advisories_rhsa_applicable=3,
-            advisories_rhba_applicable=4,
-            advisories_rhea_applicable=2,
-            advisories_other_applicable=0,
-        )
-        # host3: total = 15
-        db_create_host_app_data(
-            host3.id,
-            host3.org_id,
-            "patch",
-            advisories_rhsa_applicable=10,
-            advisories_rhba_applicable=5,
-            advisories_rhea_applicable=0,
-            advisories_other_applicable=0,
-        )
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "patch",
+                advisories_rhsa_applicable=hd["rhsa"],
+                advisories_rhba_applicable=hd["rhba"],
+                advisories_rhea_applicable=hd["rhea"],
+                advisories_other_applicable=hd["other"],
+            )
 
-        url = build_host_view_url(query="?order_by=patch:advisories_total_applicable&order_how=ASC")
+        url = build_host_view_url(query=f"?order_by=patch:advisories_total_applicable&order_how={order_how}")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
         results = response_data["results"]
-        assert results[0]["display_name"] == "host1.example.com"
-        assert results[1]["display_name"] == "host2.example.com"
-        assert results[2]["display_name"] == "host3.example.com"
-
-    def test_sort_by_patch_advisories_total_applicable_desc(self, api_get, db_create_host, db_create_host_app_data):
-        """Sort by patch:advisories_total_applicable DESC should put highest total first."""
-        host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
-        host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
-
-        db_create_host_app_data(
-            host1.id,
-            host1.org_id,
-            "patch",
-            advisories_rhsa_applicable=1,
-            advisories_rhba_applicable=2,
-            advisories_rhea_applicable=3,
-            advisories_other_applicable=4,
-        )
-        db_create_host_app_data(
-            host2.id,
-            host2.org_id,
-            "patch",
-            advisories_rhsa_applicable=0,
-            advisories_rhba_applicable=0,
-            advisories_rhea_applicable=1,
-            advisories_other_applicable=0,
-        )
-
-        url = build_host_view_url(query="?order_by=patch:advisories_total_applicable&order_how=DESC")
-        response_status, response_data = api_get(url)
-
-        assert_response_status(response_status, 200)
-        results = response_data["results"]
-        assert results[0]["display_name"] == "host1.example.com"
-        assert results[1]["display_name"] == "host2.example.com"
+        result_names = [r["display_name"] for r in results]
+        expected_names = [f"host-{t}.example.com" for t in expected_order]
+        assert result_names == expected_names
 
     def test_sort_by_patch_advisories_total_applicable_nulls_last(
         self, api_get, db_create_host, db_create_host_app_data
