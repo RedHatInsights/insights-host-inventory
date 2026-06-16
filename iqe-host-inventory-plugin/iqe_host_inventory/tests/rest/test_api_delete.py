@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 from __future__ import annotations
 
 import logging
@@ -26,10 +28,7 @@ from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api.models.host_out import HostOut
 
-pytestmark = [
-    pytest.mark.backend,
-    pytest.mark.usefixtures("hbi_recreate_data_on_secondary_account_after_delete"),
-]
+pytestmark = [pytest.mark.backend]
 
 logger = logging.getLogger(__name__)
 
@@ -337,9 +336,9 @@ def test_delete_bulk_registered_with(host_inventory: ApplicationHostInventory):
         title: Inventory: Test DELETE on /hosts with 'registered_with' parameter
     """
     hosts_data = host_inventory.datagen.create_n_hosts_data(3)
-    hosts_data[0]["insights_id"] = generate_uuid()
-    hosts_data[1]["insights_id"] = generate_uuid()
-    hosts_data[2].pop("insights_id", None)
+    hosts_data[0]["reporter"] = "puptoo"
+    hosts_data[1]["reporter"] = "puptoo"
+    hosts_data[2]["reporter"] = "satellite"
     hosts = host_inventory.kafka.create_hosts(
         hosts_data=hosts_data, field_to_match=HostWrapper.subscription_manager_id
     )
@@ -455,15 +454,16 @@ def test_delete_bulk_workloads_sap(host_inventory: ApplicationHostInventory):
         importance: high
         title: Inventory: Test DELETE on /hosts with workloads SAP filter
     """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
+    hosts_data = host_inventory.datagen.create_n_hosts_data(4)
     hosts_data[0]["system_profile"]["workloads"] = {"sap": {"sap_system": True, "sids": ["H2O"]}}
     hosts_data[1]["system_profile"]["workloads"] = {"sap": {"sap_system": True}}
-    hosts_data[2]["system_profile"].pop("workloads", None)
+    hosts_data[2]["system_profile"]["workloads"] = {"ansible": {"controller_version": "4.3"}}
+    hosts_data[3]["system_profile"].pop("workloads", None)
     hosts = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
 
     host_inventory.apis.hosts.delete_filtered(filter=["[workloads][sap][sap_system][is]=not_nil"])
     host_inventory.apis.hosts.wait_for_deleted(hosts[:2])
-    host_inventory.apis.hosts.verify_not_deleted(hosts[2])
+    host_inventory.apis.hosts.verify_not_deleted(hosts[2:])
 
 
 @pytest.mark.ephemeral

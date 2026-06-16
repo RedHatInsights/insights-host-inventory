@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -9,6 +11,7 @@ from unittest import mock
 
 import pytest
 from pytest_mock import MockerFixture
+from pytest_subtests import SubTests
 
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
@@ -29,11 +32,11 @@ from tests.helpers.test_utils import now
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_hosts_filtered_by_subscription_manager_id(
-    db_create_host,
-    api_delete_filtered_hosts,
-    event_datetime_mock,
-    event_producer_mock,
-):
+    db_create_host: Callable[..., Host],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    event_datetime_mock: datetime,
+    event_producer_mock: MockEventProducer,
+) -> None:
     db_create_host(host=db_host())
     host = db_create_host(host=db_host())
     response_status, response_data = api_delete_filtered_hosts(
@@ -55,13 +58,13 @@ def test_delete_hosts_filtered_by_subscription_manager_id(
 )
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_hosts_filtered_by_system_type(
-    host_type,
-    system_type,
-    nomatch_host_type,
-    mq_create_or_update_host,
-    db_get_host,
-    api_delete_filtered_hosts,
-):
+    host_type: str | None,
+    system_type: str,
+    nomatch_host_type: str,
+    mq_create_or_update_host: Callable,
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host_to_keep_id = mq_create_or_update_host(
         minimal_host(system_profile={"host_type": nomatch_host_type} if nomatch_host_type else {})
     ).id
@@ -81,11 +84,11 @@ def test_delete_hosts_filtered_by_system_type(
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
 def test_delete_all_hosts(
-    event_producer_mock,
-    db_create_multiple_hosts,
-    db_get_hosts,
-    api_delete_all_hosts,
-):
+    event_producer_mock: MockEventProducer,
+    db_create_multiple_hosts: Callable[..., list[Host]],
+    db_get_hosts: Callable,
+    api_delete_all_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     created_hosts = db_create_multiple_hosts(how_many=5)
     host_ids = [str(host.id) for host in created_hosts]
 
@@ -101,11 +104,18 @@ def test_delete_all_hosts(
     assert deleted_hosts.count() == 0
 
 
-def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, event_producer_mock):
-    response_status, _ = api_delete_all_hosts({})
+@pytest.mark.parametrize("confirm_delete_all", (None, False, "random-string", 0, 1))
+def test_delete_bulk_wrong_delete_all_params(
+    api_delete_all_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    confirm_delete_all: Any,
+) -> None:
+    params: dict[str, Any] = {}
+    if confirm_delete_all is not None:
+        params["confirm_delete_all"] = confirm_delete_all
 
-    assert_response_status(response_status, expected_status=400)
-    assert event_producer_mock.event is None
+    response_status, response_data = api_delete_all_hosts(params)
+    assert response_status == 400
+    assert "confirm_delete_all" in response_data["detail"]
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock")
@@ -117,8 +127,12 @@ def test_delete_all_hosts_with_missing_required_params(api_delete_all_hosts, eve
     ),
 )
 def test_postgres_delete_filtered_hosts(
-    db_create_host, api_get, request_body, api_delete_filtered_hosts, event_producer_mock
-):
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict[str, Any]]],
+    request_body: dict[str, str],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    event_producer_mock: MockEventProducer,
+) -> None:
     host_1_id = db_create_host(extra_data={"display_name": "foobar", "reporter": "satellite"}).id
     host_2_id = db_create_host(extra_data={"display_name": "foobaz", "reporter": "satellite"}).id
     host_3_id = db_create_host(extra_data={"display_name": "asdf", "reporter": "puptoo"}).id
@@ -143,7 +157,11 @@ def test_postgres_delete_filtered_hosts(
 
 
 @pytest.mark.usefixtures("event_producer_mock")
-def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_delete_filtered_hosts):
+def test_postgres_delete_filtered_hosts_nomatch(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict[str, Any]]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     not_deleted_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
 
     response_status, response_data = api_delete_filtered_hosts({"insights_id": generate_uuid()})
@@ -159,11 +177,11 @@ def test_postgres_delete_filtered_hosts_nomatch(db_create_host, api_get, api_del
 @pytest.mark.parametrize("identity", (RHSM_ERRATA_IDENTITY_PROD, RHSM_ERRATA_IDENTITY_STAGE), ids=("prod", "stage"))
 def test_delete_hosts_by_subman_id_internal_rhsm_request(
     db_create_host: Callable[..., Host],
-    api_get: Callable[..., tuple[int, dict]],
-    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    api_get: Callable[..., tuple[int, dict[str, Any]]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
     event_producer_mock: MockEventProducer,
     identity: dict[str, Any],
-):
+) -> None:
     """
     This test simulates the internal `DELETE /hosts?subscription_manager_id=...` request from RHSM
     that they make when a host is unregistered from RHSM, to delete it from Insights Inventory.
@@ -204,7 +222,11 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_display_name(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_display_name(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_name = "delete-me-display"
     match_ids = [str(db_create_host(extra_data={"display_name": target_name}).id) for _ in range(3)]
     nomatch_ids = [str(db_create_host(extra_data={"display_name": "keep-me"}).id) for _ in range(2)]
@@ -221,7 +243,11 @@ def test_delete_bulk_by_display_name(db_create_host, db_get_host, api_delete_fil
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_fqdn(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_fqdn(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_fqdn = "delete-me.example.com"
     match_ids = [str(db_create_host(extra_data={"fqdn": target_fqdn}).id) for _ in range(3)]
     nomatch_ids = [
@@ -241,7 +267,11 @@ def test_delete_bulk_by_fqdn(db_create_host, db_get_host, api_delete_filtered_ho
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_hostname_or_id_display_name(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_hostname_or_id_display_name(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_name = "hostname-or-id-target"
     match_id = str(db_create_host(extra_data={"display_name": target_name}).id)
     nomatch_id = str(db_create_host(extra_data={"display_name": "other-name"}).id)
@@ -255,7 +285,11 @@ def test_delete_bulk_by_hostname_or_id_display_name(db_create_host, db_get_host,
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_hostname_or_id_fqdn(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_hostname_or_id_fqdn(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_fqdn = "hostname-or-id.example.com"
     match_id = str(db_create_host(extra_data={"fqdn": target_fqdn}).id)
     nomatch_id = str(db_create_host(extra_data={"fqdn": "other.example.com"}).id)
@@ -269,7 +303,11 @@ def test_delete_bulk_by_hostname_or_id_fqdn(db_create_host, db_get_host, api_del
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_hostname_or_id_uuid(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_hostname_or_id_uuid(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host = db_create_host()
     match_id = str(host.id)
     nomatch_id = str(db_create_host().id)
@@ -283,7 +321,11 @@ def test_delete_bulk_by_hostname_or_id_uuid(db_create_host, db_get_host, api_del
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_insights_id(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_insights_id(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_insights_id = generate_uuid()
     match_id = str(db_create_host(extra_data={"insights_id": target_insights_id}).id)
     nomatch_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
@@ -298,7 +340,11 @@ def test_delete_bulk_by_insights_id(db_create_host, db_get_host, api_delete_filt
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_provider_id(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_provider_id(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     target_provider_id = generate_uuid()
     match_id = str(db_create_host(extra_data={"provider_id": target_provider_id, "provider_type": "aws"}).id)
     nomatch_id = str(db_create_host(extra_data={"provider_id": generate_uuid(), "provider_type": "aws"}).id)
@@ -313,7 +359,11 @@ def test_delete_bulk_by_provider_id(db_create_host, db_get_host, api_delete_filt
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_provider_type(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_provider_type(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     match_ids = [
         str(db_create_host(extra_data={"provider_type": "ibm", "provider_id": generate_uuid()}).id) for _ in range(3)
     ]
@@ -334,7 +384,11 @@ def test_delete_bulk_by_provider_type(db_create_host, db_get_host, api_delete_fi
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_tags(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_tags(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     match_ids = [
         str(db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}}}).id),
         str(db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}, "ns2": {"k": ["v"]}}}).id),
@@ -356,7 +410,11 @@ def test_delete_bulk_by_tags(db_create_host, db_get_host, api_delete_filtered_ho
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_tags_multiple(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_tags_multiple(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     # Multiple tags use OR logic - any host with at least one of the tags matches
     tag1 = {"ns1": {"key1": ["val1"]}}
     tag2 = {"ns2": {"key2": ["val2"]}}
@@ -387,8 +445,12 @@ def test_delete_bulk_by_tags_multiple(db_create_host, db_get_host, api_delete_fi
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_bulk_by_group_name(
-    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
-):
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host_in_group = db_create_host()
     host_in_other_group = db_create_host()
     host_ungrouped = db_create_host()
@@ -413,8 +475,12 @@ def test_delete_bulk_by_group_name(
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_bulk_by_group_name_case_insensitive(
-    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
-):
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host = db_create_host()
     group = db_create_group("My-Group")
     db_create_host_group_assoc(host.id, group.id)
@@ -428,8 +494,12 @@ def test_delete_bulk_by_group_name_case_insensitive(
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_bulk_by_group_name_empty(
-    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
-):
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     grouped_host = db_create_host()
     ungrouped_host = db_create_host()
     group = db_create_group("some-group")
@@ -448,8 +518,12 @@ def test_delete_bulk_by_group_name_empty(
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_bulk_by_group_name_multiple(
-    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
-):
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host1 = db_create_host()
     host2 = db_create_host()
     host3 = db_create_host()
@@ -480,8 +554,12 @@ def test_delete_bulk_by_group_name_multiple(
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 def test_delete_bulk_by_group_id(
-    db_create_host, db_get_host, db_create_group, db_create_host_group_assoc, api_delete_filtered_hosts
-):
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    db_create_group: Callable,
+    db_create_host_group_assoc: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     host_in_group = db_create_host()
     host_other = db_create_host()
 
@@ -502,7 +580,10 @@ def test_delete_bulk_by_group_id(
     assert db_get_host(nomatch_id)
 
 
-def test_delete_bulk_group_name_and_group_id_conflict(db_create_group, api_delete_filtered_hosts):
+def test_delete_bulk_group_name_and_group_id_conflict(
+    db_create_group: Callable,
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     group = db_create_group("conflict-group")
 
     response_status, response_data = api_delete_filtered_hosts(
@@ -513,7 +594,11 @@ def test_delete_bulk_group_name_and_group_id_conflict(db_create_group, api_delet
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_registered_with_negative(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_registered_with_negative(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     satellite_id = str(db_create_host(extra_data={"reporter": "satellite"}).id)
     puptoo_id = str(db_create_host(extra_data={"reporter": "puptoo"}).id)
 
@@ -526,7 +611,11 @@ def test_delete_bulk_by_registered_with_negative(db_create_host, db_get_host, ap
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_registered_with_old_insights(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_registered_with_old_insights(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     insights_host_id = str(db_create_host(extra_data={"insights_id": generate_uuid()}).id)
     no_insights_host_id = str(
         db_create_host(
@@ -546,7 +635,11 @@ def test_delete_bulk_by_registered_with_old_insights(db_create_host, db_get_host
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_filter_operating_system(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_filter_operating_system(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     match_ids = [
         str(
             db_create_host(
@@ -585,7 +678,11 @@ def test_delete_bulk_by_filter_operating_system(db_create_host, db_get_host, api
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_by_filter_operating_system_multiple(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_by_filter_operating_system_multiple(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     match_84_id = str(
         db_create_host(
             extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": "8", "minor": "4"}}}
@@ -616,7 +713,12 @@ def test_delete_bulk_by_filter_operating_system_multiple(db_create_host, db_get_
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_start(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_start(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    param_prefix: str,
+) -> None:
     host_before = db_create_host()
     host_before_id = str(host_before.id)
 
@@ -637,11 +739,17 @@ def test_delete_bulk_timestamp_start(db_create_host, db_get_host, api_delete_fil
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_end(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_end(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    param_prefix: str,
+) -> None:
     host_before_1 = db_create_host()
     host_before_1_id = str(host_before_1.id)
 
     host_before_2 = db_create_host()
+    host_before_2_id = str(host_before_2.id)
     attr = "modified_on" if param_prefix == "updated" else "last_check_in"
     time_filter = str(getattr(host_before_2, attr))
 
@@ -653,12 +761,18 @@ def test_delete_bulk_timestamp_end(db_create_host, db_get_host, api_delete_filte
     assert response_data["hosts_deleted"] >= 1
 
     assert not db_get_host(host_before_1_id)
+    assert not db_get_host(host_before_2_id)
     assert db_get_host(host_after_id)
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_range(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_range(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    param_prefix: str,
+) -> None:
     host_before = db_create_host()
     host_before_id = str(host_before.id)
 
@@ -668,6 +782,7 @@ def test_delete_bulk_timestamp_range(db_create_host, db_get_host, api_delete_fil
     time_start = str(getattr(host_in_range_1, attr))
 
     host_in_range_2 = db_create_host()
+    host_in_range_2_id = str(host_in_range_2.id)
     time_end = str(getattr(host_in_range_2, attr))
 
     host_after = db_create_host()
@@ -684,12 +799,18 @@ def test_delete_bulk_timestamp_range(db_create_host, db_get_host, api_delete_fil
 
     assert db_get_host(host_before_id)
     assert not db_get_host(host_in_range_1_id)
+    assert not db_get_host(host_in_range_2_id)
     assert db_get_host(host_after_id)
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_both_same(db_create_host, db_get_host, api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_both_same(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    param_prefix: str,
+) -> None:
     match_host = db_create_host()
     match_host_id = str(match_host.id)
     attr = "modified_on" if param_prefix == "updated" else "last_check_in"
@@ -710,7 +831,11 @@ def test_delete_bulk_timestamp_both_same(db_create_host, db_get_host, api_delete
 
 
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_incorrect_format(api_delete_filtered_hosts, subtests, param_prefix):
+def test_delete_bulk_timestamp_incorrect_format(
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    subtests: SubTests,
+    param_prefix: str,
+) -> None:
     invalid_formats = ("foobar", "{}", "[]", generate_uuid())
     for invalid_format in invalid_formats:
         for param in (f"{param_prefix}_start", f"{param_prefix}_end"):
@@ -723,7 +848,10 @@ def test_delete_bulk_timestamp_incorrect_format(api_delete_filtered_hosts, subte
 
 
 @pytest.mark.parametrize("param_prefix", ("updated", "last_check_in"))
-def test_delete_bulk_timestamp_start_after_end(api_delete_filtered_hosts, param_prefix):
+def test_delete_bulk_timestamp_start_after_end(
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    param_prefix: str,
+) -> None:
     response_status, response_data = api_delete_filtered_hosts(
         query_parameters={
             f"{param_prefix}_start": str(datetime.now()),
@@ -736,7 +864,12 @@ def test_delete_bulk_timestamp_start_after_end(api_delete_filtered_hosts, param_
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("field", ("display_name", "hostname_or_id"))
-def test_delete_bulk_wildcard(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+def test_delete_bulk_wildcard(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    field: str,
+) -> None:
     match_ids = [
         str(db_create_host(extra_data={"display_name": "abc12lmxyz", "fqdn": "abc12lmxyz.test"}).id),
         str(db_create_host(extra_data={"display_name": "qwer12lmst", "fqdn": "qwer12lmst.test"}).id),
@@ -754,7 +887,12 @@ def test_delete_bulk_wildcard(db_create_host, db_get_host, api_delete_filtered_h
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("field", ("display_name", "hostname_or_id"))
-def test_delete_bulk_only_wildcard(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+def test_delete_bulk_only_wildcard(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    field: str,
+) -> None:
     host_ids = [str(db_create_host().id) for _ in range(3)]
 
     response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "*"})
@@ -767,7 +905,12 @@ def test_delete_bulk_only_wildcard(db_create_host, db_get_host, api_delete_filte
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
 @pytest.mark.parametrize("field", ("fqdn", "provider_id"))
-def test_delete_bulk_wildcard_not_accepted(db_create_host, db_get_host, api_delete_filtered_hosts, field):
+def test_delete_bulk_wildcard_not_accepted(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    field: str,
+) -> None:
     extra = {"fqdn": generate_uuid(), "provider_id": generate_uuid(), "provider_type": "aws"}
     host_id = str(db_create_host(extra_data=extra).id)
 
@@ -793,8 +936,11 @@ def test_delete_bulk_wildcard_not_accepted(db_create_host, db_get_host, api_dele
         ("display_name", "fqdn", "insights_id", "hostname_or_id"),
     ],
 )
-def test_delete_bulk_invalid_parameter_combinations(api_delete_filtered_hosts, params):
-    parameters = {}
+def test_delete_bulk_invalid_parameter_combinations(
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    params: tuple[str, ...],
+) -> None:
+    parameters: dict[str, str] = {}
     for param in params:
         parameters[param] = generate_uuid() if param == "insights_id" else "test-value"
 
@@ -807,29 +953,28 @@ def test_delete_bulk_invalid_parameter_combinations(api_delete_filtered_hosts, p
 
 
 @pytest.mark.parametrize("field", ("insights_id", "provider_type"))
-def test_delete_bulk_parameters_verification(api_delete_filtered_hosts, field):
+def test_delete_bulk_parameters_verification(
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+    field: str,
+) -> None:
     response_status, response_data = api_delete_filtered_hosts(query_parameters={field: "not-a-valid-value"})
     assert response_status == 400
 
 
-def test_delete_bulk_without_parameters(api_delete_filtered_hosts):
+def test_delete_bulk_without_parameters(
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     response_status, response_data = api_delete_filtered_hosts(query_parameters={})
     assert response_status == 400
     assert "bulk-delete operation needs at least one input property" in response_data["detail"]
 
 
-@pytest.mark.parametrize("confirm_delete_all", (None, False, "random-string", 0, 1))
-def test_delete_bulk_wrong_delete_all_params(api_delete_all_hosts, confirm_delete_all):
-    params = {}
-    if confirm_delete_all is not None:
-        params["confirm_delete_all"] = confirm_delete_all
-
-    response_status, _ = api_delete_all_hosts(params)
-    assert response_status == 400
-
-
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")
-def test_delete_bulk_different_account(db_create_host, db_get_host, api_delete_filtered_hosts):
+def test_delete_bulk_different_account(
+    db_create_host: Callable[..., Host],
+    db_get_host: Callable[..., Host | None],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
+) -> None:
     secondary_org_id = "different-org-12345"
     target_name = "cross-account-test"
 
@@ -862,11 +1007,11 @@ def test_delete_bulk_different_account(db_create_host, db_get_host, api_delete_f
 def test_delete_hosts_filtered_by_staleness(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[..., Host | None],
-    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
     mocker: Any,
     staleness_filter: list[str],
     host_type: str,
-):
+) -> None:
     """
     Test DELETE on /hosts endpoint with 'staleness' parameter.
     This test creates hosts in different staleness states and verifies that
@@ -920,9 +1065,9 @@ def test_delete_hosts_filtered_by_staleness(
 def test_delete_hosts_filtered_default_staleness(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[..., Host | None],
-    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
     mocker: Any,
-):
+) -> None:
     """
     Test default staleness on DELETE /hosts endpoint.
     When no staleness filter is provided, the default is to delete fresh, stale, and stale_warning hosts.
@@ -951,10 +1096,10 @@ def test_delete_hosts_filtered_default_staleness(
 def test_delete_hosts_filter_by_reporter_and_staleness(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[..., Host | None],
-    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
     mocker: MockerFixture,
-    subtests,
-):
+    subtests: SubTests,
+) -> None:
     hosts = create_hosts_by_reporter_and_staleness(db_create_host, mocker)
     all_host_ids = {str(hosts[s][r].id) for s in hosts for r in hosts[s]}
 
@@ -980,10 +1125,10 @@ def test_delete_hosts_filter_by_reporter_and_staleness(
 def test_delete_hosts_filtered_by_all_parameters(
     db_create_host: Callable[..., Host],
     db_get_host: Callable[..., Host | None],
-    api_delete_filtered_hosts: Callable[..., tuple[int, dict]],
+    api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
     db_create_group: Callable,
     db_create_host_group_assoc: Callable,
-):
+) -> None:
     """
     Test DELETE /hosts with all filter parameters combined.
     Creates 7 hosts: 1 target matching all filters and 6 decoys, each differing
