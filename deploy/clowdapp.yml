@@ -241,6 +241,7 @@ objects:
           enabled: true
       podSpec:
         <<: [ *gunicornPodSpec, *readProbes ]
+        initContainers: *migrationWaitInitContainer
         env:
           - name: OPENSHIFT_BUILD_COMMIT
             value: ${IMAGE_TAG}
@@ -352,6 +353,8 @@ objects:
             value: ${KESSEL_INSECURE}
           - name: KESSEL_AUTH_ENABLED
             value: ${KESSEL_AUTH_ENABLED}
+          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
+            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         volumeMounts: *readReplicaVolumeMounts
         volumes:
           - emptyDir: {}
