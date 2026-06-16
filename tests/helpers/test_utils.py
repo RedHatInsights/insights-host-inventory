@@ -72,6 +72,18 @@ X509_IDENTITY: dict[str, Any] = {
     },
 }
 
+INVALID_UUIDS = [
+    "abcdef",
+    "123",
+    "-123",
+    "0.0",
+    " " + str(uuid.uuid4()),
+    "",
+]
+
+# Build combinations of valid and invalid UUIDs and add it to INVALID UUIDs list
+INVALID_UUIDS.extend(f"{str(uuid.uuid4())},{invalid_uuid},{str(uuid.uuid4())}" for invalid_uuid in INVALID_UUIDS[:])
+
 RHSM_ERRATA_IDENTITY_PROD = deepcopy(X509_IDENTITY)
 RHSM_ERRATA_IDENTITY_PROD["x509"]["subject_dn"] = "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
 RHSM_ERRATA_IDENTITY_PROD["x509"]["issuer_dn"] = "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
