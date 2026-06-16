@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from requests import exceptions
 
@@ -5,9 +7,13 @@ from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
 from tests.helpers.api_utils import build_hosts_url
+from tests.helpers.api_utils import build_resource_types_groups_url
+from tests.helpers.api_utils import build_resource_types_url
 from tests.helpers.api_utils import build_staleness_url
+from tests.helpers.api_utils import build_sys_default_staleness_url
 from tests.helpers.api_utils import create_custom_rbac_response
 from tests.helpers.api_utils import create_mock_rbac_response
+from tests.helpers.api_utils import get_required_headers
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
@@ -81,14 +87,47 @@ def test_RBAC_invalid_UUIDs(mocker, api_get, rbac_operation):
 
 @pytest.mark.usefixtures("enable_rbac")
 @pytest.mark.parametrize(
-    "url_builder",
-    [build_staleness_url, build_groups_url],
+    "method,url,data,expected_status",
+    [
+        ("get", build_staleness_url(), None, 403),
+        ("post", build_staleness_url(), {}, 403),
+        ("patch", build_staleness_url(), {}, 403),
+        ("delete", build_staleness_url(), None, 403),
+        ("get", build_sys_default_staleness_url(), None, 403),
+        ("get", build_groups_url(), None, 403),
+        ("post", build_groups_url(), {"name": "test"}, 403),
+        ("patch", build_groups_url(group_id=generate_uuid()), {"name": "test"}, 403),
+        ("delete", build_groups_url(group_id=generate_uuid()), None, 403),
+        ("post", f"{build_groups_url(group_id=generate_uuid())}/hosts", [str(generate_uuid())], 404),
+        ("delete", f"{build_groups_url(group_id=generate_uuid())}/hosts/{generate_uuid()}", None, 404),
+        ("delete", f"{build_groups_url()}/hosts/{generate_uuid()}", None, 403),
+        ("get", build_resource_types_url(), None, 403),
+        ("get", build_resource_types_groups_url(), None, 403),
+    ],
+    ids=[
+        "GET /staleness",
+        "POST /staleness",
+        "PATCH /staleness",
+        "DELETE /staleness",
+        "GET /staleness/defaults",
+        "GET /groups",
+        "POST /groups",
+        "PATCH /groups/{id}",
+        "DELETE /groups/{id}",
+        "POST /groups/{id}/hosts",
+        "DELETE /groups/{id}/hosts/{host_id}",
+        "DELETE /groups/hosts/{host_id}",
+        "GET /resource-types",
+        "GET /resource-types/inventory-groups",
+    ],
 )
-def test_non_host_endpoints_cannot_bypass_RBAC(api_get, url_builder):
-    url = url_builder()
-    response_status, _ = api_get(url, SYSTEM_IDENTITY)
-
-    assert_response_status(response_status, 403)
+def test_non_host_endpoints_cannot_bypass_RBAC(flask_client, method, url, data, expected_status):
+    headers = get_required_headers(SYSTEM_IDENTITY)
+    if data is not None:
+        response = getattr(flask_client, method)(url, headers=headers, data=json.dumps(data))
+    else:
+        response = getattr(flask_client, method)(url, headers=headers)
+    assert_response_status(response.status_code, expected_status)
 
 
 @pytest.mark.usefixtures("enable_rbac")
