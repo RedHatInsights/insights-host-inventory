@@ -43,6 +43,26 @@ class TestResolveAppSort:
         assert model is HostAppDataPatch
         assert column.key == "advisories_rhsa_installable"
 
+    def test_patch_advisories_total_installable(self):
+        """patch:advisories_total_installable should resolve to correct model and a computed expression."""
+        from sqlalchemy.sql.expression import Case
+
+        result = resolve_app_sort("patch:advisories_total_installable")
+        assert result is not None
+        model, expr = result
+        assert model is HostAppDataPatch
+        assert isinstance(expr, Case), "Expected a CASE expression for computed sort field"
+
+    def test_patch_advisories_total_applicable(self):
+        """patch:advisories_total_applicable should resolve to correct model and a computed expression."""
+        from sqlalchemy.sql.expression import Case
+
+        result = resolve_app_sort("patch:advisories_total_applicable")
+        assert result is not None
+        model, expr = result
+        assert model is HostAppDataPatch
+        assert isinstance(expr, Case), "Expected a CASE expression for computed sort field"
+
     def test_remediations_plans(self):
         """remediations:remediations_plans should resolve to correct model and column."""
         result = resolve_app_sort("remediations:remediations_plans")
@@ -91,13 +111,13 @@ class TestResolveAppSort:
         assert model is HostAppDataPatch
         assert column.key == "template_name"
 
-    def test_vulnerability_high_severity_cves(self):
-        """vulnerability:high_severity_cves should resolve to correct model and column."""
-        result = resolve_app_sort("vulnerability:high_severity_cves")
+    def test_vulnerability_important_cves(self):
+        """vulnerability:important_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:important_cves")
         assert result is not None
         model, column = result
         assert model is HostAppDataVulnerability
-        assert column.key == "high_severity_cves"
+        assert column.key == "important_cves"
 
     def test_vulnerability_cves_with_security_rules(self):
         """vulnerability:cves_with_security_rules should resolve to correct model and column."""
@@ -238,7 +258,7 @@ class TestAppSortFieldMap:
         assert vuln_keys == {
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
-            "vulnerability:high_severity_cves",
+            "vulnerability:important_cves",
             "vulnerability:cves_with_security_rules",
             "vulnerability:cves_with_known_exploits",
         }
@@ -248,6 +268,8 @@ class TestAppSortFieldMap:
         field_map = get_app_sort_field_map()
         patch_keys = {k for k in field_map if k.startswith("patch:")}
         assert patch_keys == {
+            "patch:advisories_total_installable",
+            "patch:advisories_total_applicable",
             "patch:advisories_rhsa_installable",
             "patch:advisories_rhba_installable",
             "patch:advisories_rhea_installable",

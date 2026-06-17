@@ -77,9 +77,9 @@ $defs:
       critical_cves:
         type: integer
         description: Number of critical CVEs
-      high_severity_cves:
+      important_cves:
         type: integer
-        description: Number of high severity CVEs
+        description: Number of important severity CVEs
       cves_with_security_rules:
         type: integer
         description: Number of CVEs with security rules

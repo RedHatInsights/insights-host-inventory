@@ -1686,9 +1686,11 @@ components:
           - advisor:low
           - vulnerability:total_cves
           - vulnerability:critical_cves
-          - vulnerability:high_severity_cves
+          - vulnerability:important_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
+          - patch:advisories_total_installable
+          - patch:advisories_total_applicable
           - patch:advisories_rhsa_installable
           - patch:advisories_rhba_installable
           - patch:advisories_rhea_installable
@@ -2258,7 +2260,7 @@ components:
           type: integer
           minimum: 0
           nullable: true
-        high_severity_cves:
+        important_cves:
           type: integer
           minimum: 0
           nullable: true
@@ -2467,11 +2469,13 @@ components:
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
-        - `vulnerability:high_severity_cves` - High severity CVEs
+        - `vulnerability:important_cves` - Important severity CVEs
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
         **Patch**
+        - `patch:advisories_total_installable` - Total installable advisories (sum of all types)
+        - `patch:advisories_total_applicable` - Total applicable advisories (sum of all types)
         - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
         - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
         - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
@@ -2506,9 +2510,11 @@ components:
         - advisor:low
         - vulnerability:total_cves
         - vulnerability:critical_cves
-        - vulnerability:high_severity_cves
+        - vulnerability:important_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
+        - patch:advisories_total_installable
+        - patch:advisories_total_applicable
         - patch:advisories_rhsa_installable
         - patch:advisories_rhba_installable
         - patch:advisories_rhea_installable
