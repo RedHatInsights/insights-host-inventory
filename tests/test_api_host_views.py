@@ -97,7 +97,7 @@ class TestHostViewWithAppData:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -155,7 +155,7 @@ class TestHostViewWithAppData:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -211,7 +211,7 @@ class TestHostViewWithMultipleHosts:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -441,7 +441,7 @@ class TestHostViewSparseFieldsets:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -472,7 +472,7 @@ class TestHostViewSparseFieldsets:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -508,7 +508,7 @@ class TestHostViewSparseFieldsets:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -551,7 +551,7 @@ class TestHostViewSparseFieldsets:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -640,7 +640,7 @@ class TestHostViewSparseFieldsets:
             "vulnerability",
             total_cves=10,
             critical_cves=2,
-            high_severity_cves=3,
+            important_cves=3,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -1480,21 +1480,21 @@ class TestHostViewAppDataSorting:
         assert results[0]["app_data"]["patch"]["template_name"] == "alpha-template"
         assert results[1]["app_data"]["patch"]["template_name"] == "zeta-template"
 
-    def test_sort_by_vulnerability_high_severity_cves(self, api_get, db_create_host, db_create_host_app_data):
-        """Sort by vulnerability:high_severity_cves should work correctly."""
+    def test_sort_by_vulnerability_important_cves(self, api_get, db_create_host, db_create_host_app_data):
+        """Sort by vulnerability:important_cves should work correctly."""
         host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
         host2 = db_create_host(extra_data={"display_name": "host2.example.com"})
 
-        db_create_host_app_data(host1.id, host1.org_id, "vulnerability", high_severity_cves=3)
-        db_create_host_app_data(host2.id, host2.org_id, "vulnerability", high_severity_cves=15)
+        db_create_host_app_data(host1.id, host1.org_id, "vulnerability", important_cves=3)
+        db_create_host_app_data(host2.id, host2.org_id, "vulnerability", important_cves=15)
 
-        url = build_host_view_url(query="?order_by=vulnerability:high_severity_cves&order_how=DESC")
+        url = build_host_view_url(query="?order_by=vulnerability:important_cves&order_how=DESC")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
         results = response_data["results"]
-        assert results[0]["app_data"]["vulnerability"]["high_severity_cves"] == 15
-        assert results[1]["app_data"]["vulnerability"]["high_severity_cves"] == 3
+        assert results[0]["app_data"]["vulnerability"]["important_cves"] == 15
+        assert results[1]["app_data"]["vulnerability"]["important_cves"] == 3
 
     def test_sort_by_vulnerability_cves_with_security_rules(self, api_get, db_create_host, db_create_host_app_data):
         """Sort by vulnerability:cves_with_security_rules should work correctly."""
