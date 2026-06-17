@@ -60,11 +60,11 @@ def setup_empty_groups_primary(
     return host_inventory.apis.groups.create_n_empty_groups(110, cleanup_scope="class")
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def setup_groups_for_ordering(
     host_inventory: ApplicationHostInventory,
 ) -> list[GroupOutWithHostCount]:
-    hosts = host_inventory.kafka.create_random_hosts(20)
+    hosts = host_inventory.kafka.create_random_hosts(20, cleanup_scope="module")
 
     # Create 10 groups, 2 with 0 hosts, 2 with 1 host, ..., 2 with 4 hosts.
     # 20 hosts required in total
@@ -76,4 +76,4 @@ def setup_groups_for_ordering(
                 GroupData(name=generate_display_name("hbi-ordering-test"), hosts=group_hosts)
             )
 
-    return host_inventory.apis.groups.create_groups(groups_data)
+    return host_inventory.apis.groups.create_groups(groups_data, cleanup_scope="module")
