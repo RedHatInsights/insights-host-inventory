@@ -93,16 +93,23 @@ def get_workspaces_response(self, *, name=None, per_page=None, page=None,
 
 ### Future Phases
 
-**Phase 2: Migrate V1 endpoints in this plugin**
+**Phase 2: Identify external dependents and coordinate with other teams**
 
-Migrate the existing V1 wrapper classes (`hosts_api.py`, `groups_api.py`, tags, system_profile, staleness, etc.) to use `BaseAPIWrapper` with `api_version="v1"`. The base class is ready for this today. This is relatively straightforward because it is contained within this plugin's codebase.
+Some IQE plugins import our wrapper classes (`hosts_api.py`, `groups_api.py`, `kafka_interactions.py`, etc.) directly, not just the auto-generated bindings. Changing the return types of those wrappers from auto-generated objects to plain dicts would break those plugins. This coordination must happen before we can safely change anything in our wrappers.
 
-Outcome: all HBI IQE wrappers use `app.http_client` directly; the generated apigen bindings are no longer called from any wrapper.
+Steps:
+- Identify all IQE plugins that import or depend on our wrapper classes (`hosts_api.py`, `groups_api.py`, `kafka_interactions.py`, etc.)
+- For each dependent plugin, work with the owning team to either:
+  - migrate their code to use iqe-bindings directly (removing the dependency on our wrappers), or
+  - agree on a coordinated merge where all callers are updated to expect plain dicts at the same time
+- Do not proceed to Phase 3 until all external dependencies on our wrappers are resolved
 
-**Phase 3: Remove the generated bindings and coordinate with other plugins**
+Outcome: no external IQE plugin depends on our internal wrappers; we are free to change wrapper return types without breaking other teams.
 
-Once all wrappers in this plugin are migrated, other IQE plugins that depend on our auto-generated model objects (`iqe_host_inventory_api/`, `iqe_host_inventory_api_v7/`) need to be updated. This requires cross-team coordination before the generated packages can be removed.
+**Phase 3: Migrate V1 wrappers and remove generated packages**
 
-**Do not remove the generated packages until all dependent plugins have been updated.** Migrating V1 wrappers to return plain dicts would break those plugins if done without coordinating with the other teams first.
+Once no external plugin depends on our wrappers, migrate the existing V1 wrapper classes (`hosts_api.py`, `groups_api.py`, tags, system_profile, staleness, etc.) to use `BaseAPIWrapper` with `api_version="v1"` and return plain dicts. Then remove the generated packages.
 
-Outcome: `iqe_host_inventory_api/` and `iqe_host_inventory_api_v7/` packages are removed; full migration complete.
+**Do not remove the generated packages until Phase 2 is fully complete.**
+
+Outcome: all HBI IQE wrappers use `app.http_client` directly; `iqe_host_inventory_api/` and `iqe_host_inventory_api_v7/` packages are removed; full migration complete.
