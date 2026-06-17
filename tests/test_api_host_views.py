@@ -1397,10 +1397,11 @@ class TestHostViewAppDataSorting:
         expected_names = [f"host-{t}.example.com" for t in expected_order]
         assert result_names == expected_names
 
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
     def test_sort_by_patch_advisories_total_installable_nulls_last(
-        self, api_get, db_create_host, db_create_host_app_data
+        self, api_get, db_create_host, db_create_host_app_data, order_how
     ):
-        """Hosts without patch data should appear last when sorting by total installable."""
+        """Hosts without patch data should appear last regardless of sort direction."""
         host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
         db_create_host(extra_data={"display_name": "host-no-data.example.com"})
 
@@ -1414,12 +1415,11 @@ class TestHostViewAppDataSorting:
             advisories_other_installable=0,
         )
 
-        url = build_host_view_url(query="?order_by=patch:advisories_total_installable&order_how=ASC")
+        url = build_host_view_url(query=f"?order_by=patch:advisories_total_installable&order_how={order_how}")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
         results = response_data["results"]
-        # Host with data (total=0) should come before host without data (NULL)
         assert results[0]["display_name"] == "host-with-data.example.com"
         assert results[1]["display_name"] == "host-no-data.example.com"
 
@@ -1455,10 +1455,11 @@ class TestHostViewAppDataSorting:
         expected_names = [f"host-{t}.example.com" for t in expected_order]
         assert result_names == expected_names
 
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
     def test_sort_by_patch_advisories_total_applicable_nulls_last(
-        self, api_get, db_create_host, db_create_host_app_data
+        self, api_get, db_create_host, db_create_host_app_data, order_how
     ):
-        """Hosts without patch data should appear last when sorting by total applicable."""
+        """Hosts without patch data should appear last regardless of sort direction."""
         host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
         db_create_host(extra_data={"display_name": "host-no-data.example.com"})
 
@@ -1472,7 +1473,7 @@ class TestHostViewAppDataSorting:
             advisories_other_applicable=0,
         )
 
-        url = build_host_view_url(query="?order_by=patch:advisories_total_applicable&order_how=ASC")
+        url = build_host_view_url(query=f"?order_by=patch:advisories_total_applicable&order_how={order_how}")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
