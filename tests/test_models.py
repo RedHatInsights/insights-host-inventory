@@ -1821,7 +1821,7 @@ def test_create_host_app_data_vulnerability(db_create_host):
         last_updated=current_time,
         total_cves=150,
         critical_cves=5,
-        high_severity_cves=20,
+        important_cves=20,
         cves_with_security_rules=10,
         cves_with_known_exploits=3,
     )
@@ -1837,7 +1837,7 @@ def test_create_host_app_data_vulnerability(db_create_host):
     assert retrieved.host_id == host.id
     assert retrieved.total_cves == 150
     assert retrieved.critical_cves == 5
-    assert retrieved.high_severity_cves == 20
+    assert retrieved.important_cves == 20
     assert retrieved.cves_with_security_rules == 10
     assert retrieved.cves_with_known_exploits == 3
     assert retrieved.last_updated == current_time

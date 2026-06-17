@@ -1686,7 +1686,7 @@ components:
           - advisor:low
           - vulnerability:total_cves
           - vulnerability:critical_cves
-          - vulnerability:high_severity_cves
+          - vulnerability:important_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
           - patch:advisories_rhsa_installable
@@ -2258,7 +2258,7 @@ components:
           type: integer
           minimum: 0
           nullable: true
-        high_severity_cves:
+        important_cves:
           type: integer
           minimum: 0
           nullable: true
@@ -2467,7 +2467,7 @@ components:
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
-        - `vulnerability:high_severity_cves` - High severity CVEs
+        - `vulnerability:important_cves` - Important severity CVEs
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
@@ -2506,7 +2506,7 @@ components:
         - advisor:low
         - vulnerability:total_cves
         - vulnerability:critical_cves
-        - vulnerability:high_severity_cves
+        - vulnerability:important_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
         - patch:advisories_rhsa_installable
