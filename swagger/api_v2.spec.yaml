@@ -344,253 +344,6 @@ paths:
           description: Forbidden - identity type not supported or missing username.
         '404':
           description: Source view not found or not visible to the requesting user.
-  /workspaces:
-    get:
-      operationId: api.v2.workspace.get_workspace_list
-      tags:
-        - workspaces
-      summary: Read the entire list of groups
-      description: >-
-        Read the entire list of all groups available to the account.
-        <br /><br />
-        Required permissions: inventory:groups:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/groupName'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/groupOrderByParam'
-        - $ref: '#/components/parameters/groupOrderHowParam'
-        - $ref: '#/components/parameters/workspaceTypeParam'
-      responses:
-        '200':
-          description: Successfully read the groups list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceQueryOutput'
-        '400':
-          description: Groups not found.
-
-    post:
-      operationId: api.v2.workspace.create_workspace
-      tags:
-        - workspaces
-      summary: Create a new group matching the provided name and list of hosts IDs
-      description: >-
-        Creates a new group containing the hosts associated with the host IDs provided.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-        - BearerAuth: []
-      requestBody:
-        description: Data required to create a record for a group.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WorkspaceIn'
-      responses:
-        '201':
-          description: Successfully created new Group.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
-        "400":
-          "description": "Invalid request."
-        "403":
-          "description": "Forbidden - Invalid RBAC permission."
-  '/workspaces/{workspace_id}':
-    patch:
-      operationId: api.v2.workspace.patch_workspace_by_id
-      tags:
-        - workspaces
-      summary: Update group information
-      description: >-
-        Update group information, removing any existing host associations from the group.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceId'
-      requestBody:
-        description: A dictionary with new information with which to update the original group.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WorkspaceIn'
-      responses:
-        '200':
-          description: Group information successfully updated.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-  '/workspaces/{workspace_id_list}':
-    get:
-      operationId: api.v2.workspace.get_workspaces_by_id
-      tags:
-        - workspaces
-      summary: Find groups by their IDs
-      description: >-
-        Find one or more groups by their IDs.
-        <br /><br />
-        Required permissions: inventory:groups:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceIdList'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/groupOrderByParam'
-        - $ref: '#/components/parameters/groupOrderHowParam'
-      responses:
-        '200':
-          description: Successfully searched for groups.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceQueryOutput'
-        '400':
-          description: Invalid request.
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-    delete:
-      operationId: api.v2.workspace.delete_workspaces
-      tags:
-        - workspaces
-      summary: Delete a list of groups
-      description: >-
-        Delete a list of groups.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceIdList'
-      responses:
-        '204':
-          description: The groups were successfully deleted.
-        '400':
-          description: Invalid request.
-  '/workspaces/{workspace_id}/hosts/{host_id_list}':
-    delete:
-      operationId: api.v2.host_workspace.delete_hosts_from_workspace
-      tags:
-        - workspaces
-      summary: Delete one or more hosts from a group
-      description: >-
-        Delete one or more hosts from a group.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceId'
-        - $ref: '#/components/parameters/hostIdList'
-      responses:
-        '204':
-          description: Successfully deleted hosts.
-        '400':
-          description: Invalid request.
-  '/workspaces/{workspace_id}/hosts':
-    get:
-      operationId: api.v2.host_workspace.get_host_list_by_workspace
-      tags:
-        - workspaces
-      summary: Read the list of hosts in a group
-      description: >-
-        Read the list of all hosts in a specific group.
-        <br /><br />
-        Required permissions: inventory:hosts:read
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceId'
-        - $ref: '#/components/parameters/displayName'
-        - $ref: '#/components/parameters/fqdn'
-        - $ref: '#/components/parameters/hostnameOrId'
-        - $ref: '#/components/parameters/insightsId'
-        - $ref: '#/components/parameters/perPageParam'
-        - $ref: '#/components/parameters/pageParam'
-        - $ref: '#/components/parameters/hostOrderByParam'
-        - $ref: '#/components/parameters/hostOrderHowParam'
-        - $ref: '#/components/parameters/stalenessParam'
-        - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/registered_with'
-        - $ref: '#/components/parameters/filter_param'
-        - $ref: '#/components/parameters/fields_param'
-      responses:
-        '200':
-          description: Successfully read the hosts in the group.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HostQueryOutput'
-        '404':
-          description: Group not found.
-    post:
-      operationId: api.v2.host_workspace.add_host_list_to_workspace
-      tags:
-        - workspaces
-      summary: Add host IDs to the provided group
-      description: >-
-        Adds the host list in the request body to the provided group.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/workspaceId'
-      requestBody:
-        description: A list of hosts IDs to associate with the provided group.
-        required: true
-        x-body-name: host_id_list
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HostIds'
-      responses:
-        '200':
-          description: Hosts successfully or already previously associated with group.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
-        '400':
-          description: Invalid request.
-        '404':
-          description: Group not found.
-  '/workspaces/hosts/{host_id_list}':
-    delete:
-      operationId: api.v2.workspace.delete_hosts_from_different_workspaces
-      tags:
-        - workspaces
-      summary: Delete a list of hosts from the groups they are in
-      description: >-
-        Delete a list of hosts from the groups they are in.
-        <br /><br />
-        Required permissions: inventory:groups:write
-      security:
-        - ApiKeyAuth: []
-      parameters:
-        - $ref: '#/components/parameters/hostIdList'
-      responses:
-        '204':
-          description: The hosts were successfully removed from their groups.
-        '400':
-          description: Invalid request.
-        '404':
-          description: The provided hosts are ungrouped.
 
 
 components:
@@ -723,17 +476,6 @@ components:
           - operating_system
           - last_check_in
       description: Ordering field name
-    groupOrderByParam:
-      name: order_by
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - name
-          - host_count
-          - modified
-      description: Ordering field name
     hostOrderHowParam:
       in: query
       name: order_how
@@ -743,28 +485,6 @@ components:
       description: >-
         Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC
         for updated and operating_system
-    groupOrderHowParam:
-      in: query
-      name: order_how
-      required: false
-      schema:
-        $ref: '#/components/schemas/OrderHow'
-      description: >-
-        Direction of the ordering (case-insensitive); defaults to ASC for name, and to DESC
-        for host_count and updated
-    workspaceTypeParam:
-      in: query
-      name: group_type
-      required: false
-      schema:
-        type: string
-        default: standard
-        enum:
-          - standard
-          - ungrouped-hosts
-          - all
-      description: >-
-        The type of workspaces that should be returned.
     stalenessParam:
       name: staleness
       in: query
@@ -899,13 +619,6 @@ components:
         type: boolean
       description: Confirmation to delete all hosts on the account
       required: false
-    groupName:
-      in: query
-      name: name
-      schema:
-        type: string
-      description: Filter by group name
-      required: false
     workspaceNameListParam:
       in: query
       name: workspace_name
@@ -933,22 +646,6 @@ components:
         type: string
         format: uuid
 
-    workspaceId:
-      in: path
-      name: workspace_id
-      description: Workspace ID.
-      required: true
-      schema:
-        $ref: '#/components/schemas/NonStrictUUID'
-    workspaceIdList:
-      in: path
-      name: workspace_id_list
-      description: A comma-separated list of workspace IDs.
-      required: true
-      schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/NonStrictUUID'
   schemas:
     StructuredTag:
       type: object
@@ -1590,45 +1287,6 @@ components:
         - $ref: '#/components/schemas/NonStrictUUID'
         - $ref: '#/components/schemas/SystemDefaultId'
 
-    HostCount:
-      description: The number of hosts associated with the group.
-      type: integer
-      example: 3
-    GroupOutWithHostCount:
-      title: Group properties with host count
-      description: >-
-        Data of a single group belonging to an account.
-      type: object
-      allOf:
-        - $ref: "#/components/schemas/GroupOut"
-        - properties:
-            host_count:
-              $ref: "#/components/schemas/HostCount"
-    GroupOut:
-      title: Group Out Properties
-      description: >-
-        Data of a single group belonging to an account.
-      type: object
-      properties:
-        id:
-          $ref: "#/components/schemas/GroupId"
-        name:
-          $ref: "#/components/schemas/GroupName"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
-        org_id:
-          $ref: "#/components/schemas/OrgId"
-        ungrouped:
-          description: Whether the group is the "ungrouped hosts" group
-          type: boolean
-        created:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
     ResourceTypesOut:
       title: A resource type query result
       description: >-
@@ -1943,53 +1601,6 @@ components:
           description: The workspace classification type.
           type: string
           nullable: true
-    WorkspaceOutWithHostCount:
-      title: Workspace properties with host count
-      description: Data of a single workspace belonging to an account.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/WorkspaceOut'
-        - properties:
-            host_count:
-              $ref: '#/components/schemas/HostCount'
-    WorkspaceIn:
-      title: Workspace In
-      description: >-
-        Data of a single workspace belonging to an account.
-      type: object
-      properties:
-        name:
-          $ref: "#/components/schemas/GroupName"
-        host_ids:
-          $ref: "#/components/schemas/HostIds"
-        description:
-          description: A free-text description of the workspace.
-          type: string
-          nullable: true
-        type:
-          description: The workspace classification type.
-          type: string
-          nullable: true
-        parent_id:
-          description: The parent workspace ID for hierarchical organization.
-          type: string
-          format: uuid
-          nullable: true
-    WorkspaceQueryOutput:
-      title: An Inventory Workspaces query result
-      description: A paginated workspace search query result with workspace entries and their Inventory metadata.
-      type: object
-      allOf:
-        - $ref: '#/components/schemas/PaginationOut'
-        - type: object
-          required:
-            - results
-          properties:
-            results:
-              description: Actual workspace search query result entries.
-              type: array
-              items:
-                $ref: '#/components/schemas/WorkspaceOutWithHostCount'
   responses:
     NotFoundError:
       description: One or more requested resources were not found.
