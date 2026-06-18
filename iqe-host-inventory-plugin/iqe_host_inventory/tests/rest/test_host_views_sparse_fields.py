@@ -75,7 +75,7 @@ class TestSparseFieldsSingleApp:
         """
         host = setup_host_with_app_data(
             "vulnerability",
-            {"total_cves": 10, "critical_cves": 2, "high_severity_cves": 3},
+            {"total_cves": 10, "critical_cves": 2, "important_cves": 3},
         )
 
         response = host_inventory.apis.host_views.get_host_views_response(
@@ -93,7 +93,7 @@ class TestSparseFieldsSingleApp:
         assert vuln_data["critical_cves"] == 2
 
         assert vuln_data.get("total_cves") is None
-        assert vuln_data.get("high_severity_cves") is None
+        assert vuln_data.get("important_cves") is None
 
 
 class TestSparseFieldsMultipleApps:
@@ -166,7 +166,7 @@ class TestSparseFieldsMultipleApps:
         vuln_data = result.app_data.vulnerability.to_dict()
         assert vuln_data.get("critical_cves") == 2
         assert vuln_data.get("total_cves") == 10
-        assert vuln_data.get("high_severity_cves") is None
+        assert vuln_data.get("important_cves") is None
 
 
 class TestSparseFieldsMetaKey:
