@@ -86,7 +86,7 @@ Establish the pattern using existing, live V1 endpoints. This is immediately tes
 **Deliverables:**
 
 1. **PR 1** — Introduce `BaseAPIWrapper` using `app.http_client` with the URL helper. Migrate a single V1 endpoint (e.g., `GET /groups`) as proof of concept, with one test passing end-to-end. The apigen packages remain installed; only this one wrapper changes internally.
-2. **PR 2** — Migrate a small additional set of V1 wrappers (e.g., `GET /hosts`, `GET /tags`) to validate the pattern across different resource types.
+2. **PR 2** — Migrate the test suites directly impacted by the V2 work to the new pattern.
 
 **What stays unchanged:**
 - All other V1 wrappers continue to use apigen — no disruption to tests or external callers
