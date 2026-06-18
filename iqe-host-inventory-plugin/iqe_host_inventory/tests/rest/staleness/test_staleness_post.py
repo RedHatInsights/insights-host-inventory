@@ -1,5 +1,4 @@
 import logging
-from random import randint
 from typing import Any
 
 import pytest
@@ -9,7 +8,6 @@ from iqe_host_inventory.utils.api_utils import api_disabled_validation
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import DAY_SECS
 from iqe_host_inventory.utils.staleness_utils import MIN_DELTA
-from iqe_host_inventory.utils.staleness_utils import STALENESS_DEFAULTS
 from iqe_host_inventory.utils.staleness_utils import STALENESS_LIMITS
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_DELETE
 from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE
@@ -45,24 +43,9 @@ def test_staleness_create_random_data(
 @pytest.mark.parametrize(
     "field,value",
     [
-        (
-            TIME_TO_STALE,
-            randint(MIN_DELTA, STALENESS_DEFAULTS[TIME_TO_STALE]),
-        ),
-        (
-            TIME_TO_STALE_WARNING,
-            randint(
-                STALENESS_DEFAULTS[TIME_TO_STALE] + 1,
-                STALENESS_DEFAULTS[TIME_TO_STALE_WARNING],
-            ),
-        ),
-        (
-            TIME_TO_DELETE,
-            randint(
-                STALENESS_DEFAULTS[TIME_TO_STALE_WARNING] + 1,
-                STALENESS_LIMITS[TIME_TO_DELETE],
-            ),
-        ),
+        (TIME_TO_STALE, 432000),
+        (TIME_TO_STALE_WARNING, 864000),
+        (TIME_TO_DELETE, 31536000),
     ],
 )
 def test_staleness_create_single_field(
