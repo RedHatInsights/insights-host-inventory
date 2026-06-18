@@ -831,8 +831,8 @@ class FactNamespace(TypedDict):
 
 def generate_facts(num_facts: int = 2) -> list[FactNamespace]:
     """Generate some facts."""
-    facts = {}
-    for _ in range(num_facts):
+    facts: dict[str, str] = {}
+    while len(facts) < num_facts:
         facts[fake.domain_word()] = fake.domain_word()
 
     result = FactNamespace(namespace=fake.domain_word(), facts=facts)
