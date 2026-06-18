@@ -9,8 +9,10 @@ from iqe.base.application.plugins import ApplicationPlugin
 from iqe.base.application.plugins import ApplicationPluginException
 from iqe.base.application.plugins.service_objects import RESTPluginService
 
-from .modeling.kafka_interaction import HBI_REQUESTED_KAFKA_PARSER
-from .modeling.kafka_interaction import HBI_REQUESTED_KAFKA_TOPICS
+from .modeling.kafka_interaction import HBI_EVENTS_KAFKA_PARSER
+from .modeling.kafka_interaction import HBI_EVENTS_KAFKA_TOPICS
+from .modeling.kafka_interaction import HBI_KESSEL_KAFKA_PARSER
+from .modeling.kafka_interaction import HBI_KESSEL_KAFKA_TOPICS
 
 if TYPE_CHECKING:
     from . import modeling
@@ -43,8 +45,9 @@ class ApplicationHostInventory(ApplicationPlugin):
     v7_notifications_v1 = RESTPluginService.declare("v7_notifications_v1")
     v7_integrations_v1 = RESTPluginService.declare("v7_integrations_v1")
 
-    kafka_consumer = declare_shared_consumer(
-        HBI_REQUESTED_KAFKA_PARSER, HBI_REQUESTED_KAFKA_TOPICS
+    kafka_consumer = declare_shared_consumer(HBI_EVENTS_KAFKA_PARSER, HBI_EVENTS_KAFKA_TOPICS)
+    kessel_outbox_consumer = declare_shared_consumer(
+        HBI_KESSEL_KAFKA_PARSER, HBI_KESSEL_KAFKA_TOPICS
     )
 
     @cached_property

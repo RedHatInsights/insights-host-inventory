@@ -27,7 +27,7 @@ dependencies = [
   "google-api-python-client",
   "google-auth",
   "iqe-bindings",
-  "iqe-core>=24.11.29.1",
+  "iqe-core>=26.06.18.0",
   "iqe-export-service-plugin",
   "iqe-kessel-sync-plugin",
   "iqe-turnpike-plugin",
