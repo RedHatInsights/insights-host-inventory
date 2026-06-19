@@ -40,6 +40,7 @@ from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
+from lib.kessel import get_kessel_oauth2_credentials
 
 logger = get_logger(__name__)
 
@@ -85,12 +86,77 @@ def get_rbac_private_url() -> str:
     return inventory_config().rbac_endpoint + RBAC_PRIVATE_UNGROUPED_ROUTE
 
 
+def _get_rbac_access_token() -> str:
+    """
+    Get a valid OAuth2 access token for RBAC v2 API calls.
+
+    Returns:
+        str: Valid OAuth2 access token
+
+    Note:
+        OAuth2ClientCredentials.get_token() has built-in caching with a 300-second refresh buffer.
+    """
+
+    config = inventory_config()
+    oauth_client = get_kessel_oauth2_credentials(config)
+    try:
+        token_response = oauth_client.get_token()
+        return token_response.access_token
+    except Exception:
+        logger.exception("Failed to get RBAC access token")
+        raise
+
+
 def _build_rbac_request_headers(identity_header: str | None = None, request_id_header: str | None = None) -> dict:
+    """
+    Build request headers for RBAC API calls.
+
+    Args:
+        identity_header: Base64-encoded x-rh-identity (defaults to current request)
+        request_id_header: Request ID for tracing (defaults to current request)
+
+    Returns:
+        dict: Request headers with authentication
+    """
     request_headers = {
         IDENTITY_HEADER: identity_header or request.headers[IDENTITY_HEADER],
         REQUEST_ID_HEADER: request_id_header or request.headers.get(REQUEST_ID_HEADER),
     }
     return request_headers
+
+
+def _build_rbac_auth_request_headers(org_id: str) -> dict:
+    """
+    Build request headers for service-to-service RBAC API calls.
+
+    Uses OAuth2 service account authentication with explicit org_id context.
+
+    Note:
+        It has a fallback to PSK when Kessel auth is not enabled.
+        The fallback should only be used for testing in ephemeral or development environments.
+    """
+
+    config = inventory_config()
+    headers = {
+        "X-RH-RBAC-ORG-ID": org_id,
+        "X-RH-RBAC-CLIENT-ID": "inventory",
+    }
+
+    # We're using the same auth as we do for kessel
+    # verify it's enabled before using
+    if config.kessel_auth_enabled:
+        access_token = _get_rbac_access_token()
+        headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        # This branch should only be used for testing or development environments where Kessel auth is not enabled.
+        # TODO: enable Kessel auth for all environments and remove this fallback logic.
+        logger.warning(
+            "Kessel auth is not enabled, falling back to PSK for RBAC API authentication. "
+            "This is not recommended for production use."
+        )
+        psk = config.rbac_psk
+        headers["X-RH-RBAC-PSK"] = psk
+    return headers
 
 
 def _execute_rbac_http_request(  # type: ignore[return]
@@ -686,18 +752,25 @@ def post_rbac_workspace(name) -> UUID | None:
 
 
 def rbac_create_ungrouped_hosts_workspace(identity: Identity) -> UUID | None:
-    # Creates a new "ungrouped" workspace via the RBAC API, and returns its ID.
-    # If not using Kessel, returns None, so the DB will automatically generate the group ID.
+    """
+    Create a new "ungrouped" workspace via the RBAC API and return its ID.
+
+    Args:
+        identity: User identity (used for org_id context)
+
+    Returns:
+        UUID: Workspace ID from RBAC v2 API, or None if bypass_kessel is enabled
+
+    Note:
+        Uses OAuth2 service account for authentication instead of PSK.
+        PSK is used only as a fallback for testing environments.
+
+        If not using Kessel, returns None so the DB will automatically generate the group ID.
+    """
     if inventory_config().bypass_kessel:
         return None
 
-    # Get HBI's RBAC PSK from the config
-    psk = inventory_config().rbac_psk
-    request_headers = {
-        "X-RH-RBAC-PSK": psk,
-        "X-RH-RBAC-ORG-ID": identity.org_id,
-        "X-RH-RBAC-CLIENT-ID": "inventory",
-    }
+    request_headers = _build_rbac_auth_request_headers(identity.org_id)
 
     resp_data = rbac_get_request_using_endpoint_and_headers(get_rbac_private_url(), request_headers)
 

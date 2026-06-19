@@ -1689,6 +1689,8 @@ components:
           - vulnerability:important_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
+          - patch:advisories_total_installable
+          - patch:advisories_total_applicable
           - patch:advisories_rhsa_installable
           - patch:advisories_rhba_installable
           - patch:advisories_rhea_installable
@@ -2472,6 +2474,8 @@ components:
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
         **Patch**
+        - `patch:advisories_total_installable` - Total installable advisories (sum of all types)
+        - `patch:advisories_total_applicable` - Total applicable advisories (sum of all types)
         - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
         - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
         - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
@@ -2509,6 +2513,8 @@ components:
         - vulnerability:important_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
+        - patch:advisories_total_installable
+        - patch:advisories_total_applicable
         - patch:advisories_rhsa_installable
         - patch:advisories_rhba_installable
         - patch:advisories_rhea_installable
