@@ -48,10 +48,26 @@ from iqe_host_inventory_api import SystemProfileByHostOut
 from iqe_host_inventory_api import TagCountOut
 from iqe_host_inventory_api import TagsOut
 
-HOST_NOT_CREATED_ERROR = Exception("Host wasn't successfully created")
-HOST_NOT_UPDATED_ERROR = Exception("Host wasn't successfully updated")
-HOST_NOT_DELETED_ERROR = Exception("Host wasn't successfully deleted")
-HOST_NOT_STALENESS_ERROR = Exception("Host didn't have expected staleness")
+
+class HOST_NOT_CREATED_ERROR(Exception):
+    def __init__(self, msg="Host wasn't successfully created"):
+        super().__init__(msg)
+
+
+class HOST_NOT_UPDATED_ERROR(Exception):
+    def __init__(self, msg="Host wasn't successfully updated"):
+        super().__init__(msg)
+
+
+class HOST_NOT_DELETED_ERROR(Exception):
+    def __init__(self, msg="Host wasn't successfully deleted"):
+        super().__init__(msg)
+
+
+class HOST_NOT_STALENESS_ERROR(Exception):
+    def __init__(self, msg="Host didn't have expected staleness"):
+        super().__init__(msg)
+
 
 HOST_OR_ID = HostWrapper | HostOut | str
 HOST_OR_HOSTS = HOST_OR_ID | Collection[HOST_OR_ID]
@@ -672,7 +688,7 @@ class HostsAPIWrapper(BaseEntity):
         accuracy: timedelta = timedelta(0),
         delay: float | None = None,
         retries: int | None = None,
-        error: Exception | None = HOST_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_UPDATED_ERROR,
         **sp_fields: Any,
     ) -> HostSystemProfileOut:
         """Wait until the system profile is successfully updated and the changes are retrievable
@@ -894,7 +910,7 @@ class HostsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = HOST_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_CREATED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully created and retrievable by API
 
@@ -953,7 +969,7 @@ class HostsAPIWrapper(BaseEntity):
         filter: list[str] | None = None,
         delay: float = 0.5,
         retries: int = 20,
-        error: Exception | None = HOST_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_CREATED_ERROR,
         **api_kwargs: Any,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully created and retrievable by API using GET /hosts
@@ -1239,7 +1255,7 @@ class HostsAPIWrapper(BaseEntity):
         accuracy: timedelta = timedelta(0),
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_UPDATED_ERROR,
         **fields: Any,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully updated and the changes are retrievable by API
@@ -1350,7 +1366,7 @@ class HostsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_UPDATED_ERROR,
     ) -> list[HostOut]:
         """Wait until the host facts are successfully updated and the changes are retrievable
 
@@ -1425,7 +1441,7 @@ class HostsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_UPDATED_ERROR,
     ) -> list[HostOut]:
         """Wait until the host facts are successfully updated and the changes are retrievable
 
@@ -1515,7 +1531,7 @@ class HostsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_DELETED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_DELETED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully deleted and not retrievable by API
 
@@ -1730,7 +1746,7 @@ class HostsAPIWrapper(BaseEntity):
         filter: list[str] | None = None,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_DELETED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_DELETED_ERROR,
         **api_kwargs: Any,
     ) -> list[HostOut]:
         """Wait until the hosts are successfully deleted and not retrievable by API
@@ -1854,7 +1870,7 @@ class HostsAPIWrapper(BaseEntity):
         self,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_DELETED_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_DELETED_ERROR,
     ) -> list[HostOut]:
         """Wait until all hosts are successfully deleted and not retrievable by API
 
@@ -1978,7 +1994,7 @@ class HostsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = HOST_NOT_STALENESS_ERROR,
+        error: type[Exception] | Exception | None = HOST_NOT_STALENESS_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are in the specified staleness state
 

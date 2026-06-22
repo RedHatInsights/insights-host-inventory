@@ -41,6 +41,32 @@ GROUP_NOT_DELETED_ERROR = Exception("Group wasn't successfully deleted")
 HOSTS_NOT_ADDED_ERROR = Exception("Hosts weren't successfully added")
 HOSTS_NOT_REMOVED_ERROR = Exception("Hosts weren't successfully removed")
 
+
+class GROUP_NOT_CREATED_ERROR(Exception):
+    def __init__(self, msg="Group wasn't successfully created"):
+        super().__init__(msg)
+
+
+class GROUP_NOT_UPDATED_ERROR(Exception):
+    def __init__(self, msg="Group wasn't successfully updated"):
+        super().__init__(msg)
+
+
+class GROUP_NOT_DELETED_ERROR(Exception):
+    def __init__(self, msg="Group wasn't successfully deleted"):
+        super().__init__(msg)
+
+
+class HOSTS_NOT_ADDED_ERROR(Exception):
+    def __init__(self, msg="Hosts weren't successfully added"):
+        super().__init__(msg)
+
+
+class HOSTS_NOT_REMOVED_ERROR(Exception):
+    def __init__(self, msg="Hosts weren't successfully removed"):
+        super().__init__(msg)
+
+
 # Error message from Kessel/RBAC when trying to create a workspace with a duplicate name
 DUPLICATE_WORKSPACE_NAME_ERROR = (
     "Can't create workspace with same name within same parent workspace"
@@ -626,7 +652,7 @@ class GroupsAPIWrapper(BaseEntity):
         groups_data: Collection[GroupData] | None = None,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = GROUP_NOT_CREATED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully created and retrievable by API
 
@@ -802,7 +828,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_DELETED_ERROR,
+        error: type[Exception] | Exception | None = GROUP_NOT_DELETED_ERROR,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully deleted and not retrievable by API
 
@@ -920,7 +946,7 @@ class GroupsAPIWrapper(BaseEntity):
         host_count: int | None = None,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = GROUP_NOT_UPDATED_ERROR,
     ) -> GroupOutWithHostCount:
         """Wait until the group is successfully updated and the changes are retrievable by API
 
@@ -1133,7 +1159,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = HOSTS_NOT_REMOVED_ERROR,
+        error: type[Exception] | Exception | None = HOSTS_NOT_REMOVED_ERROR,
     ) -> list[HostOut]:
         """Wait until the hosts are removed from groups and the changes are retrievable by API
 
@@ -1217,7 +1243,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = HOSTS_NOT_ADDED_ERROR,
+        error: type[Exception] | Exception | None = HOSTS_NOT_ADDED_ERROR,
     ) -> list[str]:
         """Wait until the hosts are added to the group and the changes are retrievable by API
 

@@ -31,12 +31,29 @@ from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import accept_when
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 
+
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 
 WORKSPACE_NOT_CREATED_ERROR = Exception("Workspace wasn't successfully created")
 WORKSPACE_NOT_UPDATED_ERROR = Exception("Workspace wasn't successfully updated")
 WORKSPACE_NOT_DELETED_ERROR = Exception("Workspace wasn't successfully deleted")
+
+
+class WORKSPACE_NOT_CREATED_ERROR(Exception):
+    def __init__(self, msg="Workspace wasn't successfully created"):
+        super().__init__(msg)
+
+
+class WORKSPACE_NOT_UPDATED_ERROR(Exception):
+    def __init__(self, msg="Workspace wasn't successfully updated"):
+        super().__init__(msg)
+
+
+class WORKSPACE_NOT_DELETED_ERROR(Exception):
+    def __init__(self, msg="Workspace wasn't successfully deleted"):
+        super().__init__(msg)
+
 
 type WORKSPACE_OR_ID = WorkspacesWorkspace | WorkspacesCreateWorkspaceResponse | str
 type WORKSPACE_OR_WORKSPACES = WORKSPACE_OR_ID | Collection[WORKSPACE_OR_ID]
@@ -226,7 +243,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = WORKSPACE_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = WORKSPACE_NOT_CREATED_ERROR,
     ) -> list[WorkspacesWorkspace]:
         """Wait until the workspaces are successfully created and retrievable by API
 
@@ -268,7 +285,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         name: str | None = None,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = WORKSPACE_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = WORKSPACE_NOT_UPDATED_ERROR,
     ) -> WorkspacesWorkspace:
         """Wait until the workspace is successfully updated and retrievable by API
 
