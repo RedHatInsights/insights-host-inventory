@@ -14,7 +14,8 @@ from iqe.utils.archive_memory import InsightsArchiveInMemory
 from iqe_bindings.v7.ingress_v1 import IngressApi
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.modeling.hosts_api import HOST_NOT_CREATED_ERROR
+from iqe_host_inventory.modeling.hosts_api import HostNotCreatedError
+from iqe_host_inventory.modeling.hosts_api import HostOperationError
 from iqe_host_inventory.modeling.hosts_api import HostsAPIWrapper
 from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -33,9 +34,8 @@ _CONTENT_TYPE_TO_EXTENSION = {
 }
 
 
-class HOSTS_NOT_CREATED_ERROR(Exception):
-    def __init__(self, msg="Some hosts were not created"):
-        super().__init__(msg)
+class HostsNotCreatedError(HostOperationError):
+    default_message = "Some hosts were not created"
 
 
 @dataclass
@@ -285,7 +285,7 @@ class HBIUploads(BaseEntity):
         logger.info("Waiting for the host to be retrievable via REST API: GET /host_exists")
         host_ids = self._hosts_api.wait_for_host_exists([archive.insights_id])
         if len(host_ids) != 1:
-            raise HOST_NOT_CREATED_ERROR(
+            raise HostNotCreatedError(
                 f"Expected exactly one host to be created, got {len(host_ids)}: {host_ids}"
             )
 
@@ -294,7 +294,7 @@ class HBIUploads(BaseEntity):
             insights_id=archive.insights_id
         )
         if len(hosts) != 1:
-            raise HOST_NOT_CREATED_ERROR(
+            raise HostNotCreatedError(
                 f"Expected exactly one host to be created, got {len(hosts)}: {hosts}"
             )
 
@@ -348,13 +348,13 @@ class HBIUploads(BaseEntity):
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /host_exists")
         response_host_ids = self._hosts_api.wait_for_host_exists(insights_ids)
         if len(response_host_ids) != len(insights_ids):
-            raise HOSTS_NOT_CREATED_ERROR(f"{response_host_ids} != {insights_ids}")
+            raise HostsNotCreatedError(f"{response_host_ids} != {insights_ids}")
 
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /hosts")
         response_hosts = self._hosts_api.async_wait_for_created_by_insights_ids(insights_ids)
         delete_files(archives)
         if len(response_hosts) != len(insights_ids):
-            raise HOSTS_NOT_CREATED_ERROR(f"{response_hosts} != {insights_ids}")
+            raise HostsNotCreatedError(f"{response_hosts} != {insights_ids}")
 
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /hosts/<host_id>")
         self._hosts_api.wait_for_created(response_hosts)
