@@ -15,6 +15,9 @@ def _ensure_ungrouped_group_exists(host_inventory: ApplicationHostInventory):
     # This is a workaround to ensure the group exists in a new environment as tests may expect it.
     if not host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts"):
         # If the ungrouped group doesn't exist, it will get created with this
+        host_inventory.upload.upload_archive()
+        # On Kessel enabled ephemeral environment HBI fails to create the first host. Try again.
+        # https://redhat.atlassian.net/browse/RHINENG-27927
         host = host_inventory.upload.create_host()
 
         assert host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts"), (
