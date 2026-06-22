@@ -1,6 +1,8 @@
+from copy import deepcopy
 from typing import Any
 
 from app.logging import get_logger
+from app.models.constants import WORKLOADS_FIELDS
 from app.models.schemas import HostDynamicSystemProfileSchema
 from app.models.schemas import HostStaticSystemProfileSchema
 from app.models.system_profile_normalizer import SystemProfileNormalizer
@@ -66,6 +68,13 @@ def map_system_profile_fields(
     return mapped_data_static, mapped_data_dynamic
 
 
+def strip_legacy_workload_root_fields(system_profile_data: dict[str, Any]) -> dict[str, Any]:
+    """Remove deprecated top-level workload fields before splitting for storage."""
+    for field in WORKLOADS_FIELDS:
+        system_profile_data.pop(field, None)
+    return system_profile_data
+
+
 def validate_and_transform(
     org_id: str, host_id: str, system_profile_data: dict[str, Any]
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -83,7 +92,8 @@ def validate_and_transform(
     Raises:
         ValidationError: If the data fails validation
     """
-    # Split the data
+    # Split the data (legacy root-level workload fields are ignored; workloads.* is canonical)
+    system_profile_data = strip_legacy_workload_root_fields(deepcopy(system_profile_data))
     static_data, dynamic_data = split_system_profile_data(system_profile_data)
 
     # Map to table schemas

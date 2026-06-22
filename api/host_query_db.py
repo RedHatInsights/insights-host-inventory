@@ -45,6 +45,7 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
 from app.serialization import SP_FIELD_SERIALIZERS
+from app.serialization import _sanitize_workloads_none_values
 from app.serialization import serialize_host_for_export_svc
 
 __all__ = (
@@ -804,6 +805,8 @@ def get_sparse_system_profile(
             if value is not None:
                 serializer = SP_FIELD_SERIALIZERS.get(field_name)
                 system_profile[field_name] = serializer(value) if serializer else value
+        if "workloads" in system_profile:
+            _sanitize_workloads_none_values(system_profile)
         result_list.append({"id": str(item[0]), "system_profile": system_profile})
 
     return query_results.total, result_list

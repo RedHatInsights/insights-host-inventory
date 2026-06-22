@@ -10,6 +10,7 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import build_query_string
 from iqe_host_inventory.utils.api_utils import build_query_string_json_array_fields
+from iqe_host_inventory.utils.datagen_utils import LEGACY_WORKLOAD_ROOT_FIELDS
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import fields_having
@@ -22,18 +23,7 @@ from iqe_host_inventory_api import ApiException
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
-LEGACY_WORKLOAD_ROOT_FIELDS = {
-    "sap",
-    "sap_system",
-    "sap_sids",
-    "sap_instance_number",
-    "sap_version",
-    "ansible",
-    "mssql",
-    "intersystems",
-    "third_party_services",
-    "rhel_ai",
-}
+LEGACY_WORKLOAD_ROOT_FIELDS = set(LEGACY_WORKLOAD_ROOT_FIELDS)
 
 
 @pytest.fixture
@@ -187,6 +177,29 @@ def test_get_specific_fields_bad_field(
         "Requested field 'bad_field' is not present in the system_profile schema."
         in excinfo.value.body
     )
+
+
+@pytest.mark.ephemeral
+@pytest.mark.parametrize("legacy_field", sorted(LEGACY_WORKLOAD_ROOT_FIELDS))
+def test_get_specific_fields_legacy_workload_root_field_not_sparse(
+    host_inventory: ApplicationHostInventory,
+    host_for_fields_tests,
+    endpoint_func: Callable,
+    legacy_field: str,
+):
+    """
+    Legacy root-level workload fields are not stored as sparse DB columns.
+
+    They may still appear in the OpenAPI schema during transition, but requesting
+    them must not return migrated top-level values.
+    """
+    returned_host = endpoint_func(
+        host_inventory, host_for_fields_tests, [Field(legacy_field, "str")]
+    )
+    returned_sp = {
+        k: v for k, v in returned_host.system_profile.to_dict().items() if v is not None
+    }
+    assert legacy_field not in returned_sp
 
 
 @pytest.mark.ephemeral
