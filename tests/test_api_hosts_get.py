@@ -2929,3 +2929,153 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_escaped_asterisk_literal_match(db_create_host, api_get):
+    """Test that escaped asterisk (\\*) is treated as literal asterisk character."""
+    # Create hosts with different insights_client_version values
+    literal_asterisk_host = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-2.el8"}}
+    )
+    wildcard_match_host = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el8"}}
+    )
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "4.0.1-2.el8"}})
+
+    # Test escaped asterisk - should only match the literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.\\*-2.el8")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(literal_asterisk_host.id) in response_ids
+    assert str(wildcard_match_host.id) not in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_regular_asterisk_wildcard_match(db_create_host, api_get):
+    """Test that regular asterisk (*) continues to work as wildcard."""
+    # Create hosts with different insights_client_version values
+    match_host_1 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el8"}})
+    match_host_2 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el8"}})
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "4.0.1-2.el8"}})
+
+    # Test regular asterisk wildcard - should match multiple hosts
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(match_host_1.id) in response_ids
+    assert str(match_host_2.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_url_encoded_escaped_asterisk(db_create_host, api_get):
+    """Test that URL-encoded escape sequence (%5C%2A) works as literal asterisk."""
+    # Create hosts with different insights_client_version values (wildcard field)
+    literal_asterisk_host = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-2.el8"}}
+    )
+    wildcard_match_host = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el8"}}
+    )
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "4.0.1-2.el8"}})
+
+    # Test URL-encoded escaped asterisk (%5C%2A = \*)
+    # After URL decoding, %5C%2A becomes \* which should match literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%5C%2A-2.el8")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(literal_asterisk_host.id) in response_ids
+    assert str(wildcard_match_host.id) not in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_mixed_escaped_and_wildcard_asterisks(db_create_host, api_get):
+    """Test mixed escaped and wildcard asterisks in the same filter value."""
+    # Create hosts with different os_release values (wildcard field)
+    exact_match_host = db_create_host(extra_data={"system_profile_facts": {"os_release": "8.5*server_v1.2"}})
+    wildcard_match_host = db_create_host(extra_data={"system_profile_facts": {"os_release": "8.5*server_v2.5"}})
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"os_release": "8.5_server_v1.2"}})
+
+    # Test pattern with escaped asterisk and wildcard: 8.5\*server_v*
+    # Should match hosts with literal * after "8.5" and any version after "v"
+    url = build_hosts_url(query=r"?filter[system_profile][os_release]=8.5\*server_v*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(exact_match_host.id) in response_ids
+    assert str(wildcard_match_host.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_multiple_escaped_asterisks(db_create_host, api_get):
+    """Test multiple escaped asterisks in a single filter value."""
+    # Create hosts with different insights_client_version values
+    match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-2.el8.*"}})
+    no_match_host_1 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el8.5"}})
+    no_match_host_2 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.x-2.el8.x"}})
+
+    # Test multiple escaped asterisks - should match literal asterisks only
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.\\*-2.el8.\\*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(match_host.id) in response_ids
+    assert str(no_match_host_1.id) not in response_ids
+    assert str(no_match_host_2.id) not in response_ids
+
+
+def test_escaped_asterisk_with_other_wildcard_fields(db_create_host, api_get):
+    """Test escaped asterisk functionality with other wildcard-enabled fields."""
+    # Test with bootc_status.booted.image field
+    match_host = db_create_host(
+        extra_data={"system_profile_facts": {"bootc_status": {"booted": {"image": "quay.io/repo*:latest"}}}}
+    )
+    no_match_host = db_create_host(
+        extra_data={"system_profile_facts": {"bootc_status": {"booted": {"image": "quay.io/repo_test:latest"}}}}
+    )
+
+    # Test escaped asterisk in bootc image field
+    url = build_hosts_url(query="?filter[system_profile][bootc_status][booted][image]=quay.io/repo\\*:latest")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(match_host.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+
+def test_escaped_asterisk_backward_compatibility(db_create_host, api_get):
+    """Test that existing wildcard functionality is preserved after escaped asterisk implementation."""
+    # Create hosts that should match existing wildcard patterns
+    match_host_1 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}})
+    match_host_2 = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}})
+    no_match_host = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "4.0.1-2.el8_5"}})
+
+    # Test existing wildcard patterns still work
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(match_host_1.id) in response_ids
+    assert str(match_host_2.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
+
+    # Test the specific pattern from existing tests
+    url = build_hosts_url(
+        query="?filter[system_profile][insights_client_version][]=3.0.*&filter[system_profile][insights_client_version][]=*el4_2"
+    )
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(match_host_1.id) in response_ids
+    assert str(match_host_2.id) in response_ids
+    assert str(no_match_host.id) not in response_ids
