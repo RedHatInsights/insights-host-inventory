@@ -21,12 +21,16 @@ repos:
   - id: swagger-validation
     files: swagger/openapi.json$
     exclude: swagger/inventory-schemas/
+# TODO: generated API client code needs a bulk pyupgrade/ruff pass to clean up
+# pre-existing style issues; until then, exclude it from linting.
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.15.20
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
+    exclude: iqe-host-inventory-plugin/iqe_host_inventory_api/
   - id: ruff-format
+    exclude: iqe-host-inventory-plugin/iqe_host_inventory_api/
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: 'v2.1.0'
   hooks:
