@@ -4,5 +4,5 @@ globs:
 alwaysApply: true
 ---
 
-- Main app uses uv: run Python and pytest with `uv run` (or `.venv` after `uv sync` at repo root). IQE uses `Pipfile.iqe` and pipenv (`./setup-iqe.sh`, `unset PIPENV_PIPFILE` before main-app uv commands).
+- Both main app and IQE use uv. Main app: `uv run` or source `.venv` after `uv sync --frozen` at repo root. IQE: `uv --project iqe-host-inventory-plugin ...` or source the venv in `iqe-host-inventory-plugin/.venv/` directly (see `docs/IQE.md`).
 - When making changes, always test your code and make fixes as needed.
