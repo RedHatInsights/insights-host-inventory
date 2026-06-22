@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC
 from typing import Any
-from typing import TypedDict
 from uuid import UUID
 
 from dateutil.parser import isoparse
@@ -30,8 +29,6 @@ from app.models.views import InventoryView
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.utils import Tag
-from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
-from lib.feature_flags import get_flag_value
 
 logger = get_logger(__name__)
 
@@ -159,19 +156,6 @@ def build_system_profile_from_normalized(host: Host, system_profile_fields: list
 
     requested_fields = set(system_profile_fields) if system_profile_fields else None
 
-    # Check if 'workloads' should be fetched implicitly to extract sub-fields later (backward compatibility)
-    requested_workload_subfields = set()
-    workloads_explicitly_requested = False
-
-    if requested_fields:
-        requested_workload_subfields = requested_fields & WORKLOADS_FIELDS
-        workloads_explicitly_requested = "workloads" in requested_fields
-
-        # If 'ansible' was requested but not 'workloads', we must fetch 'workloads'
-        # from DB first (backward compatibility)
-        if requested_workload_subfields and not workloads_explicitly_requested:
-            requested_fields.add("workloads")
-
     sources_to_check = _determine_profile_sources(requested_fields)
 
     for attr_name in sources_to_check:
@@ -264,13 +248,8 @@ def serialize_host(
     if "system_profile" in fields:
         serialized_host["system_profile"] = build_system_profile_from_normalized(host, system_profile_fields)
 
-        # Add backward compatibility for workload fields
-        if serialized_host["system_profile"] and get_flag_value(
-            FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, host.org_id
-        ):
-            serialized_host["system_profile"] = _add_workloads_backward_compatibility(
-                serialized_host["system_profile"]
-            )
+        if serialized_host["system_profile"]:
+            serialized_host["system_profile"] = _sanitize_workloads_none_values(serialized_host["system_profile"])
 
         # Map host_type for backward compatibility with downstream apps (cyndi)
         # Downstream apps only recognize "edge" vs empty values
@@ -279,7 +258,7 @@ def serialize_host(
                 serialized_host["system_profile"]["host_type"]
             )
 
-        # Re-filter to only keep requested fields (after backward compat added legacy fields)
+        # Re-filter to only keep requested fields
         if system_profile_fields:
             serialized_host["system_profile"] = {
                 k: v for k, v in serialized_host["system_profile"].items() if k in system_profile_fields
@@ -615,12 +594,26 @@ def serialize_staleness_to_dict(staleness_obj) -> dict:
     }
 
 
-class _WorkloadCompatConfig(TypedDict, total=False):
-    """Type definition for workload backward compatibility configuration."""
+def _sanitize_workloads_none_values(system_profile: dict) -> dict:
+    """
+    Remove None values from workloads.* sub-fields to comply with OpenAPI spec.
 
-    path: list[str]
-    fields: dict[str, str]
-    flat_fields: dict[str, str]
+    Workloads sub-fields are defined as non-nullable strings in the schema; null values
+    in the database would otherwise cause OpenAPI validation failures in API responses
+    and Kafka events.
+    """
+    workloads = system_profile.get("workloads")
+    if not workloads:
+        return system_profile
+
+    for workload_data in workloads.values():
+        if not isinstance(workload_data, dict):
+            continue
+        none_keys = [key for key, value in workload_data.items() if value is None]
+        for key in none_keys:
+            del workload_data[key]
+
+    return system_profile
 
 
 def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
@@ -644,103 +637,6 @@ def _map_host_type_for_backward_compatibility(host_type: str | None) -> str:
         API responses return the actual database values.
     """
     return "edge" if host_type == "edge" else ""
-
-
-def _add_workloads_backward_compatibility(system_profile: dict) -> dict:
-    """
-    Populate legacy workload fields with data from workloads.* for backward compatibility,
-    and remove None values from workloads.* to comply with OpenAPI spec.
-
-    This ensures subscribers can transition from legacy root-level fields to the new
-    workloads structure for SAP, Ansible, InterSystems, MSSQL, and CrowdStrike.
-
-    Args:
-        system_profile: The system profile dictionary
-
-    Returns:
-        Modified system_profile with populated legacy workload fields
-    """
-    workloads = system_profile.get("workloads", {})
-    if not workloads:
-        return system_profile
-
-    # define every workload's nested‐path + field mappings (and any flat mappings)
-    COMPAT_CONFIG: dict[str, _WorkloadCompatConfig] = {
-        "sap": {
-            "path": ["sap"],
-            "fields": {
-                "sap_system": "sap_system",
-                "sids": "sids",
-                "instance_number": "instance_number",
-                "version": "version",
-            },
-            "flat_fields": {
-                "sap_system": "sap_system",
-                "sids": "sap_sids",
-                "instance_number": "sap_instance_number",
-                "version": "sap_version",
-            },
-        },
-        "ansible": {
-            "path": ["ansible"],
-            "fields": {
-                "controller_version": "controller_version",
-                "hub_version": "hub_version",
-                "catalog_worker_version": "catalog_worker_version",
-                "sso_version": "sso_version",
-            },
-        },
-        "intersystems": {
-            "path": ["intersystems"],
-            "fields": {
-                "is_intersystems": "is_intersystems",
-                "running_instances": "running_instances",
-            },
-        },
-        "mssql": {
-            "path": ["mssql"],
-            "fields": {
-                "version": "version",
-            },
-        },
-        "crowdstrike": {
-            "path": ["third_party_services", "crowdstrike"],
-            "fields": {
-                "falcon_aid": "falcon_aid",
-                "falcon_backend": "falcon_backend",
-                "falcon_version": "falcon_version",
-            },
-        },
-        # Note: rhel_ai is NOT included in backward compatibility because the legacy
-        # structure differs from workloads.rhel_ai (unified gpu_models array of objects).
-    }
-
-    for wl_key, cfg in COMPAT_CONFIG.items():
-        data = workloads.get(wl_key)
-        if not data:
-            continue
-
-        # Remove None values from workloads.* to comply with OpenAPI spec
-        none_keys = [k for k, v in data.items() if v is None]
-        for k in none_keys:
-            del data[k]
-
-        # ensure nested path exists
-        target = system_profile
-        for p in cfg["path"]:
-            target = target.setdefault(p, {})
-
-        # copy each mapped field (skip None values to comply with OpenAPI spec)
-        for new_field, out_key in cfg["fields"].items():
-            if data.get(new_field) is not None:
-                target[out_key] = data[new_field]
-
-        # handle any top‐level “flat” mappings
-        for new_field, out_key in cfg.get("flat_fields", {}).items():
-            if data.get(new_field) is not None:
-                system_profile[out_key] = data[new_field]
-
-    return system_profile
 
 
 def _full_per_reporter_staleness_dict(

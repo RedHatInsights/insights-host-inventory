@@ -640,10 +640,6 @@ def test_add_host_simple(mq_create_or_update_host):
     assert_mq_host_data(key, event, expected_results, host_keys_to_check)
 
 
-@pytest.mark.xfail(
-    reason="Legacy workloads backward compatibility fields (sap_sids, etc.) not yet normalized. "
-    "Will be fixed by PR #3108: https://github.com/RedHatInsights/insights-host-inventory/pull/3108"
-)
 @pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_with_system_profile(mq_create_or_update_host):
     """
@@ -661,10 +657,6 @@ def test_add_host_with_system_profile(mq_create_or_update_host):
     )
 
     expected_results = {"host": {**host.data()}}
-
-    # Remove legacy workloads fields from expected results since they are migrated and removed
-    # Legacy fields (like sap_sids) are removed during pre_load, only workloads.* is stored
-    del expected_results["host"]["system_profile"]["sap_sids"]
 
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
@@ -987,10 +979,6 @@ def test_add_host_with_operating_system_incorrect_format(mocker, mq_create_or_up
         mock_notification_event_producer.write_event.assert_called()
 
 
-@pytest.mark.xfail(
-    reason="Legacy workloads backward compatibility fields (sap_sids, etc.) not yet normalized. "
-    "Will be fixed by PR #3108: https://github.com/RedHatInsights/insights-host-inventory/pull/3108"
-)
 @pytest.mark.usefixtures("event_datetime_mock")
 def test_add_host_with_sap_system(mq_create_or_update_host):
     expected_insights_id = generate_uuid()
@@ -1009,10 +997,6 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
 
     expected_results = {"host": {**host.data()}}
 
-    # Remove legacy workloads fields from expected results since they are migrated and removed
-    # Legacy fields (like sap_sids) are removed during pre_load, only workloads.* is stored
-    del expected_results["host"]["system_profile"]["sap_sids"]
-
     host_keys_to_check = ["display_name", "insights_id", "account", "system_profile"]
 
     key, event, _ = mq_create_or_update_host(host, return_all_data=True)
@@ -1021,12 +1005,8 @@ def test_add_host_with_sap_system(mq_create_or_update_host):
 
 
 @pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_with_all_workloads_backward_compat_enabled(mq_create_or_update_host):
-    """
-    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILY=true,
-    Kafka events include both workloads.* structure AND legacy backward
-    compatibility fields.
-    """
+def test_add_host_kafka_event_has_only_workloads_fields(mq_create_or_update_host):
+    """Kafka events include only the workloads.* structure without legacy workload fields."""
     expected_insights_id = generate_uuid()
     system_profile = {
         "owner_id": OWNER_ID,
@@ -1059,160 +1039,15 @@ def test_add_host_with_all_workloads_backward_compat_enabled(mq_create_or_update
         system_profile=system_profile,
     )
 
-    with patch("app.serialization.get_flag_value", return_value=True):
-        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
+    _, event, _ = mq_create_or_update_host(host, return_all_data=True)
 
-        sp = event["host"]["system_profile"]
-        workloads = sp["workloads"]
-
-        # Verify the event has workloads structure
-        assert "workloads" in sp
-
-        # Test workloads.* fields using a data-driven approach
-        workload_assertions = {
-            "sap": {"sap_system": True},
-            "ansible": {"controller_version": "1.2.3"},
-            "mssql": {"version": "15.2.0"},
-            "crowdstrike": {
-                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
-                "falcon_backend": "kernel",
-                "falcon_version": "7.14.16703.0",
-            },
-            "intersystems": {"is_intersystems": True},
-        }
-
-        for workload, expected_fields in workload_assertions.items():
-            assert workload in workloads, f"Workload '{workload}' missing from workloads"
-            for field, expected_value in expected_fields.items():
-                assert workloads[workload][field] == expected_value, (
-                    f"workloads.{workload}.{field} = {workloads[workload][field]}, expected {expected_value}"
-                )
-
-        # Verify backward compatibility fields using a data-driven approach
-        backward_compat_assertions = {
-            "sap": {
-                "nested_fields": {"sap_system": True, "sids": ["ABC", "XYZ"]},
-                "flat_fields": {"sap_system": True, "sap_sids": ["ABC", "XYZ"]},
-            },
-            "ansible": {
-                "nested_fields": {"controller_version": "1.2.3"},
-            },
-            "mssql": {
-                "nested_fields": {"version": "15.2.0"},
-            },
-            "intersystems": {
-                "nested_fields": {"is_intersystems": True},
-            },
-            "third_party_services": {
-                "nested_fields": {
-                    "crowdstrike": {
-                        "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
-                        "falcon_backend": "kernel",
-                        "falcon_version": "7.14.16703.0",
-                    },
-                },
-            },
-        }
-
-        for workload, assertions in backward_compat_assertions.items():
-            # Verify nested backward compatibility fields (e.g., sp["sap"]["sap_system"])
-            assert workload in sp, f"Backward compat nested '{workload}' missing from system_profile"
-            for field, expected_value in assertions["nested_fields"].items():
-                assert sp[workload][field] == expected_value, (
-                    f"sp[{workload}][{field}] = {sp[workload][field]}, expected {expected_value}"
-                )
-
-            # Verify flat backward compatibility fields (e.g., sp["sap_system"])
-            if "flat_fields" in assertions:
-                for field, expected_value in assertions["flat_fields"].items():
-                    assert field in sp, f"Flat backward compat field '{field}' missing from system_profile"
-                    assert sp[field] == expected_value, f"sp[{field}] = {sp[field]}, expected {expected_value}"
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_workloads_populate_legacy_fields_in_kafka_event(mq_create_or_update_host):
-    """
-    Test that when a host is sent with workloads.* fields AND different legacy fields,
-    the Kafka event populates the legacy fields from the workloads.* structure (workloads takes precedence).
-    This ensures the backward compatibility layer correctly syncs workloads -> legacy in events.
-    """
-    expected_insights_id = generate_uuid()
-    system_profile = {
-        "owner_id": OWNER_ID,
-        # New workloads structure with specific values
-        "workloads": {
-            "sap": {"sap_system": True, "sids": ["NW1", "NW2"]},
-            "ansible": {"controller_version": "2.0.0"},
-        },
-        # Old legacy fields with DIFFERENT values
-        "sap": {"sap_system": False, "sids": ["OD1", "OD2"]},
-        "sap_system": False,
-        "sap_sids": ["OD1", "OD2"],
-        "ansible": {"controller_version": "1.0.0"},
-    }
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile=system_profile,
-    )
-
-    with patch("app.serialization.get_flag_value", return_value=True):
-        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
-
-        sp = event["host"]["system_profile"]
-
-        # Verify the event has workloads structure with the correct (new) values
-        assert "workloads" in sp
-        assert sp["workloads"]["sap"]["sap_system"] is True
-        assert sp["workloads"]["sap"]["sids"] == ["NW1", "NW2"]
-        assert sp["workloads"]["ansible"]["controller_version"] == "2.0.0"
-
-        # Verify the event's legacy fields are populated FROM workloads (not the old legacy values)
-        # The Kafka event should show the workloads values, not the legacy input values
-        assert sp["sap"]["sap_system"] is True  # From workloads, not False from legacy input
-        assert sp["sap"]["sids"] == ["NW1", "NW2"]  # From workloads, not ["OD1", "OD2"]
-        assert sp["sap_system"] is True  # From workloads, not False
-        assert sp["sap_sids"] == ["NW1", "NW2"]  # From workloads, not ["OD1", "OD2"]
-
-        assert sp["ansible"]["controller_version"] == "2.0.0"  # From workloads, not "1.0.0"
-
-
-@pytest.mark.usefixtures("event_datetime_mock")
-def test_add_host_with_workloads_backward_compat_disabled(mq_create_or_update_host):
-    """
-    Test that when FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY=false,
-    Kafka events include ONLY the workloads.* structure without legacy backward
-    compatibility fields.
-    """
-    expected_insights_id = generate_uuid()
-    system_profile = {
-        "owner_id": OWNER_ID,
-        "workloads": {
-            "sap": {"sap_system": True, "sids": ["ABC", "XYZ"]},
-            "ansible": {"controller_version": "4.5.6"},
-        },
-    }
-
-    host = minimal_host(
-        account=SYSTEM_IDENTITY["account_number"],
-        insights_id=expected_insights_id,
-        system_profile=system_profile,
-    )
-
-    with patch("app.serialization.get_flag_value", return_value=False):
-        _, event, _ = mq_create_or_update_host(host, return_all_data=True)
-
-        # Verify the event has workloads structure
-        assert "workloads" in event["host"]["system_profile"]
-        assert event["host"]["system_profile"]["workloads"]["sap"]["sap_system"] is True
-        assert event["host"]["system_profile"]["workloads"]["ansible"]["controller_version"] == "4.5.6"
-
-        # Verify the event does NOT have legacy backward compatibility fields
-        assert "sap" not in event["host"]["system_profile"]
-        assert "sap_system" not in event["host"]["system_profile"]
-        assert "sap_sids" not in event["host"]["system_profile"]
-        assert "ansible" not in event["host"]["system_profile"]
+    sp = event["host"]["system_profile"]
+    assert sp["workloads"]["sap"]["sap_system"] is True
+    assert sp["workloads"]["ansible"]["controller_version"] == "1.2.3"
+    assert "sap" not in sp
+    assert "sap_system" not in sp
+    assert "sap_sids" not in sp
+    assert "ansible" not in sp
 
 
 @pytest.mark.parametrize("tags", ({}, {"tags": []}, {"tags": {}}))

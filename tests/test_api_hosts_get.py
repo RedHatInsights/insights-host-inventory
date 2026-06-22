@@ -2012,7 +2012,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s4",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2021,7 +2021,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkC',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2030,7 +2030,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '0~j@TiIP^xYk&yoFc0f("El`73g2;"pqm%0z',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2039,7 +2039,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '[w{"(caY4(m`5A}[,n8Eif%%%E8?Fg?C;y{A#Viv3SZVgAUhQ',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2048,7 +2048,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "Zk0*,gJjkL>|M%b2W`KZgY[jIaH}B-c,tfWv*dkpHR)|je",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2057,7 +2057,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "7%#a@|yEptSf7_?(SQ`G|Mc_Q8P1?",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2079,9 +2079,8 @@ def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
             "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",
@@ -2097,7 +2096,7 @@ def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
-            "sap_sids": ["DEF"],
+            "workloads": {"sap": {"sids": ["DEF"]}},
             "number_of_cpus": 8,
         }
     }
@@ -2133,9 +2132,8 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
             "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",

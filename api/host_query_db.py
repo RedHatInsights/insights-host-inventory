@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from copy import deepcopy
 from itertools import islice
 from typing import Any
 
@@ -46,10 +45,7 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
 from app.serialization import SP_FIELD_SERIALIZERS
-from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import serialize_host_for_export_svc
-from lib.feature_flags import FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY
-from lib.feature_flags import get_flag_value
 
 __all__ = (
     "get_all_hosts",
@@ -755,42 +751,17 @@ def get_sparse_system_profile(
     fields: dict[str, list[str]],
     rbac_filter: dict,
 ) -> tuple[int, list[dict[str, str | dict]]]:
-    # Define legacy workload fields that may need backward compatibility
-    # Note: rhel_ai is NOT included because its legacy structure differs from workloads.rhel_ai
-    legacy_workload_fields = {
-        "sap",
-        "sap_system",
-        "sap_sids",
-        "sap_instance_number",
-        "sap_version",
-        "ansible",
-        "intersystems",
-        "mssql",
-        "third_party_services",
-    }
-
     identity = get_current_identity()
-
-    # Track if we need to fetch workloads for backward compatibility
-    requested_sp_fields_dict: dict[str, bool] = fields.get("system_profile", {}) if fields else {}  # type: ignore[assignment]
-    requested_sp_fields = list(requested_sp_fields_dict.keys()) if isinstance(requested_sp_fields_dict, dict) else []
-    workloads_requested = "workloads" in requested_sp_fields
-    workloads_compat_enabled = get_flag_value(FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY, identity.org_id)
-    workloads_needed_for_compat = (
-        workloads_compat_enabled
-        and requested_sp_fields
-        and any(field in legacy_workload_fields for field in requested_sp_fields)
-    )
 
     needs_static_join = False
     needs_dynamic_join = False
 
     if fields and fields.get("system_profile"):
-        # If backward compatibility is enabled and legacy fields are requested,
-        # also fetch workloads field so we can populate legacy fields from it
-        fields_to_fetch = deepcopy(requested_sp_fields)
-        if workloads_needed_for_compat and not workloads_requested:
-            fields_to_fetch.append("workloads")
+        requested_sp_fields = fields["system_profile"]
+        if isinstance(requested_sp_fields, dict):
+            fields_to_fetch = list(requested_sp_fields.keys())
+        else:
+            fields_to_fetch = list(requested_sp_fields)
     else:
         fields_to_fetch = STATIC_FIELDS + DYNAMIC_FIELDS
 
@@ -834,24 +805,6 @@ def get_sparse_system_profile(
                 serializer = SP_FIELD_SERIALIZERS.get(field_name)
                 system_profile[field_name] = serializer(value) if serializer else value
         result_list.append({"id": str(item[0]), "system_profile": system_profile})
-
-    # Apply backward compatibility logic if the flag is enabled
-    if workloads_compat_enabled:
-        for host_data in result_list:
-            if host_data["system_profile"]:
-                # Apply backward compatibility to populate legacy fields from workloads.*
-                host_data["system_profile"] = _add_workloads_backward_compatibility(host_data["system_profile"])
-
-                # If specific fields were requested, filter the response
-                if requested_sp_fields:
-                    # Remove workloads if it was only fetched for backward compatibility
-                    if workloads_needed_for_compat and not workloads_requested:
-                        host_data["system_profile"].pop("workloads", None)
-
-                    # Remove legacy fields that weren't explicitly requested
-                    for field in legacy_workload_fields:
-                        if field in host_data["system_profile"] and field not in requested_sp_fields:
-                            del host_data["system_profile"][field]
 
     return query_results.total, result_list
 

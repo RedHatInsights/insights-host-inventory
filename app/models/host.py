@@ -193,23 +193,16 @@ class LimitedHost(db.Model, HostTypeDeriver):
         """Update the normalized system profile tables."""
         from copy import deepcopy
 
-        from app.models.schemas import LimitedHostSchema
         from app.models.system_profile_transformer import validate_and_transform
 
         if not input_system_profile:
             self._update_derived_host_type()
             return
 
-        # Make a copy and migrate legacy workload fields to workloads.* for the normalized tables
-        # This ensures backward compatibility: legacy fields in input are converted to workloads.*
-        # before being written to the new system_profiles_dynamic.workloads column
-        system_profile_copy = deepcopy(input_system_profile)
-        data_wrapper = {"system_profile": system_profile_copy}
-        LimitedHostSchema._migrate_and_remove_legacy_workloads_fields(data_wrapper)
-        migrated_profile = data_wrapper["system_profile"]
-
         # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), migrated_profile)
+        static_data, dynamic_data = validate_and_transform(
+            str(self.org_id), str(self.id), deepcopy(input_system_profile)
+        )
 
         # Keys that are managed automatically and should not be updated from input
         skip_keys = {"org_id", "host_id"}

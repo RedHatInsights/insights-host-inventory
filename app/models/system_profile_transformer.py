@@ -1,7 +1,6 @@
 from typing import Any
 
 from app.logging import get_logger
-from app.models.constants import WORKLOADS_FIELDS
 from app.models.schemas import HostDynamicSystemProfileSchema
 from app.models.schemas import HostStaticSystemProfileSchema
 from app.models.system_profile_normalizer import SystemProfileNormalizer
@@ -40,9 +39,6 @@ def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict
             static_data[key] = value
         elif key in DYNAMIC_FIELDS:
             dynamic_data[key] = value
-        # Workaround until we transition workloads fields usage
-        elif key in WORKLOADS_FIELDS or "sap" in key:
-            pass
         else:
             raise ValueError(f"Unknown system profile field '{key}'")
 
