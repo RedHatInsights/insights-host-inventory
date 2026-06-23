@@ -976,45 +976,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fastavro"
-version = "1.12.2"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2.tar.gz", hash = "sha256:3c79502d56cf6b76210032e1c53494ddfbc73c140bccf2ef4092b3f0825323ab" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:0e331896e8efffc72fa03e63b87ebfc37960113127da8e0f5152d91664ffed68" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7f01ebaada59d74fdf6d28e5031a961a413b3752e9edb0c03866fa18480cf4c8" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:25ef6855935f67582740ffa6bb978e40ec51be876117a3555c36fa2488dcdf25" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:84a4f76a0aece0aa72b5ed8162ba2ff8c78908b8361b5a5d92ddd161977ccb74" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:81e8da77d201916f6771fc357fda8267c2a256d7aa11923d43bc5f2fc155878b" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-win_amd64.whl", hash = "sha256:1924349c74666c89417bd5cc2749f598e2f15f1d56ee81428b2317ab02c88aae" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp312-cp312-win_arm64.whl", hash = "sha256:4c346cf449baf3b113e997c34151ad205e7135bc429469b005b180ade7e65e28" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:57bb6b908cb2e05baab63b04c3a31be3b4545a10bfab9748b8763016b5256704" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:3a007f95cc682f56e6d83f1d17c29c00bf719d6fe8e003282b535af3a1ba09c0" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5e90460b0cd21f62be3cb26087e706e2cebb7b3fcef9e05b4473b61bb0415b5e" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:7ccd15966b8218d41b06ec3e7c2556be89a8a693026c771e6564d2e40bbaf8ea" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:06b6971d3dae10cb34353b857d16ad21ebd6f0ea394e86c96abdcad109005d6e" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-win_amd64.whl", hash = "sha256:98dfcdfaf1498ae2f0e2fafe900a82e8320cc81d8ae5a95b8b8879eaa3298c39" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313-win_arm64.whl", hash = "sha256:3888ef7a51adc77cdf07251bc762566a1be36211e1cff689f13980f3776a2f36" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:283dcd3129b632021894425974bedd0eb6db3bbf5994e448ccad10db4d803d31" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:2d125e210d5a0a1f701f12c0ecad9a03f1b04b5eddbce6ca36a1fc217da977ef" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2d4d66afad78e8f47feaa307728a6b71fe3effc63ba2b9eeb109ee687c9bd397" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:2328ec07925c04c89719e3971c9068a165c7fd474ea87675b1204de0440e71ff" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:55dea7e74b834d4b70467fc19c5b9ccb5509fe39abc4d26891187c1b22176423" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:8d37c87826ae7195cfbd20fcd448801f2f563bb38f2691ec6574e39cb9eca6c8" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4c463a3701f293e30d3d62e71e1989f112028d07f87432baf4507eeb57ec3831" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f604ba83498e209fff4c7ecc5063a39421dc538dace694bc592f9f338254f3dc" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:bfac2dada8ddc002e8b7d8289d6fad4f070bc1fec20371cec684a7d10d932e96" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:bc44ba6289fb1f5ee318335958dde6ad6d742dcb4bb8930de843e9024c64b68c" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-win_amd64.whl", hash = "sha256:a475418f71c5aed69899813ecccf392429c08c3a63df3030129db71760b0db8f" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314-win_arm64.whl", hash = "sha256:daec9f9655a1d4636613c47d6d3343f6e039150d66cdce62543e20ca36612a8a" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314t-macosx_10_15_universal2.whl", hash = "sha256:57594b72cf663bbd0f3ad8a319a999fc3d7c71065a6799b2c1d1a6a137894c5b" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:74412132bbfb153cbf704517f2c89f7d3e170feb681b13bceace690f66f8d5fa" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e367a84c9133018e0a3bc822abe78d7f1f9a6092991a0ec409468cf4ef260282" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:044fafca0853e9ae14009de7763ac9e8e8f8b96f8a4e90bd58b695443266a370" },
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/fastavro/1.12.2/fastavro-1.12.2-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:afede7324822800e4f90e96b9514188a237a60f35e8e7a10b2129c10c78f6e4d" },
-]
-
-[[package]]
 name = "fauxfactory"
 version = "4.2.2"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -1685,7 +1646,7 @@ wheels = [
 
 [[package]]
 name = "iqe-core"
-version = "26.6.19.0"
+version = "26.6.22.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1766,7 +1727,7 @@ dependencies = [
     { name = "widgetastic-core" },
 ]
 wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-core/26.6.19.0/iqe_core-26.6.19.0-py3-none-any.whl", hash = "sha256:6a77d7229c65b5fde6531574a078b5e878c3f6b6944f5b690572f07ed50f016a" },
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-core/26.6.22.0/iqe_core-26.6.22.0-py3-none-any.whl", hash = "sha256:42df915a45499843fb4d927fdac987c3a4613ecc01eda41717acea2b1c14c9ef" },
 ]
 
 [[package]]
@@ -1811,7 +1772,6 @@ dependencies = [
     { name = "iqe-core" },
     { name = "iqe-export-service-plugin" },
     { name = "iqe-kessel-sync-plugin" },
-    { name = "iqe-mq-plugin" },
     { name = "iqe-turnpike-plugin" },
     { name = "lxml" },
     { name = "ocdeployer" },
@@ -1837,10 +1797,9 @@ requires-dist = [
     { name = "google-api-python-client" },
     { name = "google-auth" },
     { name = "iqe-bindings" },
-    { name = "iqe-core", specifier = ">=24.11.29.1" },
+    { name = "iqe-core", specifier = ">=26.6.22.0" },
     { name = "iqe-export-service-plugin" },
     { name = "iqe-kessel-sync-plugin" },
-    { name = "iqe-mq-plugin", specifier = ">=24.11.29" },
     { name = "iqe-turnpike-plugin" },
     { name = "lxml" },
     { name = "ocdeployer" },
@@ -1886,21 +1845,6 @@ dependencies = [
 ]
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-metadata-linting/26.4.10.0/iqe_metadata_linting-26.4.10.0-py3-none-any.whl", hash = "sha256:59b6e082a0e86ccf017acbdec2f6da37a966c117f7863c1db0b83ddc591a5161" },
-]
-
-[[package]]
-name = "iqe-mq-plugin"
-version = "25.5.13.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "confluent-kafka" },
-    { name = "fastavro" },
-    { name = "iqe-core" },
-    { name = "orjson" },
-    { name = "pytest-html" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-mq-plugin/25.5.13.0/iqe_mq_plugin-25.5.13.0-py2.py3-none-any.whl", hash = "sha256:60ae617069f53544a2579bc43b298a78d83a79ed4b66c4531eb1d7a488078a00" },
 ]
 
 [[package]]
