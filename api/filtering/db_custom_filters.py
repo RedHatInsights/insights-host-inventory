@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from sqlalchemy import Boolean
@@ -20,7 +21,6 @@ from api.filtering.filtering_common import FIELD_FILTER_TO_PYTHON_CAST
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
-from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
@@ -48,7 +48,6 @@ def _process_wildcard_value(value: str) -> str:
     - Unescaped asterisks (*) become SQL wildcards (%)
     - Escaped asterisks (\\*) become literal asterisks (*)
     - Escaped backslashes (\\\\) become literal backslashes (\\\\) for PostgreSQL ILIKE
-    - Literal backslashes followed by other characters are escaped for PostgreSQL (\\)
 
     Args:
         value: The input string that may contain escaped characters
@@ -59,34 +58,25 @@ def _process_wildcard_value(value: str) -> str:
     if not value:
         return value
 
-    result = []
-    i = 0
-    while i < len(value):
-        if value[i] == "\\" and i + 1 < len(value):
-            next_char = value[i + 1]
-            if next_char == "*":
-                # Escaped asterisk - treat as literal asterisk
-                result.append("*")
-                i += 2
-            elif next_char == "\\":
-                # Escaped backslash - treat as literal backslash (escaped for PostgreSQL)
-                result.append("\\\\")
-                i += 2
-            else:
-                # Backslash followed by other character - escape the backslash for PostgreSQL
-                result.append("\\\\")
-                result.append(next_char)
-                i += 2
-        elif value[i] == "*":
-            # Unescaped asterisk - convert to SQL wildcard
-            result.append("%")
-            i += 1
-        else:
-            # Regular character
-            result.append(value[i])
-            i += 1
+    # Use placeholders to protect escaped sequences during processing
+    escaped_asterisk_placeholder = "\x00ESCAPED_ASTERISK\x00"
+    escaped_backslash_placeholder = "\x00ESCAPED_BACKSLASH\x00"
 
-    return "".join(result)
+    # Replace escaped sequences with placeholders
+    result = value.replace("\\*", escaped_asterisk_placeholder)
+    result = result.replace("\\\\", escaped_backslash_placeholder)
+
+    # Convert unescaped asterisks to SQL wildcards
+    result = result.replace("*", "%")
+
+    # Restore escaped sequences as literals (with PostgreSQL escaping for backslashes)
+    result = result.replace(escaped_asterisk_placeholder, "*")
+    result = result.replace(escaped_backslash_placeholder, "\\\\")
+
+    # Escape any remaining backslashes for PostgreSQL
+    result = re.sub(r"(?<!\\)\\(?!\\)", "\\\\\\\\", result)
+
+    return result
 
 
 # Utility class to facilitate OS filter comparison
@@ -744,38 +734,17 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
 
     filters.extend(standard_filters)
 
-    return tuple(filters)
+    return and_(*filters)
 
 
-def check_valid_os_name(name):
-    os_names = get_valid_os_names()
-    if name.lower() not in [name.lower() for name in os_names]:
-        raise ValidationException(f"operating_system filter only supports these OS names: {os_names}.")
+def create_os_filter(name: str, version_node: dict) -> list[OsFilter]:
+    os_filter_list = []
 
-
-def get_major_minor_from_version(version_split: list[str]):
-    if len(version_split) > 2:
-        raise ValidationException("operating_system filter can only have a major and minor version.")
-
-    if not [v.isdigit() for v in version_split]:
-        raise ValidationException("operating_system major and minor versions must be numerical.")
-
-    major = version_split.pop(0)
-    minor = version_split[0] if version_split else None
-
-    return major, minor
-
-
-def create_os_filter(os_name, version_node):
-    os_filter_list: list[OsFilter] = []
-    check_valid_os_name(os_name)
-
-    for os_comparator in version_node.keys():
-        version_array = version_node[os_comparator]
-        if not isinstance(version_array, list):
-            version_array = [version_array]
-
-        for version in version_array:
-            os_filter_list.append(OsFilter(os_name, os_comparator, version))
+    for comparator, version in version_node.items():
+        if isinstance(version, list):
+            for v in version:
+                os_filter_list.append(OsFilter(name=name, comparator=comparator, version=v))
+        else:
+            os_filter_list.append(OsFilter(name=name, comparator=comparator, version=version))
 
     return os_filter_list
