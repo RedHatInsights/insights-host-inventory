@@ -1537,7 +1537,7 @@ def test_dynamic_profile_incorrect_type(flask_app):  # noqa: ARG001
 
 
 def test_validate_and_transform_strips_legacy_workload_root_fields():
-    """Legacy top-level workload fields are ignored; workloads.* is canonical."""
+    """Legacy root-level workload fields are migrated to workloads.* then stripped."""
     from app.models.system_profile_transformer import strip_legacy_workload_root_fields
     from app.models.system_profile_transformer import validate_and_transform
 
@@ -1557,6 +1557,18 @@ def test_validate_and_transform_strips_legacy_workload_root_fields():
 
     validated_static, validated_dynamic = validate_and_transform("test-org-id", "test-host-id", system_profile_data)
     assert validated_dynamic.get("workloads") == system_profile_data["workloads"]
+
+
+def test_validate_and_transform_migrates_legacy_sap_system_to_workloads():
+    """Legacy-only sap_system is stored under workloads.sap on ingest."""
+    from app.models.system_profile_transformer import validate_and_transform
+
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {**static_profile_data, **dynamic_profile_data, "sap_system": True}
+
+    _, validated_dynamic = validate_and_transform("test-org-id", "test-host-id", system_profile_data)
+
+    assert validated_dynamic["workloads"]["sap"]["sap_system"] is True
 
 
 def test_host_system_profile_normalization_integration(db_create_host):
