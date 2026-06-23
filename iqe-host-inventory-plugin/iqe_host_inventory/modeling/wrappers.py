@@ -14,8 +14,6 @@ from typing import overload
 if TYPE_CHECKING:
     from confluent_kafka import Message
 
-from iqe_mq._transforms import MessageWrapper as MqMessageWrapper
-
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
 
 HOST_DATA_OUT = TypeVar("HOST_DATA_OUT")
@@ -173,7 +171,7 @@ class HostMessageWrapper:
     _raw_message: Message | None = None
 
     @classmethod
-    def from_message(cls, msg: Message | MqMessageWrapper):
+    def from_message(cls, msg: Message):
         value = cast(dict[str, Any], msg.value())
         data = {
             "host": HostWrapper(value.get("host", value)),
