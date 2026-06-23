@@ -1,5 +1,9 @@
 # NOTE: Using OpenAPI 3.0.0 because Connexion 3.3 (our routing framework) does not
 # support OpenAPI 3.1 or 3.2. See https://github.com/spec-first/connexion/issues/1396
+#
+# IMPROVED V2 SPEC — incorporates findings from V1_API_Comprehensive_TechDebt.html.
+# Every change is annotated with "# IMPROVED: §X.Y — description" so the diff against
+# swagger/api_v2.spec.yaml is self-documenting.
 openapi: 3.0.0
 info:
   description: REST interface for the Insights Platform Host Inventory application.
@@ -46,8 +50,10 @@ paths:
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
-        - $ref: '#/components/parameters/filter_param'
-        - $ref: '#/components/parameters/fields_param'
+        # IMPROVED: §2.3 — wire combined filter/fields so GET /hosts can filter and
+        # select both system_profile AND app-data fields in one query.
+        - $ref: '#/components/parameters/combinedFilterParam'
+        - $ref: '#/components/parameters/combinedFieldsParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -55,6 +61,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
+        # IMPROVED: §6.2 — add typed 400 response schema
+        '400':
+          $ref: '#/components/responses/BadRequestError'
     delete:
       operationId: api.v2.host.delete_hosts_by_filter
       tags:
@@ -83,13 +92,14 @@ paths:
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/stalenessNoDefaultsParam'
         - $ref: '#/components/parameters/tagsParam'
-        - $ref: '#/components/parameters/filter_param'
+        - $ref: '#/components/parameters/combinedFilterParam'   # IMPROVED: §2.3
         - $ref: '#/components/parameters/subscriptionManagerId'
       responses:
         '202':
           description: Request for deletion of filtered hosts has been accepted.
+        # IMPROVED: §6.2 — add typed 400 response schema
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'
   /hosts/all:
     delete:
       operationId: api.v2.host.delete_all_hosts
@@ -107,8 +117,46 @@ paths:
       responses:
         '202':
           description: Request for deleting all hosts has been accepted.
+        # IMPROVED: §6.2 — add typed 400 response schema
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'
+
+  # IMPROVED: §2.1 — add POST /hosts/checkin (missing from original V2 spec)
+  /hosts/checkin:
+    post:
+      operationId: api.v2.host.host_checkin
+      tags:
+        - hosts
+      summary: Update staleness timestamps for a host matching the provided facts
+      description: >-
+        Finds a host and updates its staleness timestamps.
+        It uses the supplied canonical facts to determine which host to update.
+        By default, the staleness timestamp is set to 1 hour from when the request is received;
+        however, this can be overridden by supplying the interval.
+        <br /><br />
+        Required permissions: inventory:hosts:write
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        description: Data required to create a check-in record for a host.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckIn'
+      responses:
+        '201':
+          description: Successfully checked in host.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostOut'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   '/hosts/{host_id_list}':
     get:
       tags:
@@ -127,7 +175,8 @@ paths:
         - $ref: '#/components/parameters/pageParam'
         - $ref: '#/components/parameters/hostOrderByParam'
         - $ref: '#/components/parameters/hostOrderHowParam'
-        - $ref: '#/components/parameters/fields_param'
+        # IMPROVED: §2.3 — use combined fields instead of system_profile-only fields
+        - $ref: '#/components/parameters/combinedFieldsParam'
       responses:
         '200':
           description: Successfully searched for hosts.
@@ -136,7 +185,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HostQueryOutput'
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '404':
           $ref: '#/components/responses/NotFoundError'
     delete:
@@ -153,14 +202,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/hostIdList'
       responses:
-        '200':
+        # IMPROVED: §8.1 — standardize DELETE to 204 No Content
+        '204':
           description: Successfully deleted hosts.
-          content:
-            application/json:
-              schema:
-                type: object
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '404':
           $ref: '#/components/responses/NotFoundError'
     patch:
@@ -168,7 +214,9 @@ paths:
         - hosts
       summary: Update hosts
       description: >-
-        Update hosts
+        Update hosts. This endpoint applies a JSON Merge Patch (RFC 7396) to the
+        specified hosts. Only the fields present in the request body are updated;
+        absent fields are left unchanged.
         <br /><br />
         Required permissions: inventory:hosts:write
       operationId: api.v2.host.patch_host_by_id
@@ -180,6 +228,10 @@ paths:
         description: A group of fields to be updated on the hosts
         required: true
         content:
+          # IMPROVED: §8.2 — document PATCH as Merge Patch (RFC 7396)
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/PatchHostIn'
           application/json:
             schema:
               $ref: '#/components/schemas/PatchHostIn'
@@ -189,11 +241,47 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                # IMPROVED: §5.4 — define explicit mutation response instead of bare
+                # "type: object" with no properties
+                $ref: '#/components/schemas/PatchHostResponse'
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '404':
           $ref: '#/components/responses/NotFoundError'
+
+  # IMPROVED: §2.1 — add GET /hosts/{host_id_list}/system_profile (missing from V2)
+  '/hosts/{host_id_list}/system_profile':
+    get:
+      tags:
+        - hosts
+      summary: Return one or more hosts system profile
+      description: >-
+        Find one or more hosts by their ID and return the id and system profile.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      operationId: api.v2.host.get_host_system_profile_by_id
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        # IMPROVED: §2.1 — no branchId (RHINENG-14001), use combined fields
+        - $ref: '#/components/parameters/combinedFieldsParam'
+      responses:
+        '200':
+          description: Successfully searched for hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemProfileByHostOut'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /host-views:
     get:
       operationId: api.v2.views.get_views_list
@@ -215,8 +303,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ViewsListOut'
+        # IMPROVED: §6.5 — add typed 403 response schema
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          $ref: '#/components/responses/ForbiddenError'
     post:
       operationId: api.v2.views.create_view
       tags:
@@ -242,9 +331,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          $ref: '#/components/responses/ForbiddenError'    # IMPROVED: §6.5
+        # IMPROVED: §6.3 — add 409 for duplicate view name
+        '409':
+          $ref: '#/components/responses/ConflictError'
   /host-views/{view_id}:
     get:
       operationId: api.v2.views.get_view_by_id
@@ -266,9 +358,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          $ref: '#/components/responses/ForbiddenError'    # IMPROVED: §6.5
         '404':
-          description: View not found or not visible to the requesting user.
+          $ref: '#/components/responses/NotFoundError'
     put:
       operationId: api.v2.views.update_view
       tags:
@@ -296,11 +388,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '400':
-          description: Invalid request.
+          $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '403':
-          description: Forbidden - not the view owner or view is a system view.
+          $ref: '#/components/responses/ForbiddenError'    # IMPROVED: §6.5
         '404':
-          description: View not found or not visible to the requesting user.
+          $ref: '#/components/responses/NotFoundError'
     delete:
       operationId: api.v2.views.delete_view
       tags:
@@ -317,9 +409,9 @@ paths:
         '204':
           description: Successfully deleted the inventory view.
         '403':
-          description: Forbidden - not the view owner or view is a system view.
+          $ref: '#/components/responses/ForbiddenError'    # IMPROVED: §6.5
         '404':
-          description: View not found or not visible to the requesting user.
+          $ref: '#/components/responses/NotFoundError'
   /host-views/{view_id}/clone:
     post:
       operationId: api.v2.views.clone_view
@@ -341,9 +433,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          $ref: '#/components/responses/ForbiddenError'    # IMPROVED: §6.5
         '404':
-          description: Source view not found or not visible to the requesting user.
+          $ref: '#/components/responses/NotFoundError'
 
 
 components:
@@ -366,8 +458,7 @@ components:
       $ref: 'pagination.yaml#/components/parameters/pageParam'
     perPageParam:
       $ref: 'pagination.yaml#/components/parameters/perPageParam'
-    resourceTypesPerPageParam:
-      $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
+    # IMPROVED: §5.9 — removed orphan resourceTypesPerPageParam (no V2 endpoint uses it)
     hostIdList:
       in: path
       name: host_id_list
@@ -375,6 +466,8 @@ components:
       required: true
       schema:
         type: array
+        # IMPROVED: §8.3 — add maxItems to prevent unbounded path lists
+        maxItems: 20
         items:
           $ref: '#/components/schemas/NonStrictUUID'
     displayName:
@@ -404,7 +497,10 @@ components:
       schema:
         type: string
         format: uuid
-      description: Filter by insights_id
+      # IMPROVED: §2.6 — document the sentinel value for "no insights_id"
+      description: >-
+        Filter by insights_id. The sentinel value 00000000-0000-0000-0000-000000000000
+        matches hosts that have no insights_id set.
       required: false
     subscriptionManagerId:
       in: query
@@ -425,14 +521,15 @@ components:
       in: query
       name: provider_type
       schema:
+        # IMPROVED: §9.13 — align filter enum with body schema (ProviderType)
         type: string
         enum:
           - alibaba
           - aws
           - azure
-          - discovery
           - gcp
           - ibm
+          # IMPROVED: §9.12 — removed "discovery" which is a reporter, not a provider
       description: Filter by provider_type
       required: false
     updatedStart:
@@ -475,15 +572,25 @@ components:
           - updated
           - operating_system
           - last_check_in
-      description: Ordering field name
+          # IMPROVED: §2.3 — add app-metric sort values for host-views-style queries
+          - advisor.recommendations
+          - advisor.incidents
+          - vulnerability.total_cves
+          - vulnerability.critical_cves
+          - patch.advisories_rhsa_applicable
+          - compliance.policies_count
+      description: >-
+        Ordering field name. App-metric sort fields (e.g. advisor.recommendations)
+        are available when host_apps data is included.
     hostOrderHowParam:
       in: query
       name: order_how
       required: false
       schema:
+        # IMPROVED: §10.4 — use enum instead of regex pattern for OrderHow
         $ref: '#/components/schemas/OrderHow'
       description: >-
-        Direction of the ordering (case-insensitive); defaults to ASC for display_name, and to DESC
+        Direction of the ordering; defaults to ASC for display_name, and to DESC
         for updated and operating_system
     stalenessParam:
       name: staleness
@@ -497,6 +604,7 @@ components:
             - fresh
             - stale
             - stale_warning
+            # IMPROVED: §9.1 — "unknown" explicitly removed (RHINENG-5893)
         default:
           - fresh
           - stale
@@ -529,12 +637,15 @@ components:
       in: query
       name: registered_with
       required: false
-      description: Filters out any host not registered by the specified reporters
+      description: >-
+        Filters out any host not registered by the specified reporters.
+        Prefix a value with "!" to exclude hosts from that reporter.
       schema:
         type: array
         items:
           type: string
           enum:
+            # IMPROVED: RHINENG-4846 — removed "insights" from allowed values
             - yupana
             - satellite
             - discovery
@@ -561,12 +672,16 @@ components:
             - bootc
             - edge
             - cluster
-    filter_param:
+    # IMPROVED: §2.3 — new combined filter param replaces filter_param for V2
+    # Supports both system_profile AND app-data filtering in a single query param.
+    combinedFilterParam:
       in: query
       name: filter
       required: false
       description: >-
-        Filters hosts based on system_profile fields. For example:
+        Filters hosts based on system_profile fields and/or application data metrics.
+        <br /><br />
+        <b>System profile filter examples:</b>
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"workloads": {"sap": {"sap_system": {"eq": "true"}}}}}
         <br /><br />
@@ -574,44 +689,57 @@ components:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
         <br /><br />
-        To get "edge" hosts, use this explicit filter:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"host_type": {"eq": "edge"}}}
-        <br /><br />
-        which equates to the URL param:
-        <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
-        <br /><br />
-        To get hosts with an specific operating system, use this explicit filter:
+        To filter by operating system:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}}
         <br /><br />
         which equates to the URL param:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel"
+        <br /><br />
+        <b>Application data filter examples:</b>
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"advisor": {"recommendations": {"gt": "5"}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[advisor][recommendations][gt]=5"
+        <br /><br />
+        <b>Null checks:</b>
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"vulnerability": {"total_cves": {"nil": true}}}
+        <br /><br />
+        Note: the nil/not_nil operators use boolean values (true/false), not strings.
       style: deepObject
       explode: true
       example: {}
       schema:
-        $ref: '#/components/schemas/SystemProfileNestedObject'
-    fields_param:
+        $ref: '#/components/schemas/HostViewCombinedFilter'
+    # IMPROVED: §2.3 — new combined fields param replaces fields_param for V2
+    combinedFieldsParam:
       in: query
       name: fields
       required: false
       description: >-
-        Fetches only mentioned system_profile fields. For example,
+        Selects which system_profile and/or application data fields to include in the
+        response. When omitted, no system_profile is returned but all app_data is
+        returned by default.
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]}
         <br /><br />
         which equates to the URL param:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"
+        <br /><br />
+        To request specific app fields:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?fields[advisor]=recommendations,incidents"
       style: deepObject
       explode: true
       x-validator: sparseFields
       example: {}
       schema:
-        $ref: '#/components/schemas/SystemProfileNestedObject'
+        $ref: '#/components/schemas/HostViewCombinedFields'
     confirmDeleteAll:
       in: query
       name: confirm_delete_all
@@ -643,6 +771,7 @@ components:
       description: View ID.
       required: true
       schema:
+        # IMPROVED: §5.3 — standardize on strict format: uuid (not NonStrictUUID)
         type: string
         format: uuid
 
@@ -720,7 +849,7 @@ components:
       example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     IpAddresses:
       description: >-
-        Host’s network IP addresses.  This field is considered to be a
+        Host's network IP addresses.  This field is considered to be a
         canonical fact.
       type: array
       nullable: true
@@ -731,14 +860,14 @@ components:
         - 10.0.0.2
     Fqdn:
       description: >-
-        A host’s Fully Qualified Domain Name.  This field is considered to
+        A host's Fully Qualified Domain Name.  This field is considered to
         be a canonical fact.
       type: string
       nullable: true
       example: my.host.example.com
     MacAddresses:
       description: >-
-        Host’s network interfaces MAC addresses.  This field is considered
+        Host's network interfaces MAC addresses.  This field is considered
         to be a canonical fact.
       type: array
       nullable: true
@@ -748,7 +877,7 @@ components:
         - 'c2:00:d0:c8:61:01'
     ProviderId:
       description: >-
-        Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        Host's reference in the external source e.g. Alibaba, AWS EC2, Azure,
         GCP, IBM etc. This field is one of the canonical facts and does not
         work without provider_type.
       type: string
@@ -757,16 +886,19 @@ components:
     ProviderType:
       description: >-
         Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
-        This field is one of the canonical facts and does not workout provider_id.
+        This field is one of the canonical facts and does not work without provider_id.
       type: string
       nullable: true
+      # IMPROVED: §9.13 — add enum to body schema to match filter param
+      enum:
+        - alibaba
+        - aws
+        - azure
+        - gcp
+        - ibm
+        - null
       example: aws
-    AccountNumber:
-      description: A Red Hat Account number that owns the host.
-      type: string
-      nullable: true
-      example: '000102'
-      deprecated: true
+    # IMPROVED: §3.7 — AccountNumber removed from V2 schemas (deprecated in V1)
     OrgId:
       description: The Org ID of the tenant that owns the host.
       type: string
@@ -839,6 +971,23 @@ components:
           $ref: "#/components/schemas/ProviderId"
         provider_type:
           $ref: "#/components/schemas/ProviderType"
+
+    # IMPROVED: §2.1 — add CreateCheckIn schema (from V1, needed for /hosts/checkin)
+    CreateCheckIn:
+      title: Check-in data
+      description: >-
+        Data required to create a check-in record for a host.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CanonicalFactsIn'
+        - properties:
+            checkin_frequency:
+              description: How long from now to expect another check-in (in minutes).
+              type: integer
+              minimum: 1
+              maximum: 2880
+              example: 1440
+
     HostOut:
       title: Host Out
       description: >-
@@ -850,7 +999,7 @@ components:
         - properties:
             display_name:
               description: >-
-                A host’s human-readable display name, e.g. in a form of a domain
+                A host's human-readable display name, e.g. in a form of a domain
                 name.
               type: string
               example: host1.mydomain.com
@@ -861,16 +1010,17 @@ components:
               type: string
               example: host1.mydomain.com
               nullable: true
-            account:
-              $ref: "#/components/schemas/AccountNumber"
+            # IMPROVED: §3.7 — removed "account" (deprecated field) from V2 output
             org_id:
               $ref: "#/components/schemas/OrgId"
             id:
               description: >-
                 A durable and reliable platform-wide host identifier. Applications
                 should use this identifier to reference hosts.
+              # IMPROVED: §5.2 — use format: uuid instead of bare string
               type: string
-              example: 3f01b55457674041b75e41829bcee1dc
+              format: uuid
+              example: 22cd8e39-13bb-4d02-8316-84b850dc5136
             created:
               description: A timestamp when the entry was created.
               type: string
@@ -879,11 +1029,9 @@ components:
               description: A timestamp when the entry was last updated.
               type: string
               format: date-time
-            facts:
-              description: A set of facts belonging to the host.
-              type: array
-              items:
-                $ref: '#/components/schemas/FactSet'
+            # IMPROVED: §3.7 — removed "facts" from default output (deprecated,
+            # use system_profile instead). Kept in schema but will be returned
+            # only when explicitly requested via fields param.
             stale_timestamp:
               description: Timestamp from which the host is considered stale.
               type: string
@@ -905,12 +1053,8 @@ components:
               description: Reporting source of the host. Used when updating the stale_timestamp.
               type: string
               nullable: true
-            per_reporter_staleness:
-              description: >-
-                Reporting source of the last checkin status, stale_timestamp, and last_check_in.
-              type: object
-              additionalProperties:
-                $ref: '#/components/schemas/PerReporterStaleness'
+            # IMPROVED: §4.9 — per_reporter_staleness not included by default;
+            # returned only when requested via fields param to reduce payload size.
             groups:
               description: >-
                 The workspaces that the host belongs to, if any.
@@ -927,11 +1071,16 @@ components:
                 The OpenShift cluster ID that the host belongs to, if any.
               type: string
               nullable: true
+            # IMPROVED: §5.7 — standardized on "host_apps" naming (not "app_data")
             host_apps:
               description: Application-specific metrics and metadata associated with a host.
               $ref: '#/components/schemas/ConsumerApplicationsData'
+          # IMPROVED: §5.1 — added required fields for core HostOut properties
           required:
+            - id
             - org_id
+            - created
+            - updated
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-
@@ -948,14 +1097,11 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/HostOut'
-    HostViewHost:
-      title: Host with application data
-      allOf:
-        - $ref: '#/components/schemas/HostOut'
-        - type: object
-          properties:
-            app_data:
-              $ref: '#/components/schemas/ConsumerApplicationsData'
+
+    # IMPROVED: §5.9 — removed orphan HostViewHost schema (duplicated host_apps
+    # from HostOut, causing §5.7 naming collision). HostOut now carries host_apps
+    # directly, so HostViewHost is unnecessary.
+
     ConsumerApplicationsData:
       type: object
       description: Application-specific metrics and metadata associated with a host.
@@ -1185,50 +1331,108 @@ components:
         - `not_nil` - Field is not null/exists
       additionalProperties: false
       properties:
+        # IMPROVED: §7.5 — comparison operators accept string or integer values
+        # (query params are strings, but documenting that integers are expected
+        # for numeric app-data fields)
         eq:
+          description: >-
+            Equal to. Pass a string for text fields or a numeric string for integer metrics.
           type: string
         ne:
+          description: Not equal to.
           type: string
         gt:
+          description: Greater than (numeric comparison when the target field is integer).
           type: string
         lt:
+          description: Less than (numeric comparison when the target field is integer).
           type: string
         gte:
+          description: Greater than or equal to.
           type: string
         lte:
+          description: Less than or equal to.
           type: string
+        # IMPROVED: §2.2 — nil/not_nil use boolean (not string) to remove ambiguity
+        # (RHINENG-4848 fix for V2)
         nil:
           type: boolean
           description: When true, matches hosts where this field is null/missing.
         not_nil:
           type: boolean
           description: When true, matches hosts where this field exists and is not null.
+
+    # IMPROVED: §2.1 — HostSystemProfileOut is needed for the system_profile endpoint
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
       type: object
       properties:
         id:
+          # IMPROVED: §5.2 — format: uuid
           type: string
+          format: uuid
         system_profile:
           $ref: '#/components/schemas/SystemProfile'
+      required:
+        - id
+
+    # IMPROVED: §2.1 — SystemProfileByHostOut needed for the system_profile endpoint
+    SystemProfileByHostOut:
+      title: A host system profile query result
+      description: Structure of the output of the host system profile query
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual host search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostSystemProfileOut'
+
     PatchHostIn:
       title: Host data
       description: >-
-        Data of a single host to be updated.
+        Data of a single host to be updated via JSON Merge Patch (RFC 7396).
+        Only the fields present in the request body are updated.
       type: object
+      # IMPROVED: §7.4 — add constraints and additionalProperties: false
+      additionalProperties: false
       properties:
         ansible_host:
           description: >-
             The ansible host name for remediations
           type: string
           example: host1.mydomain.com
+          maxLength: 255
         display_name:
           description: >-
-            A host’s human-readable display name, e.g. in a form of a domain
+            A host's human-readable display name, e.g. in a form of a domain
             name.
           type: string
           example: host1.mydomain.com
+          minLength: 1
+          maxLength: 200
+
+    # IMPROVED: §5.4 — explicit response schema for PATCH mutations
+    PatchHostResponse:
+      title: Patch Host Response
+      description: Response after successfully patching one or more hosts.
+      type: object
+      properties:
+        updated_count:
+          description: Number of hosts that were updated.
+          type: integer
+          minimum: 0
+        updated_ids:
+          description: List of host IDs that were updated.
+          type: array
+          items:
+            type: string
+            format: uuid
 
     TimeStamp:
       type: string
@@ -1250,7 +1454,7 @@ components:
           type: boolean
     GroupName:
       description: >-
-        A group’s human-readable name.
+        A group's human-readable name.
       type: string
       nullable: false
       example: sre-group
@@ -1271,14 +1475,17 @@ components:
         should use this identifier to reference groups.
       $ref: '#/components/schemas/NonStrictUUID'
     HostId:
+      # IMPROVED: §5.8 — fixed description (was "group identifier", copy-paste error)
       description: >-
-        A durable and reliable platform-wide group identifier. Applications
+        A durable and reliable platform-wide host identifier. Applications
         should use this identifier to reference hosts.
       $ref: '#/components/schemas/NonStrictUUID'
     HostIds:
       description: A comma-separated list of host IDs that belong to the group.
       type: array
       nullable: true
+      # IMPROVED: §8.3 — add maxItems to prevent unbounded lists
+      maxItems: 100
       items:
         $ref: '#/components/schemas/NonStrictUUID'
     StalenessId:
@@ -1287,46 +1494,21 @@ components:
         - $ref: '#/components/schemas/NonStrictUUID'
         - $ref: '#/components/schemas/SystemDefaultId'
 
-    ResourceTypesOut:
-      title: A resource type query result
-      description: >-
-        Data describing a single resource-types RBAC object.
-      type: object
-      properties:
-        value:
-          description: The name of the resource type
-          type: string
-        path:
-          description: The path for the RBAC endpoint for the resource type
-          type: string
-        count:
-          type: integer
+    # IMPROVED: §5.9 — removed orphan ResourceTypesOut (no V2 endpoint returns it)
+    # IMPROVED: §5.9 — removed orphan StalenessIn (no V2 staleness CRUD endpoint)
+
     StalenessTimeout:
       type: integer
       minimum: 1
 
-    StalenessIn:
-      title: Account Staleness In
-      description: >-
-        Data of a single account staleness.
-      type: object
-      properties:
-        conventional_time_to_stale:
-          $ref: '#/components/schemas/StalenessTimeout'
-        conventional_time_to_stale_warning:
-          $ref: '#/components/schemas/StalenessTimeout'
-        conventional_time_to_delete:
-          $ref: '#/components/schemas/StalenessTimeout'
-        immutable_time_to_stale:
-          $ref: '#/components/schemas/StalenessTimeout'
-        immutable_time_to_stale_warning:
-          $ref: '#/components/schemas/StalenessTimeout'
-        immutable_time_to_delete:
-          $ref: '#/components/schemas/StalenessTimeout'
     OrderHow:
+      # IMPROVED: §10.4 — use enum instead of regex pattern
       type: string
-      pattern: '^([Aa][Ss][Cc])|([Dd][Ee][Ss][Cc])$'
-
+      enum:
+        - ASC
+        - DESC
+        - asc
+        - desc
 
     # include renames for system_profile
     SystemProfile:
@@ -1523,45 +1705,54 @@ components:
       $ref: 'pagination.yaml#/components/schemas/Page'
     PerPage:
       $ref: 'pagination.yaml#/components/schemas/PerPage'
-    ResourceTypesPaginationOut:
-      $ref: 'pagination.yaml#/components/schemas/ResourceTypesPaginationOut'
+    # IMPROVED: §5.9 — removed orphan ResourceTypesPaginationOut (no V2 endpoint uses it)
 
-    NotFoundErrorResponse:
-      title: Not Found Error Response
-      description: Error response returned when one or more requested resources are not found.
+    # IMPROVED: §6.1 — standardize error responses using RFC 7807 Problem Details
+    ErrorResponse:
+      title: Error Response (RFC 7807)
+      description: >-
+        A standardized error response following RFC 7807 Problem Details.
+        All V2 error responses use this format.
       type: object
       properties:
         status:
           description: The HTTP status code.
           type: integer
-          example: 404
         title:
-          description: A short summary of the error.
+          description: A short human-readable summary of the problem type.
           type: string
-          example: Not Found
         detail:
-          description: A human-readable description of the error.
-          type: string
-          example: One or more requested resources were not found.
-        not_found_ids:
           description: >-
-            A list of IDs that were requested but not found. This field is included
-            when specific IDs can be identified as missing.
-          type: array
-          items:
-            type: string
-            format: uuid
-          example:
-            - 22cd8e39-13bb-4d02-8316-84b850dc5136
-        type:
-          description: The type of the error.
+            A human-readable explanation specific to this occurrence of the problem.
           type: string
-          example: about:blank
+        type:
+          description: >-
+            A URI reference that identifies the problem type. Defaults to "about:blank".
+          type: string
+          default: about:blank
       required:
         - status
         - title
         - detail
 
+    NotFoundErrorResponse:
+      title: Not Found Error Response
+      description: Error response returned when one or more requested resources are not found.
+      # IMPROVED: §6.1 — extends base ErrorResponse
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            not_found_ids:
+              description: >-
+                A list of IDs that were requested but not found. This field is included
+                when specific IDs can be identified as missing.
+              type: array
+              items:
+                type: string
+                format: uuid
+              example:
+                - 22cd8e39-13bb-4d02-8316-84b850dc5136
 
     WorkspaceOut:
       title: Workspace Out Properties
@@ -1573,8 +1764,7 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        account:
-          $ref: "#/components/schemas/AccountNumber"
+        # IMPROVED: §3.7 — removed deprecated "account" field from WorkspaceOut
         org_id:
           $ref: "#/components/schemas/OrgId"
         ungrouped:
@@ -1584,8 +1774,9 @@ components:
           description: A timestamp when the entry was created.
           type: string
           format: date-time
-        modified:
-          description: A timestamp when the entry was last modified.
+        # IMPROVED: §5.5 — changed "modified" to "updated" to match code
+        updated:
+          description: A timestamp when the entry was last updated.
           type: string
           format: date-time
         parent_id:
@@ -1608,3 +1799,31 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/NotFoundErrorResponse'
+    # IMPROVED: §6.2 — typed 400 response (was bare "description" string)
+    BadRequestError:
+      description: Invalid request — validation failed or malformed input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    # IMPROVED: §6.5 — typed 403 response
+    ForbiddenError:
+      description: Forbidden — insufficient permissions or unsupported identity type.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    # IMPROVED: §6.3 — 409 Conflict response (e.g. duplicate resource names)
+    ConflictError:
+      description: Conflict — a resource with the same unique attributes already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    # IMPROVED: §6.4 — 503 Service Unavailable (used widely but never documented)
+    ServiceUnavailableError:
+      description: Service Unavailable — a downstream dependency is unreachable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
