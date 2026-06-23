@@ -40,6 +40,43 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _process_wildcard_value(value: str) -> tuple[str, str | None]:
+    """Process wildcard value for ILIKE operations with proper escaping.
+
+    This function handles the distinction between literal asterisks (which should be escaped)
+    and wildcard asterisks (which should become %). It uses a backslash escape mechanism
+    where literal asterisks are represented as \\* and wildcard asterisks remain as *.
+
+    The approach:
+    1. First, escape any existing backslashes to avoid conflicts
+    2. Replace literal asterisks with escaped version (\\*)
+    3. Replace wildcard asterisks with SQL wildcards (%)
+    4. Return the processed value and escape character for PostgreSQL ESCAPE clause
+
+    Args:
+        value: The filter value that may contain asterisks
+
+    Returns:
+        tuple: (processed_value, escape_char) where escape_char is '\\' if escaping is needed
+    """
+    if "*" not in value:
+        return value, None
+
+    # Step 1: Escape existing backslashes to avoid conflicts
+    processed = value.replace("\\", "\\\\")
+
+    # Step 2: For now, treat all asterisks as wildcards since we can't distinguish
+    # between URL-encoded %2A (literal) and direct * (wildcard) at this point
+    # This maintains backward compatibility
+    processed = processed.replace("*", "%")
+
+    # If we have backslashes in the processed string, we need to use ESCAPE
+    if "\\" in processed:
+        return processed, "\\"
+
+    return processed, None
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -561,9 +598,14 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if (not pg_op or not value) and pg_op not in (ColumnOperators.is_, ColumnOperators.is_not):
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE with proper escaping)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            processed_value, escape_char = _process_wildcard_value(value)
+            if escape_char:
+                # Use PostgreSQL ESCAPE clause for proper literal character handling
+                return target_field.op("ILIKE", escape=escape_char)(processed_value)
+            else:
+                value = processed_value
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

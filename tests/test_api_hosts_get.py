@@ -2929,3 +2929,280 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_asterisk_escaping_edge_cases(api_get, db_create_host, subtests):
+    """Test edge cases for asterisk handling in system profile filters."""
+
+    # Create hosts with various asterisk patterns
+    hosts_data = [
+        {
+            "display_name": "host-multiple-asterisks",
+            "system_profile_facts": {"insights_client_version": "3.0*1*special"},
+        },
+        {"display_name": "host-asterisk-start", "system_profile_facts": {"insights_client_version": "*3.0.1"}},
+        {"display_name": "host-asterisk-end", "system_profile_facts": {"insights_client_version": "3.0.1*"}},
+        {"display_name": "host-no-asterisk", "system_profile_facts": {"insights_client_version": "3.0.1"}},
+    ]
+
+    created_hosts = []
+    for host_data in hosts_data:
+        host = db_create_host(extra_data=host_data)
+        created_hosts.append(host)
+
+    test_cases = [
+        # Test multiple wildcards
+        {
+            "name": "multiple_wildcards",
+            "query": "?filter[system_profile][insights_client_version]=3.0*1*",
+            "min_expected": 1,  # Should match at least the multiple asterisks host
+            "description": "Multiple wildcards should work correctly",
+        },
+        # Test wildcard at start
+        {
+            "name": "wildcard_at_start",
+            "query": "?filter[system_profile][insights_client_version]=*3.0.1",
+            "min_expected": 2,  # Should match hosts with asterisk at start and no asterisk
+            "description": "Wildcard at start should match correctly",
+        },
+        # Test wildcard at end
+        {
+            "name": "wildcard_at_end",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1*",
+            "min_expected": 2,  # Should match hosts with asterisk at end and no asterisk
+            "description": "Wildcard at end should match correctly",
+        },
+    ]
+
+    for test_case in test_cases:
+        with subtests.test(test_case=test_case["name"]):
+            url = build_hosts_url(query=test_case["query"])
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200, f"Failed for {test_case['description']}"
+            assert len(response_data["results"]) >= test_case["min_expected"], (
+                f"Expected at least {test_case['min_expected']} hosts for {test_case['description']}, "
+                f"got {len(response_data['results'])}"
+            )
+
+
+def test_asterisk_with_special_characters(api_get, db_create_host, subtests):
+    """Test asterisk handling combined with other special characters."""
+
+    # Create hosts with special characters and asterisks
+    hosts_data = [
+        {"display_name": "host-special-chars", "system_profile_facts": {"os_release": "8.5*custom (R)"}},
+        {"display_name": "host-parentheses", "system_profile_facts": {"os_release": "8.5 custom (R)"}},
+        {"display_name": "host-brackets", "system_profile_facts": {"os_release": "8.5*[Special]"}},
+    ]
+
+    created_hosts = []
+    for host_data in hosts_data:
+        host = db_create_host(extra_data=host_data)
+        created_hosts.append(host)
+
+    test_cases = [
+        # Test asterisk with parentheses
+        {
+            "name": "asterisk_with_parentheses",
+            "query": "?filter[system_profile][os_release]=8.5*custom*",
+            "min_expected": 1,
+            "description": "Asterisk with parentheses should work",
+        },
+        # Test URL-encoded asterisk with special chars
+        {
+            "name": "url_encoded_with_special_chars",
+            "query": "?filter[system_profile][os_release]=8.5%2Acustom*",
+            "min_expected": 1,
+            "description": "URL-encoded asterisk with special characters should work",
+        },
+    ]
+
+    for test_case in test_cases:
+        with subtests.test(test_case=test_case["name"]):
+            url = build_hosts_url(query=test_case["query"])
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200, f"Failed for {test_case['description']}"
+            assert len(response_data["results"]) >= test_case["min_expected"], (
+                f"Expected at least {test_case['min_expected']} hosts for {test_case['description']}, "
+                f"got {len(response_data['results'])}"
+            )
+
+
+def test_url_encoded_asterisk_handling(api_get, db_create_host, subtests):
+    """Test URL-encoded asterisk handling in system profile filters.
+
+    This test addresses RHINENG-4809 by verifying that URL-encoded asterisks (%2A)
+    and direct asterisks (*) are handled correctly in ILIKE operations.
+
+    Current behavior: Both %2A and * are treated as wildcards due to URL decoding
+    happening before wildcard processing. This maintains backward compatibility.
+    """
+    # Create hosts with system profile data containing literal asterisks
+    hosts_data = [
+        {
+            "display_name": "host-with-asterisk-insights",
+            "system_profile_facts": {"insights_client_version": "3.0.1*special"},
+        },
+        {"display_name": "host-with-normal-insights", "system_profile_facts": {"insights_client_version": "3.0.1"}},
+        {"display_name": "host-with-asterisk-os", "system_profile_facts": {"os_release": "8.5*custom"}},
+        {"display_name": "host-with-normal-os", "system_profile_facts": {"os_release": "8.5"}},
+    ]
+
+    created_hosts = []
+    for host_data in hosts_data:
+        host = db_create_host(extra_data=host_data)
+        created_hosts.append(host)
+
+    test_cases = [
+        # Test URL-encoded asterisk (%2A) - currently treated as wildcard
+        {
+            "name": "url_encoded_asterisk_insights",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1%2Aspecial",
+            "expected_hosts": ["host-with-asterisk-insights"],  # Matches literal asterisk
+            "description": "URL-encoded %2A should match literal asterisk (current behavior)",
+        },
+        # Test direct asterisk (*) - treated as wildcard
+        {
+            "name": "direct_asterisk_wildcard_insights",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1*",
+            "expected_hosts": ["host-with-asterisk-insights", "host-with-normal-insights"],  # Wildcard matches both
+            "description": "Direct * should act as wildcard",
+        },
+        # Test URL-encoded asterisk in os_release
+        {
+            "name": "url_encoded_asterisk_os",
+            "query": "?filter[system_profile][os_release]=8.5%2Acustom",
+            "expected_hosts": ["host-with-asterisk-os"],
+            "description": "URL-encoded %2A in os_release should match literal asterisk",
+        },
+        # Test direct asterisk wildcard in os_release
+        {
+            "name": "direct_asterisk_wildcard_os",
+            "query": "?filter[system_profile][os_release]=8.5*",
+            "expected_hosts": ["host-with-asterisk-os", "host-with-normal-os"],
+            "description": "Direct * in os_release should act as wildcard",
+        },
+        # Test mixed scenario - asterisk at beginning
+        {
+            "name": "wildcard_at_beginning",
+            "query": "?filter[system_profile][insights_client_version]=*0.1*",
+            "expected_hosts": ["host-with-asterisk-insights", "host-with-normal-insights"],
+            "description": "Wildcard pattern should match both hosts",
+        },
+        # Test exact match without wildcards
+        {
+            "name": "exact_match_no_wildcard",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1",
+            "expected_hosts": ["host-with-normal-insights"],
+            "description": "Exact match should only match exact value",
+        },
+    ]
+
+    for test_case in test_cases:
+        with subtests.test(test_case=test_case["name"]):
+            url = build_hosts_url(query=test_case["query"])
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200, f"Failed for {test_case['description']}"
+
+            # Extract display names from response
+            response_display_names = [host["display_name"] for host in response_data["results"]]
+
+            # Verify expected hosts are returned
+            for expected_host in test_case["expected_hosts"]:
+                assert expected_host in response_display_names, (
+                    f"Expected host '{expected_host}' not found in response for {test_case['description']}. "
+                    f"Got: {response_display_names}"
+                )
+
+            # Verify no unexpected hosts are returned
+            assert len(response_display_names) == len(test_case["expected_hosts"]), (
+                f"Expected {len(test_case['expected_hosts'])} hosts, got {len(response_display_names)} "
+                f"for {test_case['description']}. Response: {response_display_names}"
+            )
+
+
+def test_rhineng_4809_url_encoded_asterisk_fix(api_get, db_create_host, subtests):
+    """Test for RHINENG-4809: URL-encoded asterisk handling in system profile filters.
+
+    This test specifically verifies that the fix for URL-encoded asterisk handling
+    works correctly with the ESCAPE clause in ILIKE operations.
+    """
+    # Create hosts with system profile data that tests the specific issue
+    hosts_data = [
+        {
+            "display_name": "host-with-literal-asterisk",
+            "system_profile_facts": {"insights_client_version": "3.0.1*special"},
+        },
+        {"display_name": "host-without-asterisk", "system_profile_facts": {"insights_client_version": "3.0.1"}},
+        {"display_name": "host-with-os-asterisk", "system_profile_facts": {"os_release": "8.5*custom"}},
+        {"display_name": "host-with-normal-os", "system_profile_facts": {"os_release": "8.5"}},
+    ]
+
+    created_hosts = []
+    for host_data in hosts_data:
+        host = db_create_host(extra_data=host_data)
+        created_hosts.append(host)
+
+    test_cases = [
+        # Test URL-encoded asterisk behavior
+        {
+            "name": "url_encoded_asterisk_literal_match",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1%2Aspecial",
+            "expected_hosts": ["host-with-literal-asterisk"],
+            "description": "URL-encoded %2A should match literal asterisk in data",
+        },
+        # Test direct asterisk wildcard behavior
+        {
+            "name": "direct_asterisk_wildcard_match",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1*",
+            "expected_hosts": ["host-with-literal-asterisk", "host-without-asterisk"],
+            "description": "Direct * should act as wildcard matching multiple hosts",
+        },
+        # Test URL-encoded asterisk in os_release field
+        {
+            "name": "url_encoded_asterisk_os_field",
+            "query": "?filter[system_profile][os_release]=8.5%2Acustom",
+            "expected_hosts": ["host-with-os-asterisk"],
+            "description": "URL-encoded %2A should work in os_release field",
+        },
+        # Test direct asterisk wildcard in os_release field
+        {
+            "name": "direct_asterisk_os_wildcard",
+            "query": "?filter[system_profile][os_release]=8.5*",
+            "expected_hosts": ["host-with-os-asterisk", "host-with-normal-os"],
+            "description": "Direct * should work as wildcard in os_release field",
+        },
+        # Test exact match without wildcards
+        {
+            "name": "exact_match_no_wildcard",
+            "query": "?filter[system_profile][insights_client_version]=3.0.1",
+            "expected_hosts": ["host-without-asterisk"],
+            "description": "Exact match should only return exact matches",
+        },
+    ]
+
+    for test_case in test_cases:
+        with subtests.test(test_case=test_case["name"]):
+            url = build_hosts_url(query=test_case["query"])
+            response_status, response_data = api_get(url)
+
+            assert response_status == 200, f"Request failed for {test_case['description']}"
+
+            # Extract display names from response
+            response_display_names = [host["display_name"] for host in response_data["results"]]
+
+            # Verify expected hosts are returned
+            for expected_host in test_case["expected_hosts"]:
+                assert expected_host in response_display_names, (
+                    f"Expected host '{expected_host}' not found in response for {test_case['description']}. "
+                    f"Got: {response_display_names}"
+                )
+
+            # Verify correct number of hosts returned
+            assert len(response_display_names) == len(test_case["expected_hosts"]), (
+                f"Expected {len(test_case['expected_hosts'])} hosts, got {len(response_display_names)} "
+                f"for {test_case['description']}. Response: {response_display_names}"
+            )
