@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
-from collections.abc import Callable
 from collections.abc import Generator
 from random import choice
 from random import randint
@@ -12,114 +10,11 @@ from random import randint
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.deprecations import DEPRECATE_FIND_MQ_HOST_MSGS
-from iqe_host_inventory.deprecations import DEPRECATE_MQ_CREATE_OR_UPDATE_HOST
-from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
 from iqe_host_inventory.modeling.groups_api import GroupData
-from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory.utils.kafka_utils import log_consumed_host_message
-from iqe_host_inventory.utils.kafka_utils import match_hosts
-from iqe_host_inventory.utils.kafka_utils import wrap_payload
 
 logger = logging.getLogger(__name__)
-
-
-@pytest.fixture
-def mq_create_or_update_host(
-    produce_msgs: Callable,
-    find_mq_host_msgs: Callable,
-    host_inventory: ApplicationHostInventory,
-    hbi_cleanup_function: HBICleanupRegistry,
-) -> Callable:
-    warnings.warn(DEPRECATE_MQ_CREATE_OR_UPDATE_HOST, stacklevel=2)
-
-    def _mq_create_or_update_host(
-        host_data: dict | None = None,
-        extra_data: dict | None = None,
-        metadata: dict | None = None,
-        operation_args: dict | None = None,
-        omit_metadata: bool = False,
-        omit_identity: bool = False,
-        omit_request_id: bool = False,
-        field_to_match: str = "insights_id",
-        timeout_in_seconds: int = 10,
-        host_inventory_app: ApplicationHostInventory = host_inventory,
-        return_events_message: bool = False,
-        wait_for_existing: bool = False,
-        retain_hosts: bool = False,
-    ) -> HostWrapper | HostMessageWrapper:
-        extra_data = extra_data or {}
-        host_data = host_data or host_inventory_app.datagen.create_host_data(**extra_data)
-        host_message = wrap_payload(
-            host_data,
-            identity=host_inventory_app.kafka.identity,
-            metadata=metadata,
-            operation_args=operation_args,
-            omit_identity=omit_identity,
-            omit_metadata=omit_metadata,
-            omit_request_id=omit_request_id,
-        )
-
-        logger.info(
-            f"Creating/Updating a host via MQ to {host_inventory_app.kafka.ingress_topic} topic"
-        )
-        produce_msgs(host_inventory_app.kafka.ingress_topic, [host_message])
-        logger.info(f"Delivered message: {host_message}")
-
-        logger.info("Consuming a host via MQ")
-        consumed_host_message = find_mq_host_msgs(
-            field_to_match=field_to_match,
-            values_to_match=[host_data[field_to_match]],
-            timeout_in_seconds=timeout_in_seconds,
-        )
-        log_consumed_host_message(consumed_host_message, field_to_match)
-
-        host = consumed_host_message.host
-
-        # todo: mq support
-        if not retain_hosts:
-            hbi_cleanup_function(host_inventory_app)
-            host_inventory_app.cleanup.add_hosts(host)
-        if wait_for_existing:
-            host_inventory_app.apis.hosts.wait_for_created(host)
-        if not return_events_message:
-            return host
-
-        return consumed_host_message
-
-    return _mq_create_or_update_host
-
-
-@pytest.fixture
-def find_mq_host_msgs(find_msgs: Callable, host_inventory: ApplicationHostInventory) -> Callable:
-    warnings.warn(DEPRECATE_FIND_MQ_HOST_MSGS, stacklevel=2)
-
-    def _find_mq_host_msgs(
-        field_to_match: str,
-        values_to_match: list[object],
-        timeout_in_seconds: int = 10,
-    ) -> HostMessageWrapper | list[HostMessageWrapper]:
-        result = find_msgs(
-            topic=host_inventory.kafka.events_topic,
-            data_to_match={"field": field_to_match, "values": values_to_match},
-            num_matches=len(values_to_match),
-            matching_func=match_hosts,
-            timeout_in_seconds=timeout_in_seconds,
-        )
-
-        if isinstance(result, list):
-            if not result:
-                raise KafkaMessageNotFoundError(
-                    HostMessageWrapper, field_to_match, values_to_match
-                )
-            return [HostMessageWrapper.from_message(message) for message in result]
-
-        return HostMessageWrapper.from_message(result)
-
-    return _find_mq_host_msgs
 
 
 @pytest.fixture

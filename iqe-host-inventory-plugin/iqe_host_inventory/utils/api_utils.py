@@ -18,7 +18,6 @@ from urllib.parse import quote
 import pytest
 from _pytest._code.code import ExceptionInfo
 
-from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_GET_MULTIPLE_HOSTS
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
 from iqe_host_inventory.utils import get_org_id
@@ -35,6 +34,7 @@ from iqe_host_inventory_api_v7 import ApiException as ApiException_V7
 from .retrying import accept_when
 
 if TYPE_CHECKING:
+    from iqe_host_inventory import ApplicationHostInventory
     from iqe_host_inventory.modeling import HBI_API_WRAPPER
 
 
