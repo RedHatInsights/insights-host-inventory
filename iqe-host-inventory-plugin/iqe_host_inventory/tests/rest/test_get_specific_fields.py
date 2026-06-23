@@ -35,8 +35,6 @@ def host_for_fields_tests(host_inventory: ApplicationHostInventory):
     host_data["system_profile"] = sync_workloads_with_individual_fields(
         host_data["system_profile"]
     )
-    for legacy_field in LEGACY_WORKLOAD_ROOT_FIELDS:
-        host_data["system_profile"].pop(legacy_field, None)
 
     return host_inventory.kafka.create_host(host_data=host_data)
 
@@ -180,26 +178,59 @@ def test_get_specific_fields_bad_field(
 
 
 @pytest.mark.ephemeral
+@pytest.mark.parametrize(
+    "path_template",
+    [
+        pytest.param("/hosts", id="/hosts"),
+        pytest.param("/hosts/{host_id}", id="/hosts/<host_id>"),
+        pytest.param(
+            "/hosts/{host_id}/system_profile",
+            id="/hosts/<host_id>/system_profile",
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "build_fields_query",
+    [
+        pytest.param(build_query_string, id="comma-separated"),
+        pytest.param(build_query_string_json_array_fields, id="json-array"),
+    ],
+)
 @pytest.mark.parametrize("legacy_field", sorted(LEGACY_WORKLOAD_ROOT_FIELDS))
-def test_get_specific_fields_legacy_workload_root_field_not_sparse(
+def test_sparse_legacy_workload_root_fields_omitted_from_response(
     host_inventory: ApplicationHostInventory,
     host_for_fields_tests,
-    endpoint_func: Callable,
+    path_template: str,
+    build_fields_query: Callable,
     legacy_field: str,
 ):
     """
-    Legacy root-level workload fields are not stored as sparse DB columns.
+    Legacy workload root fields remain in the OpenAPI schema but are not sparse DB
+    columns. Requesting them returns 200 with the field omitted from the response.
 
-    They may still appear in the OpenAPI schema during transition, but requesting
-    them must not return migrated top-level values.
+    metadata:
+        requirements: inv-hosts-get-specific-sp-fields
+        assignee: rpfannsc
+        importance: medium
     """
-    returned_host = endpoint_func(
-        host_inventory, host_for_fields_tests, [Field(legacy_field, "str")]
+    host = host_for_fields_tests
+    path = path_template.format(host_id=host.id)
+    response = _call_api(
+        host_inventory,
+        path,
+        fields=[legacy_field],
+        build_fields_query=build_fields_query,
     )
-    returned_sp = {
-        k: v for k, v in returned_host.system_profile.to_dict().items() if v is not None
-    }
-    assert legacy_field not in returned_sp
+
+    if path_template == "/hosts":
+        host_results = response["results"]
+        matching_hosts = [item for item in host_results if item["id"] == host.id]
+        assert matching_hosts, f"Host {host.id} not found in GET /hosts response"
+        system_profile = matching_hosts[0]["system_profile"]
+    else:
+        system_profile = response["results"][0]["system_profile"]
+
+    assert legacy_field not in system_profile
 
 
 @pytest.mark.ephemeral

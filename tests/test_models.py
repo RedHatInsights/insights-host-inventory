@@ -1536,6 +1536,29 @@ def test_dynamic_profile_incorrect_type(flask_app):  # noqa: ARG001
         validate_and_transform("test-org-id", "test-host-id", system_profile_data)
 
 
+def test_validate_and_transform_strips_legacy_workload_root_fields():
+    """Legacy top-level workload fields are ignored; workloads.* is canonical."""
+    from app.models.system_profile_transformer import strip_legacy_workload_root_fields
+    from app.models.system_profile_transformer import validate_and_transform
+
+    static_profile_data, dynamic_profile_data = get_sample_profile_data()
+    system_profile_data = {
+        **static_profile_data,
+        **dynamic_profile_data,
+        "ansible": {"controller_version": "1.0"},
+        "sap_sids": ["ABC"],
+        "workloads": {"ansible": {"controller_version": "1.0"}, "sap": {"sids": ["ABC"]}},
+    }
+
+    stripped = strip_legacy_workload_root_fields(system_profile_data.copy())
+    assert "ansible" not in stripped
+    assert "sap_sids" not in stripped
+    assert "workloads" in stripped
+
+    validated_static, validated_dynamic = validate_and_transform("test-org-id", "test-host-id", system_profile_data)
+    assert validated_dynamic.get("workloads") == system_profile_data["workloads"]
+
+
 def test_host_system_profile_normalization_integration(db_create_host):
     """
     Integration test for the complete system profile normalization flow.
