@@ -20,18 +20,18 @@ Each worktree gets a **slot** (1–8). All host ports are offset by `slot * 100`
 | Containers | Unique `COMPOSE_PROJECT_NAME` per worktree → separate Podman network |
 | Ports | Slot-based offset (e.g., slot 1: DB on 5532, Web on 8180) |
 | Database storage | Separate `~/.pg_data_<name>` directory per worktree |
-| Python venv (main) | `uv sync` creates `.venv/` in each worktree directory |
-| Python venv (IQE) | pipenv creates venvs by project directory path, via `setup-iqe.sh` |
+| Python venv (main) | `uv sync --frozen` creates `.venv/` in each worktree directory |
+| Python venv (IQE) | `uv --project iqe-host-inventory-plugin sync --frozen` creates `iqe-host-inventory-plugin/.venv/` in each worktree |
 | Kafka, Redis, etc. | Each stack has its own isolated instances on a separate Podman network |
 
 ## Quick start
 
 ```bash
 # Create a worktree with full stack (DB, Kafka, Redis, etc.)
-./scripts/worktree.sh create my-feature-branch
+./scripts/worktree.sh create my-feature
 
 # Create without IQE venv (faster, skip if you don't need to run IQE tests locally)
-./scripts/worktree.sh create --no-iqe my-feature-branch
+./scripts/worktree.sh create --no-iqe my-feature
 
 # List all worktrees and their status
 ./scripts/worktree.sh list
@@ -95,7 +95,7 @@ After creating or starting a worktree, activate the appropriate venv:
 cd worktrees/my-feature && source .venv/bin/activate
 
 # IQE test environment
-cd worktrees/my-feature && export PIPENV_PIPFILE=Pipfile.iqe && pipenv shell
+cd worktrees/my-feature && source iqe-host-inventory-plugin/.venv/bin/activate
 ```
 
 ## Environment variables
@@ -115,4 +115,4 @@ Container-internal connections (services talking to each other inside the Podman
 
 Each worktree runs a full 11-service Podman Compose stack. The typical use case is 2–3 concurrent worktrees; running all 8 slots is possible but resource-intensive.
 
-Destroying a worktree cleans up everything: containers, Podman network, DB data directory, both virtual environments (uv and pipenv), the git worktree, and the branch (if fully merged).
+Destroying a worktree cleans up everything: containers, Podman network, DB data directory, both virtual environments (main and IQE), the git worktree, and the branch (if fully merged).

@@ -248,17 +248,17 @@ cmd_create() {
 
     (
         cd "$WORKTREES_DIR/$safe_name"
-        uv sync
+        uv sync --frozen
     ) > "$main_log" 2>&1 &
     main_pid=$!
     echo "  Main venv (PID $main_pid) — log: $main_log"
 
     local iqe_pid=""
     if [[ "$skip_iqe" == "false" ]]; then
-        local iqe_log="$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
+        local iqe_log="$WORKTREES_DIR/$safe_name/.uv-iqe.log"
         (
             cd "$WORKTREES_DIR/$safe_name"
-            bash setup-iqe.sh
+            uv --project iqe-host-inventory-plugin sync --frozen
         ) > "$iqe_log" 2>&1 &
         iqe_pid=$!
         echo "  IQE venv  (PID $iqe_pid) — log: $iqe_log"
@@ -288,7 +288,7 @@ cmd_create() {
             echo "── Last 20 lines of main venv log ──" >&2
             tail -20 "$main_log" >&2
         fi
-        local iqe_log="$WORKTREES_DIR/$safe_name/.pipenv-iqe.log"
+        local iqe_log="$WORKTREES_DIR/$safe_name/.uv-iqe.log"
         if [[ -f "$iqe_log" ]]; then
             echo "── Last 20 lines of IQE venv log ──" >&2
             tail -20 "$iqe_log" >&2
@@ -302,7 +302,7 @@ cmd_create() {
         exit 1
     fi
 
-    rm -f "$main_log" "$WORKTREES_DIR/$safe_name/.pipenv-iqe.log" "$WORKTREES_DIR/$safe_name/.uv-main.log"
+    rm -f "$main_log" "$WORKTREES_DIR/$safe_name/.uv-iqe.log" "$WORKTREES_DIR/$safe_name/.uv-main.log"
 
     echo "Starting compose stack..."
     cd "$WORKTREES_DIR/$safe_name"
@@ -311,7 +311,7 @@ cmd_create() {
         remove_pg_data "$pg_data"
         rm -rf "$WORKTREES_DIR/$safe_name/.venv"
         if [[ "$skip_iqe" == "false" ]]; then
-            (cd "$WORKTREES_DIR/$safe_name" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
+            rm -rf "$WORKTREES_DIR/$safe_name/iqe-host-inventory-plugin/.venv"
         fi
         cd "$MAIN_REPO_ROOT"
         git worktree remove "$WORKTREES_DIR/$safe_name" --force 2>/dev/null || true
@@ -349,7 +349,7 @@ cmd_create() {
     if [[ "$skip_iqe" == "false" ]]; then
         echo ""
         echo "To activate the IQE test environment:"
-        echo "  cd $WORKTREES_DIR/$safe_name && export PIPENV_PIPFILE=Pipfile.iqe && pipenv shell"
+        echo "  cd $WORKTREES_DIR/$safe_name && source iqe-host-inventory-plugin/.venv/bin/activate"
     fi
     echo "════════════════════════════════════════════════════"
 }
@@ -382,10 +382,10 @@ cmd_up() {
         echo ""
         echo "To activate the main app environment:"
         echo "  cd $wt_dir && source .venv/bin/activate"
-        if [[ -f "$wt_dir/Pipfile.iqe" ]]; then
+        if [[ -d "$wt_dir/iqe-host-inventory-plugin/.venv" ]]; then
             echo ""
             echo "To activate the IQE test environment:"
-            echo "  cd $wt_dir && export PIPENV_PIPFILE=Pipfile.iqe && pipenv shell"
+            echo "  cd $wt_dir && source iqe-host-inventory-plugin/.venv/bin/activate"
         fi
         exit 0
     fi
@@ -422,10 +422,10 @@ cmd_up() {
     echo ""
     echo "To activate the main app environment:"
     echo "  cd $wt_dir && source .venv/bin/activate"
-    if [[ -f "$wt_dir/Pipfile.iqe" ]]; then
+    if [[ -d "$wt_dir/iqe-host-inventory-plugin/.venv" ]]; then
         echo ""
         echo "To activate the IQE test environment:"
-        echo "  cd $wt_dir && export PIPENV_PIPFILE=Pipfile.iqe && pipenv shell"
+        echo "  cd $wt_dir && source iqe-host-inventory-plugin/.venv/bin/activate"
     fi
 }
 cmd_down() {
@@ -485,7 +485,7 @@ cmd_destroy() {
 
     echo "Removing virtual environments..."
     rm -rf "$wt_dir/.venv"
-    (cd "$wt_dir" && PIPENV_PIPFILE=Pipfile.iqe pipenv --rm) 2>/dev/null || true
+    rm -rf "$wt_dir/iqe-host-inventory-plugin/.venv"
 
     local branch
     branch=$(git -C "$wt_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")

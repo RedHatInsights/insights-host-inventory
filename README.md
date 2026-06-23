@@ -327,7 +327,7 @@ databases, and virtual environments — no port collisions, no shared DB data.
 
 ```bash
 # Create a worktree with full stack
-./scripts/worktree.sh create my-feature-branch
+./scripts/worktree.sh create my-feature
 
 # List worktrees and their status
 ./scripts/worktree.sh list
