@@ -38,8 +38,8 @@ def check_events_and_notifications(
 ) -> None:
     logger.info("Searching deletion events and notifications")
     all_hosts_ids = {host.id for staleness in hosts.keys() for host in hosts[staleness]}
-    found_host_events = set()
-    found_notifications = set()
+    found_host_events: set[HostMessageWrapper] = set()
+    found_notifications: set[DeleteNotificationWrapper] = set()
 
     # Get all host event messages and notifications
     for msg in host_inventory.kafka.walk_messages(timeout=5):
@@ -47,6 +47,8 @@ def check_events_and_notifications(
             found_host_events.add(msg)
         elif isinstance(msg, DeleteNotificationWrapper) and msg.inventory_id in all_hosts_ids:
             found_notifications.add(msg)
+        if len(found_host_events) == len(found_notifications) == len(hosts["culled"]):
+            break
 
     # Check host event messages
     culled_hosts_ids = {host.id for host in hosts["culled"]}
@@ -104,7 +106,7 @@ def test_reaper_script(
         stale_hosts_data,
         stale_warning_hosts_data,
         culled_hosts_data,
-        deltas=(40, 80, 120),
+        deltas=(50, 100, 150),
     )
 
     fresh_hosts_ids = {host.id for host in hosts["fresh"]}

@@ -1689,6 +1689,8 @@ components:
           - vulnerability:important_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
+          - patch:advisories_total_installable
+          - patch:advisories_total_applicable
           - patch:advisories_rhsa_installable
           - patch:advisories_rhba_installable
           - patch:advisories_rhea_installable
@@ -2145,6 +2147,32 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/GroupOut'
+            workspace:
+              description: >-
+                The workspace that the host belongs to, if any.
+                Contains the same data as the first entry in the groups list.
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/GroupId'
+                name:
+                  $ref: '#/components/schemas/GroupName'
+                account:
+                  $ref: '#/components/schemas/AccountNumber'
+                org_id:
+                  $ref: '#/components/schemas/OrgId'
+                ungrouped:
+                  description: Whether the group is the "ungrouped hosts" group
+                  type: boolean
+                created:
+                  description: A timestamp when the entry was created.
+                  type: string
+                  format: date-time
+                updated:
+                  description: A timestamp when the entry was last updated.
+                  type: string
+                  format: date-time
             system_profile:
               $ref: '#/components/schemas/SystemProfile'
             last_check_in:
@@ -2472,6 +2500,8 @@ components:
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
         **Patch**
+        - `patch:advisories_total_installable` - Total installable advisories (sum of all types)
+        - `patch:advisories_total_applicable` - Total applicable advisories (sum of all types)
         - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories
         - `patch:advisories_rhba_installable` - Number of RHBA installable advisories
         - `patch:advisories_rhea_installable` - Number of RHEA installable advisories
@@ -2509,6 +2539,8 @@ components:
         - vulnerability:important_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
+        - patch:advisories_total_installable
+        - patch:advisories_total_applicable
         - patch:advisories_rhsa_installable
         - patch:advisories_rhba_installable
         - patch:advisories_rhea_installable

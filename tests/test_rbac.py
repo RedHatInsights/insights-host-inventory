@@ -3,6 +3,7 @@ import json
 import pytest
 from requests import exceptions
 
+import lib.middleware
 from tests.helpers.api_utils import RBACFilterOperation
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_groups_url
@@ -214,3 +215,26 @@ def test_access_decorator_patch_nonexistent_host_with_permission_denied(mocker, 
 
     # Should return 404, not 403
     assert_response_status(response_status, 404)
+
+
+def test_build_rbac_auth_request_headers(mocker):
+    """
+    Test that _build_rbac_auth_request_headers produces correct headers with OAuth2 token
+    and org context, without x-rh-identity.
+
+    JIRA: RHINENG-25611
+    """
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_abc")
+
+    mock_config = mocker.Mock()
+    mock_config.bypass_kessel = False
+    mock_config.kessel_auth_enabled = True
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    headers = lib.middleware._build_rbac_auth_request_headers("org-42")
+
+    assert headers["Authorization"] == "Bearer sa_token_abc"
+    assert headers["X-RH-RBAC-ORG-ID"] == "org-42"
+    assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
+    assert len(headers) == 3
+    assert "x-rh-identity" not in {k.lower() for k in headers}
