@@ -40,6 +40,55 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """
+    Process wildcard value to handle escaped asterisks and backslashes properly.
+
+    This function converts a string with escaped characters into a SQL ILIKE pattern:
+    - Unescaped asterisks (*) become SQL wildcards (%)
+    - Escaped asterisks (\\*) become literal asterisks (*)
+    - Escaped backslashes (\\\\) become literal backslashes (\\\\) for PostgreSQL ILIKE
+    - Literal backslashes followed by other characters are escaped for PostgreSQL (\\)
+
+    Args:
+        value: The input string that may contain escaped characters
+
+    Returns:
+        A string suitable for SQL ILIKE operations
+    """
+    if not value:
+        return value
+
+    result = []
+    i = 0
+    while i < len(value):
+        if value[i] == "\\" and i + 1 < len(value):
+            next_char = value[i + 1]
+            if next_char == "*":
+                # Escaped asterisk - treat as literal asterisk
+                result.append("*")
+                i += 2
+            elif next_char == "\\":
+                # Escaped backslash - treat as literal backslash (escaped for PostgreSQL)
+                result.append("\\\\")
+                i += 2
+            else:
+                # Backslash followed by other character - escape the backslash for PostgreSQL
+                result.append("\\\\")
+                result.append(next_char)
+                i += 2
+        elif value[i] == "*":
+            # Unescaped asterisk - convert to SQL wildcard
+            result.append("%")
+            i += 1
+        else:
+            # Regular character
+            result.append(value[i])
+            i += 1
+
+    return "".join(result)
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -561,9 +610,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if (not pg_op or not value) and pg_op not in (ColumnOperators.is_, ColumnOperators.is_not):
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
+        # Handle wildcard fields (use ILIKE, process escaped characters)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
