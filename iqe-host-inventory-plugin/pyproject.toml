@@ -31,6 +31,7 @@ dependencies = [
   "iqe-export-service-plugin",
   "iqe-kessel-sync-plugin",
   "iqe-mq-plugin>=24.11.29",
+  "iqe-turnpike-plugin",
   "lxml",
   "ocdeployer",
   "psycopg2-binary",
@@ -125,3 +126,20 @@ lint.extend-safe-fixes = [
   "UP032",
 ]
 lint.isort.force-single-line = true
+
+[dependency-groups]
+dev = [
+  "crc-bonfire",
+  "iqe-goatee-plugin",
+]
+
+[tool.uv]
+package = true
+default-groups = "all"
+required-version = "0.11.19"
+system-certs = true
+
+[[tool.uv.index]]
+name = "rhnexus"
+url = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
+default = true
