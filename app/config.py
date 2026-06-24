@@ -297,11 +297,11 @@ class Config:
         }
 
         self.export_service_kafka_consumer = {
+            **self.base_consumer_config,
             "auto.offset.reset": "earliest",
             "enable.auto.commit": False,
             "partition.assignment.strategy": "cooperative-sticky",
             "max.poll.interval.ms": int(os.environ.get("KAFKA_EXPORT_SERVICE_MAX_POLL_INTERVAL_MS", "1200000")),
-            **self.base_consumer_config,
         }
 
         self.validator_kafka_consumer = {

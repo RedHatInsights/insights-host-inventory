@@ -191,7 +191,7 @@ def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: 
     if response.status_code == HTTPStatus.ACCEPTED:
         if response.text != "":
             logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
-    elif response.status_code == HTTPStatus.BAD_REQUEST and "already been processed" in (response.text or ""):
+    elif response.status_code == HTTPStatus.BAD_REQUEST and "already been processed" in (response.text or "").lower():
         logger.warning(f"Export {exportUUID} was already processed (duplicate delivery); treating as success")
     else:
         raise InventoryException(detail=response.text)
