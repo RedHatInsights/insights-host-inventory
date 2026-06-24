@@ -40,6 +40,34 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _process_wildcard_value(value: str) -> str:
+    """Process wildcard value to handle escaped asterisks.
+
+    Converts unescaped asterisks (*) to SQL wildcards (%) while preserving
+    escaped asterisks (\\*) as literal asterisks (*).
+
+    Args:
+        value: The filter value that may contain asterisks
+
+    Returns:
+        The processed value with proper wildcard handling
+    """
+    if not value:
+        return value
+
+    # Replace escaped asterisks with a temporary placeholder
+    temp_placeholder = "___ESCAPED_ASTERISK___"
+    processed_value = value.replace("\\*", temp_placeholder)
+
+    # Replace unescaped asterisks with SQL wildcards
+    processed_value = processed_value.replace("*", "%")
+
+    # Restore escaped asterisks as literal asterisks
+    processed_value = processed_value.replace(temp_placeholder, "*")
+
+    return processed_value
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -563,7 +591,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
