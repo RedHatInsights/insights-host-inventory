@@ -39,8 +39,7 @@ def main():
         {
             "group.id": config.inv_export_service_consumer_group,
             "bootstrap.servers": config.bootstrap_servers,
-            "auto.offset.reset": "earliest",
-            **config.kafka_consumer,
+            **config.export_service_kafka_consumer,
         }
     )
     consumer.subscribe([config.export_service_topic])
