@@ -42,9 +42,22 @@ def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
         return False
 
     try:
+        # Check the raw query string for URL-encoded asterisks in the specific filter parameter
         query_string = request.query_string.decode("utf-8")
-        if "%2A" in query_string and field_name in query_string:
-            return True
+        filter_key = f"filter[system_profile][{field_name}]="
+
+        # Find the parameter in the query string
+        if filter_key in query_string:
+            # Extract the value part after the filter key
+            start_idx = query_string.find(filter_key) + len(filter_key)
+            # Find the end of this parameter (next & or end of string)
+            end_idx = query_string.find("&", start_idx)
+            if end_idx == -1:
+                end_idx = len(query_string)
+
+            param_value = query_string[start_idx:end_idx]
+            if "%2A" in param_value:
+                return True
     except (AttributeError, UnicodeDecodeError, RuntimeError):
         pass
 
@@ -583,8 +596,10 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike and not _should_escape_asterisks_for_field(field_name, value):
             # Normal wildcard behavior - replace * with %
-            # First, replace escaped asterisks with a placeholder to preserve them as literals
-            placeholder = "__LITERAL_ASTERISK__"
+            # First, replace escaped asterisks with a unique placeholder to preserve them as literals
+            import uuid
+
+            placeholder = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
             value = value.replace("\\*", placeholder)
             # Replace unescaped asterisks with SQL wildcards
             value = value.replace("*", "%")
