@@ -3048,3 +3048,92 @@ def test_add_workloads_backward_compatibility_copies_valid_values():
     assert result["sap_sids"] == ["H2O"]
     assert result["sap_instance_number"] == "00"
     assert result["sap_version"] == "1.00.122.04.1478575636"
+
+
+def test_custom_uri_parser_resolve_params_url_encoded_asterisks():
+    """
+    Test that customURIParser.resolve_params correctly handles URL-encoded asterisks.
+
+    This test verifies the fix for RHINENG-4809 where URL-encoded asterisks (%2A)
+    should be treated as literal asterisk characters, not as wildcards.
+    """
+    from api.parsing import customURIParser
+
+    # Create parser instance with empty parameter definitions
+    # This simulates the case where parameters are not defined in the spec
+    parser = customURIParser({}, {})
+
+    # Test cases for URL-encoded asterisks
+    # Note: The web framework would have already decoded %2A to * before reaching the parser
+    test_cases = [
+        # Already decoded asterisk (what we'd get from web framework after URL decoding)
+        ({"filter": ["*"]}, {"filter": ["*"]}),
+        # Multiple asterisks
+        ({"filter": ["test*value*"]}, {"filter": ["test*value*"]}),
+        # Mixed with other characters
+        ({"display_name": ["host*name"]}, {"display_name": ["host*name"]}),
+        # Regular unencoded asterisk should remain unchanged
+        ({"filter": ["*"]}, {"filter": ["*"]}),
+        # No asterisks
+        ({"filter": ["test"]}, {"filter": ["test"]}),
+        # Asterisk at start and end
+        ({"filter": ["*test*"]}, {"filter": ["*test*"]}),
+    ]
+
+    for input_params, expected_output in test_cases:
+        result = parser.resolve_params(input_params, "query")
+        assert result == expected_output, f"Failed for input {input_params}: got {result}, expected {expected_output}"
+
+
+def test_custom_uri_parser_resolve_params_other_url_encoded_chars():
+    """
+    Test that customURIParser.resolve_params correctly handles other URL-encoded characters.
+
+    This ensures the fix for RHINENG-4809 doesn't break handling of other encoded characters.
+    """
+    from api.parsing import customURIParser
+
+    # Create parser instance with empty parameter definitions
+    parser = customURIParser({}, {})
+
+    # Test cases for other URL-encoded characters
+    # Note: These would already be decoded by the web framework
+    test_cases = [
+        # Decoded space (from %20)
+        ({"filter": ["test value"]}, {"filter": ["test value"]}),
+        # Decoded special characters (from %21%40%23)
+        ({"filter": ["test!@#"]}, {"filter": ["test!@#"]}),
+        # Decoded percent sign (from %25)
+        ({"filter": ["test%value"]}, {"filter": ["test%value"]}),
+        # Mixed characters including asterisk
+        ({"filter": ["test *!"]}, {"filter": ["test *!"]}),
+    ]
+
+    for input_params, expected_output in test_cases:
+        result = parser.resolve_params(input_params, "query")
+        assert result == expected_output, f"Failed for input {input_params}: got {result}, expected {expected_output}"
+
+
+def test_custom_uri_parser_resolve_params_array_parameters():
+    """
+    Test that customURIParser.resolve_params correctly handles URL-encoded asterisks in array parameters.
+    """
+    from api.parsing import customURIParser
+
+    # Create parser instance with empty parameter definitions
+    parser = customURIParser({}, {})
+
+    # Test cases for array parameters with asterisks
+    # Note: These would already be decoded by the web framework
+    test_cases = [
+        # Single array item with asterisk
+        ({"tags": ["*"]}, {"tags": ["*"]}),
+        # Multiple array items with asterisks
+        ({"tags": ["tag*1", "tag*2"]}, {"tags": ["tag*1", "tag*2"]}),
+        # Mixed with other characters
+        ({"tags": ["tag*", "tag"]}, {"tags": ["tag*", "tag"]}),
+    ]
+
+    for input_params, expected_output in test_cases:
+        result = parser.resolve_params(input_params, "query")
+        assert result == expected_output, f"Failed for input {input_params}: got {result}, expected {expected_output}"
