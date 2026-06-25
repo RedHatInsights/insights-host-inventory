@@ -1,5 +1,7 @@
 import json
 import re
+from urllib.parse import quote
+from urllib.parse import unquote
 
 from connexion.exceptions import BadRequestProblem
 from connexion.uri_parsing import OpenAPIURIParser
@@ -124,9 +126,14 @@ class customURIParser(OpenAPIURIParser):
 
             if param_schema and param_schema["type"] == "array":
                 # resolve variable re-assignment, handle explode
+                if _in == "query":
+                    values = [quote(value) for value in values]
                 values = self._resolve_param_duplicates(values, param_defn, _in)
                 # handle array styles
-                resolved_param[k] = self._split(values, param_defn, _in)
+                if _in == "query":
+                    resolved_param[k] = [unquote(value) for value in self._split(values, param_defn, _in)]
+                else:
+                    resolved_param[k] = self._split(values, param_defn, _in)
             else:
                 resolved_param[k] = values[-1]
 
