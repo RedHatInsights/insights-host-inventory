@@ -951,26 +951,49 @@ components:
                 - provider_id
                 - provider_type
     CanonicalFactsOut:
-      type: object
-      properties:
-        insights_id:
-          $ref: "#/components/schemas/InsightsId"
-        subscription_manager_id:
-          $ref: "#/components/schemas/SubscriptionManagerId"
-        satellite_id:
-          $ref: "#/components/schemas/SatelliteId"
-        bios_uuid:
-          $ref: "#/components/schemas/BiosUuid"
-        ip_addresses:
-          $ref: "#/components/schemas/IpAddresses"
-        fqdn:
-          $ref: "#/components/schemas/Fqdn"
-        mac_addresses:
-          $ref: "#/components/schemas/MacAddresses"
-        provider_id:
-          $ref: "#/components/schemas/ProviderId"
-        provider_type:
-          $ref: "#/components/schemas/ProviderType"
+      # IMPROVED: §5.1 — mirror CanonicalFactsIn anyOf constraint on the output schema.
+      # Every host passed CanonicalFactsIn validation on write, so at least one canonical
+      # fact will always be present in a response. Documenting the invariant here makes
+      # the output contract explicit and enables response validation.
+      allOf:
+        - type: object
+          properties:
+            insights_id:
+              $ref: "#/components/schemas/InsightsId"
+            subscription_manager_id:
+              $ref: "#/components/schemas/SubscriptionManagerId"
+            satellite_id:
+              $ref: "#/components/schemas/SatelliteId"
+            bios_uuid:
+              $ref: "#/components/schemas/BiosUuid"
+            ip_addresses:
+              $ref: "#/components/schemas/IpAddresses"
+            fqdn:
+              $ref: "#/components/schemas/Fqdn"
+            mac_addresses:
+              $ref: "#/components/schemas/MacAddresses"
+            provider_id:
+              $ref: "#/components/schemas/ProviderId"
+            provider_type:
+              $ref: "#/components/schemas/ProviderType"
+        - anyOf:
+            - required:
+                - insights_id
+            - required:
+                - subscription_manager_id
+            - required:
+                - satellite_id
+            - required:
+                - bios_uuid
+            - required:
+                - ip_addresses
+            - required:
+                - fqdn
+            - required:
+                - mac_addresses
+            - required:
+                - provider_id
+                - provider_type
 
     # IMPROVED: §2.1 — add CreateCheckIn schema (from V1, needed for /hosts/checkin)
     CreateCheckIn:
