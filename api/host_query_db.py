@@ -10,7 +10,6 @@ from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import case
 from sqlalchemy import func
-from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
@@ -898,12 +897,11 @@ def get_hosts_to_export(
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
 
     try:
-        num_hosts_query = select(func.count()).select_from(export_host_query.subquery())
-        num_hosts = db.session.scalar(num_hosts_query)
-        logger.debug(f"Number of hosts to be exported: {num_hosts}")
-
+        exported = 0
         for host in db.session.scalars(export_host_query):
             yield serialize_host_for_export_svc(host, staleness=staleness)
+            exported += 1
+        logger.debug(f"Number of hosts exported: {exported}")
 
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e

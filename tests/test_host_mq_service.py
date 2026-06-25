@@ -2612,6 +2612,27 @@ def test_workspace_bulk_mq_create_duplicate_skips(
     assert found_group.name == "bulk-workspace-original"
 
 
+def test_workspace_bulk_mq_duplicate_does_not_rollback_prior_creates(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id
+):
+    """A duplicate create must not roll back new groups created earlier in the same batch/transaction."""
+    existing_group = db_create_group("pre-existing-workspace")
+
+    new_workspace_id = generate_uuid()
+    new_message = generate_kessel_workspace_message("create", new_workspace_id, "new-workspace")
+    workspace_message_consumer_mock.handle_message(json.dumps(new_message))
+
+    duplicate_message = generate_kessel_workspace_message("create", str(existing_group.id), "duplicate-workspace-name")
+    workspace_message_consumer_mock.handle_message(json.dumps(duplicate_message))
+
+    db.session.commit()
+
+    assert db_get_group_by_id(new_workspace_id) is not None
+    assert db_get_group_by_id(new_workspace_id).name == "new-workspace"
+
+    assert db_get_group_by_id(existing_group.id).name == "pre-existing-workspace"
+
+
 @pytest.mark.parametrize(
     "processed_rows,event_type,should_notify",
     [
