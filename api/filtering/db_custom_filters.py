@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -30,6 +31,28 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
+    """
+    Check if asterisks in the given field value should be treated as literal characters
+    rather than wildcards. This happens when the original query string contained %2A
+    (URL-encoded asterisk) for this specific field.
+    """
+    if not hasattr(request, "query_string") or not isinstance(value, str) or "*" not in value:
+        return False
+
+    try:
+        query_string = request.query_string.decode("utf-8")
+        # Check if the query string contains %2A and this field name
+        # This is a heuristic approach - if %2A appears in a query for this field,
+        # we assume asterisks in this value should be escaped
+        if "%2A" in query_string and field_name in query_string:
+            return True
+    except (AttributeError, UnicodeDecodeError):
+        pass
+
+    return False
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
@@ -563,7 +586,20 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            # Check if asterisks should be treated as literals (originally URL-encoded as %2A)
+            if _should_escape_asterisks_for_field(field_name, value):
+                # All asterisks in this value should be treated as literals
+                # Don't replace them with % wildcards
+                pass
+            else:
+                # Normal wildcard behavior - replace * with %
+                # First, replace escaped asterisks with a placeholder to preserve them as literals
+                placeholder = "__LITERAL_ASTERISK__"
+                value = value.replace("\\*", placeholder)
+                # Replace unescaped asterisks with SQL wildcards
+                value = value.replace("*", "%")
+                # Restore escaped asterisks as literal asterisks
+                value = value.replace(placeholder, "*")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:

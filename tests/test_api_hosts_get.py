@@ -2929,3 +2929,348 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_url_encoded_asterisk_treated_as_literal_insights_client_version(db_create_host, api_get):
+    """Test that URL-encoded asterisks (%2A) in insights_client_version are treated as literal characters."""
+    # Create host with asterisk in insights_client_version
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.*-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host without asterisk
+    host_without_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_without_asterisk).id)
+
+    # Query with URL-encoded asterisk - should match only the host with literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_url_encoded_asterisk_treated_as_literal_os_release(db_create_host, api_get):
+    """Test that URL-encoded asterisks (%2A) in os_release are treated as literal characters."""
+    # Create host with asterisk in os_release
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "os_release": "8.5.*-beta",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host without asterisk
+    host_without_asterisk = {
+        "system_profile_facts": {
+            "os_release": "8.5.1-beta",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_without_asterisk).id)
+
+    # Query with URL-encoded asterisk - should match only the host with literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][os_release]=8.5.%2A-beta")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_url_encoded_asterisk_treated_as_literal_bios_release_date(db_create_host, api_get):
+    """Test that URL-encoded asterisks (%2A) in bios_release_date are treated as literal characters."""
+    # Create host with asterisk in bios_release_date
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "bios_release_date": "2023-*-15",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host without asterisk
+    host_without_asterisk = {
+        "system_profile_facts": {
+            "bios_release_date": "2023-01-15",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_without_asterisk).id)
+
+    # Query with URL-encoded asterisk - should match only the host with literal asterisk
+    url = build_hosts_url(query="?filter[system_profile][bios_release_date]=2023-%2A-15")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_regular_asterisk_still_works_as_wildcard(db_create_host, api_get):
+    """Test that regular asterisks (*) still work as wildcards for backward compatibility."""
+    # Create hosts with different insights_client_versions
+    host1 = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    host1_id = str(db_create_host(extra_data=host1).id)
+
+    host2 = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.5-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    host2_id = str(db_create_host(extra_data=host2).id)
+
+    host3 = {
+        "system_profile_facts": {
+            "insights_client_version": "4.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    host3_id = str(db_create_host(extra_data=host3).id)
+
+    # Query with regular asterisk wildcard - should match hosts with 3.0.* pattern
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert host1_id in result_ids
+    assert host2_id in result_ids
+    assert host3_id not in result_ids
+
+
+def test_mixed_url_encoded_and_regular_asterisks(db_create_host, api_get):
+    """Test that when URL-encoded asterisk is present, ALL asterisks are treated as literals.
+
+    Note: The current implementation treats all asterisks as literals when %2A is detected
+    in the query string for a field, rather than supporting mixed patterns.
+    """
+    # Create host with literal asterisks
+    host_with_asterisks = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.*-2.el4_2.*",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisks).id)
+
+    # Create host that would match if asterisks were treated as wildcards
+    host_wildcard_match = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2.test",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_wildcard_match).id)
+
+    # Query with URL-encoded asterisk - all asterisks should be treated as literals
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2.*")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_multiple_url_encoded_asterisks(db_create_host, api_get):
+    """Test multiple URL-encoded asterisks in the same field."""
+    # Create host with multiple asterisks
+    host_with_asterisks = {
+        "system_profile_facts": {
+            "insights_client_version": "3.*.1-*.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisks).id)
+
+    # Create host that would match if asterisks were wildcards
+    host_wildcard_match = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_wildcard_match).id)
+
+    # Query with multiple URL-encoded asterisks - should match only literal asterisks
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.%2A.1-%2A.el4_2")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_url_encoded_asterisk_no_match_when_no_literal_asterisk(db_create_host, api_get):
+    """Test that URL-encoded asterisk query returns no results when no host has literal asterisk."""
+    # Create hosts without literal asterisks
+    host1 = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host1).id)
+
+    host2 = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.5-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host2).id)
+
+    # Query with URL-encoded asterisk - should return no results
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 0
+
+
+def test_escaped_asterisk_handling_backward_compatibility(db_create_host, api_get):
+    """Test that escaped asterisks (\\*) are still handled correctly."""
+    # Create host with literal asterisk
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.*-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host without asterisk
+    host_without_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_without_asterisk).id)
+
+    # Query with escaped asterisk - should match only the host with literal asterisk
+    # Note: This tests the existing escaped asterisk functionality
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.\\*-2.el4_2")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+@pytest.mark.parametrize(
+    "field_name,field_value,query_value",
+    [
+        ("insights_client_version", "test*version", "test%2Aversion"),
+        ("os_release", "8.*-beta", "8.%2A-beta"),
+        ("bios_release_date", "2023-*-15", "2023-%2A-15"),
+        ("cpu_model", "Intel*Core", "Intel%2ACore"),
+        ("bios_version", "v1.0*", "v1.0%2A"),
+    ],
+)
+def test_url_encoded_asterisk_various_wildcard_fields(db_create_host, api_get, field_name, field_value, query_value):
+    """Test URL-encoded asterisk handling across various wildcard-enabled fields."""
+    # Create host with literal asterisk in the specified field
+    host_data = {
+        "system_profile_facts": {
+            field_name: field_value,
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_data).id)
+
+    # Create host without asterisk (replace * with 'X' for non-match)
+    nomatch_value = field_value.replace("*", "X")
+    nomatch_host_data = {
+        "system_profile_facts": {
+            field_name: nomatch_value,
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=nomatch_host_data).id)
+
+    # Query with URL-encoded asterisk
+    url = build_hosts_url(query=f"?filter[system_profile][{field_name}]={query_value}")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_url_encoded_asterisk_edge_case_empty_field(db_create_host, api_get):
+    """Test URL-encoded asterisk handling when field contains only asterisk."""
+    # Create host with just asterisk
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "*",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host with different value
+    host_different = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1",
+            "arch": "x86_64",
+        }
+    }
+    str(db_create_host(extra_data=host_different).id)
+
+    # Query with URL-encoded asterisk
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=%2A")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == match_host_id
+
+
+def test_url_encoded_asterisk_case_sensitivity(db_create_host, api_get):
+    """Test that URL-encoded asterisk handling respects case sensitivity of the field."""
+    # Create host with mixed case and asterisk
+    host_with_asterisk = {
+        "system_profile_facts": {
+            "insights_client_version": "Test*Version",
+            "arch": "x86_64",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
+
+    # Create host with different case
+    host_different_case = {
+        "system_profile_facts": {
+            "insights_client_version": "test*version",
+            "arch": "x86_64",
+        }
+    }
+    different_case_host_id = str(db_create_host(extra_data=host_different_case).id)
+
+    # Query with URL-encoded asterisk - should match both due to case-insensitive ILIKE
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=Test%2AVersion")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert match_host_id in result_ids
+    assert different_case_host_id in result_ids
