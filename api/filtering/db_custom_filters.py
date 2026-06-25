@@ -35,18 +35,13 @@ logger = get_logger(__name__)
 
 def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
     """
-    Check if asterisks in the given field value should be treated as literal characters
-    rather than wildcards. This happens when the original query string contained %2A
-    (URL-encoded asterisk) for this specific field.
+    Check if asterisks should be treated as literals when %2A appears in query string.
     """
     if not hasattr(request, "query_string") or not isinstance(value, str) or "*" not in value:
         return False
 
     try:
         query_string = request.query_string.decode("utf-8")
-        # Check if the query string contains %2A and this field name
-        # This is a heuristic approach - if %2A appears in a query for this field,
-        # we assume asterisks in this value should be escaped
         if "%2A" in query_string and field_name in query_string:
             return True
     except (AttributeError, UnicodeDecodeError):
