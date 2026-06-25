@@ -1569,6 +1569,7 @@ def test_validate_and_transform_migrates_legacy_sap_system_to_workloads():
     _, validated_dynamic = validate_and_transform("test-org-id", "test-host-id", system_profile_data)
 
     assert validated_dynamic["workloads"]["sap"]["sap_system"] is True
+    assert "sap_system" not in validated_dynamic
 
 
 def test_host_system_profile_normalization_integration(db_create_host):

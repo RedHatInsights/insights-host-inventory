@@ -1149,4 +1149,32 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"workloads": {"sap": {}}},
     {"workloads": {"ansible": {}}},
     {"workloads": {"mssql": {}}},
+    {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "hub_version": "3.4.1",
+                "catalog_worker_version": "100.387.9846.12",
+                "sso_version": "1.28.3.52641.10000513168495123",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [{"instance_name": "IRIS", "product": "IRIS", "version": "2023.1"}],
+            }
+        }
+    },
+    {"workloads": {"mssql": {"version": "15.3"}}},
+    {
+        "workloads": {
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            }
+        }
+    },
 )
