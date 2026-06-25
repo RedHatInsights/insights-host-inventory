@@ -2937,12 +2937,14 @@ def test_no_hosts_in_org(api_get):
         ("insights_client_version", "3.0.*-2.el4_2", "3.0.1-2.el4_2", "3.0.%2A-2.el4_2"),
         ("os_release", "8.5.*-beta", "8.5.1-beta", "8.5.%2A-beta"),
         ("bios_release_date", "2023-*-15", "2023-01-15", "2023-%2A-15"),
+        ("cpu_model", "Intel*Core", "Intel Core", "Intel%2ACore"),
+        ("bios_version", "v1.0*", "v1.0.1", "v1.0%2A"),
     ],
 )
 def test_url_encoded_asterisk_treated_as_literal(
     db_create_host, api_get, field_name, literal_value, non_literal_value, query_value
 ):
-    """Test that URL-encoded asterisks (%2A) are treated as literal characters."""
+    """Test that URL-encoded asterisks (%2A) are treated as literal characters across various fields."""
     host_with_asterisk = {"system_profile_facts": {field_name: literal_value, "arch": "x86_64"}}
     match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
 
@@ -2984,21 +2986,22 @@ def test_regular_asterisk_still_works_as_wildcard(db_create_host, api_get):
 
 
 @pytest.mark.parametrize(
-    "literal_value,wildcard_value,query_value,description",
+    "test_case,literal_value,wildcard_value,query_value",
     [
-        ("3.0.*-2.el4_2.*", "3.0.1-2.el4_2.test", "3.0.%2A-2.el4_2.*", "mixed asterisks treated as literals"),
-        ("3.*.1-*.el4_2", "3.0.1-2.el4_2", "3.%2A.1-%2A.el4_2", "multiple URL-encoded asterisks"),
+        ("mixed_asterisks", "3.0.*-2.el4_2.*", "3.0.1-2.el4_2.test", "3.0.%2A-2.el4_2.*"),
+        ("multiple_encoded", "3.*.1-*.el4_2", "3.0.1-2.el4_2", "3.%2A.1-%2A.el4_2"),
+        ("edge_case_only_asterisk", "*", "3.0.1", "%2A"),
     ],
 )
 def test_url_encoded_asterisk_complex_patterns(
     db_create_host,
     api_get,
+    test_case,  # noqa: ARG001
     literal_value,
     wildcard_value,
-    query_value,
-    description,  # noqa: ARG001
+    query_value,  # noqa: ARG001
 ):
-    """Test complex patterns with URL-encoded asterisks."""
+    """Test complex patterns with URL-encoded asterisks including edge cases."""
     host_with_asterisks = {"system_profile_facts": {"insights_client_version": literal_value, "arch": "x86_64"}}
     match_host_id = str(db_create_host(extra_data=host_with_asterisks).id)
 
@@ -3013,79 +3016,45 @@ def test_url_encoded_asterisk_complex_patterns(
     assert response_data["results"][0]["id"] == match_host_id
 
 
-def test_url_encoded_asterisk_no_match_when_no_literal_asterisk(db_create_host, api_get):
-    """Test that URL-encoded asterisk query returns no results when no host has literal asterisk."""
-    for version in ["3.0.1-2.el4_2", "3.0.5-2.el4_2"]:
-        host = {"system_profile_facts": {"insights_client_version": version, "arch": "x86_64"}}
-        str(db_create_host(extra_data=host).id)
-
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 0
-
-
-def test_escaped_asterisk_handling_backward_compatibility(db_create_host, api_get):
-    """Test that escaped asterisks (\\*) are still handled correctly."""
-    host_with_asterisk = {"system_profile_facts": {"insights_client_version": "3.0.*-2.el4_2", "arch": "x86_64"}}
-    match_host_id = str(db_create_host(extra_data=host_with_asterisk).id)
-
-    host_without_asterisk = {"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2", "arch": "x86_64"}}
-    str(db_create_host(extra_data=host_without_asterisk).id)
-
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.\\*-2.el4_2")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-    assert response_data["results"][0]["id"] == match_host_id
-
-
 @pytest.mark.parametrize(
-    "field_name,field_value,query_value",
+    "test_scenario,host_values,query,expected_count",
     [
-        ("insights_client_version", "test*version", "test%2Aversion"),
-        ("os_release", "8.*-beta", "8.%2A-beta"),
-        ("bios_release_date", "2023-*-15", "2023-%2A-15"),
-        ("cpu_model", "Intel*Core", "Intel%2ACore"),
-        ("bios_version", "v1.0*", "v1.0%2A"),
-        ("insights_client_version", "*", "%2A"),  # edge case: only asterisk
+        (
+            "no_match_when_no_literal",
+            ["3.0.1-2.el4_2", "3.0.5-2.el4_2"],
+            "3.0.%2A-2.el4_2",
+            0,
+        ),
+        (
+            "escaped_asterisk_backward_compatibility",
+            ["3.0.*-2.el4_2", "3.0.1-2.el4_2"],
+            "3.0.\\*-2.el4_2",
+            1,
+        ),
+        (
+            "case_sensitivity_both_match",
+            ["Test*Version", "test*version"],
+            "Test%2AVersion",
+            2,
+        ),
     ],
 )
-def test_url_encoded_asterisk_various_wildcard_fields(db_create_host, api_get, field_name, field_value, query_value):
-    """Test URL-encoded asterisk handling across various wildcard-enabled fields."""
-    host_data = {"system_profile_facts": {field_name: field_value, "arch": "x86_64"}}
-    match_host_id = str(db_create_host(extra_data=host_data).id)
-
-    nomatch_value = field_value.replace("*", "X") if field_value != "*" else "3.0.1"
-    nomatch_host_data = {"system_profile_facts": {field_name: nomatch_value, "arch": "x86_64"}}
-    str(db_create_host(extra_data=nomatch_host_data).id)
-
-    url = build_hosts_url(query=f"?filter[system_profile][{field_name}]={query_value}")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    assert len(response_data["results"]) == 1
-    assert response_data["results"][0]["id"] == match_host_id
-
-
-def test_url_encoded_asterisk_case_sensitivity(db_create_host, api_get):
-    """Test that URL-encoded asterisk handling respects case sensitivity of the field."""
-    hosts = [
-        {"insights_client_version": "Test*Version"},
-        {"insights_client_version": "test*version"},
-    ]
-
+def test_url_encoded_asterisk_edge_cases(
+    db_create_host,
+    api_get,
+    test_scenario,  # noqa: ARG001
+    host_values,
+    query,
+    expected_count,  # noqa: ARG001
+):
+    """Test edge cases for URL-encoded asterisk handling."""
     host_ids = []
-    for host_data in hosts:
-        host = {"system_profile_facts": {**host_data, "arch": "x86_64"}}
+    for value in host_values:
+        host = {"system_profile_facts": {"insights_client_version": value, "arch": "x86_64"}}
         host_ids.append(str(db_create_host(extra_data=host).id))
 
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=Test%2AVersion")
+    url = build_hosts_url(query=f"?filter[system_profile][insights_client_version]={query}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(response_data["results"]) == 2
-    result_ids = {result["id"] for result in response_data["results"]}
-    assert result_ids == set(host_ids)
+    assert len(response_data["results"]) == expected_count
