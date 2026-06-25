@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from flask import has_request_context
 from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
@@ -37,14 +38,14 @@ def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
     """
     Check if asterisks should be treated as literals when %2A appears in query string.
     """
-    if not hasattr(request, "query_string") or not isinstance(value, str) or "*" not in value:
+    if not has_request_context() or not isinstance(value, str) or "*" not in value:
         return False
 
     try:
         query_string = request.query_string.decode("utf-8")
         if "%2A" in query_string and field_name in query_string:
             return True
-    except (AttributeError, UnicodeDecodeError):
+    except (AttributeError, UnicodeDecodeError, RuntimeError):
         pass
 
     return False
@@ -99,7 +100,7 @@ def _get_system_profile_column_and_filter(filter_param: dict) -> tuple[Column, d
 
 
 def _check_field_in_spec(spec: dict, field_name: str, parent_node: str) -> None:
-    if field_name not in spec.keys():
+    if field_name not in spec:
         raise ValidationException(f"Invalid operation or child node for {parent_node}: {field_name}")
 
 
@@ -168,8 +169,8 @@ def _get_field_filter_for_deepest_param(sp_spec: dict, filter: dict, parent_node
     key = next(iter(filter.keys()))
 
     # If the current key is a comparator, we're already at the deepest node
-    if key in POSTGRES_COMPARATOR_LOOKUP.keys():
-        if "filter" in sp_spec.keys():
+    if key in POSTGRES_COMPARATOR_LOOKUP:
+        if "filter" in sp_spec:
             return sp_spec["filter"]
         elif sp_spec:
             return "object"
@@ -207,7 +208,7 @@ def separate_operating_system_filters(filter_url_params) -> list[OsFilter]:
         return [OsFilter(comparator=filter_url_params)]
 
     # filter_url_params is a dict
-    for filter_key in filter_url_params.keys():
+    for filter_key in filter_url_params:
         if filter_key == "name":
             ((os_comparator, os_name),) = filter_url_params[filter_key].items()
             version_node = {os_comparator: [None]}
@@ -321,7 +322,7 @@ def _unique_paths(
 
     if isinstance(node, dict):
         # Not a leaf node
-        for key in node.keys():
+        for key in node:
             if key in ignore_nodes:
                 # Skip recursion on ignored nodes.
                 # Instead, just add the whole thing to the output.
@@ -580,21 +581,17 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
-            # Check if asterisks should be treated as literals (originally URL-encoded as %2A)
-            if _should_escape_asterisks_for_field(field_name, value):
-                # All asterisks in this value should be treated as literals
-                # Don't replace them with % wildcards
-                pass
-            else:
-                # Normal wildcard behavior - replace * with %
-                # First, replace escaped asterisks with a placeholder to preserve them as literals
-                placeholder = "__LITERAL_ASTERISK__"
-                value = value.replace("\\*", placeholder)
-                # Replace unescaped asterisks with SQL wildcards
-                value = value.replace("*", "%")
-                # Restore escaped asterisks as literal asterisks
-                value = value.replace(placeholder, "*")
+        if pg_op == ColumnOperators.ilike and not _should_escape_asterisks_for_field(field_name, value):
+            # Normal wildcard behavior - replace * with %
+            # First, replace escaped asterisks with a placeholder to preserve them as literals
+            placeholder = "__LITERAL_ASTERISK__"
+            value = value.replace("\\*", placeholder)
+            # Replace unescaped asterisks with SQL wildcards
+            value = value.replace("*", "%")
+            # Restore escaped asterisks as literal asterisks
+            value = value.replace(placeholder, "*")
+        # If pg_op is ilike but _should_escape_asterisks_for_field returns True, all asterisks in this value
+        # should be treated as literals - don't replace them with % wildcards
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
@@ -752,7 +749,7 @@ def create_os_filter(os_name, version_node):
     os_filter_list: list[OsFilter] = []
     check_valid_os_name(os_name)
 
-    for os_comparator in version_node.keys():
+    for os_comparator in version_node:
         version_array = version_node[os_comparator]
         if not isinstance(version_array, list):
             version_array = [version_array]
