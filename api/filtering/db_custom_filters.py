@@ -42,9 +42,12 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
     URL-encoded asterisks (%2A) should be treated as literal asterisks in the final SQL query,
     while literal asterisks (*) should be converted to SQL wildcards (%).
 
+    This implementation uses a more robust approach that reconstructs the original intent
+    by analyzing the raw query string to identify which asterisks were URL-encoded.
+
     Args:
         value: The filter value after URL decoding
-        field_name: The field name being filtered (for query string matching)
+        field_name: The field name being filtered
 
     Returns:
         The processed value with appropriate wildcard replacements
@@ -57,51 +60,54 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
         # Get the original query string to check for URL-encoded asterisks
         query_string = request.query_string.decode("utf-8")
 
-        # Build a pattern to match this field's filter parameter in the query string
-        # This handles various filter formats like:
-        # - filter[system_profile][field_name]=value
-        # - filter[system_profile][field_name][eq]=value
+        # Use a single, specific pattern to match this field's filter parameter
+        # This handles both operator and non-operator syntax in one pattern
         field_pattern = re.escape(field_name)
+        pattern = rf"filter\[system_profile\]\[{field_pattern}\](?:\[[^\]]*\])?=([^&]*)"
 
-        # Look for patterns that match this field in the query string
-        # We need to be careful to match the right field and extract its original value
-        patterns = [
-            rf"filter\[system_profile\]\[{field_pattern}\](?:\[[^\]]*\])?=([^&]*)",
-            rf"filter\[system_profile\]\[{field_pattern}\]=([^&]*)",
-        ]
+        match = re.search(pattern, query_string)
+        if not match:
+            # No match found, treat all asterisks as wildcards
+            return value.replace("*", "%")
 
-        original_value = None
-        for pattern in patterns:
-            match = re.search(pattern, query_string)
-            if match:
-                original_value = match.group(1)
-                break
+        original_value = match.group(1)
 
-        if original_value and "%2A" in original_value.upper():
+        if "%2A" in original_value.upper():
             # The original query contained URL-encoded asterisks
-            # We need to preserve these as literal asterisks while converting literal ones to wildcards
+            # Use a more precise mapping approach that doesn't rely on ordering assumptions
 
-            # Count URL-encoded asterisks in original to determine which decoded asterisks to preserve
-            encoded_asterisk_count = original_value.upper().count("%2A")
-            asterisks_in_decoded = value.count("*")
+            import urllib.parse
 
-            if encoded_asterisk_count > 0 and asterisks_in_decoded >= encoded_asterisk_count:
-                # Replace asterisks: first N are literal (from URL encoding), rest are wildcards
-                result = ""
-                asterisk_count = 0
-                for char in value:
-                    if char == "*":
-                        asterisk_count += 1
-                        if asterisk_count <= encoded_asterisk_count:
-                            result += "*"  # Keep as literal asterisk
-                        else:
-                            result += "%"  # Convert to wildcard
+            # Parse the original value to create a mapping of positions
+            # This approach is more robust than assuming encoded asterisks come first
+            decoded_chars = []
+            i = 0
+            while i < len(original_value):
+                if i <= len(original_value) - 3 and original_value[i : i + 3].upper() == "%2A":
+                    # This is an encoded asterisk - should remain literal
+                    decoded_chars.append(("*", True))  # (char, is_literal)
+                    i += 3
+                elif original_value[i] == "*":
+                    # This is a literal asterisk - should become wildcard
+                    decoded_chars.append(("*", False))  # (char, is_literal)
+                    i += 1
+                else:
+                    # Regular character
+                    decoded_chars.append((urllib.parse.unquote(original_value[i]), False))
+                    i += 1
+
+            # Reconstruct the value with proper wildcard handling
+            result = ""
+            for char, is_literal in decoded_chars:
+                if char == "*":
+                    if is_literal:
+                        result += "*"  # Keep as literal asterisk
                     else:
-                        result += char
-                return result
-            else:
-                # All asterisks should be wildcards
-                return value.replace("*", "%")
+                        result += "%"  # Convert to wildcard
+                else:
+                    result += char
+
+            return result
         else:
             # No URL-encoded asterisks found, treat all asterisks as wildcards
             return value.replace("*", "%")
