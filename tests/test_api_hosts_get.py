@@ -2929,3 +2929,208 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_url_encoded_wildcard_handling(db_create_host, api_get):
+    """Test URL-encoded wildcard character handling in system profile filtering.
+
+    This test verifies that URL-encoded asterisks (%2A) are properly handled as literal
+    characters while preserving wildcard functionality for regular asterisks.
+
+    The fix handles double asterisks (**) which represent URL-encoded asterisk (%2A)
+    followed by a wildcard (*), converting them to literal asterisk + wildcard pattern.
+    """
+    # Create host with literal asterisks in field values
+    match_sp_data = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1*-2.el4_2",  # Contains literal asterisk
+            "os_release": "8.5*-release",  # Contains literal asterisk
+            "host_type": "edge",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host without asterisks for comparison
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",  # No asterisk
+            "os_release": "8.5-release",  # No asterisk
+            "host_type": "edge",
+        }
+    }
+    str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Test URL-encoded asterisk handling (** = literal * + wildcard)
+    test_cases = [
+        ("[insights_client_version]=3.0.1**", True, "Double asterisk should match literal * + any chars"),
+        ("[os_release]=8.5**", True, "Double asterisk in os_release field"),
+        ("[insights_client_version]=4.0.**", False, "Non-matching double asterisk should not match"),
+        # Test backward compatibility - regular wildcards should still work
+        ("[insights_client_version]=3.0.*", True, "Regular wildcard should match both hosts"),
+        ("[insights_client_version]=*el4_2", True, "Wildcard suffix should match both hosts"),
+    ]
+
+    for filter_param, should_find_match_host, description in test_cases:
+        url = build_hosts_url(query=f"?filter[system_profile]{filter_param}")
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200, f"Failed for {description}: {filter_param}"
+
+        response_ids = [result["id"] for result in response_data["results"]]
+
+        if should_find_match_host:
+            assert match_host_id in response_ids, f"Expected match_host to be found for {description}"
+        else:
+            assert match_host_id not in response_ids, f"match_host should not be found for {description}"
+
+
+def test_backslash_escaping_in_wildcards(db_create_host, api_get):
+    """Test backslash escaping in wildcard fields.
+
+    This test verifies that backslashes are properly escaped in SQL LIKE queries
+    and that literal backslashes can be matched correctly.
+    """
+    # Create host with backslashes in field values
+    sp_data = {
+        "system_profile_facts": {
+            "insights_client_version": "test\\value",  # Contains literal backslash
+            "host_type": "edge",
+        }
+    }
+    host_id = str(db_create_host(extra_data=sp_data).id)
+
+    # Create a non-matching host
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "insights_client_version": "completely_different",
+            "host_type": "edge",
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Test that regular wildcards work with backslashes
+    test_cases = [
+        ("[insights_client_version]=test*", True, "Regular wildcard should match backslash"),
+        ("[insights_client_version]=*value", True, "Wildcard prefix should match with backslash"),
+        ("[insights_client_version]=nomatch*", False, "Non-matching wildcard should not match"),
+    ]
+
+    for filter_param, should_match, description in test_cases:
+        url = build_hosts_url(query=f"?filter[system_profile]{filter_param}")
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200, f"Failed for {description}: {filter_param}"
+
+        response_ids = [result["id"] for result in response_data["results"]]
+
+        if should_match:
+            assert host_id in response_ids, f"Expected host to match for {description}"
+        else:
+            assert host_id not in response_ids, f"Expected host not to match for {description}"
+
+        # nomatch_host should never be in results
+        assert nomatch_host_id not in response_ids, f"nomatch_host should never be found for {description}"
+
+
+def test_wildcard_backward_compatibility(db_create_host, api_get):
+    """Test that existing wildcard behavior is preserved after the URL-encoding fix.
+
+    This test ensures that the fix for URL-encoded wildcards doesn't break
+    existing wildcard functionality that users depend on.
+    """
+    # Create hosts with simple, predictable patterns
+    match_host_data = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.1-2.el4_2",
+            "host_type": "edge",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_host_data).id)
+
+    nomatch_host_data = {
+        "system_profile_facts": {
+            "insights_client_version": "different-version",
+            "host_type": "edge",
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_host_data).id)
+
+    # Test basic wildcard patterns that should continue to work
+    wildcard_tests = [
+        ("*el4_2", True, "Suffix wildcard should match"),
+        ("3.0.*", True, "Prefix wildcard should match"),
+        ("*1-2*", True, "Middle wildcard should match"),
+        ("nomatch*", False, "Non-matching wildcard should not match"),
+    ]
+
+    for pattern, should_match, description in wildcard_tests:
+        url = build_hosts_url(query=f"?filter[system_profile][insights_client_version]={pattern}")
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200, f"Failed for {description}: {pattern}"
+
+        response_ids = [result["id"] for result in response_data["results"]]
+
+        if should_match:
+            assert match_host_id in response_ids, f"Expected match_host to be found for {description}"
+            assert nomatch_host_id not in response_ids, f"nomatch_host should not be found for {description}"
+        else:
+            assert match_host_id not in response_ids, f"match_host should not be found for {description}"
+            assert nomatch_host_id not in response_ids, f"nomatch_host should not be found for {description}"
+
+
+def test_url_encoded_wildcards_in_nested_jsonb_fields(db_create_host, api_get):
+    """Test URL-encoded wildcard handling in nested JSONB fields like workloads.
+
+    This test verifies that the wildcard escaping logic works correctly
+    for nested JSONB paths, not just top-level string fields.
+    """
+    # Create host with asterisks in nested workload fields
+    match_sp_data = {
+        "system_profile_facts": {
+            "workloads": {
+                "mssql": {"version": "15.3*"},  # Contains literal asterisk
+                "ansible": {"controller_version": "1.0*-beta"},  # Contains literal asterisk
+            },
+            "host_type": "edge",
+        }
+    }
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    # Create host with different values (no asterisks)
+    nomatch_sp_data = {
+        "system_profile_facts": {
+            "workloads": {
+                "mssql": {"version": "16.0"},  # Different version, no asterisk
+                "ansible": {"controller_version": "2.0-release"},  # Different version, no asterisk
+            },
+            "host_type": "edge",
+        }
+    }
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    # Test URL-encoded asterisk handling in nested fields
+    test_cases = [
+        ("[workloads][mssql][version]=15.3**", True, "URL-encoded asterisk in mssql version"),
+        ("[workloads][ansible][controller_version]=1.0**", True, "URL-encoded asterisk in ansible version"),
+        ("[mssql][version]=15.3**", True, "URL-encoded asterisk in legacy mssql path"),
+        ("[ansible][controller_version]=1.0**", True, "URL-encoded asterisk in legacy ansible path"),
+        # Non-matching patterns
+        ("[workloads][mssql][version]=16.**", False, "Non-matching URL-encoded pattern"),
+        ("[workloads][ansible][controller_version]=2.0**", False, "Non-matching URL-encoded pattern"),
+    ]
+
+    for filter_param, should_match, description in test_cases:
+        url = build_hosts_url(query=f"?filter[system_profile]{filter_param}")
+        response_status, response_data = api_get(url)
+
+        assert response_status == 200, f"Failed for {description}: {filter_param}"
+
+        response_ids = [result["id"] for result in response_data["results"]]
+
+        if should_match:
+            assert match_host_id in response_ids, f"Expected match_host for {description}"
+            assert nomatch_host_id not in response_ids, f"nomatch_host should not match for {description}"
+        else:
+            assert match_host_id not in response_ids, f"match_host should not match for {description}"
+            assert nomatch_host_id not in response_ids, f"nomatch_host should not match for {description}"

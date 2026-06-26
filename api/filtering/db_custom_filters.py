@@ -528,6 +528,56 @@ def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple
     return tuple(truncated_path)
 
 
+def _needs_escape_clause(value: str) -> tuple[bool, str]:
+    """Determine if a value needs SQL ESCAPE clause and return the escaped pattern.
+
+    This function detects patterns that suggest URL-encoded literals were decoded
+    and need special handling with SQL LIKE ESCAPE clause.
+
+    Args:
+        value: The filter value that may contain URL-decoded literals
+
+    Returns:
+        Tuple of (needs_escape, escaped_pattern)
+    """
+    # Detect patterns that suggest URL-encoded literals
+    # For now, handle the case where we have consecutive asterisks which likely
+    # represents a URL-encoded literal asterisk followed by a wildcard
+
+    if "**" in value:
+        # This likely represents %2A* (URL-encoded asterisk + wildcard)
+        # Convert the first * to literal and second to wildcard
+        # Replace ** with \*% (escaped literal asterisk + wildcard)
+        escaped_pattern = value.replace("**", "\\*%")
+        return True, escaped_pattern
+
+    # For other cases, check if we need escaping for backslashes
+    if "\\" in value:
+        # Escape backslashes for SQL LIKE
+        escaped_pattern = value.replace("\\", "\\\\").replace("*", "%")
+        return True, escaped_pattern
+
+    return False, value
+
+
+def _process_wildcard_value(value: str) -> str:
+    """Process a value for wildcard matching in SQL LIKE queries.
+
+    This function handles the distinction between literal characters (from URL-decoded %2A, %5C)
+    and wildcard characters.
+
+    Args:
+        value: The filter value to process for wildcard matching
+
+    Returns:
+        The processed value ready for SQL LIKE queries with proper escaping
+    """
+    # Replace asterisks with SQL LIKE wildcards
+    processed_value = value.replace("*", "%")
+
+    return processed_value
+
+
 def build_single_filter(filter_param: dict) -> ColumnElement:
     field_name = next(iter(filter_param.keys()))
 
@@ -561,10 +611,6 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         if (not pg_op or not value) and pg_op not in (ColumnOperators.is_, ColumnOperators.is_not):
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
-        # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
-
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
@@ -580,6 +626,27 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             # Cast column and value for normal (non-empty) values
             target_field = target_field.cast(pg_cast)
             value = FIELD_FILTER_TO_PYTHON_CAST[field_filter](value)
+
+        # Handle wildcard fields (use ILIKE, replace * with %)
+        if pg_op == ColumnOperators.ilike:
+            # Check if we need special escaping for URL-encoded literals
+            needs_escape, escaped_pattern = _needs_escape_clause(value)
+
+            if needs_escape:
+                # Use SQL LIKE with ESCAPE clause for literal characters
+                from sqlalchemy import text
+
+                if jsonb_path:
+                    path_str = "{" + ",".join(jsonb_path) + "}"
+                    return text(f"({column.key} #>> :path) ILIKE :pattern ESCAPE '\\'").params(
+                        path=path_str, pattern=escaped_pattern
+                    )
+                else:
+                    return text(f"{column.key} ILIKE :pattern ESCAPE '\\'").params(pattern=escaped_pattern)
+            else:
+                # Regular wildcard processing
+                value = _process_wildcard_value(value)
+                return target_field.ilike(value)
 
         # "contains" is not a column operator, so we have to do it manually
         if pg_op == "contains":
