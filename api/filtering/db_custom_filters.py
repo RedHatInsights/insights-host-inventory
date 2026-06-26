@@ -43,22 +43,21 @@ def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
 
     try:
         # Check the raw query string for URL-encoded asterisks in the specific filter parameter
+        import re
+
         query_string = request.query_string.decode("utf-8")
-        filter_key = f"filter[system_profile][{field_name}]="
 
-        # Find the parameter in the query string
-        if filter_key in query_string:
-            # Extract the value part after the filter key
-            start_idx = query_string.find(filter_key) + len(filter_key)
-            # Find the end of this parameter (next & or end of string)
-            end_idx = query_string.find("&", start_idx)
-            if end_idx == -1:
-                end_idx = len(query_string)
+        # Use regex to more precisely match the filter parameter and its value
+        # This avoids false positives from similarly named fields or values
+        filter_pattern = re.escape(f"filter[system_profile][{field_name}]") + r"=([^&]*)"
+        match = re.search(filter_pattern, query_string)
 
-            param_value = query_string[start_idx:end_idx]
+        if match:
+            param_value = match.group(1)
             if "%2A" in param_value:
                 return True
-    except (AttributeError, UnicodeDecodeError, RuntimeError):
+
+    except (AttributeError, UnicodeDecodeError, RuntimeError, ValueError):
         pass
 
     return False
