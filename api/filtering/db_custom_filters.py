@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
+from flask import has_request_context
+from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -30,6 +33,85 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _process_wildcard_value(value: str, field_name: str) -> str:
+    """
+    Process wildcard value, preserving URL-encoded asterisks as literal characters.
+
+    URL-encoded asterisks (%2A) should be treated as literal asterisks in the final SQL query,
+    while literal asterisks (*) should be converted to SQL wildcards (%).
+
+    Args:
+        value: The filter value after URL decoding
+        field_name: The field name being filtered (for query string matching)
+
+    Returns:
+        The processed value with appropriate wildcard replacements
+    """
+    if not has_request_context():
+        # Fallback to simple replacement if no request context
+        return value.replace("*", "%")
+
+    try:
+        # Get the original query string to check for URL-encoded asterisks
+        query_string = request.query_string.decode("utf-8")
+
+        # Build a pattern to match this field's filter parameter in the query string
+        # This handles various filter formats like:
+        # - filter[system_profile][field_name]=value
+        # - filter[system_profile][field_name][eq]=value
+        field_pattern = re.escape(field_name)
+
+        # Look for patterns that match this field in the query string
+        # We need to be careful to match the right field and extract its original value
+        patterns = [
+            rf"filter\[system_profile\]\[{field_pattern}\](?:\[[^\]]*\])?=([^&]*)",
+            rf"filter\[system_profile\]\[{field_pattern}\]=([^&]*)",
+        ]
+
+        original_value = None
+        for pattern in patterns:
+            match = re.search(pattern, query_string)
+            if match:
+                original_value = match.group(1)
+                break
+
+        if original_value and "%2A" in original_value.upper():
+            # The original query contained URL-encoded asterisks
+            # We need to preserve these as literal asterisks while converting literal ones to wildcards
+
+            # Count URL-encoded asterisks in original to determine which decoded asterisks to preserve
+            encoded_asterisk_count = original_value.upper().count("%2A")
+            asterisks_in_decoded = value.count("*")
+
+            if encoded_asterisk_count > 0 and asterisks_in_decoded >= encoded_asterisk_count:
+                # Replace asterisks: first N are literal (from URL encoding), rest are wildcards
+                result = ""
+                asterisk_count = 0
+                for char in value:
+                    if char == "*":
+                        asterisk_count += 1
+                        if asterisk_count <= encoded_asterisk_count:
+                            result += "*"  # Keep as literal asterisk
+                        else:
+                            result += "%"  # Convert to wildcard
+                    else:
+                        result += char
+                return result
+            else:
+                # All asterisks should be wildcards
+                return value.replace("*", "%")
+        else:
+            # No URL-encoded asterisks found, treat all asterisks as wildcards
+            return value.replace("*", "%")
+
+    except Exception as e:
+        # If anything goes wrong with the query string analysis, fall back to simple replacement
+        logger.debug(
+            f"Failed to analyze query string for field {field_name}, error: {e}, using simple wildcard replacement"
+        )
+        return value.replace("*", "%")
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
@@ -563,7 +645,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value, field_name)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
