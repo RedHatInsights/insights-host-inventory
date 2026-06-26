@@ -95,8 +95,10 @@ paths:
         - $ref: '#/components/parameters/combinedFilterParam'   # IMPROVED: §2.3
         - $ref: '#/components/parameters/subscriptionManagerId'
       responses:
-        '202':
-          description: Request for deletion of filtered hosts has been accepted.
+        # IMPROVED: §8.1 — changed from 202 to 204; hosts are deleted synchronously
+        # before the response is sent, so 202 (async acceptance) was misleading.
+        '204':
+          description: Successfully deleted the filtered hosts.
         # IMPROVED: §6.2 — add typed 400 response schema
         '400':
           $ref: '#/components/responses/BadRequestError'
@@ -152,6 +154,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostOut'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # IMPROVED: §8.3 — add POST /hosts/ids for bulk lookups beyond the 20-ID path limit.
+  # GET /hosts/{host_id_list} is capped at maxItems: 20 due to URL length constraints.
+  # Clients needing to look up more than 20 hosts by ID must use this endpoint instead.
+  /hosts/ids:
+    post:
+      operationId: api.v2.host.get_hosts_by_id_list
+      tags:
+        - hosts
+      summary: Find hosts by a list of IDs (bulk)
+      description: >-
+        Accepts a JSON body containing a list of host IDs and returns the matching hosts.
+        Use this endpoint instead of GET /hosts/{host_id_list} when looking up more than
+        20 hosts at a time. Supports the same pagination, ordering, and field selection
+        as GET /hosts/{host_id_list}.
+        <br /><br />
+        Required permissions: inventory:hosts:read
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/perPageParam'
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/hostOrderByParam'
+        - $ref: '#/components/parameters/hostOrderHowParam'
+        - $ref: '#/components/parameters/combinedFieldsParam'
+      requestBody:
+        description: List of host IDs to retrieve.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostIdListRequest'
+      responses:
+        '200':
+          description: Successfully retrieved hosts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostQueryOutput'
         '400':
           $ref: '#/components/responses/BadRequestError'
         '404':
@@ -1503,6 +1548,22 @@ components:
         A durable and reliable platform-wide host identifier. Applications
         should use this identifier to reference hosts.
       $ref: '#/components/schemas/NonStrictUUID'
+    # IMPROVED: §8.3 — request body schema for POST /hosts/ids bulk lookup
+    HostIdListRequest:
+      title: Host ID List Request
+      description: A list of host IDs to retrieve in bulk.
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          description: List of host IDs to look up.
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/NonStrictUUID'
+
     HostIds:
       description: A comma-separated list of host IDs that belong to the group.
       type: array
