@@ -3091,3 +3091,29 @@ def test_url_encoded_asterisk_simple_case(db_create_host, api_get):
     assert response_status == 200
     actual_ids = {result["id"] for result in response_data["results"]}
     assert actual_ids == {literal_host, wildcard_host}
+
+
+def test_url_encoded_asterisk_no_literal_match(db_create_host, api_get):
+    """Test that URL-encoded asterisk does not match wildcard-only values when no literal asterisk host exists."""
+
+    # Create hosts with concrete values (no literal asterisks)
+    host1 = str(db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1"}}).id)
+    host2 = str(db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.99"}}).id)
+
+    # Query with URL-encoded asterisk should return empty result set
+    # since no host has a literal asterisk in its stored value
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert response_data["results"] == [], (
+        "URL-encoded asterisk should not match concrete values when no literal asterisk exists"
+    )
+    assert response_data["count"] == 0
+    assert response_data["total"] == 0
+
+    # Verify that literal asterisk wildcard still works to match both hosts
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    actual_ids = {result["id"] for result in response_data["results"]}
+    assert actual_ids == {host1, host2}, "Literal asterisk should match concrete values as wildcard"

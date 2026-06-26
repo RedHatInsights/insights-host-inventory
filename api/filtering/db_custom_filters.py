@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import urllib.parse
+import uuid
 from collections.abc import Callable
 
 from flask import has_request_context
@@ -70,13 +72,11 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
 
         if "%2A" in original_value.upper():
             # Original query contained URL-encoded asterisks
-            # Use placeholder to preserve them during wildcard replacement
-            placeholder = "__LITERAL_ASTERISK__"
+            # Use a unique placeholder to preserve them during wildcard replacement
+            placeholder = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
             # Replace URL-encoded asterisks with placeholder
             processed = re.sub(r"%2[Aa]", placeholder, original_value)
             # URL decode the rest
-            import urllib.parse
-
             processed = urllib.parse.unquote(processed)
             # Convert literal asterisks to wildcards
             processed = processed.replace("*", "%")
@@ -87,10 +87,11 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
             # No URL-encoded asterisks, treat all asterisks as wildcards
             return value.replace("*", "%")
 
-    except Exception as e:
-        # If anything goes wrong, fall back to simple replacement
-        logger.debug(
-            f"Failed to analyze query string for field {field_name}, error: {e}, using simple wildcard replacement"
+    except (ValueError, TypeError, UnicodeDecodeError):
+        # If anything goes wrong, fall back to simple replacement, but log with traceback
+        logger.exception(
+            "Failed to analyze query string for field %s, using simple wildcard replacement",
+            field_name,
         )
         return value.replace("*", "%")
 
