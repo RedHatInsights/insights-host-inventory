@@ -540,24 +540,32 @@ def _needs_escape_clause(value: str) -> tuple[bool, str]:
     Returns:
         Tuple of (needs_escape, escaped_pattern)
     """
-    # Detect patterns that suggest URL-encoded literals
-    # For now, handle the case where we have consecutive asterisks which likely
-    # represents a URL-encoded literal asterisk followed by a wildcard
+    # Check if we need escaping for any special characters
+    needs_escape = False
+    escaped_pattern = value
 
-    if "**" in value:
+    # Handle consecutive asterisks (likely URL-encoded asterisk + wildcard)
+    if "**" in escaped_pattern:
         # This likely represents %2A* (URL-encoded asterisk + wildcard)
         # Convert the first * to literal and second to wildcard
-        # Replace ** with \*% (escaped literal asterisk + wildcard)
-        escaped_pattern = value.replace("**", "\\*%")
-        return True, escaped_pattern
+        # Use a temporary marker to avoid conflicts with later processing
+        temp_literal_marker = "___LITERAL_ASTERISK___"
+        escaped_pattern = escaped_pattern.replace("**", temp_literal_marker + "%")
+        needs_escape = True
 
-    # For other cases, check if we need escaping for backslashes
-    if "\\" in value:
+    # Handle backslashes that need escaping
+    if "\\" in escaped_pattern:
         # Escape backslashes for SQL LIKE
-        escaped_pattern = value.replace("\\", "\\\\").replace("*", "%")
-        return True, escaped_pattern
+        escaped_pattern = escaped_pattern.replace("\\", "\\\\")
+        needs_escape = True
 
-    return False, value
+    # Convert remaining asterisks to SQL wildcards
+    if needs_escape:
+        escaped_pattern = escaped_pattern.replace("*", "%")
+        # Now replace our literal asterisk marker with the properly escaped literal
+        escaped_pattern = escaped_pattern.replace(temp_literal_marker, "\\*")
+
+    return needs_escape, escaped_pattern
 
 
 def _process_wildcard_value(value: str) -> str:
@@ -634,15 +642,12 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
             if needs_escape:
                 # Use SQL LIKE with ESCAPE clause for literal characters
-                from sqlalchemy import text
+                # Build this using SQLAlchemy expressions instead of raw text
+                from sqlalchemy import func
 
-                if jsonb_path:
-                    path_str = "{" + ",".join(jsonb_path) + "}"
-                    return text(f"({column.key} #>> :path) ILIKE :pattern ESCAPE '\\'").params(
-                        path=path_str, pattern=escaped_pattern
-                    )
-                else:
-                    return text(f"{column.key} ILIKE :pattern ESCAPE '\\'").params(pattern=escaped_pattern)
+                # Create the ILIKE expression with ESCAPE clause using SQLAlchemy
+                # Use func.lower().like() to achieve case-insensitive matching with escape
+                return func.lower(target_field).like(func.lower(escaped_pattern), escape="\\")
             else:
                 # Regular wildcard processing
                 value = _process_wildcard_value(value)
