@@ -44,6 +44,9 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
     URL-encoded asterisks (%2A) should be treated as literal asterisks in the final SQL query,
     while literal asterisks (*) should be converted to SQL wildcards (%).
 
+    This implementation uses Flask's request.args to access the original encoded parameter values,
+    avoiding brittle regex parsing of the query string.
+
     Args:
         value: The filter value after URL decoding
         field_name: The field name being filtered
@@ -56,44 +59,84 @@ def _process_wildcard_value(value: str, field_name: str) -> str:
         return value.replace("*", "%")
 
     try:
-        # Get the original query string to check for URL-encoded asterisks
-        query_string = request.query_string.decode("utf-8")
+        # Check if we can access the original encoded value through request.args
+        # Flask's request.args contains the decoded values, but we can check the original
+        # query string to determine if %2A was present
 
-        # Find this field's filter parameter in the query string
-        field_pattern = re.escape(field_name)
-        pattern = rf"filter\[system_profile\]\[{field_pattern}\](?:\[[^\]]*\])?=([^&]*)"
+        # Build the parameter key for this field - handle both direct and operator syntax
+        base_key = f"filter[system_profile][{field_name}]"
 
-        match = re.search(pattern, query_string)
-        if not match:
-            # No match found, treat all asterisks as wildcards
-            return value.replace("*", "%")
+        # Check if this exact parameter exists in the request
+        if base_key in request.args and request.args[base_key] == value:
+            # Found direct match, check original query string for %2A
+            query_string = request.query_string.decode("utf-8")
+            escaped_key = re.escape(base_key)
+            pattern = rf"{escaped_key}=([^&]*)"
+            match = re.search(pattern, query_string)
 
-        original_value = match.group(1)
+            if match:
+                original_encoded_value = match.group(1)
+                return _convert_encoded_asterisks_to_wildcards(original_encoded_value)
 
-        if "%2A" in original_value.upper():
-            # Original query contained URL-encoded asterisks
-            # Use a unique placeholder to preserve them during wildcard replacement
-            placeholder = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
-            # Replace URL-encoded asterisks with placeholder
-            processed = re.sub(r"%2[Aa]", placeholder, original_value)
-            # URL decode the rest
-            processed = urllib.parse.unquote(processed)
-            # Convert literal asterisks to wildcards
-            processed = processed.replace("*", "%")
-            # Restore URL-encoded asterisks as literals
-            processed = processed.replace(placeholder, "*")
-            return processed
-        else:
-            # No URL-encoded asterisks, treat all asterisks as wildcards
-            return value.replace("*", "%")
+        # Check for operator syntax (eq, neq, etc.)
+        for op in ["eq", "neq"]:
+            op_key = f"{base_key}[{op}]"
+            if op_key in request.args and request.args[op_key] == value:
+                query_string = request.query_string.decode("utf-8")
+                escaped_key = re.escape(op_key)
+                pattern = rf"{escaped_key}=([^&]*)"
+                match = re.search(pattern, query_string)
+
+                if match:
+                    original_encoded_value = match.group(1)
+                    return _convert_encoded_asterisks_to_wildcards(original_encoded_value)
+
+        # If we can't find the parameter or determine encoding, treat all asterisks as wildcards
+        return value.replace("*", "%")
 
     except (ValueError, TypeError, UnicodeDecodeError):
-        # If anything goes wrong, fall back to simple replacement, but log with traceback
+        # If anything goes wrong, fall back to simple replacement
         logger.exception(
-            "Failed to analyze query string for field %s, using simple wildcard replacement",
+            "Failed to analyze query parameters for field %s, using simple wildcard replacement",
             field_name,
         )
         return value.replace("*", "%")
+
+
+def _convert_encoded_asterisks_to_wildcards(original_encoded_value: str) -> str:
+    """
+    Convert a URL-encoded parameter value to SQL wildcard format.
+
+    URL-encoded asterisks (%2A) become literal asterisks (*).
+    Literal asterisks (*) become SQL wildcards (%).
+
+    Args:
+        original_encoded_value: The original parameter value before URL decoding
+
+    Returns:
+        The processed value with appropriate wildcard replacements
+    """
+    if "%2A" not in original_encoded_value.upper():
+        # No URL-encoded asterisks, just decode and convert all asterisks to wildcards
+        decoded = urllib.parse.unquote(original_encoded_value)
+        return decoded.replace("*", "%")
+
+    # Use a unique placeholder to preserve URL-encoded asterisks during processing
+    placeholder = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
+
+    # Replace URL-encoded asterisks with placeholder
+    processed = re.sub(r"%2[Aa]", placeholder, original_encoded_value)
+
+    # URL decode the rest (this converts any other encoded characters)
+    processed = urllib.parse.unquote(processed)
+
+    # Convert literal asterisks to SQL wildcards
+    processed = processed.replace("*", "%")
+
+    # Restore URL-encoded asterisks as literal asterisks
+    processed = processed.replace(placeholder, "*")
+
+    return processed
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
