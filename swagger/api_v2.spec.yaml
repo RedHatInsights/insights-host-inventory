@@ -583,28 +583,44 @@ components:
       schema:
         type: string
         format: date-time
-      description: Only show hosts last modified after the given date
+      description: >-
+        Only show hosts last modified after the given date (ISO 8601 date-time).
+        Dates with a year of 1970 or earlier are silently ignored — no filter is
+        applied and all hosts are returned. Use a date after 1970 to filter
+        meaningfully.
     updatedEnd:
       in: query
       name: updated_end
       schema:
         type: string
         format: date-time
-      description: Only show hosts last modified before the given date
+      description: >-
+        Only show hosts last modified before the given date (ISO 8601 date-time).
+        Dates with a year of 1970 or earlier are silently ignored — no filter is
+        applied and all hosts are returned. Use a date after 1970 to filter
+        meaningfully.
     lastCheckInStart:
       in: query
       name: last_check_in_start
       schema:
         type: string
         format: date-time
-      description: Only show hosts last checked in after the given date
+      description: >-
+        Only show hosts last checked in after the given date (ISO 8601 date-time).
+        Dates with a year of 1970 or earlier are silently ignored — no filter is
+        applied and all hosts are returned. Use a date after 1970 to filter
+        meaningfully.
     lastCheckInEnd:
       in: query
       name: last_check_in_end
       schema:
         type: string
         format: date-time
-      description: Only show hosts last checked in before the given date
+      description: >-
+        Only show hosts last checked in before the given date (ISO 8601 date-time).
+        Dates with a year of 1970 or earlier are silently ignored — no filter is
+        applied and all hosts are returned. Use a date after 1970 to filter
+        meaningfully.
     hostOrderByParam:
       name: order_by
       in: query
@@ -685,6 +701,10 @@ components:
       description: >-
         Filters out any host not registered by the specified reporters.
         Prefix a value with "!" to exclude hosts from that reporter.
+        <br /><br />
+        <b>Alias:</b> `yupana` is a legacy alias that expands at runtime to both
+        `satellite` and `discovery`. Passing `registered_with=yupana` is equivalent
+        to filtering on hosts registered by either `satellite` or `discovery`.
       schema:
         type: array
         items:
@@ -770,15 +790,36 @@ components:
         response. When omitted, no system_profile is returned but all app_data is
         returned by default.
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": ["arch", "host_type"]}
-        <br /><br />
-        which equates to the URL param:
+        <b>Syntax:</b> `fields[sub_object]=field1,field2`
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,host_type"
         <br /><br />
-        To request specific app fields:
-        <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?fields[advisor]=recommendations,incidents"
+        <br /><br />
+        <b>Deviation from JSON:API sparse fieldsets (https://jsonapi.org/format/#fetching-sparse-fieldsets):</b>
+        <br /><br />
+        HBI's `fields` parameter borrows the `fields[TYPE]=field1,field2` URL syntax from
+        JSON:API but deviates in the following ways (tracked in RHINENG-11389):
+        <br /><br />
+        1. The `TYPE` key is a <b>sub-object name</b> (`system_profile`, `advisor`, `patch`,
+        etc.), not the JSON:API resource type. In strict JSON:API the resource type here
+        would be `hosts`.
+        <br /><br />
+        2. <b>Top-level host fields are not selectable.</b> Fields such as `id`,
+        `display_name`, `org_id`, and `created` are always present in the response
+        regardless of this parameter.
+        <br /><br />
+        3. `fields[app]=true` returns <b>all fields</b> for that application. This value
+        is not part of JSON:API; the spec has no equivalent shorthand.
+        <br /><br />
+        4. `fields[app]=` (empty value) returns <b>no fields</b> for that application —
+        the key will be present in the response as an empty object `{}`.
+        <br /><br />
+        5. `fields[app_data]=true` is an HBI-specific meta-key that requests all fields
+        for all application data apps. It is not a JSON:API concept.
+        <br /><br />
+        6. Unknown or unrecognised TYPE keys are <b>silently ignored</b>. No error is
+        returned for `fields[nonexistent_app]=foo`.
       style: deepObject
       explode: true
       x-validator: sparseFields
@@ -976,7 +1017,8 @@ components:
             provider_id:
               $ref: "#/components/schemas/NonNullableString"
             provider_type:
-              $ref: "#/components/schemas/NonNullableString"
+              # IMPROVED: §9.13 — align write schema with ProviderType enum (same as read/filter)
+              $ref: "#/components/schemas/ProviderType"
         - anyOf:
             - required:
                 - insights_id
