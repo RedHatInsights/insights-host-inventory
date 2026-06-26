@@ -42,27 +42,21 @@ def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
         return False
 
     try:
-        # Parse request.args to inspect the specific filter parameter value
-        # This is more robust than substring searching the raw query string
+        import urllib.parse
+
+        # Check the raw query string for URL-encoded asterisks in the specific filter parameter
+        # We need to check the raw query string because parse_qs automatically URL-decodes values
+        query_string = request.query_string.decode("utf-8")
         filter_key = f"filter[system_profile][{field_name}]"
 
-        # Check if the filter parameter exists and contains URL-encoded asterisks
-        if filter_key in request.args:
-            # Check the raw query string for URL-encoded asterisks in the specific filter parameter
-            # We need to manually parse to avoid automatic URL decoding
-            import re
-
-            query_string = request.query_string.decode("utf-8")
-
-            # Use regex to more precisely match the filter parameter and its value
-            # This avoids false positives from similarly named fields or values
-            escaped_filter_key = re.escape(filter_key)
-            filter_pattern = escaped_filter_key + r"=([^&]*)"
-            match = re.search(filter_pattern, query_string)
-
-            if match:
-                param_value = match.group(1)
-                if "%2A" in param_value:
+        # Parse the query string manually to avoid automatic URL decoding
+        # Split on & to get individual parameters
+        for param in query_string.split("&"):
+            if "=" in param:
+                key, encoded_value = param.split("=", 1)
+                # URL decode the key to handle cases where the key itself might be encoded
+                decoded_key = urllib.parse.unquote_plus(key)
+                if decoded_key == filter_key and "%2A" in encoded_value:
                     return True
 
     except (AttributeError, UnicodeDecodeError, RuntimeError, ValueError, KeyError):
