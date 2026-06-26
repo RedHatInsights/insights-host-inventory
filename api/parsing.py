@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from connexion.exceptions import BadRequestProblem
 from connexion.uri_parsing import OpenAPIURIParser
 from connexion.utils import coerce_type
+from flask import request
 
 _BOOL_STRINGS = {"true": True, "false": False}
 
@@ -146,6 +147,121 @@ class customURIParser(OpenAPIURIParser):
         return resolved_param
 
     @staticmethod
+    def _preserve_encoded_wildcards_from_query(value, param_path, key_path):
+        """
+        Check the raw query string to determine if asterisks were URL-encoded.
+        If they were, mark them as literal asterisks using a special marker.
+        Only applies to fields that support wildcards.
+        """
+        if not isinstance(value, str):
+            return value
+
+        # Only apply this logic to wildcard fields
+        if not customURIParser._is_wildcard_field(key_path):
+            return value
+
+        # Get the raw query string from the Flask request
+        try:
+            raw_query = request.query_string.decode("utf-8")
+
+            # Look for this specific parameter in the raw query string
+            # The param_path is already in the correct format (e.g., filter[system_profile][insights_client_version])
+
+            # Check if the parameter was URL-encoded with %2A
+            if f"{param_path}=" in raw_query:
+                # Find the value part after the parameter
+                param_start = raw_query.find(f"{param_path}=")
+                if param_start != -1:
+                    value_start = param_start + len(f"{param_path}=")
+                    # Find the end of the value (next & or end of string)
+                    value_end = raw_query.find("&", value_start)
+                    if value_end == -1:
+                        value_end = len(raw_query)
+
+                    raw_value = raw_query[value_start:value_end]
+
+                    # If the raw value contains %2A or %5C%2A, selectively mark encoded asterisks as literal
+                    if "%2A" in raw_value or "%2a" in raw_value or "%5C%2A" in raw_value or "%5c%2a" in raw_value:
+                        # Process the raw value to identify which asterisks were URL-encoded
+                        marked_value = customURIParser._mark_encoded_asterisks_as_literal(raw_value, value)
+                        return marked_value
+
+        except Exception:
+            # Fall back to original value if we can't check the raw query
+            pass
+        return value
+
+    @staticmethod
+    def _mark_encoded_asterisks_as_literal(raw_value, decoded_value):
+        """
+        Mark only the asterisks that were URL-encoded (%2A) as literal by adding backslashes.
+        Leave unencoded asterisks as wildcards.
+        """
+        # Create a mapping of positions where %2A appears in the raw value
+        # to positions where * appears in the decoded value
+        result = list(decoded_value)
+        raw_pos = 0
+        decoded_pos = 0
+
+        while raw_pos < len(raw_value) and decoded_pos < len(decoded_value):
+            if raw_value[raw_pos : raw_pos + 3] in ("%2A", "%2a"):
+                # Found URL-encoded asterisk, mark the corresponding decoded asterisk as literal
+                if decoded_pos < len(result) and result[decoded_pos] == "*":
+                    result[decoded_pos] = "\\*"
+                raw_pos += 3  # Skip %2A
+                decoded_pos += 1
+            elif raw_value[raw_pos : raw_pos + 6] in ("%5C%2A", "%5c%2a"):
+                # Found URL-encoded backslash + asterisk, already literal in decoded value
+                raw_pos += 6  # Skip %5C%2A
+                decoded_pos += 2  # Skip \*
+            elif raw_value[raw_pos] == decoded_value[decoded_pos]:
+                # Characters match, advance both
+                raw_pos += 1
+                decoded_pos += 1
+            else:
+                # Handle other URL-encoded characters
+                if raw_value[raw_pos] == "%" and raw_pos + 2 < len(raw_value):
+                    raw_pos += 3  # Skip URL-encoded character
+                else:
+                    raw_pos += 1
+                decoded_pos += 1
+
+        return "".join(result)
+
+    @staticmethod
+    def _is_wildcard_field(key_path):
+        """
+        Check if the field specified by key_path supports wildcards.
+        key_path is a list like ['system_profile', 'insights_client_version']
+        """
+        try:
+            from api.filtering.db_custom_filters import _get_field_filter_for_deepest_param
+            from app import system_profile_spec
+
+            # Build a filter dict to check the field type
+            if len(key_path) < 2:
+                return False
+
+            # For system_profile filters, build the nested dict
+            if key_path[0] == "system_profile" and len(key_path) >= 2:
+                # Build the inner dict (without the 'system_profile' key)
+                inner_dict = {}
+                current = inner_dict
+                for i in range(1, len(key_path) - 1):
+                    current[key_path[i]] = {}
+                    current = current[key_path[i]]
+                current[key_path[-1]] = "dummy_value"
+
+                # Check if this field has wildcard filter type
+                field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), inner_dict)
+                return field_filter == "wildcard"
+
+            return False
+        except Exception:
+            # If we can't determine the field type, don't apply wildcard processing
+            return False
+
+    @staticmethod
     def _try_parse_json(value, param_name=None):
         """
         Try to parse a JSON object string.
@@ -244,6 +360,13 @@ class customURIParser(OpenAPIURIParser):
                 raise BadRequestProblem(
                     f"Filter param '{full_param_path}' value must be a JSON object or use bracket "
                     f"notation for nested fields (e.g., {full_param_path}[field]=value)."
+                )
+
+            # For filter parameters, preserve URL-encoded asterisks and backslashes
+            # to distinguish literal from wildcard characters (only for wildcard fields)
+            if root_key == "filter" and parsed is None:
+                leaf_value = customURIParser._preserve_encoded_wildcards_from_query(
+                    leaf_value, full_param_path, key_path
                 )
 
             prev[k] = (

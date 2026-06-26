@@ -40,6 +40,39 @@ def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> Co
     return target_field.cast(String)
 
 
+def _process_wildcard_value(value: str) -> str:
+    r"""
+    Process wildcard values to handle both literal and wildcard asterisks.
+
+    URL-encoded asterisks (%2A) are preserved as literal "*" characters.
+    Unencoded asterisks "*" are converted to SQL wildcards "%".
+    Backslash escaping (\*) is supported for literal asterisks.
+
+    Args:
+        value: The filter value that may contain asterisks
+
+    Returns:
+        Processed value with appropriate wildcard/literal character handling
+    """
+    if not isinstance(value, str):
+        return value
+
+    # Use unique placeholders to preserve literal asterisks during processing
+    LITERAL_ASTERISK_PLACEHOLDER = "__LITERAL_ASTERISK__"
+
+    # Step 1: Handle backslash-escaped asterisks (\* -> literal *)
+    # Replace \* with placeholder to preserve as literal
+    processed = value.replace("\\*", LITERAL_ASTERISK_PLACEHOLDER)
+
+    # Step 2: Convert unescaped asterisks to SQL wildcards
+    processed = processed.replace("*", "%")
+
+    # Step 3: Restore literal asterisks from placeholder
+    processed = processed.replace(LITERAL_ASTERISK_PLACEHOLDER, "*")
+
+    return processed
+
+
 # Utility class to facilitate OS filter comparison
 # The list of comparators can be seen in POSTGRES_COMPARATOR_LOOKUP
 class OsFilter:
@@ -563,7 +596,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            value = _process_wildcard_value(value)
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
