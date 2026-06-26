@@ -147,11 +147,17 @@ class customURIParser(OpenAPIURIParser):
         return resolved_param
 
     @staticmethod
-    def _preserve_encoded_wildcards_from_query(value, param_path, key_path):
+    def _preserve_encoded_wildcards_from_query(value, param_path, key_path, raw_query_string=None):
         """
         Check the raw query string to determine if asterisks were URL-encoded.
         If they were, mark them as literal asterisks using a special marker.
         Only applies to fields that support wildcards.
+
+        Args:
+            value: The decoded parameter value
+            param_path: The parameter path (e.g., filter[system_profile][insights_client_version])
+            key_path: The field path as a list (e.g., ['system_profile', 'insights_client_version'])
+            raw_query_string: Optional raw query string to avoid Flask dependency
         """
         if not isinstance(value, str):
             return value
@@ -160,9 +166,9 @@ class customURIParser(OpenAPIURIParser):
         if not customURIParser._is_wildcard_field(key_path):
             return value
 
-        # Get the raw query string from the Flask request
+        # Get the raw query string - prefer injected value over Flask request
         try:
-            raw_query = request.query_string.decode("utf-8")
+            raw_query = raw_query_string if raw_query_string is not None else request.query_string.decode("utf-8")
 
             # Look for this specific parameter in the raw query string
             # The param_path is already in the correct format (e.g., filter[system_profile][insights_client_version])
@@ -192,41 +198,93 @@ class customURIParser(OpenAPIURIParser):
         return value
 
     @staticmethod
-    def _mark_encoded_asterisks_as_literal(raw_value, decoded_value):
+    def _mark_encoded_asterisks_as_literal(raw_value, _):
         """
         Mark only the asterisks that were URL-encoded (%2A) as literal by adding backslashes.
         Leave unencoded asterisks as wildcards.
-        """
-        # Create a mapping of positions where %2A appears in the raw value
-        # to positions where * appears in the decoded value
-        result = list(decoded_value)
-        raw_pos = 0
-        decoded_pos = 0
 
-        while raw_pos < len(raw_value) and decoded_pos < len(decoded_value):
-            if raw_value[raw_pos : raw_pos + 3] in ("%2A", "%2a"):
-                # Found URL-encoded asterisk, mark the corresponding decoded asterisk as literal
-                if decoded_pos < len(result) and result[decoded_pos] == "*":
-                    result[decoded_pos] = "\\*"
-                raw_pos += 3  # Skip %2A
-                decoded_pos += 1
-            elif raw_value[raw_pos : raw_pos + 6] in ("%5C%2A", "%5c%2a"):
-                # Found URL-encoded backslash + asterisk, already literal in decoded value
-                raw_pos += 6  # Skip %5C%2A
-                decoded_pos += 2  # Skip \*
-            elif raw_value[raw_pos] == decoded_value[decoded_pos]:
-                # Characters match, advance both
-                raw_pos += 1
-                decoded_pos += 1
-            else:
-                # Handle other URL-encoded characters
-                if raw_value[raw_pos] == "%" and raw_pos + 2 < len(raw_value):
-                    raw_pos += 3  # Skip URL-encoded character
+        Uses a more robust approach that percent-decodes on the fly to avoid
+        position synchronization issues with multi-byte or complex encodings.
+        """
+        from urllib.parse import unquote_plus
+
+        result = []
+        i = 0
+
+        while i < len(raw_value):
+            if raw_value[i : i + 3].upper() == "%2A":
+                # Found URL-encoded asterisk - mark as literal
+                result.append("\\*")
+                i += 3
+            elif raw_value[i : i + 6].upper() == "%5C%2A":
+                # Found URL-encoded backslash + asterisk - already literal
+                result.append("\\*")
+                i += 6
+            elif raw_value[i] == "%":
+                # Handle other percent-encoded characters
+                if i + 2 < len(raw_value):
+                    try:
+                        # Decode this single percent-encoded character
+                        encoded_char = raw_value[i : i + 3]
+                        decoded_char = unquote_plus(encoded_char)
+                        result.append(decoded_char)
+                        i += 3
+                    except (ValueError, UnicodeDecodeError):
+                        # Invalid encoding, treat as literal %
+                        result.append(raw_value[i])
+                        i += 1
                 else:
-                    raw_pos += 1
-                decoded_pos += 1
+                    # Incomplete encoding at end of string
+                    result.append(raw_value[i])
+                    i += 1
+            elif raw_value[i] == "+":
+                # Handle + as space (application/x-www-form-urlencoded)
+                result.append(" ")
+                i += 1
+            else:
+                # Regular character
+                result.append(raw_value[i])
+                i += 1
 
         return "".join(result)
+
+    @staticmethod
+    def _get_wildcard_field_paths():
+        """
+        Get a cached set of wildcard-capable field paths.
+        Returns a set of tuples representing field paths that support wildcards.
+        """
+        if not hasattr(customURIParser, "_wildcard_paths_cache"):
+            try:
+                from app import system_profile_spec
+
+                wildcard_paths = set()
+
+                def _collect_wildcard_paths(spec_node, current_path=()):
+                    """Recursively collect paths to wildcard fields."""
+                    if isinstance(spec_node, dict):
+                        # Check if this node has a wildcard filter
+                        if spec_node.get("filter") == "wildcard":
+                            wildcard_paths.add(("system_profile",) + current_path)
+
+                        # Recurse into children
+                        if "children" in spec_node:
+                            _collect_wildcard_paths(spec_node["children"], current_path)
+                        else:
+                            # Recurse into direct properties
+                            for key, value in spec_node.items():
+                                if key not in ("filter", "is_array") and isinstance(value, dict):
+                                    _collect_wildcard_paths(value, current_path + (key,))
+
+                spec = system_profile_spec()
+                _collect_wildcard_paths(spec)
+
+                customURIParser._wildcard_paths_cache = wildcard_paths
+            except Exception:
+                # If we can't build the cache, use empty set (no wildcard processing)
+                customURIParser._wildcard_paths_cache = set()
+
+        return customURIParser._wildcard_paths_cache
 
     @staticmethod
     def _is_wildcard_field(key_path):
@@ -234,32 +292,14 @@ class customURIParser(OpenAPIURIParser):
         Check if the field specified by key_path supports wildcards.
         key_path is a list like ['system_profile', 'insights_client_version']
         """
-        try:
-            from api.filtering.db_custom_filters import _get_field_filter_for_deepest_param
-            from app import system_profile_spec
-
-            # Build a filter dict to check the field type
-            if len(key_path) < 2:
-                return False
-
-            # For system_profile filters, build the nested dict
-            if key_path[0] == "system_profile" and len(key_path) >= 2:
-                # Build the inner dict (without the 'system_profile' key)
-                inner_dict = {}
-                current = inner_dict
-                for i in range(1, len(key_path) - 1):
-                    current[key_path[i]] = {}
-                    current = current[key_path[i]]
-                current[key_path[-1]] = "dummy_value"
-
-                # Check if this field has wildcard filter type
-                field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), inner_dict)
-                return field_filter == "wildcard"
-
+        if len(key_path) < 2:
             return False
-        except Exception:
-            # If we can't determine the field type, don't apply wildcard processing
-            return False
+
+        # Convert to tuple for set lookup
+        path_tuple = tuple(key_path)
+        wildcard_paths = customURIParser._get_wildcard_field_paths()
+
+        return path_tuple in wildcard_paths
 
     @staticmethod
     def _try_parse_json(value, param_name=None):
@@ -365,8 +405,14 @@ class customURIParser(OpenAPIURIParser):
             # For filter parameters, preserve URL-encoded asterisks and backslashes
             # to distinguish literal from wildcard characters (only for wildcard fields)
             if root_key == "filter" and parsed is None:
+                # Try to get raw query string to avoid Flask dependency when possible
+                try:
+                    raw_query_string = request.query_string.decode("utf-8") if request else None
+                except Exception:
+                    raw_query_string = None
+
                 leaf_value = customURIParser._preserve_encoded_wildcards_from_query(
-                    leaf_value, full_param_path, key_path
+                    leaf_value, full_param_path, key_path, raw_query_string
                 )
 
             prev[k] = (

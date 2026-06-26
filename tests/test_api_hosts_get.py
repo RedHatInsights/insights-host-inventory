@@ -3158,3 +3158,29 @@ def test_case_sensitivity_with_url_encoded_asterisks(db_create_host, api_get):
     response_ids = [result["id"] for result in response_data["results"]]
     assert str(host_match.id) in response_ids
     assert str(host_no_match.id) not in response_ids
+
+
+def test_mixed_url_encoded_characters_with_asterisks(db_create_host, api_get):
+    """Test URL-encoded asterisks mixed with other URL-encoded characters."""
+    # Create hosts with different insights_client_version values
+    # This host should match the filter with mixed encodings
+    host_match = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-2.el4_2.* rc1"}}
+    )
+    host_no_match1 = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2.5 rc1"}}
+    )
+    host_no_match2 = db_create_host(
+        extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-2.el4_2.7 rc1"}}
+    )
+
+    # Test mixed URL-encoded characters: %2A (asterisk) and %20 (space)
+    # filter value: 3.0.%2A-2.el4_2.%2A%20rc1  ->  decoded: 3.0.*-2.el4_2.* rc1
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2.%2A%20rc1")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert str(host_match.id) in response_ids
+    assert str(host_no_match1.id) not in response_ids
+    assert str(host_no_match2.id) not in response_ids

@@ -57,8 +57,10 @@ def _process_wildcard_value(value: str) -> str:
     if not isinstance(value, str):
         return value
 
-    # Use unique placeholders to preserve literal asterisks during processing
-    LITERAL_ASTERISK_PLACEHOLDER = "__LITERAL_ASTERISK__"
+    # Use a UUID-based placeholder to avoid collisions with user input
+    import uuid
+
+    LITERAL_ASTERISK_PLACEHOLDER = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
 
     # Step 1: Handle backslash-escaped asterisks (\* -> literal *)
     # Replace \* with placeholder to preserve as literal
