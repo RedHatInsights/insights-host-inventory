@@ -42,22 +42,30 @@ def _should_escape_asterisks_for_field(field_name: str, value: str) -> bool:
         return False
 
     try:
-        # Check the raw query string for URL-encoded asterisks in the specific filter parameter
-        import re
+        # Parse request.args to inspect the specific filter parameter value
+        # This is more robust than substring searching the raw query string
+        filter_key = f"filter[system_profile][{field_name}]"
 
-        query_string = request.query_string.decode("utf-8")
+        # Check if the filter parameter exists and contains URL-encoded asterisks
+        if filter_key in request.args:
+            # Check the raw query string for URL-encoded asterisks in the specific filter parameter
+            # We need to manually parse to avoid automatic URL decoding
+            import re
 
-        # Use regex to more precisely match the filter parameter and its value
-        # This avoids false positives from similarly named fields or values
-        filter_pattern = re.escape(f"filter[system_profile][{field_name}]") + r"=([^&]*)"
-        match = re.search(filter_pattern, query_string)
+            query_string = request.query_string.decode("utf-8")
 
-        if match:
-            param_value = match.group(1)
-            if "%2A" in param_value:
-                return True
+            # Use regex to more precisely match the filter parameter and its value
+            # This avoids false positives from similarly named fields or values
+            escaped_filter_key = re.escape(filter_key)
+            filter_pattern = escaped_filter_key + r"=([^&]*)"
+            match = re.search(filter_pattern, query_string)
 
-    except (AttributeError, UnicodeDecodeError, RuntimeError, ValueError):
+            if match:
+                param_value = match.group(1)
+                if "%2A" in param_value:
+                    return True
+
+    except (AttributeError, UnicodeDecodeError, RuntimeError, ValueError, KeyError):
         pass
 
     return False
@@ -598,6 +606,7 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             # First, replace escaped asterisks with a unique placeholder to preserve them as literals
             import uuid
 
+            # Use UUID to guarantee uniqueness and avoid collisions with real input
             placeholder = f"__LITERAL_ASTERISK_{uuid.uuid4().hex}__"
             value = value.replace("\\*", placeholder)
             # Replace unescaped asterisks with SQL wildcards
