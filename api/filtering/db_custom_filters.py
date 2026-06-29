@@ -44,16 +44,18 @@ def _should_treat_asterisk_as_literal(_field_name: str, value: str) -> bool:
         # Get the raw query string from the current request
         query_string = request.query_string.decode("utf-8")
 
-        # Check if the query string contains %2A for this field
-        # We need to be careful to match the specific field and value
-        if "%2A" in query_string:
-            # Simple heuristic: if the query contains %2A and our value contains *,
-            # and the count matches, treat as literal
-            encoded_asterisk_count = query_string.count("%2A")
-            value_asterisk_count = value.count("*")
+        # Check if the query string contains %2A
+        if "%2A" not in query_string:
+            return False
 
-            # If counts match, likely that all asterisks should be literal
-            if encoded_asterisk_count > 0 and value_asterisk_count == encoded_asterisk_count:
+        # Check if the current value, when URL-encoded, appears in the query string
+        # This helps scope the check to the specific field being processed
+        url_encoded_value = value.replace("*", "%2A")
+        if url_encoded_value in query_string:
+            value_asterisk_count = value.count("*")
+            # If the value has asterisks and the URL-encoded version is in the query,
+            # treat as literal
+            if value_asterisk_count > 0:
                 return True
 
     except (AttributeError, UnicodeDecodeError):
@@ -596,8 +598,9 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
             if _should_treat_asterisk_as_literal(field_name, value):
-                # Don't replace * with % for literal asterisks, use exact match instead
-                pg_op = ColumnOperators.__eq__
+                # Don't replace * with % for literal asterisks, use case-insensitive exact match
+                pg_op = ColumnOperators.ilike
+                # Keep the value as-is for literal matching (no * to % replacement)
             else:
                 # Normal wildcard behavior: replace * with %
                 value = value.replace("*", "%")

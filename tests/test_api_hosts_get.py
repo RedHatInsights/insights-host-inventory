@@ -2931,6 +2931,34 @@ def test_no_hosts_in_org(api_get):
     assert response_data["count"] == response_data["total"] == 0
 
 
+def _build_system_profile_data(field_path: str, field_value: str) -> dict:
+    """Helper to build system profile data based on field path."""
+    if field_path == "insights_client_version":
+        return {"system_profile_facts": {"insights_client_version": field_value}}
+    elif field_path == "bootc_status.booted.image":
+        return {"system_profile_facts": {"bootc_status": {"booted": {"image": field_value}}}}
+    elif field_path == "bios_release_date":
+        return {"system_profile_facts": {"bios_release_date": field_value}}
+    elif field_path == "os_release":
+        return {"system_profile_facts": {"os_release": field_value}}
+    else:
+        raise ValueError(f"Unsupported field path: {field_path}")
+
+
+def _build_filter_param(field_path: str, url_encoded_value: str) -> str:
+    """Helper to build filter parameter based on field path."""
+    if field_path == "insights_client_version":
+        return f"[insights_client_version]={url_encoded_value}"
+    elif field_path == "bootc_status.booted.image":
+        return f"[bootc_status][booted][image]={url_encoded_value}"
+    elif field_path == "bios_release_date":
+        return f"[bios_release_date]={url_encoded_value}"
+    elif field_path == "os_release":
+        return f"[os_release]={url_encoded_value}"
+    else:
+        raise ValueError(f"Unsupported field path: {field_path}")
+
+
 @pytest.mark.parametrize(
     "field_path,field_value,url_encoded_value,should_match_literal",
     [
@@ -2957,42 +2985,18 @@ def test_url_encoded_asterisk_handling(
 ):
     """Test that URL-encoded %2A is treated as literal asterisk, while unencoded * remains wildcard."""
 
-    # Create system profile data based on field path
-    if field_path == "insights_client_version":
-        sp_data = {"system_profile_facts": {"insights_client_version": field_value}}
-    elif field_path == "bootc_status.booted.image":
-        sp_data = {"system_profile_facts": {"bootc_status": {"booted": {"image": field_value}}}}
-    elif field_path == "bios_release_date":
-        sp_data = {"system_profile_facts": {"bios_release_date": field_value}}
-    elif field_path == "os_release":
-        sp_data = {"system_profile_facts": {"os_release": field_value}}
+    # Create system profile data using helper
+    sp_data = _build_system_profile_data(field_path, field_value)
+    wildcard_sp_data = _build_system_profile_data(field_path, field_value.replace("*", "X"))
 
     # Create host with the literal asterisk value
     match_host_id = str(db_create_host(extra_data=sp_data).id)
 
     # Create a host that would match wildcard but not literal
-    if field_path == "insights_client_version":
-        wildcard_sp_data = {"system_profile_facts": {"insights_client_version": field_value.replace("*", "X")}}
-    elif field_path == "bootc_status.booted.image":
-        wildcard_sp_data = {
-            "system_profile_facts": {"bootc_status": {"booted": {"image": field_value.replace("*", "X")}}}
-        }
-    elif field_path == "bios_release_date":
-        wildcard_sp_data = {"system_profile_facts": {"bios_release_date": field_value.replace("*", "X")}}
-    elif field_path == "os_release":
-        wildcard_sp_data = {"system_profile_facts": {"os_release": field_value.replace("*", "X")}}
-
     wildcard_host_id = str(db_create_host(extra_data=wildcard_sp_data).id)
 
-    # Build the filter parameter based on field path
-    if field_path == "insights_client_version":
-        filter_param = f"[insights_client_version]={url_encoded_value}"
-    elif field_path == "bootc_status.booted.image":
-        filter_param = f"[bootc_status][booted][image]={url_encoded_value}"
-    elif field_path == "bios_release_date":
-        filter_param = f"[bios_release_date]={url_encoded_value}"
-    elif field_path == "os_release":
-        filter_param = f"[os_release]={url_encoded_value}"
+    # Build the filter parameter using helper
+    filter_param = _build_filter_param(field_path, url_encoded_value)
 
     url = build_hosts_url(query=f"?filter[system_profile]{filter_param}")
     response_status, response_data = api_get(url)
@@ -3123,7 +3127,8 @@ def test_url_encoded_asterisk_backward_compatibility(db_create_host, api_get):
 def test_url_encoded_asterisk_multiple_fields(db_create_host, api_get):
     """Test URL-encoded asterisks work correctly when filtering on multiple fields.
 
-    When %2A count doesn't match total * count across all fields, falls back to wildcard behavior.
+    Each field is evaluated independently - URL-encoded fields are treated as literal,
+    while non-encoded fields remain wildcards.
     """
 
     # Create host that matches both literal and wildcard patterns
@@ -3146,8 +3151,8 @@ def test_url_encoded_asterisk_multiple_fields(db_create_host, api_get):
     }
     nomatch_host_id = str(db_create_host(extra_data=sp_data_2).id)
 
-    # Query with URL-encoded asterisks in multiple fields
-    # %2A count (2) != total * count (3), so falls back to wildcard behavior
+    # Query with URL-encoded asterisks in first two fields, wildcard in third
+    # First two fields are treated as literal, third field as wildcard
     url = build_hosts_url(
         query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
         "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
@@ -3159,10 +3164,11 @@ def test_url_encoded_asterisk_multiple_fields(db_create_host, api_get):
 
     returned_host_ids = [host["id"] for host in response_data["results"]]
 
-    # Should match both hosts due to wildcard fallback behavior
+    # Should match only the first host (literal asterisks match, wildcard matches)
+    # Second host doesn't match because literal fields don't match
     assert match_host_id in returned_host_ids
-    assert nomatch_host_id in returned_host_ids
-    assert len(returned_host_ids) == 2
+    assert nomatch_host_id not in returned_host_ids
+    assert len(returned_host_ids) == 1
 
 
 def test_url_encoded_asterisk_edge_cases(db_create_host, api_get):
@@ -3205,4 +3211,50 @@ def test_url_encoded_asterisk_edge_cases(db_create_host, api_get):
     assert response_status == 200
     returned_host_ids = [host["id"] for host in response_data["results"]]
     assert host_3_id in returned_host_ids
+    assert len(returned_host_ids) == 1
+
+
+def test_url_encoded_asterisk_multiple_fields_matching_counts(db_create_host, api_get):
+    """Test multi-field case where total %2A count matches total * count across all fields.
+
+    This validates the literal-asterisk behavior when the heuristic treats asterisks as literal
+    across multiple fields due to matching counts.
+    """
+
+    # Create host that has literal asterisks in multiple fields
+    sp_data = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.*-2.el4_2",  # 1 asterisk
+            "bootc_status": {"booted": {"image": "quay.io/test*image:latest"}},  # 1 asterisk
+            "os_release": "8.*",  # 1 asterisk
+        }
+    }
+    literal_host_id = str(db_create_host(extra_data=sp_data).id)
+
+    # Create host that would match wildcards but not literals
+    sp_data_wildcard = {
+        "system_profile_facts": {
+            "insights_client_version": "3.0.X-2.el4_2",  # X instead of *
+            "bootc_status": {"booted": {"image": "quay.io/testXimage:latest"}},  # X instead of *
+            "os_release": "8.Y",  # Y instead of *
+        }
+    }
+    wildcard_host_id = str(db_create_host(extra_data=sp_data_wildcard).id)
+
+    # Query with URL-encoded asterisks in all three fields
+    # Total %2A count (3) == total * count (3), so should treat as literal
+    url = build_hosts_url(
+        query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
+        "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
+        "&filter[system_profile][os_release]=8.%2A"
+    )
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+
+    returned_host_ids = [host["id"] for host in response_data["results"]]
+
+    # Should match only the literal host, not the wildcard host
+    assert literal_host_id in returned_host_ids
+    assert wildcard_host_id not in returned_host_ids
     assert len(returned_host_ids) == 1
