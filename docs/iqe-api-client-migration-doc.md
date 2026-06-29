@@ -9,6 +9,8 @@ The IQE test suite depends on auto-generated OpenAPI bindings (`iqe apigen` / `o
 3. **Tight coupling to spec format** — generated method names like `api_group_get_group_list` are derived from operationIds. Renaming an operationId (which we just did for [V2 workspaces](https://github.com/RedHatInsights/insights-host-inventory/blob/v2-api/swagger/api_v2.spec.yaml)) breaks all call sites
 4. **V2 blocker** — the V2 API spec introduces new endpoints and renames. Regenerating bindings for V2 perpetuates all the above problems. Better to migrate now
 
+
+
 ### Why Full V1 Migration Is Blocked
 
 The `iqe-host-inventory-plugin` is consumed by a number of other services and IQE plugins. Every V1 wrapper method currently returns apigen-generated model objects (e.g., `HostOut`, `HostQueryOutput`). If V1 wrappers are migrated to return plain dicts, every downstream consumer breaks. Migrating V1 wrappers requires a coordinated, cross-team effort.
@@ -16,12 +18,14 @@ The `iqe-host-inventory-plugin` is consumed by a number of other services and IQ
 ### Architecture (Current → Target)
 
 **Current:**
+
 ```
 Test → Wrapper (HostsAPIWrapper) → Apigen (HostsApi) → ApiClient → urllib3
                                     ↑ ~3.7MB generated code
 ```
 
 **Target (POC):**
+
 ```
 Test → Wrapper (HostsAPIWrapper.create_hosts_response) → BaseAPIWrapper → app.http_client (RobustSession)
 ```
@@ -30,13 +34,15 @@ The POC introduces a `BaseAPIWrapper` base class that wraps IQE's `app.http_clie
 
 ### Before / After
 
-**Before — no `POST /hosts` wrapper exists** (host creation is Kafka- or ingress-based in current tests):
+**Before — no** `POST /hosts` **wrapper exists** (host creation is Kafka- or ingress-based in current tests):
+
 ```python
 # No REST-based create_hosts_response method exists in HostsAPIWrapper today.
 # Host creation goes through Kafka (kafka_interaction.py) or ingress upload (uploads.py).
 ```
 
-**After (using `BaseAPIWrapper`):**
+**After (using** `BaseAPIWrapper`**):**
+
 ```python
 # base_api_wrapper.py — URL helper builds full path from versioned base
 class BaseAPIWrapper:
@@ -70,23 +76,30 @@ class HostsAPIWrapper(BaseEntity):
         return response.json()
 ```
 
+
+
 ### POC Scope
 
 **In scope (this POC):**
+
 - `BaseAPIWrapper` base class using IQE's `app.http_client` (`RobustSession`) with a versioned URL helper
 - A single new method `create_hosts_response` on `HostsAPIWrapper` that calls `POST /api/inventory/v1/hosts` via `BaseAPIWrapper`
 - **Apply this new method only in Create Hosts tests** (the tests that currently create hosts via REST, or new tests that exercise `POST /hosts` directly)
 - Return plain dicts from the new method (tests assert on dict keys)
 
 **Why Create Hosts is safe to migrate first:**
+
 - The current apigen `HostsApi` has **no** `POST /hosts` method — host creation in existing tests goes through Kafka or ingress upload. There are no callers of a `create_hosts_response` method anywhere yet.
 - Adding a new method using `BaseAPIWrapper` introduces zero risk of breaking existing consumers.
 - No other IQE plugin or downstream service depends on this new path.
 
 **Out of scope for this POC:**
+
 - Migrating any existing V1 endpoints (GET, PATCH, DELETE /hosts, etc.) — other IQE plugins depend on the apigen model objects returned by those wrappers
 - V2 endpoint wrappers (deferred; original design doc covers these — see `RHINENG-26236-epic.v1.md`)
 - Removing `iqe_host_inventory_api/` and `iqe_host_inventory_api_v7/` packages
+
+
 
 ### Future: Broader V1 Migration
 
@@ -99,5 +112,6 @@ class HostsAPIWrapper(BaseEntity):
 ### Deliverables
 
 1. **PR 1 (POC)** — `BaseAPIWrapper` base class + `create_hosts_response` method on `HostsAPIWrapper` using `POST /api/inventory/v1/hosts` + at least one Create Hosts test using the new method and passing
-2. **PR 2** — Migrate remaining new V2 endpoints (host-views, etc.) using `BaseAPIWrapper`
-3. **Future** — Broader V1 migration (requires cross-team coordination, tracked separately)
+2. **PR 2** —
+  ***Identify*** other V1, which could be migrated to use the `BaseAPIWrapper` without affecting other services/plugins, and ****migrate*** them to use the `BaseAPIWrapper`.
+3. **Future** — ***Create*** new tests for V2 endpoints to use `BaseAPIWrapper` and ***broader*** V1 migration (requires cross-team coordination, tracked separately)
