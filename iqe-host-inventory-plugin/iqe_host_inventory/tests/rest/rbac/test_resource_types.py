@@ -611,7 +611,8 @@ class TestResourceTypesEmptyGroups:
           title: Get groups resources by name - provide only part of the name
         """
         group = setup_empty_groups_primary[1]
-        searched_name = group.name[5:10].upper() if case_insensitive else group.name[5:10]
+        logger.info(group.name[1:-1])
+        searched_name = group.name[1:-1].upper() if case_insensitive else group.name[1:-1]
 
         response = host_inventory.apis.resource_types.get_groups_response(name=searched_name)
         response_groups = check_resource_types_groups_response(response, 1)

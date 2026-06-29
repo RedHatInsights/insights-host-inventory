@@ -7,6 +7,7 @@ from collections.abc import Collection
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import attr
 from iqe.base.modeling import BaseEntity
@@ -25,11 +26,13 @@ from iqe_bindings.v7.rbac_v2 import WorkspacesWorkspaceTypesQueryParam
 from iqe_bindings.v7.rbac_v2.exceptions import ApiException
 from iqe_bindings.v7.rbac_v2.exceptions import NotFoundException
 
-from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import is_global_account
 from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import accept_when
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
+
+if TYPE_CHECKING:
+    from iqe_host_inventory import ApplicationHostInventory
 
 WORKSPACE_NOT_CREATED_ERROR = Exception("Workspace wasn't successfully created")
 WORKSPACE_NOT_UPDATED_ERROR = Exception("Workspace wasn't successfully updated")
