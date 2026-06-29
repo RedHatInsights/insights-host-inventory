@@ -3174,6 +3174,39 @@
                   "$ref": "#/components/schemas/GroupOut"
                 }
               },
+              "workspace": {
+                "description": "The workspace that the host belongs to, if any. Contains the same data as the first entry in the groups list.",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/GroupId"
+                  },
+                  "name": {
+                    "$ref": "#/components/schemas/GroupName"
+                  },
+                  "account": {
+                    "$ref": "#/components/schemas/AccountNumber"
+                  },
+                  "org_id": {
+                    "$ref": "#/components/schemas/OrgId"
+                  },
+                  "ungrouped": {
+                    "description": "Whether the group is the \"ungrouped hosts\" group",
+                    "type": "boolean"
+                  },
+                  "created": {
+                    "description": "A timestamp when the entry was created.",
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "updated": {
+                    "description": "A timestamp when the entry was last updated.",
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
               "system_profile": {
                 "$ref": "#/components/schemas/SystemProfile"
               },

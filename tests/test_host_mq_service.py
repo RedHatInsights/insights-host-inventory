@@ -309,7 +309,7 @@ def test_handle_message_happy_path(
 def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_message_consumer_mock, db_create_group):
     from uuid import UUID
 
-    mock_psk = "1234567890"
+    mock_access_token = "mock_sa_token_12345"
     workspace_uuid = generate_uuid()
     get_rbac_mock = mocker.patch(
         "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
@@ -317,11 +317,12 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     mocker.patch(
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
-            rbac_psk=mock_psk,
             bypass_kessel=False,
+            kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
 
     # Simulate the MQ consumer creating the group in the DB while we wait.
     def wait_and_create(workspace_id_str, *args, **kwargs):
@@ -337,9 +338,9 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
     assert result.event_type == EventType.created
     assert "/_private/_s2s/workspaces/ungrouped/" in get_rbac_mock.call_args_list[0][0][0]
     assert get_rbac_mock.call_args_list[0][0][1] == {
+        "Authorization": f"Bearer {mock_access_token}",
         "X-RH-RBAC-CLIENT-ID": "inventory",
         "X-RH-RBAC-ORG-ID": "test",
-        "X-RH-RBAC-PSK": mock_psk,
     }
     wait_mock.assert_called_once_with(
         str(workspace_uuid),
@@ -362,11 +363,12 @@ def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consume
     mocker.patch(
         "lib.middleware.inventory_config",
         return_value=SimpleNamespace(
-            rbac_psk="psk",
             bypass_kessel=False,
+            kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
         ),
     )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
     mocker.patch(
         "lib.group_repository.wait_for_workspace_event",
         side_effect=TimeoutError("No workspace creation message consumed in time."),
@@ -2773,6 +2775,27 @@ def test_workspace_bulk_mq_create_duplicate_skips(
 
     found_group = db_get_group_by_id(workspace_id)
     assert found_group.name == "bulk-workspace-original"
+
+
+def test_workspace_bulk_mq_duplicate_does_not_rollback_prior_creates(
+    db_create_group, workspace_message_consumer_mock, db_get_group_by_id
+):
+    """A duplicate create must not roll back new groups created earlier in the same batch/transaction."""
+    existing_group = db_create_group("pre-existing-workspace")
+
+    new_workspace_id = generate_uuid()
+    new_message = generate_kessel_workspace_message("create", new_workspace_id, "new-workspace")
+    workspace_message_consumer_mock.handle_message(json.dumps(new_message))
+
+    duplicate_message = generate_kessel_workspace_message("create", str(existing_group.id), "duplicate-workspace-name")
+    workspace_message_consumer_mock.handle_message(json.dumps(duplicate_message))
+
+    db.session.commit()
+
+    assert db_get_group_by_id(new_workspace_id) is not None
+    assert db_get_group_by_id(new_workspace_id).name == "new-workspace"
+
+    assert db_get_group_by_id(existing_group.id).name == "pre-existing-workspace"
 
 
 @pytest.mark.parametrize(

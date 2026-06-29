@@ -38,8 +38,8 @@ def check_events_and_notifications(
 ) -> None:
     logger.info("Searching deletion events and notifications")
     all_hosts_ids = {host.id for staleness in hosts.keys() for host in hosts[staleness]}
-    found_host_events = set()
-    found_notifications = set()
+    found_host_events: set[HostMessageWrapper] = set()
+    found_notifications: set[DeleteNotificationWrapper] = set()
 
     # Get all host event messages and notifications
     for msg in host_inventory.kafka.walk_messages(timeout=5):

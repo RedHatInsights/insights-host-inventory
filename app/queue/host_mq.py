@@ -484,15 +484,16 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
         if operation == "create":
             try:
-                group = group_repository.add_group(
-                    group_name=workspace["name"],
-                    org_id=org_id,
-                    account=identity.account_number,
-                    group_id=workspace["id"],
-                    ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
-                    created_on=workspace.get("created"),
-                    modified_on=workspace.get("modified"),
-                )
+                with db.session.begin_nested():
+                    group = group_repository.add_group(
+                        group_name=workspace["name"],
+                        org_id=org_id,
+                        account=identity.account_number,
+                        group_id=workspace["id"],
+                        ungrouped=(validated_operation_msg["workspace"]["type"] == "ungrouped-hosts"),
+                        created_on=workspace.get("created"),
+                        modified_on=workspace.get("modified"),
+                    )
                 return OperationResult(
                     group,
                     None,
@@ -503,7 +504,6 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
             except (IntegrityError, UniqueViolation):
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
-                db.session.rollback()
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)

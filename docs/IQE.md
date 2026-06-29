@@ -31,36 +31,32 @@ export DYNACONF_IQE_VAULT_OIDC_HEADLESS="false"
 
 ### One-Time Setup
 ```bash
-# From repository root
-./setup-iqe.sh
+# From repository root (requires VPN for Nexus access)
+uv --project iqe-host-inventory-plugin sync --frozen
 ```
 
-This installs all IQE dependencies and the local plugin in editable mode.
+This installs all IQE dependencies and the local plugin in editable mode into
+`iqe-host-inventory-plugin/.venv/`.
 
 ### Activate IQE Environment
 ```bash
-# Quick activation
-./iqe-shell.sh
-
-# Or manually
-export PIPENV_PIPFILE=Pipfile.iqe
-pipenv shell
+source iqe-host-inventory-plugin/.venv/bin/activate
 ```
 
 ### IQE dependency update
 
-Unfortunatelly the IQE dependencies mostly live in a Red Hat private repo.
+The IQE dependencies mostly live in a Red Hat private Nexus repository.
 
-To update them manually please run the following command and push the changes to the lockfile as PR.
+To update them, run the following commands and push the changes to the lockfile as a PR.
 
 ```bash
-PIPENV_PIPFILE=Pipfile.iqe pipenv lock --dev -v
+uv --project iqe-host-inventory-plugin lock
+uv --project iqe-host-inventory-plugin sync
 ```
 
-Then run the setup script to install the updated dependencies.
+Then commit the updated lockfile:
 ```bash
-# From repository root
-./setup-iqe.sh
+git add iqe-host-inventory-plugin/uv.lock
 ```
 
 ## Running Tests
@@ -68,19 +64,24 @@ Then run the setup script to install the updated dependencies.
 ### Run a Single Test
 ```bash
 # Run specific test file
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -k test_outage
+ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
+    iqe tests plugin host_inventory -k test_outage
 
 # Run specific test by name
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory iqe-host-inventory-plugin/iqe_host_inventory/tests/rest/test_outage.py::test_outage_get_host_list
+ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
+    iqe tests plugin host_inventory \
+    iqe-host-inventory-plugin/iqe_host_inventory/tests/rest/test_outage.py::test_outage_get_host_list
 ```
 
 ### Common Test Commands
 ```bash
 # Smoke tests only
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and smoke and not ephemeral'
+ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
+    iqe tests plugin host_inventory -m 'backend and smoke and not ephemeral'
 
 # All backend tests (takes ~1 hour)
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and not ephemeral'
+ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
+    iqe tests plugin host_inventory -m 'backend and not ephemeral'
 ```
 
 ### Environment Options
@@ -88,8 +89,7 @@ Change `ENV_FOR_DYNACONF` to test different environments:
 - `stage_proxy` - Stage environment (default)
 - `prod` - Production
 
-
-[See more in Full IQE docs](#further_reading) section below including also `fedramp_stage_proxy`.
+[See more in Full IQE docs](#further-reading) section below including also `fedramp_stage_proxy`.
 
 ## Custom IQE Users
 
@@ -124,14 +124,15 @@ stage_proxy: *stage
 
 **3. Run tests with your custom user:**
 ```bash
-ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory --user your_custom_user -m smoke
+ENV_FOR_DYNACONF=stage_proxy uv --project iqe-host-inventory-plugin run \
+    iqe tests plugin host_inventory --user your_custom_user -m smoke
 ```
 
 ### Full Setup Guide
 
 For complete instructions on creating custom users (including user creation, token generation, and configuration):
 
-📘 **[Internal Documentation: Creating Custom IQE Users](https://redhat.atlassian.net/wiki/spaces/~70121821d7ad2679b4fd7ab4a5dabf625c5a0/pages/384305391/Creating+Custom+IQE+Users+for+Stage+Cluster)**
+**[Internal Documentation: Creating Custom IQE Users](https://redhat.atlassian.net/wiki/spaces/~70121821d7ad2679b4fd7ab4a5dabf625c5a0/pages/384305391/Creating+Custom+IQE+Users+for+Stage+Cluster)**
 
 **Benefits of custom users:**
 - Isolated org_id for testing (no conflicts with other teams)
@@ -156,14 +157,14 @@ export REQUESTS_CA_BUNDLE=~/bundle.crt
 **Plugin not found:**
 Check installation:
 ```bash
-iqe plugin list
+uv --project iqe-host-inventory-plugin run iqe plugin list
 ```
 
 **Which environment am I in?**
 ```bash
-echo $PIPENV_PIPFILE
-# Empty = main HBI environment
-# Pipfile.iqe = IQE test environment
+which python
+# .venv/bin/python                              = main HBI environment
+# iqe-host-inventory-plugin/.venv/bin/python     = IQE test environment
 ```
 
 ## Further Reading
