@@ -27,21 +27,22 @@ Test → Wrapper (HostsAPIWrapper) → Apigen (HostsApi) → ApiClient → urlli
 **Target (POC):**
 
 ```
-Test → Wrapper (HostsAPIWrapper.create_hosts_response) → BaseAPIWrapper → app.http_client (RobustSession)
+Test → Wrapper (HostsAPIWrapper.host_checkin_response) → BaseAPIWrapper → app.http_client (RobustSession)
 ```
 
 The POC introduces a `BaseAPIWrapper` base class that wraps IQE's `app.http_client` (a `RobustSession` that already handles auth and config). A URL helper prepends the versioned base path. All existing V1 wrapper methods remain on the apigen path untouched.
 
 ### Before / After
 
-**Before — no** `POST /hosts` **wrapper exists** (host creation is Kafka- or ingress-based in current tests):
+**Before — no `host_checkin` wrapper method exists in `HostsAPIWrapper`:**
 
 ```python
-# No REST-based create_hosts_response method exists in HostsAPIWrapper today.
-# Host creation goes through Kafka (kafka_interaction.py) or ingress upload (uploads.py).
+# HostsAPIWrapper has no host_checkin method today.
+# The apigen HostsApi does have api_host_host_checkin, but it is never
+# exposed through HostsAPIWrapper — callers use raw_api directly or skip it.
 ```
 
-**After (using** `BaseAPIWrapper`**):**
+**After (using `BaseAPIWrapper`):**
 
 ```python
 # base_api_wrapper.py — URL helper builds full path from versioned base
@@ -65,13 +66,30 @@ class BaseAPIWrapper:
 class HostsAPIWrapper(BaseEntity):
     # ... all existing methods stay on apigen path, unchanged ...
 
-    def create_hosts_response(self, host_list: list[dict]) -> dict:
-        """Create hosts via POST /api/inventory/v1/hosts using direct HTTP client.
+    def host_checkin_response(
+        self,
+        *,
+        insights_id: str | None = None,
+        fqdn: str | None = None,
+        subscription_manager_id: str | None = None,
+        checkin_frequency: int | None = None,
+    ) -> dict:
+        """Check in a host via POST /api/inventory/v1/hosts/checkin.
 
+        Updates staleness timestamps for an existing host identified by
+        canonical facts. At least one canonical fact must be provided.
         Returns the raw response dict. No apigen types are used.
-        Only used in Create Hosts tests.
+        Only used in Create Hosts / checkin tests.
         """
-        response = self._base_wrapper.post("/hosts", json=host_list)
+        body = {
+            k: v for k, v in {
+                "insights_id": insights_id,
+                "fqdn": fqdn,
+                "subscription_manager_id": subscription_manager_id,
+                "checkin_frequency": checkin_frequency,
+            }.items() if v is not None
+        }
+        response = self._base_wrapper.post("/hosts/checkin", json=body)
         response.raise_for_status()
         return response.json()
 ```
@@ -83,15 +101,24 @@ class HostsAPIWrapper(BaseEntity):
 **In scope (this POC):**
 
 - `BaseAPIWrapper` base class using IQE's `app.http_client` (`RobustSession`) with a versioned URL helper
-- A single new method `create_hosts_response` on `HostsAPIWrapper` that calls `POST /api/inventory/v1/hosts` via `BaseAPIWrapper`
-- **Apply this new method only in Create Hosts tests** (the tests that currently create hosts via REST, or new tests that exercise `POST /hosts` directly)
+- A single new method `host_checkin_response` on `HostsAPIWrapper` that calls `POST /api/inventory/v1/hosts/checkin` via `BaseAPIWrapper`
+- **Apply this new method only in Create Hosts / checkin tests**
 - Return plain dicts from the new method (tests assert on dict keys)
 
-**Why Create Hosts is safe to migrate first:**
+**Why "Create Hosts" tests cannot use `BaseAPIWrapper`:**
 
-- The current apigen `HostsApi` has **no** `POST /hosts` method — host creation in existing tests goes through Kafka or ingress upload. There are no callers of a `create_hosts_response` method anywhere yet.
-- Adding a new method using `BaseAPIWrapper` introduces zero risk of breaking existing consumers.
-- No other IQE plugin or downstream service depends on this new path.
+The initial POC plan was to target Create Hosts tests because adding a new host-creation wrapper would not affect other services. However, HBI does **not** expose a `POST /hosts` REST endpoint in V1 — the V1 spec only defines `GET` and `DELETE` on `/hosts`. Hosts are created exclusively via:
+- **Kafka ingestion pipeline** — `kafka_interaction.py` sends host messages to the ingress topic
+- **Ingress upload** — `uploads.py` uploads insights archives via `IngressApi`
+
+Neither path goes through a REST endpoint that `BaseAPIWrapper` could wrap. There is nothing to migrate.
+
+**Why `POST /hosts/checkin` is the right POC target instead:**
+
+- `POST /hosts/checkin` exists in the V1 spec (operationId: `api.host.host_checkin`). It accepts canonical facts (`insights_id`, `fqdn`, `subscription_manager_id`, etc.) plus an optional `checkin_frequency` (minutes), and returns a `HostOut`.
+- `HostsAPIWrapper` has **no** `host_checkin` method today — there are no existing callers to break.
+- It is a host write operation in the same domain as Create Hosts, demonstrating `BaseAPIWrapper` on a V1 write path without any cross-team risk.
+- Adding a new `BaseAPIWrapper`-backed method introduces zero risk to downstream services or other IQE plugins.
 
 **Out of scope for this POC:**
 
@@ -111,7 +138,7 @@ class HostsAPIWrapper(BaseEntity):
 
 ### Deliverables
 
-1. **PR 1 (POC)** — `BaseAPIWrapper` base class + `create_hosts_response` method on `HostsAPIWrapper` using `POST /api/inventory/v1/hosts` + at least one Create Hosts test using the new method and passing
+1. **PR 1 (POC)** — `BaseAPIWrapper` base class + `host_checkin_response` method on `HostsAPIWrapper` using `POST /api/inventory/v1/hosts/checkin` + at least one checkin test using the new method and passing
 2. **PR 2** —
-  ***Identify*** other V1, which could be migrated to use the `BaseAPIWrapper` without affecting other services/plugins, and ****migrate*** them to use the `BaseAPIWrapper`.
+  ***Identify*** other V1 endpoints which could be migrated to use the `BaseAPIWrapper` without affecting other services/plugins, and ***migrate*** them to use the `BaseAPIWrapper`.
 3. **Future** — ***Create*** new tests for V2 endpoints to use `BaseAPIWrapper` and ***broader*** V1 migration (requires cross-team coordination, tracked separately)
