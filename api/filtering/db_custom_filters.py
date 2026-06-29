@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from flask import request
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import Integer
@@ -30,6 +31,37 @@ from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 
 logger = get_logger(__name__)
+
+
+def _should_treat_asterisk_as_literal(_field_name: str, value: str) -> bool:
+    """
+    Check if asterisks in the value should be treated as literal characters.
+
+    This happens when the original query string contained URL-encoded %2A,
+    indicating the user intended literal asterisks rather than wildcards.
+    """
+    try:
+        # Get the raw query string from the current request
+        query_string = request.query_string.decode("utf-8")
+
+        # Check if the query string contains %2A for this field
+        # We need to be careful to match the specific field and value
+        if "%2A" in query_string:
+            # Simple heuristic: if the query contains %2A and our value contains *,
+            # and the count matches, treat as literal
+            encoded_asterisk_count = query_string.count("%2A")
+            value_asterisk_count = value.count("*")
+
+            # If counts match, likely that all asterisks should be literal
+            if encoded_asterisk_count > 0 and value_asterisk_count == encoded_asterisk_count:
+                return True
+
+    except (AttributeError, UnicodeDecodeError):
+        # If we can't access the request or decode the query string,
+        # fall back to normal wildcard behavior
+        pass
+
+    return False
 
 
 def _handle_empty_string_cast(target_field: ColumnElement, column: Column) -> ColumnElement:
@@ -563,7 +595,12 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
 
         # Handle wildcard fields (use ILIKE, replace * with %)
         if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+            if _should_treat_asterisk_as_literal(field_name, value):
+                # Don't replace * with % for literal asterisks, use exact match instead
+                pg_op = ColumnOperators.__eq__
+            else:
+                # Normal wildcard behavior: replace * with %
+                value = value.replace("*", "%")
 
         # Handle special values and casting
         if value in ["nil", "not_nil"]:
