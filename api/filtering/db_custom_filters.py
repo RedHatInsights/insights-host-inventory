@@ -553,13 +553,13 @@ def _needs_escape_clause(value: str) -> tuple[bool, str]:
         escaped_pattern = escaped_pattern.replace("**", temp_literal_marker + "%")
         needs_escape = True
 
-    # Handle backslashes that need escaping
+    # Handle backslashes that need escaping (process regardless of ** presence)
     if "\\" in escaped_pattern:
         # Escape backslashes for SQL LIKE
         escaped_pattern = escaped_pattern.replace("\\", "\\\\")
         needs_escape = True
 
-    # Convert remaining asterisks to SQL wildcards
+    # Convert remaining asterisks to SQL wildcards and finalize escaping
     if needs_escape:
         escaped_pattern = escaped_pattern.replace("*", "%")
         # Now replace our literal asterisk marker with the properly escaped literal
