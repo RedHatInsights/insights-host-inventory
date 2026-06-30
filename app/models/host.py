@@ -191,8 +191,6 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
     def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
         """Update the normalized system profile tables."""
-        from copy import deepcopy
-
         from app.models.system_profile_transformer import validate_and_transform
 
         if not input_system_profile:
@@ -200,9 +198,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
             return
 
         # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(
-            str(self.org_id), str(self.id), deepcopy(input_system_profile)
-        )
+        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
 
         # Keys that are managed automatically and should not be updated from input
         skip_keys = {"org_id", "host_id"}
