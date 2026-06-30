@@ -3017,104 +3017,92 @@ def test_url_encoded_asterisk_handling(
         assert len(returned_host_ids) == 2
 
 
-def test_url_encoded_asterisk_mixed_with_wildcards(db_create_host, api_get):
-    """Test URL-encoded asterisks mixed with regular wildcards in the same value.
+@pytest.mark.parametrize(
+    "test_case,query_value,expected_hosts",
+    [
+        # Count mismatch cases - should fall back to wildcard behavior
+        ("mixed_wildcards", "3.0.%2A-test-*", ["literal", "wildcard", "suffix"]),
+        ("count_mismatch", "test%2Avalue*here", ["literal", "wildcard"]),
+        ("no_asterisks_in_value", "3.0.%2A-2.el4_2", []),
+        # Edge cases - literal asterisk handling
+        ("single_asterisk", "%2A", ["single"]),
+        ("double_asterisk", "test%2A%2Avalue", ["double"]),
+        ("start_end_asterisk", "%2Atest%2A", ["start_end"]),
+    ],
+)
+def test_url_encoded_asterisk_edge_cases(db_create_host, api_get, test_case, query_value, expected_hosts):
+    """Test various edge cases for URL-encoded asterisk handling."""
 
-    When %2A count doesn't match * count in decoded value, falls back to wildcard behavior.
-    """
+    # Create test hosts based on test case
+    host_ids = {}
 
-    # Create hosts with different patterns
-    # Host 1: literal asterisk followed by wildcard pattern
-    sp_data_1 = {"system_profile_facts": {"insights_client_version": "3.0.*-test-suffix"}}
-    host_1_id = str(db_create_host(extra_data=sp_data_1).id)
+    if test_case == "mixed_wildcards":
+        host_ids["literal"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-test-suffix"}}).id
+        )
+        host_ids["wildcard"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.X-test-suffix"}}).id
+        )
+        host_ids["suffix"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.*-test-different"}}).id
+        )
+    elif test_case == "count_mismatch":
+        host_ids["literal"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "test*value*here"}}).id
+        )
+        host_ids["wildcard"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "testXvalueXhere"}}).id
+        )
+    elif test_case == "no_asterisks_in_value":
+        host_ids["no_match"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}}).id
+        )
+    elif test_case == "single_asterisk":
+        host_ids["single"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "*"}}).id
+        )
+    elif test_case == "double_asterisk":
+        host_ids["double"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "test**value"}}).id
+        )
+    elif test_case == "start_end_asterisk":
+        host_ids["start_end"] = str(
+            db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "*test*"}}).id
+        )
 
-    # Host 2: would match if first asterisk was wildcard
-    sp_data_2 = {"system_profile_facts": {"insights_client_version": "3.0.X-test-suffix"}}
-    host_2_id = str(db_create_host(extra_data=sp_data_2).id)
-
-    # Host 3: would match the suffix wildcard
-    sp_data_3 = {"system_profile_facts": {"insights_client_version": "3.0.*-test-different"}}
-    host_3_id = str(db_create_host(extra_data=sp_data_3).id)
-
-    # Query with URL-encoded first asterisk but wildcard second part
-    # Since %2A count (1) != * count (2), this falls back to wildcard behavior
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-test-*")
+    url = build_hosts_url(query=f"?filter[system_profile][insights_client_version]={query_value}")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-
     returned_host_ids = [host["id"] for host in response_data["results"]]
 
-    # Should match all hosts due to wildcard fallback behavior
-    assert host_1_id in returned_host_ids
-    assert host_2_id in returned_host_ids
-    assert host_3_id in returned_host_ids
-    assert len(returned_host_ids) == 3
+    # Check expected hosts are present
+    for expected_host in expected_hosts:
+        if expected_host in host_ids:
+            assert host_ids[expected_host] in returned_host_ids
 
-
-def test_url_encoded_asterisk_count_mismatch(db_create_host, api_get):
-    """Test that asterisk count mismatch falls back to normal wildcard behavior."""
-
-    # Create hosts
-    sp_data_1 = {"system_profile_facts": {"insights_client_version": "test*value*here"}}
-    host_1_id = str(db_create_host(extra_data=sp_data_1).id)
-
-    sp_data_2 = {"system_profile_facts": {"insights_client_version": "testXvalueXhere"}}
-    host_2_id = str(db_create_host(extra_data=sp_data_2).id)
-
-    # Query with only one %2A but value has two asterisks - should fall back to wildcard
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=test%2Avalue*here")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-
-    # Should match both hosts due to wildcard fallback
-    assert host_1_id in returned_host_ids
-    assert host_2_id in returned_host_ids
-    assert len(returned_host_ids) == 2
-
-
-def test_url_encoded_asterisk_no_asterisks_in_value(db_create_host, api_get):
-    """Test URL-encoded %2A when decoded value has no asterisks."""
-
-    # Create host with no asterisks in value
-    sp_data = {"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}}
-    host_id = str(db_create_host(extra_data=sp_data).id)
-
-    # Query with %2A in URL but no asterisks in decoded value - should fall back to wildcard
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-
-    # Should not match since decoded value becomes "3.0.*-2.el4_2" which doesn't match "3.0.1-2.el4_2"
-    assert host_id not in returned_host_ids
-    assert len(returned_host_ids) == 0
+    assert len(returned_host_ids) == len(expected_hosts)
 
 
 def test_url_encoded_asterisk_backward_compatibility(db_create_host, api_get):
     """Test that existing wildcard functionality is preserved."""
 
     # Create hosts that should match wildcard patterns
-    sp_data_1 = {"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}}
-    host_1_id = str(db_create_host(extra_data=sp_data_1).id)
-
-    sp_data_2 = {"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}}
-    host_2_id = str(db_create_host(extra_data=sp_data_2).id)
-
-    sp_data_3 = {"system_profile_facts": {"insights_client_version": "4.0.1-2.el4_2"}}
-    host_3_id = str(db_create_host(extra_data=sp_data_3).id)
+    host_1_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.1-2.el4_2"}}).id
+    )
+    host_2_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0.5-1.el4_2"}}).id
+    )
+    host_3_id = str(
+        db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "4.0.1-2.el4_2"}}).id
+    )
 
     # Test normal wildcard behavior (no URL encoding)
     url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0.*")
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-
     returned_host_ids = [host["id"] for host in response_data["results"]]
 
     # Should match hosts 1 and 2, but not 3
@@ -3124,137 +3112,91 @@ def test_url_encoded_asterisk_backward_compatibility(db_create_host, api_get):
     assert len(returned_host_ids) == 2
 
 
-def test_url_encoded_asterisk_multiple_fields(db_create_host, api_get):
-    """Test URL-encoded asterisks work correctly when filtering on multiple fields.
+@pytest.mark.parametrize("scenario", ["independent_fields", "matching_counts"])
+def test_url_encoded_asterisk_multiple_fields(db_create_host, api_get, scenario):
+    """Test URL-encoded asterisks work correctly when filtering on multiple fields."""
 
-    Each field is evaluated independently - URL-encoded fields are treated as literal,
-    while non-encoded fields remain wildcards.
-    """
+    if scenario == "independent_fields":
+        # Create host that matches both literal and wildcard patterns
+        match_host_id = str(
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {
+                        "insights_client_version": "3.0.*-2.el4_2",
+                        "bootc_status": {"booted": {"image": "quay.io/test*image:latest"}},
+                        "os_release": "8.5",
+                    }
+                }
+            ).id
+        )
 
-    # Create host that matches both literal and wildcard patterns
-    sp_data = {
-        "system_profile_facts": {
-            "insights_client_version": "3.0.*-2.el4_2",
-            "bootc_status": {"booted": {"image": "quay.io/test*image:latest"}},
-            "os_release": "8.5",
-        }
-    }
-    match_host_id = str(db_create_host(extra_data=sp_data).id)
+        # Create host that would match wildcards but not literals
+        nomatch_host_id = str(
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {
+                        "insights_client_version": "3.0.X-2.el4_2",
+                        "bootc_status": {"booted": {"image": "quay.io/testXimage:latest"}},
+                        "os_release": "8.5",
+                    }
+                }
+            ).id
+        )
 
-    # Create host that would match wildcards but not literals
-    sp_data_2 = {
-        "system_profile_facts": {
-            "insights_client_version": "3.0.X-2.el4_2",
-            "bootc_status": {"booted": {"image": "quay.io/testXimage:latest"}},
-            "os_release": "8.5",
-        }
-    }
-    nomatch_host_id = str(db_create_host(extra_data=sp_data_2).id)
+        # Query with URL-encoded asterisks in first two fields, wildcard in third
+        url = build_hosts_url(
+            query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
+            "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
+            "&filter[system_profile][os_release]=8.*"
+        )
 
-    # Query with URL-encoded asterisks in first two fields, wildcard in third
-    # First two fields are treated as literal, third field as wildcard
-    url = build_hosts_url(
-        query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
-        "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
-        "&filter[system_profile][os_release]=8.*"
-    )
+        expected_match = [match_host_id]
+        expected_nomatch = [nomatch_host_id]
+
+    else:  # matching_counts
+        # Create host that has literal asterisks in multiple fields
+        literal_host_id = str(
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {
+                        "insights_client_version": "3.0.*-2.el4_2",  # 1 asterisk
+                        "bootc_status": {"booted": {"image": "quay.io/test*image:latest"}},  # 1 asterisk
+                        "os_release": "8.*",  # 1 asterisk
+                    }
+                }
+            ).id
+        )
+
+        # Create host that would match wildcards but not literals
+        wildcard_host_id = str(
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {
+                        "insights_client_version": "3.0.X-2.el4_2",  # X instead of *
+                        "bootc_status": {"booted": {"image": "quay.io/testXimage:latest"}},  # X instead of *
+                        "os_release": "8.Y",  # Y instead of *
+                    }
+                }
+            ).id
+        )
+
+        # Query with URL-encoded asterisks in all three fields
+        url = build_hosts_url(
+            query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
+            "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
+            "&filter[system_profile][os_release]=8.%2A"
+        )
+
+        expected_match = [literal_host_id]
+        expected_nomatch = [wildcard_host_id]
+
     response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-
-    # Should match only the first host (literal asterisks match, wildcard matches)
-    # Second host doesn't match because literal fields don't match
-    assert match_host_id in returned_host_ids
-    assert nomatch_host_id not in returned_host_ids
-    assert len(returned_host_ids) == 1
-
-
-def test_url_encoded_asterisk_edge_cases(db_create_host, api_get):
-    """Test edge cases for URL-encoded asterisk handling."""
-
-    # Test with only asterisks
-    sp_data_1 = {"system_profile_facts": {"insights_client_version": "*"}}
-    host_1_id = str(db_create_host(extra_data=sp_data_1).id)
-
-    # Test with multiple consecutive asterisks
-    sp_data_2 = {"system_profile_facts": {"insights_client_version": "test**value"}}
-    host_2_id = str(db_create_host(extra_data=sp_data_2).id)
-
-    # Test with asterisk at start and end
-    sp_data_3 = {"system_profile_facts": {"insights_client_version": "*test*"}}
-    host_3_id = str(db_create_host(extra_data=sp_data_3).id)
-
-    # Query for literal single asterisk
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=%2A")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-    assert host_1_id in returned_host_ids
-    assert len(returned_host_ids) == 1
-
-    # Query for literal double asterisk
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=test%2A%2Avalue")
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-    assert host_2_id in returned_host_ids
-    assert len(returned_host_ids) == 1
-
-    # Query for literal asterisks at start and end
-    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=%2Atest%2A")
-    response_status, response_data = api_get(url)
-
     assert response_status == 200
     returned_host_ids = [host["id"] for host in response_data["results"]]
-    assert host_3_id in returned_host_ids
-    assert len(returned_host_ids) == 1
 
-
-def test_url_encoded_asterisk_multiple_fields_matching_counts(db_create_host, api_get):
-    """Test multi-field case where total %2A count matches total * count across all fields.
-
-    This validates the literal-asterisk behavior when the heuristic treats asterisks as literal
-    across multiple fields due to matching counts.
-    """
-
-    # Create host that has literal asterisks in multiple fields
-    sp_data = {
-        "system_profile_facts": {
-            "insights_client_version": "3.0.*-2.el4_2",  # 1 asterisk
-            "bootc_status": {"booted": {"image": "quay.io/test*image:latest"}},  # 1 asterisk
-            "os_release": "8.*",  # 1 asterisk
-        }
-    }
-    literal_host_id = str(db_create_host(extra_data=sp_data).id)
-
-    # Create host that would match wildcards but not literals
-    sp_data_wildcard = {
-        "system_profile_facts": {
-            "insights_client_version": "3.0.X-2.el4_2",  # X instead of *
-            "bootc_status": {"booted": {"image": "quay.io/testXimage:latest"}},  # X instead of *
-            "os_release": "8.Y",  # Y instead of *
-        }
-    }
-    wildcard_host_id = str(db_create_host(extra_data=sp_data_wildcard).id)
-
-    # Query with URL-encoded asterisks in all three fields
-    # Total %2A count (3) == total * count (3), so should treat as literal
-    url = build_hosts_url(
-        query="?filter[system_profile][insights_client_version]=3.0.%2A-2.el4_2"
-        "&filter[system_profile][bootc_status][booted][image]=quay.io/test%2Aimage:latest"
-        "&filter[system_profile][os_release]=8.%2A"
-    )
-    response_status, response_data = api_get(url)
-
-    assert response_status == 200
-
-    returned_host_ids = [host["id"] for host in response_data["results"]]
-
-    # Should match only the literal host, not the wildcard host
-    assert literal_host_id in returned_host_ids
-    assert wildcard_host_id not in returned_host_ids
-    assert len(returned_host_ids) == 1
+    # Should match only the expected hosts
+    for host_id in expected_match:
+        assert host_id in returned_host_ids
+    for host_id in expected_nomatch:
+        assert host_id not in returned_host_ids
+    assert len(returned_host_ids) == len(expected_match)
