@@ -8,8 +8,7 @@
     ".hermetic_builds/**"
   ],
   "constraints": {
-    "python": "3.12",
-    "uv": "0.11"
+    "python": "3.12"
   },
   "tekton": {
     "schedule": [
@@ -22,6 +21,15 @@
   "pip-compile": {
     "enabled": false
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)pyproject\\.toml$", "(^|/)iqe-host-inventory-plugin/pyproject\\.toml$"],
+      "matchStrings": ["required-version\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "astral-sh/uv",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
   "packageRules": [
     {
       "matchPackagePatterns": ["^openapi-"],
