@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from time import sleep
 
 import pytest
 
@@ -12,65 +14,70 @@ logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend]
 
 
+def assert_checkin_response(response: dict, host: object) -> None:
+    """Assert that a POST /hosts/checkin response identifies the correct host and that
+    all staleness-related timestamps are strictly newer than they were before the call."""
+    assert response["id"] == host.id
+    assert response["insights_id"] == host.insights_id
+    assert datetime.fromisoformat(response["last_check_in"]) > host.last_check_in
+    assert datetime.fromisoformat(response["stale_timestamp"]) > host.stale_timestamp
+    assert (
+        datetime.fromisoformat(response["stale_warning_timestamp"]) > host.stale_warning_timestamp
+    )
+    assert datetime.fromisoformat(response["culled_timestamp"]) > host.culled_timestamp
+
+
 @pytest.mark.smoke
 @pytest.mark.ephemeral
-def test_host_checkin_via_base_api_wrapper(host_inventory: ApplicationHostInventory) -> None:
-    """POST /api/inventory/v1/hosts/checkin via BaseAPIWrapper (no apigen).
-
-    Creates a host via Kafka, then checks it in using the new
-    ``host_checkin_response`` method which calls the endpoint directly
-    through ``app.http_client`` instead of the apigen layer.
-
-    This is the POC test for RHINENG-26236: it proves that BaseAPIWrapper
-    can make authenticated V1 write calls without any generated code.
+def test_host_checkin(host_inventory: ApplicationHostInventory) -> None:
+    """POST /hosts/checkin updates the host's last_check_in and staleness timestamps.
 
     metadata:
         requirements: inv-host-checkin
         assignee: aarif
         importance: medium
-        title: Check in a host via BaseAPIWrapper (POST /hosts/checkin)
+        title: POST /hosts/checkin updates last_check_in and staleness timestamps
     """
     host = host_inventory.kafka.create_host()
+    sleep(1)  # Ensure timestamps differ after checkin
 
     response = host_inventory.apis.hosts.host_checkin_response(
         insights_id=host.insights_id,
     )
 
-    assert response["id"] == host.id
-    assert response["insights_id"] == host.insights_id
-    logger.info("host_checkin_response returned host id=%s", response["id"])
+    assert_checkin_response(response, host)
 
 
 @pytest.mark.ephemeral
 def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -> None:
-    """POST /hosts/checkin with explicit checkin_frequency via BaseAPIWrapper.
+    """POST /hosts/checkin with an explicit checkin_frequency updates staleness timestamps.
 
     metadata:
         requirements: inv-host-checkin
         assignee: aarif
         importance: medium
-        title: Check in a host with a custom checkin_frequency via BaseAPIWrapper
+        title: POST /hosts/checkin with custom checkin_frequency updates staleness timestamps
     """
     host = host_inventory.kafka.create_host()
+    sleep(1)  # Ensure timestamps differ after checkin
 
     response = host_inventory.apis.hosts.host_checkin_response(
         insights_id=host.insights_id,
         checkin_frequency=60,
     )
 
-    assert response["id"] == host.id
-    assert response["insights_id"] == host.insights_id
+    assert_checkin_response(response, host)
 
 
 @pytest.mark.ephemeral
-def test_host_checkin_missing_canonical_facts(host_inventory: ApplicationHostInventory) -> None:
-    """Verify that host_checkin_response raises ValueError when no canonical facts given.
+def test_host_checkin_requires_canonical_fact(host_inventory: ApplicationHostInventory) -> None:
+    """POST /hosts/checkin requires at least one canonical fact.
 
     metadata:
         requirements: inv-host-checkin
         assignee: aarif
         importance: low
-        title: host_checkin_response rejects calls with no canonical facts
+        title: POST /hosts/checkin rejects requests with no canonical facts
     """
     with pytest.raises(ValueError, match="At least one canonical fact must be provided"):
         host_inventory.apis.hosts.host_checkin_response()

@@ -35,13 +35,15 @@ class BaseAPIWrapper:
 
     def __init__(self, app: Application, api_version: str = "v1") -> None:
         self._app = app
-        # Derive the base URL from the existing apigen client configuration.
-        # configuration.host is the full versioned base path, e.g.:
-        #   "https://console.redhat.com/api/inventory/v1"
-        # Strip the trailing version component and replace with the desired version.
-        apigen_host: str = app.host_inventory.rest_client.client.configuration.host
-        base = apigen_host.rsplit("/", 1)[0]  # -> "https://host/api/inventory"
-        self._base_url = f"{base}/{api_version}"
+        # Build the base URL from IQE config rather than the apigen client.
+        # In clowder_smoke the gateway is the direct service, so we use the
+        # per-plugin main config; everywhere else the central gateway config
+        # lives in app.config.main (scheme/hostname/port per environment).
+        if app.config.current_env == "clowder_smoke":
+            cfg = app.host_inventory.config.main
+        else:
+            cfg = app.config.main
+        self._base_url = f"{cfg.scheme}://{cfg.hostname}:{cfg.port}/api/inventory/{api_version}"
         logger.debug("BaseAPIWrapper base URL: %s", self._base_url)
 
     @property

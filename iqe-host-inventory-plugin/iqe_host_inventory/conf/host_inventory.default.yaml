@@ -711,6 +711,10 @@ smoke:
 
 
 clowder_smoke:
+  main:
+    hostname: "@jinja {{ env_parser.get_hostname('host-inventory', 'service') }}"
+    scheme: http
+    port: "@jinja {{ env_parser.get_port('host-inventory', 'service') }}"
   kafka:
     ingress_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.host-ingress') }}"
     events_topic: "@jinja {{ env_parser.get_kafka_topic('host-inventory', 'platform.inventory.events') }}"
