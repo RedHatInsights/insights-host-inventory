@@ -3305,7 +3305,7 @@
             "minimum": 0,
             "nullable": true
           },
-          "high_severity_cves": {
+          "important_cves": {
             "type": "integer",
             "minimum": 0,
             "nullable": true

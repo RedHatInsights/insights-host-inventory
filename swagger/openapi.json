@@ -2542,9 +2542,11 @@
             "advisor:low",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
-            "vulnerability:high_severity_cves",
+            "vulnerability:important_cves",
             "vulnerability:cves_with_security_rules",
             "vulnerability:cves_with_known_exploits",
+            "patch:advisories_total_installable",
+            "patch:advisories_total_applicable",
             "patch:advisories_rhsa_installable",
             "patch:advisories_rhba_installable",
             "patch:advisories_rhea_installable",
@@ -3172,6 +3174,39 @@
                   "$ref": "#/components/schemas/GroupOut"
                 }
               },
+              "workspace": {
+                "description": "The workspace that the host belongs to, if any. Contains the same data as the first entry in the groups list.",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/GroupId"
+                  },
+                  "name": {
+                    "$ref": "#/components/schemas/GroupName"
+                  },
+                  "account": {
+                    "$ref": "#/components/schemas/AccountNumber"
+                  },
+                  "org_id": {
+                    "$ref": "#/components/schemas/OrgId"
+                  },
+                  "ungrouped": {
+                    "description": "Whether the group is the \"ungrouped hosts\" group",
+                    "type": "boolean"
+                  },
+                  "created": {
+                    "description": "A timestamp when the entry was created.",
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "updated": {
+                    "description": "A timestamp when the entry was last updated.",
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
               "system_profile": {
                 "$ref": "#/components/schemas/SystemProfile"
               },
@@ -3338,7 +3373,7 @@
             "minimum": 0,
             "nullable": true
           },
-          "high_severity_cves": {
+          "important_cves": {
             "type": "integer",
             "minimum": 0,
             "nullable": true
@@ -3576,7 +3611,7 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:critical` - Critical severity recommendations\n- `advisor:important` - Important severity recommendations\n- `advisor:moderate` - Moderate severity recommendations\n- `advisor:low` - Low severity recommendations\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n- `vulnerability:high_severity_cves` - High severity CVEs\n- `vulnerability:cves_with_security_rules` - CVEs with security rules\n- `vulnerability:cves_with_known_exploits` - CVEs with known exploits\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:advisories_rhba_installable` - Number of RHBA installable advisories\n- `patch:advisories_rhea_installable` - Number of RHEA installable advisories\n- `patch:advisories_other_installable` - Number of other installable advisories\n- `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories\n- `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories\n- `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories\n- `patch:advisories_other_applicable` - Number of other applicable advisories\n- `patch:packages_installable` - Number of installable packages\n- `patch:packages_applicable` - Number of applicable packages\n- `patch:packages_installed` - Number of installed packages\n- `patch:template_name` - Patch template name\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n- `compliance:policies_count` - Number of compliance policies\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:total_matches` - Total malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n- `malware:last_status` - Last malware detection status\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:critical` - Critical severity recommendations\n- `advisor:important` - Important severity recommendations\n- `advisor:moderate` - Moderate severity recommendations\n- `advisor:low` - Low severity recommendations\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n- `vulnerability:important_cves` - Important severity CVEs\n- `vulnerability:cves_with_security_rules` - CVEs with security rules\n- `vulnerability:cves_with_known_exploits` - CVEs with known exploits\n\n**Patch**\n- `patch:advisories_total_installable` - Total installable advisories (sum of all types)\n- `patch:advisories_total_applicable` - Total applicable advisories (sum of all types)\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:advisories_rhba_installable` - Number of RHBA installable advisories\n- `patch:advisories_rhea_installable` - Number of RHEA installable advisories\n- `patch:advisories_other_installable` - Number of other installable advisories\n- `patch:advisories_rhsa_applicable` - Number of RHSA applicable advisories\n- `patch:advisories_rhba_applicable` - Number of RHBA applicable advisories\n- `patch:advisories_rhea_applicable` - Number of RHEA applicable advisories\n- `patch:advisories_other_applicable` - Number of other applicable advisories\n- `patch:packages_installable` - Number of installable packages\n- `patch:packages_applicable` - Number of applicable packages\n- `patch:packages_installed` - Number of installed packages\n- `patch:template_name` - Patch template name\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n- `compliance:policies_count` - Number of compliance policies\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:total_matches` - Total malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n- `malware:last_status` - Last malware detection status\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
@@ -3586,9 +3621,11 @@
           "advisor:low",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
-          "vulnerability:high_severity_cves",
+          "vulnerability:important_cves",
           "vulnerability:cves_with_security_rules",
           "vulnerability:cves_with_known_exploits",
+          "patch:advisories_total_installable",
+          "patch:advisories_total_applicable",
           "patch:advisories_rhsa_installable",
           "patch:advisories_rhba_installable",
           "patch:advisories_rhea_installable",

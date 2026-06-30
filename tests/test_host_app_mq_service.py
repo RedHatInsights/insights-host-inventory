@@ -457,7 +457,7 @@ class TestHostAppDataValidation:
         vuln_data = {
             "total_cves": 50,
             "critical_cves": 5,
-            "high_severity_cves": 10,
+            "important_cves": 10,
             "cves_with_security_rules": 8,
             "cves_with_known_exploits": 3,
         }
@@ -581,3 +581,37 @@ class TestHostAppDataValidation:
         app_data3 = db.session.query(HostAppDataAdvisor).filter_by(org_id=org_id, host_id=host3.id).first()
         assert app_data3 is not None
         assert app_data3.recommendations == 10
+
+
+class TestHostAppMessageConsumerUnknownFields:
+    """Verify that unknown fields in Kafka messages are silently ignored.
+
+    Downstream apps may deploy new fields before HBI adds matching columns.
+    The schemas must use EXCLUDE so ingestion continues without errors.
+    """
+
+    @pytest.mark.parametrize("app_name,model_class,sample_data,fields_to_verify", APPLICATION_TEST_DATA)
+    def test_unknown_fields_are_ignored(
+        self, host_app_consumer, db_create_host, app_name, model_class, sample_data, fields_to_verify
+    ):
+        """Messages with extra/unknown fields must be accepted; only known fields are persisted."""
+        host = db_create_host()
+        org_id = host.org_id
+        host_id = str(host.id)
+
+        data_with_extra_fields = {
+            **sample_data,
+            "completely_unknown_field": 42,
+            "another_future_field": "some_value",
+        }
+
+        message = create_host_app_message(org_id=org_id, host_id=host_id, data=data_with_extra_fields)
+        headers = [("application", app_name.encode("utf-8")), ("request_id", generate_uuid().encode("utf-8"))]
+        host_app_consumer.handle_message(json.dumps(message), headers=headers)
+
+        app_data = db.session.query(model_class).filter_by(org_id=org_id, host_id=host.id).first()
+        assert app_data is not None
+        for field_name, expected_value in fields_to_verify.items():
+            assert getattr(app_data, field_name) == expected_value
+        assert not hasattr(app_data, "completely_unknown_field")
+        assert not hasattr(app_data, "another_future_field")

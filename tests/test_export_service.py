@@ -3,14 +3,19 @@ import json
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from http import HTTPStatus
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm.exc import ObjectDeletedError
 
 from app.auth.identity import Identity
+from app.exceptions import InventoryException
 from app.queue.export_service import _format_export_data
+from app.queue.export_service import _handle_export_error
+from app.queue.export_service import _handle_export_response
 from app.queue.export_service import create_export
 from app.queue.export_service import get_host_list
 from app.queue.export_service_mq import parse_export_service_message
@@ -250,3 +255,68 @@ def test_export_catches_db_error(flask_app, inventory_config, mocker):
 
         create_export(validated_msg, base64_x_rh_identity, inventory_config)
         handle_export_error_mock.assert_called_once()
+
+
+def _make_response(status_code, text=""):
+    resp = mock.Mock()
+    resp.status_code = status_code
+    resp.text = text
+    return resp
+
+
+class TestHandleExportResponse:
+    def test_accepted_response(self):
+        _handle_export_response(_make_response(HTTPStatus.ACCEPTED, "payload delivered"), uuid4(), "json")
+
+    def test_already_processed_does_not_raise(self):
+        resp = _make_response(
+            HTTPStatus.BAD_REQUEST,
+            '{"detail": "this resource has already been processed", "status": 400}',
+        )
+        _handle_export_response(resp, uuid4(), "csv")
+
+    def test_other_400_still_raises(self):
+        resp = _make_response(HTTPStatus.BAD_REQUEST, '{"detail": "some other error"}')
+        with pytest.raises(InventoryException):
+            _handle_export_response(resp, uuid4(), "json")
+
+    def test_server_error_raises(self):
+        resp = _make_response(HTTPStatus.INTERNAL_SERVER_ERROR, "internal error")
+        with pytest.raises(InventoryException):
+            _handle_export_response(resp, uuid4(), "json")
+
+
+class TestHandleExportError:
+    def test_error_handler_does_not_propagate_post_failure(self):
+        session = mock.Mock()
+        session.post.side_effect = ConnectionError("network down")
+        _handle_export_error("some error", 500, "http://example.com/error", session, {}, uuid4(), "json")
+
+    def test_error_handler_does_not_propagate_response_error(self):
+        session = mock.Mock()
+        session.post.return_value = _make_response(HTTPStatus.INTERNAL_SERVER_ERROR, "boom")
+        _handle_export_error("some error", 500, "http://example.com/error", session, {}, uuid4(), "json")
+
+    def test_error_handler_succeeds_normally(self):
+        session = mock.Mock()
+        session.post.return_value = _make_response(HTTPStatus.ACCEPTED)
+        _handle_export_error("some error", 500, "http://example.com/error", session, {}, uuid4(), "json")
+        session.post.assert_called_once()
+
+
+@mock.patch("requests.Session.post", autospec=True)
+def test_create_export_already_processed_returns_true(mock_post, db_create_host, flask_app, inventory_config):
+    """When the upload gets 'already processed', create_export should return True (not raise)."""
+    with flask_app.app.app_context():
+        db_create_host()
+
+        mock_post.return_value.status_code = HTTPStatus.BAD_REQUEST
+        mock_post.return_value.text = (
+            '{"detail": "this resource has already been processed", "status": 400, "title": null}'
+        )
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        assert result is True

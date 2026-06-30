@@ -6,10 +6,13 @@ from functools import cache
 from sqlalchemy import Computed
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
+from sqlalchemy import case
+from sqlalchemy import func
 from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.types import DateTime
 
 from app.models.constants import INVENTORY_SCHEMA
@@ -31,6 +34,9 @@ class HostAppDataMixin:
 
     # Optional: fields that can be used for sorting in the hosts-view endpoint
     __sortable_fields__: tuple[str, ...] = ()
+
+    # Optional: computed sort expressions (virtual fields derived from multiple columns)
+    __computed_sortable_fields__: dict[str, str] = {}
 
     # Optional: fields that can be used for filtering in the hosts-view endpoint
     __filterable_fields__: tuple[str, ...] = ()
@@ -125,21 +131,21 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     __sortable_fields__ = (
         "total_cves",
         "critical_cves",
-        "high_severity_cves",
+        "important_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
     __filterable_fields__ = (
         "total_cves",
         "critical_cves",
-        "high_severity_cves",
+        "important_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
 
     total_cves = db.Column(db.Integer, nullable=True)
     critical_cves = db.Column(db.Integer, nullable=True)
-    high_severity_cves = db.Column(db.Integer, nullable=True)
+    important_cves = db.Column(db.Integer, nullable=True)
     cves_with_security_rules = db.Column(db.Integer, nullable=True)
     cves_with_known_exploits = db.Column(db.Integer, nullable=True)
 
@@ -161,6 +167,10 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
         "packages_installed",
         "template_name",
     )
+    __computed_sortable_fields__ = {
+        "advisories_total_installable": "_advisories_total_installable_expr",
+        "advisories_total_applicable": "_advisories_total_applicable_expr",
+    }
     __filterable_fields__ = (
         "advisories_rhsa_installable",
         "advisories_rhba_installable",
@@ -196,6 +206,42 @@ class HostAppDataPatch(HostAppDataMixin, db.Model):
 
     template_name = db.Column(db.String(255), nullable=True)
     template_uuid = db.Column(UUID(as_uuid=True), nullable=True)
+
+    @classmethod
+    def _advisories_total_installable_expr(cls) -> ColumnElement:
+        """Sum of all installable advisory types for sorting.
+
+        Returns NULL when no patch data row exists (LEFT JOIN produced no match),
+        so that nullslast() correctly places those hosts at the end.
+        """
+        return case(
+            (
+                cls.host_id.isnot(None),
+                func.coalesce(cls.advisories_rhsa_installable, 0)
+                + func.coalesce(cls.advisories_rhba_installable, 0)
+                + func.coalesce(cls.advisories_rhea_installable, 0)
+                + func.coalesce(cls.advisories_other_installable, 0),
+            ),
+            else_=None,
+        )
+
+    @classmethod
+    def _advisories_total_applicable_expr(cls) -> ColumnElement:
+        """Sum of all applicable advisory types for sorting.
+
+        Returns NULL when no patch data row exists (LEFT JOIN produced no match),
+        so that nullslast() correctly places those hosts at the end.
+        """
+        return case(
+            (
+                cls.host_id.isnot(None),
+                func.coalesce(cls.advisories_rhsa_applicable, 0)
+                + func.coalesce(cls.advisories_rhba_applicable, 0)
+                + func.coalesce(cls.advisories_rhea_applicable, 0)
+                + func.coalesce(cls.advisories_other_applicable, 0),
+            ),
+            else_=None,
+        )
 
 
 class HostAppDataRemediations(HostAppDataMixin, db.Model):

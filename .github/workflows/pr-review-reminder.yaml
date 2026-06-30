@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Fetch and post unreviewed PRs to Slack
         env:
@@ -116,7 +116,7 @@ jobs:
       BASELINE_DAYS: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup gh-pages branch
         run: |
