@@ -1,9 +1,10 @@
-from marshmallow import Schema as MarshmallowSchema
 from marshmallow import fields
 from marshmallow import validate as marshmallow_validate
 
+from app.models.schemas.common import BaseSchemaWithExclude
 
-class PatchDataSchema(MarshmallowSchema):
+
+class PatchDataSchema(BaseSchemaWithExclude):
     """Schema for Patch application data."""
 
     # Advisory counts by type (applicable)

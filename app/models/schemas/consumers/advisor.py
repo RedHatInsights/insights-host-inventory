@@ -1,8 +1,9 @@
-from marshmallow import Schema as MarshmallowSchema
 from marshmallow import fields
 
+from app.models.schemas.common import BaseSchemaWithExclude
 
-class AdvisorDataSchema(MarshmallowSchema):
+
+class AdvisorDataSchema(BaseSchemaWithExclude):
     """Schema for Advisor application data."""
 
     recommendations = fields.Int(allow_none=True)
