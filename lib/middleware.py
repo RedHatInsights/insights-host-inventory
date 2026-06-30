@@ -843,8 +843,8 @@ def get_rbac_workspaces(
         name: Filter by workspace name (partial match)
         page: int,
         per_page: Items per page
-        group_type: Filter by workspace type
-            - standard: User-created groups (default)
+        group_type: Filter by workspace type (API spec defaults to "standard")
+            - standard: User-created groups
             - ungrouped-hosts: Ungrouped hosts workspace
             - all: All visible workspace types (standard, ungrouped-hosts, default)
         order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
