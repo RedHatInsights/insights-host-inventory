@@ -167,7 +167,7 @@ ignore_errors = true
 [tool.uv]
 package = false
 default-groups = "all"
-required-version = "0.11.21"
+required-version = "0.11.25"
 
 [[tool.uv.index]]
 name = "pypi"
