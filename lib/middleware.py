@@ -867,6 +867,8 @@ def get_rbac_workspaces(
         Type filtering: When group_type is "all", we request VISIBLE_WORKSPACE_TYPES from
         RBAC (ungrouped-hosts, standard, default) rather than requesting all types and
         post-filtering. This avoids pagination issues and simplifies the logic.
+        VISIBLE_WORKSPACE_TYPES is a fixed set; update it if RBAC introduces new
+        workspace types that should be user-visible.
     """
     if inventory_config().bypass_rbac:
         # When RBAC is bypassed (e.g., in test environments), return empty results
@@ -926,6 +928,8 @@ def get_rbac_workspaces(
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
     count = response.get("meta", {}).get("count", 0)
+
+    data = data[:per_page]
 
     # RBAC v2 Note: We do NOT apply rbac_filter here because the RBAC v2 workspace API
     # already filters results based on the user's identity header. The user only receives
