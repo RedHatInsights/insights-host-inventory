@@ -16,7 +16,7 @@ dependencies = [
     "prometheus-client~=0.25.0",
     "logstash-formatter~=0.5.17",
     "marshmallow~=4.3.0",
-    "ujson==5.12.1",
+    "ujson==5.13.0",
     "watchtower>=0.6.0,<4.0.0",
     "boto3~=1.43",
     "prometheus-flask-exporter~=0.23.2",
