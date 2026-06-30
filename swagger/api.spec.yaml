@@ -1060,8 +1060,6 @@ paths:
         by the requester.
         <br /><br />
         Required permissions: inventory:views:read
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -1076,8 +1074,6 @@ paths:
                 $ref: '#/components/schemas/ViewsListOut'
         '403':
           description: Forbidden - identity type not supported or missing username.
-        '501':
-          description: Not yet implemented.
     post:
       operationId: api.views.create_view
       tags:
@@ -1123,8 +1119,6 @@ paths:
         The view must be visible to the requesting user.
         <br /><br />
         Required permissions: inventory:views:read
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -1140,8 +1134,6 @@ paths:
           description: Forbidden - identity type not supported or missing username.
         '404':
           description: View not found or not visible to the requesting user.
-        '501':
-          description: Not yet implemented.
     put:
       operationId: api.views.update_view
       tags:
