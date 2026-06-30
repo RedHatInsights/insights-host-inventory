@@ -984,7 +984,16 @@ components:
         - ibm
         - null
       example: aws
-    # IMPROVED: §3.7 — AccountNumber removed from V2 schemas (deprecated in V1)
+    # "account" / AccountNumber was marked deprecated in 2022 (commit 41559df7) when
+    # org_id replaced account_number as the primary tenant identifier in x-rh-identity.
+    # Retained in V2 because the platform migration is incomplete: clients still depend
+    # on it and it is now stored in RBAC workspaces (a separate service).
+    AccountNumber:
+      description: A Red Hat Account number that owns the host.
+      type: string
+      nullable: true
+      example: '000102'
+      deprecated: true
     OrgId:
       description: The Org ID of the tenant that owns the host.
       type: string
@@ -1120,7 +1129,12 @@ components:
               type: string
               example: host1.mydomain.com
               nullable: true
-            # IMPROVED: §3.7 — removed "account" (deprecated field) from V2 output
+            # "account" was marked deprecated in 2022 (commit 41559df7) when org_id
+            # replaced account_number as the primary tenant identifier in x-rh-identity.
+            # Retained here because the platform migration is incomplete: clients still
+            # depend on it and it is stored in RBAC workspaces (a separate service).
+            account:
+              $ref: "#/components/schemas/AccountNumber"
             org_id:
               $ref: "#/components/schemas/OrgId"
             id:
@@ -1890,7 +1904,14 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        # IMPROVED: §3.7 — removed deprecated "account" field from WorkspaceOut
+        # "account" was marked deprecated in 2022 (commit 41559df7) when org_id replaced
+        # account_number as the primary tenant identifier in x-rh-identity. Retained here
+        # because clients still depend on it and it is pulled from Identity into workspace
+        # objects by RBAC.
+        # TODO: verify that the RBAC workspace API response includes "account" and confirm
+        # the field name matches before shipping V2.
+        account:
+          $ref: "#/components/schemas/AccountNumber"
         org_id:
           $ref: "#/components/schemas/OrgId"
         ungrouped:
