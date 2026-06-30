@@ -29,8 +29,6 @@ from iqe_host_inventory_api.models.host_out import HostOut
 
 logger = logging.getLogger(__name__)
 
-SPEC_SOURCE_STATUSES = {"partial", "pending", "running", "complete", "failed"}
-
 HBI_EXPORT_APPLICATION = "urn:redhat:application:inventory"
 HBI_EXPORT_RESOURCE = "urn:redhat:application:inventory:export:systems"
 
@@ -141,45 +139,8 @@ class ExportsAPIWrapper(BaseEntity):
         """
         return self._host_inventory.v7_export_v1.default_api
 
-    def _create_export_via_workaround(self, request: ExportRequest) -> str:
-        """Workaround for RHCLOUD-47769: the export service returns 202 instead
-        of the spec-defined 200, so the v7 bindings client leaves
-        create_response.data as None. Deserialize the body directly."""
-        create_response = self.raw_api.create_export_with_http_info(export_request=request)
-        if create_response.status_code != 202:
-            raise RuntimeError(
-                f"RHCLOUD-47769 workaround: expected 202, got {create_response.status_code}. "
-                "If the status is now 200 the upstream bug may be fixed — remove this workaround."
-            )
-        return ExportStatus.model_validate_json(create_response.raw_data).id
-
-    def _get_export_status_via_workaround(self, export_id: str) -> ExportStatus:
-        """Workaround for RHCLOUD-47776: the export service returns source-level
-        status values not declared in the OpenAPI spec's Status enum. Normalize
-        unknown statuses so model_validate can properly coerce datetime fields."""
-        response = self.raw_api.get_export_status_without_preload_content(id=export_id)
-        body = json.loads(response.read())
-
-        for idx, src in enumerate(body.get("sources") or []):
-            src_status = src.get("status")
-            if src_status and src_status not in SPEC_SOURCE_STATUSES:
-                logger.warning(
-                    "RHCLOUD-47776: GET /exports/%s/status — source[%d] has "
-                    "status=%r which is NOT in the OpenAPI spec enum %s; "
-                    "normalizing to 'complete' for validation.",
-                    export_id,
-                    idx,
-                    src_status,
-                    sorted(SPEC_SOURCE_STATUSES),
-                )
-                src["status"] = "complete"
-
-        return ExportStatus.model_validate(body)
-
     def _write_zip_bytes_to_tempfile(self, zip_bytes: bytes) -> str:
-        """Workaround for RHCLOUD-47769 migration gap: v7 bindings return raw
-        bytes instead of a file path. Write to a named temp file so callers
-        continue to receive a path.
+        """Write raw zip bytes to a named temp file, returning the path.
 
         Callers are responsible for cleanup; fetch_export_data handles this
         by default via delete_zip=True.
@@ -192,10 +153,12 @@ class ExportsAPIWrapper(BaseEntity):
         self,
         export_id: str,
         *,
-        retries: int = 30,
-        delay: float = 1,
+        retries: int = 20,
+        delay: float = 0.5,
     ) -> str:
-        """Wait for an export to complete, return its status
+        """Wait for an export to complete, return its status.
+
+        The result may be success or failure, this only indicates that the export completed.
 
         :param str export_id: export id
         :param int retries: number of retries
@@ -254,12 +217,13 @@ class ExportsAPIWrapper(BaseEntity):
             application=HBI_EXPORT_APPLICATION, resource=HBI_EXPORT_RESOURCE, filters=filters
         )
         request = ExportRequest(name=name, format=format, sources=[source])
-        export_id = self._create_export_via_workaround(request)
+        export_id = self.raw_api.create_export(export_request=request).id
 
         if register_for_cleanup:
             self._host_inventory.cleanup.add_exports({export_id}, scope=cleanup_scope)
 
         if wait_for_completion:
+            # Terminal states are "failed" and "complete".
             status = self.wait_for_completion(export_id, **kwargs)
             assert status == "complete", (
                 f"Export request didn't complete successfully, status={status}"
@@ -284,7 +248,7 @@ class ExportsAPIWrapper(BaseEntity):
         :param str export_id: export id
         :return: ExportStatus
         """
-        return self._get_export_status_via_workaround(export_id)
+        return self.raw_api.get_export_status(id=export_id)
 
     def delete_export(self, export_id: str, *, fail_when_not_found: bool = False) -> None:
         """Delete an export
