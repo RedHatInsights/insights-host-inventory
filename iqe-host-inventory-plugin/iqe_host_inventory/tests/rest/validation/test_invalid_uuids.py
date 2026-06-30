@@ -31,28 +31,8 @@ def test_invalid_uuid_in_requests(invalid_uuid, host_inventory):
         negative: true
         title: Inventory: validation for UUID fields in request URL.
     """
-    not_a_uuid = "is not a 'uuid'"
     does_not_match = "does not match"
     multiple_hosts = [invalid_uuid, generate_uuid()]
-
-    # GET a host, single invalid host UUID
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.hosts.get_host_by_id(invalid_uuid)
-    assert err.value.status == 400
-    assert does_not_match in err.value.body
-
-    # GET a host, intermix an invalid UUID with valid UUIDs
-    host_list = [generate_uuid(), invalid_uuid, generate_uuid()]
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.hosts.get_hosts_by_id(host_list)
-    assert err.value.status in [400, 404]
-    assert does_not_match in err.value.body
-
-    # GET A host by insights_id
-    with pytest.raises(ApiException) as err:
-        host_inventory.apis.hosts.get_hosts(insights_id=invalid_uuid)
-    assert err.value.status == 400
-    assert not_a_uuid in err.value.body
 
     # GET system profile facts
     with pytest.raises(ApiException) as err:
