@@ -32,9 +32,9 @@ spec:
   - name: build-source-image
     value: "true"
   - name: hermetic
-    value: "false"
-  # - name: prefetch-input
-  #   value: '[{"type": "rpm", "path": "."},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}]'
+    value: "true"
+  - name: prefetch-input
+    value: '[{"type": "rpm", "path": "."},{"type": "pip", "path": ".", "requirements_files": [".hermetic_builds/requirements.txt", ".hermetic_builds/requirements-build.txt", ".hermetic_builds/requirements-extras.txt"]}]'
   - name: prefetch-dev-package-managers
     value: "true"
   pipelineRef:
