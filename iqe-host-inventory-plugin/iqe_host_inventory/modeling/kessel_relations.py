@@ -19,10 +19,14 @@ from requests.models import Response
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
 from iqe_host_inventory.modeling.groups_api import _id_from_group
 from iqe_host_inventory.modeling.hosts_api import HOST_OR_ID
+from iqe_host_inventory.modeling.hosts_api import HostOperationError
 from iqe_host_inventory.modeling.hosts_api import _id_from_host
 from iqe_host_inventory.utils.api_utils import accept_when
 
-HOST_NOT_SYNCED_ERROR = Exception("Host changes weren't successfully synced to Kessel Relations")
+
+class HostNotSyncedError(HostOperationError):
+    default_message = "Host changes weren't successfully synced to Kessel Relations"
+
 
 EPHEMERAL_ENVS = ("clowder_smoke", "ephemeral", "smoke")
 
@@ -186,7 +190,7 @@ class HBIKesselRelationsGRPC:
         *,
         delay: float = 0.5,
         retries: int = 30,
-        error: Exception | None = HOST_NOT_SYNCED_ERROR,
+        error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host changes are successfully synced to Kessel Relations
 
@@ -229,7 +233,7 @@ class HBIKesselRelationsGRPC:
         *,
         delay: float = 0.5,
         retries: int = 30,
-        error: Exception | None = HOST_NOT_SYNCED_ERROR,
+        error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host is successfully deleted from Kessel Relations
 

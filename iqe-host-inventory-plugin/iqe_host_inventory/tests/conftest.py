@@ -180,6 +180,7 @@ def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None, No
 def enable_kessel_backend_flags(
     request: FixtureRequest,
     host_inventory: ApplicationHostInventory,
+    host_inventory_secondary: ApplicationHostInventory,
     # https://redhat.atlassian.net/browse/IQE-3975
     hbi_setup_ephemeral_accounts: None,  # ensure accounts are set up first
 ) -> None:
@@ -194,6 +195,7 @@ def enable_kessel_backend_flags(
             host_inventory.unleash.rbac_workspace_access_check_v2_flag, enable=True
         )
         _ensure_ungrouped_group_exists(host_inventory)
+        _ensure_ungrouped_group_exists(host_inventory_secondary)
 
 
 # CLEANUP

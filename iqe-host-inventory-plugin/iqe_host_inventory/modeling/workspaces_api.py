@@ -34,9 +34,25 @@ from iqe_host_inventory.utils.datagen_utils import generate_display_name
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 
-WORKSPACE_NOT_CREATED_ERROR = Exception("Workspace wasn't successfully created")
-WORKSPACE_NOT_UPDATED_ERROR = Exception("Workspace wasn't successfully updated")
-WORKSPACE_NOT_DELETED_ERROR = Exception("Workspace wasn't successfully deleted")
+
+class WorkspaceOperationError(Exception):
+    default_message = "Workspace operation failed"
+
+    def __init__(self, msg: str | None = None):
+        super().__init__(msg or self.default_message)
+
+
+class WorkspaceNotCreatedError(WorkspaceOperationError):
+    default_message = "Workspace wasn't successfully created"
+
+
+class WorkspaceNotUpdatedError(WorkspaceOperationError):
+    default_message = "Workspace wasn't successfully updated"
+
+
+class WorkspaceNotDeletedError(WorkspaceOperationError):
+    default_message = "Workspace wasn't successfully deleted"
+
 
 type WORKSPACE_OR_ID = WorkspacesWorkspace | WorkspacesCreateWorkspaceResponse | str
 type WORKSPACE_OR_WORKSPACES = WORKSPACE_OR_ID | Collection[WORKSPACE_OR_ID]
@@ -226,7 +242,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = WORKSPACE_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = WorkspaceNotCreatedError,
     ) -> list[WorkspacesWorkspace]:
         """Wait until the workspaces are successfully created and retrievable by API
 
@@ -268,7 +284,7 @@ class WorkspacesAPIWrapper(BaseEntity):
         name: str | None = None,
         delay: float = 0.5,
         retries: int = 10,
-        error: Exception | None = WORKSPACE_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = WorkspaceNotUpdatedError,
     ) -> WorkspacesWorkspace:
         """Wait until the workspace is successfully updated and retrievable by API
 
