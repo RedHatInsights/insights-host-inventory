@@ -8,19 +8,19 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import zipfile
 from functools import cached_property
 from typing import Any
 
 import attr
 from iqe.base.modeling import BaseEntity
-from iqe_export_service import ApplicationExportService
-from iqe_export_service_api import ApiException
-from iqe_export_service_api.api.default_api import DefaultApi
-from iqe_export_service_api.models.export_list import ExportList
-from iqe_export_service_api.models.export_request import ExportRequest
-from iqe_export_service_api.models.export_request_resource import ExportRequestResource
-from iqe_export_service_api.models.export_status import ExportStatus
+from iqe_bindings.v7.export_v1 import ApiException
+from iqe_bindings.v7.export_v1 import DefaultApi
+from iqe_bindings.v7.export_v1 import ExportList
+from iqe_bindings.v7.export_v1 import ExportRequest
+from iqe_bindings.v7.export_v1 import ExportRequestResource
+from iqe_bindings.v7.export_v1 import ExportStatus
 
 import iqe_host_inventory
 from iqe_host_inventory.utils.api_utils import accept_when
@@ -131,17 +131,23 @@ class ExportsAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def _exports(self) -> ApplicationExportService:
-        return self.application.export_service
-
-    @cached_property
     def raw_api(self) -> DefaultApi:
         """
         Raw auto-generated OpenAPI client.
         Use high level API wrapper methods instead of this raw API client.
         Outside this class this should be used only for negative validation testing.
         """
-        return self._exports.rest_client.default_api
+        return self._host_inventory.v7_export_v1.default_api
+
+    def _write_zip_bytes_to_tempfile(self, zip_bytes: bytes) -> str:
+        """Write raw zip bytes to a named temp file, returning the path.
+
+        Callers are responsible for cleanup; fetch_export_data handles this
+        by default via delete_zip=True.
+        """
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            tmp.write(zip_bytes)
+            return tmp.name
 
     def wait_for_completion(
         self,
@@ -150,7 +156,9 @@ class ExportsAPIWrapper(BaseEntity):
         retries: int = 20,
         delay: float = 0.5,
     ) -> str:
-        """Wait for an export to complete, return its status
+        """Wait for an export to complete, return its status.
+
+        The result may be success or failure, this only indicates that the export completed.
 
         :param str export_id: export id
         :param int retries: number of retries
@@ -209,16 +217,14 @@ class ExportsAPIWrapper(BaseEntity):
             application=HBI_EXPORT_APPLICATION, resource=HBI_EXPORT_RESOURCE, filters=filters
         )
         request = ExportRequest(name=name, format=format, sources=[source])
-
         export_id = self.raw_api.create_export(export_request=request).id
 
         if register_for_cleanup:
             self._host_inventory.cleanup.add_exports({export_id}, scope=cleanup_scope)
 
         if wait_for_completion:
-            status = self.wait_for_completion(export_id, **kwargs)
-
             # Terminal states are "failed" and "complete".
+            status = self.wait_for_completion(export_id, **kwargs)
             assert status == "complete", (
                 f"Export request didn't complete successfully, status={status}"
             )
@@ -282,12 +288,16 @@ class ExportsAPIWrapper(BaseEntity):
         data can then be fetched from this archive.  Assumes the export is
         complete.
 
+        The returned temp file is NOT automatically cleaned up; pass the path
+        to fetch_export_data (which deletes it by default) or remove it manually.
+
         :param str export_id: export id
         :return: str
         """
-        path = self.raw_api.download_export(id=export_id)
-        assert os.path.isfile(path)
-
+        zip_bytes = self.raw_api.download_export(id=export_id)
+        path = self._write_zip_bytes_to_tempfile(zip_bytes)
+        if not os.path.isfile(path):
+            raise RuntimeError(f"Failed to write export zip to temp file: {path}")
         return path
 
     def fetch_export_data(self, path: str, delete_zip: bool = True) -> list[dict] | list[tuple]:

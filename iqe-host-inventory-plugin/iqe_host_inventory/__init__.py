@@ -44,6 +44,7 @@ class ApplicationHostInventory(ApplicationPlugin):
 
     v7_notifications_v1 = RESTPluginService.declare("v7_notifications_v1")
     v7_integrations_v1 = RESTPluginService.declare("v7_integrations_v1")
+    v7_export_v1 = RESTPluginService.declare("v7_export_v1")
 
     kafka_consumer = declare_shared_consumer(HBI_EVENTS_KAFKA_PARSER, HBI_EVENTS_KAFKA_TOPICS)
     kessel_outbox_consumer = declare_shared_consumer(
