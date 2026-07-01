@@ -16,47 +16,24 @@ jobs:
           app-id: ${{ secrets.AUTOMERGE_APP_ID }}
           private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          fetch-depth: 0
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Rebase Konflux PRs that are behind
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
-          # Find all open PRs from Konflux
           gh pr list --repo "$REPO" --author "app/red-hat-konflux" --state open --json number,headRefName,headRefOid --jq '.[] | "\(.number) \(.headRefName) \(.headRefOid)"' | while read -r pr_number branch_name head_sha; do
             if [ -n "$pr_number" ]; then
-              # Check if the PR branch is behind master
               behind_count=$(gh api "repos/$REPO/compare/master...$head_sha" --jq '.behind_by' 2>/dev/null || echo "0")
 
               if [ "$behind_count" -gt 0 ]; then
-                echo "PR #$pr_number ($branch_name) is $behind_count commits behind, rebasing..."
+                echo "PR #$pr_number ($branch_name) is $behind_count commits behind, rebasing via API..."
 
-                # Fetch the PR branch
-                git fetch origin "$branch_name"
-                git checkout "$branch_name"
-
-                # Rebase onto master
-                if git rebase origin/master; then
-                  # Force push the rebased branch
-                  git push --force-with-lease origin "$branch_name"
-                  echo "Successfully rebased PR #$pr_number"
-                else
-                  echo "Failed to rebase PR #$pr_number, aborting"
-                  git rebase --abort
-                fi
-
-                # Return to master for next iteration
-                git checkout master
+                # Use the GitHub API to rebase — produces verified (signed) commits
+                response=$(gh api "repos/$REPO/pulls/$pr_number/update-branch" \
+                  --method PUT \
+                  --field update_method=rebase 2>&1) && \
+                  echo "Successfully rebased PR #$pr_number" || \
+                  echo "Failed to rebase PR #$pr_number: $response"
               else
                 echo "PR #$pr_number is up to date"
               fi
