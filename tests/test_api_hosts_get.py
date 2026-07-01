@@ -2927,3 +2927,133 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+def test_escape_ilike_value():
+    from api.filtering.filtering_common import escape_ilike_value
+
+    assert escape_ilike_value("test") == "test"
+    assert escape_ilike_value("test%value") == "test\\%value"
+    assert escape_ilike_value("test_value") == "test\\_value"
+    assert escape_ilike_value("test\\value") == "test\\\\value"
+    assert escape_ilike_value("test%_\\value") == "test\\%\\_\\\\value"
+
+
+def test_display_name_and_hostname_or_id_special_characters_escaping(db_create_host, api_get):
+    # Create hosts with special characters in display_name and fqdn
+    host_percent = db_create_host(extra_data={"display_name": "test%host", "fqdn": "test%host.example.com"})
+    host_underscore = db_create_host(extra_data={"display_name": "test_host", "fqdn": "test_host.example.com"})
+    host_backslash = db_create_host(extra_data={"display_name": "test\\host", "fqdn": "test\\host.example.com"})
+    host_wildcard = db_create_host(extra_data={"display_name": "test*host", "fqdn": "test*host.example.com"})
+    host_normal = db_create_host(extra_data={"display_name": "testhost", "fqdn": "testhost.example.com"})
+
+    # 1. Test display_name exact-value filters with special characters
+    # Querying with '%' should only match the literal '%'
+    url = build_hosts_url(query="?display_name=test%25host")  # %25 is URL-encoded %
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_percent.id) in results
+
+    # Querying with '_' should only match the literal '_'
+    url = build_hosts_url(query="?display_name=test_host")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_underscore.id) in results
+
+    # Querying with '\' should only match the literal '\'
+    url = build_hosts_url(query="?display_name=test%5Chost")  # %5C is URL-encoded \
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_backslash.id) in results
+
+    # 2. Test display_name wildcard filter
+    # Querying with '*' should match all of them
+    url = build_hosts_url(query="?display_name=test*host")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 5
+    for h in (host_percent, host_underscore, host_backslash, host_wildcard, host_normal):
+        assert str(h.id) in results
+
+    # 3. Test hostname_or_id exact-value filters with special characters
+    # Querying with '%' should only match the literal '%'
+    url = build_hosts_url(query="?hostname_or_id=test%25host")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_percent.id) in results
+
+    # Querying with '_' should only match the literal '_'
+    url = build_hosts_url(query="?hostname_or_id=test_host")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_underscore.id) in results
+
+    # Querying with '\' should only match the literal '\'
+    url = build_hosts_url(query="?hostname_or_id=test%5Chost")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_backslash.id) in results
+
+    # Querying with '*' should match all of them
+    url = build_hosts_url(query="?hostname_or_id=test*host")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 5
+
+
+def test_system_profile_wildcard_special_characters_escaping(db_create_host, api_get):
+    # Create hosts with special characters in insights_client_version
+    host_percent = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0%el4"}})
+    host_underscore = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0_el4"}})
+    host_backslash = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0\\el4"}})
+    host_wildcard = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0*el4"}})
+    host_normal = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "3.0el4"}})
+
+    # 1. Test system_profile exact-value filters with special characters
+    # Querying with '%' should only match the literal '%'
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0%25el4")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_percent.id) in results
+
+    # Querying with '_' should only match the literal '_'
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0_el4")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_underscore.id) in results
+
+    # Querying with '\' should only match the literal '\'
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0%5Cel4")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 1
+    assert str(host_backslash.id) in results
+
+    # 2. Test system_profile wildcard filter
+    # Querying with '*' should match all of them
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=3.0*el4")
+    status, data = api_get(url)
+    assert status == 200
+    results = [r["id"] for r in data["results"]]
+    assert len(results) == 5
+    for h in (host_percent, host_underscore, host_backslash, host_wildcard, host_normal):
+        assert str(h.id) in results
