@@ -33,8 +33,7 @@ OTHER_ORG_ID = "other-org"
 SHARED_DISPLAY_NAME = "cert-auth-host"
 SHARED_SYSTEM_PROFILE = {
     "operating_system": {"name": "RHEL", "major": 9, "minor": 2},
-    "sap_system": True,
-    "sap_sids": ["HBI"],
+    "workloads": {"sap": {"sap_system": True, "sids": ["HBI"]}},
 }
 
 
