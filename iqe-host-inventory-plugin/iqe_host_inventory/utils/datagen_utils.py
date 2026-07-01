@@ -1133,6 +1133,24 @@ def _sync_sap_fields(system_profile: dict[str, Any], sap_data: dict[str, Any]) -
             system_profile[target_field] = copy.deepcopy(sap_data[source_field])
 
 
+# Deprecated top-level workload fields; keep in sync with app.models.constants.WORKLOADS_FIELDS.
+LEGACY_WORKLOAD_ROOT_FIELDS = frozenset({
+    "ansible",
+    "crowdstrike",
+    "ibm_db2",
+    "intersystems",
+    "mssql",
+    "oracle_db",
+    "rhel_ai",
+    "sap",
+    "sap_instance_number",
+    "sap_sids",
+    "sap_system",
+    "sap_version",
+    "third_party_services",
+})
+
+
 def sync_workloads_with_individual_fields(
     system_profile: dict[str, Any],
 ) -> dict[str, Any]:
@@ -1163,6 +1181,9 @@ def sync_workloads_with_individual_fields(
 
     if "sap" in workloads:
         _sync_sap_fields(system_profile, workloads["sap"])
+
+    for legacy_field in LEGACY_WORKLOAD_ROOT_FIELDS:
+        system_profile.pop(legacy_field, None)
 
     return system_profile
 
