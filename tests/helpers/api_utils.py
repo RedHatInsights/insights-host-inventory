@@ -55,6 +55,7 @@ INVALID_GROUP_NAMES = [
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
+VIEWS_URL = f"{BASE_URL}/beta/views"
 STALENESS_URL = f"{BASE_URL}/account/staleness"
 
 SHARED_SECRET = "SuperSecretStuff"
@@ -583,6 +584,10 @@ def build_id_list_for_url(id_or_id_list: list[str] | list[HostWrapper | Host] | 
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
+
+
+def build_views_url(view_id=None, query=None):
+    return _build_url(base_url=VIEWS_URL, id_list=view_id, query=query)
 
 
 def build_resource_types_url(query=None):
