@@ -456,12 +456,11 @@ jobs:
 
           DATA_JSON=$(base64 -w0 /tmp/metrics_data.json)
 
-          # Build file additions
-          ADDITIONS="[{\"path\":\"data.json\",\"contents\":\"$DATA_JSON\"}"
+          # Build file additions via jq for correct JSON structure
+          ADDITIONS=$(jq -n --arg data "$DATA_JSON" '[{path: "data.json", contents: $data}]')
           if [ -n "$INDEX_HTML" ]; then
-            ADDITIONS="$ADDITIONS,{\"path\":\"index.html\",\"contents\":\"$INDEX_HTML\"}"
+            ADDITIONS=$(echo "$ADDITIONS" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
           fi
-          ADDITIONS="$ADDITIONS]"
 
           # Use createCommitOnBranch to produce a verified commit (with retry for races)
           for attempt in 1 2 3; do
