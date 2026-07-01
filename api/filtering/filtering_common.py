@@ -52,5 +52,8 @@ def get_valid_os_names() -> list:
     return system_profile_spec()["operating_system"]["children"]["name"]["enum"]
 
 
+NIL_TOKENS = ("nil", "not_nil")
+
+
 def escape_ilike_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

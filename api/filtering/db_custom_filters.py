@@ -17,6 +17,7 @@ from sqlalchemy.sql.expression import ColumnOperators
 
 from api.filtering.filtering_common import FIELD_FILTER_TO_POSTGRES_CAST
 from api.filtering.filtering_common import FIELD_FILTER_TO_PYTHON_CAST
+from api.filtering.filtering_common import NIL_TOKENS
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
@@ -225,7 +226,7 @@ def build_operating_system_filter(filter_param: dict) -> tuple:
     for os_filter in separated_filters:
         comparator = POSTGRES_COMPARATOR_LOOKUP.get(os_filter.comparator)
 
-        if os_filter.comparator in ["nil", "not_nil"]:
+        if os_filter.comparator in NIL_TOKENS:
             # Uses the comparator with None, resulting in either is_(None) or is_not(None)
             os_filter_list.append(os_field.operate(comparator, None))
 
@@ -328,9 +329,9 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter
         raise ValidationException(f"'contains' is an invalid operation for non-array field {field_name}")
 
     str_value = str(value).lower()
-    invalid_value = (
-        field_filter == "integer" and not str_value.isdigit() and str_value not in ["nil", "not_nil"]
-    ) or (field_filter == "boolean" and str_value not in ["true", "false", "nil", "not_nil"])
+    invalid_value = (field_filter == "integer" and not str_value.isdigit() and str_value not in NIL_TOKENS) or (
+        field_filter == "boolean" and str_value not in ("true", "false", *NIL_TOKENS)
+    )
     if invalid_value:
         raise ValidationException(f"'{value}' is an invalid value for field {field_name}")
 
@@ -563,11 +564,11 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter) or ColumnOperators.__eq__
 
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike and value not in ("nil", "not_nil"):
+        if pg_op == ColumnOperators.ilike and value not in NIL_TOKENS:
             value = escape_ilike_value(value).replace("*", "%")
 
         # Handle special values and casting
-        if value in ["nil", "not_nil"]:
+        if value in NIL_TOKENS:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
             value = None
         elif value == "":
