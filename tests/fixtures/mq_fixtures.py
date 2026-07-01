@@ -128,7 +128,7 @@ def mq_create_edge_host(mq_create_or_update_host):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
         },
     )
 
