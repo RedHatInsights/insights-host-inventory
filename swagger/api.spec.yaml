@@ -8,8 +8,8 @@ servers:
   - url: /api/inventory/v1
     description: API server
 externalDocs:
-  description: How to use the Red Hat Insights API
-  url: https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index
+  description: Using APIs to configure Red Hat Lightspeed services
+  url: https://docs.redhat.com/en/documentation/red_hat_lightspeed/1-latest/html-single/using_apis_to_configure_red_hat_lightspeed_services/index
 paths:
   /hosts:
     get:
