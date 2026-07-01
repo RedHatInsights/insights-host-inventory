@@ -467,9 +467,12 @@ jobs:
           for attempt in 1 2 3; do
             BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
             if [ -z "$BRANCH_SHA" ]; then
-              EMPTY_TREE=$(gh api "repos/$REPO/git/trees" --method POST --field 'tree=[{"path":".gitkeep","mode":"100644","type":"blob","content":""}]' --jq '.sha')
-              BRANCH_SHA=$(gh api "repos/$REPO/git/commits" --method POST --field "message=init gh-pages" --field "tree=$EMPTY_TREE" --jq '.sha')
-              gh api "repos/$REPO/git/refs" --method POST --field "ref=refs/heads/gh-pages" --field "sha=$BRANCH_SHA" > /dev/null
+              EMPTY_TREE=$(jq -n '{tree: [{path: ".gitkeep", mode: "100644", type: "blob", content: ""}]}' \
+                | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
+              BRANCH_SHA=$(jq -n --arg tree "$EMPTY_TREE" '{message: "init gh-pages", tree: $tree}' \
+                | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
+              jq -n --arg sha "$BRANCH_SHA" '{ref: "refs/heads/gh-pages", sha: $sha}' \
+                | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null
             fi
 
             if gh api graphql -f query='
