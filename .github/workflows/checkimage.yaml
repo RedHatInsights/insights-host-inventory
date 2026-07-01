@@ -34,6 +34,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           sign-commits: true
+          base: master
           commit-message: 'chore(image): update base image'
           title: 'chore(image): update base image'
           committer: 'Update-a-Bot <insights@redhat.com>'

@@ -64,6 +64,7 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           sign-commits: true
+          base: ${{ github.ref_name }}
           commit-message: ${{ env.COMMIT_TITLE }}
           title: ${{ env.PR_TITLE }}
           body: ${{ env.PR_BODY }}

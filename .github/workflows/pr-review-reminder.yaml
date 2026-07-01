@@ -456,9 +456,6 @@ jobs:
 
           DATA_JSON=$(base64 -w0 /tmp/metrics_data.json)
 
-          # Get current gh-pages HEAD (or empty if branch doesn't exist)
-          BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
-
           # Build file additions
           ADDITIONS="[{\"path\":\"data.json\",\"contents\":\"$DATA_JSON\"}"
           if [ -n "$INDEX_HTML" ]; then
@@ -466,29 +463,39 @@ jobs:
           fi
           ADDITIONS="$ADDITIONS]"
 
-          if [ -z "$BRANCH_SHA" ]; then
-            # Create gh-pages branch from an empty tree via the API
-            EMPTY_TREE=$(gh api "repos/$REPO/git/trees" --method POST --field 'tree=[{"path":".gitkeep","mode":"100644","type":"blob","content":""}]' --jq '.sha')
-            BRANCH_SHA=$(gh api "repos/$REPO/git/commits" --method POST --field "message=init gh-pages" --field "tree=$EMPTY_TREE" --jq '.sha')
-            gh api "repos/$REPO/git/refs" --method POST --field "ref=refs/heads/gh-pages" --field "sha=$BRANCH_SHA" > /dev/null
-          fi
+          # Use createCommitOnBranch to produce a verified commit (with retry for races)
+          for attempt in 1 2 3; do
+            BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
+            if [ -z "$BRANCH_SHA" ]; then
+              EMPTY_TREE=$(gh api "repos/$REPO/git/trees" --method POST --field 'tree=[{"path":".gitkeep","mode":"100644","type":"blob","content":""}]' --jq '.sha')
+              BRANCH_SHA=$(gh api "repos/$REPO/git/commits" --method POST --field "message=init gh-pages" --field "tree=$EMPTY_TREE" --jq '.sha')
+              gh api "repos/$REPO/git/refs" --method POST --field "ref=refs/heads/gh-pages" --field "sha=$BRANCH_SHA" > /dev/null
+            fi
 
-          # Use createCommitOnBranch to produce a verified commit
-          gh api graphql -f query='
-            mutation($input: CreateCommitOnBranchInput!) {
-              createCommitOnBranch(input: $input) {
-                commit { oid }
-              }
-            }' -f "variables=$(jq -n \
-              --arg repo "$REPO" \
-              --arg oid "$BRANCH_SHA" \
-              --arg msg "chore: update PR metrics for $TODAY" \
-              --argjson additions "$ADDITIONS" \
-              '{input: {
-                branch: {repositoryNameWithOwner: $repo, branchName: "gh-pages"},
-                message: {headline: $msg},
-                fileChanges: {additions: $additions},
-                expectedHeadOid: $oid
-              }}')" > /dev/null
+            if gh api graphql -f query='
+              mutation($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit { oid }
+                }
+              }' -f "variables=$(jq -n \
+                --arg repo "$REPO" \
+                --arg oid "$BRANCH_SHA" \
+                --arg msg "chore: update PR metrics for $TODAY" \
+                --argjson additions "$ADDITIONS" \
+                '{input: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: "gh-pages"},
+                  message: {headline: $msg},
+                  fileChanges: {additions: $additions},
+                  expectedHeadOid: $oid
+                }}')" > /dev/null 2>&1; then
+              echo "Pushed verified commit to gh-pages"
+              break
+            fi
 
-          echo "Pushed verified commit to gh-pages"
+            echo "Attempt $attempt failed (likely stale expectedHeadOid), retrying..."
+            sleep 3
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Failed to push to gh-pages after 3 attempts"
+              exit 1
+            fi
+          done
