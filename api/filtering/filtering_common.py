@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from sqlalchemy import BigInteger
 from sqlalchemy import Boolean
@@ -52,7 +53,15 @@ def get_valid_os_names() -> list:
     return system_profile_spec()["operating_system"]["children"]["name"]["enum"]
 
 
-def escape_ilike_value(value: str) -> str:
+def escape_ilike_value(value: Any) -> Any:
+    """
+    Escapes special characters for SQL ILIKE queries (backslash, percent, underscore)
+    and converts asterisks to percent signs.
+
+    This relies on Postgres' default backslash escape behavior for ILIKE.
+    It MUST be called before adding any outer '%' wildcards (e.g. f'%{value}%')
+    so that the outer wildcards are not accidentally escaped.
+    """
     if not isinstance(value, str):
         return value
     # 1. backslash to double backslash
