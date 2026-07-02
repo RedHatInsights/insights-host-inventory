@@ -50,3 +50,17 @@ FIELD_FILTER_TO_PYTHON_CAST: dict[str, Callable] = {
 
 def get_valid_os_names() -> list:
     return system_profile_spec()["operating_system"]["children"]["name"]["enum"]
+
+
+def escape_ilike_value(value: str) -> str:
+    if not isinstance(value, str):
+        return value
+    # 1. backslash to double backslash
+    value = value.replace("\\", "\\\\")
+    # 2. percent to escaped percent
+    value = value.replace("%", "\\%")
+    # 3. underscore to escaped underscore
+    value = value.replace("_", "\\_")
+    # 4. asterisk to percent
+    value = value.replace("*", "%")
+    return value
