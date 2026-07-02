@@ -727,76 +727,16 @@ a reporter does not need to specify any.
 If a reporter does specify a system profile fact, then its value overrides the previously stored value of the given fact (if any) in a shallow merge.
 Any previously stored system profile facts that a reporter does not define remain unchanged.
 
-### Workloads Field Migration
+### Workloads Fields
 
-HBI is migrating workload-related fields from legacy formats to a unified `workloads.*` structure. This migration ensures data consistency while maintaining backward compatibility for downstream consumers.
+Workload-related data (SAP, Ansible, InterSystems, MSSQL, CrowdStrike, and others) is stored in the unified `workloads.*` structure in `system_profiles_dynamic.workloads`.
 
-#### Legacy Field Handling
+Reporters must send workload data using the `workloads.*` structure. Legacy root-level workload fields (for example `sap_system`, `sap_sids`, `ansible.*`, `mssql.*`, `intersystems.*`, and `third_party_services.crowdstrike.*`) are no longer accepted or emitted by HBI.
 
-When reporters send host data containing legacy workload fields (e.g., `sap_system`, `sap_sids`, `ansible.*`, `mssql.*`, `intersystems.*`, `third_party_services.crowdstrike.*`), HBI automatically:
+Kafka events and API responses include only the canonical `workloads.*` structure.
 
-1. **Detects** all legacy workload fields in the incoming payload
-2. **Logs** the detection with structured information:
-   - Reporter name
-   - Organization ID
-   - Host display name
-   - List of legacy fields detected
-   - Whether both legacy and new formats are present
-3. **Migrates** legacy fields to the canonical `workloads.*` structure (only if `workloads.*` doesn't already exist)
-4. **Removes** all legacy fields from the data before database storage
-5. **Stores** only the canonical `workloads.*` structure in the database
+**Example payload**:
 
-**Important**: If both legacy fields and `workloads.*` structure are present in the incoming payload, the `workloads.*` data takes precedence and legacy fields are ignored.
-
-**Example log entry**:
-```
-Legacy workloads fields detected: reporter=puptoo, org_id=123,
-display_name=example-host, legacy_fields=[sap_system, sap_sids],
-legacy_count=2, workloads_present=[workloads.sap], sending_both_formats=True
-```
-
-#### Workload Field Mappings
-
-The following legacy fields are automatically migrated to the `workloads.*` structure:
-
-**SAP workloads**:
-- `sap_system` → `workloads.sap.sap_system`
-- `sap_sids` → `workloads.sap.sids`
-- `sap_instance_number` → `workloads.sap.instance_number`
-- `sap_version` → `workloads.sap.version`
-- `sap.*` (nested object) → `workloads.sap.*`
-
-**Ansible workloads**:
-- `ansible.*` → `workloads.ansible.*`
-
-**InterSystems workloads**:
-- `intersystems.*` → `workloads.intersystems.*`
-
-**MSSQL workloads**:
-- `mssql.*` → `workloads.mssql.*`
-
-**CrowdStrike workloads**:
-- `third_party_services.crowdstrike.*` → `workloads.crowdstrike.*`
-
-#### Backward Compatibility for Kafka Events
-
-To support downstream consumers during the migration period, HBI provides a feature flag to include legacy fields in Kafka events while keeping database storage clean.
-
-**Feature Flag**: `FLAG_INVENTORY_WORKLOADS_FIELDS_BACKWARD_COMPATIBILITY` (default: `true`)
-
-**When disabled**:
-- Kafka events contain **only** the `workloads.*` structure
-- Database stores **only** the `workloads.*` structure
-- Legacy fields are completely removed from both storage and events
-
-**When enabled (Default)**:
-- Kafka events contain **both** the `workloads.*` structure AND legacy backward compatibility fields
-- Database still stores **only** the `workloads.*` structure (no legacy fields)
-- Legacy fields are populated from `workloads.*` data during event serialization
-
-**Example with flag enabled** (see commit [03fd0222](https://github.com/RedHatInsights/insights-host-inventory/commit/03fd0222e1c6b206ed97105eb6b9a6dddf1a43a7)):
-
-Input payload:
 ```json
 {
   "system_profile": {
@@ -809,75 +749,6 @@ Input payload:
   }
 }
 ```
-
-Database storage (flag enabled or disabled):
-```json
-{
-  "system_profile": {
-    "workloads": {
-      "sap": {
-        "sap_system": true,
-        "sids": ["ABC", "XYZ"]
-      }
-    }
-  }
-}
-```
-
-Kafka event (with flag **enabled**):
-```json
-{
-  "host": {
-    "system_profile": {
-      "workloads": {
-        "sap": {
-          "sap_system": true,
-          "sids": ["ABC", "XYZ"]
-        }
-      },
-      "sap": {
-        "sap_system": true,
-        "sids": ["ABC", "XYZ"]
-      },
-      "sap_system": true,
-      "sap_sids": ["ABC", "XYZ"]
-    }
-  }
-}
-```
-
-Kafka event (with flag **disabled**):
-```json
-{
-  "host": {
-    "system_profile": {
-      "workloads": {
-        "sap": {
-          "sap_system": true,
-          "sids": ["ABC", "XYZ"]
-        }
-      }
-    }
-  }
-}
-```
-
-#### Migration Recommendations
-
-**For reporters**:
-1. Update reporters to send `workloads.*` structure instead of legacy fields
-2. Monitor HBI logs to verify migration progress
-3. Remove legacy field generation once all environments are migrated
-
-**For consumers**:
-1. Update consumers to use `workloads.*` structure from Kafka events
-2. Use the backward compatibility flag during the transition period
-3. Remove legacy field handling once migration is complete
-
-**For operators**:
-1. Monitor migration logs to identify reporters still using legacy fields
-2. Enable backward compatibility flag if downstream consumers require it
-3. Disable the flag once all consumers have migrated
 
 ### Using System Profile in queries
 
