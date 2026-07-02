@@ -12,6 +12,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from api.filtering.filtering_common import escape_ilike_value
 from app.exceptions import IdsNotFoundError
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -2927,3 +2928,119 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+@pytest.mark.parametrize(
+    "input_val,expected",
+    [
+        ("hello", "hello"),
+        ("hello%world", "hello\\%world"),
+        ("hello_world", "hello\\_world"),
+        ("hello\\world", "hello\\\\world"),
+        ("hello*world", "hello%world"),
+        ("hello\\%_*world", "hello\\\\\\%\\_%world"),
+        (123, 123),
+        (None, None),
+    ],
+)
+def test_escape_ilike_value(input_val, expected):
+    assert escape_ilike_value(input_val) == expected
+
+
+@pytest.mark.parametrize(
+    "filter_field,data_key,is_system_profile",
+    [
+        ("display_name", "display_name", False),
+        ("hostname_or_id", "fqdn", False),
+        ("insights_client_version", "insights_client_version", True),
+    ],
+)
+def test_wildcard_escaping(filter_field, data_key, is_system_profile, db_create_host, api_get):
+    # Create hosts with special characters
+    if is_system_profile:
+        host_percent = db_create_host(extra_data={"system_profile_facts": {data_key: "Version%1"}})
+        host_underscore = db_create_host(extra_data={"system_profile_facts": {data_key: "Version_1"}})
+        host_backslash = db_create_host(extra_data={"system_profile_facts": {data_key: "Version\\1"}})
+        host_asterisk = db_create_host(extra_data={"system_profile_facts": {data_key: "VersionX1"}})
+        prefix = "Version"
+    else:
+        host_percent = db_create_host(extra_data={data_key: "Host%1"})
+        host_underscore = db_create_host(extra_data={data_key: "Host_1"})
+        host_backslash = db_create_host(extra_data={data_key: "Host\\1"})
+        host_asterisk = db_create_host(extra_data={data_key: "HostX1"})
+        prefix = "Host"
+
+    # 1. Query for percent: should only match host_percent, not host_underscore or host_backslash or host_asterisk
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%251")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%251")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 2. Query for underscore: should only match host_underscore
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}_1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}_1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_underscore.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 3. Query for backslash: should only match host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%5C1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%5C1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_backslash.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 4. Query for asterisk: should match host_asterisk, host_percent, host_underscore, host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}*1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}*1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_asterisk.id) in ids
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) in ids
+    assert str(host_backslash.id) in ids
+
+
+def test_system_profile_nil_not_nil_not_escaped(db_create_host, api_get):
+    # Create a host with insights_client_version key
+    host_with_val = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "Version1"}})
+    # Create a host without insights_client_version key
+    host_without_val = db_create_host(extra_data={"system_profile_facts": {}})
+
+    # 1. Query with nil: should return host_without_val, but not host_with_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_without_val.id) in ids
+    assert str(host_with_val.id) not in ids
+
+    # 2. Query with not_nil: should return host_with_val, but not host_without_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=not_nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_with_val.id) in ids
+    assert str(host_without_val.id) not in ids
