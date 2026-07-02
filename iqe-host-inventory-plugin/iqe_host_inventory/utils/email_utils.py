@@ -4,7 +4,6 @@ import base64
 import json
 import logging
 import time
-from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -55,12 +54,7 @@ class EmailEntity:
 class Email:
     def __init__(self, host_inventory: ApplicationHostInventory):
         self._host_inventory = host_inventory
-        app = host_inventory.application
-
-        if isinstance(app.user, Mapping) and "email_account" in app.user:
-            self._config = app.user["email_account"]
-        else:
-            self._config = host_inventory.config.email_account.get("insights-qe")
+        self._config = host_inventory.config.email_account.get("insights-qe")
 
     def _fetch_email_integration(self, only_admins: bool = False) -> Endpoint:
         client = self._host_inventory.v7_integrations_v1.default_api
