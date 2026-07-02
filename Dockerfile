@@ -58,7 +58,7 @@ ENV UV_COMPILE_BYTECODE=1
 
 RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['uv']['required-version'])") && \
     python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install "uv==${UV_VERSION}" dumb-init && \
+    python3 -m pip install "uv${UV_VERSION}" dumb-init && \
     uv sync --frozen --no-dev && \
     chown -R 1001:0 "$APP_ROOT/.venv"
 
