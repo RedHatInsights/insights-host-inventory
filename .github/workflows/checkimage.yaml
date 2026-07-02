@@ -39,11 +39,16 @@ jobs:
           title: 'chore(image): update base image'
           committer: 'Update-a-Bot <insights@redhat.com>'
 
-      - name: Approve and enable auto-merge for the base image PR
+      - name: Approve the base image PR
         if: ${{ steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated' }}
-        run: |
-          gh pr review --approve "$PR_URL"
-          gh pr merge --auto --rebase "$PR_URL"
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Enable auto-merge for the base image PR
+        if: ${{ steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated' }}
+        run: gh pr merge --auto --rebase "$PR_URL"
         env:
           PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

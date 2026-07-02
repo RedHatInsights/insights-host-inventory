@@ -474,12 +474,7 @@ jobs:
                 | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null
             fi
 
-            if gh api graphql -f query='
-              mutation($input: CreateCommitOnBranchInput!) {
-                createCommitOnBranch(input: $input) {
-                  commit { oid }
-                }
-              }' -f "variables=$(jq -n \
+            VARIABLES=$(jq -n \
                 --arg repo "$REPO" \
                 --arg oid "$BRANCH_SHA" \
                 --arg msg "chore: update PR metrics for $TODAY" \
@@ -489,15 +484,19 @@ jobs:
                   message: {headline: $msg},
                   fileChanges: {additions: $additions},
                   expectedHeadOid: $oid
-                }}')" > /dev/null 2>&1; then
+                }}')
+
+            if output=$(gh api graphql \
+                -f query='mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
+                -f "variables=$VARIABLES" 2>&1); then
               echo "Pushed verified commit to gh-pages"
               break
             fi
 
-            echo "Attempt $attempt failed (likely stale expectedHeadOid), retrying..."
+            echo "Attempt $attempt failed: $output"
             sleep 3
             if [ "$attempt" -eq 3 ]; then
-              echo "::error::Failed to push to gh-pages after 3 attempts"
+              echo "::error::Failed to push to gh-pages after 3 attempts. Last error: $output"
               exit 1
             fi
           done
