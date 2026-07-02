@@ -6,6 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -2943,7 +2944,7 @@ def test_no_hosts_in_org(api_get):
         (None, None),
     ],
 )
-def test_escape_ilike_value(input_val, expected):
+def test_escape_ilike_value(input_val: Any, expected: Any) -> None:
     assert escape_ilike_value(input_val) == expected
 
 
@@ -2955,7 +2956,13 @@ def test_escape_ilike_value(input_val, expected):
         ("insights_client_version", "insights_client_version", True),
     ],
 )
-def test_wildcard_escaping(filter_field, data_key, is_system_profile, db_create_host, api_get):
+def test_wildcard_escaping(
+    filter_field: str,
+    data_key: str,
+    is_system_profile: bool,
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
     # Create hosts with special characters
     if is_system_profile:
         host_percent = db_create_host(extra_data={"system_profile_facts": {data_key: "Version%1"}})
@@ -3023,7 +3030,10 @@ def test_wildcard_escaping(filter_field, data_key, is_system_profile, db_create_
     assert str(host_backslash.id) in ids
 
 
-def test_system_profile_nil_not_nil_not_escaped(db_create_host, api_get):
+def test_system_profile_nil_not_nil_not_escaped(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
     # Create a host with insights_client_version key
     host_with_val = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "Version1"}})
     # Create a host without insights_client_version key
