@@ -915,19 +915,21 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"installed_services": ["x" * 512]},
     {"enabled_services": ["x" * 512]},
     {
-        "sap": {
-            "sap_system": True,
-            "instance_number": "03",
-            "version": "1.00.122.04.1478575636",
-            "sids": ["H2O", "ABC", "C12"],
+        "workloads": {
+            "sap": {
+                "sap_system": True,
+                "instance_number": "03",
+                "version": "1.00.122.04.1478575636",
+                "sids": ["H2O", "ABC", "C12"],
+            }
         }
     },
-    {"sap_sids": ["H2O"]},
-    {"sap_sids": ["ABC"]},
-    {"sap_sids": ["C12"]},
-    {"sap_system": True},
-    {"sap_instance_number": "03"},
-    {"sap_version": "1.00.122.04.1478575636"},
+    {"workloads": {"sap": {"sids": ["H2O"]}}},
+    {"workloads": {"sap": {"sids": ["ABC"]}}},
+    {"workloads": {"sap": {"sids": ["C12"]}}},
+    {"workloads": {"sap": {"sap_system": True}}},
+    {"workloads": {"sap": {"instance_number": "03"}}},
+    {"workloads": {"sap": {"version": "1.00.122.04.1478575636"}}},
     {"tuned_profile": "x" * 256},
     {"selinux_current_mode": "enforcing"},
     {"selinux_config_file": "permissive"},
@@ -1057,25 +1059,6 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
             "sla": "Self-Support",
         }
     },
-    {
-        "ansible": {
-            "controller_version": "1.0",
-            "hub_version": "3.4.1",
-            "catalog_worker_version": "100.387.9846.12",
-            "sso_version": "1.28.3.52641.10000513168495123",
-        }
-    },
-    {
-        "intersystems": {
-            "is_intersystems": True,
-            "running_instances": [{"instance_name": "IRIS", "product": "IRIS", "version": "2023.1"}],
-        }
-    },
-    {
-        "mssql": {
-            "version": "15.3",
-        }
-    },
     {"system_update_method": "yum"},
     {"conversions": {"activity": True}},
     {
@@ -1089,15 +1072,6 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
                 ],
                 "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
                 "free_disk_storage": "698GB",
-            }
-        }
-    },
-    {
-        "third_party_services": {
-            "crowdstrike": {
-                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
-                "falcon_backend": "kernel",
-                "falcon_version": "7.14.16703.0",
             }
         }
     },
@@ -1175,4 +1149,32 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"workloads": {"sap": {}}},
     {"workloads": {"ansible": {}}},
     {"workloads": {"mssql": {}}},
+    {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "hub_version": "3.4.1",
+                "catalog_worker_version": "100.387.9846.12",
+                "sso_version": "1.28.3.52641.10000513168495123",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "intersystems": {
+                "is_intersystems": True,
+                "running_instances": [{"instance_name": "IRIS", "product": "IRIS", "version": "2023.1"}],
+            }
+        }
+    },
+    {"workloads": {"mssql": {"version": "15.3"}}},
+    {
+        "workloads": {
+            "crowdstrike": {
+                "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
+                "falcon_backend": "kernel",
+                "falcon_version": "7.14.16703.0",
+            }
+        }
+    },
 )
