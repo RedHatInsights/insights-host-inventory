@@ -120,9 +120,6 @@ jobs:
 
       - name: Setup gh-pages branch
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
           # Fetch gh-pages if it exists, or create an orphan branch
           git fetch origin gh-pages:gh-pages 2>/dev/null || true
           if git rev-parse --verify gh-pages >/dev/null 2>&1; then
@@ -430,38 +427,77 @@ jobs:
           echo "$EXISTING" | jq . > "$DATA_FILE"
           cp "$DATA_FILE" /tmp/metrics_data.json
 
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.AUTOMERGE_APP_ID }}
+          private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
+
       - name: Push to gh-pages branch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           TODAY=$(date -u +%Y-%m-%d)
 
-          # Switch to gh-pages branch (create orphan if first run)
-          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
-            git checkout gh-pages
-          else
-            git checkout --orphan gh-pages
-            git rm -rf . 2>/dev/null || true
-          fi
-
-          # Move data and index into place
           if [ ! -f /tmp/metrics_data.json ]; then
             echo "Error: /tmp/metrics_data.json not found. Metrics step may have failed."
             exit 1
           fi
-          cp /tmp/metrics_data.json data.json
-          git checkout main -- docs/metrics/index.html 2>/dev/null || git checkout master -- docs/metrics/index.html 2>/dev/null || true
-          if [ -f docs/metrics/index.html ]; then
-            mv docs/metrics/index.html index.html
-            rm -rf docs
+
+          # Prepare index.html from the source branch
+          INDEX_HTML=""
+          if git show origin/master:docs/metrics/index.html > /tmp/index.html 2>/dev/null || \
+             git show origin/main:docs/metrics/index.html > /tmp/index.html 2>/dev/null; then
+            INDEX_HTML=$(base64 -w0 /tmp/index.html)
           fi
 
-          git add data.json index.html
-          git diff --cached --quiet || git commit -m "chore: update PR metrics for ${TODAY}"
+          DATA_JSON=$(base64 -w0 /tmp/metrics_data.json)
 
+          # Build file additions via jq for correct JSON structure
+          ADDITIONS=$(jq -n --arg data "$DATA_JSON" '[{path: "data.json", contents: $data}]')
+          if [ -n "$INDEX_HTML" ]; then
+            ADDITIONS=$(echo "$ADDITIONS" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
+          fi
+
+          # Use createCommitOnBranch to produce a verified commit (with retry for races)
           for attempt in 1 2 3; do
-            git push origin gh-pages && break
-            echo "Push attempt $attempt failed, retrying in 5s..."
-            git pull --rebase origin gh-pages
-            sleep 5
-            [ "$attempt" -eq 3 ] && exit 1
+            BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
+            if [ -z "$BRANCH_SHA" ]; then
+              EMPTY_TREE=$(jq -n '{tree: [{path: ".gitkeep", mode: "100644", type: "blob", content: ""}]}' \
+                | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
+              BRANCH_SHA=$(jq -n --arg tree "$EMPTY_TREE" '{message: "init gh-pages", tree: $tree}' \
+                | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
+              jq -n --arg sha "$BRANCH_SHA" '{ref: "refs/heads/gh-pages", sha: $sha}' \
+                | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null
+            fi
+
+            if gh api graphql -f query='
+              mutation($input: CreateCommitOnBranchInput!) {
+                createCommitOnBranch(input: $input) {
+                  commit { oid }
+                }
+              }' -f "variables=$(jq -n \
+                --arg repo "$REPO" \
+                --arg oid "$BRANCH_SHA" \
+                --arg msg "chore: update PR metrics for $TODAY" \
+                --argjson additions "$ADDITIONS" \
+                '{input: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: "gh-pages"},
+                  message: {headline: $msg},
+                  fileChanges: {additions: $additions},
+                  expectedHeadOid: $oid
+                }}')" > /dev/null 2>&1; then
+              echo "Pushed verified commit to gh-pages"
+              break
+            fi
+
+            echo "Attempt $attempt failed (likely stale expectedHeadOid), retrying..."
+            sleep 3
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Failed to push to gh-pages after 3 attempts"
+              exit 1
+            fi
           done

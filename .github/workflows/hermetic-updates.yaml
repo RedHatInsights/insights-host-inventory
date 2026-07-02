@@ -39,48 +39,37 @@ jobs:
           source $APP_ROOT/bin/activate
           make generate-hermetic-lockfiles BASE_IMAGE=local
 
-      - name: Commit and push changes with gh
-        id: commit-changes
+      - name: Check for changes
+        id: check-changes
         run: |
           git config --global --add safe.directory ${GITHUB_WORKSPACE}
-          git config --global user.name "insights-inventory-bot[bot]"
-          git config --global user.email "insights-inventory-bot[bot]@users.noreply.github.com"
           git add .
-
-          git commit -m "$COMMIT_TITLE"
-          changes_made=$?
-          echo "changes_made=$changes_made" >> $GITHUB_OUTPUT
-
-          if [ $changes_made -gt 1 ]; then
-            echo "Error checking for changes"
-            exit 1
+          if git diff --cached --quiet; then
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+          else
+            echo "changes_made=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Generate token
         id: app-token
-        if: steps.commit-changes.outputs.changes_made == '0'
+        if: steps.check-changes.outputs.changes_made == 'true'
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.AUTOMERGE_APP_ID }}
           private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
 
-      - name: Push changes and create PR
-        if: steps.commit-changes.outputs.changes_made == '0'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          PATH=$PATH:/mnt/usrbin
-          gh repo set-default ${{ github.repository }}
-
-          # Push to hermetic_updates branch, force overwrite
-          git push --force https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:hermetic_updates
-
-          # Check if PR exists from hermetic_updates to default branch, if not, create one
-          if ! gh pr list --base ${{ github.ref_name }} --head hermetic_updates --state open | grep .; then
-            gh pr create --base ${{ github.ref_name }} --head hermetic_updates \
-              --title "$PR_TITLE" \
-              --body "$PR_BODY";
-          fi;
+      - name: Create pull request
+        if: steps.check-changes.outputs.changes_made == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          sign-commits: true
+          base: ${{ github.ref_name }}
+          commit-message: ${{ env.COMMIT_TITLE }}
+          title: ${{ env.PR_TITLE }}
+          body: ${{ env.PR_BODY }}
+          branch: hermetic_updates
+          committer: 'insights-inventory-bot[bot] <insights-inventory-bot[bot]@users.noreply.github.com>'
 
       - name: Unsubscribe (cleanup)
         if: always()
