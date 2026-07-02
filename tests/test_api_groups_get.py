@@ -5,7 +5,7 @@ import pytest
 from requests.exceptions import ConnectionError
 from requests.exceptions import Timeout
 
-from lib.middleware import HIDE_WORKSPACE_TYPES
+from lib.middleware import VISIBLE_WORKSPACE_TYPES
 from tests.helpers.api_utils import GROUP_READ_PROHIBITED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import GROUP_URL
 from tests.helpers.api_utils import assert_response_status
@@ -712,25 +712,19 @@ def test_get_groups_rbac_v2_with_ordering(mocker, api_get, order_by, order_how, 
 
 
 @pytest.mark.usefixtures("mock_rbac_v2_middleware")
-def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_get):
+def test_get_groups_rbac_v2_group_type_all_uses_visible_types(mocker, api_get):
     """
-    RBAC may return root/default workspaces mixed with standard and ungrouped-hosts workspaces.
-    get_rbac_workspaces() requests per_page + len(HIDE_WORKSPACE_TYPES) items from RBAC,
-    strips root/default types, then caps at per_page so the caller always gets a full page.
-
-    Scenario: user has 5 workspaces total (3 standard, 1 root, 1 default).
-    per_page=3 -> limit sent to RBAC is 5 -> after stripping, exactly 3 standard remain.
+    When group_type=all, the middleware sends type=VISIBLE_WORKSPACE_TYPES to RBAC
+    so that root workspaces are excluded server-side. No client-side post-filtering is needed.
     """
-    standard_ids = [str(generate_uuid()) for _ in range(3)]
+    ws_ids = [str(generate_uuid()) for _ in range(3)]
     rbac_payload = {
         "data": [
-            _create_mock_workspace(workspace_id=standard_ids[0], name="group_a", workspace_type="standard"),
-            _create_mock_workspace(workspace_id=str(generate_uuid()), name="root_ws", workspace_type="root"),
-            _create_mock_workspace(workspace_id=standard_ids[1], name="group_b", workspace_type="standard"),
-            _create_mock_workspace(workspace_id=str(generate_uuid()), name="default_ws", workspace_type="default"),
-            _create_mock_workspace(workspace_id=standard_ids[2], name="group_c", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=ws_ids[0], name="group_a", workspace_type="standard"),
+            _create_mock_workspace(workspace_id=ws_ids[1], name="default_ws", workspace_type="default"),
+            _create_mock_workspace(workspace_id=ws_ids[2], name="group_b", workspace_type="standard"),
         ],
-        "meta": {"count": 5},
+        "meta": {"count": 3},
     }
     mock_rbac_http = mocker.patch(
         "lib.middleware.get_rbac_workspace_using_endpoint_and_headers",
@@ -739,7 +733,7 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
 
     mocker.patch(
         "api.group.get_host_counts_batch",
-        return_value={sid: 0 for sid in standard_ids},
+        return_value={wid: 0 for wid in ws_ids},
     )
 
     per_page = 3
@@ -748,16 +742,14 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     )
 
     assert_response_status(response_status, 200)
-    # All 3 standard workspaces returned despite root/default being in the RBAC response
     assert response_data["count"] == per_page
     assert len(response_data["results"]) == per_page
-    returned_ids = {r["id"] for r in response_data["results"]}
-    assert returned_ids == set(standard_ids)
 
-    # RBAC was asked for per_page + len(HIDE_WORKSPACE_TYPES) to compensate for stripping
+    # RBAC was asked for the visible types instead of "all", and limit equals per_page exactly
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
-    assert parsed["limit"] == [str(per_page + len(HIDE_WORKSPACE_TYPES))]
+    assert parsed["type"] == [VISIBLE_WORKSPACE_TYPES]
+    assert parsed["limit"] == [str(per_page)]
 
 
 @pytest.mark.parametrize(
@@ -768,12 +760,10 @@ def test_get_groups_rbac_v2_strips_root_and_default_workspace_types(mocker, api_
     ],
 )
 @pytest.mark.usefixtures("mock_rbac_v2_middleware")
-def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get, group_type, workspace_type):
+def test_get_groups_rbac_v2_specific_type_filter_passes_type_directly(mocker, api_get, group_type, workspace_type):
     """
     When the caller filters on a specific group_type (standard or ungrouped-hosts),
-    that type is passed straight to the RBAC API, since root/default workspaces are never
-    returned. The middleware should NOT apply the extra-limit or post-filter stripping
-    that it does for group_type=all.
+    that type is passed straight to the RBAC API without modification.
     """
     ws_ids = [str(generate_uuid()) for _ in range(3)]
     rbac_payload = {
@@ -805,13 +795,10 @@ def test_get_groups_rbac_v2_specific_type_filter_skips_stripping(mocker, api_get
     returned_ids = {r["id"] for r in response_data["results"]}
     assert returned_ids == set(ws_ids)
 
-    # The RBAC request includes type=<group_type> and limit=per_page+len(HIDE_WORKSPACE_TYPES)
-    # (the extra limit is always applied, but no post-filter stripping happens)
     rbac_endpoint = mock_rbac_http.call_args[0][1]
     parsed = parse_qs(urlparse(rbac_endpoint).query)
     assert parsed["type"] == [group_type]
     assert parsed["limit"] == [str(per_page)]
-    # meta.count is returned as-is (no subtraction) since no stripping occurred
     assert response_data["total"] == 3
 
 
@@ -1077,7 +1064,6 @@ def test_get_groups_rbac_v2_parameter_passing(
     Test GET /groups with RBAC v2 and various query parameters.
     Verifies that parameters are correctly passed to get_rbac_workspaces().
     Tests all supported group_type values: standard, ungrouped-hosts, all.
-    Note: group_type=all fetches all workspace types including root and default.
     """
     # Mock feature flag enabled
     mock_config = mocker.patch("api.group.inventory_config")
