@@ -12,6 +12,7 @@ import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from api.filtering.filtering_common import escape_ilike_value
 from app.exceptions import IdsNotFoundError
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -2930,8 +2931,6 @@ def test_no_hosts_in_org(api_get):
 
 
 def test_escape_ilike_value():
-    from api.filtering.filtering_common import escape_ilike_value
-
     assert escape_ilike_value("test") == "test"
     assert escape_ilike_value("test%value") == "test\\%value"
     assert escape_ilike_value("test_value") == "test\\_value"
@@ -2990,7 +2989,10 @@ def test_wildcard_and_special_characters_escaping(db_create_host, api_get, query
     assert str(host_backslash.id) in results
 
     # 2. Test wildcard filter
-    # Querying with '*' should match all of them
+    # Querying with '*' should match all of them.
+    # Note: For the `hostname_or_id` query parameter, the match succeeds via the `display_name`
+    # field (e.g. "test%host") rather than the `fqdn` field (e.g. "test%host.example.com"),
+    # because the pattern "test*host" does not match the ".example.com" suffix.
     url = build_hosts_url(query=f"?{query_param}=test*host")
     status, data = api_get(url)
     assert status == 200
