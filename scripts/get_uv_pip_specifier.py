@@ -18,6 +18,18 @@ def _with_operator(specifier: str) -> str:
     return f"=={specifier}"
 
 
+def _get_required_version(data: dict, pyproject: Path) -> str:
+    try:
+        return data["tool"]["uv"]["required-version"]
+    except KeyError as exc:
+        missing = exc.args[0]
+        if missing == "tool":
+            raise SystemExit(f"Missing [tool] section in {pyproject}") from exc
+        if missing == "uv":
+            raise SystemExit(f"Missing [tool.uv] section in {pyproject}") from exc
+        raise SystemExit(f"Missing [tool.uv].required-version in {pyproject}") from exc
+
+
 def get_pip_specifier(pyproject: Path, *, build_pin: bool) -> str:
     if build_pin:
         pin_file = pyproject.parent / "uv-build-version"
@@ -26,7 +38,7 @@ def get_pip_specifier(pyproject: Path, *, build_pin: bool) -> str:
         return _with_operator(pin_file.read_text())
 
     data = tomllib.loads(pyproject.read_text())
-    return _with_operator(data["tool"]["uv"]["required-version"])
+    return _with_operator(_get_required_version(data, pyproject))
 
 
 def main() -> None:
