@@ -47,12 +47,12 @@ from app.queue.event_producer import logger as event_producer_logger
 from app.queue.events import EventType
 from app.queue.events import build_event
 from app.queue.events import message_headers
-from app.serialization import _add_workloads_backward_compatibility
 from app.serialization import _deserialize_canonical_facts
 from app.serialization import _deserialize_facts
 from app.serialization import _deserialize_tags
 from app.serialization import _deserialize_tags_dict
 from app.serialization import _deserialize_tags_list
+from app.serialization import _sanitize_workloads_none_values
 from app.serialization import _serialize_datetime
 from app.serialization import _serialize_per_reporter_staleness
 from app.serialization import deserialize_canonical_facts
@@ -1667,6 +1667,7 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
         expected = {
             **canonical_facts,
             **unchanged_data,
+            "workspace": None,
             "facts": [
                 {"namespace": namespace, "facts": facts} for namespace, facts in host_init_data["facts"].items()
             ],
@@ -1697,6 +1698,50 @@ def test_with_all_fields_serialization_serialize_host_compound(flask_app):
         expected["bios_uuid"] = str(expected["bios_uuid"])
 
         assert expected == actual
+
+
+def test_workspace_field_serialization(flask_app):
+    with flask_app.app.app_context():
+        group_data = [{"id": "11111111-1111-1111-1111-111111111111", "name": "test-workspace", "ungrouped": False}]
+        host = Host(
+            org_id="some org_id",
+            subscription_manager_id=generate_uuid(),
+            reporter="puptoo",
+            groups=group_data,
+        )
+        host.id = uuid4()
+        host.created_on = now()
+        host.modified_on = now()
+        host.last_check_in = now()
+
+        staleness = get_sys_default_staleness()
+
+        actual = serialize_host(host, staleness, False)
+        assert actual["workspace"] == group_data[0]
+        assert actual["groups"] == group_data
+
+        actual_mq = serialize_host(host, staleness, True)
+        assert actual_mq["workspace"]["id"] == group_data[0]["id"]
+        assert actual_mq["workspace"]["name"] == group_data[0]["name"]
+
+        empty_host = Host(
+            org_id="some org_id",
+            subscription_manager_id=generate_uuid(),
+            reporter="puptoo",
+            groups=[],
+        )
+        empty_host.id = uuid4()
+        empty_host.created_on = now()
+        empty_host.modified_on = now()
+        empty_host.last_check_in = now()
+
+        actual_empty = serialize_host(empty_host, staleness, False)
+        assert actual_empty["workspace"] is None
+        assert actual_empty["groups"] == []
+
+        actual_empty_mq = serialize_host(empty_host, staleness, True)
+        assert actual_empty_mq["workspace"] is None
+        assert actual_empty_mq["groups"] == []
 
 
 def test_with_only_required_fields_serialization_serialize_host_compound(subtests, flask_app):
@@ -1744,6 +1789,7 @@ def test_with_only_required_fields_serialization_serialize_host_compound(subtest
                     **unchanged_data,
                     "facts": [],
                     "groups": [],
+                    "workspace": None,
                     "tags": [],
                     "id": str(host_attr_data["id"]),
                     "created": _timestamp_to_str(host_attr_data["created_on"]),
@@ -1887,6 +1933,7 @@ def test_with_all_fields_serialization_serialize_host_mocked(
         expected = {
             **serialized_canonical_facts,
             **unchanged_data,
+            "workspace": None,
             "facts": serialize_facts.return_value,
             "tags": serialize_tags.return_value,
             "id": str(host_attr_data["id"]),
@@ -2883,54 +2930,41 @@ def test_days_to_seconds_with_conventional_days_culling_utility_functions():
     assert days_to_seconds(30) == 2592000  # 30 days = CONVENTIONAL_TIME_TO_DELETE_SECONDS
 
 
-def test_add_workloads_backward_compatibility_removes_none_values():
+def test_sanitize_workloads_none_values_removes_none_values():
     """
-    Test that _add_workloads_backward_compatibility removes None values from workloads.*.
+    Test that _sanitize_workloads_none_values removes None values from workloads.*.
 
     This ensures that None values in workloads.* fields (like workloads.ansible.hub_version)
     are removed from the response, which would otherwise cause OpenAPI spec validation failures
     since those fields are defined as type 'string' without nullable: true.
-
-    Regression test for production 500 errors like:
-    - 'results.63.system_profile.workloads.ansible.hub_version'
-    - 'results.14.system_profile.workloads.crowdstrike.falcon_version'
-    - 'results.0.system_profile.workloads.sap.version'
     """
     # Test case 1: ansible with None hub_version
     system_profile = {
         "workloads": {
             "ansible": {
                 "controller_version": "4.5.6",
-                "hub_version": None,  # This should be removed from workloads.ansible
+                "hub_version": None,
             }
         }
     }
-    result = _add_workloads_backward_compatibility(system_profile)
+    result = _sanitize_workloads_none_values(system_profile)
 
-    # None value should be removed from workloads.ansible
     assert "hub_version" not in result["workloads"]["ansible"]
     assert result["workloads"]["ansible"]["controller_version"] == "4.5.6"
-    # Legacy field should also not have the None value
-    assert result["ansible"]["controller_version"] == "4.5.6"
-    assert "hub_version" not in result["ansible"]
 
     # Test case 2: crowdstrike with None falcon_version
     system_profile = {
         "workloads": {
             "crowdstrike": {
                 "falcon_aid": "abc123",
-                "falcon_version": None,  # This should be removed from workloads.crowdstrike
+                "falcon_version": None,
             }
         }
     }
-    result = _add_workloads_backward_compatibility(system_profile)
+    result = _sanitize_workloads_none_values(system_profile)
 
-    # None value should be removed from workloads.crowdstrike
     assert "falcon_version" not in result["workloads"]["crowdstrike"]
     assert result["workloads"]["crowdstrike"]["falcon_aid"] == "abc123"
-    # Legacy field should also not have the None value
-    assert result["third_party_services"]["crowdstrike"]["falcon_aid"] == "abc123"
-    assert "falcon_version" not in result["third_party_services"]["crowdstrike"]
 
     # Test case 3: sap with None version
     system_profile = {
@@ -2938,28 +2972,19 @@ def test_add_workloads_backward_compatibility_removes_none_values():
             "sap": {
                 "sap_system": True,
                 "sids": ["H2O"],
-                "version": None,  # This should be removed from workloads.sap
+                "version": None,
             }
         }
     }
-    result = _add_workloads_backward_compatibility(system_profile)
+    result = _sanitize_workloads_none_values(system_profile)
 
-    # None value should be removed from workloads.sap
     assert "version" not in result["workloads"]["sap"]
     assert result["workloads"]["sap"]["sap_system"] is True
     assert result["workloads"]["sap"]["sids"] == ["H2O"]
-    # Legacy nested field should also not have the None value
-    assert result["sap"]["sap_system"] is True
-    assert result["sap"]["sids"] == ["H2O"]
-    assert "version" not in result["sap"]
-    # Legacy flat fields should also not have the None value
-    assert result["sap_system"] is True
-    assert result["sap_sids"] == ["H2O"]
-    assert "sap_version" not in result
 
 
-def test_add_workloads_backward_compatibility_copies_valid_values():
-    """Test that _add_workloads_backward_compatibility correctly copies non-None values."""
+def test_sanitize_workloads_none_values_preserves_valid_values():
+    """Test that _sanitize_workloads_none_values keeps non-None values."""
     system_profile = {
         "workloads": {
             "ansible": {
@@ -2979,25 +3004,10 @@ def test_add_workloads_backward_compatibility_copies_valid_values():
             },
         }
     }
-    result = _add_workloads_backward_compatibility(system_profile)
+    result = _sanitize_workloads_none_values(system_profile)
 
-    # Ansible values
-    assert result["ansible"]["controller_version"] == "4.5.6"
-    assert result["ansible"]["hub_version"] == "1.2.3"
-
-    # CrowdStrike values
-    assert result["third_party_services"]["crowdstrike"]["falcon_aid"] == "abc123"
-    assert result["third_party_services"]["crowdstrike"]["falcon_backend"] == "us-1"
-    assert result["third_party_services"]["crowdstrike"]["falcon_version"] == "7.14.16703.0"
-
-    # SAP nested values
-    assert result["sap"]["sap_system"] is True
-    assert result["sap"]["sids"] == ["H2O"]
-    assert result["sap"]["instance_number"] == "00"
-    assert result["sap"]["version"] == "1.00.122.04.1478575636"
-
-    # SAP flat values
-    assert result["sap_system"] is True
-    assert result["sap_sids"] == ["H2O"]
-    assert result["sap_instance_number"] == "00"
-    assert result["sap_version"] == "1.00.122.04.1478575636"
+    assert result["workloads"]["ansible"]["controller_version"] == "4.5.6"
+    assert result["workloads"]["ansible"]["hub_version"] == "1.2.3"
+    assert result["workloads"]["crowdstrike"]["falcon_aid"] == "abc123"
+    assert result["workloads"]["sap"]["sap_system"] is True
+    assert result["workloads"]["sap"]["sids"] == ["H2O"]

@@ -10,6 +10,7 @@ from unittest.mock import Mock
 from uuid import UUID
 
 from confluent_kafka import TopicPartition
+from dateutil.parser import isoparse
 
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
@@ -150,27 +151,36 @@ def wrap_message(host_data, operation="add_host", platform_metadata=None, operat
     return message
 
 
+def _system_profile_values_match(actual_value, expected_value) -> bool:
+    if actual_value == expected_value:
+        return True
+
+    if isinstance(actual_value, str) and isinstance(expected_value, str):
+        try:
+            return isoparse(actual_value) == isoparse(expected_value)
+        except (TypeError, ValueError):
+            return False
+
+    return False
+
+
 def assert_mq_host_data(actual_id: str, actual_event: dict, expected_results: dict, host_keys_to_check: list[str]):
     """
     Assert that MQ host data matches expected results.
 
-    Special handling for system_profile: When backward compatibility is enabled,
-    the actual event may contain legacy fields (e.g., 'ansible', 'sap_system') in addition
-    to the 'workloads' structure. This function compares the 'workloads' data specifically
-    and ignores legacy backward compatibility fields in the actual event.
+    Special handling for system_profile: compare only the fields present in the expected
+    system profile payload.
     """
     assert actual_event["host"]["id"] == actual_id
 
     for key in host_keys_to_check:
         if key == "system_profile":
-            # Special comparison for system_profile to handle backward compatibility
             actual_sp = actual_event["host"]["system_profile"]
             expected_sp = expected_results["host"]["system_profile"]
 
-            # Compare all fields that exist in expected results
             for expected_key, expected_value in expected_sp.items():
                 assert expected_key in actual_sp, f"Expected key '{expected_key}' not found in actual system_profile"
-                assert actual_sp[expected_key] == expected_value, (
+                assert _system_profile_values_match(actual_sp[expected_key], expected_value), (
                     f"system_profile['{expected_key}'] mismatch: "
                     f"expected {expected_value}, got {actual_sp[expected_key]}"
                 )

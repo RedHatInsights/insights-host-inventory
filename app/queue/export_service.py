@@ -176,20 +176,25 @@ def _handle_export_error(
     exportFormat: str,
 ):
     logger.error(error_message)
-    response = session.post(
-        url=request_url,
-        headers=request_headers,
-        data=json.dumps({"message": error_message, "error": status_code}),
-    )
-    _handle_export_response(response, exportUUID, exportFormat)
+    try:
+        response = session.post(
+            url=request_url,
+            headers=request_headers,
+            data=json.dumps({"message": error_message, "error": status_code}),
+        )
+        _handle_export_response(response, exportUUID, exportFormat)
+    except Exception:
+        logger.exception(f"Failed to report export error to export-service for export {exportUUID}")
 
 
-# This function is used by create_export, needs improvement
 def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: str):
-    if response.status_code != HTTPStatus.ACCEPTED:
+    if response.status_code == HTTPStatus.ACCEPTED:
+        if response.text != "":
+            logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
+    elif response.status_code == HTTPStatus.BAD_REQUEST and "already been processed" in (response.text or "").lower():
+        logger.warning(f"Export {exportUUID} was already processed (duplicate delivery); treating as success")
+    else:
         raise InventoryException(detail=response.text)
-    elif response.text != "":
-        logger.info(f"{response.text} for export ID {str(exportUUID)} in {exportFormat.upper()} format")
 
 
 def _format_export_data(data: list[dict], exportFormat: str) -> str:

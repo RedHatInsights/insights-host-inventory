@@ -126,7 +126,7 @@ source .env
 1. **Install dependencies**:
 
 ```bash
-uv sync
+uv sync --frozen
 ```
 
 2. **Activate virtual environment**:
@@ -292,7 +292,11 @@ The repository now includes the IQE (Insights QE) test suite in the `iqe-host-in
 
 **Running IQE Tests Locally:**
 
-The IQE tests require special dependencies and configuration. For detailed instructions on running IQE tests locally, see the [IQE README](iqe-host-inventory-plugin/README.md).
+The IQE tests use a separate uv environment. Set it up with
+`uv --project iqe-host-inventory-plugin sync --frozen`, then run tests with
+`uv --project iqe-host-inventory-plugin run iqe tests plugin host_inventory ...`.
+For detailed instructions, see [docs/IQE.md](docs/IQE.md) and the
+[IQE plugin README](iqe-host-inventory-plugin/README.md).
 
 **PR Checks:**
 

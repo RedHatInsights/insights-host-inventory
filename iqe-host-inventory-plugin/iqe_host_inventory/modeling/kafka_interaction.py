@@ -19,9 +19,11 @@ import attr
 import pytest
 from confluent_kafka import Message
 from dynaconf.utils.boxing import DynaBox
+from iqe.base._kafka._kafka_producer import IQEKafkaProducer
+from iqe.base._kafka.modeling import MessagesSearch
+from iqe.base._kafka.modeling import ParsedMessage
+from iqe.base._kafka.modeling import make_parser
 from iqe.base.modeling import BaseEntity
-from iqe_mq._kafka_consumer import IQEKafkaConsumer
-from iqe_mq._kafka_producer import IQEKafkaProducer
 
 from iqe_host_inventory.deprecations import DEPRECATE_MAKE_HOST_DATA
 from iqe_host_inventory.deprecations import DEPRECATE_MAKE_HOST_EVENTS
@@ -52,6 +54,36 @@ from iqe_host_inventory.utils.kafka_utils import wrap_payload
 
 log = logging.getLogger(__name__)
 
+REQUESTED_EVENTS_TOPIC = "platform.inventory.events"
+REQUESTED_NOTIFICATIONS_TOPIC = "platform.notifications.ingress"
+REQUESTED_KESSEL_OUTBOX_TOPIC = "outbox.event.kessel.resources"
+
+
+# These ParsedMessage subclasses are required by declare_shared_consumer to define
+# topic subscriptions. HBI performs its own message wrapping in _walk_events_with_wrappers
+# rather than using the iqe-core parser pipeline, because of the complex topic-based
+# dispatch logic (notification filtering by application, event_type branching, etc.).
+class HostEventParsedMessage(ParsedMessage, requested_topic=REQUESTED_EVENTS_TOPIC): ...
+
+
+class NotificationParsedMessage(ParsedMessage, requested_topic=REQUESTED_NOTIFICATIONS_TOPIC): ...
+
+
+class KesselOutboxParsedMessage(ParsedMessage, requested_topic=REQUESTED_KESSEL_OUTBOX_TOPIC): ...
+
+
+HBI_EVENTS_KAFKA_TOPICS = {
+    REQUESTED_EVENTS_TOPIC: "host-inventory",
+    REQUESTED_NOTIFICATIONS_TOPIC: "host-inventory",
+}
+HBI_EVENTS_KAFKA_PARSER = make_parser(HostEventParsedMessage, NotificationParsedMessage)
+
+HBI_KESSEL_KAFKA_TOPICS = {
+    REQUESTED_KESSEL_OUTBOX_TOPIC: "",  # empty = auto-discover from any ClowdApp
+}
+HBI_KESSEL_KAFKA_PARSER = make_parser(KesselOutboxParsedMessage)
+
+
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 
@@ -64,7 +96,6 @@ T = TypeVar(
     DeleteNotificationWrapper,
     RegisteredNotificationWrapper,
     StaleNotificationWrapper,
-    KesselOutboxWrapper,
 )
 
 SAP_FILTER_DISPLAY_NAME = ".HBI-FILTER-TEST"
@@ -334,6 +365,17 @@ def _sort_kessel_messages(
     return sorted_messages
 
 
+type _WrappedMessage = (
+    Message
+    | HostMessageWrapper
+    | BaseNotificationWrapper
+    | ErrorNotificationWrapper
+    | DeleteNotificationWrapper
+    | RegisteredNotificationWrapper
+    | StaleNotificationWrapper
+)
+
+
 @attr.s
 class HBIKafkaActions(BaseEntity):
     @cached_property
@@ -353,26 +395,19 @@ class HBIKafkaActions(BaseEntity):
         return int(self._kafka_config.events_timeout)
 
     @cached_property
-    def _consumer(self) -> IQEKafkaConsumer:
-        consumer = self.application.mq.get_consumer_for_plugin(self._host_inventory)
-        consumer.subscribe([self.events_topic, self.notifications_topic])
-        # flush hack
-        # Unfortunately, the mini_drain doesn't work: https://issues.redhat.com/browse/IQE-3555
-        consumer.mini_drain()
-        return consumer
+    def _consumer(self) -> MessagesSearch:
+        # IQE-3555: mini_drain was previously attempted here but was ineffective
+        return self._host_inventory.kafka_consumer
 
     @cached_property
-    def _kessel_outbox_consumer(self) -> IQEKafkaConsumer:
-        """We need a separate consumer for the kessel events, otherwise they are consumed at the
-        time when we are waiting for host events produced by HBI, and then we can't see them."""
-        consumer = self.application.mq.get_consumer_for_plugin(self._host_inventory)
-        consumer.subscribe([self.kessel_outbox_topic])
-        consumer.mini_drain()
-        return consumer
+    def _kessel_outbox_consumer(self) -> MessagesSearch:
+        """Separate consumer for kessel events -- otherwise they are consumed
+        while waiting for host events and are lost by the time we look for them."""
+        return self._host_inventory.kessel_outbox_consumer
 
     @cached_property
     def _producer(self) -> IQEKafkaProducer:
-        return self.application.mq.producer
+        return self.application.kafka.producer
 
     @cached_property
     def ingress_topic(self) -> str:
@@ -417,9 +452,6 @@ class HBIKafkaActions(BaseEntity):
         quiet: bool = False,
         key: str | None = None,
     ) -> None:
-        # Unfortunately, the mini_drain doesn't work: https://issues.redhat.com/browse/IQE-3555
-        self._consumer.mini_drain()  # ensure we drain
-
         for host_data in hosts_data:
             host_message = wrap_payload(
                 host_data,
@@ -617,19 +649,9 @@ class HBIKafkaActions(BaseEntity):
             log.info(f"flush completed, {res} still in queue")
 
     def _walk_events(self, *, timeout: int) -> Iterator[Message]:
-        yield from self._consumer.walk_messages(timeout=timeout, wrap=False)
+        yield from self._consumer.walk_events(timeout=timeout)
 
-    def _walk_events_with_wrappers(
-        self, *, timeout: int
-    ) -> Iterator[
-        Message
-        | HostMessageWrapper
-        | BaseNotificationWrapper
-        | ErrorNotificationWrapper
-        | DeleteNotificationWrapper
-        | RegisteredNotificationWrapper
-        | StaleNotificationWrapper
-    ]:
+    def _walk_events_with_wrappers(self, *, timeout: int) -> Iterator[_WrappedMessage]:
         for message in self._walk_events(timeout=timeout):
             if message.topic() == self.events_topic:
                 yield HostMessageWrapper.from_message(message)
@@ -653,17 +675,7 @@ class HBIKafkaActions(BaseEntity):
             else:
                 yield message
 
-    def walk_messages(
-        self, *, timeout: int | None = None
-    ) -> Iterator[
-        Message
-        | HostMessageWrapper
-        | BaseNotificationWrapper
-        | ErrorNotificationWrapper
-        | DeleteNotificationWrapper
-        | RegisteredNotificationWrapper
-        | StaleNotificationWrapper
-    ]:
+    def walk_messages(self, *, timeout: int | None = None) -> Iterator[_WrappedMessage]:
         yield from self._walk_events_with_wrappers(timeout=timeout or self._events_wait_time)
 
     def _walk_messages(
@@ -781,8 +793,8 @@ class HBIKafkaActions(BaseEntity):
         return self._walk_messages(ErrorNotificationWrapper, timeout=timeout)
 
     def walk_kessel_messages(self, *, timeout: int | None = None) -> Iterator[KesselOutboxWrapper]:
-        for message in self._kessel_outbox_consumer.walk_messages(
-            timeout=timeout or self._events_wait_time, wrap=False
+        for message in self._kessel_outbox_consumer.walk_events(
+            timeout=timeout or self._events_wait_time
         ):
             yield KesselOutboxWrapper.from_message(message)
 

@@ -9,13 +9,13 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from functools import cached_property
 from time import sleep
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypedDict
 
 import attr
 from iqe.base.modeling import BaseEntity
 
-from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.hosts_api import HOST_OR_HOSTS
 from iqe_host_inventory.modeling.hosts_api import _ids_from_hosts
 from iqe_host_inventory.utils import is_global_account
@@ -31,6 +31,9 @@ from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import GroupQueryOutput
 from iqe_host_inventory_api import GroupsApi
 from iqe_host_inventory_api import HostOut
+
+if TYPE_CHECKING:
+    from iqe_host_inventory import ApplicationHostInventory
 
 GROUP_NOT_CREATED_ERROR = Exception("Group wasn't successfully created")
 GROUP_NOT_UPDATED_ERROR = Exception("Group wasn't successfully updated")

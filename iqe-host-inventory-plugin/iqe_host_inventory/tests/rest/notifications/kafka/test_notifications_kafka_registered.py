@@ -41,8 +41,9 @@ def find_host_and_notification_messages(
     hosts = []
     notifications = []
     for msg in host_inventory.kafka.walk_messages():
-        if isinstance(msg, HostMessageWrapper) and msg.host.provider_id in provider_ids:
-            hosts.append(msg.host)
+        if isinstance(msg, HostMessageWrapper) and msg.value.get("type") in ("created", "updated"):
+            if getattr(msg.host, "provider_id", None) in provider_ids:
+                hosts.append(msg.host)
         elif isinstance(msg, RegisteredNotificationWrapper):
             notifications.append(msg)
         if len(hosts) == len(provider_ids):

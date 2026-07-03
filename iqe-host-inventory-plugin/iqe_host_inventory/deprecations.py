@@ -20,19 +20,6 @@ DEPRECATE_MQ_FIXTURES = deprecated(
     "v25.6.1.0",
 )
 
-DEPRECATE_MQ_CREATE_OR_UPDATE_HOST = deprecated(
-    "mq_create_or_update_host will be removed.",
-    "app.host_inventory.kafka.create_host",
-    "v25.6.1.0",
-)
-
-DEPRECATE_FIND_MQ_HOST_MSGS = deprecated(
-    "find_mq_host_msgs will be removed.",
-    "app.host_inventory.kafka.wait_for_filtered_host_messages",
-    "v25.6.1.0",
-)
-
-
 # Kafka interactions
 
 DEPRECATE_MAKE_HOST_EVENTS = deprecated(
