@@ -27,6 +27,8 @@ COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
 COPY pyproject.toml pyproject.toml
 COPY uv.lock uv.lock
+COPY uv-build-version uv-build-version
+COPY scripts/get_uv_pip_specifier.py scripts/get_uv_pip_specifier.py
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -36,7 +38,7 @@ USER 1001
 
 ENV PATH="$APP_ROOT/.venv/bin:$PATH"
 
-RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['uv']['required-version'])") && pip install "uv==${UV_VERSION}" && \
+RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && pip install "uv${UV_SPEC}" && \
     uv sync --frozen
 
 CMD bash -c 'make upgrade_db && make run_inv_mq_service'
