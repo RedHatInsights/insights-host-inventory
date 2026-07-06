@@ -4,12 +4,14 @@ from collections.abc import Callable
 from datetime import timedelta
 from itertools import chain
 from itertools import combinations
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from api.filtering.filtering_common import escape_ilike_value
 from app.models.host import Host
 from lib.host_repository import find_hosts_by_staleness
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -2330,6 +2332,322 @@ def test_fresh_staleness_with_only_rhsm_system_profile_bridge(api_get, db_create
     response_status, response_data = api_get(url=url)
 
     assert response_status == 200
-    # The host should be present in the results
-    result_ids = [result["id"] for result in response_data["results"]]
-    assert host_id in result_ids
+    response_ids = [result["id"] for result in response_data["results"]]
+
+    assert len(response_ids) == 2
+
+    if "sap" in sp_filter_param:
+        assert sap_host_id in response_ids
+    if "ansible" in sp_filter_param:
+        assert ansible_host_id in response_ids
+    if "mssql" in sp_filter_param:
+        assert mssql_host_id in response_ids
+    if "rhel_ai" in sp_filter_param:
+        assert no_rhel_host_id in response_ids
+
+
+def test_query_operating_system_and_sap_workload_presence_not_nil(db_create_host, api_get):
+    """OS filter AND SAP workload presence (not_nil) narrow results; both must match."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    match_id = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    same_os_no_sap = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+    sap_wrong_os = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+        "&filter[system_profile][workloads][sap][is]=not_nil"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {match_id}
+    assert same_os_no_sap not in response_ids
+    assert sap_wrong_os not in response_ids
+
+
+def test_query_workload_presence_or_logic_combined_with_operating_system_filter(db_create_host, api_get):
+    """Top-level workload existence filters use OR among themselves; OS remains AND (narrowing)."""
+    rhel_86_os = {"name": "RHEL", "major": 8, "minor": 6}
+    sap_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    ansible_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {"ansible": {"controller_version": "1.2"}},
+                }
+            }
+        ).id
+    )
+    sap_on_rhel77 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": {"name": "RHEL", "major": 7, "minor": 7},
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    neither_on_rhel86 = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "operating_system": rhel_86_os,
+                    "workloads": {},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][is]=not_nil"
+        "&filter[system_profile][workloads][ansible][is]=not_nil"
+        "&filter[system_profile][operating_system][RHEL][version][eq][]=8.6"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert response_ids == {sap_on_rhel86, ansible_on_rhel86}
+    assert sap_on_rhel77 not in response_ids
+    assert neither_on_rhel86 not in response_ids
+
+
+def test_query_workload_specific_properties_across_workloads_still_use_and_logic(db_create_host, api_get):
+    """Drill-down filters on different workloads remain AND (Case 2)."""
+    sap_ver = "1.00.122.04.1478575636"
+    mssql_ver = "15.2.0"
+
+    both = {
+        "system_profile_facts": {
+            "workloads": {
+                "sap": {"sap_system": True, "version": sap_ver},
+                "mssql": {"version": mssql_ver},
+            }
+        }
+    }
+    sap_only = {
+        "system_profile_facts": {
+            "workloads": {"sap": {"sap_system": True, "version": sap_ver}},
+        }
+    }
+    mssql_only = {
+        "system_profile_facts": {
+            "workloads": {"mssql": {"version": mssql_ver}},
+        }
+    }
+
+    both_id = str(db_create_host(extra_data=both).id)
+    sap_only_id = str(db_create_host(extra_data=sap_only).id)
+    mssql_only_id = str(db_create_host(extra_data=mssql_only).id)
+
+    url = build_hosts_url(
+        query=f"?filter[system_profile][workloads][sap][version]={sap_ver}"
+        f"&filter[system_profile][workloads][mssql][version]={mssql_ver}"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert both_id in response_ids
+    assert sap_only_id not in response_ids
+    assert mssql_only_id not in response_ids
+
+
+def test_mixed_workload_property_and_type_no_matches(db_create_host, api_get):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["H2O"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"rhel_ai": {"variant": "RHEL AI"}}}})
+
+    query = "?filter[system_profile][sap_sids][contains][]=H2O&filter[system_profile][rhel_ai][is][]=not_nil"
+
+    url = build_hosts_url(query)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
+def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": False}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sids": ["ABC", "DEF"]}}}})
+    db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}})
+
+    url = build_hosts_url(
+        query="?filter[system_profile][workloads][sap][sids][contains][]=NONEXISTENT_SID"
+        "&filter[system_profile][workloads][sap][sap_system][]=true"
+        "&filter[system_profile][workloads][ansible][controller_version][is]=not_nil"
+    )
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["results"] == []
+
+
+def test_no_hosts_in_org(api_get):
+    """Test no hosts are returned if for empty organization."""
+
+    url = build_hosts_url()
+    response_status, response_data = api_get(url, identity=IDENTITY_WITHOUT_HOSTS)
+    assert response_status == 200
+    assert response_data["results"] == []
+    assert response_data["count"] == response_data["total"] == 0
+
+
+@pytest.mark.parametrize(
+    "input_val,expected",
+    [
+        ("hello", "hello"),
+        ("hello%world", "hello\\%world"),
+        ("hello_world", "hello\\_world"),
+        ("hello\\world", "hello\\\\world"),
+        ("hello*world", "hello%world"),
+        ("hello\\%_*world", "hello\\\\\\%\\_%world"),
+        (123, 123),
+        (None, None),
+    ],
+)
+def test_escape_ilike_value(input_val: Any, expected: Any) -> None:
+    assert escape_ilike_value(input_val) == expected
+
+
+@pytest.mark.parametrize(
+    "filter_field,data_key,is_system_profile",
+    [
+        ("display_name", "display_name", False),
+        ("hostname_or_id", "fqdn", False),
+        ("insights_client_version", "insights_client_version", True),
+    ],
+)
+def test_wildcard_escaping(
+    filter_field: str,
+    data_key: str,
+    is_system_profile: bool,
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    # Create hosts with special characters
+    if is_system_profile:
+        host_percent = db_create_host(extra_data={"system_profile_facts": {data_key: "Version%1"}})
+        host_underscore = db_create_host(extra_data={"system_profile_facts": {data_key: "Version_1"}})
+        host_backslash = db_create_host(extra_data={"system_profile_facts": {data_key: "Version\\1"}})
+        host_asterisk = db_create_host(extra_data={"system_profile_facts": {data_key: "VersionX1"}})
+        prefix = "Version"
+    else:
+        host_percent = db_create_host(extra_data={data_key: "Host%1"})
+        host_underscore = db_create_host(extra_data={data_key: "Host_1"})
+        host_backslash = db_create_host(extra_data={data_key: "Host\\1"})
+        host_asterisk = db_create_host(extra_data={data_key: "HostX1"})
+        prefix = "Host"
+
+    # 1. Query for percent: should only match host_percent, not host_underscore or host_backslash or host_asterisk
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%251")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%251")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 2. Query for underscore: should only match host_underscore
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}_1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}_1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_underscore.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 3. Query for backslash: should only match host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%5C1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%5C1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_backslash.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 4. Query for asterisk: should match host_asterisk, host_percent, host_underscore, host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}*1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}*1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_asterisk.id) in ids
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) in ids
+    assert str(host_backslash.id) in ids
+
+
+def test_system_profile_nil_not_nil_not_escaped(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    # Create a host with insights_client_version key
+    host_with_val = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "Version1"}})
+    # Create a host without insights_client_version key
+    host_without_val = db_create_host(extra_data={"system_profile_facts": {}})
+
+    # 1. Query with nil: should return host_without_val, but not host_with_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_without_val.id) in ids
+    assert str(host_with_val.id) not in ids
+
+    # 2. Query with not_nil: should return host_with_val, but not host_without_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=not_nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_with_val.id) in ids
+    assert str(host_without_val.id) not in ids

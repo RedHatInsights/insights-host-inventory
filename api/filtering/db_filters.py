@@ -19,6 +19,7 @@ from sqlalchemy.dialects.postgresql import JSON
 
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.db_custom_filters import get_host_types_from_filter
+from api.filtering.filtering_common import escape_ilike_value
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -60,7 +61,7 @@ def canonical_fact_filter(canonical_fact: str, value, case_insensitive: bool = F
 
 
 def _display_name_filter(display_name: str) -> list:
-    return [Host.display_name.ilike(f"%{display_name.replace('*', '%')}%")]
+    return [Host.display_name.ilike(f"%{escape_ilike_value(display_name)}%")]
 
 
 def _tags_filter(string_tags: list[str]) -> list:
@@ -292,7 +293,7 @@ def _system_profile_filter(filter: dict) -> tuple[list, set[str | None]]:
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
-    wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
+    wildcard_id = f"%{escape_ilike_value(hostname_or_id)}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
         Host.canonical_facts["fqdn"].astext.ilike(wildcard_id),

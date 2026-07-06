@@ -12,6 +12,7 @@ from api.filtering.filtering_common import FIELD_FILTER_TO_PYTHON_CAST
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_LOOKUP
 from api.filtering.filtering_common import POSTGRES_COMPARATOR_NO_EQ_LOOKUP
 from api.filtering.filtering_common import POSTGRES_DEFAULT_COMPARATOR
+from api.filtering.filtering_common import escape_ilike_value
 from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.config import HOST_TYPES
@@ -302,8 +303,8 @@ def build_single_filter(filter_param: dict) -> ColumnElement:
             pg_op = POSTGRES_DEFAULT_COMPARATOR.get(field_filter)
 
         # Handle wildcard fields (use ILIKE, replace * with %)
-        if pg_op == ColumnOperators.ilike:
-            value = value.replace("*", "%")
+        if pg_op == ColumnOperators.ilike and value not in ("nil", "not_nil"):
+            value = escape_ilike_value(value)
 
         if value in ["nil", "not_nil"]:
             pg_op = POSTGRES_COMPARATOR_LOOKUP[value]
