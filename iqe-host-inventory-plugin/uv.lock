@@ -1632,7 +1632,7 @@ wheels = [
 
 [[package]]
 name = "iqe-bindings"
-version = "26.6.18.1"
+version = "26.6.30.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
 dependencies = [
     { name = "aenum" },
@@ -1641,7 +1641,7 @@ dependencies = [
     { name = "urllib3" },
 ]
 wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-bindings/26.6.18.1/iqe_bindings-26.6.18.1-py3-none-any.whl", hash = "sha256:4e68c5f39264966bedd7c704293e7624c854c9c179de978cbfb9e55804bff452" },
+    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-bindings/26.6.30.0/iqe_bindings-26.6.30.0-py3-none-any.whl", hash = "sha256:c8ac5fc5f4066eda18b329d7bc0d662a4f246762422cc0561a5e117d181413fd" },
 ]
 
 [[package]]
@@ -1731,20 +1731,6 @@ wheels = [
 ]
 
 [[package]]
-name = "iqe-export-service-plugin"
-version = "26.6.8.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "iqe-core" },
-    { name = "iqe-service-accounts-plugin" },
-    { name = "kafka-python-ng" },
-    { name = "openapi-validator" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/iqe-export-service-plugin/26.6.8.0/iqe_export_service_plugin-26.6.8.0-py2.py3-none-any.whl", hash = "sha256:613b59e4a6587659fbea79d951edd387bdeca4f05a01d0093d95233805cfed74" },
-]
-
-[[package]]
 name = "iqe-goatee-plugin"
 version = "2024.8.16.0"
 source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
@@ -1770,7 +1756,6 @@ dependencies = [
     { name = "google-auth" },
     { name = "iqe-bindings" },
     { name = "iqe-core" },
-    { name = "iqe-export-service-plugin" },
     { name = "iqe-kessel-sync-plugin" },
     { name = "iqe-turnpike-plugin" },
     { name = "lxml" },
@@ -1796,9 +1781,8 @@ requires-dist = [
     { name = "faker" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
-    { name = "iqe-bindings" },
+    { name = "iqe-bindings", specifier = ">=26.6.30.0" },
     { name = "iqe-core", specifier = ">=26.6.22.0" },
-    { name = "iqe-export-service-plugin" },
     { name = "iqe-kessel-sync-plugin" },
     { name = "iqe-turnpike-plugin" },
     { name = "lxml" },
@@ -2115,15 +2099,6 @@ dependencies = [
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/jwcrypto/1.5.7/jwcrypto-1.5.7.tar.gz", hash = "sha256:70204d7cca406eda8c82352e3c41ba2d946610dafd19e54403f0a1f4f18633c6" }
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/jwcrypto/1.5.7/jwcrypto-1.5.7-py3-none-any.whl", hash = "sha256:729463fefe28b6de5cf1ebfda3e94f1a1b41d2799148ef98a01cb9678ebe2bb0" },
-]
-
-[[package]]
-name = "kafka-python-ng"
-version = "2.2.3"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/kafka-python-ng/2.2.3/kafka_python_ng-2.2.3.tar.gz", hash = "sha256:f79f28e10ade9b5a9860b2ec15b7cc8dc510d5702f5a399430478cff5f93a05a" }
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/kafka-python-ng/2.2.3/kafka_python_ng-2.2.3-py2.py3-none-any.whl", hash = "sha256:adc6e82147c441ca4ae1f22e291fc08efab0d10971cbd4aa1481d2ffa38e9480" },
 ]
 
 [[package]]
@@ -2731,21 +2706,6 @@ dependencies = [
 sdist = { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/ocviapy/1.7.0/ocviapy-1.7.0.tar.gz", hash = "sha256:f884237963f0604c11d93a1ff092e495d807c33ea92976b4fd1c79f27e541ac3" }
 wheels = [
     { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/ocviapy/1.7.0/ocviapy-1.7.0-py3-none-any.whl", hash = "sha256:8fca38ec6082861c4e91e068a8eae38f58f811d804a223ea5367ea8ad6e94449" },
-]
-
-[[package]]
-name = "openapi-validator"
-version = "26.4.1.0"
-source = { registry = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "colorama" },
-    { name = "jsonschema" },
-    { name = "pyyaml" },
-    { name = "requests" },
-]
-wheels = [
-    { url = "https://nexus.corp.redhat.com/repository/cqt-pypi/packages/openapi-validator/26.4.1.0/openapi_validator-26.4.1.0-py3-none-any.whl", hash = "sha256:5f2c607ea8b99fa4d9ec43f21940cb3ca871bb1afcbb0c382bf48b71d8e90b1a" },
 ]
 
 [[package]]
