@@ -43,7 +43,7 @@ def test_host_checkin(host_inventory: ApplicationHostInventory) -> None:
         insights_id=host.insights_id,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert_checkin_response(response.json(), host)
 
 
@@ -64,7 +64,7 @@ def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -
         checkin_frequency=60,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert_checkin_response(response.json(), host)
 
 
