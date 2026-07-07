@@ -177,6 +177,8 @@ objects:
       - export-service
     optionalDependencies:
       - kessel-inventory
+      - kessel-relations
+      - kessel-kafkaconnect
     deployments:
     - name: service
       podSpec:
