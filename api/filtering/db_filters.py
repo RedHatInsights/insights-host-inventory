@@ -304,7 +304,11 @@ def _staleness_filter(staleness: list[str], org_id: str) -> list:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
         filters = [not_(host_staleness_states_filters.culled())]
     else:
-        filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
+        effective_states = {state for state in staleness if state != "unknown"}
+        if effective_states == {"fresh", "stale", "stale_warning"}:
+            filters = [not_(host_staleness_states_filters.culled())]
+        else:
+            filters = [getattr(host_staleness_states_filters, state)() for state in effective_states]
     return [or_(*filters)]
 
 

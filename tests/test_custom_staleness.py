@@ -505,3 +505,59 @@ def test_find_non_culled_excludes_compute_on_read_culled(db_create_host):
 
     base = Host.query.filter(Host.id == host.id)
     assert find_non_culled_hosts(base, host.org_id).count() == 0
+
+
+def test_staleness_filter_all_non_culled_states_uses_not_culled(db_create_host):
+    """
+    Verify that when all three non-culled staleness states ('fresh', 'stale', 'stale_warning')
+    are requested, the generated SQL filter is equivalent to NOT(culled()).
+    """
+    host = db_create_host()
+    # When we request all three non-culled states, it should match a fresh host
+    expr = _staleness_filter(["fresh", "stale", "stale_warning"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+    # It should also match a stale host
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=3)
+    db.session.commit()
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+    # It should also match a stale_warning host
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=10)
+    db.session.commit()
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+    # But it should NOT match a culled host
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=40)
+    db.session.commit()
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 0
+
+
+def test_staleness_filter_all_non_culled_states_with_unknown_uses_not_culled(db_create_host):
+    """
+    Verify that when all three non-culled staleness states are requested along with 'unknown',
+    the generated SQL filter is still equivalent to NOT(culled()).
+    """
+    host = db_create_host()
+    expr = _staleness_filter(["fresh", "stale", "stale_warning", "unknown"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+    # But it should NOT match a culled host
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=40)
+    db.session.commit()
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 0
+
+
+def test_staleness_filter_partial_states_uses_or_conditions(db_create_host):
+    """
+    Verify that partial staleness state combinations still produce the original OR-based filters.
+    """
+    host = db_create_host()
+    # Only 'fresh' and 'stale'
+    expr = _staleness_filter(["fresh", "stale"], host.org_id)
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 1
+
+    # A stale_warning host should NOT match
+    host.last_check_in = datetime.now(tz=UTC) - timedelta(days=10)
+    db.session.commit()
+    assert Host.query.filter(Host.id == host.id).filter(*expr).count() == 0
