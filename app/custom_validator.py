@@ -54,7 +54,11 @@ class CustomParameterValidator(ParameterValidator):
         self.sp_spec = system_profile_spec
 
     def _resolve_query_params(self, request):
-        return request.query_params
+        if hasattr(request.query_params, "getlist"):
+            query_params = {k: request.query_params.getlist(k) for k in request.query_params}
+        else:
+            query_params = {k: [v] if not isinstance(v, list) else v for k, v in request.query_params.items()}
+        return self.uri_parser.resolve_query(query_params)
 
     def _validate_system_profile_field_names(self, fields):
         query_fields = fields.get("system_profile", {}).keys()
