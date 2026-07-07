@@ -36,14 +36,16 @@ class BaseAPIWrapper:
     def __init__(self, app: Application, api_version: str = "v1") -> None:
         self._app = app
         # Build the base URL from IQE config rather than the apigen client.
-        # In clowder_smoke the gateway is the direct service, so we use the
-        # per-plugin main config; everywhere else the central gateway config
-        # lives in app.config.main (scheme/hostname/port per environment).
+        # In clowder_smoke the gateway is the direct service (port required);
+        # in Stage/Prod the central gateway has no port in the URL.
         if app.config.current_env == "clowder_smoke":
             cfg = app.host_inventory.config.main
+            self._base_url = (
+                f"{cfg.scheme}://{cfg.hostname}:{cfg.port}/api/inventory/{api_version}"
+            )
         else:
             cfg = app.config.main
-        self._base_url = f"{cfg.scheme}://{cfg.hostname}:{cfg.port}/api/inventory/{api_version}"
+            self._base_url = f"{cfg.scheme}://{cfg.hostname}/api/inventory/{api_version}"
         logger.debug("BaseAPIWrapper base URL: %s", self._base_url)
 
     @property

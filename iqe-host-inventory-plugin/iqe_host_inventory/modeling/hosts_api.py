@@ -177,11 +177,12 @@ class HostsAPIWrapper(BaseEntity):
         provider_id: str | None = None,
         provider_type: str | None = None,
         checkin_frequency: int | None = None,
-    ) -> dict:
+    ) -> Any:
         """Check in a host via POST /api/inventory/v1/hosts/checkin.
 
         Finds an existing host by canonical facts and updates its staleness
-        timestamps.  At least one canonical fact must be provided.
+        timestamps.  The app requires at least one canonical fact; omitting all
+        will result in a 400 response.
 
         Uses ``BaseAPIWrapper`` / ``app.http_client`` directly — no apigen types.
 
@@ -196,7 +197,7 @@ class HostsAPIWrapper(BaseEntity):
         :param str provider_type: Cloud provider type (must be paired with provider_id)
         :param int checkin_frequency: How long until next expected check-in (minutes).
             Valid range: 1-2880. Defaults to 60 minutes if not provided.
-        :return dict: Response body from POST /hosts/checkin (HostOut fields as a dict)
+        :return: Raw HTTP response from POST /hosts/checkin
         """
         body = {
             k: v
@@ -214,26 +215,8 @@ class HostsAPIWrapper(BaseEntity):
             }.items()
             if v is not None
         }
-        canonical_facts = (
-            "insights_id",
-            "subscription_manager_id",
-            "satellite_id",
-            "bios_uuid",
-            "ip_addresses",
-            "fqdn",
-            "mac_addresses",
-            "provider_id",
-            "provider_type",
-        )
-        if not any(k in body for k in canonical_facts):
-            raise ValueError(
-                "At least one canonical fact must be provided: " + ", ".join(canonical_facts)
-            )
-
         with self._host_inventory.apis.measure_time("POST /hosts/checkin"):
-            response = self._base_wrapper.post("/hosts/checkin", json=body)
-        response.raise_for_status()
-        return response.json()
+            return self._base_wrapper.post("/hosts/checkin", json=body)
 
     @contextmanager
     def async_api(self) -> Generator[None]:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from time import sleep
 
 import pytest
 
@@ -39,13 +38,13 @@ def test_host_checkin(host_inventory: ApplicationHostInventory) -> None:
         title: POST /hosts/checkin updates last_check_in and staleness timestamps
     """
     host = host_inventory.kafka.create_host()
-    sleep(1)  # Ensure timestamps differ after checkin
 
     response = host_inventory.apis.hosts.host_checkin_response(
         insights_id=host.insights_id,
     )
 
-    assert_checkin_response(response, host)
+    assert response.status_code == 200
+    assert_checkin_response(response.json(), host)
 
 
 @pytest.mark.ephemeral
@@ -59,14 +58,14 @@ def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -
         title: POST /hosts/checkin with custom checkin_frequency updates staleness timestamps
     """
     host = host_inventory.kafka.create_host()
-    sleep(1)  # Ensure timestamps differ after checkin
 
     response = host_inventory.apis.hosts.host_checkin_response(
         insights_id=host.insights_id,
         checkin_frequency=60,
     )
 
-    assert_checkin_response(response, host)
+    assert response.status_code == 200
+    assert_checkin_response(response.json(), host)
 
 
 @pytest.mark.ephemeral
@@ -79,5 +78,5 @@ def test_host_checkin_requires_canonical_fact(host_inventory: ApplicationHostInv
         importance: low
         title: POST /hosts/checkin rejects requests with no canonical facts
     """
-    with pytest.raises(ValueError, match="At least one canonical fact must be provided"):
-        host_inventory.apis.hosts.host_checkin_response()
+    response = host_inventory.apis.hosts.host_checkin_response()
+    assert response.status_code == 400
