@@ -14,6 +14,8 @@ from iqe.utils.archive_memory import InsightsArchiveInMemory
 from iqe_bindings.v7.ingress_v1 import IngressApi
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.modeling.hosts_api import HostNotCreatedError
+from iqe_host_inventory.modeling.hosts_api import HostOperationError
 from iqe_host_inventory.modeling.hosts_api import HostsAPIWrapper
 from iqe_host_inventory.utils.datagen_utils import OperatingSystem
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -31,7 +33,9 @@ _CONTENT_TYPE_TO_EXTENSION = {
     _FILE_TYPE: ".redhat-advisor-tgz",
 }
 
-HOSTS_NOT_CREATED_ERROR = Exception("Some hosts were not created")
+
+class HostsNotCreatedError(HostOperationError):
+    default_message = "Some hosts were not created"
 
 
 @dataclass
@@ -280,17 +284,19 @@ class HBIUploads(BaseEntity):
         # REVISIT: This is currently needed for Kessel
         logger.info("Waiting for the host to be retrievable via REST API: GET /host_exists")
         host_ids = self._hosts_api.wait_for_host_exists([archive.insights_id])
-        assert len(host_ids) == 1, (
-            f"Expected exactly one host to be created, got {len(host_ids)}: {host_ids}"
-        )
+        if len(host_ids) != 1:
+            raise HostNotCreatedError(
+                f"Expected exactly one host to be created, got {len(host_ids)}: {host_ids}"
+            )
 
         logger.info("Waiting for the host to be retrievable via REST API: GET /hosts")
         hosts = self._host_inventory.apis.hosts.wait_for_created_by_filters(
             insights_id=archive.insights_id
         )
-        assert len(hosts) == 1, (
-            f"Expected exactly one host to be created, got {len(hosts)}: {hosts}"
-        )
+        if len(hosts) != 1:
+            raise HostNotCreatedError(
+                f"Expected exactly one host to be created, got {len(hosts)}: {hosts}"
+            )
 
         logger.info("Waiting for the host to be retrievable via REST API: GET /hosts/<host_id>")
         self._hosts_api.wait_for_created(hosts)
@@ -342,13 +348,13 @@ class HBIUploads(BaseEntity):
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /host_exists")
         response_host_ids = self._hosts_api.wait_for_host_exists(insights_ids)
         if len(response_host_ids) != len(insights_ids):
-            raise HOSTS_NOT_CREATED_ERROR
+            raise HostsNotCreatedError(f"{response_host_ids} != {insights_ids}")
 
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /hosts")
         response_hosts = self._hosts_api.async_wait_for_created_by_insights_ids(insights_ids)
         delete_files(archives)
         if len(response_hosts) != len(insights_ids):
-            raise HOSTS_NOT_CREATED_ERROR
+            raise HostsNotCreatedError(f"{response_hosts} != {insights_ids}")
 
         logger.info("Waiting for the hosts to be retrievable via REST API: GET /hosts/<host_id>")
         self._hosts_api.wait_for_created(response_hosts)

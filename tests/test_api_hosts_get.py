@@ -4,14 +4,15 @@ import uuid
 from collections.abc import Callable
 from datetime import datetime
 from datetime import timedelta
-from itertools import chain
 from itertools import combinations
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from pytest_mock import MockerFixture
 from pytest_subtests import SubTests
 
+from api.filtering.filtering_common import escape_ilike_value
 from app.exceptions import IdsNotFoundError
 from app.models.host import Host
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
@@ -40,6 +41,7 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import quote
 from tests.helpers.api_utils import quote_everything
 from tests.helpers.test_utils import IDENTITY_WITHOUT_HOSTS
+from tests.helpers.test_utils import INVALID_UUIDS
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -131,33 +133,24 @@ def test_query_missing_hosts_with_pagination_omits_not_found_ids(db_create_host,
     assert "not_found_ids" not in response_data
 
 
-def test_query_invalid_host_id(mq_create_three_specific_hosts, api_get, subtests):
-    created_hosts = mq_create_three_specific_hosts
-    bad_id_list = ["notauuid", "1234blahblahinvalid"]
-    only_bad_id = bad_id_list.copy()
-
-    # Can't have empty string as an only ID, that results in 404 Not Found.
-    more_bad_id_list = bad_id_list + [""]
-    valid_id = created_hosts[0].id
-    with_bad_id = [f"{valid_id},{bad_id}" for bad_id in more_bad_id_list]
-
-    for host_id_list in chain(only_bad_id, with_bad_id):
-        with subtests.test(host_id_list=host_id_list):
-            url = build_hosts_url(host_list_or_id=host_id_list)
-            response_status, _ = api_get(url)
-            assert response_status == 400
-
-
-def test_query_host_id_with_incorrect_formats(api_get, subtests):
-    host_id = "6a2f41a3-c54c-fce8-32d2-0324e1c32e22"
-
-    bad_host_ids = (f" {host_id}", f"{{{host_id}", f"{host_id}-")
-
-    for bad_host_id in bad_host_ids:
-        with subtests.test():
-            url = build_hosts_url(host_list_or_id=bad_host_id)
-            response_status, _ = api_get(url)
-            assert response_status == 400
+@pytest.mark.parametrize("invalid_uuid", INVALID_UUIDS)
+@pytest.mark.parametrize("prepend_existing_uuid", (False, True))
+def test_query_invalid_host_id(invalid_uuid, prepend_existing_uuid, mq_create_three_specific_hosts, api_get):
+    """
+    INVALID_UUID only have random invalid UUIDs along with non existing valid uuid
+    Below makes sure tests are performed with existing uuids as well with help of
+    mq_create_three_specific_hosts To test all invalid patterns, we used stacked
+    parameterization
+    """
+    if prepend_existing_uuid:
+        invalid_uuid = f"{mq_create_three_specific_hosts[0].id},{invalid_uuid}"
+    url = build_hosts_url(host_list_or_id=invalid_uuid)
+    response_status, response_data = api_get(url)
+    # If Empty UUID (in INVALID_UUIDS), api results in 200 OK.
+    if not invalid_uuid:
+        assert_response_status(response_status, expected_status=200)
+    else:
+        assert_response_status(response_status, expected_status=400)
 
 
 def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get, subtests):
@@ -167,11 +160,12 @@ def test_query_invalid_paging_parameters(mq_create_three_specific_hosts, api_get
     api_pagination_invalid_parameters_test(api_get, subtests, url)
 
 
-def test_query_with_invalid_insights_id(api_get):
-    url = build_hosts_url(query="?insights_id=notauuid")
-    response_status, _ = api_get(url)
-
+@pytest.mark.parametrize("invalid_uuid", INVALID_UUIDS)
+def test_query_with_invalid_insights_id(api_get, invalid_uuid):
+    url = build_hosts_url(query=f"?insights_id={invalid_uuid}")
+    response_status, response_data = api_get(url)
     assert response_status == 400
+    assert "is not a 'uuid'" in response_data["detail"]
 
 
 def test_get_host_with_invalid_tag_no_key(api_get):
@@ -2012,7 +2006,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "qbe]d?sdx`.{0`sTfX:GP&dp$kf;y0`F3;`^Z1aa-b-[:9$&s4",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2021,7 +2015,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '%T^>GYlS"Q*2K:6v57YGLU5.7H*p#kEHqhTH1u6yEX:yaJyFkC',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2030,7 +2024,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '0~j@TiIP^xYk&yoFc0f("El`73g2;"pqm%0z',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2039,7 +2033,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": '[w{"(caY4(m`5A}[,n8Eif%%%E8?Fg?C;y{A#Viv3SZVgAUhQ',
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2048,7 +2042,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "Zk0*,gJjkL>|M%b2W`KZgY[jIaH}B-c,tfWv*dkpHR)|je",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2057,7 +2051,7 @@ def test_query_all_sp_filters_sql_char_contents(db_create_host, api_get, sp_filt
         "system_profile_facts": {
             "arch": "7%#a@|yEptSf7_?(SQ`G|Mc_Q8P1?",
             "host_type": "edge",
-            "sap_sids": ["ABC", "DEF"],
+            "workloads": {"sap": {"sids": ["ABC", "DEF"]}},
             "system_memory_bytes": 8192,
         }
     }
@@ -2079,9 +2073,8 @@ def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
             "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",
@@ -2097,7 +2090,7 @@ def test_query_sp_filters_os_and_rhc_client_id(db_create_host, api_get):
             "insights_client_version": "1.2.3",
             "greenboot_status": "green",
             "bootc_status": {"booted": {"image": "192.168.0.1:5000/foo/foo:latest"}},
-            "sap_sids": ["DEF"],
+            "workloads": {"sap": {"sids": ["DEF"]}},
             "number_of_cpus": 8,
         }
     }
@@ -2133,9 +2126,8 @@ def test_query_sp_filters_query_on_object_with_is_successful_request(db_create_h
             "arch": "x86_64",
             "insights_client_version": "3.0.1-2.el4_2",
             "host_type": "edge",
-            "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
+            "workloads": {"sap": {"sap_system": True, "sids": ["ABC", "DEF"]}},
             "bootc_status": {"booted": {"image": "quay.io/centos-bootc/fedora-bootc-cloud:eln"}},
-            "sap_sids": ["ABC", "DEF"],
             "systemd": {"failed_services": ["foo", "bar"]},
             "system_memory_bytes": 8292048963606259,
             "rhc_client_id": "6b655c07-0daf-4564-9e1b-f6fb95510370",
@@ -2929,3 +2921,128 @@ def test_no_hosts_in_org(api_get):
     assert response_status == 200
     assert response_data["results"] == []
     assert response_data["count"] == response_data["total"] == 0
+
+
+@pytest.mark.parametrize(
+    "input_val,expected",
+    [
+        ("hello", "hello"),
+        ("hello%world", "hello\\%world"),
+        ("hello_world", "hello\\_world"),
+        ("hello\\world", "hello\\\\world"),
+        ("hello*world", "hello%world"),
+        ("hello\\%_*world", "hello\\\\\\%\\_%world"),
+        (123, 123),
+        (None, None),
+    ],
+)
+def test_escape_ilike_value(input_val: Any, expected: Any) -> None:
+    assert escape_ilike_value(input_val) == expected
+
+
+@pytest.mark.parametrize(
+    "filter_field,data_key,is_system_profile",
+    [
+        ("display_name", "display_name", False),
+        ("hostname_or_id", "fqdn", False),
+        ("insights_client_version", "insights_client_version", True),
+    ],
+)
+def test_wildcard_escaping(
+    filter_field: str,
+    data_key: str,
+    is_system_profile: bool,
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    # Create hosts with special characters
+    if is_system_profile:
+        host_percent = db_create_host(extra_data={"system_profile_facts": {data_key: "Version%1"}})
+        host_underscore = db_create_host(extra_data={"system_profile_facts": {data_key: "Version_1"}})
+        host_backslash = db_create_host(extra_data={"system_profile_facts": {data_key: "Version\\1"}})
+        host_asterisk = db_create_host(extra_data={"system_profile_facts": {data_key: "VersionX1"}})
+        prefix = "Version"
+    else:
+        host_percent = db_create_host(extra_data={data_key: "Host%1"})
+        host_underscore = db_create_host(extra_data={data_key: "Host_1"})
+        host_backslash = db_create_host(extra_data={data_key: "Host\\1"})
+        host_asterisk = db_create_host(extra_data={data_key: "HostX1"})
+        prefix = "Host"
+
+    # 1. Query for percent: should only match host_percent, not host_underscore or host_backslash or host_asterisk
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%251")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%251")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 2. Query for underscore: should only match host_underscore
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}_1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}_1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_underscore.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_backslash.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 3. Query for backslash: should only match host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}%5C1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}%5C1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_backslash.id) in ids
+    assert str(host_percent.id) not in ids
+    assert str(host_underscore.id) not in ids
+    assert str(host_asterisk.id) not in ids
+
+    # 4. Query for asterisk: should match host_asterisk, host_percent, host_underscore, host_backslash
+    if is_system_profile:
+        url = build_hosts_url(query=f"?filter[system_profile][{filter_field}]={prefix}*1")
+    else:
+        url = build_hosts_url(query=f"?{filter_field}={prefix}*1")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_asterisk.id) in ids
+    assert str(host_percent.id) in ids
+    assert str(host_underscore.id) in ids
+    assert str(host_backslash.id) in ids
+
+
+def test_system_profile_nil_not_nil_not_escaped(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    # Create a host with insights_client_version key
+    host_with_val = db_create_host(extra_data={"system_profile_facts": {"insights_client_version": "Version1"}})
+    # Create a host without insights_client_version key
+    host_without_val = db_create_host(extra_data={"system_profile_facts": {}})
+
+    # 1. Query with nil: should return host_without_val, but not host_with_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_without_val.id) in ids
+    assert str(host_with_val.id) not in ids
+
+    # 2. Query with not_nil: should return host_with_val, but not host_without_val
+    url = build_hosts_url(query="?filter[system_profile][insights_client_version]=not_nil")
+    status, response = api_get(url)
+    assert status == 200
+    ids = [r["id"] for r in response["results"]]
+    assert str(host_with_val.id) in ids
+    assert str(host_without_val.id) not in ids

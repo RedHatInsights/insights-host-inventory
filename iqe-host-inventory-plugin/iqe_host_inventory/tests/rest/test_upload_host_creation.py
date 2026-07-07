@@ -243,7 +243,7 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
 
     fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
 
-    assert fetched_host.results[0].system_profile.sap_system
+    assert fetched_host.results[0].system_profile.workloads.sap.sap_system
 
 
 def test_create_image_mode_host(
