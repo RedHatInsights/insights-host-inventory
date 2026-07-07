@@ -16,8 +16,9 @@ Red Hat Insights Host Based Inventory (HBI) — Flask REST API managing system i
 
 ## Conventions
 
-- Main app: `uv sync` at repo root. IQE: `Pipfile.iqe` + pipenv (see `setup-iqe.sh`, `docs/IQE.md`). Use `unset PIPENV_PIPFILE` before main-app `uv` commands.
-- Pin the `uv` CLI via `[tool.uv] required-version` in `pyproject.toml` (CI, Dockerfiles, and hermetic scripts read this).
+- Main app: `uv sync --frozen` at repo root. IQE: `uv --project iqe-host-inventory-plugin sync --frozen` (see `docs/IQE.md`). Both use uv with separate venvs and lockfiles.
+- Set a minimum `uv` CLI version via `[tool.uv] required-version` in `pyproject.toml` (for Dependabot/MintMaker compatibility).
+- Pin the exact `uv` version used in container and hermetic builds via `uv-build-version` (must satisfy `required-version`).
 - Auth uses `x-rh-identity` header (Base64-encoded JSON with org_id) — org_id isolates tenant data
 - DB schema is `hbi.*` with partitioned tables
 - The `hbi-web` container auto-reloads on code changes — no manual restart needed

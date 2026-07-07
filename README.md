@@ -19,6 +19,7 @@ please see the
     - [Create Hosts Data](#create-hosts-data)
     - [Run the export service](#run-the-export-service)
     - [Testing](#testing)
+- [Parallel development with worktrees](#parallel-development-with-worktrees)
 - [Running the webserver locally](#running-the-webserver-locally)
 - [Legacy Support](#legacy-support)
 - [Identity](#identity)
@@ -92,6 +93,7 @@ appropriate values for your environment.
 ```bash
 cat > ${PWD}/.env<<EOF
 # RUNNING HBI Locally
+COMPOSE_PROJECT_NAME=hbi
 PROMETHEUS_MULTIPROC_DIR=/tmp
 BYPASS_RBAC=true
 BYPASS_UNLEASH=true
@@ -126,7 +128,7 @@ source .env
 1. **Install dependencies**:
 
 ```bash
-uv sync
+uv sync --frozen
 ```
 
 2. **Activate virtual environment**:
@@ -292,7 +294,11 @@ The repository now includes the IQE (Insights QE) test suite in the `iqe-host-in
 
 **Running IQE Tests Locally:**
 
-The IQE tests require special dependencies and configuration. For detailed instructions on running IQE tests locally, see the [IQE README](iqe-host-inventory-plugin/README.md).
+The IQE tests use a separate uv environment. Set it up with
+`uv --project iqe-host-inventory-plugin sync --frozen`, then run tests with
+`uv --project iqe-host-inventory-plugin run iqe tests plugin host_inventory ...`.
+For detailed instructions, see [docs/IQE.md](docs/IQE.md) and the
+[IQE plugin README](iqe-host-inventory-plugin/README.md).
 
 **PR Checks:**
 
@@ -312,6 +318,27 @@ This ensures that every PR is tested with the exact IQE test code in the reposit
 - `deploy_ephemeral_env.sh`: Creates the ephemeral namespace and deploys HBI
 - `run_cji_with_local_plugin.sh`: Deploys the CJI pod, copies local plugin, installs it, and runs tests
 - `post_test_results.sh`: Collects and publishes test results
+
+## Parallel development with worktrees
+
+Need to run multiple branches at the same time, each with their own stack?
+The `scripts/worktree.sh` script creates isolated git worktrees with per-worktree Podman Compose stacks,
+databases, and virtual environments — no port collisions, no shared DB data.
+
+```bash
+# Create a worktree with full stack
+./scripts/worktree.sh create my-feature
+
+# List worktrees and their status
+./scripts/worktree.sh list
+
+# Tear down everything when done
+./scripts/worktree.sh destroy my-feature
+```
+
+This is useful for running multiple AI agents on independent branches, parallel feature work, or code review with live stacks.
+See the [full documentation](docs/worktree-parallel-development.md)
+for details on port allocation, environment variables, and all available commands.
 
 ## Running the webserver locally
 

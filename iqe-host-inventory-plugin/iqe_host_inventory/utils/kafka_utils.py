@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import warnings
 from base64 import b64decode
 from base64 import b64encode
 from collections.abc import Callable
@@ -12,15 +11,11 @@ from datetime import timedelta
 from time import sleep
 from typing import Any
 from typing import TypeVar
-from typing import cast
 from uuid import UUID
 
 import pytest
 from confluent_kafka.error import ConsumeError
-from iqe_mq._transforms import MessageWrapper as MqMessageWrapper
 
-from iqe_host_inventory.deprecations import DEPRECATE_FIND_MQ_HOST_MSGS
-from iqe_host_inventory.deprecations import DEPRECATE_MQ_CREATE_OR_UPDATE_HOST
 from iqe_host_inventory.modeling.wrappers import HostMessageWrapper
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KafkaMessageNotFoundError
@@ -65,23 +60,6 @@ def wrap_payload(
         result["platform_metadata"] = metadata
 
     return result
-
-
-def match_hosts(message: dict, data_to_match: dict):
-    warnings.warn(DEPRECATE_FIND_MQ_HOST_MSGS, stacklevel=2)
-    if not isinstance(message, dict) or not isinstance(data_to_match, dict):
-        return None
-
-    field_to_match = data_to_match.get("field")
-
-    for field_value in data_to_match.get("values", ()):
-        if message.get("host"):
-            message_field_value = message["host"].get(field_to_match)
-        else:
-            message_field_value = message.get(field_to_match)
-
-        if field_value == message_field_value:
-            return message
 
 
 def events_message_expected_headers() -> set[str]:
@@ -466,27 +444,6 @@ def stripped_identity(identity: str | dict) -> dict:
 
 def prepare_identity_metadata(identity: dict) -> dict:
     return {"b64_identity": encode_identity(identity)}
-
-
-def log_consumed_host_message(
-    message: HostMessageWrapper | MqMessageWrapper | list[HostMessageWrapper], field_to_match: str
-):
-    warnings.warn(DEPRECATE_MQ_CREATE_OR_UPDATE_HOST, stacklevel=2)
-    if isinstance(message, list):
-        for msg in message:
-            log_consumed_host_message(msg, field_to_match)
-    else:
-        if isinstance(message, MqMessageWrapper):
-            host = HostWrapper(cast(dict[str, Any], message.value()))
-            logger.warning("old host message wrapper for %s", host.id)
-        else:
-            host = message.host
-        logger.info(
-            "Consumed host message for %s=%r: Host ID=%s",
-            field_to_match,
-            getattr(host, field_to_match),
-            host.id,
-        )
 
 
 T = TypeVar("T")

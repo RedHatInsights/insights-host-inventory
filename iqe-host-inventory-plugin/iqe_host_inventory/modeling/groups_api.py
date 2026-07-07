@@ -9,13 +9,13 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from functools import cached_property
 from time import sleep
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypedDict
 
 import attr
 from iqe.base.modeling import BaseEntity
 
-from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.hosts_api import HOST_OR_HOSTS
 from iqe_host_inventory.modeling.hosts_api import _ids_from_hosts
 from iqe_host_inventory.utils import is_global_account
@@ -32,11 +32,36 @@ from iqe_host_inventory_api import GroupQueryOutput
 from iqe_host_inventory_api import GroupsApi
 from iqe_host_inventory_api import HostOut
 
-GROUP_NOT_CREATED_ERROR = Exception("Group wasn't successfully created")
-GROUP_NOT_UPDATED_ERROR = Exception("Group wasn't successfully updated")
-GROUP_NOT_DELETED_ERROR = Exception("Group wasn't successfully deleted")
-HOSTS_NOT_ADDED_ERROR = Exception("Hosts weren't successfully added")
-HOSTS_NOT_REMOVED_ERROR = Exception("Hosts weren't successfully removed")
+if TYPE_CHECKING:
+    from iqe_host_inventory import ApplicationHostInventory
+
+
+class GroupOperationError(Exception):
+    default_message = "Group operation failed"
+
+    def __init__(self, msg: str | None = None):
+        super().__init__(msg or self.default_message)
+
+
+class GroupNotCreatedError(GroupOperationError):
+    default_message = "Group wasn't successfully created"
+
+
+class GroupNotUpdatedError(GroupOperationError):
+    default_message = "Group wasn't successfully updated"
+
+
+class GroupNotDeletedError(GroupOperationError):
+    default_message = "Group wasn't successfully deleted"
+
+
+class HostsNotAddedError(GroupOperationError):
+    default_message = "Hosts weren't successfully added"
+
+
+class HostsNotRemovedError(GroupOperationError):
+    default_message = "Hosts weren't successfully removed"
+
 
 # Error message from Kessel/RBAC when trying to create a workspace with a duplicate name
 DUPLICATE_WORKSPACE_NAME_ERROR = (
@@ -623,7 +648,7 @@ class GroupsAPIWrapper(BaseEntity):
         groups_data: Collection[GroupData] | None = None,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_CREATED_ERROR,
+        error: type[Exception] | Exception | None = GroupNotCreatedError,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully created and retrievable by API
 
@@ -799,7 +824,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_DELETED_ERROR,
+        error: type[Exception] | Exception | None = GroupNotDeletedError,
     ) -> list[GroupOutWithHostCount]:
         """Wait until the groups are successfully deleted and not retrievable by API
 
@@ -917,7 +942,7 @@ class GroupsAPIWrapper(BaseEntity):
         host_count: int | None = None,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = GROUP_NOT_UPDATED_ERROR,
+        error: type[Exception] | Exception | None = GroupNotUpdatedError,
     ) -> GroupOutWithHostCount:
         """Wait until the group is successfully updated and the changes are retrievable by API
 
@@ -985,7 +1010,7 @@ class GroupsAPIWrapper(BaseEntity):
                 delay=delay,
                 retries=retries,
             )
-        except GROUP_NOT_UPDATED_ERROR as e:
+        except GroupNotUpdatedError as e:
             response_group = self.get_group_by_id(group)
             failure_msg = f"Expected name: {name}, response name: {response_group.name}\n"
             failure_msg += (
@@ -1130,7 +1155,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = HOSTS_NOT_REMOVED_ERROR,
+        error: type[Exception] | Exception | None = HostsNotRemovedError,
     ) -> list[HostOut]:
         """Wait until the hosts are removed from groups and the changes are retrievable by API
 
@@ -1214,7 +1239,7 @@ class GroupsAPIWrapper(BaseEntity):
         *,
         delay: float = 0.5,
         retries: int = 60,
-        error: Exception | None = HOSTS_NOT_ADDED_ERROR,
+        error: type[Exception] | Exception | None = HostsNotAddedError,
     ) -> list[str]:
         """Wait until the hosts are added to the group and the changes are retrievable by API
 

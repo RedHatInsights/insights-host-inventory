@@ -8,6 +8,7 @@ from time import sleep
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import assert_datetimes_equal
 from iqe_host_inventory.utils.datagen_utils import fake
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -757,6 +758,10 @@ def test_rhsm_update_display_name_ignored_after_updated_by_api(
     # Update the display_name via API
     api_display_name = generate_display_name()
     host_inventory.apis.hosts.patch_hosts(host, display_name=api_display_name)
+
+    # Drain the Kafka "updated" event produced by the API PATCH so it doesn't
+    # interfere with the next create_host call's event matching.
+    host_inventory.kafka.wait_for_filtered_host_message(HostWrapper.insights_id, host.insights_id)
 
     response_host = host_inventory.apis.hosts.get_host_by_id(host)
     assert response_host.display_name == api_display_name

@@ -12,8 +12,8 @@
     }
   ],
   "externalDocs": {
-    "description": "How to use the Red Hat Insights API",
-    "url": "https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index"
+    "description": "Using APIs to configure Red Hat Lightspeed services",
+    "url": "https://docs.redhat.com/en/documentation/red_hat_lightspeed/1-latest/html-single/using_apis_to_configure_red_hat_lightspeed_services/index"
   },
   "paths": {
     "/hosts": {
@@ -1815,7 +1815,7 @@
           "views"
         ],
         "summary": "Read the list of inventory views",
-        "description": "Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and private views owned by the requester. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and private views owned by the requester. <br /><br /> Required permissions: inventory:views:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1842,9 +1842,6 @@
           },
           "403": {
             "description": "Forbidden - identity type not supported or missing username."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },
@@ -1901,7 +1898,7 @@
           "views"
         ],
         "summary": "Get a single inventory view",
-        "description": "Returns the full details and configuration for a single inventory view. The view must be visible to the requesting user. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Returns the full details and configuration for a single inventory view. The view must be visible to the requesting user. <br /><br /> Required permissions: inventory:views:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1928,9 +1925,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },
@@ -3172,6 +3166,39 @@
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/GroupOut"
+                }
+              },
+              "workspace": {
+                "description": "The workspace that the host belongs to, if any. Contains the same data as the first entry in the groups list.",
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/GroupId"
+                  },
+                  "name": {
+                    "$ref": "#/components/schemas/GroupName"
+                  },
+                  "account": {
+                    "$ref": "#/components/schemas/AccountNumber"
+                  },
+                  "org_id": {
+                    "$ref": "#/components/schemas/OrgId"
+                  },
+                  "ungrouped": {
+                    "description": "Whether the group is the \"ungrouped hosts\" group",
+                    "type": "boolean"
+                  },
+                  "created": {
+                    "description": "A timestamp when the entry was created.",
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "updated": {
+                    "description": "A timestamp when the entry was last updated.",
+                    "type": "string",
+                    "format": "date-time"
+                  }
                 }
               },
               "system_profile": {
