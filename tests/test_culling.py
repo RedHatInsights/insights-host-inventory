@@ -1,5 +1,3 @@
-import pytest
-
 from tests.helpers.api_utils import FACTS
 from tests.helpers.api_utils import build_facts_url
 from tests.helpers.api_utils import build_host_tags_url
@@ -52,7 +50,6 @@ def test_delete_ignores_culled(mq_create_deleted_hosts, api_delete_host):
     assert response_status == 404
 
 
-@pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")
 def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
     hosts = [
         mq_create_or_update_host(minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS))
@@ -65,7 +62,6 @@ def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_or_update_host,
     assert response_status == 400
 
 
-@pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")
 def test_tags_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
     hosts = [
         mq_create_or_update_host(minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS))
@@ -78,7 +74,6 @@ def test_tags_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
     assert response_status == 400
 
 
-@pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")
 def test_tags_count_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
     hosts = [
         mq_create_or_update_host(minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS))
@@ -91,7 +86,6 @@ def test_tags_count_doesnt_use_staleness_parameter(mq_create_or_update_host, api
     assert response_status == 400
 
 
-@pytest.mark.skip(reason="bypass until the issue, https://github.com/spec-first/connexion/issues/1920 is resolved")
 def test_system_profile_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
     hosts = [
         mq_create_or_update_host(minimal_host(insights_id=generate_uuid(), reporter="some reporter", facts=FACTS))

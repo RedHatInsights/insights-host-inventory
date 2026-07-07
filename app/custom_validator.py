@@ -3,7 +3,7 @@ import json
 import logging
 import typing
 
-import flask
+from connexion.exceptions import BadRequestProblem
 from connexion.exceptions import NonConformingResponseBody
 from connexion.json_schema import Draft4ResponseValidator
 from connexion.json_schema import format_error_with_path
@@ -54,24 +54,25 @@ class CustomParameterValidator(ParameterValidator):
         self.sp_spec = system_profile_spec
 
     def _resolve_query_params(self, request):
-        query_params = {k: request.query_params.getlist(k) for k in request.query_params}
-        return self.uri_parser.resolve_query(query_params)
+        return request.query_params
 
     def _validate_system_profile_field_names(self, fields):
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
             if field not in self.sp_spec:
-                flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
+                raise BadRequestProblem(
+                    detail=f"Requested field '{field}' is not present in the system_profile schema."
+                )
 
     def _validate_sparse_fields(self, fields):
         if not fields or "system_profile" not in fields:
-            flask.abort(400)
+            raise BadRequestProblem(detail="Invalid sparse fields request.")
 
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
         if not fields:
-            flask.abort(400)
+            raise BadRequestProblem(detail="Invalid sparse fields request.")
 
         if "system_profile" in fields:
             self._validate_system_profile_field_names(fields)
