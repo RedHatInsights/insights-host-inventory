@@ -16,6 +16,125 @@ The `/beta/hosts-view` endpoint returns host data combined with application-spec
 
 Downstream apps declare which of their fields support sorting and filtering via `__sortable_fields__` and `__filterable_fields__` on their model class. See the sections below for details.
 
+### Unknown Field Handling
+
+HBI's Kafka consumer schemas use Marshmallow's `EXCLUDE` mode for unknown fields. When a downstream app sends fields that HBI does not yet have a column for, those fields are **silently ignored** — the message is processed normally and only known fields are persisted. This is critical for safe, independent deployments between downstream apps and HBI.
+
+> **Important:** All consumer data schemas in `app/models/schemas/consumers/` must inherit from `BaseSchemaWithExclude` (defined in `app/models/schemas/common.py`). Never use plain `MarshmallowSchema` for consumer schemas, as that defaults to `RAISE` and will reject messages containing unknown fields.
+
+## Deployment Coordination
+
+HBI and downstream apps are deployed independently. Stage and production deployments happen at different times for each service, so field changes require careful coordination to avoid breaking message ingestion or losing data. This section covers the safe deployment strategies for each type of change, including trade-offs so you can choose the right approach for your situation.
+
+Two properties of HBI make most operations safe regardless of deployment order:
+
+1. **Unknown fields are silently discarded** — consumer schemas use Marshmallow's `EXCLUDE` mode, so extra fields in a Kafka message never cause errors.
+2. **All app data columns are nullable** — if a field is absent from a message, HBI simply stores `NULL`.
+
+### Adding a New Field
+
+Adding a new field is the safest operation. Either deployment order works without errors.
+
+**Recommended default: downstream deploys first** (simpler, no cross-team coordination needed).
+
+```
+Timeline:
+  1. Downstream app starts sending the new field   →  HBI ignores it (EXCLUDE)
+  2. HBI PR merges: add column + migration + schema field + tests
+  3. HBI deploys                                   →  HBI starts persisting the new field
+```
+
+The new column will be `NULL` for existing hosts until the downstream app sends its next update for each host.
+
+**Alternative — HBI deploys first:** If the new field is critical and must be populated from the very first message (e.g., it will be used for sorting or filtering at launch), deploy HBI first. This way, the column and schema are ready before any data arrives, and there is zero data gap. The trade-off is that it requires the downstream team to wait for HBI's deploy before starting to send the field.
+
+### Renaming a Field (Add + Remove)
+
+Renaming is the most dangerous operation. If the downstream app atomically switches from the old field name to the new one before HBI is updated, two things happen simultaneously: the old column receives `NULL` (data loss) and the new field is discarded (unknown to HBI). **This is what caused the vulnerability team incident.**
+
+The safest approach is to **never treat a rename as an atomic operation**. Instead, decompose it into an add followed by a remove — two well-understood operations executed in sequence:
+
+```
+Timeline:
+  Step 1 — Add the new field (follow the "Adding" procedure above)
+    ┌──────────────────────────────────────────────────────────┐
+    │ Downstream PR: start sending the new field name          │
+    │   alongside the old one (send both)                      │
+    │ Deploy downstream to stage + prod                        │
+    │ HBI receives both; persists old, ignores new             │
+    └──────────────────────────────────────────────────────────┘
+    ┌──────────────────────────────────────────────────────────┐
+    │ HBI PR #1: add new column + schema field + migration     │
+    │   (keep old column intact)                               │
+    │ Optionally include a data migration to backfill the new  │
+    │   column from the old one for existing rows              │
+    │ Deploy HBI to stage + prod                               │
+    │ HBI now persists both old and new fields                 │
+    └──────────────────────────────────────────────────────────┘
+
+  Step 2 — Remove the old field (follow the "Removing" procedure below)
+    ┌──────────────────────────────────────────────────────────┐
+    │ Downstream PR: stop sending the old field name           │
+    │ Deploy downstream to stage + prod                        │
+    │ Old column starts receiving NULLs                        │
+    └──────────────────────────────────────────────────────────┘
+    ┌──────────────────────────────────────────────────────────┐
+    │ HBI PR #2: drop old column + schema field + migration    │
+    │   Update __sortable_fields__ / __filterable_fields__     │
+    │ Deploy HBI to stage + prod                               │
+    │ Old column is gone                                       │
+    └──────────────────────────────────────────────────────────┘
+```
+
+**Why add-then-remove instead of a single rename?**
+
+- It composes two operations that teams already know how to do safely.
+- It naturally includes an overlap period where both columns exist, so there is no data gap.
+- It gives HBI the opportunity to run a **data migration** (backfill new column from old) for existing rows during Step 1, which a single-step rename does not address.
+- Each step can be its own PR, reviewed and deployed independently.
+
+> **Key rule:** The downstream app must send **both** old and new field names until HBI has deployed Step 1 to all environments. Never rename a field in a single atomic change on the downstream side.
+
+### Removing a Field
+
+Removing a field is safe in either deployment order, but HBI-first is recommended because it lets HBI — as the data consumer — drive the contract change, and the downstream team can stop sending the field at their own pace without coordination pressure.
+
+**Recommended default: HBI removes first, downstream stops sending second.**
+
+```
+Timeline:
+  1. HBI PR merges: remove column + schema field + migration + update tests
+  2. HBI deploys                                   →  Downstream still sends the field,
+                                                       HBI silently ignores it (EXCLUDE)
+  3. Downstream app stops sending the field        →  Clean on both sides
+```
+
+This works because HBI's consumer schemas use `EXCLUDE` for unknown fields — once the column and schema field are gone, any data the downstream app still sends for that field is silently discarded with no errors.
+
+The reverse order (downstream stops first, HBI removes second) also works — the nullable column simply receives `NULL` until HBI drops it. However, HBI-first is preferred because it does not require the downstream team to act first or coordinate timing with HBI.
+
+**If the field is in `__sortable_fields__` or `__filterable_fields__`:** Dropping the column in one shot will break API consumers who rely on sorting or filtering by that field (they will start getting 400 errors with no prior warning). In this case, use a two-phase removal on the HBI side:
+
+1. **HBI PR #1:** Remove the field from `__sortable_fields__` and/or `__filterable_fields__`, but keep the column. Communicate the deprecation to API consumers. After this deploy, sort/filter requests using the field return 400, signaling that it is going away.
+2. **HBI PR #2:** Drop the column and schema field.
+
+This gives API consumers a clear signal to stop using the field before the data disappears.
+
+### Changing a Field's Type
+
+Changing a field's type (e.g., `Integer` to `String`) carries the same risks as a rename — a type mismatch will cause Marshmallow validation errors that reject the host data. Handle it the same way: **add a new column with the new type, migrate data, remove the old column.** Never change a column's type in place while the downstream app is actively sending data.
+
+### Summary Table
+
+| Operation | Recommended order | Overlap period needed? | Notes |
+|-----------|-------------------|----------------------|-------|
+| **Add field** | Downstream first | No | HBI-first if zero data gap is critical |
+| **Rename field** | Add new, then remove old | **Yes** — both fields sent until HBI deploys Step 1 | Optionally backfill existing rows via data migration |
+| **Remove field** | HBI first | No | Two-phase HBI removal if field is sortable/filterable |
+| **Change type** | Same as rename | **Yes** | Treat as add new type + remove old type |
+
+> **Golden rule:** Never deploy a breaking change (rename, remove, or type change) to a downstream app without first verifying that HBI can handle the transition gracefully. When in doubt, add the new field first, migrate HBI, then remove the old field.
+
 ## Affected Files
 
 To ensure end-to-end consistency, you must update the following files:
@@ -511,6 +630,16 @@ Ensure you've updated **all** relevant test files. The parameterized tests in `t
 ### Validation errors in MQ service
 
 Check that your field types in the SQLAlchemy model match the expected types from the Kafka message. The MQ service validates incoming data before inserting.
+
+### Messages rejected with unknown field errors
+
+If HBI is rejecting messages because of unknown fields, the consumer schema for that app is likely inheriting from plain `MarshmallowSchema` instead of `BaseSchemaWithExclude`. Check `app/models/schemas/consumers/` and ensure every schema class inherits from `BaseSchemaWithExclude` (from `app.models.schemas.common`). This sets `Meta.unknown = EXCLUDE`, which silently discards unrecognized fields.
+
+### Data loss after a field rename
+
+If a downstream app renamed a field and deployed before HBI was updated, the old column will contain `NULL` values (the old field name is no longer sent) and the new field is discarded (HBI doesn't know about it yet). To recover:
+1. Have the downstream app re-send data for affected hosts (if possible)
+2. Follow the add-then-remove process described in the [Renaming a Field](#renaming-a-field-add--remove) section for future renames
 
 ### Filter returns 400 "Invalid filter field"
 
