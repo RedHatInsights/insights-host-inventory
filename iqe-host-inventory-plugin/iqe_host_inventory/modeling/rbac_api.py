@@ -6,6 +6,7 @@ import logging
 from collections.abc import Sequence
 from copy import deepcopy
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import attr
 from iqe.base.modeling import BaseEntity
@@ -39,7 +40,6 @@ from iqe_bindings.v7.rbac_v2 import RoleBindingsUpdateRoleBindingsRequest
 from iqe_bindings.v7.rbac_v2 import RolesBatchDeleteRolesRequest
 from iqe_bindings.v7.rbac_v2 import RolesCreateOrUpdateRoleRequest
 
-from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.groups_api import GROUP_OR_ID
 from iqe_host_inventory.modeling.groups_api import _ids_from_groups
 from iqe_host_inventory.schemas import RBACRestClient
@@ -50,6 +50,9 @@ from iqe_host_inventory.utils.rbac_utils import RBACRoles
 from iqe_host_inventory.utils.rbac_utils import get_role_id
 from iqe_host_inventory.utils.rbac_utils import permission_to_v2
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
+
+if TYPE_CHECKING:
+    from iqe_host_inventory import ApplicationHostInventory
 
 logger = logging.getLogger(__name__)
 

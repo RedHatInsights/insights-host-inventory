@@ -55,6 +55,7 @@ INVALID_GROUP_NAMES = [
 TAGS_URL = f"{BASE_URL}/tags"
 SYSTEM_PROFILE_URL = f"{BASE_URL}/system_profile"
 RESOURCE_TYPES_URL = f"{BASE_URL}/resource-types"
+VIEWS_URL = f"{BASE_URL}/beta/views"
 STALENESS_URL = f"{BASE_URL}/account/staleness"
 
 SHARED_SECRET = "SuperSecretStuff"
@@ -460,13 +461,23 @@ def build_expected_host_list(host_list):
 # doesn't work unless we're certain that the keys are going to be in the same order.
 def assert_host_lists_equal(expected_host_list, actual_host_list):
     for i in range(len(expected_host_list)):
-        # Don't compare host.groups, as serialized output will be different
+        # Don't compare host.groups/workspace, as serialized output will be different
         if expected_host_list[i].get("groups"):
             assert expected_host_list[i]["groups"][0]["id"] == actual_host_list[i]["groups"][0]["id"]
             assert expected_host_list[i]["groups"][0]["ungrouped"] == actual_host_list[i]["groups"][0]["ungrouped"]
             assert expected_host_list[i]["groups"][0]["name"] == actual_host_list[i]["groups"][0]["name"]
-        expected_host_list[i].pop("groups")
-        actual_host_list[i].pop("groups")
+        actual_workspace = actual_host_list[i].get("workspace")
+        actual_groups = actual_host_list[i].get("groups", [])
+        if actual_groups:
+            assert actual_workspace is not None
+            assert actual_workspace["id"] == actual_groups[0]["id"]
+            assert actual_workspace["name"] == actual_groups[0]["name"]
+        else:
+            assert actual_workspace is None
+        expected_host_list[i].pop("groups", None)
+        actual_host_list[i].pop("groups", None)
+        expected_host_list[i].pop("workspace", None)
+        actual_host_list[i].pop("workspace", None)
         assert expected_host_list[i] == actual_host_list[i]
 
 
@@ -573,6 +584,10 @@ def build_id_list_for_url(id_or_id_list: list[str] | list[HostWrapper | Host] | 
 
 def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
+
+
+def build_views_url(view_id=None, query=None):
+    return _build_url(base_url=VIEWS_URL, id_list=view_id, query=query)
 
 
 def build_resource_types_url(query=None):

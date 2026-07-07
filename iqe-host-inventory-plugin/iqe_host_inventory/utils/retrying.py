@@ -4,7 +4,11 @@ import logging
 import time
 from collections.abc import Callable
 
-_DEFAULT_ACCEPT_ERROR = Exception("no valid result obtained")
+
+class _DefaultAcceptError(Exception):
+    def __init__(self):
+        super().__init__("no valid result obtained")
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +18,7 @@ def accept_when[T](
     is_valid: Callable[[T], bool],
     delay: float | None = None,
     retries: int | None = None,
-    error: Exception | None = _DEFAULT_ACCEPT_ERROR,
+    error: type[Exception] | Exception | None = _DefaultAcceptError,
 ) -> T:
     """
     This function was created to address the delay issue that came with
@@ -47,4 +51,4 @@ def accept_when[T](
     if error is None:
         assert response is not None
         return response
-    raise error
+    raise error() if isinstance(error, type) else error
