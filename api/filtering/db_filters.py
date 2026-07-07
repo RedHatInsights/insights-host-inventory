@@ -305,10 +305,12 @@ def _staleness_filter(staleness: list[str], org_id: str) -> list:
         filters = [not_(host_staleness_states_filters.culled())]
     else:
         effective_states = {state for state in staleness if state != "unknown"}
-        if effective_states == {"fresh", "stale", "stale_warning"}:
+        if effective_states == set(ALL_STALENESS_STATES):
             filters = [not_(host_staleness_states_filters.culled())]
         else:
-            filters = [getattr(host_staleness_states_filters, state)() for state in effective_states]
+            # Sort the states to ensure deterministic clause ordering in the generated SQL
+            sorted_states = sorted(effective_states)
+            filters = [getattr(host_staleness_states_filters, state)() for state in sorted_states]
     return [or_(*filters)]
 
 
