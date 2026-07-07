@@ -134,7 +134,7 @@ dev = [
 [tool.uv]
 package = true
 default-groups = "all"
-required-version = "0.11.21"
+required-version = ">=0.11.8"
 system-certs = true
 
 [[tool.uv.index]]

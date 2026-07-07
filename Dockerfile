@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1782420429 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1782938508 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -46,6 +46,8 @@ COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
 COPY pyproject.toml pyproject.toml
 COPY uv.lock uv.lock
+COPY uv-build-version uv-build-version
+COPY scripts/get_uv_pip_specifier.py scripts/get_uv_pip_specifier.py
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -56,9 +58,9 @@ COPY jobs/ jobs/
 ENV PIP_NO_CACHE_DIR=1
 ENV UV_COMPILE_BYTECODE=1
 
-RUN UV_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['uv']['required-version'])") && \
+RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && \
     python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install "uv==${UV_VERSION}" dumb-init && \
+    python3 -m pip install "uv${UV_SPEC}" dumb-init && \
     uv sync --frozen --no-dev && \
     chown -R 1001:0 "$APP_ROOT/.venv"
 
