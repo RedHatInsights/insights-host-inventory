@@ -66,6 +66,13 @@
             )
           }}
 
+    - name: "Fail if no default access group found"
+      ansible.builtin.fail:
+        msg: >-
+          Neither 'Default access' nor 'Custom default access' group found.
+          Users may retain unwanted default permissions.
+      when: default_access_group_uuid | length == 0
+
     - name: "List role bindings for Default access group"
       ansible.builtin.uri:
         url: "{{ rbac_v2_base }}/role-bindings/?subject_type=group&subject_id={{ default_access_group_uuid }}&limit=10000&fields=resource(id,type),role(id),subject(id,type)"
@@ -77,7 +84,6 @@
       retries: "{{ api_retries }}"
       delay: "{{ api_delay }}"
       until: default_access_bindings is not failed
-      when: default_access_group_uuid | length > 0
 
     - name: "Collect unique workspace resources from role bindings"
       ansible.builtin.set_fact:
@@ -89,9 +95,7 @@
             | unique
             | list
           }}
-      when:
-        - default_access_group_uuid | length > 0
-        - default_access_bindings.json.data | length > 0
+      when: default_access_bindings.json.data | length > 0
 
     - name: "Clear role bindings for each workspace"
       ansible.builtin.uri:
@@ -103,12 +107,13 @@
           roles: []
         status_code: [200, 204]
       environment: "{{ proxy_env }}"
-      loop: "{{ binding_resources }}"
+      loop: "{{ binding_resources | default([]) }}"
       loop_control:
         label: "workspace:{{ item.id }}"
+      register: binding_cleared
       retries: "{{ api_retries }}"
       delay: "{{ api_delay }}"
-      when: binding_resources | default([]) | length > 0
+      until: binding_cleared is not failed
 
     # ================================================================
     # PHASE 1.5: Look up workspaces (run once, used by all users)

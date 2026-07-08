@@ -66,6 +66,13 @@
             )
           }}
 
+    - name: "Fail if no default access group found"
+      ansible.builtin.fail:
+        msg: >-
+          Neither 'Default access' nor 'Custom default access' group found.
+          Users may retain unwanted default permissions.
+      when: default_access_group_uuid | length == 0
+
     - name: "List roles in Default access group"
       ansible.builtin.uri:
         url: "{{ rbac_v1_base }}/groups/{{ default_access_group_uuid }}/roles/"
@@ -77,7 +84,6 @@
       retries: "{{ api_retries }}"
       delay: "{{ api_delay }}"
       until: default_access_roles is not failed
-      when: default_access_group_uuid | length > 0
 
     - name: "Remove all roles from Default access group"
       ansible.builtin.uri:
@@ -90,9 +96,7 @@
       retries: "{{ api_retries }}"
       delay: "{{ api_delay }}"
       until: roles_removed is not failed
-      when:
-        - default_access_group_uuid | length > 0
-        - default_access_roles.json.data | length > 0
+      when: default_access_roles.json.data | length > 0
 
     # ================================================================
     # PHASE 2: Per-user setup

@@ -48,8 +48,9 @@
                 | selectattr('type', 'equalto', 'workspace')
                 | unique
                 | list
+                if group_bindings.json.data | length > 0
+                else []
               }}
-          when: group_bindings.json.data | length > 0
 
         - name: "Clear role bindings for each workspace"
           ansible.builtin.uri:
@@ -64,9 +65,10 @@
           loop: "{{ group_binding_resources }}"
           loop_control:
             label: "workspace:{{ item.id }}"
+          register: binding_cleared
           retries: "{{ api_retries }}"
           delay: "{{ api_delay }}"
-          when: group_binding_resources | default([]) | length > 0
+          until: binding_cleared is not failed
 
     - name: "Delete group '{{ group_name }}'"
       ansible.builtin.uri:

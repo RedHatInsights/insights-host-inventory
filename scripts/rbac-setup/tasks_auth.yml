@@ -19,7 +19,7 @@
   retries: "{{ api_retries }}"
   delay: "{{ api_delay }}"
   until: sso_response is not failed
-  failed_when: false
+  ignore_errors: true
 
 - name: "Fail if token exchange failed"
   ansible.builtin.fail:

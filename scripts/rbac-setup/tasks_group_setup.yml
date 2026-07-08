@@ -44,7 +44,7 @@
 
 - name: "List principals in group '{{ group_name }}'"
   ansible.builtin.uri:
-    url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/principals/"
+    url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/principals/?limit=1000"
     method: GET
     headers: "{{ auth_header }}"
     status_code: 200
