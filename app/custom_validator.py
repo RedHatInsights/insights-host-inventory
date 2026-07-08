@@ -63,7 +63,7 @@ class CustomParameterValidator(ParameterValidator):
     def _validate_system_profile_field_names(self, fields):
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
-            if field not in self.sp_spec and field not in {"crowdstrike", "ibm_db2", "oracle_db"}:
+            if field not in self.sp_spec:
                 raise BadRequestProblem(
                     detail=f"Requested field '{field}' is not present in the system_profile schema."
                 )
