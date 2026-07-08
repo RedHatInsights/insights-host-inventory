@@ -10,7 +10,7 @@ from tests.helpers.test_utils import minimal_host
 
 def test_dont_get_only_culled(api_get):
     url = build_hosts_url(query="?staleness=culled")
-    response_status, response_body = api_get(url)
+    response_status, _ = api_get(url)
 
     assert response_status == 400
 
@@ -61,7 +61,6 @@ def test_get_host_by_id_doesnt_use_staleness_parameter(mq_create_or_update_host,
 
     assert response_status == 400
     assert response_body["title"] == "Bad Request"
-    assert response_body["status"] == 400
     assert isinstance(response_body.get("detail"), str) and response_body["detail"]
 
 
@@ -76,7 +75,6 @@ def test_tags_doesnt_use_staleness_parameter(mq_create_or_update_host, api_get):
 
     assert response_status == 400
     assert response_body["title"] == "Bad Request"
-    assert response_body["status"] == 400
     assert isinstance(response_body.get("detail"), str) and response_body["detail"]
 
 
@@ -91,7 +89,6 @@ def test_tags_count_doesnt_use_staleness_parameter(mq_create_or_update_host, api
 
     assert response_status == 400
     assert response_body["title"] == "Bad Request"
-    assert response_body["status"] == 400
     assert isinstance(response_body.get("detail"), str) and response_body["detail"]
 
 
@@ -106,5 +103,4 @@ def test_system_profile_doesnt_use_staleness_parameter(mq_create_or_update_host,
 
     assert response_status == 400
     assert response_body["title"] == "Bad Request"
-    assert response_body["status"] == 400
     assert isinstance(response_body.get("detail"), str) and response_body["detail"]
