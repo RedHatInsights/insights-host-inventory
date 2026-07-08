@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 
+import requests
 from iqe.base.http import RobustSession
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ class BaseAPIWrapper:
     def client(self) -> RobustSession:
         return self._app.http_client
 
-    def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    def _request(self, method: str, path: str, **kwargs: Any) -> requests.Response:
         url = f"{self._base_url}{path}"
         response = getattr(self.client, method)(url, **kwargs)
         body = kwargs.get("json") or kwargs.get("data")
@@ -66,17 +67,17 @@ class BaseAPIWrapper:
         )
         return response
 
-    def get(self, path: str, **kwargs: Any) -> Any:
+    def get(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("get", path, **kwargs)
 
-    def post(self, path: str, **kwargs: Any) -> Any:
+    def post(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("post", path, **kwargs)
 
-    def patch(self, path: str, **kwargs: Any) -> Any:
+    def patch(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("patch", path, **kwargs)
 
-    def put(self, path: str, **kwargs: Any) -> Any:
+    def put(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("put", path, **kwargs)
 
-    def delete(self, path: str, **kwargs: Any) -> Any:
+    def delete(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("delete", path, **kwargs)
