@@ -19,6 +19,7 @@ from sqlalchemy.sql.expression import ColumnElement
 
 from api.filtering.db_app_data_filters import build_app_data_filters
 from api.filtering.db_custom_filters import build_system_profile_filter
+from api.filtering.filtering_common import escape_ilike_value
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
@@ -152,7 +153,7 @@ def hosts_field_filter(name: str, value, case_insensitive: bool = False) -> list
 
 
 def _display_name_filter(display_name: str) -> list:
-    return [Host.display_name.ilike(f"%{display_name.replace('*', '%')}%")]
+    return [Host.display_name.ilike(f"%{escape_ilike_value(display_name)}%")]
 
 
 def _tags_filter(string_tags: list[str]) -> list:
@@ -375,7 +376,7 @@ def _build_filter(filter: dict) -> tuple[list, set]:
 
 
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
-    wildcard_id = f"%{hostname_or_id.replace('*', '%')}%"
+    wildcard_id = f"%{escape_ilike_value(hostname_or_id)}%"
     filter_list = [
         Host.display_name.ilike(wildcard_id),
         Host.fqdn.ilike(wildcard_id),
