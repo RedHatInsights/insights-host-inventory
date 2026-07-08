@@ -1,0 +1,51 @@
+---
+# Shared authentication and identity discovery tasks
+# Required variables: offline_token, sso_token_url, account_api_base,
+#                     proxy_env, api_retries, api_delay
+# Sets: auth_header, org_admin_username, org_admin_email
+
+- name: "Exchange offline token for access token"
+  ansible.builtin.uri:
+    url: "{{ sso_token_url }}"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: "refresh_token"
+      client_id: "rhsm-api"
+      refresh_token: "{{ offline_token }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: sso_response
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: sso_response is not failed
+  failed_when: false
+
+- name: "Fail if token exchange failed"
+  ansible.builtin.fail:
+    msg: >-
+      Failed to authenticate with SSO. Is your offline token valid/expired?
+      HTTP {{ sso_response.status }}: {{ sso_response.json | default(sso_response.msg) }}
+  when: sso_response is failed or sso_response.status != 200
+
+- name: "Set auth header"
+  ansible.builtin.set_fact:
+    auth_header:
+      Authorization: "Bearer {{ sso_response.json.access_token }}"
+
+- name: "Discover org admin identity"
+  ansible.builtin.uri:
+    url: "{{ account_api_base }}/user"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: admin_identity
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: admin_identity is not failed
+
+- name: "Set org admin username and email"
+  ansible.builtin.set_fact:
+    org_admin_username: "{{ admin_identity.json.body.username }}"
+    org_admin_email: "{{ admin_identity.json.body.email }}"
