@@ -52,17 +52,31 @@ class BaseAPIWrapper:
     def client(self) -> RobustSession:
         return self._app.http_client
 
+    def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        url = f"{self._base_url}{path}"
+        response = getattr(self.client, method)(url, **kwargs)
+        body = kwargs.get("json") or kwargs.get("data")
+        request_id = response.headers.get("x-rh-insights-request-id")
+        logger.info(
+            "REST: %s %s with request body %s and x-rh-insights-request-id=%s",
+            method.upper(),
+            url,
+            body,
+            request_id,
+        )
+        return response
+
     def get(self, path: str, **kwargs: Any) -> Any:
-        return self.client.get(f"{self._base_url}{path}", **kwargs)
+        return self._request("get", path, **kwargs)
 
     def post(self, path: str, **kwargs: Any) -> Any:
-        return self.client.post(f"{self._base_url}{path}", **kwargs)
+        return self._request("post", path, **kwargs)
 
     def patch(self, path: str, **kwargs: Any) -> Any:
-        return self.client.patch(f"{self._base_url}{path}", **kwargs)
+        return self._request("patch", path, **kwargs)
 
     def put(self, path: str, **kwargs: Any) -> Any:
-        return self.client.put(f"{self._base_url}{path}", **kwargs)
+        return self._request("put", path, **kwargs)
 
     def delete(self, path: str, **kwargs: Any) -> Any:
-        return self.client.delete(f"{self._base_url}{path}", **kwargs)
+        return self._request("delete", path, **kwargs)

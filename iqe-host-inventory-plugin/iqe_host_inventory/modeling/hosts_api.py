@@ -20,6 +20,7 @@ from typing import NamedTuple
 from typing import TypedDict
 
 import attr
+import requests
 from iqe.base.modeling import BaseEntity
 
 from iqe_host_inventory.modeling.base_api_wrapper import BaseAPIWrapper
@@ -177,7 +178,7 @@ class HostsAPIWrapper(BaseEntity):
         provider_id: str | None = None,
         provider_type: str | None = None,
         checkin_frequency: int | None = None,
-    ) -> Any:
+    ) -> requests.Response:
         """Check in a host via POST /api/inventory/v1/hosts/checkin.
 
         Finds an existing host by canonical facts and updates its staleness

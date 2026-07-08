@@ -68,7 +68,6 @@ def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -
     assert_checkin_response(response.json(), host)
 
 
-@pytest.mark.ephemeral
 def test_host_checkin_requires_canonical_fact(host_inventory: ApplicationHostInventory) -> None:
     """POST /hosts/checkin requires at least one canonical fact.
 
