@@ -388,7 +388,7 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
         # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
         # or until we make a workaround and re-enable strict_validation.
-        # "?fields[foo]=bar",
+        "?fields[foo]=bar",
     ):
         with subtests.test(query=query):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
@@ -3046,3 +3046,31 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_strict_validation_deep_objects_and_invalid_params(api_get, db_create_host):
+    # Create a host with a system profile
+    sp_data = {
+        "system_profile_facts": {
+            "arch": "x86_64",
+            "host_type": "edge",
+        }
+    }
+    db_create_host(extra_data=sp_data)
+
+    # 1. Legitimate deep-object parameter should succeed (200 OK)
+    url = build_hosts_url(query="?filter[system_profile][arch]=x86_64")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+
+    # 2. Explicitly unlisted query parameter should be rejected (400 Bad Request)
+    url = build_hosts_url(query="?invalid_query_param=some_value")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
+    assert "detail" in response_data
+
+    # 3. Legitimate deep-object parameter combined with an invalid parameter should be rejected (400 Bad Request)
+    url = build_hosts_url(query="?filter[system_profile][arch]=x86_64&invalid_query_param=some_value")
+    response_status, response_data = api_get(url)
+    assert response_status == 400
