@@ -172,3 +172,100 @@ class TestGetViewById:
         response_status, _ = do_request(flask_client.get, url, SYSTEM_TYPE_IDENTITY)
 
         assert_response_status(response_status, 403)
+
+
+VALID_CONFIG = {"columns": [{"key": "display_name", "visible": True}]}
+
+
+class TestCreateView:
+    def test_creates_view(self, flask_client):
+        data = {"name": "New View", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "New View"
+        assert response_data["org_id"] == USER_IDENTITY["org_id"]
+        assert response_data["created_by"] == USERNAME
+        assert response_data["is_owner"] is True
+        assert response_data["is_system_view"] is False
+        assert response_data["org_wide"] is False
+
+    def test_creates_org_wide_view(self, flask_client):
+        data = {"name": "Shared View", "configuration": VALID_CONFIG, "org_wide": True}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["org_wide"] is True
+
+    def test_creates_view_with_description(self, flask_client):
+        data = {"name": "Described", "configuration": VALID_CONFIG, "description": "A test view"}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["description"] == "A test view"
+
+    def test_created_view_appears_in_list(self, flask_client):
+        data = {"name": "Listed View", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 1
+        assert response_data["results"][0]["name"] == "Listed View"
+
+    def test_400_for_missing_name(self, flask_client):
+        data = {"configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_400_for_missing_configuration(self, flask_client):
+        data = {"name": "No Config"}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_400_for_empty_name(self, flask_client):
+        data = {"name": "", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_400_for_invalid_columns_type(self, flask_client):
+        data = {"name": "Bad Config", "configuration": {"columns": "not-a-list"}}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_400_for_missing_column_key(self, flask_client):
+        data = {"name": "Bad Config", "configuration": {"columns": [{"visible": True}]}}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_403_for_unsupported_identity_type(self, flask_client):
+        data = {"name": "Test", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, SYSTEM_TYPE_IDENTITY, data)
+
+        assert_response_status(response_status, 403)

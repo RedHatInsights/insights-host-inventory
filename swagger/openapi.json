@@ -1851,7 +1851,7 @@
           "views"
         ],
         "summary": "Create a new inventory view",
-        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1884,9 +1884,6 @@
           },
           "403": {
             "description": "Forbidden - identity type not supported or missing username."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       }

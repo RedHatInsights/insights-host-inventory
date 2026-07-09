@@ -1084,8 +1084,6 @@ paths:
         The view is owned by the requesting user.
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -1106,8 +1104,6 @@ paths:
           description: Invalid request.
         '403':
           description: Forbidden - identity type not supported or missing username.
-        '501':
-          description: Not yet implemented.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id

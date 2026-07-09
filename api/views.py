@@ -1,15 +1,19 @@
 from http import HTTPStatus
 
 from flask import abort
+from marshmallow import ValidationError
 
 from api import api_operation
 from api import build_collection_response
 from api import flask_json_response
+from api import json_error_response
 from api import metrics
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.models.schemas.views import InputViewSchema
 from app.serialization import serialize_view
 from lib.views_repository import ViewNotFoundError
+from lib.views_repository import create_view as repo_create_view
 from lib.views_repository import get_view_by_id as repo_get_view_by_id
 from lib.views_repository import get_views_list as repo_get_views_list
 
@@ -55,8 +59,18 @@ def get_view_by_id(view_id, **kwargs):  # noqa: ARG001
     return flask_json_response(serialize_view(view, username))
 
 
+@api_operation
+@metrics.api_request_time.time()
 def create_view(body, **kwargs):  # noqa: ARG001
-    abort(HTTPStatus.NOT_IMPLEMENTED)
+    org_id, username = _get_view_identity()
+
+    try:
+        validated_data = InputViewSchema().load(body)
+    except ValidationError as e:
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+
+    view = repo_create_view(validated_data, org_id, username)
+    return flask_json_response(serialize_view(view, username), HTTPStatus.CREATED)
 
 
 def update_view(view_id, body, **kwargs):  # noqa: ARG001
