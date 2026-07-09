@@ -3,6 +3,7 @@ import json
 import logging
 import typing
 
+from connexion.exceptions import BadRequestProblem
 from connexion.exceptions import NonConformingResponseBody
 from connexion.json_schema import Draft4ResponseValidator
 from connexion.json_schema import format_error_with_path
@@ -56,24 +57,18 @@ class CustomParameterValidator(ParameterValidator):
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
             if field not in self.sp_spec:
-                from connexion.exceptions import BadRequestProblem
-
                 raise BadRequestProblem(
                     detail=f"Requested field '{field}' is not present in the system_profile schema."
                 )
 
     def _validate_sparse_fields(self, fields):
         if not fields or "system_profile" not in fields:
-            from connexion.exceptions import BadRequestProblem
-
-            raise BadRequestProblem(detail="Invalid sparse fields")
+            raise BadRequestProblem(detail=f"Invalid sparse fields: {fields}")
 
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
         if not fields:
-            from connexion.exceptions import BadRequestProblem
-
             raise BadRequestProblem(detail="Invalid host view sparse fields")
 
         if "system_profile" in fields:

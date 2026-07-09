@@ -392,8 +392,10 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
             hosts = [minimal_host(id=host_one_id), minimal_host(id=host_two_id)]
 
-            response_status, _ = api_get(build_system_profile_url(hosts, query=query))
+            response_status, response_data = api_get(build_system_profile_url(hosts, query=query))
             assert response_status == 400
+            assert response_data.get("title") == "Bad Request"
+            assert isinstance(response_data.get("detail"), str) and len(response_data["detail"]) > 0
 
 
 # This test verifies that the [contains] operation is denied for a non-array string field such as cpu_model
