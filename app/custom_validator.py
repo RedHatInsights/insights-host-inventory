@@ -3,7 +3,7 @@ import json
 import logging
 import typing
 
-import flask
+from connexion.exceptions import BadRequestProblem
 from connexion.exceptions import NonConformingResponseBody
 from connexion.json_schema import Draft4ResponseValidator
 from connexion.json_schema import format_error_with_path
@@ -54,6 +54,8 @@ class CustomParameterValidator(ParameterValidator):
         self.sp_spec = system_profile_spec
 
     def _resolve_query_params(self, request):
+        if isinstance(request.query_params, dict):
+            return request.query_params
         query_params = {k: request.query_params.getlist(k) for k in request.query_params}
         return self.uri_parser.resolve_query(query_params)
 
@@ -61,17 +63,19 @@ class CustomParameterValidator(ParameterValidator):
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
             if field not in self.sp_spec:
-                flask.abort(400, f"Requested field '{field}' is not present in the system_profile schema.")
+                raise BadRequestProblem(
+                    detail=f"Requested field '{field}' is not present in the system_profile schema."
+                )
 
     def _validate_sparse_fields(self, fields):
         if not fields or "system_profile" not in fields:
-            flask.abort(400)
+            raise BadRequestProblem()
 
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
         if not fields:
-            flask.abort(400)
+            raise BadRequestProblem()
 
         if "system_profile" in fields:
             self._validate_system_profile_field_names(fields)
@@ -92,7 +96,22 @@ class CustomParameterValidator(ParameterValidator):
             elif validator_name == "hostViewSparseFields":
                 self._validate_host_view_sparse_fields(fields)
 
-        return super().validate_query_parameter_list(request, security_params)
+        extra_params = super().validate_query_parameter_list(request, security_params)
+        if not extra_params:
+            return extra_params
+
+        deep_object_params = {
+            param.get("name") for param in self.parameters.get("query", []) if param.get("style") == "deepObject"
+        }
+
+        filtered_extra_params = set()
+        for param_name in extra_params:
+            base_name = param_name.split("[")[0]
+            if base_name in deep_object_params:
+                continue
+            filtered_extra_params.add(param_name)
+
+        return filtered_extra_params
 
 
 def build_validator_map(system_profile_spec):

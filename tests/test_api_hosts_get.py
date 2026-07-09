@@ -388,7 +388,7 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
         # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
         # or until we make a workaround and re-enable strict_validation.
-        # "?fields[foo]=bar",
+        "?fields[foo]=bar",
     ):
         with subtests.test(query=query):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
