@@ -63,13 +63,15 @@ class CustomParameterValidator(ParameterValidator):
 
     def _validate_sparse_fields(self, fields):
         if not fields or "system_profile" not in fields:
-            raise BadRequestProblem(detail=f"Invalid sparse fields: {fields}")
+            raise BadRequestProblem(
+                detail=f"Invalid sparse fields: {fields}. Expected 'system_profile' to be present in fields."
+            )
 
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
         if not fields:
-            raise BadRequestProblem(detail="Invalid host view sparse fields")
+            raise BadRequestProblem(detail="Invalid host view sparse fields: fields parameter is empty or missing.")
 
         if "system_profile" in fields:
             self._validate_system_profile_field_names(fields)
