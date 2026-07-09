@@ -11,7 +11,7 @@ SYSTEM_TYPE_IDENTITY["type"] = "System"
 SYSTEM_TYPE_IDENTITY.pop("user", None)
 SYSTEM_TYPE_IDENTITY["system"] = {"cert_type": "system", "cn": "test-cn"}
 
-USERNAME = USER_IDENTITY["user"]["username"]
+USER_ID = USER_IDENTITY["user"]["user_id"]
 
 
 class TestGetViewsList:
@@ -24,7 +24,7 @@ class TestGetViewsList:
         assert response_data["results"] == []
 
     def test_returns_own_private_view(self, flask_client, db_create_view):
-        db_create_view(name="My View", org_id=USER_IDENTITY["org_id"], created_by=USERNAME)
+        db_create_view(name="My View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
@@ -38,7 +38,7 @@ class TestGetViewsList:
         db_create_view(
             name="Shared View",
             org_id=USER_IDENTITY["org_id"],
-            created_by="someone_else@redhat.com",
+            created_by="98765432",
             org_wide=True,
         )
 
@@ -65,7 +65,7 @@ class TestGetViewsList:
         db_create_view(
             name="Secret View",
             org_id=USER_IDENTITY["org_id"],
-            created_by="someone_else@redhat.com",
+            created_by="98765432",
             org_wide=False,
         )
 
@@ -76,7 +76,7 @@ class TestGetViewsList:
         assert response_data["total"] == 0
 
     def test_excludes_other_org_view(self, flask_client, db_create_view):
-        db_create_view(name="Other Org", org_id="other-org", created_by="other@redhat.com", org_wide=True)
+        db_create_view(name="Other Org", org_id="other-org", created_by="other-user-id", org_wide=True)
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
@@ -86,7 +86,7 @@ class TestGetViewsList:
 
     def test_pagination(self, flask_client, db_create_view):
         for i in range(5):
-            db_create_view(name=f"View {i}", org_id=USER_IDENTITY["org_id"], created_by=USERNAME)
+            db_create_view(name=f"View {i}", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(query="?per_page=2&page=1")
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
@@ -106,7 +106,7 @@ class TestGetViewsList:
 
 class TestGetViewById:
     def test_returns_own_view(self, flask_client, db_create_view):
-        view = db_create_view(name="Detail View", org_id=USER_IDENTITY["org_id"], created_by=USERNAME)
+        view = db_create_view(name="Detail View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
@@ -129,7 +129,7 @@ class TestGetViewById:
         view = db_create_view(
             name="Shared",
             org_id=USER_IDENTITY["org_id"],
-            created_by="someone_else@redhat.com",
+            created_by="98765432",
             org_wide=True,
         )
 
@@ -148,7 +148,7 @@ class TestGetViewById:
     def test_404_for_other_users_private_view(self, flask_client, db_create_view):
         view = db_create_view(
             org_id=USER_IDENTITY["org_id"],
-            created_by="someone_else@redhat.com",
+            created_by="98765432",
             org_wide=False,
         )
 
@@ -158,7 +158,7 @@ class TestGetViewById:
         assert_response_status(response_status, 404)
 
     def test_404_for_other_org_view(self, flask_client, db_create_view):
-        view = db_create_view(org_id="other-org", created_by="other@redhat.com", org_wide=True)
+        view = db_create_view(org_id="other-org", created_by="other-user-id", org_wide=True)
 
         url = build_views_url(view_id=str(view.id))
         response_status, _ = do_request(flask_client.get, url, USER_IDENTITY)
@@ -166,7 +166,7 @@ class TestGetViewById:
         assert_response_status(response_status, 404)
 
     def test_403_for_unsupported_identity_type(self, flask_client, db_create_view):
-        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USERNAME)
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
         response_status, _ = do_request(flask_client.get, url, SYSTEM_TYPE_IDENTITY)
@@ -187,7 +187,7 @@ class TestCreateView:
         assert_response_status(response_status, 201)
         assert response_data["name"] == "New View"
         assert response_data["org_id"] == USER_IDENTITY["org_id"]
-        assert response_data["created_by"] == USERNAME
+        assert response_data["created_by"] == USER_ID
         assert response_data["is_owner"] is True
         assert response_data["is_system_view"] is False
         assert response_data["org_wide"] is False
@@ -240,6 +240,14 @@ class TestCreateView:
 
     def test_400_for_empty_name(self, flask_client):
         data = {"name": "", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+
+    def test_400_for_whitespace_only_name(self, flask_client):
+        data = {"name": "   ", "configuration": VALID_CONFIG}
 
         url = build_views_url()
         response_status, _ = do_request(flask_client.post, url, USER_IDENTITY, data)

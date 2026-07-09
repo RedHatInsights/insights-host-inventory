@@ -573,7 +573,7 @@ def serialize_staleness_response(staleness):
     }
 
 
-def serialize_view(view: InventoryView, username: str) -> dict:
+def serialize_view(view: InventoryView, user_id: str) -> dict:
     return {
         "id": serialize_uuid(view.id),
         "org_id": view.org_id,
@@ -582,7 +582,7 @@ def serialize_view(view: InventoryView, username: str) -> dict:
         "is_system_view": view.is_system_view,
         "configuration": view.configuration,
         "org_wide": view.org_wide,
-        "is_owner": view.created_by == username,
+        "is_owner": view.created_by == user_id,
         "created_by": view.created_by,
         "created_at": _serialize_datetime(view.created_on) if view.created_on else None,
         "updated_at": _serialize_datetime(view.modified_on) if view.modified_on else None,
