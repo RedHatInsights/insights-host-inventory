@@ -1841,7 +1841,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       },
@@ -1883,7 +1883,7 @@
             "description": "Invalid request."
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       }
@@ -1918,7 +1918,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
@@ -2041,7 +2041,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "Source view not found or not visible to the requesting user."

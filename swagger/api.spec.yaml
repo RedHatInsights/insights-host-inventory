@@ -1073,7 +1073,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewsListOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
     post:
       operationId: api.views.create_view
       tags:
@@ -1103,7 +1103,7 @@ paths:
         '400':
           description: Invalid request.
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id
@@ -1127,7 +1127,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: View not found or not visible to the requesting user.
     put:
@@ -1220,7 +1220,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: Source view not found or not visible to the requesting user.
         '501':
