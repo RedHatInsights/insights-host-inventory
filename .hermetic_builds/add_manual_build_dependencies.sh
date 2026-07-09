@@ -2,10 +2,10 @@
 
 hermetic_builds_dir=${1:-".hermetic_builds"}
 script_dir=$(cd "$(dirname "$0")" && pwd)
-uv_version=$(python3 -c "import tomllib; print(tomllib.load(open('${script_dir}/../pyproject.toml','rb'))['tool']['uv']['required-version'])")
+uv_version=$(python3 "${script_dir}/../scripts/get_uv_pip_specifier.py" --build-pin "${script_dir}/../pyproject.toml")
 
 cat <<EOF >> ${hermetic_builds_dir}/requirements-build.in
-uv==${uv_version}
+uv${uv_version}
 wheel==0.45.1
 flit_core<4,>=3.8
 virtualenv>=20.24.2

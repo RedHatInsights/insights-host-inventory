@@ -1815,7 +1815,7 @@
           "views"
         ],
         "summary": "Read the list of inventory views",
-        "description": "Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and private views owned by the requester. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Read the list of all inventory views visible to the requesting user. This includes system views, org-wide views, and private views owned by the requester. <br /><br /> Required permissions: inventory:views:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1842,9 +1842,6 @@
           },
           "403": {
             "description": "Forbidden - identity type not supported or missing username."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },
@@ -1901,7 +1898,7 @@
           "views"
         ],
         "summary": "Get a single inventory view",
-        "description": "Returns the full details and configuration for a single inventory view. The view must be visible to the requesting user. <br /><br /> Required permissions: inventory:views:read <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Returns the full details and configuration for a single inventory view. The view must be visible to the requesting user. <br /><br /> Required permissions: inventory:views:read",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1928,9 +1925,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },

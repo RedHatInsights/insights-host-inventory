@@ -21,15 +21,6 @@
   "pip-compile": {
     "enabled": false
   },
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": ["(^|/)pyproject\\.toml$", "(^|/)iqe-host-inventory-plugin/pyproject\\.toml$"],
-      "matchStrings": ["required-version\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
-      "depNameTemplate": "astral-sh/uv",
-      "datasourceTemplate": "github-releases"
-    }
-  ],
   "packageRules": [
     {
       "matchPackagePatterns": ["^openapi-"],
