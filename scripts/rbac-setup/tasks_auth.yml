@@ -20,6 +20,7 @@
   delay: "{{ api_delay }}"
   until: sso_response is not failed
   ignore_errors: true
+  no_log: true
 
 - name: "Fail if token exchange failed"
   ansible.builtin.fail:
@@ -32,6 +33,7 @@
   ansible.builtin.set_fact:
     auth_header:
       Authorization: "Bearer {{ sso_response.json.access_token }}"
+  no_log: true
 
 - name: "Discover org admin identity"
   ansible.builtin.uri:
