@@ -53,9 +53,6 @@ class CustomParameterValidator(ParameterValidator):
         super().__init__(*args, **kwargs)
         self.sp_spec = system_profile_spec
 
-    def _resolve_query_params(self, request):
-        return request.query_params
-
     def _validate_system_profile_field_names(self, fields):
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
@@ -65,23 +62,28 @@ class CustomParameterValidator(ParameterValidator):
                 )
 
     def _validate_sparse_fields(self, fields):
-        if not fields or "system_profile" not in fields:
-            raise BadRequestProblem()
+        if not fields:
+            raise BadRequestProblem(detail="Fields parameter cannot be empty.")
+        if "system_profile" not in fields:
+            raise BadRequestProblem(detail="Fields parameter must contain 'system_profile'.")
 
-        if set(fields.keys()) - {"system_profile"}:
-            raise BadRequestProblem()
+        unsupported_keys = set(fields.keys()) - {"system_profile"}
+        if unsupported_keys:
+            raise BadRequestProblem(
+                detail=f"Unsupported top-level keys in fields parameter: {', '.join(sorted(unsupported_keys))}"
+            )
 
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
         if not fields:
-            raise BadRequestProblem()
+            raise BadRequestProblem(detail="Fields parameter cannot be empty.")
 
         if "system_profile" in fields:
             self._validate_system_profile_field_names(fields)
 
     def validate_query_parameter_list(self, request, security_params=None):
-        query_params = self._resolve_query_params(request)
+        query_params = request.query_params
 
         for param in self.parameters.get("query", []):
             validator_name = param.get("x-validator")
@@ -96,6 +98,11 @@ class CustomParameterValidator(ParameterValidator):
             elif validator_name == "hostViewSparseFields":
                 self._validate_host_view_sparse_fields(fields)
 
+        # We bypass super().validate_query_parameter_list because it evaluates raw query string keys
+        # (e.g., 'filter[system_profile][foo]') instead of the resolved parameter names (e.g., 'filter').
+        # This causes valid deep-object filtering requests to fail with a 400 Bad Request.
+        # By calling validate_parameter_list directly with the resolved query parameter keys,
+        # we ensure strict validation works correctly with deep-object parameters.
         request_params = query_params.keys()
         spec_params = [x["name"] for x in self.parameters.get("query", [])]
         spec_params.extend(security_params or [])
