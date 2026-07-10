@@ -250,7 +250,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
                 arguments={"title": "RestyResolver Example"},
                 resolver=RestyResolver("api"),
                 validate_responses=True,
-                strict_validation=False,
+                strict_validation=True,
                 base_path=api_url,
                 validator_map=build_validator_map(system_profile_spec=sp_spec),
             )

@@ -386,9 +386,7 @@ def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
         "?fields[system_profile]=os_kernel_version&order_by=modified",
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
-        # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
-        # or until we make a workaround and re-enable strict_validation.
-        # "?fields[foo]=bar",
+        "?fields[foo]=bar",
     ):
         with subtests.test(query=query):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
@@ -3046,3 +3044,31 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_strict_validation_unknown_query_parameters(api_get, subtests):
+    """Test that unknown query parameters are rejected with 400 Bad Request."""
+    test_cases = (
+        ("?foo=bar", 400),
+        ("?foo[bar]=baz", 400),
+        ("?display_name=test", 200),
+    )
+    for query, expected_status in test_cases:
+        with subtests.test(query=query):
+            url = build_hosts_url(query=query)
+            status, _ = api_get(url)
+            assert status == expected_status
+
+
+def test_strict_validation_fields_parameter(api_get, subtests):
+    """Test strict validation of the fields parameter."""
+    test_cases = (
+        ("?fields[system_profile]=arch", 200),
+        ("?fields[system_profile]=invalid_field", 400),
+        ("?fields[invalid_key]=arch", 400),
+    )
+    for query, expected_status in test_cases:
+        with subtests.test(query=query):
+            url = build_hosts_url(query=query)
+            status, _ = api_get(url)
+            assert status == expected_status
