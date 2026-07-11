@@ -254,23 +254,30 @@ paths:
           $ref: '#/components/responses/BadRequestError'   # IMPROVED: §6.2
         '404':
           $ref: '#/components/responses/NotFoundError'
+
+  # V2 CHANGE: PATCH scoped to a single host. Bulk patch is not supported —
+  # applying one merge-patch body to multiple hosts is ambiguous under RFC 7396
+  # (partial failures have no clean representation). Clients that need to update
+  # multiple hosts must issue one request per host. This is a breaking change
+  # from V1 PATCH /hosts/{host_id_list}.
+  '/hosts/{host_id}':
     patch:
       tags:
         - hosts
-      summary: Update hosts
+      summary: Update a host
       description: >-
-        Update hosts. This endpoint applies a JSON Merge Patch (RFC 7396) to the
-        specified hosts. Only the fields present in the request body are updated;
-        absent fields are left unchanged.
+        Update a single host. This endpoint applies a JSON Merge Patch (RFC 7396)
+        to the specified host. Only the fields present in the request body are
+        updated; absent fields are left unchanged.
         <br /><br />
         Required permissions: inventory:hosts:write
       operationId: api.v2.host.patch_host_by_id
       security:
         - ApiKeyAuth: []
       parameters:
-        - $ref: '#/components/parameters/hostIdList'
+        - $ref: '#/components/parameters/hostId'
       requestBody:
-        description: A group of fields to be updated on the hosts
+        description: Fields to be updated on the host.
         required: true
         content:
           # IMPROVED: §8.2 — document PATCH as Merge Patch (RFC 7396)
@@ -282,7 +289,7 @@ paths:
               $ref: '#/components/schemas/PatchHostIn'
       responses:
         '200':
-          description: Successfully updated the hosts.
+          description: Successfully updated the host.
           content:
             application/json:
               schema:
@@ -515,6 +522,13 @@ components:
         maxItems: 20
         items:
           $ref: '#/components/schemas/NonStrictUUID'
+    hostId:
+      in: path
+      name: host_id
+      description: The ID of a single host.
+      required: true
+      schema:
+        $ref: '#/components/schemas/NonStrictUUID'
     displayName:
       in: query
       name: display_name
@@ -984,16 +998,11 @@ components:
         - ibm
         - null
       example: aws
-    # "account" / AccountNumber was marked deprecated in 2022 (commit 41559df7) when
-    # org_id replaced account_number as the primary tenant identifier in x-rh-identity.
-    # Retained in V2 because the platform migration is incomplete: clients still depend
-    # on it and it is now stored in RBAC workspaces (a separate service).
     AccountNumber:
       description: A Red Hat Account number that owns the host.
       type: string
       nullable: true
       example: '000102'
-      deprecated: true
     OrgId:
       description: The Org ID of the tenant that owns the host.
       type: string
@@ -1129,10 +1138,6 @@ components:
               type: string
               example: host1.mydomain.com
               nullable: true
-            # "account" was marked deprecated in 2022 (commit 41559df7) when org_id
-            # replaced account_number as the primary tenant identifier in x-rh-identity.
-            # Retained here because the platform migration is incomplete: clients still
-            # depend on it and it is stored in RBAC workspaces (a separate service).
             account:
               $ref: "#/components/schemas/AccountNumber"
             org_id:
@@ -1177,8 +1182,13 @@ components:
               description: Reporting source of the host. Used when updating the stale_timestamp.
               type: string
               nullable: true
-            # IMPROVED: §4.9 — per_reporter_staleness not included by default;
-            # returned only when requested via fields param to reduce payload size.
+            per_reporter_staleness:
+              description: >-
+                Per-reporter staleness information. Each key is a reporter name; the value
+                is an object with computed staleness timestamps and check-in status.
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/PerReporterStaleness'
             groups:
               description: >-
                 The workspaces that the host belongs to, if any.
@@ -1904,10 +1914,6 @@ components:
           $ref: "#/components/schemas/GroupId"
         name:
           $ref: "#/components/schemas/GroupName"
-        # "account" was marked deprecated in 2022 (commit 41559df7) when org_id replaced
-        # account_number as the primary tenant identifier in x-rh-identity. Retained here
-        # because clients still depend on it and it is pulled from Identity into workspace
-        # objects by RBAC.
         # TODO: verify that the RBAC workspace API response includes "account" and confirm
         # the field name matches before shipping V2.
         account:
