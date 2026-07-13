@@ -1,0 +1,83 @@
+---
+- name: "Set group name"
+  ansible.builtin.set_fact:
+    group_name: "test-{{ user.suffix }}"
+
+- name: "Look up group '{{ group_name }}'"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/?name={{ group_name | urlencode }}"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: group_lookup
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: group_lookup is not failed
+
+- name: "Handle group deletion for '{{ group_name }}'"
+  when: group_lookup.json.meta.count > 0
+  block:
+    - name: "Set group UUID"
+      ansible.builtin.set_fact:
+        group_uuid: "{{ group_lookup.json.data[0].uuid }}"
+
+    # In v2, role bindings must be removed before group deletion
+    - name: "Clear role bindings for group (v2 only)"
+      when: rbac_version == 'v2'
+      block:
+        - name: "List role bindings for group"
+          ansible.builtin.uri:
+            url: "{{ rbac_v2_base }}/role-bindings/?subject_type=group&subject_id={{ group_uuid }}&limit=1000&fields=resource(id,type),role(id),subject(id,type)"
+            method: GET
+            headers: "{{ auth_header }}"
+            status_code: 200
+          environment: "{{ proxy_env }}"
+          register: group_bindings
+          retries: "{{ api_retries }}"
+          delay: "{{ api_delay }}"
+          until: group_bindings is not failed
+
+        - name: "Collect unique workspace resources"
+          ansible.builtin.set_fact:
+            group_binding_resources: >-
+              {{
+                group_bindings.json.data
+                | map(attribute='resource')
+                | selectattr('type', 'defined')
+                | selectattr('type', 'equalto', 'workspace')
+                | unique
+                | list
+                if group_bindings.json.data | length > 0
+                else []
+              }}
+
+        - name: "Clear role bindings for each workspace"
+          ansible.builtin.uri:
+            url: "{{ rbac_v2_base }}/role-bindings/by-subject/?resource_id={{ item.id }}&resource_type=workspace&subject_id={{ group_uuid }}&subject_type=group"
+            method: PUT
+            headers: "{{ auth_header }}"
+            body_format: json
+            body:
+              roles: []
+            status_code: [200, 204]
+          environment: "{{ proxy_env }}"
+          loop: "{{ group_binding_resources }}"
+          loop_control:
+            label: "workspace:{{ item.id }}"
+          register: binding_cleared
+          retries: "{{ api_retries }}"
+          delay: "{{ api_delay }}"
+          until: binding_cleared is not failed
+
+    - name: "Delete group '{{ group_name }}'"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/"
+        method: DELETE
+        headers: "{{ auth_header }}"
+        status_code: [200, 204, 404]
+      environment: "{{ proxy_env }}"
+      register: group_deleted
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: group_deleted is not failed
