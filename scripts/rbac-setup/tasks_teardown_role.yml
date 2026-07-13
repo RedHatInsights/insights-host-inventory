@@ -1,0 +1,64 @@
+---
+- name: "Set role name"
+  ansible.builtin.set_fact:
+    role_name_custom: "test-role-{{ user.suffix }}"
+
+- name: "Look up custom role (v1)"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/roles/?name={{ role_name_custom | urlencode }}"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: role_lookup_v1
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: role_lookup_v1 is not failed
+  when: rbac_version == 'v1'
+
+- name: "Delete custom role (v1)"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/roles/{{ role_lookup_v1.json.data[0].uuid }}/"
+    method: DELETE
+    headers: "{{ auth_header }}"
+    status_code: [200, 204, 404]
+  environment: "{{ proxy_env }}"
+  register: role_deleted_v1
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: role_deleted_v1 is not failed
+  when:
+    - rbac_version == 'v1'
+    - role_lookup_v1.json.meta.count > 0
+
+- name: "Look up custom role (v2)"
+  ansible.builtin.uri:
+    url: "{{ rbac_v2_base }}/roles/?name={{ role_name_custom | urlencode }}&limit=10"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: role_lookup_v2
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: role_lookup_v2 is not failed
+  when: rbac_version == 'v2'
+
+- name: "Delete custom role (v2)"
+  ansible.builtin.uri:
+    url: "{{ rbac_v2_base }}/roles:batchDelete/"
+    method: POST
+    headers: "{{ auth_header }}"
+    body_format: json
+    body:
+      ids:
+        - "{{ role_lookup_v2.json.data[0].id }}"
+    status_code: [200, 204, 404]
+  environment: "{{ proxy_env }}"
+  register: role_deleted_v2
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: role_deleted_v2 is not failed
+  when:
+    - rbac_version == 'v2'
+    - role_lookup_v2.json.data | length > 0

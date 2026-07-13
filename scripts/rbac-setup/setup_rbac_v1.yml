@@ -1,0 +1,111 @@
+---
+- name: "Setup RBAC V1 permissions for HBI test users"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/users.yml
+
+  pre_tasks:
+    - name: "Validate required variables"
+      ansible.builtin.assert:
+        that:
+          - offline_token is defined and offline_token | length > 0
+          - target_env is defined and target_env in ['prod', 'stage']
+          - target_env != 'stage' or (stage_proxy is defined and stage_proxy | length > 0)
+        fail_msg: >-
+          Missing required variables. Usage:
+          ansible-playbook setup_rbac_v1.yml
+          -e "offline_token=<token>"
+          -e "target_env=prod|stage"
+          [-e "stage_proxy=http://host:port"]  (required for stage)
+
+    - name: "Authenticate via SSO"
+      ansible.builtin.include_tasks:
+        file: "tasks_auth.yml"
+
+  tasks:
+    # ================================================================
+    # PHASE 1: Strip "Default access" group (org-wide, run once)
+    # ================================================================
+
+    - name: "Look up 'Default access' group"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/?name=Default%20access"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: default_access_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: default_access_lookup is not failed
+
+    - name: "Look up 'Custom default access' group (fallback)"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/?name=Custom%20default%20access"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: custom_default_access_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: custom_default_access_lookup is not failed
+      when: default_access_lookup.json.meta.count == 0
+
+    - name: "Set default access group UUID"
+      ansible.builtin.set_fact:
+        default_access_group_uuid: >-
+          {{
+            default_access_lookup.json.data[0].uuid
+            if default_access_lookup.json.meta.count > 0
+            else (
+              custom_default_access_lookup.json.data[0].uuid
+              if (custom_default_access_lookup is not skipped and custom_default_access_lookup.json.meta.count > 0)
+              else ''
+            )
+          }}
+
+    - name: "Fail if no default access group found"
+      ansible.builtin.fail:
+        msg: >-
+          Neither 'Default access' nor 'Custom default access' group found.
+          Users may retain unwanted default permissions.
+      when: default_access_group_uuid | length == 0
+
+    - name: "List roles in Default access group"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/{{ default_access_group_uuid }}/roles/"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: default_access_roles
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: default_access_roles is not failed
+
+    - name: "Remove all roles from Default access group"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/{{ default_access_group_uuid }}/roles/?roles={{ default_access_roles.json.data | map(attribute='uuid') | join(',') }}"
+        method: DELETE
+        headers: "{{ auth_header }}"
+        status_code: [200, 204]
+      environment: "{{ proxy_env }}"
+      register: roles_removed
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: roles_removed is not failed
+      when: default_access_roles.json.data | length > 0
+
+    # ================================================================
+    # PHASE 2: Per-user setup
+    # ================================================================
+
+    - name: "Configure RBAC for each user"
+      ansible.builtin.include_tasks:
+        file: "tasks_v1_per_user.yml"
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: "user"
+        label: "{{ org_admin_username }}-{{ user.suffix }}"
