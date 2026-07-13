@@ -1,0 +1,169 @@
+---
+- name: "Setup RBAC V2 permissions for HBI test users"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/users.yml
+
+  pre_tasks:
+    - name: "Validate required variables"
+      ansible.builtin.assert:
+        that:
+          - offline_token is defined and offline_token | length > 0
+          - target_env is defined and target_env in ['prod', 'stage']
+          - target_env != 'stage' or (stage_proxy is defined and stage_proxy | length > 0)
+        fail_msg: >-
+          Missing required variables. Usage:
+          ansible-playbook setup_rbac_v2.yml
+          -e "offline_token=<token>"
+          -e "target_env=prod|stage"
+          [-e "stage_proxy=http://host:port"]  (required for stage)
+
+    - name: "Authenticate via SSO"
+      ansible.builtin.include_tasks:
+        file: "tasks_auth.yml"
+
+  tasks:
+    # ================================================================
+    # PHASE 1: Strip "Default access" group role bindings (v2 API)
+    # ================================================================
+
+    - name: "Look up 'Default access' group"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/?name=Default%20access"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: default_access_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: default_access_lookup is not failed
+
+    - name: "Look up 'Custom default access' group (fallback)"
+      ansible.builtin.uri:
+        url: "{{ rbac_v1_base }}/groups/?name=Custom%20default%20access"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: custom_default_access_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: custom_default_access_lookup is not failed
+      when: default_access_lookup.json.meta.count == 0
+
+    - name: "Set default access group UUID"
+      ansible.builtin.set_fact:
+        default_access_group_uuid: >-
+          {{
+            default_access_lookup.json.data[0].uuid
+            if default_access_lookup.json.meta.count > 0
+            else (
+              custom_default_access_lookup.json.data[0].uuid
+              if (custom_default_access_lookup is not skipped and custom_default_access_lookup.json.meta.count > 0)
+              else ''
+            )
+          }}
+
+    - name: "Fail if no default access group found"
+      ansible.builtin.fail:
+        msg: >-
+          Neither 'Default access' nor 'Custom default access' group found.
+          Users may retain unwanted default permissions.
+      when: default_access_group_uuid | length == 0
+
+    - name: "List role bindings for Default access group"
+      ansible.builtin.uri:
+        url: "{{ rbac_v2_base }}/role-bindings/?subject_type=group&subject_id={{ default_access_group_uuid }}&limit=10000&fields=resource(id,type),role(id),subject(id,type)"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: default_access_bindings
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: default_access_bindings is not failed
+
+    - name: "Collect unique workspace resources from role bindings"
+      ansible.builtin.set_fact:
+        binding_resources: >-
+          {{
+            default_access_bindings.json.data
+            | map(attribute='resource')
+            | selectattr('type', 'equalto', 'workspace')
+            | unique
+            | list
+          }}
+      when: default_access_bindings.json.data | length > 0
+
+    - name: "Clear role bindings for each workspace"
+      ansible.builtin.uri:
+        url: "{{ rbac_v2_base }}/role-bindings/by-subject/?resource_id={{ item.id }}&resource_type=workspace&subject_id={{ default_access_group_uuid }}&subject_type=group"
+        method: PUT
+        headers: "{{ auth_header }}"
+        body_format: json
+        body:
+          roles: []
+        status_code: [200, 204]
+      environment: "{{ proxy_env }}"
+      loop: "{{ binding_resources | default([]) }}"
+      loop_control:
+        label: "workspace:{{ item.id }}"
+      register: binding_cleared
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: binding_cleared is not failed
+
+    # ================================================================
+    # PHASE 1.5: Look up workspaces (run once, used by all users)
+    # ================================================================
+
+    - name: "Look up default workspace"
+      ansible.builtin.uri:
+        url: "{{ rbac_v2_base }}/workspaces/?type=default&limit=1"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: default_workspace_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: default_workspace_lookup is not failed
+
+    - name: "Look up root workspace"
+      ansible.builtin.uri:
+        url: "{{ rbac_v2_base }}/workspaces/?type=root&limit=1"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: root_workspace_lookup
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: root_workspace_lookup is not failed
+
+    - name: "Verify workspaces found"
+      ansible.builtin.assert:
+        that:
+          - default_workspace_lookup.json.data | length > 0
+          - root_workspace_lookup.json.data | length > 0
+        fail_msg: "Failed to find required workspaces (default and/or root). Is the org enabled for v2?"
+
+    - name: "Set workspace IDs"
+      ansible.builtin.set_fact:
+        workspace_ids:
+          default: "{{ default_workspace_lookup.json.data[0].id }}"
+          root: "{{ root_workspace_lookup.json.data[0].id }}"
+
+    # ================================================================
+    # PHASE 2: Per-user setup
+    # ================================================================
+
+    - name: "Configure RBAC for each user"
+      ansible.builtin.include_tasks:
+        file: "tasks_v2_per_user.yml"
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: "user"
+        label: "{{ org_admin_username }}-{{ user.suffix }}"
