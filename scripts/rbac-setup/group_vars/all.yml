@@ -1,0 +1,33 @@
+# Environment configuration — selected via -e "target_env=prod|stage"
+env_configs:
+  prod:
+    console_url: "https://console.redhat.com"
+    sso_url: "https://sso.redhat.com"
+    account_api_url: "https://api.access.redhat.com"
+  stage:
+    console_url: "https://console.stage.redhat.com"
+    sso_url: "https://sso.stage.redhat.com"
+    account_api_url: "https://api.access.stage.redhat.com"
+
+# Resolved at runtime
+env_config: "{{ env_configs[target_env] }}"
+
+# Proxy environment — applied to all uri tasks
+# When target_env=stage, stage_proxy must be provided via -e
+proxy_env: "{{ {'https_proxy': stage_proxy} if target_env == 'stage' else {} }}"
+
+# Common API settings
+rbac_v1_base: "{{ env_config.console_url }}/api/rbac/v1"
+rbac_v2_base: "{{ env_config.console_url }}/api/rbac/v2"
+sso_token_url: "{{ env_config.sso_url }}/auth/realms/redhat-external/protocol/openid-connect/token"
+account_api_base: "{{ env_config.account_api_url }}/account/v1"
+
+# Retry settings for all API calls
+api_retries: 3
+api_delay: 5
+
+# Platform-default group names (users cannot be removed from these)
+platform_default_groups:
+  - "Default access"
+  - "Custom default access"
+  - "Default admin access"

@@ -20,8 +20,10 @@ from typing import NamedTuple
 from typing import TypedDict
 
 import attr
+import requests
 from iqe.base.modeling import BaseEntity
 
+from iqe_host_inventory.modeling.base_api_wrapper import BaseAPIWrapper
 from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import build_query_string
 from iqe_host_inventory.utils.api_utils import check_org_id
@@ -158,6 +160,64 @@ class HostsAPIWrapper(BaseEntity):
     @cached_property
     def api_client(self) -> ApiClient:
         return self.application.host_inventory.rest_client.client
+
+    @cached_property
+    def _base_wrapper(self) -> BaseAPIWrapper:
+        return BaseAPIWrapper(self.application)
+
+    def host_checkin_response(
+        self,
+        *,
+        insights_id: str | None = None,
+        subscription_manager_id: str | None = None,
+        satellite_id: str | None = None,
+        bios_uuid: str | None = None,
+        ip_addresses: list[str] | None = None,
+        fqdn: str | None = None,
+        mac_addresses: list[str] | None = None,
+        provider_id: str | None = None,
+        provider_type: str | None = None,
+        checkin_frequency: int | None = None,
+    ) -> requests.Response:
+        """Check in a host via POST /api/inventory/v1/hosts/checkin.
+
+        Finds an existing host by canonical facts and updates its staleness
+        timestamps.  The app requires at least one canonical fact; omitting all
+        will result in a 400 response.
+
+        Uses ``BaseAPIWrapper`` / ``app.http_client`` directly — no apigen types.
+
+        :param str insights_id: Insights ID of the host to check in
+        :param str subscription_manager_id: Subscription Manager ID of the host
+        :param str satellite_id: Satellite ID of the host
+        :param str bios_uuid: BIOS UUID of the host
+        :param list[str] ip_addresses: List of IP addresses of the host
+        :param str fqdn: FQDN of the host to check in
+        :param list[str] mac_addresses: List of MAC addresses of the host
+        :param str provider_id: Cloud provider instance ID (must be paired with provider_type)
+        :param str provider_type: Cloud provider type (must be paired with provider_id)
+        :param int checkin_frequency: How long until next expected check-in (minutes).
+            Valid range: 1-2880. Defaults to 60 minutes if not provided.
+        :return: Raw HTTP response from POST /hosts/checkin
+        """
+        body = {
+            k: v
+            for k, v in {
+                "insights_id": insights_id,
+                "subscription_manager_id": subscription_manager_id,
+                "satellite_id": satellite_id,
+                "bios_uuid": bios_uuid,
+                "ip_addresses": ip_addresses,
+                "fqdn": fqdn,
+                "mac_addresses": mac_addresses,
+                "provider_id": provider_id,
+                "provider_type": provider_type,
+                "checkin_frequency": checkin_frequency,
+            }.items()
+            if v is not None
+        }
+        with self._host_inventory.apis.measure_time("POST /hosts/checkin"):
+            return self._base_wrapper.post("/hosts/checkin", json=body)
 
     @contextmanager
     def async_api(self) -> Generator[None]:
