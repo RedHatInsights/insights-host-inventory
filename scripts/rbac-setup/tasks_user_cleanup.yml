@@ -1,0 +1,73 @@
+---
+# Shared user cleanup tasks (common to both v1 and v2)
+# Required variables: user (from loop), org_admin_username, auth_header,
+#                     rbac_v1_base, proxy_env, platform_default_groups,
+#                     api_retries, api_delay
+# Sets: username, group_name, role_name_custom
+
+- name: "Set username for {{ user.suffix }}"
+  ansible.builtin.set_fact:
+    username: "{{ org_admin_username }}-{{ user.suffix }}"
+    group_name: "test-{{ user.suffix }}"
+    role_name_custom: "test-role-{{ user.suffix }}"
+
+# --- Verify user exists ---
+
+- name: "Verify user {{ username }} exists"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/principals/?usernames={{ username }}"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: principal_check
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: principal_check is not failed
+
+- name: "Fail if user {{ username }} does not exist"
+  ansible.builtin.fail:
+    msg: >-
+      User '{{ username }}' does not exist.
+      Create it at https://www.redhat.com/wapps/ugc/protected/usermgt/userList.html
+      or run create_users.yml first.
+  when: principal_check.json.meta.count == 0
+
+# --- Permission cleanup: remove user from non-designated groups ---
+
+- name: "List groups for {{ username }}"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/?username={{ username }}&limit=100"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: user_groups
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: user_groups is not failed
+
+- name: "Remove {{ username }} from unwanted groups"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/{{ item.uuid }}/principals/?usernames={{ username }}"
+    method: DELETE
+    headers: "{{ auth_header }}"
+    status_code: [200, 204, 404]
+  environment: "{{ proxy_env }}"
+  loop: "{{ user_groups.json.data }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.name not in platform_default_groups
+    - item.name != group_name or user.type == 'none'
+  register: group_removal
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: group_removal is not failed
+
+# --- Stop here for no-perms user ---
+
+- name: "Skip role/group setup for no-perms user"
+  ansible.builtin.debug:
+    msg: "User {{ username }} is the no-perms user — cleanup complete, skipping role assignment."
+  when: user.type == 'none'
