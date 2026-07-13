@@ -1,0 +1,55 @@
+---
+# Per-user creation via Red Hat Account API
+# Required variables: new_username, org_admin_email, account_id,
+#                     account_api_base, auth_header, proxy_env,
+#                     target_env, api_retries, api_delay
+
+- name: "Derive email for {{ new_username }}"
+  ansible.builtin.set_fact:
+    user_email: >-
+      {%- set local = org_admin_email.split('@')[0].split('+')[0] -%}
+      {%- set domain = org_admin_email.split('@')[1] -%}
+      {%- if target_env == 'stage' -%}
+        {{ local }}+{{ new_username }}+stage@{{ domain }}
+      {%- else -%}
+        {{ local }}+{{ new_username }}@{{ domain }}
+      {%- endif -%}
+    user_suffix: "{{ new_username.split('-', 1)[1] | default(new_username) }}"
+
+- name: "Create user {{ new_username }}"
+  ansible.builtin.uri:
+    url: "{{ account_api_base }}/accounts/{{ account_id }}/users"
+    method: POST
+    headers: "{{ auth_header }}"
+    body_format: json
+    body:
+      username: "{{ new_username }}"
+      firstName: "{{ new_username }}"
+      lastName: "{{ user_suffix }}"
+      email: "{{ user_email }}"
+      phone: "0123456789"
+      address:
+        streets:
+          - "100 East Davie Street"
+        city: "Raleigh"
+        state: "NC"
+        county: "Wake"
+        zipCode: "27601"
+        country: "US"
+    status_code: [200, 201]
+  environment: "{{ proxy_env }}"
+  register: user_creation_result
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: user_creation_result is not failed
+  ignore_errors: true
+
+- name: "Report success for {{ new_username }}"
+  ansible.builtin.debug:
+    msg: "CREATED: {{ new_username }} (email: {{ user_email }})"
+  when: user_creation_result is not failed
+
+- name: "Track failed user {{ new_username }}"
+  ansible.builtin.set_fact:
+    failed_users: "{{ failed_users + [new_username] }}"
+  when: user_creation_result is failed
