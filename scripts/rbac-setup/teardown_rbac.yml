@@ -1,0 +1,47 @@
+---
+- name: "Teardown RBAC configuration for HBI test users"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/users.yml
+
+  pre_tasks:
+    - name: "Validate required variables"
+      ansible.builtin.assert:
+        that:
+          - offline_token is defined and offline_token | length > 0
+          - target_env is defined and target_env in ['prod', 'stage']
+          - rbac_version is defined and rbac_version in ['v1', 'v2']
+          - target_env != 'stage' or (stage_proxy is defined and stage_proxy | length > 0)
+        fail_msg: >-
+          Missing required variables. Usage:
+          ansible-playbook teardown_rbac.yml
+          -e "offline_token=<token>"
+          -e "target_env=prod|stage"
+          -e "rbac_version=v1|v2"
+          [-e "stage_proxy=http://host:port"]
+
+    - name: "Authenticate via SSO"
+      ansible.builtin.include_tasks:
+        file: "tasks_auth.yml"
+
+  tasks:
+    # --- Delete test groups (and their role bindings in v2) ---
+
+    - name: "Delete test groups"
+      ansible.builtin.include_tasks:
+        file: "tasks_teardown_group.yml"
+      loop: "{{ users | selectattr('type', 'ne', 'none') | list }}"
+      loop_control:
+        loop_var: "user"
+        label: "test-{{ user.suffix }}"
+
+    # --- Delete custom roles ---
+
+    - name: "Delete custom roles"
+      ansible.builtin.include_tasks:
+        file: "tasks_teardown_role.yml"
+      loop: "{{ users | selectattr('type', 'equalto', 'custom') | list }}"
+      loop_control:
+        loop_var: "user"
+        label: "test-role-{{ user.suffix }}"

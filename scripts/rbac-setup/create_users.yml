@@ -1,0 +1,116 @@
+---
+- name: "Create Red Hat user accounts for HBI tests"
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/users.yml
+
+  pre_tasks:
+    - name: "Validate required variables"
+      ansible.builtin.assert:
+        that:
+          - offline_token is defined and offline_token | length > 0
+          - target_env is defined and target_env in ['prod', 'stage']
+          - target_env != 'stage' or (stage_proxy is defined and stage_proxy | length > 0)
+        fail_msg: >-
+          Missing required variables. Usage:
+          ansible-playbook create_users.yml
+          -e "offline_token=<token>"
+          -e "target_env=prod|stage"
+          [-e "stage_proxy=http://host:port"]
+
+    - name: "Authenticate via SSO"
+      ansible.builtin.include_tasks:
+        file: "tasks_auth.yml"
+
+  tasks:
+    # ================================================================
+    # PHASE 1: Auto-discover account ID
+    # (org_admin_username and org_admin_email already set by tasks_auth.yml)
+    # ================================================================
+
+    - name: "Look up account ID"
+      ansible.builtin.uri:
+        url: "{{ account_api_base }}/accounts"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: accounts_info
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: accounts_info is not failed
+
+    - name: "Fail if no accounts found"
+      ansible.builtin.fail:
+        msg: "No accounts found for the authenticated user."
+      when: accounts_info.json.body | length == 0
+
+    - name: "Set account ID"
+      ansible.builtin.set_fact:
+        account_id: "{{ accounts_info.json.body[0].id }}"
+
+    - name: "Display discovered settings"
+      ansible.builtin.debug:
+        msg: "Account ID: {{ account_id }}, Admin email: {{ org_admin_email }}"
+
+    # ================================================================
+    # PHASE 2: List existing users and identify missing ones
+    # ================================================================
+
+    - name: "Build list of expected usernames"
+      ansible.builtin.set_fact:
+        expected_usernames: "{{ users | map(attribute='suffix') | map('regex_replace', '^(.*)$', org_admin_username + '-\\1') | list }}"
+
+    - name: "List existing account users"
+      ansible.builtin.uri:
+        url: "{{ account_api_base }}/accounts/{{ account_id }}/users?status=enabled&maxResults=500"
+        method: GET
+        headers: "{{ auth_header }}"
+        status_code: 200
+      environment: "{{ proxy_env }}"
+      register: existing_account_users
+      retries: "{{ api_retries }}"
+      delay: "{{ api_delay }}"
+      until: existing_account_users is not failed
+
+    - name: "Extract existing usernames"
+      ansible.builtin.set_fact:
+        existing_usernames: "{{ existing_account_users.json.body | map(attribute='user') | map(attribute='username') | list }}"
+
+    - name: "Identify missing users"
+      ansible.builtin.set_fact:
+        missing_users: "{{ expected_usernames | difference(existing_usernames) }}"
+        found_users: "{{ expected_usernames | intersect(existing_usernames) }}"
+
+    - name: "Report existing users"
+      ansible.builtin.debug:
+        msg: "Found {{ found_users | length }}/{{ expected_usernames | length }} users already exist."
+
+    # ================================================================
+    # PHASE 3: Create missing users
+    # ================================================================
+
+    - name: "Initialize failed users list"
+      ansible.builtin.set_fact:
+        failed_users: []
+      when: missing_users | length > 0
+
+    - name: "Create missing users"
+      ansible.builtin.include_tasks:
+        file: "tasks_create_user.yml"
+      loop: "{{ missing_users }}"
+      loop_control:
+        loop_var: "new_username"
+        label: "{{ new_username }}"
+      when: missing_users | length > 0
+
+    - name: "Fail if any users could not be created"
+      ansible.builtin.fail:
+        msg: "Failed to create {{ failed_users | length }} user(s): {{ failed_users | join(', ') }}"
+      when: failed_users | default([]) | length > 0
+
+    - name: "All users exist"
+      ansible.builtin.debug:
+        msg: "All {{ expected_usernames | length }} users exist. Ready to run setup_rbac_v1.yml or setup_rbac_v2.yml."
+      when: failed_users | default([]) | length == 0
