@@ -25,3 +25,18 @@ def json_arr_to_csv(json_arr_data):
     csv_string = output.getvalue()
 
     return csv_string
+
+
+def export_csv_header(fieldnames):
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
+    writer.writerow(fieldnames)
+    return output.getvalue()
+
+
+def export_host_to_csv_row(host, fieldnames):
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
+    row = {**host, "tags": _tags_to_string(host["tags"])}
+    writer.writerow([row[field] for field in fieldnames])
+    return output.getvalue()

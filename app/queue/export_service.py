@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import itertools
 import json
+from collections.abc import Iterator
 from http import HTTPStatus
 from uuid import UUID
 
@@ -17,13 +19,41 @@ from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.serialization import _EXPORT_SERVICE_FIELDS
 from lib import metrics
 from lib.middleware import resolve_permission
-from utils.json_to_csv import json_arr_to_csv
+from utils.json_to_csv import export_csv_header
+from utils.json_to_csv import export_host_to_csv_row
 
 logger = get_logger(__name__)
 
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
+
+
+class _StreamingExportBody:
+    def __init__(self, host_iter: Iterator[dict], export_format: str):
+        self._host_iter = host_iter
+        self._export_format = export_format.lower()
+        self.host_count = 0
+
+    def __iter__(self):
+        if self._export_format == "json":
+            yield b"["
+            first = True
+            for host in self._host_iter:
+                self.host_count += 1
+                if not first:
+                    yield b","
+                first = False
+                yield json.dumps(host).encode("utf-8")
+            yield b"]"
+        elif self._export_format == "csv":
+            yield export_csv_header(_EXPORT_SERVICE_FIELDS).encode("utf-8")
+            for host in self._host_iter:
+                self.host_count += 1
+                yield export_host_to_csv_row(host, _EXPORT_SERVICE_FIELDS).encode("utf-8")
+        else:
+            raise ValueError(f"Unsupported export format: {self._export_format}")
 
 
 def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str, str]:
@@ -53,16 +83,12 @@ def build_headers(
     return rbac_request_headers, request_headers
 
 
-def get_host_list(identity: Identity, rbac_filter: dict | None, inventory_config: Config) -> list[dict]:
-    host_data = list(
-        get_hosts_to_export(
-            identity,
-            rbac_filter=rbac_filter,
-            batch_size=inventory_config.export_svc_batch_size,
-        )
+def _hosts_to_export_iter(identity: Identity, rbac_filter: dict | None, inventory_config: Config) -> Iterator[dict]:
+    return get_hosts_to_export(
+        identity,
+        rbac_filter=rbac_filter,
+        batch_size=inventory_config.export_svc_batch_size,
     )
-
-    return host_data
 
 
 @metrics.create_export_processing_time.time()
@@ -113,8 +139,8 @@ def create_export(
         return export_created
 
     try:
-        # create a generator with serialized host data
-        host_data = get_host_list(identity, rbac_filter, inventory_config)
+        host_iter = _hosts_to_export_iter(identity, rbac_filter, inventory_config)
+        first_host = next(host_iter, None)
 
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
@@ -124,15 +150,16 @@ def create_export(
 
         logger.info(f"Trying to get data for org_id: {identity.org_id}")
 
-        if host_data:
+        if first_host is not None:
             logger.debug(f"Trying to upload data using URL:{request_url}")
-            logger.info(
-                f"{len(host_data)} hosts will be exported (format: {exportFormat}) for org_id {identity.org_id}"
-            )
+            export_body = _StreamingExportBody(itertools.chain([first_host], host_iter), exportFormat)
             response = session.post(
                 url=request_url,
                 headers=request_headers,
-                data=_format_export_data(host_data, exportFormat).encode("utf-8"),
+                data=export_body,
+            )
+            logger.info(
+                f"{export_body.host_count} hosts exported (format: {exportFormat}) for org_id {identity.org_id}"
             )
             _handle_export_response(response, exportUUID, exportFormat)
             export_created = True
@@ -198,8 +225,6 @@ def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: 
 
 
 def _format_export_data(data: list[dict], exportFormat: str) -> str:
-    if exportFormat == "json":
-        return json.dumps(data)
-    elif exportFormat == "csv":
-        return json_arr_to_csv(data)
-    raise ValueError(f"Unsupported export format: {exportFormat}")
+    """Materialize export payload for tests and small fixtures."""
+    body = _StreamingExportBody(iter(data), exportFormat)
+    return b"".join(body).decode("utf-8")
