@@ -107,6 +107,7 @@ class CustomParameterValidator(ParameterValidator):
         spec_params = [x["name"] for x in self.parameters.get("query", [])]
         spec_params.extend(security_params or [])
 
+        print(f"DEBUG: request_params={list(request_params)}, spec_params={spec_params}")
         return self.validate_parameter_list(request_params, spec_params)
 
 
