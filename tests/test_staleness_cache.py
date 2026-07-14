@@ -291,3 +291,37 @@ def test_get_host_returns_correct_staleness_timestamps(db_create_host, api_get):
         seconds=SAMPLE_STALENESS["conventional_time_to_stale_warning"]
     )
     assert culled_ts == last_check_in + timedelta(seconds=SAMPLE_STALENESS["conventional_time_to_delete"])
+
+
+@patch("api.staleness_query.logger")
+@patch.object(StalenessCache, "put")
+@patch("api.staleness_query.db")
+@patch.object(StalenessCache, "get")
+def test_get_staleness_obj_logs_debug_for_custom_staleness(mock_get, mock_db, _mock_put, mock_logger):
+    mock_get.return_value = None
+    mock_db.session.query.return_value.filter.return_value.one.return_value = _make_mock_staleness_model()
+
+    get_staleness_obj(SAMPLE_ORG_ID)
+
+    mock_logger.debug.assert_any_call(f"Using custom staleness for org {SAMPLE_ORG_ID}.")
+    mock_logger.info.assert_not_called()
+
+
+@patch("api.staleness_query.logger")
+@patch("api.staleness_query.build_staleness_sys_default")
+@patch.object(StalenessCache, "put")
+@patch("api.staleness_query.db")
+@patch.object(StalenessCache, "get")
+def test_get_staleness_obj_logs_debug_for_no_custom_staleness(
+    mock_get, mock_db, _mock_put, mock_build_default, mock_logger
+):
+    mock_get.return_value = None
+    mock_db.session.query.return_value.filter.return_value.one.side_effect = NoResultFound()
+    mock_build_default.return_value = AttrDict({"id": "system_default", "org_id": SAMPLE_ORG_ID})
+
+    get_staleness_obj(SAMPLE_ORG_ID)
+
+    mock_logger.debug.assert_any_call(
+        f"No custom staleness data found for org {SAMPLE_ORG_ID}, using system default values instead."
+    )
+    mock_logger.info.assert_not_called()
