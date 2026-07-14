@@ -812,3 +812,12 @@ inv-host-views-sp-filter:
 inv-host-views-sp-fields:
   summary: Users can request specific system_profile fields on the `GET /beta/hosts-view` endpoint
   priority: high
+
+inv-host-checkin:
+  summary: POST /hosts/checkin updates a host's last_check_in and staleness timestamps
+  description: >
+    I should be able to update a host's last_check_in and staleness timestamps by sending
+    a POST request to /hosts/checkin with at least one canonical fact (e.g. insights_id).
+    Optionally, a checkin_frequency (1–2880 minutes) can be provided to customize the
+    staleness window.
+  priority: high
