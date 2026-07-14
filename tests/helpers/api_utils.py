@@ -737,9 +737,12 @@ def assert_resource_types_pagination(
     assert links["last"] == f"{expected_path_base}?per_page={expected_per_page}&page={expected_number_of_pages}"
 
 
-def mocked_export_post(_self: Any, url: str, *, data: bytes, **_: Any) -> Response:
-    # This will raise UnicodeDecodeError if not correctly encoded or AttributeError if data is str
-    data.decode("utf-8")
+def mocked_export_post(_self: Any, url: str, *, data: Any, **_: Any) -> Response:
+    # Verify payload is valid UTF-8 (bytes, or a streaming iterable of byte chunks).
+    if hasattr(data, "decode"):
+        data.decode("utf-8")
+    else:
+        b"".join(data).decode("utf-8")
     response = Response()
     response.url = url
     response.status_code = HTTPStatus.ACCEPTED
