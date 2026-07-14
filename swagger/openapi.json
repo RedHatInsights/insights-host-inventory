@@ -5497,14 +5497,9 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
+            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value.",
             "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
+            "additionalProperties": true
           }
         }
       },

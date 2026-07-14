@@ -8,8 +8,10 @@ from api import build_collection_response
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
+from api.views_validation import validate_view_configuration
 from app.auth import get_current_identity
 from app.auth.identity import IdentityType
+from app.exceptions import ValidationException
 from app.models.schemas.views import InputViewSchema
 from app.serialization import serialize_view
 from lib.views_repository import ViewNotFoundError
@@ -68,6 +70,11 @@ def create_view(body, **kwargs):  # noqa: ARG001
         validated_data = InputViewSchema().load(body)
     except ValidationError as e:
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+
+    try:
+        validate_view_configuration(validated_data["configuration"])
+    except ValidationException as e:
+        return json_error_response("Validation Error", str(e.detail), HTTPStatus.BAD_REQUEST)
 
     view = repo_create_view(validated_data, org_id, user_id)
     return flask_json_response(serialize_view(view, user_id), HTTPStatus.CREATED)
