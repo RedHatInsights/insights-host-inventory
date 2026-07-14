@@ -341,6 +341,25 @@ class TestHandleExportError:
 
 
 @mock.patch("requests.Session.post", autospec=True)
+def test_create_export_posts_streaming_body(mock_post, db_create_host, flask_app, inventory_config):
+    """create_export must pass a _StreamingExportBody to session.post, not a pre-materialized str/bytes."""
+    with flask_app.app.app_context():
+        db_create_host()
+
+        mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+        mock_post.return_value.text = ""
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+
+        upload_call = mock_post.call_args_list[-1]
+        data_arg = upload_call.kwargs.get("data") or upload_call[1].get("data")
+        assert isinstance(data_arg, _StreamingExportBody), f"Expected _StreamingExportBody, got {type(data_arg)}"
+
+
+@mock.patch("requests.Session.post", autospec=True)
 def test_create_export_already_processed_returns_true(mock_post, db_create_host, flask_app, inventory_config):
     """When the upload gets 'already processed', create_export should return True (not raise)."""
     with flask_app.app.app_context():

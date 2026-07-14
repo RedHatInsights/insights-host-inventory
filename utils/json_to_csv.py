@@ -37,6 +37,6 @@ def export_csv_header(fieldnames):
 def export_host_to_csv_row(host, fieldnames):
     output = io.StringIO()
     writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
-    row = {**host, "tags": _tags_to_string(host["tags"])}
-    writer.writerow([row[field] for field in fieldnames])
+    row = {**host, "tags": _tags_to_string(host.get("tags", []))}
+    writer.writerow([row.get(field, "") for field in fieldnames])
     return output.getvalue()

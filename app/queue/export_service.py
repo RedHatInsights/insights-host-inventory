@@ -83,12 +83,19 @@ def build_headers(
     return rbac_request_headers, request_headers
 
 
-def _hosts_to_export_iter(identity: Identity, rbac_filter: dict | None, inventory_config: Config) -> Iterator[dict]:
-    return get_hosts_to_export(
+def _non_empty_hosts_iter(
+    identity: Identity, rbac_filter: dict | None, inventory_config: Config
+) -> Iterator[dict] | None:
+    """Return a non-empty host iterator, or None if there are no hosts to export."""
+    host_iter = get_hosts_to_export(
         identity,
         rbac_filter=rbac_filter,
         batch_size=inventory_config.export_svc_batch_size,
     )
+    first_host = next(host_iter, None)
+    if first_host is None:
+        return None
+    return itertools.chain([first_host], host_iter)
 
 
 @metrics.create_export_processing_time.time()
@@ -139,8 +146,7 @@ def create_export(
         return export_created
 
     try:
-        host_iter = _hosts_to_export_iter(identity, rbac_filter, inventory_config)
-        first_host = next(host_iter, None)
+        hosts_iter = _non_empty_hosts_iter(identity, rbac_filter, inventory_config)
 
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"
@@ -150,9 +156,9 @@ def create_export(
 
         logger.info(f"Trying to get data for org_id: {identity.org_id}")
 
-        if first_host is not None:
+        if hosts_iter is not None:
             logger.debug(f"Trying to upload data using URL:{request_url}")
-            export_body = _StreamingExportBody(itertools.chain([first_host], host_iter), exportFormat)
+            export_body = _StreamingExportBody(hosts_iter, exportFormat)
             response = session.post(
                 url=request_url,
                 headers=request_headers,
@@ -164,7 +170,7 @@ def create_export(
             _handle_export_response(response, exportUUID, exportFormat)
             export_created = True
         else:
-            logger.debug(f"No data found for org_id: {identity.org_id}")
+            logger.info(f"No hosts to export for org_id: {identity.org_id}")
             request_url = _build_export_request_url(
                 export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
             )
