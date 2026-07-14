@@ -301,7 +301,7 @@ def serialize_host_for_export_svc(
     if host.static_system_profile is not None:
         os_release = host.static_system_profile.os_release
 
-    return {
+    field_values = {
         "display_name": host.display_name,
         "fqdn": host.fqdn,
         "host_id": serialize_uuid(host.id),
@@ -318,6 +318,7 @@ def serialize_host_for_export_svc(
         "tags": _serialize_tags(host.tags),
         "host_type": host.host_type or "conventional",
     }
+    return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
 
 
 def serialize_group_without_host_count(group: Group) -> dict:

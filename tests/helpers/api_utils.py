@@ -739,6 +739,7 @@ def assert_resource_types_pagination(
 
 def mocked_export_post(_self: Any, url: str, *, data: Any, **_: Any) -> Response:
     # Verify payload is valid UTF-8 (bytes, or a streaming iterable of byte chunks).
+    assert not isinstance(data, str), "data must be bytes or a streaming iterable, not str"
     if hasattr(data, "decode"):
         data.decode("utf-8")
     else:

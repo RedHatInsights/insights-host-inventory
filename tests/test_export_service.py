@@ -276,6 +276,24 @@ class TestStreamingExportBody:
         assert streamed == _format_export_data(hosts, "json")
         assert json.loads(streamed) == hosts
 
+    def test_json_stream_empty_iterator(self):
+        hosts = []
+        body = _StreamingExportBody(iter(hosts), "json")
+        streamed = b"".join(body).decode("utf-8")
+
+        assert streamed == "[]"
+        assert body.host_count == 0
+
+    def test_csv_stream_empty_iterator_emits_only_header(self):
+        hosts = []
+        body = _StreamingExportBody(iter(hosts), "csv")
+        streamed = b"".join(body).decode("utf-8")
+
+        assert streamed == _format_export_data(hosts, "csv")
+        lines = streamed.splitlines()
+        assert len(lines) == 1
+        assert body.host_count == 0
+
     def test_csv_stream_includes_header_and_rows(self):
         hosts = [
             {
