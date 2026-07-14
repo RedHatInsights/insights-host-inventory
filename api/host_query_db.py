@@ -878,6 +878,7 @@ def get_hosts_to_export(
     )
     columns = [
         Host.id,
+        Host.org_id,
         Host.display_name,
         Host.host_type,
         Host.modified_on,
