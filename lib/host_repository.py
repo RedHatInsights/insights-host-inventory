@@ -202,7 +202,9 @@ def multiple_canonical_facts_host_query(
     )
     if restrict_to_owner_id:
         query = update_query_for_owner_id(identity, query)
-    return find_non_culled_hosts(query, identity.org_id)
+    # NOTE: Culled hosts are intentionally not filtered out here to prevent 
+    # service failures caused by attempts to re-insert existing primary keys.
+    return query
 
 
 def multiple_canonical_facts_host_query_in_memory(
