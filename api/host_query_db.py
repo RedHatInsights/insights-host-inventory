@@ -878,20 +878,23 @@ def get_hosts_to_export(
     )
     columns = [
         Host.id,
-        Host.account,
-        Host.org_id,
         Host.display_name,
         Host.host_type,
         Host.modified_on,
-        Host.facts,
-        Host.reporter,
-        Host.created_on,
         Host.groups,
+        Host.tags,
+        Host.fqdn,
+        Host.subscription_manager_id,
+        Host.satellite_id,
+        Host.last_check_in,
     ]
 
     export_host_query = (
         _find_hosts_model_query(identity=identity, columns=columns)
-        .options(joinedload(Host.static_system_profile), joinedload(Host.dynamic_system_profile))
+        .options(
+            joinedload(Host.static_system_profile).load_only(HostStaticSystemProfile.os_release),
+            noload(Host.dynamic_system_profile),
+        )
         .filter(*q_filters)
     )
     export_host_query = export_host_query.execution_options(yield_per=batch_size)
@@ -906,7 +909,8 @@ def get_hosts_to_export(
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
-    db.session.close()
+    finally:
+        db.session.close()
 
 
 def _get_group_name_order_post_kessel(order_how):
