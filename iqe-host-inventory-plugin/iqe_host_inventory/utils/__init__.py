@@ -11,7 +11,6 @@ from itertools import chain as _chain
 from random import randint
 from typing import TYPE_CHECKING
 
-from box import BoxKeyError
 from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
 from iqe.users.user import ExplicitUser
@@ -38,18 +37,16 @@ def flatten[T](input: Sequence[Sequence[T]] | Iterator[Sequence[T]]) -> list[T]:
 def get_account_number(application: Application, given_account_number: str | None = None) -> str:
     if given_account_number is not None:
         return given_account_number
-    try:
-        user = application.user
-        if isinstance(user, ExplicitUser):
-            identity = user.identity
-            if identity is None:
-                raise BoxKeyError("identity")
-            return str(identity.account_number)
-        return str(user["identity"].account_number)
-    except BoxKeyError:
+
+    user = application.user
+    if isinstance(user, ExplicitUser):
+        account_number = user.attributes.account_number
+
+    if account_number is None:
         raise InvalidConfigurationParameterError(
-            "Missing primary_user account_number in your settings.local.yaml file"
-        ) from None
+            "Missing user.attributes.account_number field in the config"
+        )
+    return str(account_number)
 
 
 def get_org_id(application: Application, given_org_id: str | None = None) -> str:
@@ -58,27 +55,20 @@ def get_org_id(application: Application, given_org_id: str | None = None) -> str
 
     user = application.user
     if isinstance(user, ExplicitUser):
-        identity = user.identity
-        org_id: str | None = identity.org_id if identity is not None else None
-    else:
-        identity_data = user.get("identity", {})
-        org_id = identity_data.get("org_id") or identity_data.get("internal", {}).get("org_id")
+        org_id = user.attributes.org_id or user.attributes.internal.org_id
 
     if org_id is None:
         raise InvalidConfigurationParameterError(
-            "Missing user.identity.org_id or user.identity.internal.org_id field in the config"
+            "Missing user.attributes.org_id or user.attributes.internal.org_id field in the config"
         )
-
     return str(org_id)
 
 
 def get_username(user_data: DynaBox) -> str:
-    username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
-        "user", {}
-    ).get("username")
+    username = user_data.attributes.username
     if username is None:
         raise ValueError(f"Given user doesn't have a defined username: {user_data}")
-    return username
+    return str(username)
 
 
 def rand_start_end(max_page: int, num_iterations: int) -> tuple[int, int]:
