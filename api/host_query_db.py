@@ -909,7 +909,8 @@ def get_hosts_to_export(
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
-    db.session.close()
+    finally:
+        db.session.close()
 
 
 def _get_group_name_order_post_kessel(order_how):
