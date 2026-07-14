@@ -906,11 +906,13 @@ def get_hosts_to_export(
             exported += 1
         logger.debug(f"Number of hosts exported: {exported}")
 
+    except GeneratorExit:
+        return
+
     except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
-    finally:
-        db.session.close()
+    db.session.close()
 
 
 def _get_group_name_order_post_kessel(order_how):
