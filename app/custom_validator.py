@@ -76,8 +76,15 @@ class CustomParameterValidator(ParameterValidator):
         if "system_profile" in fields:
             self._validate_system_profile_field_names(fields)
 
-    def validate_query_parameter_list(self, request, security_params=None):
+    def _resolve_query_params(self, request):
         query_params = request.query_params
+        if not isinstance(query_params, dict) or any("[" in k for k in query_params.keys()):
+            raw_params = {k: request.query_params.getlist(k) for k in request.query_params}
+            query_params = self.uri_parser.resolve_query(raw_params)
+        return query_params
+
+    def validate_query_parameter_list(self, request, security_params=None):
+        query_params = self._resolve_query_params(request)
 
         for param in self.parameters.get("query", []):
             validator_name = param.get("x-validator")
@@ -97,11 +104,10 @@ class CustomParameterValidator(ParameterValidator):
         # This causes valid deep-object filtering requests to fail with a 400 Bad Request.
         # By calling validate_parameter_list directly with the resolved query parameter keys,
         # we ensure strict validation works correctly with deep-object parameters.
-        request_params = query_params.keys()
+        request_params = {k.split("[", 1)[0] for k in query_params.keys()}
         spec_params = [x["name"] for x in self.parameters.get("query", [])]
         spec_params.extend(security_params or [])
 
-        print(f"DEBUG: request_params={list(request_params)}, spec_params={spec_params}")
         return self.validate_parameter_list(request_params, spec_params)
 
 
