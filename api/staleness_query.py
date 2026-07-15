@@ -18,7 +18,7 @@ def get_staleness_obj(org_id: str) -> AttrDict:
 
     try:
         staleness = db.session.query(Staleness).filter(Staleness.org_id == org_id).one()
-        logger.info(f"Using custom staleness for org {org_id}.")
+        logger.debug(f"Using custom staleness for org {org_id}.")
         staleness = build_serialized_acc_staleness_obj(staleness)
     except NoResultFound:
         logger.debug(f"No custom staleness data found for org {org_id}, using system default values instead.")
