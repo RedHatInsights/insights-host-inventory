@@ -67,12 +67,6 @@ class CustomParameterValidator(ParameterValidator):
         if "system_profile" not in fields:
             raise BadRequestProblem(detail="Fields parameter must contain 'system_profile'.")
 
-        unsupported_keys = set(fields.keys()) - {"system_profile"}
-        if unsupported_keys:
-            raise BadRequestProblem(
-                detail=f"Unsupported top-level keys in fields parameter: {', '.join(sorted(unsupported_keys))}"
-            )
-
         self._validate_system_profile_field_names(fields)
 
     def _validate_host_view_sparse_fields(self, fields):
