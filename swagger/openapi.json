@@ -5445,7 +5445,7 @@
         ],
         "properties": {
           "key": {
-            "description": "The column key identifier, e.g. \"insights_id\", \"compliance.last_scan\", \"advisor.recommendations\".",
+            "description": "The column key identifier. Core fields use bare names (e.g. \"display_name\", \"last_check_in\"). App fields use colon-delimited format (e.g. \"compliance:last_scan\", \"advisor:recommendations\"). Validated server-side against the field registry.",
             "type": "string"
           },
           "visible": {
@@ -5497,9 +5497,14 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value.",
+            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value. Validated server-side against the field and operator registries.",
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/HostViewFilterComparison"
+              }
+            }
           }
         }
       },
@@ -5600,7 +5605,7 @@
             "type": "boolean"
           },
           "created_by": {
-            "description": "The username of the view creator.",
+            "description": "The user_id of the view creator.",
             "type": "string",
             "nullable": true
           },
