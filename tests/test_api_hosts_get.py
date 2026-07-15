@@ -3069,6 +3069,7 @@ def test_strict_validation_fields_parameter(api_get, subtests):
         ("?fields[system_profile]=arch&fields[crowdstrike]=foo", 200),
         ("?fields[system_profile]=arch&fields[ibm_db2]=bar", 200),
         ("?fields[system_profile]=arch&fields[oracle_db]=baz", 200),
+        ("?fields[crowdstrike]=foo", 400),
     )
     for query, expected_status in test_cases:
         with subtests.test(query=query):
