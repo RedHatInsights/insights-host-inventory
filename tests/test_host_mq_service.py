@@ -14,6 +14,7 @@ from unittest.mock import patch
 import marshmallow
 import pytest
 from connexion import FlaskApp
+from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import UniqueViolation
 from pytest_mock import MockerFixture
 from sqlalchemy.exc import IntegrityError
@@ -118,6 +119,7 @@ def test_event_loop_with_error_message_handling(handle_message_mock, mocker, eve
         pytest.param(StaleDataError, id="StaleDataError"),
         pytest.param(UniqueViolation, id="UniqueViolation"),
         pytest.param(lambda msg: IntegrityError(None, None, Exception(msg)), id="IntegrityError"),
+        pytest.param(lambda msg: OperationalError(msg, None, DeadlockDetected()), id="DeadlockDetected"),
     ],
 )
 def test_event_loop_handles_invalid_request_error_gracefully(

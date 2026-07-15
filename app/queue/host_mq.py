@@ -23,6 +23,7 @@ from marshmallow import fields
 from marshmallow import validate
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
+from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
@@ -102,6 +103,16 @@ tracer = get_tracer(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 MAX_RETRIES = 5
+
+
+def _is_deadlock_error(error: Exception) -> bool:
+    """Return True when the exception (or its DBAPI cause) is a PostgreSQL deadlock."""
+    if isinstance(error, DeadlockDetected):
+        return True
+    orig = getattr(error, "orig", None)
+    return isinstance(orig, DeadlockDetected)
+
+
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -339,6 +350,9 @@ class HBIMessageConsumerBase:
             except OperationalError as oe:
                 span.set_status(StatusCode.ERROR, str(oe))
                 span.record_exception(oe)
+                # Deadlocks are retriable; let event_loop handle retry instead of exiting.
+                if _is_deadlock_error(oe):
+                    raise
                 logger.error(f"Could not access DB {str(oe)}")
                 sys.exit(3)
             except Exception as exc:
@@ -356,6 +370,9 @@ class HBIMessageConsumerBase:
             self.success_metric.inc()
         except OperationalError as oe:
             self._emit_error_span(msg, start_ns, oe)
+            # Deadlocks are retriable; let event_loop handle retry instead of exiting.
+            if _is_deadlock_error(oe):
+                raise
             logger.error(f"Could not access DB {str(oe)}")
             sys.exit(3)
         except Exception as exc:
@@ -443,14 +460,25 @@ class HBIMessageConsumerBase:
                         try:
                             self._process_batch()
                             break  # Success, exit retry loop
-                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
+                        except (
+                            InvalidRequestError,
+                            StaleDataError,
+                            IntegrityError,
+                            UniqueViolation,
+                            OperationalError,
+                        ) as e:
                             """Handle database session errors with retry logic.
                             InvalidRequestError includes PendingRollbackError which occurs when the session
                             is in an invalid state. StaleDataError occurs when trying to update data that
                             has been modified by another transaction. IntegrityError and UniqueViolation can
-                            occur when a unique constraint is violated.
+                            occur when a unique constraint is violated. OperationalError is only retried when
+                            it wraps a PostgreSQL deadlock (DeadlockDetected); other operational errors are
+                            re-raised so the process can restart.
                             Note: session_guard already calls rollback() when an exception occurs.
                             """
+                            if isinstance(e, OperationalError) and not _is_deadlock_error(e):
+                                raise
+
                             self.failure_metric.inc()
 
                             if attempt < MAX_RETRIES:
