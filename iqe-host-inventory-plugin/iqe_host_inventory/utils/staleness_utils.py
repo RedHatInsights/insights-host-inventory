@@ -16,14 +16,12 @@ from typing import Any
 
 from iqe_host_inventory.modeling.wrappers import DataAlias
 from iqe_host_inventory.utils import assert_datetimes_equal
-from iqe_host_inventory_api_v7.models.system_default_id import SystemDefaultId
 
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory_api.models import HostOut as OldHostOut
 from iqe_host_inventory_api_v7.models import HostOut
-from iqe_host_inventory_api_v7.models import StalenessOutput
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +124,8 @@ def gen_staleness_settings(want_sample: bool = True) -> dict[str, int]:
     return settings
 
 
-def extract_staleness_fields(resp: StalenessOutput | dict[str, str | int]) -> dict[str, int]:
-    staleness_input = resp if isinstance(resp, dict) else resp.to_dict()
-    return {f: staleness_input[f] for f in get_staleness_fields()}  # type: ignore[misc]
+def extract_staleness_fields(resp: dict[str, str | int]) -> dict[str, int]:
+    return {f: resp[f] for f in get_staleness_fields()}  # type: ignore[misc]
 
 
 def validate_staleness_response(
@@ -240,8 +237,7 @@ def set_staleness(host_inventory: ApplicationHostInventory, deltas: DELTAS) -> N
     settings = dict(zip(get_staleness_fields(), deltas, strict=False))
 
     resp = host_inventory.apis.account_staleness.get_staleness_response()
-    # TODO remove openapi codegen indirection
-    if resp.id.actual_instance == SystemDefaultId.SYSTEM_DEFAULT:
+    if resp.json()["id"] == "system_default":
         host_inventory.apis.account_staleness.create_staleness(**settings)
     else:
         host_inventory.apis.account_staleness.update_staleness(**settings)

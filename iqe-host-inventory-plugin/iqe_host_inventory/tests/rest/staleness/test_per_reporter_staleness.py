@@ -210,7 +210,7 @@ def test_per_reporter_custom_staleness(
 
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, defaults, settings)
 
     do_reporter_check_ins(host_inventory, host_type)
@@ -234,7 +234,7 @@ def test_per_reporter_update_staleness(
     # Generate some initial settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Check in as multiple reporters and validate
@@ -243,7 +243,7 @@ def test_per_reporter_update_staleness(
     # Update the settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.update_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Verify that the per_reporter timestamps have been updated correctly

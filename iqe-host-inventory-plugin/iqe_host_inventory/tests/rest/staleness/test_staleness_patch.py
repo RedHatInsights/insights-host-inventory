@@ -8,8 +8,6 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.utils.api_utils import api_disabled_validation
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import DAY_SECS
 from iqe_host_inventory.utils.staleness_utils import MIN_DELTA
 from iqe_host_inventory.utils.staleness_utils import STALENESS_LIMITS
@@ -19,7 +17,6 @@ from iqe_host_inventory.utils.staleness_utils import TIME_TO_STALE_WARNING
 from iqe_host_inventory.utils.staleness_utils import gen_staleness_settings
 from iqe_host_inventory.utils.staleness_utils import get_staleness_fields
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
-from iqe_host_inventory_api_v7 import StalenessIn
 
 pytestmark = [pytest.mark.backend, pytest.mark.usefixtures("hbi_staleness_cleanup")]
 logger = logging.getLogger(__name__)
@@ -35,11 +32,11 @@ def test_staleness_update_random_data(host_inventory: ApplicationHostInventory) 
     """
     test_data = gen_staleness_settings()
     logger.info(f"Creating account record with:\n{test_data}")
-    original = host_inventory.apis.account_staleness.create_staleness(**test_data).to_dict()
+    original = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     test_data = gen_staleness_settings()
     logger.info(f"Updating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.update_staleness(**test_data).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**test_data).json()
     validate_staleness_response(response, original, test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness()
@@ -59,7 +56,7 @@ def test_staleness_update_single_field(
     """
     test_data = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{test_data}")
-    original = host_inventory.apis.account_staleness.create_staleness(**test_data).to_dict()
+    original = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     fields = get_staleness_fields()
     index = fields.index(field)
@@ -77,7 +74,7 @@ def test_staleness_update_single_field(
 
     test_data = {field: value}
     logger.info(f"Updating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.update_staleness(**test_data).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**test_data).json()
     validate_staleness_response(response, original, test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness()
@@ -94,11 +91,11 @@ def test_staleness_update_all_fields(host_inventory: ApplicationHostInventory) -
     """
     test_data = gen_staleness_settings()
     logger.info(f"Creating account record with:\n{test_data}")
-    original = host_inventory.apis.account_staleness.create_staleness(**test_data).to_dict()
+    original = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     test_data = gen_staleness_settings(want_sample=False)
     logger.info(f"Updating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.update_staleness(**test_data).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**test_data).json()
     validate_staleness_response(response, original, test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness()
@@ -124,11 +121,11 @@ def test_staleness_update_min_max(
     """
     test_data = gen_staleness_settings()
     logger.info(f"Creating account record with:\n{test_data}")
-    original = host_inventory.apis.account_staleness.create_staleness(**test_data).to_dict()
+    original = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     test_data = {field: value}
     logger.info(f"Updating account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.update_staleness(**test_data).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**test_data).json()
     validate_staleness_response(response, original, test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness()
@@ -146,8 +143,9 @@ def test_staleness_update_nonexistent(host_inventory: ApplicationHostInventory) 
     """
     test_data = gen_staleness_settings()
 
-    with raises_apierror(404, match_message="does not exist"):
-        host_inventory.apis.account_staleness.update_staleness(**test_data)
+    resp = host_inventory.apis.account_staleness.update_staleness(**test_data)
+    assert resp.status_code == 404
+    assert "does not exist" in resp.text
 
 
 @pytest.mark.parametrize(
@@ -174,8 +172,9 @@ def test_staleness_update_value_too_big(
     test_data = {field: STALENESS_LIMITS[field] + 1}
     logger.info(f"Updating account record with:\n{test_data}")
 
-    with raises_apierror(400, match_message=f"less than or equal to {STALENESS_LIMITS[field]}"):
-        host_inventory.apis.account_staleness.update_staleness(**test_data)
+    resp = host_inventory.apis.account_staleness.update_staleness(**test_data)
+    assert resp.status_code == 400
+    assert f"less than or equal to {STALENESS_LIMITS[field]}" in resp.text
 
 
 def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory) -> None:
@@ -194,14 +193,17 @@ def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory
     test_data = {TIME_TO_STALE: DAY_SECS, "bad_field": DAY_SECS}
     logger.info(f"Updating account record with:\n{test_data}")
 
-    with api_disabled_validation(host_inventory.apis.account_staleness.raw_api) as api:
-        # TODO: Uncomment this when https://issues.redhat.com/browse/RHINENG-14003 is done
-        # with raises_apierror(400, match_message="Unknown field"):
-        #    api.api_staleness_update_staleness(test_data)
-        # TODO: And delete these 3 lines (temporary replacement for above)
-        api.api_staleness_update_staleness(test_data)
-        settings = host_inventory.apis.account_staleness.get_staleness()
-        assert "bad_field" not in settings
+    # TODO: Uncomment this when https://issues.redhat.com/browse/RHINENG-14003 is done
+    # resp = host_inventory.apis.account_staleness._base_wrapper.patch(
+    #     "/account/staleness", json=test_data
+    # )
+    # assert resp.status_code == 400
+    # assert "Unknown field" in resp.text
+
+    # TODO: And delete these 3 lines (temporary replacement for above)
+    host_inventory.apis.account_staleness._base_wrapper.patch("/account/staleness", json=test_data)
+    settings = host_inventory.apis.account_staleness.get_staleness()
+    assert "bad_field" not in settings
 
 
 @pytest.mark.parametrize(
@@ -228,8 +230,8 @@ def test_staleness_update_invalid_value(
       negative: true
       title: Attempt to update a new staleness record with an invalid value
     """
-    staleness_in = StalenessIn.model_construct(**{field: value})
-    logger.info(f"Updating account record with:\n{staleness_in}")
+    body = {field: value}
+    logger.info(f"Updating account record with:\n{body}")
 
     match_message = ""
     if not isinstance(value, int):
@@ -237,10 +239,11 @@ def test_staleness_update_invalid_value(
     elif value <= 0:
         match_message = "less than the minimum"
 
-    with api_disabled_validation(host_inventory.apis.account_staleness.raw_api) as api:
-        with raises_apierror(400, match_message=match_message):
-            # todo: figure mypy confusion, maybe create intentionally invalid instance directly
-            api.api_staleness_update_staleness(staleness_in)
+    resp = host_inventory.apis.account_staleness._base_wrapper.patch(
+        "/account/staleness", json=body
+    )
+    assert resp.status_code == 400
+    assert match_message in resp.text
 
 
 @pytest.mark.usefixtures("hbi_staleness_secondary_cleanup")
@@ -260,16 +263,16 @@ def test_staleness_update_proper_account(
     logger.info(f"Creating secondary account record with:\n{test_data}")
     secondary = host_inventory_secondary.apis.account_staleness.create_staleness(
         **test_data
-    ).to_dict()
+    ).json()
     logger.info(f"Initial secondary account data:\n{secondary}")
 
     test_data = gen_staleness_settings()
     logger.info(f"Creating primary account record with:\n{test_data}")
-    primary = host_inventory.apis.account_staleness.create_staleness(**test_data).to_dict()
+    primary = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     test_data = gen_staleness_settings()
     logger.info(f"Updating primary account record with:\n{test_data}")
-    response = host_inventory.apis.account_staleness.update_staleness(**test_data).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**test_data).json()
     validate_staleness_response(response, primary, test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness()
@@ -324,8 +327,9 @@ def test_staleness_update_invalid_ordering(
     """
     logger.info(f"Attempting to update account record with unordered settings:\n{settings}")
 
-    with raises_apierror(400, match_message="must be lower than"):
-        host_inventory.apis.account_staleness.update_staleness(**settings)
+    resp = host_inventory.apis.account_staleness.update_staleness(**settings)
+    assert resp.status_code == 400
+    assert "must be lower than" in resp.text
 
 
 @pytest.mark.ephemeral
