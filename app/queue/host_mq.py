@@ -220,6 +220,7 @@ class HBIMessageConsumerBase:
         self.notification_event_producer = notification_event_producer
         self.processed_rows: list[OperationResult] = []
         self._is_retry = False
+        self._messages_pending_retry: list | None = None
 
     @property
     def success_metric(self):
@@ -394,17 +395,7 @@ class HBIMessageConsumerBase:
             span.record_exception(exc)
             span.end(end_time=end_ns)
 
-    def _process_batch(self) -> None:
-        """Process a single batch of messages from Kafka.
-
-        The Confluent Kafka instrumentor owns the batch-level consumer context for
-        the returned records. We keep lightweight per-message child spans under that
-        context so SQL spans can still be inspected message-by-message.
-
-        Raises:
-            InvalidRequestError: When the database session is in an invalid state
-            StaleDataError: When trying to update data modified by another transaction
-        """
+    def _consume_valid_messages(self) -> list:
         messages = self.consumer.consume(
             num_messages=inventory_config().mq_db_batch_max_messages,
             timeout=inventory_config().mq_db_batch_max_seconds,
@@ -420,8 +411,35 @@ class HBIMessageConsumerBase:
             else:
                 valid_messages.append(msg)
 
+        return valid_messages
+
+    def _process_batch(self, replay_messages: list | None = None) -> None:
+        """Process a single batch of messages from Kafka.
+
+        The Confluent Kafka instrumentor owns the batch-level consumer context for
+        the returned records. We keep lightweight per-message child spans under that
+        context so SQL spans can still be inspected message-by-message.
+
+        Args:
+            replay_messages: Messages from a failed batch to retry without re-consuming.
+                When None, a new batch is fetched from Kafka.
+
+        Raises:
+            InvalidRequestError: When the database session is in an invalid state
+            StaleDataError: When trying to update data modified by another transaction
+        """
+        if replay_messages is not None:
+            valid_messages = replay_messages
+            if self._is_retry:
+                logger.debug("Replaying %s messages from failed batch", len(valid_messages))
+        else:
+            valid_messages = self._consume_valid_messages()
+
         if not valid_messages:
+            self._messages_pending_retry = None
             return
+
+        self._messages_pending_retry = valid_messages
 
         batch_span = trace.get_current_span()
         if OTEL_MQ_ENABLED and batch_span.is_recording():
@@ -429,36 +447,42 @@ class HBIMessageConsumerBase:
             batch_span.update_name(f"{topic} process")
             batch_span.set_attribute("messaging.batch.message_count", len(valid_messages))
 
-        with no_expire_on_commit(db.session):
-            with (
-                session_guard(db.session, close=False),
-                db.session.no_autoflush,
-                StalenessCache(),
-                UngroupedGroupCache(),
-            ):
-                for msg in valid_messages:
-                    self._process_single_message(msg)
+        try:
+            with no_expire_on_commit(db.session):
+                with (
+                    session_guard(db.session, close=False),
+                    db.session.no_autoflush,
+                    StalenessCache(),
+                    UngroupedGroupCache(),
+                ):
+                    for msg in valid_messages:
+                        self._process_single_message(msg)
 
-            self.post_process_rows()
-            # Commit Kafka offsets after successful batch processing
-            # This ensures offsets are persisted immediately after DB commit and event production,
-            # preventing duplicate message processing on service restart
-            if len(self.processed_rows) > 0:
-                try:
-                    self.consumer.commit(asynchronous=False)
-                    logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
-                except Exception as e:
-                    logger.exception(f"Failed to commit Kafka offsets: {e}")
+                self.post_process_rows()
+                # Commit Kafka offsets after successful batch processing
+                # This ensures offsets are persisted immediately after DB commit and event production,
+                # preventing duplicate message processing on service restart
+                if len(self.processed_rows) > 0:
+                    try:
+                        self.consumer.commit(asynchronous=False)
+                        logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+                    except Exception as e:
+                        logger.exception(f"Failed to commit Kafka offsets: {e}")
+        except Exception:
+            raise
+        else:
+            self._messages_pending_retry = None
 
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
             try:
                 while not interrupt():
+                    retry_messages = None
                     for attempt in range(1, MAX_RETRIES + 1):
                         self.processed_rows = []
                         self._is_retry = attempt > 1
                         try:
-                            self._process_batch()
+                            self._process_batch(replay_messages=retry_messages)
                             break  # Success, exit retry loop
                         except (
                             InvalidRequestError,
@@ -479,6 +503,7 @@ class HBIMessageConsumerBase:
                             if isinstance(e, OperationalError) and not _is_deadlock_error(e):
                                 raise
 
+                            retry_messages = self._messages_pending_retry
                             self.failure_metric.inc()
 
                             if attempt < MAX_RETRIES:
@@ -493,6 +518,8 @@ class HBIMessageConsumerBase:
                                     f"{MAX_RETRIES} attempts, continuing with next batch",
                                     exc_info=e,
                                 )
+                                # Offsets were not committed; Kafka will redeliver on rebalance/restart.
+                                retry_messages = None
             finally:
                 db.session.close()
 

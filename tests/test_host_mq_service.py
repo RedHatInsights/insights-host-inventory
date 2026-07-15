@@ -135,13 +135,13 @@ def test_event_loop_handles_invalid_request_error_gracefully(
     The batch should be retried up to MAX_RETRIES times before giving up and moving to the next batch.
     """
     # Create a fake consumer that returns messages for:
-    # - MAX_RETRIES attempts for first batch (each retry calls consume())
-    # - 1 attempt for second batch
+    # - 1 consume for first batch (retries replay the same messages)
+    # - 1 consume for second batch
     # - empty list to exit
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                *[[FakeMessage()] for _ in range(MAX_RETRIES)],  # First batch attempts
+                [FakeMessage()],  # First batch
                 [FakeMessage()],  # Second batch
                 [],  # Exit
             ]
@@ -184,6 +184,8 @@ def test_event_loop_handles_invalid_request_error_gracefully(
     # Verify that the event loop continued and processed the second batch successfully
     # (5 failed commits + at least 1 successful commit from second batch)
     assert commit_mock.call_count >= 6
+    # First batch consumed once (retries replay in memory); second batch + empty exit poll.
+    assert fake_consumer.consume.call_count == 3
 
 
 @pytest.mark.parametrize("error_type", (InvalidRequestError, StaleDataError))
@@ -199,15 +201,13 @@ def test_event_loop_retries_and_succeeds_on_session_error(
     but succeeds on a subsequent retry attempt (before max retries is reached).
     """
     # Create a fake consumer that returns messages for:
-    # - 3 attempts for first batch (2 retries, 1 success)
-    # - 1 attempt for second batch
+    # - 1 consume for first batch (retries replay the same messages)
+    # - 1 consume for second batch
     # - empty list to exit
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                [FakeMessage()],  # First batch, attempt 1
-                [FakeMessage()],  # First batch, attempt 2 (retry)
-                [FakeMessage()],  # First batch, attempt 3 (retry - succeeds)
+                [FakeMessage()],  # First batch
                 [FakeMessage()],  # Second batch
                 [],  # Exit
             ]
@@ -252,6 +252,38 @@ def test_event_loop_retries_and_succeeds_on_session_error(
     # - 2 failed attempts + 1 successful retry for first batch
     # - at least 1 successful commit for second batch
     assert commit_mock.call_count >= 4
+    # First batch consumed once (retries replay in memory); second batch + empty exit poll.
+    assert fake_consumer.consume.call_count == 3
+
+
+def test_event_loop_replays_failed_batch_without_reconsuming(
+    mocker: MockerFixture,
+    event_producer: EventProducer,
+    notification_event_producer: EventProducer,
+    flask_app: FlaskApp,
+):
+    """Failed batches must be replayed in-memory; retries should not call consume() again."""
+    batch_msg_1 = FakeMessage(message='{"msg": 1}')
+    batch_msg_2 = FakeMessage(message='{"msg": 2}')
+    batch = [batch_msg_1, batch_msg_2]
+
+    fake_consumer = mocker.Mock(**{"consume.side_effect": [batch, []]})
+    consumer = IngressMessageConsumer(fake_consumer, flask_app, event_producer, notification_event_producer)
+
+    handle_calls: list[str] = []
+
+    def handle_message_side_effect(message, headers=None):  # noqa: ARG001
+        handle_calls.append(message)
+        if len(handle_calls) == 2:
+            raise OperationalError("deadlock detected", None, DeadlockDetected())
+        return None
+
+    mocker.patch.object(consumer, "handle_message", side_effect=handle_message_side_effect)
+
+    consumer.event_loop(mocker.Mock(side_effect=[False, True]))
+
+    assert fake_consumer.consume.call_count == 1
+    assert handle_calls == ['{"msg": 1}', '{"msg": 2}', '{"msg": 1}', '{"msg": 2}']
 
 
 def test_handle_message_failure_invalid_json_message(mocker, ingress_message_consumer_mock):
@@ -2225,8 +2257,7 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     fake_consumer = mocker.Mock(
         **{
             "consume.side_effect": [
-                [FakeMessage(message=msg_list[i]) for i in range(3)],  # First batch attempt 1
-                [FakeMessage(message=msg_list[i]) for i in range(3)],  # First batch attempt 2 (retry)
+                [FakeMessage(message=msg_list[i]) for i in range(3)],  # First batch (replayed on retry)
                 [FakeMessage(message=msg_list[i]) for i in range(3, 5)],  # Second batch
                 [],  # Exit
             ]
@@ -2248,6 +2279,8 @@ def test_batch_mq_graceful_rollback(mocker, flask_app):
     assert commit_mock.call_count >= 3
     # write_batch should be called for both batches (first batch succeeds on retry, second batch succeeds)
     assert write_batch_patch.call_count == 2
+    # First batch consumed once (retries replay in memory); second batch + empty exit poll.
+    assert fake_consumer.consume.call_count == 3
 
 
 @pytest.mark.usefixtures("flask_app")
