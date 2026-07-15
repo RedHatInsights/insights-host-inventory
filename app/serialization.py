@@ -289,24 +289,36 @@ def serialize_host_for_export_svc(
     host: Host | LimitedHost,
     staleness: AttrDict,
 ):
-    serialized_host = serialize_host(host, staleness, additional_fields=("os_release", "state"))
+    st_timestamps = get_staleness_timestamps(host, staleness)
 
-    serialized_host["host_id"] = serialize_uuid(host.id)
-    serialized_host["hostname"] = host.display_name
+    group_id = None
+    group_name = None
     if host.groups:
-        serialized_host["group_id"] = host.groups[0]["id"]  # Assuming just one group per host
-        serialized_host["group_name"] = host.groups[0]["name"]  # Assuming just one group per host
-    else:
-        serialized_host["group_id"] = None  # Assuming just one group per host
-        serialized_host["group_name"] = None  # Assuming just one group per host
-    serialized_host["host_type"] = host.host_type
-    if not host.host_type:
-        # For export service, host_type should be exported as conventional
-        # if the host is not an edge one instead of None.
-        serialized_host["host_type"] = "conventional"
+        group_id = host.groups[0]["id"]
+        group_name = host.groups[0]["name"]
 
-    serialized_host = {key: serialized_host[key] for key in _EXPORT_SERVICE_FIELDS}
-    return serialized_host
+    os_release = None
+    if host.static_system_profile is not None:
+        os_release = host.static_system_profile.os_release
+
+    field_values = {
+        "display_name": host.display_name,
+        "fqdn": host.fqdn,
+        "host_id": serialize_uuid(host.id),
+        "subscription_manager_id": host.subscription_manager_id,
+        "satellite_id": host.satellite_id,
+        "group_id": group_id,
+        "group_name": group_name,
+        "os_release": os_release,
+        "updated": _serialize_datetime(host.modified_on),
+        "state": Conditions.find_host_state(
+            stale_timestamp=st_timestamps["stale_timestamp"],
+            stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
+        ),
+        "tags": _serialize_tags(host.tags),
+        "host_type": host.host_type or "conventional",
+    }
+    return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
 
 
 def serialize_group_without_host_count(group: Group) -> dict:

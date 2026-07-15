@@ -11,13 +11,14 @@ import pytest
 from marshmallow.exceptions import ValidationError
 from sqlalchemy.orm.exc import ObjectDeletedError
 
+from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
+from app.queue.export_service import _StreamingExportBody
 from app.queue.export_service import create_export
-from app.queue.export_service import get_host_list
 from app.queue.export_service_mq import parse_export_service_message
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
@@ -72,7 +73,7 @@ def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, 
 def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_app, export_service_consumer_mock):
     with (
         flask_app.app.app_context(),
-        mock.patch("app.queue.export_service.get_hosts_to_export", return_value=[]),
+        mock.patch("app.queue.export_service.get_hosts_to_export", return_value=iter([])),
         mock.patch("app.queue.export_service.create_export", return_value=False),
     ):
         export_message = es_utils.create_export_message_mock()
@@ -231,7 +232,9 @@ def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_stalene
             db_create_host()
 
         identity = Identity(USER_IDENTITY)
-        host_list = get_host_list(identity=identity, rbac_filter=None, inventory_config=inventory_config)
+        host_list = list(
+            get_hosts_to_export(identity, rbac_filter=None, batch_size=inventory_config.export_svc_batch_size)
+        )
 
         assert len(host_list) == 0
 
@@ -240,7 +243,9 @@ def test_export_one_host(flask_app, db_create_host, inventory_config):
     with flask_app.app.app_context():
         db_create_host()
         identity = Identity(USER_IDENTITY)
-        host_list = get_host_list(identity=identity, rbac_filter=None, inventory_config=inventory_config)
+        host_list = list(
+            get_hosts_to_export(identity, rbac_filter=None, batch_size=inventory_config.export_svc_batch_size)
+        )
 
         assert len(host_list) == 1
 
@@ -262,6 +267,55 @@ def _make_response(status_code, text=""):
     resp.status_code = status_code
     resp.text = text
     return resp
+
+
+class TestStreamingExportBody:
+    def test_json_stream_matches_materialized_format(self):
+        hosts = [{"host_id": "1", "display_name": "host-a"}, {"host_id": "2", "display_name": "host-b"}]
+        streamed = b"".join(_StreamingExportBody(iter(hosts), "json")).decode("utf-8")
+        assert streamed == _format_export_data(hosts, "json")
+        assert json.loads(streamed) == hosts
+
+    def test_json_stream_empty_iterator(self):
+        hosts = []
+        body = _StreamingExportBody(iter(hosts), "json")
+        streamed = b"".join(body).decode("utf-8")
+
+        assert streamed == "[]"
+        assert body.host_count == 0
+
+    def test_csv_stream_empty_iterator_emits_only_header(self):
+        hosts = []
+        body = _StreamingExportBody(iter(hosts), "csv")
+        streamed = b"".join(body).decode("utf-8")
+
+        assert streamed == _format_export_data(hosts, "csv")
+        lines = streamed.splitlines()
+        assert len(lines) == 1
+        assert body.host_count == 0
+
+    def test_csv_stream_includes_header_and_rows(self):
+        hosts = [
+            {
+                "display_name": "host-a",
+                "fqdn": "host-a.example.com",
+                "host_id": "1",
+                "subscription_manager_id": None,
+                "satellite_id": None,
+                "group_id": None,
+                "group_name": None,
+                "os_release": "8.10",
+                "updated": "2026-01-01T00:00:00+00:00",
+                "state": "fresh",
+                "tags": [{"namespace": "insights", "key": "env", "value": "prod"}],
+                "host_type": "conventional",
+            }
+        ]
+        body = _StreamingExportBody(iter(hosts), "csv")
+        csv_output = b"".join(body).decode("utf-8")
+        assert body.host_count == 1
+        assert csv_output == _format_export_data(hosts, "csv")
+        assert "host-a.example.com" in csv_output
 
 
 class TestHandleExportResponse:
@@ -302,6 +356,25 @@ class TestHandleExportError:
         session.post.return_value = _make_response(HTTPStatus.ACCEPTED)
         _handle_export_error("some error", 500, "http://example.com/error", session, {}, uuid4(), "json")
         session.post.assert_called_once()
+
+
+@mock.patch("requests.Session.post", autospec=True)
+def test_create_export_posts_streaming_body(mock_post, db_create_host, flask_app, inventory_config):
+    """create_export must pass a _StreamingExportBody to session.post, not a pre-materialized str/bytes."""
+    with flask_app.app.app_context():
+        db_create_host()
+
+        mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+        mock_post.return_value.text = ""
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+
+        upload_call = mock_post.call_args_list[-1]
+        data_arg = upload_call.kwargs.get("data") or upload_call[1].get("data")
+        assert isinstance(data_arg, _StreamingExportBody), f"Expected _StreamingExportBody, got {type(data_arg)}"
 
 
 @mock.patch("requests.Session.post", autospec=True)
