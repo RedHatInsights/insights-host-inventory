@@ -175,6 +175,7 @@ objects:
       - rbac
       - ingress
       - export-service
+      - puptoo
     optionalDependencies:
       - kessel-inventory
       - kessel-relations
