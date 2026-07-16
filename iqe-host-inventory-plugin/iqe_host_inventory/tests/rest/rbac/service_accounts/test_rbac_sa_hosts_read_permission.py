@@ -174,10 +174,10 @@ class TestRBACSAHostsReadPermission:
         """
         tags = sorted(flatten(rbac_setup_resources[2]), key=operator.itemgetter("key"))
 
-        response = host_inventory_sa_1.apis.tags.get_tags_response()
+        body = host_inventory_sa_1.apis.tags.get_tags_response().json()
 
-        assert response.count >= len(tags)
-        assert_tags_found(tags, response.results)
+        assert body["count"] >= len(tags)
+        assert_tags_found(tags, body["results"])
 
     def test_rbac_sa_hosts_read_permission_get_operating_systems(
         self,
@@ -437,12 +437,12 @@ class TestRBACSAHostsNoReadPermission:
             title: Test that service accounts without "hosts:read" permission
                    can't get a list of tags
         """
-        with raises_apierror(
-            403,
+        resp = host_inventory_sa_2.apis.tags.get_tags_response()
+        assert resp.status_code == 403
+        assert (
             "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
-            host_inventory_sa_2.apis.tags.get_tags()
+            "It is either read-protected or not readable by the server." in resp.text
+        )
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_sa_hosts_no_read_permission_get_operating_systems(

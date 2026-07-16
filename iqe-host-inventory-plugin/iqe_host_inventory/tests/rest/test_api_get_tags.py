@@ -10,7 +10,6 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import flatten
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import _CORRECT_SYSTEM_TYPE_VALUES
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_tags
@@ -53,10 +52,11 @@ def test_get_all_tags(setup_hosts_with_tags, host_inventory):
         title: Inventory: GET on /tags without parameters
     """
     response = host_inventory.apis.tags.get_tags_response()
-    assert response.count >= 2
-    assert len(response.results) == response.count
+    body = response.json()
+    assert body["count"] >= 2
+    assert len(body["results"]) == body["count"]
     assert_tags_found(
-        setup_hosts_with_tags[0].tags + setup_hosts_with_tags[1].tags, response.results
+        setup_hosts_with_tags[0].tags + setup_hosts_with_tags[1].tags, body["results"]
     )
 
 
@@ -79,14 +79,16 @@ def test_get_tags_by_display_name(setup_hosts_with_tags, host_inventory, case):
         response = host_inventory.apis.tags.get_tags_response(
             display_name=setup_hosts_with_tags[0].display_name
         )
+        body = response.json()
     else:
         response = host_inventory.apis.tags.get_tags_response(
             display_name=getattr(setup_hosts_with_tags[0].display_name, case)()
         )
-    assert response.total == len(setup_hosts_with_tags[0].tags)
-    assert len(response.results) == response.total
-    assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-    assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+        body = response.json()
+    assert body["total"] == len(setup_hosts_with_tags[0].tags)
+    assert len(body["results"]) == body["total"]
+    assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+    assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -105,14 +107,16 @@ def test_get_tags_by_fqdn(setup_hosts_with_tags, host_inventory, case):
     """
     if case == "exact":
         response = host_inventory.apis.tags.get_tags_response(fqdn=setup_hosts_with_tags[0].fqdn)
+        body = response.json()
     else:
         response = host_inventory.apis.tags.get_tags_response(
             fqdn=getattr(setup_hosts_with_tags[0].fqdn, case)()
         )
-    assert response.total == len(setup_hosts_with_tags[0].tags)
-    assert len(response.results) == response.total
-    assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-    assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+        body = response.json()
+    assert body["total"] == len(setup_hosts_with_tags[0].tags)
+    assert len(body["results"]) == body["total"]
+    assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+    assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
 
 @pytest.mark.smoke
@@ -134,14 +138,16 @@ def test_get_tags_by_hostname_or_id(setup_hosts_with_tags, host_inventory, case)
     def _test_hostname_or_id(hostname_or_id):
         if case == "exact":
             response = host_inventory.apis.tags.get_tags_response(hostname_or_id=hostname_or_id)
+            body = response.json()
         else:
             response = host_inventory.apis.tags.get_tags_response(
                 hostname_or_id=getattr(hostname_or_id, case)()
             )
-        assert response.total == len(setup_hosts_with_tags[0].tags)
-        assert len(response.results) == response.total
-        assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-        assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+            body = response.json()
+        assert body["total"] == len(setup_hosts_with_tags[0].tags)
+        assert len(body["results"]) == body["total"]
+        assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+        assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
     _test_hostname_or_id(setup_hosts_with_tags[0].id)
     _test_hostname_or_id(setup_hosts_with_tags[0].fqdn)
@@ -166,14 +172,16 @@ def test_get_tags_by_insights_id(setup_hosts_with_tags, host_inventory, case):
         response = host_inventory.apis.tags.get_tags_response(
             insights_id=setup_hosts_with_tags[0].insights_id
         )
+        body = response.json()
     else:
         response = host_inventory.apis.tags.get_tags_response(
             insights_id=getattr(setup_hosts_with_tags[0].insights_id, case)()
         )
-    assert response.total == len(setup_hosts_with_tags[0].tags)
-    assert len(response.results) == response.total
-    assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-    assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+        body = response.json()
+    assert body["total"] == len(setup_hosts_with_tags[0].tags)
+    assert len(body["results"]) == body["total"]
+    assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+    assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -194,14 +202,16 @@ def test_get_tags_by_provider_id(setup_hosts_with_tags, host_inventory, case):
         response = host_inventory.apis.tags.get_tags_response(
             provider_id=setup_hosts_with_tags[0].provider_id
         )
+        body = response.json()
     else:
         response = host_inventory.apis.tags.get_tags_response(
             provider_id=getattr(setup_hosts_with_tags[0].provider_id, case)()
         )
-    assert response.total == len(setup_hosts_with_tags[0].tags)
-    assert len(response.results) == response.total
-    assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-    assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+        body = response.json()
+    assert body["total"] == len(setup_hosts_with_tags[0].tags)
+    assert len(body["results"]) == body["total"]
+    assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+    assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -220,10 +230,11 @@ def test_get_tags_by_provider_type(setup_hosts_with_tags, host_inventory):
     response = host_inventory.apis.tags.get_tags_response(
         provider_type=setup_hosts_with_tags[0].provider_type
     )
-    assert response.count >= len(setup_hosts_with_tags[0].tags)
-    assert len(response.results) == response.count
-    assert_tags_found(setup_hosts_with_tags[0].tags, response.results)
-    assert_tags_not_found(setup_hosts_with_tags[1].tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(setup_hosts_with_tags[0].tags)
+    assert len(body["results"]) == body["count"]
+    assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
+    assert_tags_not_found(setup_hosts_with_tags[1].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -343,10 +354,11 @@ def test_get_tags_valid_parameters_combinations(
         updated_end=updated_end_host.updated,
         group_name=[group_name],
     )
-    assert response.count == len(updated_hosts[1].tags)
-    assert_tags_found(updated_hosts[1].tags, response.results)
+    body = response.json()
+    assert body["count"] == len(updated_hosts[1].tags)
+    assert_tags_found(updated_hosts[1].tags, body["results"])
     not_wanted_tags = updated_hosts[0].tags + flatten(host.tags for host in updated_hosts[2:])
-    assert_tags_not_found(not_wanted_tags, response.results)
+    assert_tags_not_found(not_wanted_tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -380,9 +392,10 @@ def test_get_tags_by_updated_start(
     time_filter_s = time_filter.strftime(time_format)
 
     response = host_inventory.apis.tags.get_tags_response(updated_start=time_filter_s)
-    assert response.count >= len(host2.tags + host3.tags)
-    assert_tags_found(host2.tags + host3.tags, response.results)
-    assert_tags_not_found(host1.tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(host2.tags + host3.tags)
+    assert_tags_found(host2.tags + host3.tags, body["results"])
+    assert_tags_not_found(host1.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -416,9 +429,10 @@ def test_get_tags_by_updated_end(
     time_filter_s = time_filter.strftime(time_format)
 
     response = host_inventory.apis.tags.get_tags_response(updated_end=time_filter_s)
-    assert response.count >= len(host1.tags + host2.tags)
-    assert_tags_found(host1.tags + host2.tags, response.results)
-    assert_tags_not_found(host3.tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(host1.tags + host2.tags)
+    assert_tags_found(host1.tags + host2.tags, body["results"])
+    assert_tags_not_found(host3.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -451,10 +465,11 @@ def test_get_tags_by_updated(
     response = host_inventory.apis.tags.get_tags_response(
         updated_start=time_start, updated_end=time_end
     )
+    body = response.json()
     wanted_tags = flatten(host.tags for host in hosts)
-    assert response.count >= len(wanted_tags)
-    assert_tags_found(wanted_tags, response.results)
-    assert_tags_not_found(host_before.tags + host_after.tags, response.results)
+    assert body["count"] >= len(wanted_tags)
+    assert_tags_found(wanted_tags, body["results"])
+    assert_tags_not_found(host_before.tags + host_after.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -474,9 +489,10 @@ def test_get_tags_by_updated_both_same(host_inventory: ApplicationHostInventory)
     response = host_inventory.apis.tags.get_tags_response(
         updated_start=hosts[1].updated, updated_end=hosts[1].updated
     )
-    assert response.count >= len(hosts[1].tags)
-    assert_tags_found(hosts[1].tags, response.results)
-    assert_tags_not_found(hosts[0].tags + hosts[2].tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(hosts[1].tags)
+    assert_tags_found(hosts[1].tags, body["results"])
+    assert_tags_not_found(hosts[0].tags + hosts[2].tags, body["results"])
 
 
 @pytest.mark.parametrize("timezone", ["+03:00", "-03:00"], ids=["plus", "minus"])
@@ -512,10 +528,11 @@ def test_get_tags_by_updated_different_timezone(
     response = host_inventory.apis.tags.get_tags_response(
         updated_start=time_start, updated_end=time_end
     )
+    body = response.json()
     wanted_tags = flatten(host.tags for host in hosts)
-    assert response.count >= len(wanted_tags)
-    assert_tags_found(wanted_tags, response.results)
-    assert_tags_not_found(host_before.tags + host_after.tags, response.results)
+    assert body["count"] >= len(wanted_tags)
+    assert_tags_found(wanted_tags, body["results"])
+    assert_tags_not_found(host_before.tags + host_after.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -544,9 +561,10 @@ def test_get_tags_by_updated_not_created(host_inventory: ApplicationHostInventor
     response = host_inventory.apis.tags.get_tags_response(
         updated_start=time_start, updated_end=time_end
     )
-    assert response.count >= len(host2.tags)
-    assert_tags_found(host2.tags, response.results)
-    assert_tags_not_found(host1.tags + host3.tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(host2.tags)
+    assert_tags_found(host2.tags, body["results"])
+    assert_tags_not_found(host1.tags + host3.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -580,9 +598,10 @@ def test_get_tags_by_last_check_in_start(
     time_filter_str = time_filter.strftime(time_format)
 
     response = host_inventory.apis.tags.get_tags_response(last_check_in_start=time_filter_str)
-    assert response.count >= len(host2.tags + host3.tags)
-    assert_tags_found(host2.tags + host3.tags, response.results)
-    assert_tags_not_found(host1.tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(host2.tags + host3.tags)
+    assert_tags_found(host2.tags + host3.tags, body["results"])
+    assert_tags_not_found(host1.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -616,9 +635,10 @@ def test_get_tags_by_last_check_in_end(
     time_filter_s = time_filter.strftime(time_format)
 
     response = host_inventory.apis.tags.get_tags_response(last_check_in_end=time_filter_s)
-    assert response.count >= len(host1.tags + host2.tags)
-    assert_tags_found(host1.tags + host2.tags, response.results)
-    assert_tags_not_found(host3.tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(host1.tags + host2.tags)
+    assert_tags_found(host1.tags + host2.tags, body["results"])
+    assert_tags_not_found(host3.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -651,10 +671,11 @@ def test_get_tags_by_last_check_in(
     response = host_inventory.apis.tags.get_tags_response(
         last_check_in_start=time_start, last_check_in_end=time_end
     )
+    body = response.json()
     wanted_tags = flatten(host.tags for host in hosts)
-    assert response.count >= len(wanted_tags)
-    assert_tags_found(wanted_tags, response.results)
-    assert_tags_not_found(host_before.tags + host_after.tags, response.results)
+    assert body["count"] >= len(wanted_tags)
+    assert_tags_found(wanted_tags, body["results"])
+    assert_tags_not_found(host_before.tags + host_after.tags, body["results"])
 
 
 @pytest.mark.smoke
@@ -681,9 +702,10 @@ def test_get_tags_by_group_name(host_inventory: ApplicationHostInventory, case_i
     filtered_name = group_name.upper() if case_insensitive else group_name
 
     response = host_inventory.apis.tags.get_tags_response(group_name=[filtered_name])
-    assert response.count == len(hosts[0].tags)
-    assert_tags_found(hosts[0].tags, response.results)
-    assert_tags_not_found(hosts[1].tags + hosts[2].tags, response.results)
+    body = response.json()
+    assert body["count"] == len(hosts[0].tags)
+    assert_tags_found(hosts[0].tags, body["results"])
+    assert_tags_not_found(hosts[1].tags + hosts[2].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -704,9 +726,10 @@ def test_get_tags_by_group_id(host_inventory: ApplicationHostInventory):
     host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[1])
 
     response = host_inventory.apis.tags.get_tags_response(group_id=[group.id])
-    assert response.count == len(hosts[0].tags)
-    assert_tags_found(hosts[0].tags, response.results)
-    assert_tags_not_found(hosts[1].tags + hosts[2].tags, response.results)
+    body = response.json()
+    assert body["count"] == len(hosts[0].tags)
+    assert_tags_found(hosts[0].tags, body["results"])
+    assert_tags_not_found(hosts[1].tags + hosts[2].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -726,14 +749,14 @@ def test_get_tags_with_workspace_name_and_workspace_id(host_inventory: Applicati
     group_name = generate_display_name()
     group = host_inventory.apis.groups.create_group(group_name)
 
-    with raises_apierror(
-        400,
+    resp = host_inventory.apis.tags.get_tags_response(
+        workspace_name=[group_name], workspace_id=[group.id]
+    )
+    assert resp.status_code == 400
+    assert (
         "Cannot use both 'workspace_name'/'group_name' and 'workspace_id'/'group_id' "
-        "filters together. Please use only one workspace filter parameter.",
-    ):
-        host_inventory.apis.tags.get_tags_response(
-            workspace_name=[group_name], workspace_id=[group.id]
-        )
+        "filters together. Please use only one workspace filter parameter." in resp.text
+    )
 
 
 @pytest.mark.ephemeral
@@ -751,9 +774,10 @@ def test_get_tags_by_group_name_empty(host_inventory: ApplicationHostInventory):
     host_inventory.apis.groups.create_group(generate_display_name(), hosts=hosts[0])
 
     response = host_inventory.apis.tags.get_tags_response(group_name=[""])
-    assert response.count >= len(hosts[1].tags)
-    assert_tags_found(hosts[1].tags, response.results)
-    assert_tags_not_found(hosts[0].tags, response.results)
+    body = response.json()
+    assert body["count"] >= len(hosts[1].tags)
+    assert_tags_found(hosts[1].tags, body["results"])
+    assert_tags_not_found(hosts[0].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -776,9 +800,10 @@ def test_get_tags_by_group_name_multiple_groups(host_inventory: ApplicationHostI
 
     correct_tags = hosts[0].tags + hosts[1].tags + hosts[2].tags
     response = host_inventory.apis.tags.get_tags_response(group_name=[group_name1, group_name2])
-    assert response.count == len(correct_tags)
-    assert_tags_found(correct_tags, response.results)
-    assert_tags_not_found(hosts[3].tags + hosts[4].tags, response.results)
+    body = response.json()
+    assert body["count"] == len(correct_tags)
+    assert_tags_found(correct_tags, body["results"])
+    assert_tags_not_found(hosts[3].tags + hosts[4].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -798,9 +823,10 @@ def test_get_tags_by_group_name_multiple_hosts_in_group(host_inventory: Applicat
     host_inventory.apis.groups.create_group(group_name, hosts=hosts[:2])
 
     response = host_inventory.apis.tags.get_tags_response(group_name=[group_name])
-    assert response.count == len(hosts[0].tags + hosts[1].tags)
-    assert_tags_found(hosts[0].tags + hosts[1].tags, response.results)
-    assert_tags_not_found(hosts[2].tags, response.results)
+    body = response.json()
+    assert body["count"] == len(hosts[0].tags + hosts[1].tags)
+    assert_tags_found(hosts[0].tags + hosts[1].tags, body["results"])
+    assert_tags_not_found(hosts[2].tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -828,14 +854,16 @@ def test_get_tags_by_group_name_different_account(
     host_inventory_secondary.apis.groups.create_group(group_name, hosts=host_secondary)
 
     response = host_inventory.apis.tags.get_tags_response(group_name=[group_name])
-    assert response.count == len(host_primary.tags)
-    assert_tags_found(host_primary.tags, response.results)
-    assert_tags_not_found(host_secondary.tags, response.results)
+    body = response.json()
+    assert body["count"] == len(host_primary.tags)
+    assert_tags_found(host_primary.tags, body["results"])
+    assert_tags_not_found(host_secondary.tags, body["results"])
 
     response = host_inventory_secondary.apis.tags.get_tags_response(group_name=[group_name])
-    assert response.count == len(host_secondary.tags)
-    assert_tags_found(host_secondary.tags, response.results)
-    assert_tags_not_found(host_primary.tags, response.results)
+    body = response.json()
+    assert body["count"] == len(host_secondary.tags)
+    assert_tags_found(host_secondary.tags, body["results"])
+    assert_tags_not_found(host_primary.tags, body["results"])
 
 
 @pytest.mark.ephemeral
@@ -866,9 +894,10 @@ def test_get_tags_by_system_type(
     expected_tags = flatten(host.tags for host in expected_hosts)
 
     response = host_inventory.apis.tags.get_tags_response(system_type=system_type)
-    assert len(response.results) >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
+    body = response.json()
+    assert len(body["results"]) >= len(expected_tags)
+    assert_tags_found(expected_tags, body["results"])
 
     not_expected_hosts = flatten(hosts for hosts in prepared_hosts.values())
     not_expected_tags = flatten(host.tags for host in not_expected_hosts)
-    assert_tags_not_found(not_expected_tags, response.results)
+    assert_tags_not_found(not_expected_tags, body["results"])

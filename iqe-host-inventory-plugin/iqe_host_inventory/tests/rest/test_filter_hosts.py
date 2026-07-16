@@ -23,7 +23,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
-from iqe_host_inventory_api import ActiveTags
 from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api import ApiTypeError
 from iqe_host_inventory_api import HostOut
@@ -157,8 +156,8 @@ def test_filter_hosts_by_system_profile_sap_sids(
     assert response_ids & all_hosts_ids == expected_ids
 
 
-def _log_response_tags_indices(my_tags: list[list[StructuredTag]], response: ActiveTags):
-    response_tags = [res_item.tag for res_item in response.results]
+def _log_response_tags_indices(my_tags: list[list[StructuredTag]], response: dict):
+    response_tags = [res_item["tag"] for res_item in response["results"]]
     response_tags_indices = set()
     for res_tag in response_tags:
         found_index = -1
@@ -477,12 +476,12 @@ class TestOperatingSystemFiltering:
             f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
         ]
         # There are too many "module" scoped hosts with tags, 50 isn't enough
-        response = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100)
+        response = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100).json()
         _log_response_tags_indices(tags, response)
 
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
     @pytest.mark.ephemeral
     def test_operating_systems_pagination(self, host_inventory: ApplicationHostInventory):
@@ -1582,10 +1581,10 @@ class TestOsRhcFiltering:
         )
 
         filter = [f"{param}" for param in params]
-        response = host_inventory.apis.tags.get_tags_response(filter=filter)
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
 
 # All tests that use the setup_hosts_for_os_display_name_filtering fixture are grouped here
@@ -1707,12 +1706,12 @@ class TestOsDisplayNameFiltering:
         filter = [f"{param}" for param in params]
         response = host_inventory.apis.tags.get_tags_response(
             filter=filter, display_name=f"{FILTER_OS_DISPLAY_NAME}-1"
-        )
+        ).json()
         _log_response_tags_indices(tags, response)
 
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
 
 @pytest.mark.ephemeral

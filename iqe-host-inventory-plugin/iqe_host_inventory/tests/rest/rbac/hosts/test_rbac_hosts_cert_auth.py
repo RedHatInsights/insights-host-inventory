@@ -214,12 +214,12 @@ class TestRBACHostsCertAuth:
         """
         tags = sorted(flatten(rbac_cert_auth_setup_resources[2]), key=operator.itemgetter("key"))
 
-        response = host_inventory_non_org_admin_cert_auth.apis.tags.get_tags_response()
+        body = host_inventory_non_org_admin_cert_auth.apis.tags.get_tags_response().json()
 
-        assert response.count == len(tags)
-        for tag in response.results:
-            assert tag.count == 1
-        dict_tags = [tag.tag.to_dict() for tag in response.results]
+        assert body["count"] == len(tags)
+        for tag in body["results"]:
+            assert tag["count"] == 1
+        dict_tags = [tag["tag"] for tag in body["results"]]
         assert sorted(dict_tags, key=operator.itemgetter("key")) == tags
 
     def test_rbac_hosts_cert_auth_bypass_checks_get_operating_systems(

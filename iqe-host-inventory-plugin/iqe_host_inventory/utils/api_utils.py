@@ -232,20 +232,27 @@ def delete_hosts_by_tags(tag_search_term, openapi_client: HostsApi, openapi_clie
         delete_hosts(hosts, openapi_client)
 
 
+def _response_field(response: Any, field: str) -> Any:
+    """Read a field from an apigen model or a plain JSON dict body."""
+    if isinstance(response, dict):
+        return response[field]
+    return getattr(response, field)
+
+
 def criterion_count_eq(response, expected_count: int) -> bool:
-    return response.count == expected_count
+    return _response_field(response, "count") == expected_count
 
 
 def criterion_count_gte(response, expected_count: int):
-    return response.count >= expected_count
+    return _response_field(response, "count") >= expected_count
 
 
 def criterion_total_eq(response, expected_count):
-    return response.total == expected_count
+    return _response_field(response, "total") == expected_count
 
 
 def criterion_total_gte(response, expected_count):
-    return response.total >= expected_count
+    return _response_field(response, "total") >= expected_count
 
 
 def criterion_host_id_eq(response, host_id):
