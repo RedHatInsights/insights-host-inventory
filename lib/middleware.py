@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
-from dataclasses import field
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
@@ -714,35 +712,13 @@ def _has_rbac_permission(rbac_permissions: list[str], required: str) -> bool:
     )
 
 
-@dataclass(frozen=True)
-class _WorkspaceResourceType:
-    name: str = "workspace"
-    namespace: str = "rbac"
-
-
-@dataclass
-class _WorkspacePermission:
-    """KesselPermission-compatible object for workspace-level cross-service checks."""
-
-    workspace_permission: str
-    resource_permission: str
-    resource_type: _WorkspaceResourceType = field(default_factory=_WorkspaceResourceType)
-
-    def __init__(self, kessel_relation: str) -> None:
-        self.workspace_permission = kessel_relation
-        self.resource_permission = kessel_relation
-        self.resource_type = _WorkspaceResourceType()
-
 
 def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
-    """Kessel v2 path: check workspace-level permissions per service."""
-    from kessel.console import principal_from_rh_identity
-
+    """Kessel v2 path: check workspace-level permissions per service via ListAllowedWorkspaces."""
     try:
         kessel_client = get_kessel_client(current_app)
-        subject_ref = principal_from_rh_identity(identity._asdict())
     except Exception:
-        logger.warning("Failed to initialize Kessel client or build subject reference, denying all app services")
+        logger.warning("Failed to initialize Kessel client, denying all app services")
         return set()
 
     allowed: set[str] = set()
@@ -752,9 +728,8 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
         if not kessel_relation:
             continue
         try:
-            perm = _WorkspacePermission(kessel_relation)
-            result, _ = kessel_client._check_bulk_resources(subject_ref, perm, ["root"], identity.org_id)
-            if result:
+            workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
+            if workspaces:
                 allowed.add(app_name)
         except Exception as e:
             details = e.details() if hasattr(e, "details") else str(e)
