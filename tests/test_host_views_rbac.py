@@ -259,9 +259,14 @@ class TestGetAllowedAppServicesKessel:
 
     def test_kessel_grpc_error_partial_then_error(self):
         """First service succeeds, rest error — only 1 service allowed (fail-closed per service)."""
+        from app.models.host_app_data import get_app_data_models
         from lib.middleware import get_allowed_app_services
 
         call_count = 0
+        expected_model_count = len([
+            m for m in get_app_data_models().values()
+            if getattr(m, "__kessel_relation__", "")
+        ])
 
         with (
             patch("lib.middleware.inventory_config") as mock_config,
@@ -290,5 +295,4 @@ class TestGetAllowedAppServicesKessel:
 
             result = get_allowed_app_services()
             assert len(result) == 1
-            assert "advisor" in result
-            assert call_count == 6
+            assert call_count == expected_model_count

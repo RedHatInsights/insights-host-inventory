@@ -28,6 +28,22 @@ from lib.middleware import get_allowed_app_services
 logger = get_logger(__name__)
 
 
+def _validate_app_data_authorization(order_by, filter_, allowed_apps):
+    """Reject sort or filter operations targeting unauthorized services."""
+    if allowed_apps is None:
+        return
+
+    sort_app = get_app_name_from_sort(order_by)
+    if sort_app and sort_app not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to sort by '{order_by}'")
+
+    if filter_:
+        known_apps = set(get_app_data_models().keys())
+        denied_filters = [k for k in filter_ if k in known_apps and k not in allowed_apps]
+        if denied_filters:
+            flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to filter by {denied_filters}")
+
+
 def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
     """
     Parse sparse fields parameter into {app_name: [fields] or None for all}.
@@ -196,17 +212,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
 
     # Per-service RBAC: determine which app_data services the user can access
     allowed_apps = get_allowed_app_services()
-
-    # Reject sort by unauthorized service field
-    sort_app = get_app_name_from_sort(order_by)
-    if allowed_apps is not None and sort_app and sort_app not in allowed_apps:
-        flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to sort by '{order_by}'")
-
-    # Reject filters targeting unauthorized services
-    if allowed_apps is not None and filter:
-        denied_filters = [k for k in filter if k != "system_profile" and k not in allowed_apps]
-        if denied_filters:
-            flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to filter by {denied_filters}")
+    _validate_app_data_authorization(order_by, filter, allowed_apps)
 
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None

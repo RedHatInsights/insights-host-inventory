@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import dataclass
+from dataclasses import field
 from functools import partial
 from functools import wraps
 from http import HTTPStatus
@@ -712,13 +714,80 @@ def _has_rbac_permission(rbac_permissions: list[str], required: str) -> bool:
     )
 
 
+@dataclass(frozen=True)
+class _WorkspaceResourceType:
+    name: str = "workspace"
+    namespace: str = "rbac"
+
+
+@dataclass
 class _WorkspacePermission:
-    """Lightweight KesselPermission-compatible object for workspace-level cross-service checks."""
+    """KesselPermission-compatible object for workspace-level cross-service checks."""
+
+    workspace_permission: str
+    resource_permission: str
+    resource_type: _WorkspaceResourceType = field(default_factory=_WorkspaceResourceType)
 
     def __init__(self, kessel_relation: str) -> None:
         self.workspace_permission = kessel_relation
         self.resource_permission = kessel_relation
-        self.resource_type = type("_RT", (), {"name": "workspace", "namespace": "rbac"})()
+        self.resource_type = _WorkspaceResourceType()
+
+
+def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
+    """Kessel v2 path: check workspace-level permissions per service."""
+    from kessel.console import principal_from_rh_identity
+
+    try:
+        kessel_client = get_kessel_client(current_app)
+        subject_ref = principal_from_rh_identity(identity._asdict())
+    except Exception:
+        logger.warning("Failed to initialize Kessel client or build subject reference, denying all app services")
+        return set()
+
+    allowed: set[str] = set()
+
+    for app_name, model in app_models.items():
+        kessel_relation = getattr(model, "__kessel_relation__", "")
+        if not kessel_relation:
+            continue
+        try:
+            perm = _WorkspacePermission(kessel_relation)
+            result, _ = kessel_client._check_bulk_resources(subject_ref, perm, ["root"], identity.org_id)
+            if result:
+                allowed.add(app_name)
+        except Exception as e:
+            details = e.details() if hasattr(e, "details") else str(e)
+            logger.warning(f"Kessel check failed for {app_name}: {details}")
+
+    return allowed
+
+
+def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
+    """RBAC v1 path: single multi-app call to the RBAC service."""
+    v1_apps: set[str] = set()
+    for model in app_models.values():
+        v1_app = getattr(model, "__v1_app__", "")
+        if v1_app:
+            v1_apps.add(v1_app)
+
+    if not v1_apps:
+        return set()
+
+    rbac_request_headers = _build_rbac_request_headers()
+    rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
+
+    user_permissions = [p["permission"] for p in rbac_data]
+
+    allowed: set[str] = set()
+    for app_name, model in app_models.items():
+        v1_read_permission = getattr(model, "__v1_read_permission__", "")
+        if not v1_read_permission:
+            continue
+        if _has_rbac_permission(user_permissions, v1_read_permission):
+            allowed.add(app_name)
+
+    return allowed
 
 
 def get_allowed_app_services() -> set[str] | None:
@@ -731,8 +800,6 @@ def get_allowed_app_services() -> set[str] | None:
     Returns None if all services are allowed (bypass, non-checked identity).
     Returns a set of allowed app names otherwise.
     """
-    from kessel.console import principal_from_rh_identity
-
     from app.models.host_app_data import get_app_data_models
 
     if inventory_config().bypass_rbac:
@@ -746,51 +813,9 @@ def get_allowed_app_services() -> set[str] | None:
     app_models = get_app_data_models()
 
     if is_rbac_v2_enabled(identity.org_id):
-        try:
-            kessel_client = get_kessel_client(current_app)
-            subject_ref = principal_from_rh_identity(identity._asdict())
-        except Exception:
-            logger.warning("Failed to initialize Kessel client or build subject reference, denying all app services")
-            return set()
+        return _get_allowed_app_services_v2(identity, app_models)
 
-        allowed = set()
-
-        for app_name, model in app_models.items():
-            kessel_relation = getattr(model, "__kessel_relation__", "")
-            if not kessel_relation:
-                continue
-            try:
-                perm = _WorkspacePermission(kessel_relation)
-                result, _ = kessel_client._check_bulk_resources(subject_ref, perm, ["root"], identity.org_id)
-                if result:
-                    allowed.add(app_name)
-            except Exception as e:
-                details = e.details() if hasattr(e, "details") else str(e)
-                logger.warning(f"Kessel check failed for {app_name}: {details}")
-
-        return allowed
-
-    # RBAC v1 path: single multi-app call
-    v1_apps: set[str] = set()
-    for model in app_models.values():
-        v1_app = getattr(model, "__v1_app__", "")
-        if v1_app:
-            v1_apps.add(v1_app)
-
-    rbac_request_headers = _build_rbac_request_headers()
-    rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
-
-    user_permissions = [p["permission"] for p in rbac_data]
-
-    allowed = set()
-    for app_name, model in app_models.items():
-        v1_read_permission = getattr(model, "__v1_read_permission__", "")
-        if not v1_read_permission:
-            continue
-        if _has_rbac_permission(user_permissions, v1_read_permission):
-            allowed.add(app_name)
-
-    return allowed
+    return _get_allowed_app_services_v1(app_models)
 
 
 def is_rbac_v2_enabled(org_id: str) -> bool:
