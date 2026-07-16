@@ -1,0 +1,72 @@
+---
+# Shared group setup and membership tasks (common to both v1 and v2)
+# Required variables: username, group_name, auth_header, rbac_v1_base,
+#                     proxy_env, api_retries, api_delay
+# Sets: group_uuid
+
+- name: "Check if group '{{ group_name }}' exists"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/?name={{ group_name | urlencode }}"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: group_lookup
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: group_lookup is not failed
+
+- name: "Create group '{{ group_name }}'"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/"
+    method: POST
+    headers: "{{ auth_header }}"
+    body_format: json
+    body:
+      name: "{{ group_name }}"
+      description: "Test group for {{ username }}"
+    status_code: [200, 201]
+  environment: "{{ proxy_env }}"
+  register: group_created
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: group_created is not failed
+  when: group_lookup.json.meta.count == 0
+
+- name: "Set group UUID"
+  ansible.builtin.set_fact:
+    group_uuid: >-
+      {{ group_lookup.json.data[0].uuid
+         if group_lookup.json.meta.count > 0
+         else group_created.json.uuid }}
+
+# --- Add user to group ---
+
+- name: "List principals in group '{{ group_name }}'"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/principals/?limit=1000"
+    method: GET
+    headers: "{{ auth_header }}"
+    status_code: 200
+  environment: "{{ proxy_env }}"
+  register: group_principals
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: group_principals is not failed
+
+- name: "Add {{ username }} to group '{{ group_name }}'"
+  ansible.builtin.uri:
+    url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/principals/"
+    method: POST
+    headers: "{{ auth_header }}"
+    body_format: json
+    body:
+      principals:
+        - username: "{{ username }}"
+    status_code: [200, 201]
+  environment: "{{ proxy_env }}"
+  register: user_added
+  retries: "{{ api_retries }}"
+  delay: "{{ api_delay }}"
+  until: user_added is not failed
+  when: username not in (group_principals.json.data | map(attribute='username') | list)
