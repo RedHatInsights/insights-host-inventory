@@ -62,6 +62,16 @@ def test_outbound_request_hook_uses_slash_when_path_empty():
     span.update_name.assert_called_once_with("GET /")
 
 
+def _force_set_tracer_provider(provider):
+    """Replace the global TracerProvider (OTel normally allows set only once)."""
+    from opentelemetry.util._once import Once
+
+    trace._TRACER_PROVIDER_SET_ONCE = Once()
+    trace._TRACER_PROVIDER = None
+    if provider is not None:
+        trace.set_tracer_provider(provider)
+
+
 def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypatch):
     """Regression: excluded_urls must match full request URLs (incl. query)."""
     monkeypatch.setenv("OTEL_ENABLED", "true")
@@ -72,7 +82,7 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
     exporter = InMemorySpanExporter()
     provider = TracerProvider(resource=Resource.create())
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
+    _force_set_tracer_provider(provider)
 
     app = Flask(__name__)
 
@@ -114,6 +124,7 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
     finally:
         FlaskInstrumentor().uninstrument_app(app)
         provider.shutdown()
+        _force_set_tracer_provider(None)
         monkeypatch.setenv("OTEL_ENABLED", "false")
         importlib.reload(telemetry_mod)
 
@@ -180,6 +191,184 @@ def test_sampling_rate_applied_in_init_otel(monkeypatch):
             sampler = call_kwargs[1]["sampler"] if "sampler" in call_kwargs[1] else call_kwargs[0][1]
             assert isinstance(sampler, TraceIdRatioBased)
             assert sampler.rate == 0.25
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_sampling_rate_override_in_init_otel(monkeypatch):
+    """Explicit sampling_rate overrides OTEL_SAMPLING_RATE env var."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_SAMPLING_RATE": "0.25"})
+
+    with patch.object(telemetry_mod, "_otel_initialized_pid", None):
+        from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+
+        with (
+            patch("opentelemetry.sdk.trace.TracerProvider") as mock_provider_cls,
+            patch("opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"),
+        ):
+            mock_provider_cls.return_value = MagicMock()
+            telemetry_mod.init_otel(service_name="test-service", sampling_rate=1.0)
+
+            call_kwargs = mock_provider_cls.call_args[1]
+            sampler = call_kwargs["sampler"]
+            assert isinstance(sampler, TraceIdRatioBased)
+            assert sampler.rate == 1.0
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_rh_attribute_span_processor_copies_from_parent():
+    """RHAttributeSpanProcessor sets rh.service and copies org/request from parent."""
+    from app.telemetry import _build_rh_attribute_span_processor
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider(resource=Resource.create())
+    provider.add_span_processor(_build_rh_attribute_span_processor(rh_service="host-inventory"))
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer("test")
+
+    with tracer.start_as_current_span("parent") as parent:
+        parent.set_attribute("rh.org_id", "org-1")
+        parent.set_attribute("rh.request_id", "req-1")
+        with tracer.start_as_current_span("child"):
+            pass
+
+    spans = {span.name: span for span in exporter.get_finished_spans()}
+    assert spans["parent"].attributes["rh.service"] == "host-inventory"
+    assert spans["child"].attributes["rh.service"] == "host-inventory"
+    assert spans["child"].attributes["rh.org_id"] == "org-1"
+    assert spans["child"].attributes["rh.request_id"] == "req-1"
+    provider.shutdown()
+
+
+def test_rh_attribute_span_processor_threadctx_fallback():
+    """When parent lacks rh.* attrs, processor falls back to threadctx."""
+    from app.logging import threadctx
+    from app.telemetry import _build_rh_attribute_span_processor
+
+    threadctx.org_id = "thread-org"
+    threadctx.request_id = "thread-req"
+    try:
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider(resource=Resource.create())
+        provider.add_span_processor(_build_rh_attribute_span_processor())
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        tracer = provider.get_tracer("test")
+
+        with tracer.start_as_current_span("parent"):
+            with tracer.start_as_current_span("child"):
+                pass
+
+        spans = {span.name: span for span in exporter.get_finished_spans()}
+        assert spans["child"].attributes["rh.org_id"] == "thread-org"
+        assert spans["child"].attributes["rh.request_id"] == "thread-req"
+        assert spans["child"].attributes["rh.service"] == "host-inventory"
+        provider.shutdown()
+    finally:
+        threadctx.org_id = None
+        threadctx.request_id = None
+
+
+def test_rh_attribute_span_processor_does_not_overwrite_child_attrs():
+    """Child rh.* attributes are not overwritten by processor."""
+    from app.logging import threadctx
+    from app.telemetry import _build_rh_attribute_span_processor
+
+    threadctx.org_id = "thread-org"
+    threadctx.request_id = "thread-req"
+    try:
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider(resource=Resource.create())
+        provider.add_span_processor(_build_rh_attribute_span_processor())
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        tracer = provider.get_tracer("test")
+
+        with tracer.start_as_current_span("parent") as parent:
+            parent.set_attribute("rh.org_id", "parent-org")
+            parent.set_attribute("rh.request_id", "parent-req")
+            with tracer.start_as_current_span(
+                "child",
+                attributes={
+                    "rh.org_id": "child-org",
+                    "rh.request_id": "child-req",
+                },
+            ):
+                pass
+
+        spans = {span.name: span for span in exporter.get_finished_spans()}
+        assert spans["child"].attributes["rh.org_id"] == "child-org"
+        assert spans["child"].attributes["rh.request_id"] == "child-req"
+        provider.shutdown()
+    finally:
+        threadctx.org_id = None
+        threadctx.request_id = None
+
+
+def test_rh_attribute_span_processor_parent_precedence_over_threadctx():
+    """Parent rh.* attributes take precedence over threadctx values."""
+    from app.logging import threadctx
+    from app.telemetry import _build_rh_attribute_span_processor
+
+    threadctx.org_id = "thread-org"
+    threadctx.request_id = "thread-req"
+    try:
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider(resource=Resource.create())
+        provider.add_span_processor(_build_rh_attribute_span_processor())
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        tracer = provider.get_tracer("test")
+
+        with tracer.start_as_current_span("parent") as parent:
+            parent.set_attribute("rh.org_id", "parent-org")
+            parent.set_attribute("rh.request_id", "parent-req")
+            with tracer.start_as_current_span("child"):
+                pass
+
+        spans = {span.name: span for span in exporter.get_finished_spans()}
+        assert spans["child"].attributes["rh.org_id"] == "parent-org"
+        assert spans["child"].attributes["rh.request_id"] == "parent-req"
+        provider.shutdown()
+    finally:
+        threadctx.org_id = None
+        threadctx.request_id = None
+
+
+def test_botocore_instrumentation_runs_when_enabled(monkeypatch):
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_BOTOCORE_ENABLED": "true"})
+
+    with patch("opentelemetry.instrumentation.botocore.BotocoreInstrumentor") as mock_cls:
+        instance = MagicMock()
+        mock_cls.return_value = instance
+        telemetry_mod.instrument_botocore()
+        instance.instrument.assert_called_once()
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_botocore_instrumentation_skipped_when_botocore_disabled(monkeypatch):
+    """instrument_botocore is a no-op when OTEL_BOTOCORE_ENABLED=false."""
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_BOTOCORE_ENABLED": "false"})
+
+    with patch("opentelemetry.instrumentation.botocore.BotocoreInstrumentor") as mock_instrumentor:
+        telemetry_mod.instrument_botocore()
+        mock_instrumentor.assert_not_called()
+
+    _cleanup_telemetry(monkeypatch)
+
+
+def test_botocore_instrumentation_skipped_when_otel_disabled(monkeypatch):
+    """Botocore instrumentation is skipped when global OTEL is disabled, regardless of botocore flag."""
+    telemetry_mod = _reload_telemetry(
+        monkeypatch,
+        {
+            "OTEL_ENABLED": "false",
+            "OTEL_BOTOCORE_ENABLED": "true",
+        },
+    )
+
+    with patch("opentelemetry.instrumentation.botocore.BotocoreInstrumentor") as mock_instrumentor:
+        telemetry_mod.instrument_botocore()
+        mock_instrumentor.assert_not_called()
 
     _cleanup_telemetry(monkeypatch)
 
@@ -333,7 +522,9 @@ def test_config_defaults_without_env_vars(monkeypatch):
         "OTEL_SQL_COMMENTER_ENABLED",
         "OTEL_HTTP_INBOUND_ENABLED",
         "OTEL_HTTP_OUTBOUND_ENABLED",
+        "OTEL_BOTOCORE_ENABLED",
         "OTEL_SAMPLING_RATE",
+        "OTEL_HOST_INGESTION_SAMPLING_RATE",
         "OTEL_BSP_MAX_QUEUE_SIZE",
         "OTEL_BSP_MAX_EXPORT_BATCH_SIZE",
         "OTEL_BSP_SCHEDULE_DELAY",
@@ -355,7 +546,9 @@ def test_config_defaults_without_env_vars(monkeypatch):
     assert telemetry_mod.OTEL_SQL_COMMENTER_ENABLED is False
     assert telemetry_mod.OTEL_HTTP_INBOUND_ENABLED is True
     assert telemetry_mod.OTEL_HTTP_OUTBOUND_ENABLED is True
+    assert telemetry_mod.OTEL_BOTOCORE_ENABLED is True
     assert telemetry_mod.OTEL_SAMPLING_RATE == 1.0
+    assert telemetry_mod.OTEL_HOST_INGESTION_SAMPLING_RATE == 1.0
     assert telemetry_mod.OTEL_BSP_MAX_QUEUE_SIZE == 8192
     assert telemetry_mod.OTEL_BSP_MAX_EXPORT_BATCH_SIZE == 256
     assert telemetry_mod.OTEL_BSP_SCHEDULE_DELAY == 2000

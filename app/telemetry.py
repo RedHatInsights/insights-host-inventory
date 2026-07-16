@@ -37,7 +37,23 @@ OTEL_SQL_COMMENTER_ENABLED = os.getenv("OTEL_SQL_COMMENTER_ENABLED", "false").lo
 OTEL_HTTP_INBOUND_ENABLED = os.getenv("OTEL_HTTP_INBOUND_ENABLED", "true").lower() == "true"
 OTEL_HTTP_OUTBOUND_ENABLED = os.getenv("OTEL_HTTP_OUTBOUND_ENABLED", "true").lower() == "true"
 OTEL_MQ_ENABLED = os.getenv("OTEL_MQ_ENABLED", "true").lower() == "true"
-OTEL_SAMPLING_RATE = min(max(float(os.getenv("OTEL_SAMPLING_RATE", "1.0")), 0.0), 1.0)
+OTEL_BOTOCORE_ENABLED = os.getenv("OTEL_BOTOCORE_ENABLED", "true").lower() == "true"
+
+
+def _parse_sampling_rate(env_var: str, default: str = "1.0") -> float:
+    """Parse a sampling-rate env var, clamping to [0.0, 1.0] and falling back on bad values."""
+    raw = os.getenv(env_var, default)
+    try:
+        rate = float(raw)
+    except ValueError:
+        logger.warning("Invalid %s=%r; falling back to %s", env_var, raw, default)
+        rate = float(default)
+    return min(max(rate, 0.0), 1.0)
+
+
+OTEL_SAMPLING_RATE = _parse_sampling_rate("OTEL_SAMPLING_RATE")
+# Host-ingress MQ only (mq-pmin / mq-p1). Default 1.0 for Payload Tracker parity.
+OTEL_HOST_INGESTION_SAMPLING_RATE = _parse_sampling_rate("OTEL_HOST_INGESTION_SAMPLING_RATE")
 
 OTEL_BSP_MAX_QUEUE_SIZE = int(os.getenv("OTEL_BSP_MAX_QUEUE_SIZE", "8192"))
 OTEL_BSP_MAX_EXPORT_BATCH_SIZE = int(os.getenv("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "256"))
@@ -55,7 +71,55 @@ OTEL_MQ_MESSAGE_SPANS_ENABLED = os.getenv("OTEL_MQ_MESSAGE_SPANS_ENABLED", "true
 # 0 means disabled (no slow-message spans).
 OTEL_MQ_SLOW_MESSAGE_MS = int(os.getenv("OTEL_MQ_SLOW_MESSAGE_MS", "0"))
 
+_RH_PROPAGATED_ATTRS = ("rh.org_id", "rh.request_id")
+
 _otel_initialized_pid = None
+
+
+def _build_rh_attribute_span_processor(rh_service: str = "host-inventory"):
+    """Build a SpanProcessor that sets platform rh.* attributes on every span.
+
+    Defined as a factory so the SDK SpanProcessor base is imported only when OTel
+    is actually initialized.
+    """
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import ReadableSpan
+    from opentelemetry.sdk.trace import SpanProcessor
+
+    from app.logging import threadctx
+
+    class RHAttributeSpanProcessor(SpanProcessor):
+        """Set rh.service on every span; copy rh.org_id / rh.request_id to children.
+
+        Prefers org/request attrs already set on the parent span (HTTP request hook).
+        Falls back to threadctx for MQ, where those values are populated mid-handle_message
+        after initialize_thread_local_storage.
+        """
+
+        def on_start(self, span, parent_context=None):
+            if not span or not span.is_recording():
+                return
+
+            span.set_attribute("rh.service", rh_service)
+
+            # Tracer.start_span often passes parent_context=None even for children; in that
+            # case the active span during on_start is still the parent.
+            parent = trace.get_current_span(parent_context) if parent_context is not None else trace.get_current_span()
+            parent_attrs = {}
+            if isinstance(parent, ReadableSpan) and parent.attributes:
+                parent_attrs = parent.attributes
+
+            for attr in _RH_PROPAGATED_ATTRS:
+                if attr in (span.attributes or {}):
+                    continue
+                value = parent_attrs.get(attr)
+                if value is None:
+                    thread_key = "org_id" if attr == "rh.org_id" else "request_id"
+                    value = getattr(threadctx, thread_key, None)
+                if value is not None:
+                    span.set_attribute(attr, value)
+
+    return RHAttributeSpanProcessor()
 
 
 def get_tracer(name: str):
@@ -69,7 +133,13 @@ def get_tracer(name: str):
     return trace.get_tracer(name)
 
 
-def init_otel(service_name: str, service_version: str = "unknown"):
+def init_otel(
+    service_name: str,
+    service_version: str = "unknown",
+    *,
+    rh_service: str = "host-inventory",
+    sampling_rate: float | None = None,
+):
     """Initialize OpenTelemetry tracing. Safe to call multiple times.
 
     Uses the current PID to detect fork boundaries: if run.py initializes
@@ -78,6 +148,12 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     fresh (fork-safe) TracerProvider and BatchSpanProcessor.
 
     For single-process services (MQ, export), the second call is a no-op.
+
+    Args:
+        service_name: OTel service.name resource attribute.
+        service_version: OTel service.version resource attribute.
+        rh_service: Platform rh.service span attribute (logical service name).
+        sampling_rate: Optional override for OTEL_SAMPLING_RATE (e.g. host-ingestion path).
     """
     global _otel_initialized_pid
 
@@ -90,6 +166,7 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         return
 
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http import Compression
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import SERVICE_NAME
     from opentelemetry.sdk.resources import SERVICE_VERSION
@@ -107,14 +184,16 @@ def init_otel(service_name: str, service_version: str = "unknown"):
         }
     )
 
-    sampler = TraceIdRatioBased(OTEL_SAMPLING_RATE)
+    effective_rate = sampling_rate if sampling_rate is not None else OTEL_SAMPLING_RATE
+    sampler = TraceIdRatioBased(effective_rate)
     span_limits = SpanLimits(
         max_attributes=OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
         max_attribute_length=OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,
     )
     provider = TracerProvider(resource=resource, sampler=sampler, span_limits=span_limits)
 
-    from opentelemetry.exporter.otlp.proto.http import Compression
+    # Set rh.* span attrs (including rh.service) before batching/export.
+    provider.add_span_processor(_build_rh_attribute_span_processor(rh_service=rh_service))
 
     _compression_map = {"gzip": Compression.Gzip, "deflate": Compression.Deflate}
     compression = _compression_map.get(OTEL_EXPORTER_OTLP_COMPRESSION, Compression.NoCompression)
@@ -134,15 +213,16 @@ def init_otel(service_name: str, service_version: str = "unknown"):
     logger.info("OpenTelemetry initialized for service=%s version=%s", service_name, service_version)
     logger.info(
         "OpenTelemetry config: sampling=%.2f sql=%s commenter=%s http_inbound=%s http_outbound=%s "
-        "bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
+        "botocore=%s bsp_queue=%d bsp_batch=%d bsp_delay=%dms bsp_timeout=%dms "
         "compression=%s attr_limit=%d attr_len_limit=%d "
         "mq_enabled=%s "
         "mq_message_spans=%s mq_slow_message_ms=%d",
-        OTEL_SAMPLING_RATE,
+        effective_rate,
         OTEL_SQL_ENABLED,
         OTEL_SQL_COMMENTER_ENABLED,
         OTEL_HTTP_INBOUND_ENABLED,
         OTEL_HTTP_OUTBOUND_ENABLED,
+        OTEL_BOTOCORE_ENABLED,
         OTEL_BSP_MAX_QUEUE_SIZE,
         OTEL_BSP_MAX_EXPORT_BATCH_SIZE,
         OTEL_BSP_SCHEDULE_DELAY,
@@ -244,6 +324,24 @@ def instrument_outbound_http():
 
     RequestsInstrumentor().instrument(request_hook=_outbound_request_hook)
     logger.info("Outbound HTTP (requests library) instrumented with OpenTelemetry")
+
+
+def instrument_botocore():
+    """Instrument botocore/boto3 (S3/MinIO) with OpenTelemetry.
+
+    Controlled by OTEL_BOTOCORE_ENABLED. Automatically creates spans for AWS API calls.
+    """
+    if not OTEL_ENABLED or not OTEL_BOTOCORE_ENABLED:
+        return
+
+    try:
+        from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
+    except ImportError:
+        logger.warning("Botocore instrumentation unavailable; continuing without S3 spans")
+        return
+
+    BotocoreInstrumentor().instrument()
+    logger.info("Botocore instrumented with OpenTelemetry")
 
 
 def _outbound_request_hook(span, request, *_args, **_kwargs):
