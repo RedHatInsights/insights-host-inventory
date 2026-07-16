@@ -295,6 +295,9 @@ def test_notifications_kafka_registered_create_staleness_dont_produce(
         headers={"x-rh-insights-request-id": generate_uuid()},
     )
 
+    assert staleness.status_code in (200, 201)
+    assert "id" in staleness.json()
+
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_registered_notification_message(
             RegisteredNotificationWrapper.inventory_id, staleness.json()["id"], timeout=3
