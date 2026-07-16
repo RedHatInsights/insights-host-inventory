@@ -5,11 +5,14 @@ This module provides the /beta/hosts-view endpoint that returns host data
 combined with application-specific metrics (Advisor, Vulnerability, etc.)
 """
 
+from http import HTTPStatus
+
 import flask
 
 from api import api_operation
 from api import flask_json_response
 from api import metrics
+from api.filtering.app_data_sorting import get_app_name_from_sort
 from api.host_query_db import get_host_list_for_views
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -20,6 +23,7 @@ from app.models.database import db
 from app.models.host_app_data import get_app_data_models
 from app.serialization import serialize_host
 from lib.middleware import access
+from lib.middleware import get_allowed_app_services
 
 logger = get_logger(__name__)
 
@@ -74,13 +78,19 @@ def _filter_app_data_fields(app_data: dict, requested_fields: list[str] | None) 
     return {k: v for k, v in app_data.items() if k in requested_fields}
 
 
-def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None = None) -> dict:
-    """Fetch app data for hosts. Returns all apps by default if fields is omitted."""
+def _fetch_app_data_for_hosts(
+    host_ids: list, org_id: str, fields: dict | None = None, allowed_apps: set[str] | None = None
+) -> dict:
+    """Fetch app data for hosts, filtered by requested fields and allowed services."""
     if not host_ids:
         return {}
 
     result: dict[str, dict] = {str(host_id): {} for host_id in host_ids}
     parsed_fields = _parse_sparse_fields(fields)
+
+    if allowed_apps is not None:
+        parsed_fields = {k: v for k, v in parsed_fields.items() if k in allowed_apps}
+
     all_models = get_app_data_models()
 
     for app_name, requested_app_fields in parsed_fields.items():
@@ -96,14 +106,21 @@ def _fetch_app_data_for_hosts(host_ids: list, org_id: str, fields: dict | None =
 
 
 def _build_host_view_response(
-    total, page, per_page, host_list, fields=None, additional_fields=(), system_profile_fields=None
+    total,
+    page,
+    per_page,
+    host_list,
+    fields=None,
+    additional_fields=(),
+    system_profile_fields=None,
+    allowed_apps=None,
 ):
     """Build the response for the hosts-view endpoint."""
     identity = get_current_identity()
     staleness = get_staleness_obj(identity.org_id)
 
     host_ids = [host.id for host in host_list]
-    app_data_map = _fetch_app_data_for_hosts(host_ids, identity.org_id, fields)
+    app_data_map = _fetch_app_data_for_hosts(host_ids, identity.org_id, fields, allowed_apps=allowed_apps)
 
     results = []
     for host in host_list:
@@ -177,6 +194,20 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     total = 0
     host_list = ()
 
+    # Per-service RBAC: determine which app_data services the user can access
+    allowed_apps = get_allowed_app_services()
+
+    # Reject sort by unauthorized service field
+    sort_app = get_app_name_from_sort(order_by)
+    if allowed_apps is not None and sort_app and sort_app not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to sort by '{order_by}'")
+
+    # Reject filters targeting unauthorized services
+    if allowed_apps is not None and filter:
+        denied_filters = [k for k in filter if k != "system_profile" and k not in allowed_apps]
+        if denied_filters:
+            flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to filter by {denied_filters}")
+
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
 
@@ -212,7 +243,14 @@ def get_host_views(  # noqa: PLR0913, PLR0917
         flask.abort(400, str(e))
 
     json_data = _build_host_view_response(
-        total, page, per_page, host_list, fields, additional_fields, system_profile_fields
+        total,
+        page,
+        per_page,
+        host_list,
+        fields,
+        additional_fields,
+        system_profile_fields,
+        allowed_apps=allowed_apps,
     )
 
     return flask_json_response(json_data)
