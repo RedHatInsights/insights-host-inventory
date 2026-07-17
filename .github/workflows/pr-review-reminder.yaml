@@ -48,7 +48,7 @@ jobs:
               | .author.login as $pr_author
               | select(([.reviews[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(.submittedAt != null and ($now - (.submittedAt | fromdateiso8601)) <= $day)] | length) == 0)
               | select(([.comments[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(($now - (.createdAt | fromdateiso8601)) <= $day)] | length) == 0)
-              | select(.reviewDecision != "APPROVED")
+              | select(.reviewDecision != "APPROVED" and .reviewDecision != "CHANGES_REQUESTED")
               | (.createdAt | fromdateiso8601) as $created
               | select(($now - $created) > $day)
               | . + { age_days: (($now - $created) / $day | floor) }

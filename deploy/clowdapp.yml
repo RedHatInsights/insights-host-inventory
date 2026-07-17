@@ -194,7 +194,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: registry.access.redhat.com/ubi9/nginx-124:latest
+        image: ${NGINX_IMAGE}:${NGINX_IMAGE_TAG}
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
@@ -2628,6 +2628,10 @@ parameters:
   value: 100Mi
 - name: NGINX_MEMORY_LIMIT
   value: 200Mi
+- name: NGINX_IMAGE
+  value: 'registry.access.redhat.com/ubi9/nginx-124'
+- name: NGINX_IMAGE_TAG
+  value: 'latest'
 
 # -- API Service Resources (service-reads/writes) --
 - name: CPU_REQUEST_SERVICE
