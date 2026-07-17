@@ -718,7 +718,7 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     try:
         kessel_client = get_kessel_client(current_app)
     except Exception:
-        logger.warning("Failed to initialize Kessel client, denying all app services")
+        logger.exception("Failed to initialize Kessel client, denying all app services")
         return set()
 
     allowed: set[str] = set()

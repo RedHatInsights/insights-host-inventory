@@ -144,13 +144,19 @@ def _build_host_view_response(
         host_data["app_data"] = app_data_map.get(str(host.id), {})
         results.append(host_data)
 
-    return {
+    response = {
         "total": total,
         "count": len(results),
         "page": page,
         "per_page": per_page,
         "results": results,
     }
+
+    if allowed_apps is not None:
+        all_apps = set(get_app_data_models().keys())
+        response["denied_services"] = sorted(all_apps - allowed_apps)
+
+    return response
 
 
 @api_operation

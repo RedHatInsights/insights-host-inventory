@@ -2031,6 +2031,9 @@ class TestHostViewPerServiceRBAC:
         result = self._find_host_in_results(response_data["results"], host_id)
         assert "advisor" in result["app_data"]
         assert "vulnerability" not in result["app_data"]
+        assert "denied_services" in response_data
+        assert "vulnerability" in response_data["denied_services"]
+        assert "advisor" not in response_data["denied_services"]
 
     def test_no_service_permissions_returns_empty_app_data(self, api_get, db_create_host, mocker):
         """User with only inventory:hosts:read gets empty app_data."""
@@ -2076,6 +2079,7 @@ class TestHostViewPerServiceRBAC:
         result = self._find_host_in_results(response_data["results"], host_id)
         assert "advisor" in result["app_data"]
         assert "vulnerability" in result["app_data"]
+        assert response_data["denied_services"] == []
 
     def test_sort_by_unauthorized_field_returns_403(self, api_get, mocker):
         """Sorting by an unauthorized service's field returns 403."""
@@ -2094,6 +2098,16 @@ class TestHostViewPerServiceRBAC:
         response_status, _ = api_get(url)
 
         assert_response_status(response_status, 403)
+
+    def test_filter_by_authorized_field_works(self, api_get, db_create_host, mocker):
+        """Filtering by an authorized service's field returns 200."""
+        db_create_host()
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?filter[advisor][recommendations][gte]=0")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 200)
 
     def test_sort_by_authorized_field_works(self, api_get, db_create_host, mocker):
         """Sorting by an authorized service's field returns 200."""
