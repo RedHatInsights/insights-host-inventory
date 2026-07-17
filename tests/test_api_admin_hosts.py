@@ -7,6 +7,7 @@ import pytest
 from app.models import Host
 from app.models import db
 from app.queue.events import EventType
+from tests.helpers.mq_utils import assert_system_registered_notification_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 
@@ -20,7 +21,9 @@ def enable_admin_hosts(inventory_config):
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
-def test_admin_hosts_disabled_by_default(flask_client, inventory_config):
+def test_admin_hosts_disabled_by_default(
+    flask_client, inventory_config, event_producer_mock, notification_event_producer_mock
+):
     inventory_config.admin_hosts_endpoint_enabled = False
     host = minimal_host().data()
 
@@ -28,11 +31,14 @@ def test_admin_hosts_disabled_by_default(flask_client, inventory_config):
 
     assert response.status_code == HTTPStatus.FORBIDDEN
     assert Host.query.count() == 0
+    assert event_producer_mock.event is None
+    assert notification_event_producer_mock.event is None
 
 
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
-def test_admin_hosts_create_returns_id(flask_client, event_producer_mock):
-    host = minimal_host().data()
+def test_admin_hosts_create_returns_id(flask_client, event_producer_mock, notification_event_producer_mock):
+    host_wrapper = minimal_host(insights_id=generate_uuid())
+    host = host_wrapper.data()
 
     response = flask_client.post(ADMIN_HOSTS_URL, json=host)
 
@@ -41,11 +47,13 @@ def test_admin_hosts_create_returns_id(flask_client, event_producer_mock):
     assert "id" in body
     created = db.session.get(Host, (UUID(body["id"]), host["org_id"]))
     assert created is not None
-    assert created.subscription_manager_id == host["subscription_manager_id"]
+    assert str(created.insights_id) == host["insights_id"]
 
     event = json.loads(event_producer_mock.event)
     assert event["type"] == EventType.created.name
     assert event["host"]["id"] == body["id"]
+
+    assert_system_registered_notification_is_valid(notification_event_producer_mock, host_wrapper)
 
 
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
