@@ -15,6 +15,7 @@ from app.queue.host_mq import IngressMessageConsumer
 from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import create_consumer
+from app.telemetry import OTEL_HOST_INGESTION_SAMPLING_RATE
 from app.telemetry import init_otel
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
@@ -33,10 +34,20 @@ def build_topic_to_consumer_map(config: Config) -> dict[str, type[HBIMessageCons
 
 
 def main():
-    init_otel(service_name="host-inventory-mq", service_version=get_build_version())
-
+    # create_app instruments Flask/SQL/HTTP when OTEL_ENABLED; those helpers gate on
+    # the env flag, not an existing TracerProvider. init_otel runs after so we can
+    # pick host-ingestion sampling from config; the provider must exist before the
+    # event loop creates spans.
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
+
+    is_host_ingestion = config.kafka_consumer_topic == config.host_ingress_topic
+    init_otel(
+        service_name="host-inventory-mq",
+        service_version=get_build_version(),
+        sampling_rate=OTEL_HOST_INGESTION_SAMPLING_RATE if is_host_ingestion else None,
+    )
+
     init_cache(config, application)
     start_http_server(config.metrics_port)
 

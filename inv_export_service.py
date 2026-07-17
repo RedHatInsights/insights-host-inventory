@@ -7,9 +7,12 @@ from confluent_kafka import Consumer as KafkaConsumer
 from prometheus_client import start_http_server
 
 from app import create_app
+from app.common import get_build_version
 from app.environment import RuntimeEnvironment
 from app.logging import get_logger
 from app.queue.export_service_mq import ExportServiceConsumer
+from app.telemetry import init_otel
+from app.telemetry import instrument_kafka_consumer
 from lib.handlers import ShutdownHandler
 from lib.handlers import register_shutdown
 
@@ -17,6 +20,8 @@ logger = get_logger("export_sevice_mq")
 
 
 def main():
+    init_otel(service_name="host-inventory-export", service_version=get_build_version())
+
     application = create_app(RuntimeEnvironment.SERVICE)
     config = application.app.config["INVENTORY_CONFIG"]
 
@@ -35,12 +40,14 @@ def main():
 
     start_http_server(config.metrics_port)
 
-    consumer = KafkaConsumer(
-        {
-            "group.id": config.inv_export_service_consumer_group,
-            "bootstrap.servers": config.bootstrap_servers,
-            **config.export_service_kafka_consumer,
-        }
+    consumer = instrument_kafka_consumer(
+        KafkaConsumer(
+            {
+                "group.id": config.inv_export_service_consumer_group,
+                "bootstrap.servers": config.bootstrap_servers,
+                **config.export_service_kafka_consumer,
+            }
+        )
     )
     consumer.subscribe([config.export_service_topic])
     consumer_shutdown = partial(consumer.close, autocommit=True)
