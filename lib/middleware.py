@@ -765,6 +765,15 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     return allowed
 
 
+def _should_bypass_app_service_rbac() -> bool:
+    if inventory_config().bypass_rbac:
+        return True
+    identity = get_current_identity()
+    if identity.identity_type not in CHECKED_TYPES:
+        return True
+    return False
+
+
 def get_allowed_app_services() -> set[str] | None:
     """Determine which app_data services the current user can access.
 
@@ -777,13 +786,10 @@ def get_allowed_app_services() -> set[str] | None:
     """
     from app.models.host_app_data import get_app_data_models
 
-    if inventory_config().bypass_rbac:
+    if _should_bypass_app_service_rbac():
         return None
 
     identity = get_current_identity()
-
-    if identity.identity_type not in CHECKED_TYPES:
-        return None
 
     app_models = get_app_data_models()
 
