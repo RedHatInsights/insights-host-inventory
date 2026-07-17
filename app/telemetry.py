@@ -174,6 +174,7 @@ def init_otel(
     from opentelemetry.sdk.trace import SpanLimits
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace.sampling import ParentBased
     from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
     resource = Resource.create(
@@ -185,7 +186,9 @@ def init_otel(
     )
 
     effective_rate = sampling_rate or OTEL_SAMPLING_RATE
-    sampler = TraceIdRatioBased(effective_rate)
+    # ParentBased keeps distributed traces complete: children honor the parent's
+    # sampling decision;
+    sampler = ParentBased(TraceIdRatioBased(effective_rate))
     span_limits = SpanLimits(
         max_attributes=OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
         max_attribute_length=OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT,

@@ -154,10 +154,11 @@ def _cleanup_telemetry(monkeypatch):
 
 
 def test_sampling_rate_applied_in_init_otel(monkeypatch):
-    """TraceIdRatioBased sampler is created with OTEL_SAMPLING_RATE."""
+    """ParentBased(TraceIdRatioBased) sampler is created with OTEL_SAMPLING_RATE."""
     telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_SAMPLING_RATE": "0.25"})
 
     with patch.object(telemetry_mod, "_otel_initialized_pid", None):
+        from opentelemetry.sdk.trace.sampling import ParentBased
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
         with (
@@ -169,8 +170,9 @@ def test_sampling_rate_applied_in_init_otel(monkeypatch):
 
             call_kwargs = mock_provider_cls.call_args
             sampler = call_kwargs[1]["sampler"] if "sampler" in call_kwargs[1] else call_kwargs[0][1]
-            assert isinstance(sampler, TraceIdRatioBased)
-            assert sampler.rate == 0.25
+            assert isinstance(sampler, ParentBased)
+            assert isinstance(sampler._root, TraceIdRatioBased)
+            assert sampler._root.rate == 0.25
 
     _cleanup_telemetry(monkeypatch)
 
@@ -180,6 +182,7 @@ def test_sampling_rate_override_in_init_otel(monkeypatch):
     telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_SAMPLING_RATE": "0.25"})
 
     with patch.object(telemetry_mod, "_otel_initialized_pid", None):
+        from opentelemetry.sdk.trace.sampling import ParentBased
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
         with (
@@ -191,8 +194,9 @@ def test_sampling_rate_override_in_init_otel(monkeypatch):
 
             call_kwargs = mock_provider_cls.call_args[1]
             sampler = call_kwargs["sampler"]
-            assert isinstance(sampler, TraceIdRatioBased)
-            assert sampler.rate == 1.0
+            assert isinstance(sampler, ParentBased)
+            assert isinstance(sampler._root, TraceIdRatioBased)
+            assert sampler._root.rate == 1.0
 
     _cleanup_telemetry(monkeypatch)
 
