@@ -184,8 +184,7 @@ def init_otel(
         }
     )
 
-    # NOTE: intentionally `is not None` — 0.0 is a valid rate (sample nothing).
-    effective_rate = sampling_rate if sampling_rate is not None else OTEL_SAMPLING_RATE
+    effective_rate = sampling_rate or OTEL_SAMPLING_RATE
     sampler = TraceIdRatioBased(effective_rate)
     span_limits = SpanLimits(
         max_attributes=OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT,
