@@ -6,12 +6,7 @@ from unittest.mock import patch
 
 import pytest
 from flask import Flask
-from opentelemetry import trace
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from app.telemetry import _outbound_request_hook
 
@@ -62,27 +57,14 @@ def test_outbound_request_hook_uses_slash_when_path_empty():
     span.update_name.assert_called_once_with("GET /")
 
 
-def _force_set_tracer_provider(provider):
-    """Replace the global TracerProvider (OTel normally allows set only once)."""
-    from opentelemetry.util._once import Once
-
-    trace._TRACER_PROVIDER_SET_ONCE = Once()
-    trace._TRACER_PROVIDER = None
-    if provider is not None:
-        trace.set_tracer_provider(provider)
-
-
-def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypatch):
+def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypatch, otel_provider):
     """Regression: excluded_urls must match full request URLs (incl. query)."""
     monkeypatch.setenv("OTEL_ENABLED", "true")
     import app.telemetry as telemetry_mod
 
     importlib.reload(telemetry_mod)
 
-    exporter = InMemorySpanExporter()
-    provider = TracerProvider(resource=Resource.create())
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    _force_set_tracer_provider(provider)
+    _, exporter = otel_provider(set_global=True)
 
     app = Flask(__name__)
 
@@ -123,8 +105,6 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
         assert len(exporter.get_finished_spans()) == 1
     finally:
         FlaskInstrumentor().uninstrument_app(app)
-        provider.shutdown()
-        _force_set_tracer_provider(None)
         monkeypatch.setenv("OTEL_ENABLED", "false")
         importlib.reload(telemetry_mod)
 
@@ -217,14 +197,13 @@ def test_sampling_rate_override_in_init_otel(monkeypatch):
     _cleanup_telemetry(monkeypatch)
 
 
-def test_rh_attribute_span_processor_copies_from_parent():
+def test_rh_attribute_span_processor_copies_from_parent(otel_provider):
     """RHAttributeSpanProcessor sets rh.service and copies org/request from parent."""
     from app.telemetry import _build_rh_attribute_span_processor
 
-    exporter = InMemorySpanExporter()
-    provider = TracerProvider(resource=Resource.create())
-    provider.add_span_processor(_build_rh_attribute_span_processor(rh_service="host-inventory"))
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    provider, exporter = otel_provider(
+        span_processors=[_build_rh_attribute_span_processor(rh_service="host-inventory")]
+    )
     tracer = provider.get_tracer("test")
 
     with tracer.start_as_current_span("parent") as parent:
@@ -238,10 +217,9 @@ def test_rh_attribute_span_processor_copies_from_parent():
     assert spans["child"].attributes["rh.service"] == "host-inventory"
     assert spans["child"].attributes["rh.org_id"] == "org-1"
     assert spans["child"].attributes["rh.request_id"] == "req-1"
-    provider.shutdown()
 
 
-def test_rh_attribute_span_processor_threadctx_fallback():
+def test_rh_attribute_span_processor_threadctx_fallback(otel_provider):
     """When parent lacks rh.* attrs, processor falls back to threadctx."""
     from app.logging import threadctx
     from app.telemetry import _build_rh_attribute_span_processor
@@ -249,10 +227,7 @@ def test_rh_attribute_span_processor_threadctx_fallback():
     threadctx.org_id = "thread-org"
     threadctx.request_id = "thread-req"
     try:
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider(resource=Resource.create())
-        provider.add_span_processor(_build_rh_attribute_span_processor())
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        provider, exporter = otel_provider(span_processors=[_build_rh_attribute_span_processor()])
         tracer = provider.get_tracer("test")
 
         with tracer.start_as_current_span("parent"):
@@ -263,13 +238,12 @@ def test_rh_attribute_span_processor_threadctx_fallback():
         assert spans["child"].attributes["rh.org_id"] == "thread-org"
         assert spans["child"].attributes["rh.request_id"] == "thread-req"
         assert spans["child"].attributes["rh.service"] == "host-inventory"
-        provider.shutdown()
     finally:
         threadctx.org_id = None
         threadctx.request_id = None
 
 
-def test_rh_attribute_span_processor_does_not_overwrite_child_attrs():
+def test_rh_attribute_span_processor_does_not_overwrite_child_attrs(otel_provider):
     """Child rh.* attributes are not overwritten by processor."""
     from app.logging import threadctx
     from app.telemetry import _build_rh_attribute_span_processor
@@ -277,10 +251,7 @@ def test_rh_attribute_span_processor_does_not_overwrite_child_attrs():
     threadctx.org_id = "thread-org"
     threadctx.request_id = "thread-req"
     try:
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider(resource=Resource.create())
-        provider.add_span_processor(_build_rh_attribute_span_processor())
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        provider, exporter = otel_provider(span_processors=[_build_rh_attribute_span_processor()])
         tracer = provider.get_tracer("test")
 
         with tracer.start_as_current_span("parent") as parent:
@@ -298,13 +269,12 @@ def test_rh_attribute_span_processor_does_not_overwrite_child_attrs():
         spans = {span.name: span for span in exporter.get_finished_spans()}
         assert spans["child"].attributes["rh.org_id"] == "child-org"
         assert spans["child"].attributes["rh.request_id"] == "child-req"
-        provider.shutdown()
     finally:
         threadctx.org_id = None
         threadctx.request_id = None
 
 
-def test_rh_attribute_span_processor_parent_precedence_over_threadctx():
+def test_rh_attribute_span_processor_parent_precedence_over_threadctx(otel_provider):
     """Parent rh.* attributes take precedence over threadctx values."""
     from app.logging import threadctx
     from app.telemetry import _build_rh_attribute_span_processor
@@ -312,10 +282,7 @@ def test_rh_attribute_span_processor_parent_precedence_over_threadctx():
     threadctx.org_id = "thread-org"
     threadctx.request_id = "thread-req"
     try:
-        exporter = InMemorySpanExporter()
-        provider = TracerProvider(resource=Resource.create())
-        provider.add_span_processor(_build_rh_attribute_span_processor())
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        provider, exporter = otel_provider(span_processors=[_build_rh_attribute_span_processor()])
         tracer = provider.get_tracer("test")
 
         with tracer.start_as_current_span("parent") as parent:
@@ -327,7 +294,6 @@ def test_rh_attribute_span_processor_parent_precedence_over_threadctx():
         spans = {span.name: span for span in exporter.get_finished_spans()}
         assert spans["child"].attributes["rh.org_id"] == "parent-org"
         assert spans["child"].attributes["rh.request_id"] == "parent-req"
-        provider.shutdown()
     finally:
         threadctx.org_id = None
         threadctx.request_id = None
