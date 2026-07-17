@@ -36,7 +36,7 @@ class ViewPermissionError(InventoryException):
         super().__init__(status=403, title="Forbidden", detail=detail)
 
 
-def _visibility_filter(org_id: str, username: str):
+def _visibility_filter(org_id: str, user_id: str):
     """Return a SQLAlchemy filter for views visible to the given user.
 
     Visible views are:
@@ -49,17 +49,17 @@ def _visibility_filter(org_id: str, username: str):
         and_(
             InventoryView.org_id == org_id,
             or_(
-                InventoryView.created_by == username,
+                InventoryView.created_by == user_id,
                 InventoryView.org_wide.is_(True),
             ),
         ),
     )
 
 
-def _get_visible_view(view_id: str, org_id: str, username: str) -> InventoryView:
+def _get_visible_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
     view = InventoryView.query.filter(
         InventoryView.id == view_id,
-        _visibility_filter(org_id, username),
+        _visibility_filter(org_id, user_id),
     ).one_or_none()
 
     if view is None:
@@ -68,8 +68,8 @@ def _get_visible_view(view_id: str, org_id: str, username: str) -> InventoryView
     return view
 
 
-def get_views_list(org_id: str, username: str, page: int = 1, per_page: int = 50) -> tuple[list[InventoryView], int]:
-    query = InventoryView.query.filter(_visibility_filter(org_id, username)).order_by(InventoryView.modified_on.desc())
+def get_views_list(org_id: str, user_id: str, page: int = 1, per_page: int = 50) -> tuple[list[InventoryView], int]:
+    query = InventoryView.query.filter(_visibility_filter(org_id, user_id)).order_by(InventoryView.modified_on.desc())
 
     total = query.count()
     views = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -77,62 +77,62 @@ def get_views_list(org_id: str, username: str, page: int = 1, per_page: int = 50
     return views, total
 
 
-def get_view_by_id(view_id: str, org_id: str, username: str) -> InventoryView:
-    return _get_visible_view(view_id, org_id, username)
+def get_view_by_id(view_id: str, org_id: str, user_id: str) -> InventoryView:
+    return _get_visible_view(view_id, org_id, user_id)
 
 
-def create_view(data: dict, org_id: str, username: str) -> InventoryView:
+def create_view(data: dict, org_id: str, user_id: str) -> InventoryView:
     view = InventoryView(
         org_id=org_id,
         name=data["name"],
         description=data.get("description"),
         configuration=data["configuration"],
         org_wide=data.get("org_wide", False),
-        created_by=username,
+        created_by=user_id,
     )
 
     with session_guard(db.session, close=False):
         db.session.add(view)
 
     db.session.refresh(view)
-    logger.info("Created view %s for org %s by %s", view.id, org_id, username)
+    logger.info("Created view %s for org %s by %s", view.id, org_id, user_id)
     return view
 
 
-def update_view(view_id: str, data: dict, org_id: str, username: str) -> InventoryView:
-    view = _get_visible_view(view_id, org_id, username)
+def update_view(view_id: str, data: dict, org_id: str, user_id: str) -> InventoryView:
+    view = _get_visible_view(view_id, org_id, user_id)
 
     if view.is_system_view:
         raise ViewPermissionError("System views cannot be modified.")
 
-    if view.created_by != username:
+    if view.created_by != user_id:
         raise ViewPermissionError("Only the view creator can update this view.")
 
     with session_guard(db.session, close=False):
         view.patch(data)
 
     db.session.refresh(view)
-    logger.info("Updated view %s by %s", view_id, username)
+    logger.info("Updated view %s by %s", view_id, user_id)
     return view
 
 
-def delete_view(view_id: str, org_id: str, username: str) -> None:
-    view = _get_visible_view(view_id, org_id, username)
+def delete_view(view_id: str, org_id: str, user_id: str) -> None:
+    view = _get_visible_view(view_id, org_id, user_id)
 
     if view.is_system_view:
         raise ViewPermissionError("System views cannot be deleted.")
 
-    if view.created_by != username:
+    if view.created_by != user_id:
         raise ViewPermissionError("Only the view creator can delete this view.")
 
     with session_guard(db.session):
         db.session.delete(view)
 
-    logger.info("Deleted view %s by %s", view_id, username)
+    logger.info("Deleted view %s by %s", view_id, user_id)
 
 
-def clone_view(view_id: str, org_id: str, username: str) -> InventoryView:
-    source = _get_visible_view(view_id, org_id, username)
+def clone_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
+    source = _get_visible_view(view_id, org_id, user_id)
 
     clone_name = f"{CLONE_NAME_PREFIX}{source.name}"[:MAX_VIEW_NAME_LENGTH]
 
@@ -142,12 +142,12 @@ def clone_view(view_id: str, org_id: str, username: str) -> InventoryView:
         description=source.description,
         configuration=deepcopy(source.configuration),
         org_wide=False,
-        created_by=username,
+        created_by=user_id,
     )
 
     with session_guard(db.session, close=False):
         db.session.add(cloned)
 
     db.session.refresh(cloned)
-    logger.info("Cloned view %s -> %s by %s", view_id, cloned.id, username)
+    logger.info("Cloned view %s -> %s by %s", view_id, cloned.id, user_id)
     return cloned
