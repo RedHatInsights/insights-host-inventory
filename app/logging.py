@@ -7,6 +7,7 @@ import logstash_formatter
 import watchtower
 from boto3.session import Session
 from gunicorn import glogging
+from opentelemetry import trace as _otel_trace
 from yaml import safe_load
 
 OPENSHIFT_ENVIRONMENT_NAME_FILE = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -116,6 +117,14 @@ class ContextualFilter(logging.Filter):
             # TODO: need to decide what to do when you log outside the context
             # of a request
             log_record.org_id = None
+
+        try:
+            span_context = _otel_trace.get_current_span().get_span_context()
+            log_record.trace_id = format(span_context.trace_id, "032x") if span_context.is_valid else None
+            log_record.span_id = format(span_context.span_id, "016x") if span_context.is_valid else None
+        except Exception:
+            log_record.trace_id = None
+            log_record.span_id = None
 
         return True
 
