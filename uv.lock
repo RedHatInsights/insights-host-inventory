@@ -699,6 +699,7 @@ dependencies = [
     { name = "openapi-spec-validator" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-botocore" },
     { name = "opentelemetry-instrumentation-confluent-kafka" },
     { name = "opentelemetry-instrumentation-flask" },
     { name = "opentelemetry-instrumentation-requests" },
@@ -729,6 +730,7 @@ dev = [
     { name = "faker" },
     { name = "honcho" },
     { name = "mypy" },
+    { name = "opentelemetry-test-utils" },
     { name = "pgxnclient" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -766,6 +768,7 @@ requires-dist = [
     { name = "openapi-spec-validator", specifier = "==0.9.0" },
     { name = "opentelemetry-api", specifier = "~=1.43.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = "~=1.43.0" },
+    { name = "opentelemetry-instrumentation-botocore", specifier = "==0.64b0" },
     { name = "opentelemetry-instrumentation-confluent-kafka", specifier = "~=0.53b0" },
     { name = "opentelemetry-instrumentation-flask", specifier = "==0.64b0" },
     { name = "opentelemetry-instrumentation-requests", specifier = "==0.64b0" },
@@ -796,6 +799,7 @@ dev = [
     { name = "faker" },
     { name = "honcho" },
     { name = "mypy" },
+    { name = "opentelemetry-test-utils", specifier = "==0.64b0" },
     { name = "pgxnclient" },
     { name = "pre-commit", specifier = "~=4.6.0" },
     { name = "pytest", specifier = "~=9.1.1" },
@@ -1165,6 +1169,22 @@ wheels = [
 ]
 
 [[package]]
+name = "opentelemetry-instrumentation-botocore"
+version = "0.64b0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-propagator-aws-xray" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/57/da42fca6537571c9a62e85439d70b6f7274da1afe684e1be0c6d8c41bb15/opentelemetry_instrumentation_botocore-0.64b0.tar.gz", hash = "sha256:e437907352a451c2b9d5b966197cf94785234ef4782ceee5b528d1f8a8875092", size = 125106, upload-time = "2026-06-24T15:19:20.755Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/d9/27e199e15dd78c423c848c3705cced8e45f77f798dcb61257ac6c12df5cf/opentelemetry_instrumentation_botocore-0.64b0-py3-none-any.whl", hash = "sha256:d55f359942021457e76a2c4d7d6dd44f6d8f9155f10c81b92922f2e364e470bc", size = 36242, upload-time = "2026-06-24T15:18:28.786Z" },
+]
+
+[[package]]
 name = "opentelemetry-instrumentation-confluent-kafka"
 version = "0.64b0"
 source = { registry = "https://pypi.org/simple" }
@@ -1243,6 +1263,18 @@ wheels = [
 ]
 
 [[package]]
+name = "opentelemetry-propagator-aws-xray"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/31/40004e9e55b1e5694ef3a7526f0b7637df44196fc68a8b7d248a3684680f/opentelemetry_propagator_aws_xray-1.0.2.tar.gz", hash = "sha256:6b2cee5479d2ef0172307b66ed2ed151f598a0fd29b3c01133ac87ca06326260", size = 10994, upload-time = "2024-08-05T17:45:57.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/89/849a0847871fd9745315896ad9e23d6479db84d90b8b36c4c26dc46e92b8/opentelemetry_propagator_aws_xray-1.0.2-py3-none-any.whl", hash = "sha256:1c99181ee228e99bddb638a0c911a297fa21f1c3a0af951f841e79919b5f1934", size = 10856, upload-time = "2024-08-05T17:45:56.492Z" },
+]
+
+[[package]]
 name = "opentelemetry-proto"
 version = "1.43.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1279,6 +1311,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/30/5f26df29509eccd86b99b481ac9ffa39da49ba9577cc69071c552ae30447/opentelemetry_semantic_conventions-0.64b0.tar.gz", hash = "sha256:72f76fb2d1582d9d033dd1fcd84532e961e6ff3d90d24ba6fabc72975a83864c", size = 148340, upload-time = "2026-06-24T15:20:09.267Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f2/ca/23ba87a221b574a7c5a99d48849d80bfe8b047624681357e2b002e566187/opentelemetry_semantic_conventions-0.64b0-py3-none-any.whl", hash = "sha256:ea77e85e354b8f604ddbe5f3d9135216f982fa4d77e5859ac30f6d8a50505aa6", size = 203713, upload-time = "2026-06-24T15:19:53.339Z" },
+]
+
+[[package]]
+name = "opentelemetry-test-utils"
+version = "0.64b0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asgiref" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ed/c7/ef2a1484dbceb47f82855eca38afa196694d64fea6879d312c7841b1e0f3/opentelemetry_test_utils-0.64b0.tar.gz", hash = "sha256:a7e082ba5b938e90d631884ee57e0795bedf11823a48499b07e3532a67f83ced", size = 13365, upload-time = "2026-06-24T15:20:10.002Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/f4/c5935f6998efd8c41bba9b11e93423b39709032790e25f5941595c69aef4/opentelemetry_test_utils-0.64b0-py3-none-any.whl", hash = "sha256:a4fca023ce51a9a395ff78488b0daa9ad74c68277f87f7f2606ebb7aa8c1a9f1", size = 17841, upload-time = "2026-06-24T15:19:54.502Z" },
 ]
 
 [[package]]
