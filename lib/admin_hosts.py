@@ -35,7 +35,7 @@ from utils.system_profile_log import extract_host_dict_sp_to_log
 logger = get_logger(__name__)
 
 
-def create_or_update_host_via_admin(host_data: dict[str, Any]) -> tuple[UUID, AddHostResult]:
+def create_or_update_host_via_admin(host_data: dict[str, Any] | None) -> tuple[UUID, AddHostResult]:
     """Create or update a host using the same persistence and event path as MQ ingress.
 
     - No ``id`` in the payload creates a new host.
@@ -47,17 +47,19 @@ def create_or_update_host_via_admin(host_data: dict[str, Any]) -> tuple[UUID, Ad
     from app.queue.host_mq import write_add_update_event_message
 
     if not isinstance(host_data, dict):
-        raise ValidationException("Request body must be a JSON object")
+        raise ValidationException("Request body must be valid JSON")
 
     org_id = host_data.get("org_id")
     if not org_id:
         raise ValidationException("org_id must be provided")
 
+    host_id: UUID | None = None
     raw_host_id = host_data.get("id")
     if raw_host_id is not None:
         try:
             verify_uuid_format(raw_host_id)
-        except MarshmallowValidationError as exc:
+            host_id = UUID(str(raw_host_id))
+        except (MarshmallowValidationError, ValueError, TypeError) as exc:
             raise ValidationException(f"Invalid host id: {raw_host_id}") from exc
 
     identity = create_mock_identity_with_org_id(org_id)
@@ -68,13 +70,13 @@ def create_or_update_host_via_admin(host_data: dict[str, Any]) -> tuple[UUID, Ad
     sp_fields_to_log = extract_host_dict_sp_to_log(host_data)
     log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
 
-    if raw_host_id is not None:
-        existing_host = Host.query.filter(Host.id == raw_host_id, Host.org_id == org_id).one_or_none()
+    if host_id is not None:
+        existing_host = Host.query.filter(Host.id == host_id, Host.org_id == org_id).one_or_none()
         if existing_host is None:
             raise InventoryException(
                 status=404,
                 title="Not Found",
-                detail=f"Host with id {raw_host_id} was not found",
+                detail=f"Host with id {host_id} was not found",
             )
         host_row, add_result = update_existing_host(existing_host, input_host, update_system_profile=True)
     else:
