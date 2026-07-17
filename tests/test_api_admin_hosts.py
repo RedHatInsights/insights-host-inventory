@@ -81,6 +81,15 @@ def test_admin_hosts_update_missing_host_returns_404(flask_client):
 
 
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
+def test_admin_hosts_invalid_host_id_returns_400(flask_client):
+    host = minimal_host(id="not-a-uuid").data()
+
+    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+@pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
 def test_admin_hosts_invalid_json_returns_400(flask_client):
     response = flask_client.post(
         ADMIN_HOSTS_URL,

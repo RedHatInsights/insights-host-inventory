@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from flask import current_app
+from marshmallow.exceptions import ValidationError as MarshmallowValidationError
 
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
@@ -56,7 +57,7 @@ def create_or_update_host_via_admin(host_data: dict[str, Any]) -> tuple[UUID, Ad
     if raw_host_id is not None:
         try:
             verify_uuid_format(raw_host_id)
-        except Exception as exc:
+        except MarshmallowValidationError as exc:
             raise ValidationException(f"Invalid host id: {raw_host_id}") from exc
 
     identity = create_mock_identity_with_org_id(org_id)

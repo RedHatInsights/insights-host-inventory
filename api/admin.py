@@ -5,6 +5,7 @@ from flask import jsonify
 from flask import request
 
 from app.common import inventory_config
+from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 
 admin_blueprint = Blueprint("admin", __name__)
@@ -17,7 +18,11 @@ def create_or_update_admin_host():
     Not part of the public API spec. Gated by INVENTORY_ADMIN_HOSTS_ENABLED.
     """
     if not inventory_config().admin_hosts_endpoint_enabled:
-        return jsonify({"detail": "Admin hosts endpoint is disabled", "status": 403, "title": "Forbidden"}), 403
+        raise InventoryException(
+            status=HTTPStatus.FORBIDDEN,
+            title="Forbidden",
+            detail="Admin hosts endpoint is disabled",
+        )
 
     host_data = request.get_json(silent=True)
     if host_data is None:
