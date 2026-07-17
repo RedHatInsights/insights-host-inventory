@@ -18,7 +18,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
-from iqe_host_inventory_api import StructuredTag
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
@@ -28,19 +27,12 @@ def host_tags(input_hosts: list[Any]) -> list[TagDict]:
     return [tag for host in input_hosts for tag in host.tags]
 
 
-def log_response_tags_indices(my_tags: list[list[StructuredTag]], response: dict):
-    response_tags = [res_item["tag"] for res_item in response["results"]]
-    response_tags_indices = set()
-    for res_tag in response_tags:
-        found_index = -1
-        for i, tag_list in enumerate(my_tags):
-            search_list = [tag.to_dict() for tag in tag_list]
-            if res_tag in search_list:
-                found_index = i
-                break
-        if found_index != -1:
-            response_tags_indices.add(found_index)
-    logger.info(f"Response tags indices: {response_tags_indices}")
+def check_tags_response(
+    response: dict, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
+) -> None:
+    assert response["count"] >= len(expected_tags)
+    assert_tags_found(expected_tags, response["results"])
+    assert_tags_not_found(not_expected_tags, response["results"])
 
 
 @pytest.mark.smoke
@@ -503,18 +495,11 @@ def test_filter_tags_by_system_profile_integer_fields(
     lower_value = hosts[0].system_profile[field.name]
     higher_value = hosts[2].system_profile[field.name]
 
-    def _check_response(
-        response: dict, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
-    ):
-        assert response["count"] >= len(expected_tags)
-        assert_tags_found(expected_tags, response["results"])
-        assert_tags_not_found(not_expected_tags, response["results"])
-
     def _test_filter(
         comparator: str | None, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
     ):
         response = filter_tags(field.name, value, comparator).json()
-        _check_response(response, expected_tags, not_expected_tags)
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter(None, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
     _test_filter("eq", hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
@@ -526,12 +511,12 @@ def test_filter_tags_by_system_profile_integer_fields(
     # Combination on 'eq' filtering uses OR logic
     filter = [f"[{field.name}][]={lower_value}", f"[{field.name}][]={value}"]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    _check_response(response, host_tags(hosts[:2]), host_tags(hosts[2:]))
+    check_tags_response(response, host_tags(hosts[:2]), host_tags(hosts[2:]))
 
     # Combination on range filtering uses AND logic
     filter = [f"[{field.name}][gt][]={lower_value}", f"[{field.name}][lt][]={higher_value}"]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    _check_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
+    check_tags_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
 
 
 @pytest.mark.ephemeral
@@ -609,18 +594,11 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
     lower_value = quote(hosts[0].system_profile[field.name])
     higher_value = quote(hosts[2].system_profile[field.name])
 
-    def _check_response(
-        response: dict, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
-    ):
-        assert response["count"] >= len(expected_tags)
-        assert_tags_found(expected_tags, response["results"])
-        assert_tags_not_found(not_expected_tags, response["results"])
-
     def _test_filter(
         comparator: str, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
     ):
         response = filter_tags(field.name, value, comparator).json()
-        _check_response(response, expected_tags, not_expected_tags)
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter("gt", hosts[2].tags, host_tags(hosts[:2] + hosts[3:]))
     _test_filter("gte", host_tags(hosts[1:3]), host_tags(hosts[:1] + hosts[3:]))
@@ -630,7 +608,7 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
     # Combination on range filtering uses AND logic
     filter = [f"[{field.name}][gt][]={lower_value}", f"[{field.name}][lt][]={higher_value}"]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    _check_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
+    check_tags_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
 
 
 @pytest.mark.ephemeral

@@ -10,6 +10,7 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import assert_forbidden_response
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
@@ -438,11 +439,7 @@ class TestRBACSAHostsNoReadPermission:
                    can't get a list of tags
         """
         resp = host_inventory_sa_2.apis.tags.get_tags_response()
-        assert resp.status_code == 403
-        assert (
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server." in resp.text
-        )
+        assert_forbidden_response(resp)
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_sa_hosts_no_read_permission_get_operating_systems(

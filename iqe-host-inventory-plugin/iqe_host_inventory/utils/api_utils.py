@@ -16,6 +16,7 @@ from typing import TypeVar
 from urllib.parse import quote
 
 import pytest
+import requests
 from _pytest._code.code import ExceptionInfo
 
 from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_GET_MULTIPLE_HOSTS
@@ -27,7 +28,6 @@ from iqe_host_inventory_api import HostOut
 from iqe_host_inventory_api import HostQueryOutput
 from iqe_host_inventory_api import HostsApi
 from iqe_host_inventory_api import SystemProfileApi
-from iqe_host_inventory_api import TagsApi
 from iqe_host_inventory_api.api_client import ApiClient
 from iqe_host_inventory_api_v7 import ApiException as ApiException_V7
 
@@ -210,21 +210,27 @@ def delete_hosts(host_list: list[Any], openapi_client: HostsApi) -> None:
             raise
 
 
-def delete_hosts_by_tags(tag_search_term, openapi_client: HostsApi, openapi_client_tags: TagsApi):
-    tags = []
-    response = openapi_client_tags.api_tag_get_tags(search=tag_search_term)
-    tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
-    pages = response.total // 50 + (response.total % 50 > 0)
+def delete_hosts_by_tags(
+    tag_search_term: str, openapi_client: HostsApi, tags_wrapper: Any
+) -> None:
+    from iqe_host_inventory.modeling.tags_api import TagsAPIWrapper
+
+    if not isinstance(tags_wrapper, TagsAPIWrapper):
+        raise TypeError(f"Expected TagsAPIWrapper, got {type(tags_wrapper)}")
+
+    tags: list[str] = []
+    body = tags_wrapper.get_tags_json(search=tag_search_term)
+    tags.extend(convert_tag_to_string(item["tag"]) for item in body["results"])
+    pages = body["total"] // 50 + (body["total"] % 50 > 0)
     for page in range(2, pages + 1):
-        response = openapi_client_tags.api_tag_get_tags(search=tag_search_term, page=page)
-        tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
+        body = tags_wrapper.get_tags_json(search=tag_search_term, page=page)
+        tags.extend(convert_tag_to_string(item["tag"]) for item in body["results"])
     logger.info(f"Deleting hosts by {len(tags)} tags: " + str(tags))
 
-    hosts = []
+    hosts: list[Any] = []
     for tag in tags:
         response = openapi_client.api_host_get_host_list(tags=[tag])
         hosts.extend(response.results)
-        # Prevent from "Request Line is too large" error when deleting too many hosts at once
         if len(hosts) >= 50:
             delete_hosts(hosts, openapi_client)
             hosts = []
@@ -359,6 +365,15 @@ def raises_apierror(
 
         for message in match_message:
             assert message in api_error.body, f"'{message}' not in error message: {api_error.body}"
+
+
+def assert_forbidden_response(resp: requests.Response) -> None:
+    """Assert that a ``requests.Response`` represents a 403 Forbidden error."""
+    assert resp.status_code == 403
+    assert (
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server." in resp.text
+    )
 
 
 def find_nested_fields(field_name: str, data: dict | list) -> Generator[str]:

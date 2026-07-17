@@ -495,7 +495,7 @@ def test_pagination_of_tags(
         title: Inventory: Paginated Results of GET for tags are unique
     """
     all_tags = acceptance(
-        lambda **kw: host_inventory.apis.tags.get_tags_response(**kw).json(),
+        host_inventory.apis.tags.get_tags_json,
         display_name="pagination",
         criteria=[(criterion_total_gte, 40)],
     )
@@ -505,7 +505,7 @@ def test_pagination_of_tags(
     rand_start, end = rand_start_end(num_tags, num_iterations)
     for i in range(rand_start, end):
         response = acceptance(
-            lambda **kw: host_inventory.apis.tags.get_tags_response(**kw).json(),
+            host_inventory.apis.tags.get_tags_json,
             per_page=1,
             page=i,
             display_name="pagination",
@@ -536,7 +536,7 @@ def test_pagination_tags_number_of_records(
             the correct amount of tags
     """
     response = acceptance(
-        lambda **kw: host_inventory.apis.tags.get_tags_response(**kw).json(),
+        host_inventory.apis.tags.get_tags_json,
         per_page=tags_per_page,
         criteria=[(criterion_count_eq, tags_per_page)],
     )

@@ -23,6 +23,9 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
+from iqe_host_inventory.utils.tag_utils import (
+    log_response_tags_indices as _log_response_tags_indices,
+)
 from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api import ApiTypeError
 from iqe_host_inventory_api import HostOut
@@ -154,21 +157,6 @@ def test_filter_hosts_by_system_profile_sap_sids(
     log_response_hosts_indices(setup_hosts, response_ids)
     assert response.count >= len(expected_ids)
     assert response_ids & all_hosts_ids == expected_ids
-
-
-def _log_response_tags_indices(my_tags: list[list[StructuredTag]], response: dict):
-    response_tags = [res_item["tag"] for res_item in response["results"]]
-    response_tags_indices = set()
-    for res_tag in response_tags:
-        found_index = -1
-        for i, tag_list in enumerate(my_tags):
-            search_list = [tag.to_dict() for tag in tag_list]
-            if res_tag in search_list:
-                found_index = i
-                break
-        if found_index != -1:
-            response_tags_indices.add(found_index)
-    logger.info(f"Response tags indices: {response_tags_indices}")
 
 
 # All tests that use the setup_hosts_for_operating_system_filtering fixture are grouped here

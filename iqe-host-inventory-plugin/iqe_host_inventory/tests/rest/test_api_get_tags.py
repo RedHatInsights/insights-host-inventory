@@ -75,16 +75,10 @@ def test_get_tags_by_display_name(setup_hosts_with_tags, host_inventory, case):
         importance: high
         title: Inventory: GET on /tags with display_name parameter
     """
-    if case == "exact":
-        response = host_inventory.apis.tags.get_tags_response(
-            display_name=setup_hosts_with_tags[0].display_name
-        )
-        body = response.json()
-    else:
-        response = host_inventory.apis.tags.get_tags_response(
-            display_name=getattr(setup_hosts_with_tags[0].display_name, case)()
-        )
-        body = response.json()
+    display_name = setup_hosts_with_tags[0].display_name
+    if case != "exact":
+        display_name = getattr(display_name, case)()
+    body = host_inventory.apis.tags.get_tags_response(display_name=display_name).json()
     assert body["total"] == len(setup_hosts_with_tags[0].tags)
     assert len(body["results"]) == body["total"]
     assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
@@ -105,14 +99,10 @@ def test_get_tags_by_fqdn(setup_hosts_with_tags, host_inventory, case):
         importance: high
         title: Inventory: GET on /tags with fqdn parameter
     """
-    if case == "exact":
-        response = host_inventory.apis.tags.get_tags_response(fqdn=setup_hosts_with_tags[0].fqdn)
-        body = response.json()
-    else:
-        response = host_inventory.apis.tags.get_tags_response(
-            fqdn=getattr(setup_hosts_with_tags[0].fqdn, case)()
-        )
-        body = response.json()
+    fqdn = setup_hosts_with_tags[0].fqdn
+    if case != "exact":
+        fqdn = getattr(fqdn, case)()
+    body = host_inventory.apis.tags.get_tags_response(fqdn=fqdn).json()
     assert body["total"] == len(setup_hosts_with_tags[0].tags)
     assert len(body["results"]) == body["total"]
     assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
@@ -136,14 +126,8 @@ def test_get_tags_by_hostname_or_id(setup_hosts_with_tags, host_inventory, case)
     """
 
     def _test_hostname_or_id(hostname_or_id):
-        if case == "exact":
-            response = host_inventory.apis.tags.get_tags_response(hostname_or_id=hostname_or_id)
-            body = response.json()
-        else:
-            response = host_inventory.apis.tags.get_tags_response(
-                hostname_or_id=getattr(hostname_or_id, case)()
-            )
-            body = response.json()
+        value = hostname_or_id if case == "exact" else getattr(hostname_or_id, case)()
+        body = host_inventory.apis.tags.get_tags_response(hostname_or_id=value).json()
         assert body["total"] == len(setup_hosts_with_tags[0].tags)
         assert len(body["results"]) == body["total"]
         assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
@@ -168,16 +152,10 @@ def test_get_tags_by_insights_id(setup_hosts_with_tags, host_inventory, case):
         importance: medium
         title: Inventory: GET on /tags with insights_id parameter
     """
-    if case == "exact":
-        response = host_inventory.apis.tags.get_tags_response(
-            insights_id=setup_hosts_with_tags[0].insights_id
-        )
-        body = response.json()
-    else:
-        response = host_inventory.apis.tags.get_tags_response(
-            insights_id=getattr(setup_hosts_with_tags[0].insights_id, case)()
-        )
-        body = response.json()
+    insights_id = setup_hosts_with_tags[0].insights_id
+    if case != "exact":
+        insights_id = getattr(insights_id, case)()
+    body = host_inventory.apis.tags.get_tags_response(insights_id=insights_id).json()
     assert body["total"] == len(setup_hosts_with_tags[0].tags)
     assert len(body["results"]) == body["total"]
     assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
@@ -198,16 +176,10 @@ def test_get_tags_by_provider_id(setup_hosts_with_tags, host_inventory, case):
         importance: medium
         title: Inventory: GET on /tags with provider_id parameter
     """
-    if case == "exact":
-        response = host_inventory.apis.tags.get_tags_response(
-            provider_id=setup_hosts_with_tags[0].provider_id
-        )
-        body = response.json()
-    else:
-        response = host_inventory.apis.tags.get_tags_response(
-            provider_id=getattr(setup_hosts_with_tags[0].provider_id, case)()
-        )
-        body = response.json()
+    provider_id = setup_hosts_with_tags[0].provider_id
+    if case != "exact":
+        provider_id = getattr(provider_id, case)()
+    body = host_inventory.apis.tags.get_tags_response(provider_id=provider_id).json()
     assert body["total"] == len(setup_hosts_with_tags[0].tags)
     assert len(body["results"]) == body["total"]
     assert_tags_found(setup_hosts_with_tags[0].tags, body["results"])
