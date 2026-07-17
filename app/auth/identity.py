@@ -159,6 +159,7 @@ class UserInfoIdentitySchema(IdentityBaseSchema):
     is_internal = m.fields.Bool()
     is_org_admin = m.fields.Bool()
     username = m.fields.Str()
+    user_id = m.fields.Str()
     email = m.fields.Email()
 
 
