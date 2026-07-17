@@ -160,7 +160,6 @@ class TestGetAllowedAppServices:
             assert result == {"vulnerability", "advisor", "compliance", "patch", "remediations", "malware"}
 
 
-
 class TestGetAllowedAppServicesKessel:
     """Tests for get_allowed_app_services() Kessel v2 path."""
 
@@ -256,10 +255,9 @@ class TestGetAllowedAppServicesKessel:
         from lib.middleware import get_allowed_app_services
 
         call_count = 0
-        expected_model_count = len([
-            m for m in get_app_data_models().values()
-            if getattr(m, "__kessel_relation__", "")
-        ])
+        expected_model_count = len(
+            [m for m in get_app_data_models().values() if getattr(m, "__kessel_relation__", "")]
+        )
 
         with (
             patch("lib.middleware.inventory_config") as mock_config,

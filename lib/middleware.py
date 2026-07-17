@@ -712,7 +712,6 @@ def _has_rbac_permission(rbac_permissions: list[str], required: str) -> bool:
     )
 
 
-
 def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     """Kessel v2 path: check workspace-level permissions per service via ListAllowedWorkspaces."""
     try:
@@ -769,9 +768,7 @@ def _should_bypass_app_service_rbac() -> bool:
     if inventory_config().bypass_rbac:
         return True
     identity = get_current_identity()
-    if identity.identity_type not in CHECKED_TYPES:
-        return True
-    return False
+    return identity.identity_type not in CHECKED_TYPES
 
 
 def get_allowed_app_services() -> set[str] | None:

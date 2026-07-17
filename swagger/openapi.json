@@ -213,7 +213,7 @@
           "hosts"
         ],
         "summary": "Read aggregated host and application data",
-        "description": "Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read",
+        "description": "Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read. App data is filtered by per-service permissions — services the user lacks read access for are omitted from app_data and listed in denied_services. Sorting or filtering by a denied service returns 403.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -306,6 +306,9 @@
           },
           "400": {
             "description": "Invalid request."
+          },
+          "403": {
+            "description": "Insufficient permissions to sort or filter by the requested app_data service field."
           }
         }
       }
@@ -3270,6 +3273,17 @@
                 "items": {
                   "$ref": "#/components/schemas/HostViewHost"
                 }
+              },
+              "denied_services": {
+                "description": "List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed. Allows consumers to distinguish denied services from services with no data.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "vulnerability",
+                  "malware"
+                ]
               }
             }
           }
