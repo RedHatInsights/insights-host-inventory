@@ -46,7 +46,12 @@ USER_IDENTITY: dict[str, Any] = {
     "org_id": "test",
     "type": "User",
     "auth_type": "basic-auth",
-    "user": {"email": "tuser@redhat.com", "first_name": "test", "username": "tuser@redhat.com"},
+    "user": {
+        "email": "tuser@redhat.com",
+        "first_name": "test",
+        "username": "tuser@redhat.com",
+        "user_id": "51234567",
+    },
 }
 
 SERVICE_ACCOUNT_IDENTITY: dict[str, Any] = {

@@ -1073,7 +1073,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewsListOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
     post:
       operationId: api.views.create_view
       tags:
@@ -1084,8 +1084,6 @@ paths:
         The view is owned by the requesting user.
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -1105,9 +1103,7 @@ paths:
         '400':
           description: Invalid request.
         '403':
-          description: Forbidden - identity type not supported or missing username.
-        '501':
-          description: Not yet implemented.
+          description: Forbidden - identity type not supported or missing user_id.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id
@@ -1131,7 +1127,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: View not found or not visible to the requesting user.
     put:
@@ -1224,7 +1220,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: Source view not found or not visible to the requesting user.
         '501':
@@ -2898,8 +2894,11 @@ components:
       properties:
         key:
           description: >-
-            The column key identifier, e.g. "insights_id",
-            "compliance.last_scan", "advisor.recommendations".
+            The column key identifier. Core fields use bare names
+            (e.g. "display_name", "last_check_in"). App fields use
+            colon-delimited format (e.g. "compliance:last_scan",
+            "advisor:recommendations"). Validated server-side against
+            the field registry.
           type: string
         visible:
           description: Whether the column is visible in the view.
@@ -2940,13 +2939,16 @@ components:
           $ref: '#/components/schemas/ViewSortConfig'
         filters:
           description: >-
-            Active filter criteria. Keys are filter names, values are
-            arrays of selected filter values.
+            Active filter criteria. Mirrors the existing filter engine shape:
+            filter[namespace][field][operator]=value. Top-level keys are app
+            names (e.g. vulnerability, patch) or system_profile. Values are
+            nested objects of field -> operator -> value. Validated server-side
+            against the field and operator registries.
           type: object
           additionalProperties:
-            type: array
-            items:
-              type: string
+            type: object
+            additionalProperties:
+              $ref: '#/components/schemas/HostViewFilterComparison'
     ViewIn:
       title: View Create Payload
       description: Data required to create a new inventory view.
@@ -3032,7 +3034,7 @@ components:
             Only the owner can update or delete a view.
           type: boolean
         created_by:
-          description: The username of the view creator.
+          description: The user_id of the view creator.
           type: string
           nullable: true
         created_at:
