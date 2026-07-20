@@ -39,6 +39,7 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
+from app.telemetry import instrument_botocore
 from app.telemetry import instrument_flask_app
 from app.telemetry import instrument_outbound_http
 from app.telemetry import instrument_sqlalchemy
@@ -375,5 +376,6 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     except RuntimeError:
         logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
     instrument_outbound_http()
+    instrument_botocore()
 
     return app
