@@ -3064,6 +3064,7 @@ def test_strict_validation_fields_parameter(api_get, subtests):
     """Test strict validation of the fields parameter."""
     test_cases = (
         ("?fields[system_profile]=arch", 200),
+        ("?fields[system_profile]=crowdstrike", 200),
         ("?fields[system_profile]=invalid_field", 400),
         ("?fields[invalid_key]=arch", 400),
         ("?fields[system_profile]=arch&fields[crowdstrike]=foo", 200),

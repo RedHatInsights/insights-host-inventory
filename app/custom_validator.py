@@ -54,9 +54,11 @@ class CustomParameterValidator(ParameterValidator):
         self.sp_spec = system_profile_spec
 
     def _validate_system_profile_field_names(self, fields):
+        from app.models.constants import WORKLOADS_FIELDS
+
         query_fields = fields.get("system_profile", {}).keys()
         for field in query_fields:
-            if field not in self.sp_spec:
+            if field not in self.sp_spec and field not in WORKLOADS_FIELDS:
                 raise BadRequestProblem(
                     detail=f"Requested field '{field}' is not present in the system_profile schema."
                 )
