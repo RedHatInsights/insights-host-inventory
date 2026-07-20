@@ -41,6 +41,9 @@ def _env_flag(name: str, default: bool = True) -> bool:
     return os.environ.get(name, default_str).lower() == "true"
 
 
+SUSPEND_JOB = _env_flag("SUSPEND_JOB", default=True)
+
+
 def _parse_org_ids(raw: str) -> list[str]:
     """Split a comma-separated ORG_IDS string into a de-duplicated ordered list."""
     seen: set[str] = set()
@@ -113,7 +116,7 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    if _env_flag("SUSPEND_JOB", default=True):
+    if SUSPEND_JOB:
         logger.info("SUSPEND_JOB set to true; exiting.")
         sys.exit(0)
 
