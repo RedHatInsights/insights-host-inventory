@@ -60,14 +60,18 @@ class AccountStalenessAPIWrapper(BaseEntity):
             return self._base_wrapper.get("/account/staleness/defaults", **api_kwargs)
 
     def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        return extract_staleness_fields(self.get_default_staleness_response(**api_kwargs).json())
+        response = self.get_default_staleness_response(**api_kwargs)
+        response.raise_for_status()
+        return extract_staleness_fields(response.json())
 
     def get_staleness_response(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("GET /account/staleness"):
             return self._base_wrapper.get("/account/staleness", **api_kwargs)
 
     def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        return extract_staleness_fields(self.get_staleness_response(**api_kwargs).json())
+        response = self.get_staleness_response(**api_kwargs)
+        response.raise_for_status()
+        return extract_staleness_fields(response.json())
 
     def create_staleness(
         self,
@@ -116,6 +120,24 @@ class AccountStalenessAPIWrapper(BaseEntity):
     def delete_staleness(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
             return self._base_wrapper.delete("/account/staleness", **api_kwargs)
+
+    def raw_post_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
+        """POST an arbitrary, untyped body to /account/staleness.
+
+        For negative-validation tests that need to send malformed or unknown
+        fields that the typed ``create_staleness`` signature can't express.
+        """
+        with self._host_inventory.apis.measure_time("POST /account/staleness"):
+            return self._base_wrapper.post("/account/staleness", json=body, **api_kwargs)
+
+    def raw_patch_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
+        """PATCH an arbitrary, untyped body to /account/staleness.
+
+        For negative-validation tests that need to send malformed or unknown
+        fields that the typed ``update_staleness`` signature can't express.
+        """
+        with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
+            return self._base_wrapper.patch("/account/staleness", json=body, **api_kwargs)
 
     @contextmanager
     def cleanup_before_and_after(self) -> Generator[None]:

@@ -176,7 +176,7 @@ def test_staleness_create_invalid_field(host_inventory: ApplicationHostInventory
     logger.info(f"Creating account record with:\n{test_data}")
 
     # Current API ignores unknown body fields; assert they are not persisted.
-    host_inventory.apis.account_staleness._base_wrapper.post("/account/staleness", json=test_data)
+    host_inventory.apis.account_staleness.raw_post_request(test_data)
     settings = host_inventory.apis.account_staleness.get_staleness()
     assert "bad_field" not in settings
 
@@ -214,9 +214,7 @@ def test_staleness_create_invalid_value(
     elif value <= 0:
         match_message = "less than the minimum"
 
-    resp = host_inventory.apis.account_staleness._base_wrapper.post(
-        "/account/staleness", json=body
-    )
+    resp = host_inventory.apis.account_staleness.raw_post_request(body)
     assert resp.status_code == 400
     assert match_message in resp.text
 

@@ -194,7 +194,7 @@ def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory
     logger.info(f"Updating account record with:\n{test_data}")
 
     # Current API ignores unknown body fields; assert they are not persisted.
-    host_inventory.apis.account_staleness._base_wrapper.patch("/account/staleness", json=test_data)
+    host_inventory.apis.account_staleness.raw_patch_request(test_data)
     settings = host_inventory.apis.account_staleness.get_staleness()
     assert "bad_field" not in settings
 
@@ -232,9 +232,7 @@ def test_staleness_update_invalid_value(
     elif value <= 0:
         match_message = "less than the minimum"
 
-    resp = host_inventory.apis.account_staleness._base_wrapper.patch(
-        "/account/staleness", json=body
-    )
+    resp = host_inventory.apis.account_staleness.raw_patch_request(body)
     assert resp.status_code == 400
     assert match_message in resp.text
 
