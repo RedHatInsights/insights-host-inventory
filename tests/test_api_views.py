@@ -16,7 +16,7 @@ SYSTEM_TYPE_IDENTITY["system"] = {"cert_type": "system", "cn": "test-cn"}
 
 USER_ID = USER_IDENTITY["user"]["user_id"]
 
-VALID_CONFIG = {"columns": [{"key": "display_name", "visible": True}]}
+VALID_CONFIG = {"columns": [{"key": "display_name"}]}
 
 
 class TestGetViewsList:
@@ -215,10 +215,10 @@ class TestCreateView:
     def test_creates_view_with_app_field_columns(self, flask_client: TestClient) -> None:
         config = {
             "columns": [
-                {"key": "display_name", "visible": True},
-                {"key": "vulnerability:critical_cves", "visible": True},
-                {"key": "advisor:recommendations", "visible": False},
-                {"key": "compliance:last_scan", "visible": True},
+                {"key": "display_name"},
+                {"key": "vulnerability:critical_cves"},
+                {"key": "advisor:recommendations"},
+                {"key": "compliance:last_scan"},
             ]
         }
         data = {"name": "Security View", "configuration": config}
@@ -231,7 +231,7 @@ class TestCreateView:
 
     def test_creates_view_with_sort(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "sort": {"key": "vulnerability:critical_cves", "direction": "desc"},
         }
         data = {"name": "Sorted View", "configuration": config}
@@ -244,7 +244,7 @@ class TestCreateView:
 
     def test_creates_view_with_filters(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "filters": {
                 "vulnerability": {"critical_cves": {"gte": "1"}},
             },
@@ -315,7 +315,7 @@ class TestCreateView:
         assert "columns" in response_data["detail"]
 
     def test_400_for_missing_column_key(self, flask_client: TestClient) -> None:
-        data = {"name": "Bad Config", "configuration": {"columns": [{"visible": True}]}}
+        data = {"name": "Bad Config", "configuration": {"columns": [{}]}}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
@@ -324,7 +324,7 @@ class TestCreateView:
         assert "key" in response_data["detail"]
 
     def test_400_for_invalid_column_key(self, flask_client: TestClient) -> None:
-        data = {"name": "Bad Key", "configuration": {"columns": [{"key": "nonexistent_field", "visible": True}]}}
+        data = {"name": "Bad Key", "configuration": {"columns": [{"key": "nonexistent_field"}]}}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
@@ -335,7 +335,7 @@ class TestCreateView:
     def test_400_for_invalid_app_column_key(self, flask_client: TestClient) -> None:
         data = {
             "name": "Bad App Key",
-            "configuration": {"columns": [{"key": "advisor:nonexistent", "visible": True}]},
+            "configuration": {"columns": [{"key": "advisor:nonexistent"}]},
         }
 
         url = build_views_url()
@@ -346,7 +346,7 @@ class TestCreateView:
 
     def test_400_for_invalid_sort_key(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "sort": {"key": "invalid:field", "direction": "asc"},
         }
         data = {"name": "Bad Sort", "configuration": config}
@@ -359,7 +359,7 @@ class TestCreateView:
 
     def test_400_for_invalid_filter_namespace(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "filters": {"nonexistent_app": {"field": {"eq": "value"}}},
         }
         data = {"name": "Bad Filter", "configuration": config}
@@ -372,7 +372,7 @@ class TestCreateView:
 
     def test_400_for_invalid_filter_field(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "filters": {"vulnerability": {"nonexistent_field": {"eq": "1"}}},
         }
         data = {"name": "Bad Filter Field", "configuration": config}
@@ -385,7 +385,7 @@ class TestCreateView:
 
     def test_400_for_invalid_filter_operator(self, flask_client: TestClient) -> None:
         config = {
-            "columns": [{"key": "display_name", "visible": True}],
+            "columns": [{"key": "display_name"}],
             "filters": {"vulnerability": {"critical_cves": {"invalid_op": "1"}}},
         }
         data = {"name": "Bad Operator", "configuration": config}
