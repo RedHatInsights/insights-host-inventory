@@ -79,21 +79,10 @@ class CustomParameterValidator(ParameterValidator):
             self._validate_system_profile_field_names(fields)
 
     def _resolve_query_params(self, request):
-        query_params = request.query_params
-        if not isinstance(query_params, dict) or any("[" in k for k in query_params.keys()):
-            raw_params = {k: request.query_params.getlist(k) for k in request.query_params}
-            query_params = self.uri_parser.resolve_query(raw_params)
-        return query_params
+        return request.query_params
 
     def validate_query_parameter_list(self, request, security_params=None):
-        print("DEBUG: request type:", type(request))
-        print("DEBUG: request.query_params type:", type(request.query_params))
-        print(
-            "DEBUG: request.query_params keys:",
-            list(request.query_params.keys()) if hasattr(request.query_params, "keys") else None,
-        )
         query_params = self._resolve_query_params(request)
-        print("DEBUG: resolved query_params:", query_params)
 
         for param in self.parameters.get("query", []):
             validator_name = param.get("x-validator")
