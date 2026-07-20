@@ -497,7 +497,7 @@ def test_create_host_to_compare_last_check_in_with_updated(
 
     assert_datetimes_equal(host.last_check_in, host.updated, accuracy=timedelta(milliseconds=100))
 
-    response = host_inventory.apis.hosts.get_hosts(id=host.id)
+    response = host_inventory.apis.hosts.get_hosts(hostname_or_id=host.id)
     host_response = response[0]
     assert_datetimes_equal(
         host_response.last_check_in, host_response.updated, accuracy=timedelta(milliseconds=100)
