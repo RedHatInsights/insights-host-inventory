@@ -81,7 +81,7 @@ class TestRBACHostsCertAuth:
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when getting host details
-        """  # NOQA: E501
+        """  # ruff:ignore[line-too-long]
         expected_hosts_ids = {host.id for host in rbac_cert_auth_setup_resources[0]}
 
         response = host_inventory_non_org_admin_cert_auth.apis.hosts.get_hosts_by_id_response(
@@ -239,7 +239,7 @@ class TestRBACHostsCertAuth:
         """
         hosts = rbac_cert_auth_setup_resources[0]
 
-        response = host_inventory_non_org_admin_cert_auth.apis.system_profile.get_operating_systems_response()  # noqa
+        response = host_inventory_non_org_admin_cert_auth.apis.system_profile.get_operating_systems_response()  # ruff:ignore[line-too-long]
 
         assert response.count == 1
         assert len(response.results) == 1
