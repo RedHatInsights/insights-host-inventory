@@ -2471,7 +2471,7 @@
         "explode": true,
         "example": {},
         "schema": {
-          "$ref": "#/components/schemas/NestedObject"
+          "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
       "fields_param": {
@@ -2484,7 +2484,7 @@
         "x-validator": "sparseFields",
         "example": {},
         "schema": {
-          "$ref": "#/components/schemas/NestedObject"
+          "$ref": "#/components/schemas/SystemProfileNestedObject"
         }
       },
       "hostViewCombinedFilterParam": {
@@ -3171,7 +3171,7 @@
                 "nullable": true,
                 "properties": {
                   "id": {
-                    "$ref": "#/components/schemas/NonStrictUUID"
+                    "$ref": "#/components/schemas/GroupId"
                   },
                   "name": {
                     "$ref": "#/components/schemas/GroupName"
@@ -3223,7 +3223,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/NonStrictUUID"
+            "$ref": "#/components/schemas/HostId"
           }
         }
       },
@@ -3516,7 +3516,7 @@
       "HostViewCombinedFilterValue": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/NestedObject"
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
           },
           {
             "$ref": "#/components/schemas/HostViewApplicationFilterField"
@@ -3874,7 +3874,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "$ref": "#/components/schemas/NonStrictUUID"
+            "$ref": "#/components/schemas/GroupId"
           },
           "name": {
             "$ref": "#/components/schemas/GroupName"
@@ -4153,14 +4153,14 @@
           "network_interfaces": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/NetworkInterface"
+              "$ref": "#/components/schemas/SystemProfileNetworkInterface"
             },
             "x-dynamic": true
           },
           "disk_devices": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DiskDevice"
+              "$ref": "#/components/schemas/SystemProfileDiskDevice"
             }
           },
           "bios_vendor": {
@@ -4372,19 +4372,19 @@
           "yum_repos": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/YumRepo"
+              "$ref": "#/components/schemas/SystemProfileYumRepo"
             }
           },
           "dnf_modules": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DnfModule"
+              "$ref": "#/components/schemas/SystemProfileDnfModule"
             }
           },
           "installed_products": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/InstalledProduct"
+              "$ref": "#/components/schemas/SystemProfileInstalledProduct"
             },
             "x-dynamic": true
           },
@@ -4571,7 +4571,62 @@
             "type": "array",
             "description": "The list of deployments on the system as reported by rpm-ostree status --json",
             "items": {
-              "$ref": "#/components/schemas/RPMOSTreeDeployment"
+              "description": "Limited deployment information from systems managed by rpm-ostree as reported by rpm-ostree status --json",
+              "type": "object",
+              "required": [
+                "id",
+                "checksum",
+                "origin",
+                "osname",
+                "booted",
+                "pinned"
+              ],
+              "properties": {
+                "id": {
+                  "description": "ID of the deployment",
+                  "example": "fedora-silverblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-blackpink-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-orangeblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "checksum": {
+                  "description": "The checksum / commit of the deployment",
+                  "example": "63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 73335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 83335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb",
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[a-fA-F0-9]{64}$"
+                },
+                "origin": {
+                  "description": "The origin repo from which the commit was installed",
+                  "example": "fedora/33/x86_64/silverblue, fedora/31/x86_64/blackpink, fedora/34/x86_64/orangeblue",
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "osname": {
+                  "description": "The operating system name",
+                  "example": "fedora-silverblue, fedora-blackpink, fedora-orangeblue",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "version": {
+                  "description": "The version of the deployment",
+                  "example": "33.21, 31.12, 33.45",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "booted": {
+                  "description": "Whether the deployment is currently booted",
+                  "type": "boolean",
+                  "example": true
+                },
+                "pinned": {
+                  "description": "Whether the deployment is currently pinned",
+                  "type": "boolean",
+                  "example": false
+                }
+              }
             }
           },
           "rhsm": {
@@ -4673,7 +4728,7 @@
               "running_instances": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/InterSystemsRunningInstance"
+                  "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                 }
               }
             }
@@ -5018,7 +5073,7 @@
                   "running_instances": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/InterSystemsRunningInstance"
+                      "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                     }
                   }
                 }
@@ -5156,25 +5211,230 @@
         }
       },
       "SystemProfileNestedObject": {
-        "$ref": "#/components/schemas/NestedObject"
+        "type": "object",
+        "description": "An arbitrary object that does not allow empty string keys.",
+        "x-propertyNames": {
+          "minLength": 1
+        },
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/SystemProfileNestedObject"
+            },
+            {
+              "not": {
+                "type": "object"
+              }
+            }
+          ]
+        }
       },
       "SystemProfileDiskDevice": {
-        "$ref": "#/components/schemas/DiskDevice"
+        "description": "Representation of one mounted device",
+        "type": "object",
+        "properties": {
+          "device": {
+            "example": "/dev/fdd0, /dev/sda1, /dev/nvme2",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "label": {
+            "description": "User-defined mount label",
+            "type": "string",
+            "example": "foo, bar, baz",
+            "maxLength": 1024
+          },
+          "options": {
+            "description": "Mount options for nested object",
+            "example": {
+              "uid": "0",
+              "ro": true
+            },
+            "$ref": "#/components/schemas/SystemProfileNestedObject"
+          },
+          "mount_point": {
+            "description": "The mount point",
+            "example": "/mnt/remote_nfs_shares, /mnt/local_nfs, /mnt/foo",
+            "type": "string",
+            "maxLength": 2048
+          },
+          "type": {
+            "description": "The mount type",
+            "example": "ext1, ext2, ext3",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
       },
       "SystemProfileYumRepo": {
-        "$ref": "#/components/schemas/YumRepo"
+        "description": "Representation of one yum repository",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 256,
+            "example": "abc, dfg, pop"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 1024,
+            "example": "abc, dfg, pop"
+          },
+          "gpgcheck": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "abc, dfg, pop"
+          },
+          "mirrorlist": {
+            "description": "URL of a mirrorlist for the repository",
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2048,
+            "example": "https://rhui.redhat.com/pulp/mirror/content/dist/rhel8/rhui/$releasever/$basearch/baseos/os"
+          }
+        }
       },
       "SystemProfileDnfModule": {
-        "$ref": "#/components/schemas/DnfModule"
+        "description": "Representation of one DNF module",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "example": "abc, dfg, pop"
+          },
+          "stream": {
+            "type": "string",
+            "maxLength": 2048,
+            "example": "abc, dfg, pop"
+          },
+          "status": {
+            "type": "array",
+            "items": {
+              "description": "The module stream's status",
+              "type": "string",
+              "maxLength": 64,
+              "enum": [
+                "default",
+                "enabled",
+                "installed"
+              ],
+              "example": "default, enabled, installed"
+            }
+          }
+        }
       },
       "SystemProfileInstalledProduct": {
-        "$ref": "#/components/schemas/InstalledProduct"
+        "description": "Representation of one installed product",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 512,
+            "example": "abc, dfg, pop"
+          },
+          "id": {
+            "description": "The product ID",
+            "type": "string",
+            "maxLength": 64,
+            "example": "abc, dfg, pop"
+          },
+          "status": {
+            "description": "Subscription status for product",
+            "example": "Subscribed, inactive, canceled",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
       },
       "SystemProfileNetworkInterface": {
-        "$ref": "#/components/schemas/NetworkInterface"
+        "description": "Representation of one network interface",
+        "type": "object",
+        "properties": {
+          "ipv4_addresses": {
+            "type": "array",
+            "items": {
+              "description": "The ipv4 address of the system",
+              "example": "227.161.169.210 30.143.76.153 233.87.178.7, 60.209.47.155 40.124.217.134, 67.77.119.70",
+              "type": "string",
+              "format": "ipv4"
+            }
+          },
+          "ipv6_addresses": {
+            "type": "array",
+            "items": {
+              "description": "The ipv6 address of the system",
+              "example": "8886:2565:f753:1bbb:1d08:4239:c470:a889, dd2e:879f:afff:7845:b346:bb88:bcf2:4b1b, e979:3081:7218:4c98:fd19:5777:309a:957b",
+              "type": "string",
+              "format": "ipv6"
+            }
+          },
+          "mtu": {
+            "description": "MTU (Maximum transmission unit)",
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "mac_address": {
+            "description": "MAC address (with or without colons)",
+            "example": "00:00:00:00:00:00, 100000000000, 20:00:00:00:00:00",
+            "type": "string",
+            "pattern": "^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|^[A-Fa-f0-9]{12}$|^([A-Fa-f0-9]{2}[:-]){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$",
+            "maxLength": 59
+          },
+          "name": {
+            "description": "Name of interface",
+            "type": "string",
+            "example": "eth0, eth1, eth2",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "state": {
+            "description": "Interface state (UP, DOWN, UNKNOWN)",
+            "type": "string",
+            "example": "UP, DOWN, UNKNOWN",
+            "maxLength": 25
+          },
+          "type": {
+            "description": "Interface type (ether, loopback)",
+            "type": "string",
+            "example": "ether, infiniband, loopback",
+            "maxLength": 18
+          }
+        }
       },
       "SystemProfileInterSystemsRunningInstance": {
-        "$ref": "#/components/schemas/InterSystemsRunningInstance"
+        "description": "The info for an InterSystems instance running on the system",
+        "type": "object",
+        "properties": {
+          "instance_name": {
+            "description": "The name of the instance",
+            "type": "string",
+            "example": "IRIS3, PROD",
+            "maxLength": 255
+          },
+          "product": {
+            "description": "The product of the instance",
+            "type": "string",
+            "example": "IRIS",
+            "maxLength": 64
+          },
+          "version": {
+            "description": "The version of the instance",
+            "type": "string",
+            "example": "2023.1, 2023.2",
+            "maxLength": 7,
+            "pattern": "^\\d+(\\.\\d+)+$"
+          }
+        }
       },
       "ViewColumnConfig": {
         "title": "View Column Configuration",
@@ -5438,10 +5698,47 @@
         ],
         "properties": {
           "meta": {
-            "$ref": "#/components/schemas/Meta"
+            "description": "The metadata for resource-types responses",
+            "type": "object",
+            "required": [
+              "count"
+            ],
+            "properties": {
+              "count": {
+                "description": "The total number of objects returned by the query.",
+                "type": "integer"
+              }
+            }
           },
           "links": {
-            "$ref": "#/components/schemas/Links"
+            "description": "A collection of pagination links for resource-types endpoints",
+            "type": "object",
+            "required": [
+              "first",
+              "previous",
+              "next",
+              "last"
+            ],
+            "properties": {
+              "first": {
+                "description": "The URI path for the first page in the pagination",
+                "type": "string"
+              },
+              "previous": {
+                "description": "The URI path for the previous page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "next": {
+                "description": "The URI path for the next page in the pagination",
+                "type": "string",
+                "nullable": true
+              },
+              "last": {
+                "description": "The URI path for the last page in the pagination",
+                "type": "string"
+              }
+            }
           }
         }
       },
@@ -5487,333 +5784,6 @@
           "title",
           "detail"
         ]
-      },
-      "NestedObject": {
-        "type": "object",
-        "description": "An arbitrary object that does not allow empty string keys.",
-        "x-propertyNames": {
-          "minLength": 1
-        },
-        "additionalProperties": {
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/NestedObject"
-            },
-            {
-              "not": {
-                "type": "object"
-              }
-            }
-          ]
-        }
-      },
-      "NetworkInterface": {
-        "description": "Representation of one network interface",
-        "type": "object",
-        "properties": {
-          "ipv4_addresses": {
-            "type": "array",
-            "items": {
-              "description": "The ipv4 address of the system",
-              "example": "227.161.169.210 30.143.76.153 233.87.178.7, 60.209.47.155 40.124.217.134, 67.77.119.70",
-              "type": "string",
-              "format": "ipv4"
-            }
-          },
-          "ipv6_addresses": {
-            "type": "array",
-            "items": {
-              "description": "The ipv6 address of the system",
-              "example": "8886:2565:f753:1bbb:1d08:4239:c470:a889, dd2e:879f:afff:7845:b346:bb88:bcf2:4b1b, e979:3081:7218:4c98:fd19:5777:309a:957b",
-              "type": "string",
-              "format": "ipv6"
-            }
-          },
-          "mtu": {
-            "description": "MTU (Maximum transmission unit)",
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0,
-            "maximum": 2147483647
-          },
-          "mac_address": {
-            "description": "MAC address (with or without colons)",
-            "example": "00:00:00:00:00:00, 100000000000, 20:00:00:00:00:00",
-            "type": "string",
-            "pattern": "^([A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$|^([A-Fa-f0-9]{4}[.]){2}[A-Fa-f0-9]{4}$|^[A-Fa-f0-9]{12}$|^([A-Fa-f0-9]{2}[:-]){19}[A-Fa-f0-9]{2}$|^[A-Fa-f0-9]{40}$",
-            "maxLength": 59
-          },
-          "name": {
-            "description": "Name of interface",
-            "type": "string",
-            "example": "eth0, eth1, eth2",
-            "minLength": 1,
-            "maxLength": 50
-          },
-          "state": {
-            "description": "Interface state (UP, DOWN, UNKNOWN)",
-            "type": "string",
-            "example": "UP, DOWN, UNKNOWN",
-            "maxLength": 25
-          },
-          "type": {
-            "description": "Interface type (ether, loopback)",
-            "type": "string",
-            "example": "ether, infiniband, loopback",
-            "maxLength": 18
-          }
-        }
-      },
-      "DiskDevice": {
-        "description": "Representation of one mounted device",
-        "type": "object",
-        "properties": {
-          "device": {
-            "example": "/dev/fdd0, /dev/sda1, /dev/nvme2",
-            "type": "string",
-            "maxLength": 2048
-          },
-          "label": {
-            "description": "User-defined mount label",
-            "type": "string",
-            "example": "foo, bar, baz",
-            "maxLength": 1024
-          },
-          "options": {
-            "description": "Mount options for nested object",
-            "example": {
-              "uid": "0",
-              "ro": true
-            },
-            "$ref": "#/components/schemas/NestedObject"
-          },
-          "mount_point": {
-            "description": "The mount point",
-            "example": "/mnt/remote_nfs_shares, /mnt/local_nfs, /mnt/foo",
-            "type": "string",
-            "maxLength": 2048
-          },
-          "type": {
-            "description": "The mount type",
-            "example": "ext1, ext2, ext3",
-            "type": "string",
-            "maxLength": 256
-          }
-        }
-      },
-      "YumRepo": {
-        "description": "Representation of one yum repository",
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "maxLength": 256,
-            "example": "abc, dfg, pop"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 1024,
-            "example": "abc, dfg, pop"
-          },
-          "gpgcheck": {
-            "type": "boolean"
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "base_url": {
-            "type": "string",
-            "format": "uri",
-            "maxLength": 2048,
-            "example": "abc, dfg, pop"
-          },
-          "mirrorlist": {
-            "description": "URL of a mirrorlist for the repository",
-            "type": "string",
-            "format": "uri",
-            "maxLength": 2048,
-            "example": "https://rhui.redhat.com/pulp/mirror/content/dist/rhel8/rhui/$releasever/$basearch/baseos/os"
-          }
-        }
-      },
-      "DnfModule": {
-        "description": "Representation of one DNF module",
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 128,
-            "example": "abc, dfg, pop"
-          },
-          "stream": {
-            "type": "string",
-            "maxLength": 2048,
-            "example": "abc, dfg, pop"
-          },
-          "status": {
-            "type": "array",
-            "items": {
-              "description": "The module stream's status",
-              "type": "string",
-              "maxLength": 64,
-              "enum": [
-                "default",
-                "enabled",
-                "installed"
-              ],
-              "example": "default, enabled, installed"
-            }
-          }
-        }
-      },
-      "InstalledProduct": {
-        "description": "Representation of one installed product",
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 512,
-            "example": "abc, dfg, pop"
-          },
-          "id": {
-            "description": "The product ID",
-            "type": "string",
-            "maxLength": 64,
-            "example": "abc, dfg, pop"
-          },
-          "status": {
-            "description": "Subscription status for product",
-            "example": "Subscribed, inactive, canceled",
-            "type": "string",
-            "maxLength": 256
-          }
-        }
-      },
-      "RPMOSTreeDeployment": {
-        "description": "Limited deployment information from systems managed by rpm-ostree as reported by rpm-ostree status --json",
-        "type": "object",
-        "required": [
-          "id",
-          "checksum",
-          "origin",
-          "osname",
-          "booted",
-          "pinned"
-        ],
-        "properties": {
-          "id": {
-            "description": "ID of the deployment",
-            "example": "fedora-silverblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-blackpink-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0, fedora-orangeblue-63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb.0",
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "checksum": {
-            "description": "The checksum / commit of the deployment",
-            "example": "63335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 73335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb, 83335a77f9853618ba1a5f139c5805e82176a2a040ef5e34d7402e12263af5bb",
-            "type": "string",
-            "maxLength": 64,
-            "pattern": "^[a-fA-F0-9]{64}$"
-          },
-          "origin": {
-            "description": "The origin repo from which the commit was installed",
-            "example": "fedora/33/x86_64/silverblue, fedora/31/x86_64/blackpink, fedora/34/x86_64/orangeblue",
-            "type": "string",
-            "maxLength": 255
-          },
-          "osname": {
-            "description": "The operating system name",
-            "example": "fedora-silverblue, fedora-blackpink, fedora-orangeblue",
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "version": {
-            "description": "The version of the deployment",
-            "example": "33.21, 31.12, 33.45",
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "booted": {
-            "description": "Whether the deployment is currently booted",
-            "type": "boolean",
-            "example": true
-          },
-          "pinned": {
-            "description": "Whether the deployment is currently pinned",
-            "type": "boolean",
-            "example": false
-          }
-        }
-      },
-      "InterSystemsRunningInstance": {
-        "description": "The info for an InterSystems instance running on the system",
-        "type": "object",
-        "properties": {
-          "instance_name": {
-            "description": "The name of the instance",
-            "type": "string",
-            "example": "IRIS3, PROD",
-            "maxLength": 255
-          },
-          "product": {
-            "description": "The product of the instance",
-            "type": "string",
-            "example": "IRIS",
-            "maxLength": 64
-          },
-          "version": {
-            "description": "The version of the instance",
-            "type": "string",
-            "example": "2023.1, 2023.2",
-            "maxLength": 7,
-            "pattern": "^\\d+(\\.\\d+)+$"
-          }
-        }
-      },
-      "Meta": {
-        "description": "The metadata for resource-types responses",
-        "type": "object",
-        "required": [
-          "count"
-        ],
-        "properties": {
-          "count": {
-            "description": "The total number of objects returned by the query.",
-            "type": "integer"
-          }
-        }
-      },
-      "Links": {
-        "description": "A collection of pagination links for resource-types endpoints",
-        "type": "object",
-        "required": [
-          "first",
-          "previous",
-          "next",
-          "last"
-        ],
-        "properties": {
-          "first": {
-            "description": "The URI path for the first page in the pagination",
-            "type": "string"
-          },
-          "previous": {
-            "description": "The URI path for the previous page in the pagination",
-            "type": "string",
-            "nullable": true
-          },
-          "next": {
-            "description": "The URI path for the next page in the pagination",
-            "type": "string",
-            "nullable": true
-          },
-          "last": {
-            "description": "The URI path for the last page in the pagination",
-            "type": "string"
-          }
-        }
       }
     },
     "responses": {

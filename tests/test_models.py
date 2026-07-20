@@ -2542,6 +2542,17 @@ class TestInputViewSchema:
 
         assert "configuration" in exc_info.value.messages
 
+    def test_visible_field_rejected(self):
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            InputViewSchema().load(
+                {
+                    "name": "Test",
+                    "configuration": {"columns": [{"key": "display_name", "visible": True}]},
+                }
+            )
+
+        assert "visible" in str(exc_info.value.messages)
+
 
 class TestPatchViewSchema:
     def test_all_fields_optional(self):
@@ -2565,6 +2576,16 @@ class TestPatchViewSchema:
             PatchViewSchema().load({"name": ""})
 
         assert "name" in exc_info.value.messages
+
+    def test_visible_field_rejected(self):
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            PatchViewSchema().load(
+                {
+                    "configuration": {"columns": [{"key": "id", "visible": False}]},
+                }
+            )
+
+        assert "visible" in str(exc_info.value.messages)
 
 
 class TestViewResponseSchema:

@@ -396,6 +396,15 @@ class TestCreateView:
         assert_response_status(response_status, 400)
         assert "invalid_op" in response_data["detail"]
 
+    def test_400_for_unknown_visible_field(self, flask_client: TestClient) -> None:
+        data = {"name": "Bad", "configuration": {"columns": [{"key": "display_name", "visible": True}]}}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "visible" in response_data["detail"]
+
     def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
         data = {"name": "Test", "configuration": VALID_CONFIG}
 
