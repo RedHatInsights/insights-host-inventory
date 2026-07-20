@@ -365,7 +365,7 @@ class HostViewAPIWrapper(BaseEntity):
                     app_name=app_name,
                     **api_kwargs,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # ruff:ignore[blind-except]
                 logger.warning("get_host_view_app_data failed: %s: %s", type(exc).__name__, exc)
                 return None
 
