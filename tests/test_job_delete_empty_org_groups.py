@@ -4,6 +4,8 @@ import pytest
 
 from app.models import Group
 from app.models import db
+from jobs.delete_empty_org_groups import _env_flag
+from jobs.delete_empty_org_groups import _format_group_ids_for_log
 from jobs.delete_empty_org_groups import _parse_org_ids
 from jobs.delete_empty_org_groups import run
 from tests.helpers.test_utils import SYSTEM_IDENTITY
@@ -40,6 +42,39 @@ def test_parse_org_ids_strips_whitespace_and_dedupes():
 
 def test_parse_org_ids_empty_string():
     assert _parse_org_ids("") == []
+
+
+# -- _env_flag / _format_group_ids_for_log ------------------------------------
+
+
+def test_env_flag_defaults_true(monkeypatch):
+    monkeypatch.delenv("SOME_FLAG", raising=False)
+    assert _env_flag("SOME_FLAG", default=True) is True
+
+
+def test_env_flag_defaults_false(monkeypatch):
+    monkeypatch.delenv("SOME_FLAG", raising=False)
+    assert _env_flag("SOME_FLAG", default=False) is False
+
+
+def test_env_flag_reads_true_false(monkeypatch):
+    monkeypatch.setenv("SOME_FLAG", "false")
+    assert _env_flag("SOME_FLAG", default=True) is False
+    monkeypatch.setenv("SOME_FLAG", "TRUE")
+    assert _env_flag("SOME_FLAG", default=False) is True
+
+
+def test_format_group_ids_no_truncation():
+    ids = [f"id-{i}" for i in range(5)]
+    assert _format_group_ids_for_log(ids) == ids
+
+
+def test_format_group_ids_truncates():
+    ids = [f"id-{i}" for i in range(12)]
+    result = _format_group_ids_for_log(ids)
+    assert result[:10] == ids[:10]
+    assert result[-1] == "...and 2 more"
+    assert len(result) == 11
 
 
 # -- run() integration tests --------------------------------------------------

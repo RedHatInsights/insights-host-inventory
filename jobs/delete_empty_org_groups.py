@@ -32,7 +32,16 @@ from lib.db import session_guard
 PROMETHEUS_JOB = "delete-empty-org-groups"
 LOGGER_NAME = "delete_empty_org_groups"
 COLLECTED_METRICS: tuple = ()
-SUSPEND_JOB = os.environ.get("SUSPEND_JOB", "true").lower() == "true"
+MAX_GROUP_IDS_LOGGED = 10
+
+
+def _env_flag(name: str, default: bool = True) -> bool:
+    """Read a boolean environment variable (\"true\"/\"false\", case-insensitive)."""
+    default_str = "true" if default else "false"
+    return os.environ.get(name, default_str).lower() == "true"
+
+
+SUSPEND_JOB = _env_flag("SUSPEND_JOB", default=True)
 
 
 def _parse_org_ids(raw: str) -> list[str]:
@@ -48,6 +57,14 @@ def _parse_org_ids(raw: str) -> list[str]:
     return org_ids
 
 
+def _format_group_ids_for_log(group_ids: list[str]) -> list[str]:
+    """Return group IDs for logging, truncating when the list is long."""
+    if len(group_ids) <= MAX_GROUP_IDS_LOGGED:
+        return group_ids
+    remaining = len(group_ids) - MAX_GROUP_IDS_LOGGED
+    return [*group_ids[:MAX_GROUP_IDS_LOGGED], f"...and {remaining} more"]
+
+
 def run(logger: Logger, session: Session, application: FlaskApp) -> None:
     raw_org_ids = os.environ.get("ORG_IDS", "").strip()
     if not raw_org_ids:
@@ -59,7 +76,7 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
         logger.error("ORG_IDS contained no valid org_id values.")
         sys.exit(1)
 
-    dry_run = os.environ.get("DRY_RUN", "true").lower() == "true"
+    dry_run = _env_flag("DRY_RUN", default=True)
 
     with application.app.app_context():
         threadctx.request_id = None
@@ -86,7 +103,7 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
                 "org_id=%s: will delete %d group(s): %s",
                 org_id,
                 len(groups),
-                group_ids,
+                _format_group_ids_for_log(group_ids),
             )
 
         if dry_run:
