@@ -1841,7 +1841,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       },
@@ -1851,7 +1851,7 @@
           "views"
         ],
         "summary": "Create a new inventory view",
-        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1883,10 +1883,7 @@
             "description": "Invalid request."
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
-          },
-          "501": {
-            "description": "Not yet implemented."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       }
@@ -1921,7 +1918,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
@@ -2044,7 +2041,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "Source view not found or not visible to the requesting user."
@@ -5448,7 +5445,7 @@
         ],
         "properties": {
           "key": {
-            "description": "The column key identifier, e.g. \"insights_id\", \"compliance.last_scan\", \"advisor.recommendations\".",
+            "description": "The column key identifier. Core fields use bare names (e.g. \"display_name\", \"last_check_in\"). App fields use colon-delimited format (e.g. \"compliance:last_scan\", \"advisor:recommendations\"). Validated server-side against the field registry.",
             "type": "string"
           },
           "visible": {
@@ -5500,12 +5497,12 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
+            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value. Validated server-side against the field and operator registries.",
             "type": "object",
             "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/HostViewFilterComparison"
               }
             }
           }
@@ -5608,7 +5605,7 @@
             "type": "boolean"
           },
           "created_by": {
-            "description": "The username of the view creator.",
+            "description": "The user_id of the view creator.",
             "type": "string",
             "nullable": true
           },

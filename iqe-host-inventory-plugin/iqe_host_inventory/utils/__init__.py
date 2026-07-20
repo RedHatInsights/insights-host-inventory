@@ -12,9 +12,9 @@ from random import randint
 from typing import TYPE_CHECKING
 
 from box import BoxKeyError
-from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
 from iqe.users.user import ExplicitUser
+from iqe.users.user import User
 
 if TYPE_CHECKING:
     from iqe_host_inventory.modeling.wrappers import HostWrapper
@@ -38,13 +38,17 @@ def flatten[T](input: Sequence[Sequence[T]] | Iterator[Sequence[T]]) -> list[T]:
 def get_account_number(application: Application, given_account_number: str | None = None) -> str:
     if given_account_number is not None:
         return given_account_number
+
+    user = application.user
+    if isinstance(user, (ExplicitUser, User)) or hasattr(user, "attributes"):
+        account_number = user.attributes.account_number
+        if account_number is None:
+            raise InvalidConfigurationParameterError(
+                "Missing primary_user account_number in your settings.local.yaml file"
+            )
+        return str(account_number)
+
     try:
-        user = application.user
-        if isinstance(user, ExplicitUser):
-            identity = user.identity
-            if identity is None:
-                raise BoxKeyError("identity")
-            return str(identity.account_number)
         return str(user["identity"].account_number)
     except BoxKeyError:
         raise InvalidConfigurationParameterError(
@@ -57,9 +61,8 @@ def get_org_id(application: Application, given_org_id: str | None = None) -> str
         return given_org_id
 
     user = application.user
-    if isinstance(user, ExplicitUser):
-        identity = user.identity
-        org_id: str | None = identity.org_id if identity is not None else None
+    if isinstance(user, (ExplicitUser, User)) or hasattr(user, "attributes"):
+        org_id: str | None = user.attributes.org_id
     else:
         identity_data = user.get("identity", {})
         org_id = identity_data.get("org_id") or identity_data.get("internal", {}).get("org_id")
@@ -72,7 +75,9 @@ def get_org_id(application: Application, given_org_id: str | None = None) -> str
     return str(org_id)
 
 
-def get_username(user_data: DynaBox) -> str:
+def get_username(user_data) -> str:
+    if hasattr(user_data, "auth") and hasattr(user_data.auth, "username"):
+        return user_data.auth.username
     username = user_data.get("auth", {}).get("username") or user_data.get("identity", {}).get(
         "user", {}
     ).get("username")
