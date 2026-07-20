@@ -51,7 +51,7 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         importance: high
         title: Inventory API: Ensure that the database schema changes
             will not broke external apps.
-    """  # noqa: E501
+    """  # ruff:ignore[line-too-long]
     query = (
         "select h.id as inventory_id, h.org_id, h.modified_on, "
         "h.account, h.display_name, h.insights_id, h.subscription_manager_id, "
@@ -89,15 +89,15 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "    from jsonb_array_elements_text(h.facts->'rhsm'->'RH_PROD') as items) rhsm_products "
         "cross join lateral ( "
         "    select string_agg(items, ',') as qpc_products "
-        "    from jsonb_array_elements_text(h.facts->'qpc'->'rh_products_installed') as items) qpc_prods "  # noqa: E501
+        "    from jsonb_array_elements_text(h.facts->'qpc'->'rh_products_installed') as items) qpc_prods "  # ruff:ignore[line-too-long]
         "cross join lateral ( "
         "    select string_agg(items, ',') as qpc_product_ids "
-        "    from jsonb_array_elements_text(h.facts->'qpc'->'rh_product_certs') as items) qpc_certs "  # noqa: E501
+        "    from jsonb_array_elements_text(h.facts->'qpc'->'rh_product_certs') as items) qpc_certs "  # ruff:ignore[line-too-long]
         "cross join lateral ( "
         "    select string_agg(items->>'id', ',') as system_profile_product_ids "
         "    from jsonb_array_elements(spd.installed_products) as items) system_profile "
         "where h.org_id IN ('00000000')"
-        "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # noqa: E501
+        "   and (h.facts->'rhsm'->>'BILLING_MODEL' IS NULL OR h.facts->'rhsm'->>'BILLING_MODEL' <> 'marketplace')"  # ruff:ignore[line-too-long]
         "   and (h.host_type IS NULL OR h.host_type <> 'edge')"
         "   and h.last_check_in + make_interval(secs => coalesce(s.conventional_time_to_stale, "
         "104400)) > NOW() - make_interval(secs => coalesce(s.conventional_time_to_delete, "

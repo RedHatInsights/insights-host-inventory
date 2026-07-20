@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re  # noqa: F401
+import re  # ruff:ignore[unused-import]
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
