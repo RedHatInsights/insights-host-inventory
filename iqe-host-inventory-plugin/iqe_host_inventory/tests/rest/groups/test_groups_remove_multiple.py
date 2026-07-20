@@ -33,7 +33,7 @@ def test_groups_remove_hosts_from_multiple_groups_response(
     host = host_inventory.upload.create_host()
     host_inventory.apis.groups.create_group(generate_display_name(), hosts=host)
 
-    response = host_inventory.apis.groups.raw_api.api_group_delete_hosts_from_different_groups_with_http_info(  # noqa
+    response = host_inventory.apis.groups.raw_api.api_group_delete_hosts_from_different_groups_with_http_info(  # ruff:ignore[line-too-long]
         [host.id]
     )
     assert response[1] == 204
