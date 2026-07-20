@@ -227,7 +227,7 @@ def test_account_update_same_account_number(
     # assert updated_host.account == updated_host_data["account"]
     assert updated_host.account == host_data["account"]
     assert updated_host.org_id == host_data["org_id"]
-    # host_inventory.apis.hosts.wait_for_updated(updated_host, account=updated_host_data["account"])  # noqa: E501
+    # host_inventory.apis.hosts.wait_for_updated(updated_host, account=updated_host_data["account"])  # ruff:ignore[line-too-long]
     host_inventory.apis.hosts.verify_not_updated(updated_host, account=host_data["account"])
 
     response_host = host_inventory.apis.hosts.get_hosts_response(
@@ -281,7 +281,7 @@ def test_account_update_different_account_number(
     # assert updated_host.account == updated_host_data["account"]
     assert updated_host.account == host_data["account"]
     assert updated_host.org_id == host_data["org_id"]
-    # host_inventory.apis.hosts.wait_for_updated(updated_host, account=updated_host_data["account"])  # noqa: E501
+    # host_inventory.apis.hosts.wait_for_updated(updated_host, account=updated_host_data["account"])  # ruff:ignore[line-too-long]
     host_inventory.apis.hosts.verify_not_updated(updated_host, account=host_data["account"])
 
     response_host = host_inventory.apis.hosts.get_hosts_response(
