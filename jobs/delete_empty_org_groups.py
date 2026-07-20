@@ -65,17 +65,16 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
         threadctx.request_id = None
 
         # Validate first: any org with hosts aborts the whole job before deletions.
-        for org_id in org_ids:
-            host_count = session.query(Host).filter(Host.org_id == org_id).count()
-            if host_count > 0:
-                logger.error(
-                    "org_id=%s has %d host(s); refusing to delete groups. Exiting.",
-                    org_id,
-                    host_count,
-                )
-                sys.exit(1)
+        orgs_with_hosts = {
+            row[0] for row in session.query(Host.org_id).filter(Host.org_id.in_(org_ids)).distinct().all()
+        }
+        if orgs_with_hosts:
+            logger.error(
+                "org_id(s) %s have host(s); refusing to delete groups. Exiting.",
+                sorted(orgs_with_hosts),
+            )
+            sys.exit(1)
 
-        total_deleted = 0
         for org_id in org_ids:
             groups = session.query(Group).filter(Group.org_id == org_id).all()
             if not groups:
@@ -90,18 +89,13 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
                 group_ids,
             )
 
-            if dry_run:
-                continue
-
-            with session_guard(session, close=False):
-                deleted = session.query(Group).filter(Group.org_id == org_id).delete(synchronize_session="fetch")
-            total_deleted += deleted
-            logger.info("org_id=%s: deleted %d group(s).", org_id, deleted)
-
         if dry_run:
             logger.info("DRY_RUN is enabled; no changes written.")
-        else:
-            logger.info("Finished deleting groups. Total deleted: %d", total_deleted)
+            return
+
+        with session_guard(session, close=False):
+            total_deleted = session.query(Group).filter(Group.org_id.in_(org_ids)).delete(synchronize_session=False)
+        logger.info("Finished deleting groups. Total deleted: %d", total_deleted)
 
 
 if __name__ == "__main__":
