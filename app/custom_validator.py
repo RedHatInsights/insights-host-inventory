@@ -106,6 +106,8 @@ class CustomParameterValidator(ParameterValidator):
         spec_params = [x["name"] for x in self.parameters.get("query", [])]
         spec_params.extend(security_params or [])
 
+        print(f"PATH: {request.url.path}, REQUEST_PARAMS: {request_params}, SPEC_PARAMS: {spec_params}")
+
         return self.validate_parameter_list(request_params, spec_params)
 
 
