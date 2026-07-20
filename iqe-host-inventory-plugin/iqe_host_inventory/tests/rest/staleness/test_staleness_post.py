@@ -175,14 +175,7 @@ def test_staleness_create_invalid_field(host_inventory: ApplicationHostInventory
     test_data = {TIME_TO_STALE: DAY_SECS, "bad_field": DAY_SECS}
     logger.info(f"Creating account record with:\n{test_data}")
 
-    # TODO: Uncomment this when https://issues.redhat.com/browse/RHINENG-14003 is done
-    # resp = host_inventory.apis.account_staleness._base_wrapper.post(
-    #     "/account/staleness", json=test_data
-    # )
-    # assert resp.status_code == 400
-    # assert "Unknown field" in resp.text
-
-    # TODO: And delete these 3 lines (temporary replacement for above)
+    # Current API ignores unknown body fields; assert they are not persisted.
     host_inventory.apis.account_staleness._base_wrapper.post("/account/staleness", json=test_data)
     settings = host_inventory.apis.account_staleness.get_staleness()
     assert "bad_field" not in settings

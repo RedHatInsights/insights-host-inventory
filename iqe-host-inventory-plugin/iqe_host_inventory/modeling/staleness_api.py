@@ -33,20 +33,6 @@ class AccountStalenessAPIWrapper(BaseEntity):
     def _base_wrapper(self) -> BaseAPIWrapper:
         return BaseAPIWrapper(self.application)
 
-    def get_default_staleness_response(self, **api_kwargs: Any) -> requests.Response:
-        with self._host_inventory.apis.measure_time("GET /account/staleness/defaults"):
-            return self._base_wrapper.get("/account/staleness/defaults", **api_kwargs)
-
-    def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        return extract_staleness_fields(self.get_default_staleness_response(**api_kwargs).json())
-
-    def get_staleness_response(self, **api_kwargs: Any) -> requests.Response:
-        with self._host_inventory.apis.measure_time("GET /account/staleness"):
-            return self._base_wrapper.get("/account/staleness", **api_kwargs)
-
-    def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        return extract_staleness_fields(self.get_staleness_response(**api_kwargs).json())
-
     def _build_staleness_body(
         self,
         conventional_time_to_stale: int | None,
@@ -68,6 +54,20 @@ class AccountStalenessAPIWrapper(BaseEntity):
             }.items()
             if v is not None
         }
+
+    def get_default_staleness_response(self, **api_kwargs: Any) -> requests.Response:
+        with self._host_inventory.apis.measure_time("GET /account/staleness/defaults"):
+            return self._base_wrapper.get("/account/staleness/defaults", **api_kwargs)
+
+    def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
+        return extract_staleness_fields(self.get_default_staleness_response(**api_kwargs).json())
+
+    def get_staleness_response(self, **api_kwargs: Any) -> requests.Response:
+        with self._host_inventory.apis.measure_time("GET /account/staleness"):
+            return self._base_wrapper.get("/account/staleness", **api_kwargs)
+
+    def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
+        return extract_staleness_fields(self.get_staleness_response(**api_kwargs).json())
 
     def create_staleness(
         self,
@@ -119,11 +119,11 @@ class AccountStalenessAPIWrapper(BaseEntity):
 
     @contextmanager
     def cleanup_before_and_after(self) -> Generator[None]:
-        with suppress(Exception):
+        with suppress(requests.RequestException):
             self.delete_staleness()
 
         try:
             yield
         finally:
-            with suppress(Exception):
+            with suppress(requests.RequestException):
                 self.delete_staleness()
