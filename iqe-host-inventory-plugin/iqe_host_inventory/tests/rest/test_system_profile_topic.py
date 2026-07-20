@@ -57,7 +57,7 @@ class IdentifiersActions(NamedTuple):
         return HostWrapper.system_profile
 
 
-def _update_host_data(  # NOQA: C901
+def _update_host_data(  # ruff:ignore[complex-structure]
     host_data: dict[str, Any],
     original_host: HostWrapper,
     identifiers_action: IdentifiersActions,

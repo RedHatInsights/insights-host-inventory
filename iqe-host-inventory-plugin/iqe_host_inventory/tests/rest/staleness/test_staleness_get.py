@@ -36,7 +36,7 @@ def test_staleness_get_when_unset(
       assignee: msager
       importance: high
       title: Get staleness settings (defaults) via a GET /account/staleness request when staleness is unset
-    """  # NOQA: E501
+    """  # ruff:ignore[line-too-long]
 
     logger.info("Retrieving account record with staleness unset")
     response = host_inventory.apis.account_staleness.get_staleness_response()
