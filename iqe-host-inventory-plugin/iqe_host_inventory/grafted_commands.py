@@ -31,7 +31,7 @@ def host_inventory_group():
     pass
 
 
-def get_older_hosts(  # NOQA: C901
+def get_older_hosts(  # ruff:ignore[complex-structure]
     host_inventory: ApplicationHostInventory,
     unit: str,
     interval: int,

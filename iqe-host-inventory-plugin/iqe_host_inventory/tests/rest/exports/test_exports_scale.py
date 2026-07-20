@@ -41,7 +41,7 @@ def test_export_hosts_large_inventory(host_inventory_secondary: ApplicationHostI
 
     status = host_inventory_secondary.apis.exports.get_export_status(export_id)
     logger.info(
-        f"The export took {(status.completed_at - status.created_at).total_seconds()} seconds to complete"  # noqa
+        f"The export took {(status.completed_at - status.created_at).total_seconds()} seconds to complete"  # ruff:ignore[line-too-long]
     )
 
     path = host_inventory_secondary.apis.exports.download_export(export_id)
