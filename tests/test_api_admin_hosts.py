@@ -16,8 +16,10 @@ ADMIN_HOSTS_URL = "/_admin/hosts"
 
 @pytest.fixture
 def enable_admin_hosts(inventory_config):
+    original = inventory_config.admin_hosts_endpoint_enabled
     inventory_config.admin_hosts_endpoint_enabled = True
-    return inventory_config
+    yield inventory_config
+    inventory_config.admin_hosts_endpoint_enabled = original
 
 
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
@@ -54,6 +56,24 @@ def test_admin_hosts_create_returns_id(flask_client, event_producer_mock, notifi
     assert event["host"]["id"] == body["id"]
 
     assert_system_registered_notification_is_valid(notification_event_producer_mock, host_wrapper)
+
+
+@pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
+def test_admin_hosts_create_deduplicates_by_canonical_facts(flask_client, event_producer_mock):
+    host = minimal_host(insights_id=generate_uuid()).data()
+
+    create_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    assert create_response.status_code == HTTPStatus.CREATED
+    host_id = create_response.json()["id"]
+
+    host["display_name"] = "dedup-updated-host"
+    update_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+
+    assert update_response.status_code == HTTPStatus.OK
+    assert update_response.json()["id"] == host_id
+    assert Host.query.count() == 1
+    assert db.session.get(Host, (UUID(host_id), host["org_id"])).display_name == "dedup-updated-host"
+    assert json.loads(event_producer_mock.event)["type"] == EventType.updated.name
 
 
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")

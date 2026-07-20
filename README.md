@@ -256,8 +256,10 @@ app-interface / Clowder parameters.
 
 Behavior:
 
-- **Create** — omit `id`. Returns `201` with `{"id": "<uuid>"}`.
-- **Update** — include `id` of an existing host. Returns `200` with that id.
+- **No `id`** — same as MQ ingress via `add_host`: create a new host, or update an
+  existing one matched by canonical facts. Returns `201` on create or `200` on update,
+  with `{"id": "<uuid>"}`.
+- **With `id`** — update that host by primary key. Returns `200` with that id (`404` if missing).
 - No `x-rh-identity` header is required. Identity is derived from the payload `org_id`.
 - Persistence and side effects match MQ ingress (DB write, outbox, Kafka host events,
   and new-system-registered notifications on create).

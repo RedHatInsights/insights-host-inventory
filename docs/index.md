@@ -378,8 +378,8 @@ Access is controlled by the `INVENTORY_ADMIN_HOSTS_ENABLED` environment variable
 
 | Condition | Result |
 |--|--|
-| No `id` in body | Create a new host → `201` with `{"id": "<uuid>"}` |
-| `id` present and host exists | Update that host → `200` with `{"id": "<uuid>"}` |
+| No `id` in body | Same as MQ `add_host`: create, or update by canonical-fact match → `201` / `200` with `{"id": "<uuid>"}` |
+| `id` present and host exists | Update that host by primary key → `200` with `{"id": "<uuid>"}` |
 | `id` present and host missing | `404` |
 | Endpoint disabled | `403` |
 

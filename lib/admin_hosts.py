@@ -8,7 +8,6 @@ from typing import Any
 from uuid import UUID
 
 from flask import current_app
-from marshmallow.exceptions import ValidationError as MarshmallowValidationError
 
 from api.staleness_query import get_staleness_obj
 from app.auth.identity import create_mock_identity_with_org_id
@@ -19,16 +18,12 @@ from app.instrumentation import log_add_host_attempt
 from app.instrumentation import log_add_update_host_succeeded
 from app.logging import get_logger
 from app.models import Host
-from app.models import HostGroupAssoc
 from app.models import db
 from app.queue.events import operation_results_to_event_type
 from app.serialization import deserialize_host
-from app.validators import verify_uuid_format
 from lib.db import no_expire_on_commit
-from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-from lib.group_repository import serialize_group
 from lib.host_repository import AddHostResult
-from lib.host_repository import create_new_host
+from lib.host_repository import add_host
 from lib.host_repository import update_existing_host
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
@@ -38,8 +33,9 @@ logger = get_logger(__name__)
 def create_or_update_host_via_admin(host_data: dict[str, Any] | None) -> tuple[UUID, AddHostResult]:
     """Create or update a host using the same persistence and event path as MQ ingress.
 
-    - No ``id`` in the payload creates a new host.
-    - An ``id`` updates that existing host (404 if missing).
+    - No ``id`` in the payload uses ``add_host`` (create, or update via canonical-fact
+      deduplication — same as MQ ingress).
+    - An ``id`` updates that existing host by primary key (404 if missing).
     Identity is derived from the host ``org_id`` (no request identity header required).
     """
     # Lazy imports avoid a circular import through app.queue.host_mq during app init.
@@ -57,9 +53,8 @@ def create_or_update_host_via_admin(host_data: dict[str, Any] | None) -> tuple[U
     raw_host_id = host_data.get("id")
     if raw_host_id is not None:
         try:
-            verify_uuid_format(raw_host_id)
             host_id = UUID(str(raw_host_id))
-        except (MarshmallowValidationError, ValueError, TypeError) as exc:
+        except (ValueError, TypeError, AttributeError) as exc:
             raise ValidationException(f"Invalid host id: {raw_host_id}") from exc
 
     identity = create_mock_identity_with_org_id(org_id)
@@ -80,18 +75,9 @@ def create_or_update_host_via_admin(host_data: dict[str, Any] | None) -> tuple[U
             )
         host_row, add_result = update_existing_host(existing_host, input_host, update_system_profile=True)
     else:
+        # Match MQ ingress: assign an id, then add_host handles CF dedup + group wiring.
         input_host.id = uuid.uuid4()
-        group = get_or_create_ungrouped_hosts_group_for_identity(identity)
-        input_host.groups = [
-            serialize_group(
-                group,
-                identity.org_id,
-                getattr(identity, "account_number", None),
-                with_host_count=False,
-            )
-        ]
-        db.session.add(HostGroupAssoc(input_host.id, group.id, identity.org_id))
-        host_row, add_result = create_new_host(input_host)
+        host_row, add_result = add_host(input_host, identity)
 
     success_logger = partial(log_add_update_host_succeeded, logger, add_result, sp_fields_to_log)
     result = OperationResult(
