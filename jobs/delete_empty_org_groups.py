@@ -41,9 +41,6 @@ def _env_flag(name: str, default: bool = True) -> bool:
     return os.environ.get(name, default_str).lower() == "true"
 
 
-SUSPEND_JOB = _env_flag("SUSPEND_JOB", default=True)
-
-
 def _parse_org_ids(raw: str) -> list[str]:
     """Split a comma-separated ORG_IDS string into a de-duplicated ordered list."""
     seen: set[str] = set()
@@ -93,16 +90,15 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
             sys.exit(1)
 
         for org_id in org_ids:
-            groups = session.query(Group).filter(Group.org_id == org_id).all()
-            if not groups:
+            group_ids = [str(group_id) for (group_id,) in session.query(Group.id).filter(Group.org_id == org_id).all()]
+            if not group_ids:
                 logger.info("org_id=%s has no groups to delete.", org_id)
                 continue
 
-            group_ids = [str(group.id) for group in groups]
             logger.info(
                 "org_id=%s: will delete %d group(s): %s",
                 org_id,
-                len(groups),
+                len(group_ids),
                 _format_group_ids_for_log(group_ids),
             )
 
@@ -117,7 +113,7 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
 
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
-    if SUSPEND_JOB:
+    if _env_flag("SUSPEND_JOB", default=True):
         logger.info("SUSPEND_JOB set to true; exiting.")
         sys.exit(0)
 
