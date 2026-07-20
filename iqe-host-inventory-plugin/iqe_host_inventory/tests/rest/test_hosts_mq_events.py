@@ -76,7 +76,7 @@ def test_hosts_mq_events_produce_patch_hosts(
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are updated via PATCH /hosts/<host_ids> endpoint
-    """  # NOQA: E501
+    """  # ruff:ignore[line-too-long]
     hosts = host_inventory.kafka.create_random_hosts(how_many)
 
     new_display_name = generate_display_name()

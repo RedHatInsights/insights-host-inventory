@@ -578,7 +578,7 @@ def create_hosts_stale_stalewarning_culled(
     )
 
     logger.info(
-        f"Waiting {deltas[0]} second(s) for host(s) to reach stale, stale_warning, and culled states"  # noqa
+        f"Waiting {deltas[0]} second(s) for host(s) to reach stale, stale_warning, and culled states"  # ruff:ignore[line-too-long]
     )
     sleep(deltas[0])
 
