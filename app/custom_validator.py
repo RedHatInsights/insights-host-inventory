@@ -84,7 +84,14 @@ class CustomParameterValidator(ParameterValidator):
         return query_params
 
     def validate_query_parameter_list(self, request, security_params=None):
+        print("DEBUG: request type:", type(request))
+        print("DEBUG: request.query_params type:", type(request.query_params))
+        print(
+            "DEBUG: request.query_params keys:",
+            list(request.query_params.keys()) if hasattr(request.query_params, "keys") else None,
+        )
         query_params = self._resolve_query_params(request)
+        print("DEBUG: resolved query_params:", query_params)
 
         for param in self.parameters.get("query", []):
             validator_name = param.get("x-validator")
