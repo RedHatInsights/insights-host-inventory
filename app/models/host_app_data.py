@@ -130,7 +130,7 @@ class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     __sortable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
     __filterable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
     __v1_app__ = "advisor"
-    __v1_read_permission__ = "advisor:*:read"
+    __v1_read_permission__ = "advisor:recommendation-results:read"
     __kessel_relation__ = "advisor_recommendation_results_view"
 
     recommendations = db.Column(db.Integer, nullable=True)

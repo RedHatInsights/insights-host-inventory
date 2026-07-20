@@ -48,6 +48,32 @@ class TestHasRbacPermission:
     def test_hyphenated_app_name(self):
         assert _has_rbac_permission(["malware-detection:*:*"], "malware-detection:*:read")
 
+    def test_specific_resource_matches_specific_required(self):
+        """Custom role with exact resource permission matches specific required permission."""
+        assert _has_rbac_permission(["advisor:recommendation-results:read"], "advisor:recommendation-results:read")
+
+    def test_wildcard_resource_matches_specific_required(self):
+        """Standard role with wildcard covers specific required permission."""
+        assert _has_rbac_permission(["advisor:*:read"], "advisor:recommendation-results:read")
+
+    def test_wrong_specific_resource_does_not_match(self):
+        """Custom role with a different resource does not match."""
+        assert not _has_rbac_permission(["advisor:exports:read"], "advisor:recommendation-results:read")
+
+    def test_multiple_specific_resources_one_matches(self):
+        """Custom role with several specific resources, only the right one matches."""
+        assert _has_rbac_permission(
+            ["advisor:exports:read", "advisor:weekly-email:read", "advisor:recommendation-results:read"],
+            "advisor:recommendation-results:read",
+        )
+
+    def test_multiple_specific_resources_none_match(self):
+        """Custom role with specific resources but not the required one."""
+        assert not _has_rbac_permission(
+            ["advisor:exports:read", "advisor:weekly-email:read"],
+            "advisor:recommendation-results:read",
+        )
+
 
 @contextmanager
 def _rbac_v1_mocks(rbac_data_file, identity_type=IdentityType.USER):
