@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -48,6 +49,43 @@ class TestHasRbacPermission:
         assert _has_rbac_permission(["malware-detection:*:*"], "malware-detection:*:read")
 
 
+@contextmanager
+def _rbac_v1_mocks(rbac_data_file, identity_type=IdentityType.USER):
+    """Shared mock setup for RBAC v1 tests."""
+    with (
+        patch("lib.middleware.inventory_config") as mock_config,
+        patch("lib.middleware.get_current_identity") as mock_identity,
+        patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
+        patch("lib.middleware._build_rbac_request_headers", return_value={}),
+        patch("lib.middleware.get_rbac_permissions") as mock_rbac,
+    ):
+        mock_config.return_value.bypass_rbac = False
+        mock_identity.return_value.identity_type = identity_type
+        mock_identity.return_value.org_id = "test_org"
+        mock_identity.return_value.user = {"is_org_admin": False}
+        mock_rbac.return_value = create_mock_rbac_response(rbac_data_file)
+        yield
+
+
+@contextmanager
+def _kessel_mocks():
+    """Shared mock setup for Kessel v2 tests."""
+    with (
+        patch("lib.middleware.inventory_config") as mock_config,
+        patch("lib.middleware.get_current_identity") as mock_identity,
+        patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
+        patch("lib.middleware.get_kessel_client") as mock_get_kessel,
+    ):
+        mock_config.return_value.bypass_rbac = False
+        mock_identity.return_value.identity_type = IdentityType.USER
+        mock_identity.return_value.org_id = "test_org"
+        mock_identity.return_value.user = {"is_org_admin": False}
+
+        mock_kessel = MagicMock()
+        mock_get_kessel.return_value = mock_kessel
+        yield mock_kessel
+
+
 class TestGetAllowedAppServices:
     """Tests for get_allowed_app_services() RBAC v1 path."""
 
@@ -61,7 +99,7 @@ class TestGetAllowedAppServices:
             assert result is None
 
     def test_system_identity_returns_none(self):
-        """System identity bypasses RBAC — return None."""
+        """System identity bypasses RBAC -- return None."""
         from lib.middleware import get_allowed_app_services
 
         with (
@@ -77,114 +115,53 @@ class TestGetAllowedAppServices:
         """Service account proceeds through RBAC v1 path and gets correct permissions."""
         from lib.middleware import get_allowed_app_services
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
-            patch("lib.middleware._build_rbac_request_headers", return_value={}),
-            patch("lib.middleware.get_rbac_permissions") as mock_rbac,
+        with _rbac_v1_mocks(
+            "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json",
+            identity_type=IdentityType.SERVICE_ACCOUNT,
         ):
-            mock_config.return_value.bypass_rbac = False
-            identity = Mock(spec_set=["identity_type", "org_id", "service_account"])
-            identity.identity_type = IdentityType.SERVICE_ACCOUNT
-            identity.org_id = "test_org"
-            mock_identity.return_value = identity
-            mock_rbac.return_value = create_mock_rbac_response(
-                "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json"
-            )
             result = get_allowed_app_services()
             assert isinstance(result, set)
             assert "advisor" in result
 
-    def test_partial_access_advisor_only(self):
-        """User with only advisor permissions gets only advisor."""
+    @pytest.mark.parametrize(
+        "rbac_file,expected",
+        [
+            pytest.param(
+                "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json",
+                {"advisor"},
+                id="partial_access",
+            ),
+            pytest.param(
+                "tests/helpers/rbac-mock-data/inv-hosts-read-no-apps.json",
+                set(),
+                id="no_access",
+            ),
+            pytest.param(
+                "tests/helpers/rbac-mock-data/inv-hosts-read-all-apps.json",
+                {"vulnerability", "advisor", "compliance", "patch", "remediations", "malware"},
+                id="full_access",
+            ),
+        ],
+    )
+    def test_rbac_v1_access_levels(self, rbac_file, expected):
+        """RBAC v1 returns correct allowed set for various permission levels."""
         from lib.middleware import get_allowed_app_services
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
-            patch("lib.middleware._build_rbac_request_headers", return_value={}),
-            patch("lib.middleware.get_rbac_permissions") as mock_rbac,
-        ):
-            mock_config.return_value.bypass_rbac = False
-            mock_identity.return_value.identity_type = IdentityType.USER
-            mock_identity.return_value.org_id = "test_org"
-            mock_identity.return_value.user = {"is_org_admin": False}
-            mock_rbac.return_value = create_mock_rbac_response(
-                "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json"
-            )
+        with _rbac_v1_mocks(rbac_file):
             result = get_allowed_app_services()
-            assert result == {"advisor"}
-
-    def test_no_app_permissions(self):
-        """User with only inventory:hosts:read gets empty set."""
-        from lib.middleware import get_allowed_app_services
-
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
-            patch("lib.middleware._build_rbac_request_headers", return_value={}),
-            patch("lib.middleware.get_rbac_permissions") as mock_rbac,
-        ):
-            mock_config.return_value.bypass_rbac = False
-            mock_identity.return_value.identity_type = IdentityType.USER
-            mock_identity.return_value.org_id = "test_org"
-            mock_identity.return_value.user = {"is_org_admin": False}
-            mock_rbac.return_value = create_mock_rbac_response(
-                "tests/helpers/rbac-mock-data/inv-hosts-read-no-apps.json"
-            )
-            result = get_allowed_app_services()
-            assert result == set()
-
-    def test_all_app_permissions(self):
-        """User with all service permissions gets full set."""
-        from lib.middleware import get_allowed_app_services
-
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
-            patch("lib.middleware._build_rbac_request_headers", return_value={}),
-            patch("lib.middleware.get_rbac_permissions") as mock_rbac,
-        ):
-            mock_config.return_value.bypass_rbac = False
-            mock_identity.return_value.identity_type = IdentityType.USER
-            mock_identity.return_value.org_id = "test_org"
-            mock_identity.return_value.user = {"is_org_admin": False}
-            mock_rbac.return_value = create_mock_rbac_response(
-                "tests/helpers/rbac-mock-data/inv-hosts-read-all-apps.json"
-            )
-            result = get_allowed_app_services()
-            assert result == {"vulnerability", "advisor", "compliance", "patch", "remediations", "malware"}
+            assert result == expected
 
 
 class TestGetAllowedAppServicesKessel:
     """Tests for get_allowed_app_services() Kessel v2 path."""
 
-    def _setup_kessel_mocks(self, mock_config, mock_identity):
-        mock_config.return_value.bypass_rbac = False
-        mock_identity.return_value.identity_type = IdentityType.USER
-        mock_identity.return_value.org_id = "test_org"
-        mock_identity.return_value.user = {"is_org_admin": False}
-
     def test_kessel_partial_access(self):
         """ListAllowedWorkspaces returns workspaces for some services, empty for others."""
         from lib.middleware import get_allowed_app_services
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
-            patch("lib.middleware.get_kessel_client") as mock_get_kessel,
-        ):
-            self._setup_kessel_mocks(mock_config, mock_identity)
+        allowed_relations = {"advisor_recommendation_results_view", "patch_system_view"}
 
-            mock_kessel = MagicMock()
-            mock_get_kessel.return_value = mock_kessel
-
-            allowed_relations = {"advisor_recommendation_results_view", "patch_system_view"}
+        with _kessel_mocks() as mock_kessel:
 
             def mock_list(_identity, relation):
                 if relation in allowed_relations:
@@ -208,16 +185,7 @@ class TestGetAllowedAppServicesKessel:
         from app.models.host_app_data import get_app_data_models
         from lib.middleware import get_allowed_app_services
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
-            patch("lib.middleware.get_kessel_client") as mock_get_kessel,
-        ):
-            self._setup_kessel_mocks(mock_config, mock_identity)
-
-            mock_kessel = MagicMock()
-            mock_get_kessel.return_value = mock_kessel
+        with _kessel_mocks() as mock_kessel:
             mock_kessel.ListAllowedWorkspaces.return_value = workspaces
 
             result = get_allowed_app_services()
@@ -230,27 +198,18 @@ class TestGetAllowedAppServicesKessel:
         """gRPC error on ListAllowedWorkspaces should deny that service (fail closed)."""
         from lib.middleware import get_allowed_app_services
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
-            patch("lib.middleware.get_kessel_client") as mock_get_kessel,
-        ):
-            self._setup_kessel_mocks(mock_config, mock_identity)
+        error = grpc.RpcError()
+        error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
+        error.details = Mock(return_value="service unavailable")
 
-            mock_kessel = MagicMock()
-            mock_get_kessel.return_value = mock_kessel
-
-            error = grpc.RpcError()
-            error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
-            error.details = Mock(return_value="service unavailable")
+        with _kessel_mocks() as mock_kessel:
             mock_kessel.ListAllowedWorkspaces.side_effect = error
 
             result = get_allowed_app_services()
             assert result == set()
 
     def test_kessel_grpc_error_partial_then_error(self):
-        """First service succeeds, rest error — only 1 service allowed (fail-closed per service)."""
+        """First service succeeds, rest error -- only 1 service allowed (fail-closed per service)."""
         from app.models.host_app_data import get_app_data_models
         from lib.middleware import get_allowed_app_services
 
@@ -259,20 +218,11 @@ class TestGetAllowedAppServicesKessel:
             [m for m in get_app_data_models().values() if getattr(m, "__kessel_relation__", "")]
         )
 
-        with (
-            patch("lib.middleware.inventory_config") as mock_config,
-            patch("lib.middleware.get_current_identity") as mock_identity,
-            patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
-            patch("lib.middleware.get_kessel_client") as mock_get_kessel,
-        ):
-            self._setup_kessel_mocks(mock_config, mock_identity)
+        error = grpc.RpcError()
+        error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
+        error.details = Mock(return_value="service unavailable")
 
-            mock_kessel = MagicMock()
-            mock_get_kessel.return_value = mock_kessel
-
-            error = grpc.RpcError()
-            error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
-            error.details = Mock(return_value="service unavailable")
+        with _kessel_mocks() as mock_kessel:
 
             def mock_list(_identity, _relation):
                 nonlocal call_count

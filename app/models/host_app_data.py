@@ -22,16 +22,17 @@ from app.models.database import db
 class HostAppDataMixin:
     """Base mixin for host application data models.
 
-    Subclasses should define:
+    Subclasses must define:
         __app_name__: str - The application name used in API responses (e.g., "advisor")
-        __sortable_fields__: tuple[str, ...] - Fields that can be used for sorting (optional)
-        __v1_app__: str - RBAC v1 application name for the permissions query (optional)
-        __v1_read_permission__: str - RBAC v1 permission required to view this data (optional)
-        __kessel_relation__: str - Kessel v2 contingent permission relation (optional)
+        __v1_app__: str - RBAC v1 application name for the permissions query
+        __v1_read_permission__: str - RBAC v1 permission required to view this data
+        __kessel_relation__: str - Kessel v2 contingent permission relation
 
-    When __v1_read_permission__ is set, the user must hold that permission to see this
-    service's app_data in the /hosts-view response. Models without it are denied by
-    default — every app_data model must declare its permission to be visible.
+    Subclasses may optionally define:
+        __sortable_fields__: tuple[str, ...] - Fields that can be used for sorting
+
+    The user must hold __v1_read_permission__ (or the Kessel equivalent) to see this
+    service's app_data in the /hosts-view response.
 
     DateTime fields are automatically converted to ISO format strings during serialization.
     """
@@ -48,7 +49,7 @@ class HostAppDataMixin:
     # Optional: fields that can be used for filtering in the hosts-view endpoint
     __filterable_fields__: tuple[str, ...] = ()
 
-    # Optional: per-service RBAC permissions for /hosts-view app_data filtering
+    # Required: per-service RBAC permissions for /hosts-view app_data filtering
     __v1_app__: str = ""
     __v1_read_permission__: str = ""
     __kessel_relation__: str = ""
@@ -306,6 +307,9 @@ class HostAppDataMalware(HostAppDataMixin, db.Model):
     last_scan = db.Column(db.DateTime(timezone=True), nullable=True)
 
 
+_REQUIRED_RBAC_ATTRS = ("__v1_app__", "__v1_read_permission__", "__kessel_relation__")
+
+
 @cache
 def get_app_data_models() -> dict[str, type[HostAppDataMixin]]:
     """Return a mapping of app_name -> model class for all registered app data models."""
@@ -319,5 +323,8 @@ def get_app_data_models() -> dict[str, type[HostAppDataMixin]]:
             and hasattr(cls, "__app_name__")
             and cls.__app_name__
         ):
+            for attr in _REQUIRED_RBAC_ATTRS:
+                if not getattr(cls, attr, ""):
+                    raise ValueError(f"{cls.__name__} must define {attr} for per-service RBAC")
             models[cls.__app_name__] = cls
     return models
