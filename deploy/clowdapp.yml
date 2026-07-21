@@ -274,6 +274,8 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: INVENTORY_ADMIN_HOSTS_ENABLED
+            value: ${INVENTORY_ADMIN_HOSTS_ENABLED}
           - name: OTEL_ENABLED
             value: ${OTEL_ENABLED}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -417,6 +419,8 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: INVENTORY_ADMIN_HOSTS_ENABLED
+            value: ${INVENTORY_ADMIN_HOSTS_ENABLED}
           - name: OTEL_ENABLED
             value: ${OTEL_ENABLED}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -2989,6 +2993,11 @@ parameters:
   value: 'false'
 - description: disable Kessel middleware
   name: BYPASS_KESSEL
+  value: 'false'
+- description: >-
+    Enable POST /_admin/hosts for programmatic host create/update.
+    Must remain false in production; set true only in dev, ephemeral, and Stage.
+  name: INVENTORY_ADMIN_HOSTS_ENABLED
   value: 'false'
 - description: enable Kessel authentication
   name: KESSEL_AUTH_ENABLED

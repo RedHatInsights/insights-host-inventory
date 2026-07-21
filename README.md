@@ -17,6 +17,8 @@ please see the
         - [Start dependent services](#start-dependent-services)
     - [Run database migrations](#run-database-migrations)
     - [Create Hosts Data](#create-hosts-data)
+        - [Using the Enhanced Kafka Producer](#using-the-enhanced-kafka-producer)
+        - [Using the admin hosts endpoint](#using-the-admin-hosts-endpoint)
     - [Run the export service](#run-the-export-service)
     - [Testing](#testing)
 - [Parallel development with worktrees](#parallel-development-with-worktrees)
@@ -241,6 +243,63 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 - `HOST_TYPE`: Default host type (default: "default")
 - `KAFKA_BOOTSTRAP_SERVERS`: Kafka bootstrap servers (default: "localhost:29092")
 - `KAFKA_HOST_INGRESS_TOPIC`: Kafka topic for host ingress (default: "platform.inventory.host-ingress")
+
+#### Using the admin hosts endpoint
+
+For local development and other non-production environments, you can create or update hosts
+directly via `POST /_admin/hosts` instead of publishing to Kafka.
+
+This endpoint is **not** part of the public OpenAPI spec. It is gated by
+`INVENTORY_ADMIN_HOSTS_ENABLED` (default `false`). Local `dev.yml` enables it by default.
+It must stay disabled in production; set it to `true` only in ephemeral and Stage via
+app-interface / Clowder parameters.
+
+Behavior:
+
+- **No `id`** — same as MQ ingress via `add_host`: create a new host, or update an
+  existing one matched by canonical facts. Returns `201` on create or `200` on update,
+  with `{"id": "<uuid>"}`.
+- **With `id`** — update that host by primary key. Returns `200` with that id (`404` if missing).
+- No `x-rh-identity` header is required. Identity is derived from the payload `org_id`.
+- Persistence and side effects match MQ ingress (DB write, outbox, Kafka host events,
+  and new-system-registered notifications on create).
+
+Required payload fields: `org_id`, `reporter`, and at least one ID fact
+(`insights_id`, `subscription_manager_id`, or `provider_id` + `provider_type`).
+
+**Create a host:**
+
+```bash
+curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "321",
+    "reporter": "puptoo",
+    "display_name": "admin-test-host",
+    "insights_id": "11111111-1111-1111-1111-111111111111",
+    "subscription_manager_id": "22222222-2222-2222-2222-222222222222"
+  }'
+```
+
+**Update that host** (use the `id` from the create response):
+
+```bash
+curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "<host-id-from-create>",
+    "org_id": "321",
+    "reporter": "puptoo",
+    "display_name": "admin-test-host-updated",
+    "insights_id": "11111111-1111-1111-1111-111111111111",
+    "subscription_manager_id": "22222222-2222-2222-2222-222222222222"
+  }'
+```
+
+If the flag is disabled, the endpoint returns `403`. An unknown `id` returns `404`.
+Invalid JSON or payload validation failures return `400`.
+
+See also the [Admin host create/update](docs/index.md#admin-host-createupdate) section in the HBI docs.
 
 #### Run the Export Service
 
