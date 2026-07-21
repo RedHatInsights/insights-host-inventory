@@ -1,8 +1,12 @@
 import logging
 
 import pytest
+from sqlalchemy import and_
+from sqlalchemy import delete
+from sqlalchemy import select
 
 from app.models import Group
+from app.models import Host
 from app.models import db
 from jobs.delete_empty_org_groups import _env_flag
 from jobs.delete_empty_org_groups import _format_group_ids_for_log
@@ -189,3 +193,25 @@ def test_run_with_whitespace_only_org_ids_exits(flask_app, monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         run(_logger, session, flask_app)
     assert exc_info.value.code == 1
+
+
+def test_atomic_delete_preserves_groups_when_hosts_exist(flask_app, db_create_group, db_create_host):
+    """The NOT EXISTS guard in the delete prevents deletion of groups for orgs
+    that have hosts — the defense-in-depth for the TOCTOU race window."""
+    with flask_app.app.app_context():
+        db_create_group("Group A", identity=_identity_for(EMPTY_ORG_A))
+        db_create_group("Group H", identity=_identity_for(HOSTED_ORG))
+        db_create_host(identity=_identity_for(HOSTED_ORG), extra_data={"org_id": HOSTED_ORG})
+
+    with flask_app.app.app_context():
+        session = db.session
+        org_ids = [EMPTY_ORG_A, HOSTED_ORG]
+        hosts_exist = select(Host.org_id).where(Host.org_id == Group.org_id).correlate(Group).exists()
+        stmt = delete(Group).where(and_(Group.org_id.in_(org_ids), ~hosts_exist))
+
+        result = session.execute(stmt)
+        session.commit()
+
+        assert result.rowcount == 1
+        assert _group_count(EMPTY_ORG_A) == 0
+        assert _group_count(HOSTED_ORG) == 1

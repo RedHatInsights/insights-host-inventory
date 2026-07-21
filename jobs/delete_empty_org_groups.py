@@ -19,6 +19,9 @@ from functools import partial
 from logging import Logger
 
 from connexion import FlaskApp
+from sqlalchemy import and_
+from sqlalchemy import delete
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.logging import get_logger
@@ -81,7 +84,7 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
     with application.app.app_context():
         threadctx.request_id = None
 
-        # Validate first: any org with hosts aborts the whole job before deletions.
+        # Early check: any org with hosts aborts before we do real work.
         orgs_with_hosts = {
             row[0] for row in session.query(Host.org_id).filter(Host.org_id.in_(org_ids)).distinct().all()
         }
@@ -109,9 +112,22 @@ def run(logger: Logger, session: Session, application: FlaskApp) -> None:
             logger.info("DRY_RUN is enabled; no changes written.")
             return
 
+        hosts_exist = select(Host.org_id).where(Host.org_id == Group.org_id).correlate(Group).exists()
+        stmt = delete(Group).where(and_(Group.org_id.in_(org_ids), ~hosts_exist))
+
         with session_guard(session, close=False):
-            total_deleted = session.query(Group).filter(Group.org_id.in_(org_ids)).delete(synchronize_session=False)
+            result = session.execute(stmt)
+            total_deleted = result.rowcount
+
         logger.info("Finished deleting groups. Total deleted: %d", total_deleted)
+
+        if remaining_orgs := {
+            row[0] for row in session.query(Group.org_id).filter(Group.org_id.in_(org_ids)).distinct().all()
+        }:
+            logger.warning(
+                "Groups still exist for org_id(s) %s — hosts likely appeared after the initial check.",
+                sorted(remaining_orgs),
+            )
 
 
 if __name__ == "__main__":
