@@ -256,7 +256,7 @@ def compare_groups(
     return 0
 
 
-def in_order(last_result, current_results, sort_field="updated", ascending=True):  # NOQA: C901
+def in_order(last_result, current_results, sort_field="updated", ascending=True):  # ruff:ignore[complex-structure]
     """Confirm this set of results is in sorted ascending order by created_date and id."""
 
     def _get_field(host, field_name):

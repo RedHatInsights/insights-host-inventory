@@ -140,7 +140,7 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
     logger.info(f"host updated: {host.updated.strftime('%m/%d/%Y %H:%M:%S')}")
     logger.info(f"host stale_timestamp: {host.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}")
     logger.info(
-        f"host stale_warning_timestamp: {host.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+        f"host stale_warning_timestamp: {host.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
     )
     logger.info(f"host culled_timestamp: {host.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}")
 
@@ -151,13 +151,13 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
         )
 
         logger.info(
-            f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
         logger.info(
-            f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
         logger.info(
-            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
 
     if not reporter:
@@ -441,7 +441,7 @@ def test_per_reporter_registered_with(host_inventory: ApplicationHostInventory) 
     deltas = (1, 2, 5)
     logger.info("Setting custom staleness deltas to:")
     logger.info(
-        f"stale = {deltas[0]} second, stale_warning = {deltas[1]} seconds, culled = {deltas[2]} seconds"  # noqa
+        f"stale = {deltas[0]} second, stale_warning = {deltas[1]} seconds, culled = {deltas[2]} seconds"  # ruff:ignore[line-too-long]
     )
     set_staleness(host_inventory, deltas)
 

@@ -194,7 +194,7 @@ objects:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: registry.access.redhat.com/ubi9/nginx-124:latest
+        image: ${NGINX_IMAGE}:${NGINX_IMAGE_TAG}
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
@@ -591,6 +591,10 @@ objects:
             value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
+          - name: OTEL_HOST_INGESTION_SAMPLING_RATE
+            value: ${OTEL_HOST_INGESTION_SAMPLING_RATE}
+          - name: OTEL_BOTOCORE_ENABLED
+            value: ${OTEL_BOTOCORE_ENABLED}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
             value: ${OTEL_BSP_MAX_QUEUE_SIZE}
           - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
@@ -698,6 +702,10 @@ objects:
             value: ${OTEL_HTTP_OUTBOUND_ENABLED}
           - name: OTEL_SAMPLING_RATE
             value: ${OTEL_SAMPLING_RATE}
+          - name: OTEL_HOST_INGESTION_SAMPLING_RATE
+            value: ${OTEL_HOST_INGESTION_SAMPLING_RATE}
+          - name: OTEL_BOTOCORE_ENABLED
+            value: ${OTEL_BOTOCORE_ENABLED}
           - name: OTEL_BSP_MAX_QUEUE_SIZE
             value: ${OTEL_BSP_MAX_QUEUE_SIZE}
           - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
@@ -1200,6 +1208,42 @@ objects:
           value: ${UNLEASH_REFRESH_INTERVAL}
         - name: REPLICA_NAMESPACE
           value: ${REPLICA_NAMESPACE}
+        - name: OTEL_ENABLED
+          value: ${OTEL_ENABLED}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+        - name: OTEL_SQL_ENABLED
+          value: ${OTEL_SQL_ENABLED}
+        - name: OTEL_SQL_COMMENTER_ENABLED
+          value: ${OTEL_SQL_COMMENTER_ENABLED}
+        - name: OTEL_HTTP_INBOUND_ENABLED
+          value: ${OTEL_HTTP_INBOUND_ENABLED}
+        - name: OTEL_HTTP_OUTBOUND_ENABLED
+          value: ${OTEL_HTTP_OUTBOUND_ENABLED}
+        - name: OTEL_SAMPLING_RATE
+          value: ${OTEL_SAMPLING_RATE}
+        - name: OTEL_BOTOCORE_ENABLED
+          value: ${OTEL_BOTOCORE_ENABLED}
+        - name: OTEL_BSP_MAX_QUEUE_SIZE
+          value: ${OTEL_BSP_MAX_QUEUE_SIZE}
+        - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
+          value: ${OTEL_BSP_MAX_EXPORT_BATCH_SIZE}
+        - name: OTEL_BSP_SCHEDULE_DELAY
+          value: ${OTEL_BSP_SCHEDULE_DELAY}
+        - name: OTEL_BSP_EXPORT_TIMEOUT
+          value: ${OTEL_BSP_EXPORT_TIMEOUT}
+        - name: OTEL_EXPORTER_OTLP_COMPRESSION
+          value: ${OTEL_EXPORTER_OTLP_COMPRESSION}
+        - name: OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT
+          value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
+        - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
+          value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
+        - name: OTEL_MQ_ENABLED
+          value: ${OTEL_MQ_ENABLED}
+        - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
+          value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
+        - name: OTEL_MQ_SLOW_MESSAGE_MS
+          value: ${OTEL_MQ_SLOW_MESSAGE_MS}
         livenessProbe: *mqLivenessProbe
         readinessProbe: *mqReadinessProbe
         resources:
@@ -2628,6 +2672,10 @@ parameters:
   value: 100Mi
 - name: NGINX_MEMORY_LIMIT
   value: 200Mi
+- name: NGINX_IMAGE
+  value: 'registry.access.redhat.com/ubi9/nginx-124'
+- name: NGINX_IMAGE_TAG
+  value: 'latest'
 
 # -- API Service Resources (service-reads/writes) --
 - name: CPU_REQUEST_SERVICE
@@ -3198,8 +3246,14 @@ parameters:
   description: Enable outbound HTTP request tracing (requests library)
   value: 'true'
 - name: OTEL_SAMPLING_RATE
-  description: Trace sampling ratio (0.0-1.0). 1.0 = all traces
+  description: Trace sampling ratio (0.0-1.0) for API and non-host-ingress deployments. 1.0 = all traces
   value: '1.0'
+- name: OTEL_HOST_INGESTION_SAMPLING_RATE
+  description: Trace sampling ratio (0.0-1.0) for host-ingress MQ only (mq-pmin / mq-p1). 1.0 = all traces
+  value: '1.0'
+- name: OTEL_BOTOCORE_ENABLED
+  description: Enable botocore/boto3 (S3/MinIO) OpenTelemetry instrumentation
+  value: 'true'
 - name: OTEL_BSP_MAX_QUEUE_SIZE
   description: BatchSpanProcessor max queue size
   value: '8192'
@@ -3225,7 +3279,7 @@ parameters:
   description: Enable OpenTelemetry tracing for Kafka/MQ producer and consumer operations
   value: 'true'
 - name: OTEL_MQ_MESSAGE_SPANS_ENABLED
-  description: Emit per-message child spans for MQ consumers (disable in prod to reduce span volume)
+  description: Emit per-message child spans for MQ consumers
   value: 'true'
 - name: OTEL_MQ_SLOW_MESSAGE_MS
   description: When message spans are disabled, emit spans for messages exceeding this threshold (ms). 0 = disabled.
