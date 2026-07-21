@@ -2913,6 +2913,91 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
     assert response_data["results"] == []
 
 
+def test_workloads_exists_subquery_with_mixed_static_sp_filter(db_create_host, api_get):
+    """When workloads filter is combined with a static SP filter (e.g. arch),
+    the static filter must stay on the outer query, not inside EXISTS over dynamic table.
+    Verifies both filters narrow results correctly (AND semantics).
+    """
+    match_host = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "x86_64",
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    wrong_arch = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "aarch64",
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    no_sap = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "x86_64",
+                    "workloads": {"sap": {"sap_system": False}},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][arch]=x86_64&filter[system_profile][workloads][sap][sap_system]=true"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert match_host in response_ids
+    assert wrong_arch not in response_ids
+    assert no_sap not in response_ids
+
+
+def test_workloads_nil_filter_uses_not_exists(db_create_host, api_get):
+    """Nil workloads filters use NOT EXISTS to match hosts with no matching
+    system_profiles_dynamic row. Verifies a host with empty SP matches sap_system=nil.
+    """
+    empty_sp_host = str(db_create_host(extra_data={"system_profile_facts": {}}).id)
+    sap_true_host = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
+    )
+
+    url = build_hosts_url(query="?filter[system_profile][sap_system][is]=nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert empty_sp_host in response_ids
+    assert sap_true_host not in response_ids
+
+
+def test_workloads_string_not_nil_finds_hosts_with_field_set(db_create_host, api_get):
+    """String/wildcard not_nil filter (e.g. ansible controller_version) should find hosts with the field set."""
+    match_host = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"workloads": {"ansible": {"controller_version": "4.5.0"}}}}
+        ).id
+    )
+    ansible_no_version = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}}).id)
+    no_ansible = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
+    )
+
+    url = build_hosts_url(query="?filter[system_profile][workloads][ansible][controller_version][is]=not_nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert match_host in response_ids
+    assert ansible_no_version not in response_ids
+    assert no_ansible not in response_ids
+
+
 def test_no_hosts_in_org(api_get):
     """Test no hosts are returned if for empty organization."""
 

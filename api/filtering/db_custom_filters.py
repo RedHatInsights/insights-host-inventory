@@ -7,8 +7,10 @@ from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import and_
+from sqlalchemy import exists
 from sqlalchemy import func
 from sqlalchemy import or_
+from sqlalchemy import select
 from sqlalchemy import type_coerce
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
@@ -25,6 +27,7 @@ from api.filtering.filtering_common import get_valid_os_names
 from app import system_profile_spec
 from app.exceptions import ValidationException
 from app.logging import get_logger
+from app.models import Host
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -339,11 +342,13 @@ def _validate_pg_op_and_value(pg_op: str | None, value: str | bool, field_filter
         return
 
 
-def _build_workloads_containment_filter(column: Column, jsonb_path: tuple[str, ...], value: bool) -> ColumnElement:
-    """Build a JSONB @> containment filter for workloads boolean fields.
+def _build_workloads_containment_filter(
+    column: Column, jsonb_path: tuple[str, ...], value: bool | str
+) -> ColumnElement:
+    """Build a JSONB @> containment filter for workloads fields.
 
-    Generates: workloads @> '{"path": {"to": {"field": true}}}'::jsonb
-    This is GIN-indexable, unlike CAST(workloads #>> '{path,to,field}' AS BOOLEAN).
+    Generates: workloads @> '{"path": {"to": {"field": <value>}}}'::jsonb
+    GIN-indexable for specific values (booleans and strings).
     """
     containment_doc: dict = {}
     current = containment_doc
@@ -368,16 +373,48 @@ def _build_workloads_not_nil_boolean_filter(column: Column, jsonb_path: tuple[st
     )
 
 
-def _build_workloads_object_presence_filter(
-    column: Column, jsonb_path: tuple[str, ...], negate: bool
-) -> ColumnElement:
+def _build_workloads_string_not_nil_filter(column: Column, jsonb_path: tuple[str, ...]) -> ColumnElement:
+    """Build a 'string field is not nil' filter combining a containment prefix with an exact check.
+
+    Generates: workloads @> '{"ansible": {}}'::jsonb AND (workloads #>> '{ansible,controller_version}') IS NOT NULL
+
+    The @> prefix is GIN-indexable and may help selectivity; the main performance win
+    comes from the EXISTS join shape that decouples filtering from ORDER BY.
+    """
+    parent_path = jsonb_path[:-1]
+    containment_doc: dict = {}
+    current = containment_doc
+    for key in parent_path:
+        current[key] = {}
+        current = current[key]
+
+    gin_prefix = column.op("@>")(type_coerce(containment_doc, JSONB))
+    path_check = column[jsonb_path].astext.is_not(None)
+    return and_(gin_prefix, path_check)
+
+
+def _workloads_subquery(*filter_exprs: ColumnElement, negate: bool = False) -> ColumnElement:
+    """Wrap workloads filter expressions in a correlated EXISTS/NOT EXISTS subquery.
+
+    EXISTS decouples filtering from the outer ORDER BY, giving the planner the option
+    to use the GIN index independently. NOT EXISTS is used for nil (absence) checks,
+    correctly handling hosts that have no system_profiles_dynamic row at all.
+    """
+    subq = exists(
+        select(HostDynamicSystemProfile.host_id).where(
+            HostDynamicSystemProfile.org_id == Host.org_id,
+            HostDynamicSystemProfile.host_id == Host.id,
+            *filter_exprs,
+        )
+    )
+    return ~subq if negate else subq
+
+
+def _build_workloads_object_presence_filter(column: Column, jsonb_path: tuple[str, ...]) -> ColumnElement:
     """Build an object-key existence filter using @> containment with an empty object.
 
-    Generates: workloads @> '{"ansible": {}}'::jsonb  (for not_nil)
-           or: workloads IS NULL OR NOT (workloads @> '{"ansible": {}}'::jsonb)  (for nil)
-
-    The nil case needs the IS NULL fallback because NULL @> anything = NULL,
-    and NOT NULL = NULL (falsy), whereas the old #>> IS NULL correctly matched NULL columns.
+    Generates: workloads @> '{"ansible": {}}'::jsonb
+    GIN-indexable; may help selectivity. Main win is the EXISTS join shape.
     """
     containment_doc: dict = {}
     current = containment_doc
@@ -385,10 +422,7 @@ def _build_workloads_object_presence_filter(
         current[key] = {}
         current = current[key]
 
-    expr = column.op("@>")(type_coerce(containment_doc, JSONB))
-    if negate:
-        return column.is_(None) | ~expr
-    return expr
+    return column.op("@>")(type_coerce(containment_doc, JSONB))
 
 
 class _WorkloadsLeafInfo:
@@ -408,10 +442,10 @@ def _extract_workloads_leaf_info(workloads_filter: dict) -> _WorkloadsLeafInfo |
 
     Resolves field type, JSONB path, operator, and value in one pass.
     Handles value-as-comparator override (e.g. [is]=not_nil).
-    Returns None if the deepest field is not boolean or object.
+    Returns None if the deepest field is not boolean, object, string, or wildcard.
     """
     field_filter = _get_field_filter_for_deepest_param(system_profile_spec(), workloads_filter)
-    if field_filter not in ("boolean", "object"):
+    if field_filter not in ("boolean", "object", "string", "wildcard"):
         return None
 
     _, jsonb_path, pg_op, raw_value = _convert_dict_to_column_jsonb_path_pg_op_value(workloads_filter)
@@ -422,15 +456,17 @@ def _extract_workloads_leaf_info(workloads_filter: dict) -> _WorkloadsLeafInfo |
         pg_op = POSTGRES_COMPARATOR_LOOKUP[raw_value]
         value = None
     elif isinstance(raw_value, str):
-        value = raw_value.lower()
+        # Only lowercase for boolean parsing; preserve case for @> containment
+        value = raw_value.lower() if field_filter == "boolean" else raw_value
 
     return _WorkloadsLeafInfo(jsonb_path=jsonb_path, field_filter=field_filter, pg_op=pg_op, value=value)
 
 
-def _build_workloads_leaf_filter(workloads_filter: dict) -> ColumnElement | None:
+def _build_workloads_leaf_filter(workloads_filter: dict) -> tuple[ColumnElement, bool] | None:
     """Attempt to build an optimized containment filter for a canonical workloads dict.
 
-    Returns a ColumnElement if the filter can be optimized, or None to fall back.
+    Returns (expression, negate) if the filter can be optimized, or None to fall back.
+    When negate=True, the expression is the POSITIVE condition to be wrapped in NOT EXISTS.
     """
     info = _extract_workloads_leaf_info(workloads_filter)
     if info is None:
@@ -444,16 +480,31 @@ def _build_workloads_leaf_filter(workloads_filter: dict) -> ColumnElement | None
             ColumnOperators.__eq__,
             None,
         ):
-            return _build_workloads_containment_filter(col, info.jsonb_path, info.value == "true")
+            return _build_workloads_containment_filter(col, info.jsonb_path, info.value == "true"), False
 
         if info.pg_op == ColumnOperators.is_not or info.value == "not_nil":
-            return _build_workloads_not_nil_boolean_filter(col, info.jsonb_path)
+            return _build_workloads_not_nil_boolean_filter(col, info.jsonb_path), False
+
+        if info.pg_op == ColumnOperators.is_:
+            return _build_workloads_not_nil_boolean_filter(col, info.jsonb_path), True
 
     if info.field_filter == "object":
         if info.pg_op == ColumnOperators.is_not:
-            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=False)
+            return _build_workloads_object_presence_filter(col, info.jsonb_path), False
         if info.pg_op == ColumnOperators.is_:
-            return _build_workloads_object_presence_filter(col, info.jsonb_path, negate=True)
+            return _build_workloads_object_presence_filter(col, info.jsonb_path), True
+
+    if info.field_filter in ("string", "wildcard"):
+        if info.pg_op == ColumnOperators.is_not or info.value == "not_nil":
+            return _build_workloads_string_not_nil_filter(col, info.jsonb_path), False
+        if info.pg_op == ColumnOperators.is_:
+            return _build_workloads_string_not_nil_filter(col, info.jsonb_path), True
+        # Exact equality → full @> containment (GIN-indexable).
+        # For wildcard fields, only when the value has no glob characters (otherwise fall back to ILIKE).
+        if info.value and info.pg_op in (ColumnOperators.__eq__, None):
+            return _build_workloads_containment_filter(col, info.jsonb_path, info.value), False
+        if info.value and info.pg_op == ColumnOperators.ilike and "*" not in info.value:
+            return _build_workloads_containment_filter(col, info.jsonb_path, info.value), False
 
     return None
 
@@ -481,19 +532,64 @@ def _normalize_workloads_filter(filter_param: dict) -> dict:
     return {"workloads": filter_param}
 
 
-def _build_workloads_filter(filter_param: dict) -> ColumnElement:
+def _is_nil_value_in_filter(d: dict) -> bool:
+    """Check if any leaf value of a nested filter dict is 'nil'."""
+    for val in d.values():
+        if isinstance(val, dict):
+            if _is_nil_value_in_filter(val):
+                return True
+        elif isinstance(val, list):
+            if len(val) == 1 and str(val[0]).lower() == "nil":
+                return True
+        elif str(val).lower() == "nil":
+            return True
+    return False
+
+
+def _invert_nil_to_not_nil(d: dict) -> dict:
+    """Replace leaf 'nil' value with 'not_nil' to produce the positive condition."""
+    result: dict[str, object] = {}
+    for key, val in d.items():
+        if isinstance(val, dict):
+            result[key] = _invert_nil_to_not_nil(val)
+        elif isinstance(val, list) and len(val) == 1 and str(val[0]).lower() == "nil":
+            result[key] = ["not_nil"]
+        elif isinstance(val, str) and val.lower() == "nil":
+            result[key] = "not_nil"
+        else:
+            result[key] = val
+    return result
+
+
+def _is_workloads_filter(filter_param: dict) -> bool:
+    """Return True if the filter targets the workloads JSONB column."""
+    field_name = next(iter(filter_param.keys()))
+    return field_name in WORKLOADS_FIELDS or field_name == "workloads"
+
+
+def _build_workloads_expr(filter_param: dict) -> tuple[ColumnElement, bool]:
+    """Build the inner filter expression for a workloads filter parameter.
+
+    Returns (expression, negate) where negate=True means the caller should wrap
+    the expression in NOT EXISTS instead of EXISTS.
+    """
     field_name = next(iter(filter_param.keys()))
 
     if field_name not in WORKLOADS_FIELDS and field_name != "workloads":
-        return build_single_filter(filter_param)
+        return build_single_filter(filter_param), False
 
     workloads_filter = _normalize_workloads_filter(filter_param)
 
-    leaf_filter = _build_workloads_leaf_filter(workloads_filter)
-    if leaf_filter is not None:
-        return leaf_filter
+    leaf_result = _build_workloads_leaf_filter(workloads_filter)
+    if leaf_result is not None:
+        return leaf_result
 
-    return build_single_filter(workloads_filter)
+    # Fallback: for nil, build the positive (not_nil) condition and negate via NOT EXISTS
+    if _is_nil_value_in_filter(workloads_filter):
+        not_nil_filter = _invert_nil_to_not_nil(workloads_filter)
+        return build_single_filter(not_nil_filter), True
+
+    return build_single_filter(workloads_filter), False
 
 
 def _truncate_path_at_array(sp_spec: dict, jsonb_path: tuple[str, ...]) -> tuple[str, ...]:
@@ -627,6 +723,27 @@ def _get_group_conjunction(group: list) -> Callable[..., ColumnElement]:
     return and_ if field_filter == "array" else or_
 
 
+def _collect_and_wrap_workloads_exprs(exprs_with_negate: list[tuple[ColumnElement, bool]]) -> list[ColumnElement]:
+    """Merge workloads expressions into minimal EXISTS/NOT EXISTS subqueries.
+
+    All positive expressions are combined into a single EXISTS(... AND ... AND ...).
+    Each negative expression gets its own NOT EXISTS (they cannot be merged).
+    """
+    positive: list[ColumnElement] = []
+    results: list[ColumnElement] = []
+
+    for expr, negate in exprs_with_negate:
+        if negate:
+            results.append(_workloads_subquery(expr, negate=True))
+        else:
+            positive.append(expr)
+
+    if positive:
+        results.insert(0, _workloads_subquery(*positive))
+
+    return results
+
+
 def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
     """
     Split filters into workload existence checks and standard SQL filters.
@@ -648,35 +765,38 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
     """
     workload_null_check_filters: list[dict] = []
     standard_filters: list = []
+    # Accumulate workloads expressions to merge into minimal EXISTS subqueries
+    pending_workloads: list[tuple[ColumnElement, bool]] = []
 
     for grouped_filter_param in filter_param_list:
-        # grouped_filter_param can be:
-        # - dict: a single filter
-        # - list[dict]: multiple filters for the same field (OR / AND group)
         if isinstance(grouped_filter_param, list):
-            # Special case:
-            # A single-item list that represents a workload existence check
             if len(grouped_filter_param) == 1 and _is_workload_existence_check(grouped_filter_param[0]):
                 workload_null_check_filters.append(grouped_filter_param[0])
                 continue
 
-            # General grouped filters:
-            # - OR for most fields
-            # - AND for array fields
             conjunction = _get_group_conjunction(grouped_filter_param)
 
-            # Build SQLAlchemy expressions for each filter and combine them
-            conjunction_filter = conjunction(_build_workloads_filter(f) for f in grouped_filter_param)
+            # For grouped workloads filters, each item in the group needs its own
+            # EXISTS since they're combined with OR/AND at the outer level
+            if _is_workloads_filter(grouped_filter_param[0]):
+                group_exprs = [_build_workloads_expr(f) for f in grouped_filter_param]
+                wrapped = [_workloads_subquery(expr, negate=negate) for expr, negate in group_exprs]
+                conjunction_filter = conjunction(*wrapped)
+            else:
+                conjunction_filter = conjunction(*(build_single_filter(f) for f in grouped_filter_param))
             standard_filters.append(conjunction_filter)
             continue
 
-        # Single filter (not grouped)
-        # Check if it's a workload existence filter (nil / not_nil)
         if _is_workload_existence_check(grouped_filter_param):
             workload_null_check_filters.append(grouped_filter_param)
+        elif _is_workloads_filter(grouped_filter_param):
+            pending_workloads.append(_build_workloads_expr(grouped_filter_param))
         else:
-            # Regular filter -> convert to SQLAlchemy expression
-            standard_filters.append(_build_workloads_filter(grouped_filter_param))
+            standard_filters.append(build_single_filter(grouped_filter_param))
+
+    # Merge accumulated workloads expressions into minimal EXISTS/NOT EXISTS
+    if pending_workloads:
+        standard_filters.extend(_collect_and_wrap_workloads_exprs(pending_workloads))
 
     return workload_null_check_filters, standard_filters
 
@@ -691,8 +811,14 @@ def build_system_profile_filter(system_profile_param: dict) -> tuple:
     filters: list = []
 
     if workload_null_check_filters:
-        workload_presence_expr = or_(*(_build_workloads_filter(f) for f in workload_null_check_filters))
-        filters.append(workload_presence_expr)
+        presence_exprs = [_build_workloads_expr(f) for f in workload_null_check_filters]
+        positive = [expr for expr, negate in presence_exprs if not negate]
+        negative = [expr for expr, negate in presence_exprs if negate]
+        if positive and not negative:
+            filters.append(_workloads_subquery(or_(*positive)))
+        else:
+            wrapped = [_workloads_subquery(expr, negate=negate) for expr, negate in presence_exprs]
+            filters.append(or_(*wrapped))
 
     filters.extend(standard_filters)
 
