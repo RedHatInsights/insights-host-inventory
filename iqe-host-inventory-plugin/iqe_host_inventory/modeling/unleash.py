@@ -67,7 +67,7 @@ class HBIUnleash(BaseEntity):
 
     @cached_property
     def rbac_workspaces_flag(self) -> str:
-        feature_flag = "platform.rbac.workspaces"
+        feature_flag = "hbi.rbac-v2"
 
         if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
             flag_request = UnleashFlagRequest(
