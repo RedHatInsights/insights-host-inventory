@@ -3100,3 +3100,19 @@ def test_workloads_multiple_positive_filters_produce_single_exists(flask_app):
         # Both filters in a single EXISTS — count occurrences
         assert sql.count("EXISTS") == 1
         assert "NOT (EXISTS" not in sql
+
+
+def test_workloads_mixed_positive_and_nil_produces_exists_and_not_exists(flask_app):
+    """Positive + nil workloads filters produce one EXISTS and one NOT EXISTS."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter(
+            {
+                "workloads": {"sap": {"sap_system": "true"}},
+                "mssql": {"version": {"is": "nil"}},
+            }
+        )
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "NOT (EXISTS" in sql

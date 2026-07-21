@@ -500,10 +500,12 @@ def _build_workloads_leaf_filter(workloads_filter: dict) -> tuple[ColumnElement,
         if info.pg_op == ColumnOperators.is_:
             return _build_workloads_string_not_nil_filter(col, info.jsonb_path), True
         # Exact equality → full @> containment (GIN-indexable).
-        # For wildcard fields, only when the value has no glob characters (otherwise fall back to ILIKE).
-        if info.value and info.pg_op in (ColumnOperators.__eq__, None):
-            return _build_workloads_containment_filter(col, info.jsonb_path, info.value), False
-        if info.value and info.pg_op == ColumnOperators.ilike and "*" not in info.value:
+        # Only when no glob characters are present (otherwise fall back to ILIKE).
+        if (
+            info.value
+            and "*" not in info.value
+            and info.pg_op in (ColumnOperators.__eq__, ColumnOperators.ilike, None)
+        ):
             return _build_workloads_containment_filter(col, info.jsonb_path, info.value), False
 
     return None
@@ -769,11 +771,16 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
     pending_workloads: list[tuple[ColumnElement, bool]] = []
 
     for grouped_filter_param in filter_param_list:
+        # grouped_filter_param can be:
+        # - dict: a single filter
+        # - list[dict]: multiple filters for the same field (OR / AND group)
         if isinstance(grouped_filter_param, list):
+            # Special case: a single-item list that represents a workload existence check
             if len(grouped_filter_param) == 1 and _is_workload_existence_check(grouped_filter_param[0]):
                 workload_null_check_filters.append(grouped_filter_param[0])
                 continue
 
+            # General grouped filters: OR for most fields, AND for array fields
             conjunction = _get_group_conjunction(grouped_filter_param)
 
             # For grouped workloads filters, each item in the group needs its own
@@ -787,11 +794,14 @@ def _organize_filter_params(filter_param_list: list) -> tuple[list[dict], list]:
             standard_filters.append(conjunction_filter)
             continue
 
+        # Single filter (not grouped)
+        # Check if it's a workload existence filter (nil / not_nil)
         if _is_workload_existence_check(grouped_filter_param):
             workload_null_check_filters.append(grouped_filter_param)
         elif _is_workloads_filter(grouped_filter_param):
             pending_workloads.append(_build_workloads_expr(grouped_filter_param))
         else:
+            # Regular filter -> convert to SQLAlchemy expression
             standard_filters.append(build_single_filter(grouped_filter_param))
 
     # Merge accumulated workloads expressions into minimal EXISTS/NOT EXISTS

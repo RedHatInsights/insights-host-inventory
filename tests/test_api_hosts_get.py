@@ -2962,18 +2962,22 @@ def test_workloads_exists_subquery_with_mixed_static_sp_filter(db_create_host, a
 
 def test_workloads_nil_filter_uses_not_exists(db_create_host, api_get):
     """Nil workloads filters use NOT EXISTS to match hosts with no matching
-    system_profiles_dynamic row. Verifies a host with empty SP matches sap_system=nil.
+    system_profiles_dynamic row. Also covers partial data where the parent key exists
+    but the leaf field is absent.
     """
     empty_sp_host = str(db_create_host(extra_data={"system_profile_facts": {}}).id)
     sap_true_host = str(
         db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
     )
+    # workloads.sap exists but sap_system is not set — should match nil
+    sap_no_field_host = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {}}}}).id)
 
     url = build_hosts_url(query="?filter[system_profile][sap_system][is]=nil")
     response_status, response_data = api_get(url)
     assert response_status == 200
     response_ids = {r["id"] for r in response_data["results"]}
     assert empty_sp_host in response_ids
+    assert sap_no_field_host in response_ids
     assert sap_true_host not in response_ids
 
 
@@ -2996,6 +3000,27 @@ def test_workloads_string_not_nil_finds_hosts_with_field_set(db_create_host, api
     assert match_host in response_ids
     assert ansible_no_version not in response_ids
     assert no_ansible not in response_ids
+
+
+def test_workloads_wildcard_glob_uses_ilike(db_create_host, api_get):
+    """Wildcard field with glob pattern (e.g. version=15.*) should use ILIKE, not @> containment."""
+    host_15_3 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.3"}}}}).id
+    )
+    host_15_10 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.10"}}}}).id
+    )
+    host_14_9 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "14.9"}}}}).id
+    )
+
+    url = build_hosts_url(query="?filter[system_profile][workloads][mssql][version]=15.*")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert host_15_3 in response_ids
+    assert host_15_10 in response_ids
+    assert host_14_9 not in response_ids
 
 
 def test_no_hosts_in_org(api_get):

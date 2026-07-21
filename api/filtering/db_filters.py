@@ -106,6 +106,7 @@ def _needs_system_profile_joins(filter, order_by):
 
     Returns: (needs_static_join, needs_dynamic_join)
     """
+    # Ordering by specific fields may require joins even without filters
     requires_static_for_order = order_by in ORDER_BY_STATIC_PROFILE_FIELDS
     if not filter:
         return requires_static_for_order, False
@@ -113,6 +114,7 @@ def _needs_system_profile_joins(filter, order_by):
     dynamic_fields, static_fields = _get_system_profile_fields()
     filter_fields = _extract_filter_fields(filter)
 
+    # Handle workloads fields (temporary) — only needed until we stop supporting the old filter paths
     if filter_fields & WORKLOADS_FIELDS:
         filter_fields.add("workloads")
 
@@ -557,7 +559,9 @@ def query_filters(
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
+    # Dynamically determine if we need system profile joins based on filtering and ordering
     needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by)
+    # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
     needs_dynamic_join = needs_dynamic_join or join_dynamic_profile
 
