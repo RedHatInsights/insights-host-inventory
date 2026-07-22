@@ -300,7 +300,7 @@ def test_create_group_RBAC_denied_attribute_filter(mocker, api_create_group):
 
 @pytest.mark.usefixtures("event_producer")
 def test_create_group_same_name_platform_rbac_workspaces_enabled(api_create_group, db_get_group_by_name):
-    """Test that groups with the same name can be created when platform.rbac.workspaces is True."""
+    """Test that groups with the same name can be created when hbi.rbac-v2 is True."""
     group_data = {"name": "duplicate_group_name", "host_ids": []}
 
     # Create the first group
