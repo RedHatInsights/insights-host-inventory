@@ -22,6 +22,7 @@ from marshmallow import ValidationError
 from marshmallow import fields
 from marshmallow import validate
 from opentelemetry import trace
+from opentelemetry.propagate import extract as otel_extract
 from opentelemetry.trace import StatusCode
 from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import UniqueViolation
@@ -267,6 +268,26 @@ class HBIMessageConsumerBase:
         attrs.update(extra)
         return attrs
 
+    def _extract_producer_context(self, msg):
+        """Extract W3C trace context from Kafka message headers.
+
+        The returned context is used as the parent for per-message spans, making
+        them part of the upstream producer's trace (enabling end-to-end distributed
+        tracing across services like puptoo → HBI → advisor).
+
+        Returns None if no valid context is found in the message headers.
+        """
+        headers = msg.headers() or []
+        carrier = {}
+        for key, value in headers:
+            if key in ("traceparent", "tracestate"):
+                carrier[key] = value.decode("utf-8") if isinstance(value, bytes) else value
+
+        if not carrier:
+            return None
+
+        return otel_extract(carrier=carrier)
+
     @contextmanager
     def _message_span(self, msg, **extra_attrs):
         """Create a per-message span that automatically enriches from threadctx on exit.
@@ -275,10 +296,12 @@ class HBIMessageConsumerBase:
         threadctx during processing. Using this context manager means callers
         never need to call _enrich_span_from_threadctx manually.
         """
-        with tracer.start_as_current_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **extra_attrs),
-        ) as span:
+        producer_ctx = self._extract_producer_context(msg)
+        span_kwargs = {"attributes": self._message_span_attrs(msg, **extra_attrs)}
+        if producer_ctx is not None:
+            span_kwargs["context"] = producer_ctx
+
+        with tracer.start_as_current_span(f"mq.process {msg.topic()}", **span_kwargs) as span:
             try:
                 yield span
             finally:
@@ -292,11 +315,15 @@ class HBIMessageConsumerBase:
         handle_message() has already run (or raised), so threadctx is
         already populated and enrichment can happen eagerly.
         """
-        span = tracer.start_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **extra_attrs),
-            start_time=start_ns,
-        )
+        producer_ctx = self._extract_producer_context(msg)
+        span_kwargs = {
+            "attributes": self._message_span_attrs(msg, **extra_attrs),
+            "start_time": start_ns,
+        }
+        if producer_ctx is not None:
+            span_kwargs["context"] = producer_ctx
+
+        span = tracer.start_span(f"mq.process {msg.topic()}", **span_kwargs)
         self._enrich_span_from_threadctx(span)
         yield span
 
