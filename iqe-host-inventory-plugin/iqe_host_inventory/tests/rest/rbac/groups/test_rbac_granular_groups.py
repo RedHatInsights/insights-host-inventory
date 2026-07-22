@@ -401,7 +401,7 @@ class TestRBACGranularGroupsWritePermission:
           negative: true
           title: Test that users with granular RBAC access can't remove hosts from groups via
                  DELETE /groups/hosts/<host_ids> endpoint if the request includes good and bad hosts
-        """  # NOQA: E501
+        """  # ruff:ignore[line-too-long]
         groups = rbac_setup_resources_for_granular_rbac.groups
         hosts_by_group = rbac_setup_resources_for_granular_rbac.host_groups[: len(groups)]
         all_hosts = flatten(hosts_by_group)

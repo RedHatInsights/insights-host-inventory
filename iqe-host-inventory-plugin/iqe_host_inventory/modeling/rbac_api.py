@@ -280,7 +280,7 @@ class RBACAPIWrapper(BaseEntity):
             logger.info(f"{put_response.status}: {put_response.data}")
 
             # Enable this assert when https://redhat.atlassian.net/browse/RHCLOUD-46719 is fixed
-            # assert 200 <= put_response.status <= 299, f"{put_response.status}: {put_response.data}"  # noqa: E501
+            # assert 200 <= put_response.status <= 299, f"{put_response.status}: {put_response.data}"  # ruff:ignore[line-too-long]
 
     def reset_user_groups(
         self, username: str, group_name: str | None = "iqe-hbi", delete_groups: bool = True

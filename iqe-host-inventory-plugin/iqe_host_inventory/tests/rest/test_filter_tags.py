@@ -988,6 +988,6 @@ def test_filter_tags_with_invalid_system_profile_operating_system(
 
     with raises_apierror(
         400,
-        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # noqa
+        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # ruff:ignore[line-too-long]
     ):
         host_inventory.apis.tags.get_tags(filter=filter, per_page=100)
