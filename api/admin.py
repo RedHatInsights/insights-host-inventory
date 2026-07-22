@@ -7,15 +7,19 @@ from flask import request
 from app.common import inventory_config
 from app.exceptions import InventoryException
 
+# Relative route on admin_blueprint (mounted under Config.api_url_path_prefix).
+ADMIN_HOSTS_ROUTE = "/_admin/hosts"
+# Full path with default API prefix (PATH_PREFIX=api, APP_NAME=inventory).
+ADMIN_HOSTS_URL_PATH = f"/api/inventory/v1{ADMIN_HOSTS_ROUTE}"
+
 admin_blueprint = Blueprint("admin", __name__)
 
 
-@admin_blueprint.route("/_admin/hosts", methods=["POST"])
+@admin_blueprint.route(ADMIN_HOSTS_ROUTE, methods=["POST"])
 def create_or_update_admin_host():
     """Create or update a host for non-production data setup.
 
-    Mounted at ``/api/inventory/v1/_admin/hosts``.
-    Not part of the public API spec.
+    Mounted at ``ADMIN_HOSTS_URL_PATH``. Not part of the public API spec.
     Gated by INVENTORY_ADMIN_HOSTS_ENABLED.
     """
     if not inventory_config().admin_hosts_endpoint_enabled:

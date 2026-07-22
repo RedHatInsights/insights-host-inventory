@@ -4,14 +4,13 @@ from uuid import UUID
 
 import pytest
 
+from api.admin import ADMIN_HOSTS_URL_PATH
 from app.models import Host
 from app.models import db
 from app.queue.events import EventType
 from tests.helpers.mq_utils import assert_system_registered_notification_is_valid
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
-
-ADMIN_HOSTS_URL = "/api/inventory/v1/_admin/hosts"
 
 
 @pytest.fixture
@@ -29,7 +28,7 @@ def test_admin_hosts_disabled_by_default(
     inventory_config.admin_hosts_endpoint_enabled = False
     host = minimal_host().data()
 
-    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert response.status_code == HTTPStatus.FORBIDDEN
     assert Host.query.count() == 0
@@ -42,7 +41,7 @@ def test_admin_hosts_create_returns_id(flask_client, event_producer_mock, notifi
     host_wrapper = minimal_host(insights_id=generate_uuid())
     host = host_wrapper.data()
 
-    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert response.status_code == HTTPStatus.CREATED
     body = response.json()
@@ -62,12 +61,12 @@ def test_admin_hosts_create_returns_id(flask_client, event_producer_mock, notifi
 def test_admin_hosts_create_deduplicates_by_canonical_facts(flask_client, event_producer_mock):
     host = minimal_host(insights_id=generate_uuid()).data()
 
-    create_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    create_response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
     assert create_response.status_code == HTTPStatus.CREATED
     host_id = create_response.json()["id"]
 
     host["display_name"] = "dedup-updated-host"
-    update_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    update_response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert update_response.status_code == HTTPStatus.OK
     assert update_response.json()["id"] == host_id
@@ -79,14 +78,14 @@ def test_admin_hosts_create_deduplicates_by_canonical_facts(flask_client, event_
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
 def test_admin_hosts_update_by_id(flask_client, event_producer_mock):
     host = minimal_host().data()
-    create_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    create_response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
     host_id = create_response.json()["id"]
 
     updated_display_name = "admin-updated-host"
     host["id"] = host_id
     host["display_name"] = updated_display_name
 
-    update_response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    update_response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert update_response.status_code == HTTPStatus.OK
     assert update_response.json()["id"] == host_id
@@ -103,7 +102,7 @@ def test_admin_hosts_update_by_id(flask_client, event_producer_mock):
 def test_admin_hosts_update_missing_host_returns_404(flask_client):
     host = minimal_host(id=generate_uuid()).data()
 
-    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -112,7 +111,7 @@ def test_admin_hosts_update_missing_host_returns_404(flask_client):
 def test_admin_hosts_invalid_host_id_returns_400(flask_client):
     host = minimal_host(id="not-a-uuid").data()
 
-    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
@@ -120,7 +119,7 @@ def test_admin_hosts_invalid_host_id_returns_400(flask_client):
 @pytest.mark.usefixtures("enable_admin_hosts", "event_producer_mock", "notification_event_producer_mock")
 def test_admin_hosts_invalid_json_returns_400(flask_client):
     response = flask_client.post(
-        ADMIN_HOSTS_URL,
+        ADMIN_HOSTS_URL_PATH,
         content=b"not-json",
         headers={"Content-Type": "application/json"},
     )
@@ -133,6 +132,6 @@ def test_admin_hosts_missing_org_id_returns_400(flask_client):
     host = minimal_host().data()
     del host["org_id"]
 
-    response = flask_client.post(ADMIN_HOSTS_URL, json=host)
+    response = flask_client.post(ADMIN_HOSTS_URL_PATH, json=host)
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
