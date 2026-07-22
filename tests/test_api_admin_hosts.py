@@ -11,7 +11,7 @@ from tests.helpers.mq_utils import assert_system_registered_notification_is_vali
 from tests.helpers.test_utils import generate_uuid
 from tests.helpers.test_utils import minimal_host
 
-ADMIN_HOSTS_URL = "/_admin/hosts"
+ADMIN_HOSTS_URL = "/api/inventory/v1/_admin/hosts"
 
 
 @pytest.fixture
