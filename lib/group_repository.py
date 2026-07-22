@@ -3,7 +3,6 @@ from datetime import datetime
 from uuid import UUID
 
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,6 @@ from app.common import inventory_config
 from app.exceptions import InventoryException
 from app.instrumentation import get_control_rule
 from app.instrumentation import log_get_group_list_failed
-from app.instrumentation import log_group_delete_failed
 from app.instrumentation import log_group_delete_succeeded
 from app.instrumentation import log_host_group_add_failed
 from app.instrumentation import log_host_group_add_succeeded
@@ -359,6 +357,62 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
             )
 
 
+def _remove_all_hosts_from_groups_batch(group_ids: list[str], identity: Identity):
+    """Bulk-move all hosts from multiple groups to the 'ungrouped' group.
+
+    Instead of processing each group one-by-one (N×3 DB round-trips),
+    this collects all host associations across all groups in a single query,
+    performs a bulk reassignment, and preserves the savepoint+retry pattern
+    at the batch level for race-condition safety.
+    """
+    ungrouped_id = get_or_create_ungrouped_hosts_group_for_identity(identity).id
+
+    # Single query: get all host IDs across all groups being deleted
+    host_ids = [
+        row[0]
+        for row in db.session.query(HostGroupAssoc.host_id)
+        .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_ids))
+        .all()
+    ]
+    if not host_ids:
+        return
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        # Single query: filter to only hosts that still exist
+        existing_host_ids = [
+            str(row[0])
+            for row in db.session.query(Host.id).filter(Host.org_id == identity.org_id, Host.id.in_(host_ids)).all()
+        ]
+        if not existing_host_ids:
+            break
+
+        try:
+            with db.session.begin_nested():  # Savepoint
+                # Bulk remove: delete all host-group associations for all groups at once
+                HostGroupAssoc.query.filter(
+                    HostGroupAssoc.org_id == identity.org_id,
+                    HostGroupAssoc.group_id.in_(group_ids),
+                    HostGroupAssoc.host_id.in_(existing_host_ids),
+                ).delete(synchronize_session="fetch")
+
+                # Bulk add: move all hosts to the ungrouped group
+                _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
+            break  # Success
+        except (IntegrityError, InventoryException):
+            if attempt == max_retries - 1:
+                raise
+            logger.warning(
+                "Race condition detected while moving hosts from groups %s to ungrouped "
+                "group %s (attempt %d/%d), retrying with fresh host list",
+                group_ids,
+                ungrouped_id,
+                attempt + 1,
+                max_retries,
+                exc_info=True,
+            )
+
+
 def _delete_host_group_assoc(session, assoc):
     delete_query = session.query(HostGroupAssoc).filter(
         HostGroupAssoc.org_id == assoc.org_id,
@@ -382,33 +436,36 @@ def _delete_group(group: Group, identity: Identity) -> bool:
 
 
 def delete_group_list(group_id_list: list[str], identity: Identity, event_producer: EventProducer) -> int:
-    deletion_count = 0
-    deleted_host_ids = []
-
     host_id_list = []
     with session_guard(db.session):
         staleness = get_staleness_obj(identity.org_id)
-        query = (
-            select(HostGroupAssoc)
-            .join(Group)
+
+        # Collect affected host IDs before any mutations (for Kafka events later)
+        deleted_host_ids = [
+            row[0]
+            for row in db.session.query(HostGroupAssoc.host_id)
             .filter(HostGroupAssoc.org_id == identity.org_id, HostGroupAssoc.group_id.in_(group_id_list))
-        )
+            .all()
+        ]
 
-        assocs_to_delete = db.session.execute(query).scalars().all()
-        deleted_host_ids = [assoc.host_id for assoc in assocs_to_delete]
-
-        for group in (
+        # Verify which groups actually exist (for metrics/logging)
+        groups_to_delete = (
             db.session.query(Group).filter(Group.org_id == identity.org_id, Group.id.in_(group_id_list)).all()
-        ):
-            group_id = group.id
+        )
+        group_ids_to_delete = [str(g.id) for g in groups_to_delete]
 
+        if group_ids_to_delete:
             with delete_group_processing_time.time():
-                if _delete_group(group, identity):
-                    deletion_count += 1
-                    delete_group_count.inc()
-                    log_group_delete_succeeded(logger, group_id, get_control_rule())
-                else:
-                    log_group_delete_failed(logger, group_id, get_control_rule())
+                # Batch step 1: Move all hosts from all groups to "ungrouped" in bulk
+                _remove_all_hosts_from_groups_batch(group_ids_to_delete, identity)
+
+                # Batch step 2: Delete all groups in one statement
+                db.session.query(Group).filter(Group.id.in_(group_ids_to_delete)).delete(synchronize_session="fetch")
+
+        deletion_count = len(group_ids_to_delete)
+        for group_id in group_ids_to_delete:
+            delete_group_count.inc()
+            log_group_delete_succeeded(logger, group_id, get_control_rule())
 
         new_group_list = (
             [str(get_or_create_ungrouped_hosts_group_for_identity(identity).id)] if deleted_host_ids else []
