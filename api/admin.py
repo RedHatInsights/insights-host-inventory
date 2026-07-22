@@ -14,7 +14,9 @@ admin_blueprint = Blueprint("admin", __name__)
 def create_or_update_admin_host():
     """Create or update a host for non-production data setup.
 
-    Not part of the public API spec. Gated by INVENTORY_ADMIN_HOSTS_ENABLED.
+    Mounted at ``{api_url_path_prefix}/_admin/hosts`` (default
+    ``/api/inventory/v1/_admin/hosts``). Not part of the public API spec.
+    Gated by INVENTORY_ADMIN_HOSTS_ENABLED.
     """
     if not inventory_config().admin_hosts_endpoint_enabled:
         raise InventoryException(
