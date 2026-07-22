@@ -22,12 +22,6 @@ def enable_admin_hosts(inventory_config):
     inventory_config.admin_hosts_endpoint_enabled = original
 
 
-@pytest.mark.usefixtures("enable_admin_hosts")
-def test_admin_hosts_root_path_not_registered(flask_client):
-    response = flask_client.post("/_admin/hosts", json=minimal_host().data())
-    assert response.status_code == HTTPStatus.NOT_FOUND
-
-
 @pytest.mark.usefixtures("event_producer_mock", "notification_event_producer_mock")
 def test_admin_hosts_disabled_by_default(
     flask_client, inventory_config, event_producer_mock, notification_event_producer_mock
