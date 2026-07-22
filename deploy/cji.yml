@@ -103,6 +103,16 @@ objects:
     appName: host-inventory
     jobs:
       - update-staleness
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    labels:
+      app: host-inventory
+    name: delete-empty-org-groups-${DELETE_EMPTY_ORG_GROUPS_RUN_NUMBER}
+  spec:
+    appName: host-inventory
+    jobs:
+      - delete-empty-org-groups
 parameters:
 - name: SYNCHRONIZER_RUN_NUMBER
   value: '1'
@@ -123,4 +133,6 @@ parameters:
 - name: REMOVE_NULL_WORKLOAD_VALUES_RUN_NUMBER
   value: '1'
 - name: UPDATE_STALENESS_RUN_NUMBER
+  value: '1'
+- name: DELETE_EMPTY_ORG_GROUPS_RUN_NUMBER
   value: '1'

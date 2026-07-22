@@ -433,94 +433,94 @@ def setup_hosts_for_bootc_status_filtering(
     hosts_data[1]["system_profile"]["bootc_status"] = {
         "booted": {
             "image": "quay.io/b-1:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/bc-1:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # ruff:ignore[line-too-long]
         }
     }
     hosts_data[2]["system_profile"]["bootc_status"] = {
         "rollback": {
             "image": "quay.io/r-2:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b2",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b2",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/rc-2:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc2",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc2",  # ruff:ignore[line-too-long]
         }
     }
     hosts_data[3]["system_profile"]["bootc_status"] = {
         "staged": {
             "image": "quay.io/s-3:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c3",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c3",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/sc-3:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc3",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc3",  # ruff:ignore[line-too-long]
         }
     }
 
     hosts_data[4]["system_profile"]["bootc_status"] = {
         "booted": {
             "image": "quay.io/b-4:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a4",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a4",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/bc-4:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac4",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac4",  # ruff:ignore[line-too-long]
         },
         "staged": {
             "image": "quay.io/s-4:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c4",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c4",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/sc-4:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc4",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc4",  # ruff:ignore[line-too-long]
         },
     }
 
     hosts_data[5]["system_profile"]["bootc_status"] = {
         "booted": {
             "image": "quay.io/b-5:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a5",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a5",  # ruff:ignore[line-too-long]
         }
     }
     hosts_data[6]["system_profile"]["bootc_status"] = {
         "booted": {
             "cached_image": "quay.io/bc-6:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac6",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac6",  # ruff:ignore[line-too-long]
         }
     }
 
     hosts_data[7]["system_profile"]["bootc_status"] = {
         "booted": {
             "image": "quay.io/b-7:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a7",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a7",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/bc-7:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac7",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac7",  # ruff:ignore[line-too-long]
         },
         "rollback": {
             "image": "quay.io/r-7:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b7",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b7",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/rc-7:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc7",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc7",  # ruff:ignore[line-too-long]
         },
         "staged": {
             "image": "quay.io/s-7:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c7",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c7",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/sc-7:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc7",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc7",  # ruff:ignore[line-too-long]
         },
     }
     hosts_data[8]["system_profile"]["bootc_status"] = {
         "booted": {
             "image": "quay.io/b-8:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a8",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a8",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/bc-8:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac8",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac8",  # ruff:ignore[line-too-long]
         },
         "rollback": {
             "image": "quay.io/r-8:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b8",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000b8",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/rc-8:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc8",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000bc8",  # ruff:ignore[line-too-long]
         },
         "staged": {
             "image": "quay.io/s-8:latest",
-            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c8",  # noqa: E501
+            "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000c8",  # ruff:ignore[line-too-long]
             "cached_image": "quay.io/sc-8:latest",
-            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc8",  # noqa: E501
+            "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000cc8",  # ruff:ignore[line-too-long]
         },
     }
 
@@ -688,9 +688,9 @@ def setup_hosts_for_system_type_filtering(
         host["system_profile"]["bootc_status"] = {
             "booted": {
                 "image": "quay.io/b-1:latest",
-                "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # noqa: E501
+                "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # ruff:ignore[line-too-long]
                 "cached_image": "quay.io/bc-1:latest",
-                "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # noqa: E501
+                "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # ruff:ignore[line-too-long]
             }
         }
     conventional_data = hosts_data[4:]
@@ -721,9 +721,9 @@ def setup_hosts_for_deleting_by_system_type_filter(
         host["system_profile"]["bootc_status"] = {
             "booted": {
                 "image": "quay.io/b-1:latest",
-                "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # noqa: E501
+                "image_digest": "sha256:abcdefABCDEF01234567890000000000000000000000000000000000000000a1",  # ruff:ignore[line-too-long]
                 "cached_image": "quay.io/bc-1:latest",
-                "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # noqa: E501
+                "cached_image_digest": "sha256:abcdefABCDEF0123456789000000000000000000000000000000000000000ac1",  # ruff:ignore[line-too-long]
             }
         }
     conventional_data = hosts_data[4:]

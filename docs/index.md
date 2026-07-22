@@ -368,6 +368,42 @@ There is also a `metadata` field that includes the `request_id`.
 
 NOTE: When using PATCH endpoints, the API responds with HTTP 200 because the operation has been completed. However, the data must be propagated, so it may take a short while for it to be reflected in subsequent GET requests.
 
+### Admin host create/update
+
+`POST /_admin/hosts` is an internal endpoint for creating or updating hosts in non-production
+environments (local, ephemeral, Stage). It is **not** listed in the public OpenAPI specification.
+
+Access is controlled by the `INVENTORY_ADMIN_HOSTS_ENABLED` environment variable
+(default `false`). Keep this disabled in production.
+
+| Condition | Result |
+|--|--|
+| No `id` in body | Same as MQ `add_host`: create, or update by canonical-fact match → `201` / `200` with `{"id": "<uuid>"}` |
+| `id` present and host exists | Update that host by primary key → `200` with `{"id": "<uuid>"}` |
+| `id` present and host missing | `404` |
+| Endpoint disabled | `403` |
+
+Unlike public REST endpoints, this route does not require an `x-rh-identity` header.
+A user identity is synthesized from the payload `org_id`. Create and update use the same
+persistence and event path as Kafka host ingress (database commit, outbox events, host
+created/updated Kafka events, and new-system-registered notifications on create).
+
+The request body uses the same host fields as the [ingress message `data` object](#expected-message-format).
+At minimum provide `org_id`, `reporter`, and at least one ID fact.
+
+Example create:
+
+```bash
+curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "321",
+    "reporter": "puptoo",
+    "display_name": "admin-test-host",
+    "insights_id": "11111111-1111-1111-1111-111111111111"
+  }'
+```
+
 ### Host Deletion
 
 Hosts can be deleted by using the [DELETE HTTP method resource](https://console.redhat.com/docs/api/inventory/v1).
