@@ -6,7 +6,6 @@ import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import extract_staleness_fields
 from iqe_host_inventory.utils.staleness_utils import gen_staleness_settings
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
@@ -28,13 +27,13 @@ def test_staleness_delete(host_inventory: ApplicationHostInventory) -> None:
     host_inventory.apis.account_staleness.create_staleness(**test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance != "system_default"
+    assert response.json()["id"] != "system_default"
 
     logger.info("Deleting account record")
     host_inventory.apis.account_staleness.delete_staleness()
 
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance == "system_default"
+    assert response.json()["id"] == "system_default"
 
 
 def test_staleness_delete_nonexistent(host_inventory: ApplicationHostInventory) -> None:
@@ -46,8 +45,9 @@ def test_staleness_delete_nonexistent(host_inventory: ApplicationHostInventory) 
       negative: true
       title: Attempt to delete a non-existent staleness record
     """
-    with raises_apierror(404, match_message="does not exist"):
-        host_inventory.apis.account_staleness.delete_staleness()
+    resp = host_inventory.apis.account_staleness.delete_staleness()
+    assert resp.status_code == 404
+    assert "does not exist" in resp.text
 
 
 @pytest.mark.usefixtures("hbi_staleness_secondary_cleanup")
@@ -69,7 +69,7 @@ def test_staleness_delete_proper_account(
     host_inventory.apis.account_staleness.create_staleness(**test_data)
 
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance != "system_default"
+    assert response.json()["id"] != "system_default"
 
     # Create secondary and verify existence
     test_data = gen_staleness_settings()
@@ -77,21 +77,21 @@ def test_staleness_delete_proper_account(
     host_inventory_secondary.apis.account_staleness.create_staleness(**test_data)
 
     secondary = host_inventory_secondary.apis.account_staleness.get_staleness_response()
-    assert secondary.id.actual_instance != "system_default"
+    assert secondary.json()["id"] != "system_default"
 
     # Delete primary and verify it doesn't exist
     logger.info("Deleting primary account record")
     host_inventory.apis.account_staleness.delete_staleness()
 
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance == "system_default"
+    assert response.json()["id"] == "system_default"
 
     # Verify secondary still exists
     logger.info("Verifying secondary account record still exists")
     response = host_inventory_secondary.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance != "system_default"
+    assert response.json()["id"] != "system_default"
     validate_staleness_response(
-        extract_staleness_fields(response), extract_staleness_fields(secondary)
+        extract_staleness_fields(response.json()), extract_staleness_fields(secondary.json())
     )
 
 
