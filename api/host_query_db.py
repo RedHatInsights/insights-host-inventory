@@ -9,7 +9,11 @@ from sqlalchemy import Boolean
 from sqlalchemy import Integer
 from sqlalchemy import and_
 from sqlalchemy import case
+from sqlalchemy import column
 from sqlalchemy import func
+from sqlalchemy import literal
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query
@@ -525,7 +529,6 @@ def get_tag_list(
             "Providing ordering direction without a column is not supported. Provide order_by={tag,count}."
         )
 
-    columns = [Host.id, Host.tags]
     all_filters, query_base = query_filters(
         fqdn,
         display_name,
@@ -549,38 +552,50 @@ def get_tag_list(
         order_by,
         get_current_identity(),
     )
-    query = _find_hosts_entities_query(query=query_base, columns=columns)
 
-    query_results = query.filter(*all_filters).all()
-    db.session.close()
-    _, host_tags_dict = _expand_host_tags(query_results)
-    host_tags = host_tags_dict
+    # Build a subquery of filtered host IDs with their tags_alt JSONB array
+    host_query = _find_hosts_entities_query(query=query_base, columns=[Host.id, Host.tags_alt])
+    filtered_hosts = host_query.filter(*all_filters).subquery("filtered_hosts")
+
+    # Unnest tags_alt using jsonb_array_elements and aggregate via GROUP BY
+    tag_lateral = (
+        func.jsonb_array_elements(filtered_hosts.c.tags_alt).table_valued(column("value", JSONB)).lateral("t")
+    )
+    namespace_expr = tag_lateral.c.value["namespace"].astext
+    key_expr = tag_lateral.c.value["key"].astext
+    value_expr = tag_lateral.c.value["value"].astext
+    # count(*) is safe here because tags_alt never contains duplicate (ns, key, value)
+    host_count_expr = func.count()
+    tag_string_expr = func.concat(
+        func.coalesce(namespace_expr, "None"), "/", func.coalesce(key_expr, "None"), "=", func.coalesce(value_expr, "")
+    )
+
+    agg_stmt = (
+        select(
+            namespace_expr.label("namespace"),
+            key_expr.label("key"),
+            value_expr.label("value"),
+            host_count_expr.label("host_count"),
+        )
+        .select_from(filtered_hosts)
+        .join(tag_lateral, literal(True))
+        .group_by(namespace_expr, key_expr, value_expr)
+    )
+
     if search:
-        regex = re.compile(search, re.IGNORECASE)
-        host_tags = {}
-        for key in host_tags_dict.keys():
-            if regex.search(key):
-                host_tags[key] = host_tags_dict[key]
+        agg_stmt = agg_stmt.where(tag_string_expr.op("~*")(search))
 
-    tag_list = []
-    query_count = 0
-    tag_count_list = []
-    for stored_key, tag_contents in host_tags.items():
-        tag_count_item = {"tag": stored_key, "count": len(tag_contents.get("hosts"))}
-        tag_count_list.append(tag_count_item)
-    if order_by == "tag":
-        sorted_tag_count_list = sorted(tag_count_list, reverse=order_how == "DESC", key=lambda item: item["tag"])
-    if order_by == "count":
-        sorted_tag_count_list = sorted(tag_count_list, reverse=order_how == "DESC", key=lambda item: item["count"])
-    for tag_item in sorted_tag_count_list:
-        tag_key = tag_item.get("tag")
-        tag_dict = host_tags[tag_key]
-        output = {"tag": tag_dict.get("output", {}), "count": len(tag_dict.get("hosts", []))}
-        tag_list.append(output)
+    order_col = tag_string_expr if order_by == "tag" else host_count_expr
+    agg_stmt = agg_stmt.order_by(order_col.desc()) if order_how == "DESC" else agg_stmt.order_by(order_col.asc())
 
-    query_count = len(tag_list)
-    tag_list = list(islice(islice(tag_list, offset, None), limit))
-    return tag_list, query_count
+    total = db.session.execute(select(func.count()).select_from(agg_stmt.subquery())).scalar()
+    results = db.session.execute(agg_stmt.limit(limit).offset(offset)).all()
+    db.session.close()
+
+    return [
+        {"tag": {"namespace": row.namespace, "key": row.key, "value": row.value}, "count": row.host_count}
+        for row in results
+    ], total
 
 
 def get_os_info(
