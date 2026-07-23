@@ -3066,7 +3066,7 @@ parameters:
   name: BYPASS_KESSEL
   value: 'false'
 - description: >-
-    Enable POST /_admin/hosts for programmatic host create/update.
+    Enable POST /api/inventory/v1/_admin/hosts for programmatic host create/update.
     Must remain false in production; set true only in dev, ephemeral, and Stage.
   name: INVENTORY_ADMIN_HOSTS_ENABLED
   value: 'false'
