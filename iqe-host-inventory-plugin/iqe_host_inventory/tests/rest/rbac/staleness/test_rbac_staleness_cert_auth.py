@@ -8,7 +8,6 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import get_staleness_fields
 
 logger = logging.getLogger(__name__)
@@ -35,10 +34,9 @@ class TestRBACStalenessCertAuth:
             negative: true
             title: Test that you can't access staleness defaults with cert auth
         """
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
-            host_inventory_non_org_admin_cert_auth.apis.account_staleness.get_default_staleness()
+        staleness_api = host_inventory_non_org_admin_cert_auth.apis.account_staleness
+        resp = staleness_api.get_default_staleness_response()
+        assert resp.status_code == 403
 
     def test_rbac_staleness_cert_auth_bypass_checks_get_staleness(
         self,
@@ -58,10 +56,9 @@ class TestRBACStalenessCertAuth:
             negative: true
             title: Test that you can't access staleness settings with cert auth
         """
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
-            host_inventory_non_org_admin_cert_auth.apis.account_staleness.get_staleness()
+        staleness = host_inventory_non_org_admin_cert_auth.apis.account_staleness
+        resp = staleness.get_staleness_response()
+        assert resp.status_code == 403
 
     def test_rbac_staleness_cert_auth_bypass_checks_create_staleness(
         self,
@@ -83,12 +80,10 @@ class TestRBACStalenessCertAuth:
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
 
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
-            host_inventory_non_org_admin_cert_auth.apis.account_staleness.create_staleness(
-                **settings
-            )
+        resp = host_inventory_non_org_admin_cert_auth.apis.account_staleness.create_staleness(
+            **settings
+        )
+        assert resp.status_code == 403
 
     def test_rbac_staleness_cert_auth_bypass_checks_update_staleness(
         self,
@@ -112,15 +107,13 @@ class TestRBACStalenessCertAuth:
             title: Test that you can't update staleness defaults with cert auth
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
-            host_inventory_non_org_admin_cert_auth.apis.account_staleness.update_staleness(
-                **settings
-            )
+        resp = host_inventory_non_org_admin_cert_auth.apis.account_staleness.update_staleness(
+            **settings
+        )
+        assert resp.status_code == 403
 
     def test_rbac_staleness_cert_auth_bypass_checks_delete_staleness(
         self,
@@ -144,9 +137,7 @@ class TestRBACStalenessCertAuth:
             title: Test that you can't delete staleness settings with cert auth
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
-        with raises_apierror(
-            403, "You don't have the permission to access the requested resource"
-        ):
-            host_inventory_non_org_admin_cert_auth.apis.account_staleness.delete_staleness()
+        resp = host_inventory_non_org_admin_cert_auth.apis.account_staleness.delete_staleness()
+        assert resp.status_code == 403

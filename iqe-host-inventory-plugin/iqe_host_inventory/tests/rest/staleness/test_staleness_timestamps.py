@@ -61,7 +61,7 @@ def test_staleness_timestamps_default_settings(
       title: Validate host timestamps without custom staleness settings
     """
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance == "system_default"
+    assert response.json()["id"] == "system_default"
 
     create_hosts_and_validate(host_inventory, host_type, host_count=3)
 
@@ -163,7 +163,7 @@ def test_staleness_timestamps_delete_settings(
 
     host_inventory.apis.account_staleness.delete_staleness()
     stale_response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert stale_response.id.actual_instance == "system_default"
+    assert stale_response.json()["id"] == "system_default"
 
     for host in hosts:
         retrieved_host = host_inventory.apis.hosts.get_host_by_id(host)
@@ -319,7 +319,7 @@ def test_staleness_timestamps_delete_settings_proper_account(
     # Delete the staleness settings on the primary account only
     host_inventory.apis.account_staleness.delete_staleness()
     stale_response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert stale_response.id.actual_instance == "system_default"
+    assert stale_response.json()["id"] == "system_default"
 
     for host in primary_hosts:
         retrieved_host = host_inventory.apis.hosts.get_host_by_id(host)

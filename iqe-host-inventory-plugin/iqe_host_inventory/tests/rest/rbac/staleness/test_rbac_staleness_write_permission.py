@@ -9,7 +9,6 @@ import pytest
 from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.staleness_utils import get_staleness_fields
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
 
@@ -80,9 +79,9 @@ class TestRBACStalenessWritePermission:
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
 
         response = host_inventory_non_org_admin.apis.account_staleness.create_staleness(**settings)
-        validate_staleness_response(response.to_dict(), hbi_staleness_defaults, settings)
+        validate_staleness_response(response.json(), hbi_staleness_defaults, settings)
 
-        assert response.org_id == hbi_non_org_admin_user_org_id
+        assert response.json()["org_id"] == hbi_non_org_admin_user_org_id
 
     def test_rbac_staleness_write_permission_update_staleness(
         self,
@@ -108,13 +107,13 @@ class TestRBACStalenessWritePermission:
                 staleness settings
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        original = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        original = host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
         response = host_inventory_non_org_admin.apis.account_staleness.update_staleness(**settings)
-        validate_staleness_response(response.to_dict(), original, settings)
+        validate_staleness_response(response.json(), original, settings)
 
-        assert response.org_id == hbi_non_org_admin_user_org_id
+        assert response.json()["org_id"] == hbi_non_org_admin_user_org_id
 
     @pytest.mark.usefixtures("hbi_staleness_defaults", "write_permission_user_setup")
     def test_rbac_staleness_write_permission_delete_staleness(
@@ -140,14 +139,14 @@ class TestRBACStalenessWritePermission:
                 staleness settings
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
         response = host_inventory.apis.account_staleness.get_staleness_response()
-        assert response.id.actual_instance != "system_default"
+        assert response.json()["id"] != "system_default"
 
         host_inventory_non_org_admin.apis.account_staleness.delete_staleness()
         response = host_inventory.apis.account_staleness.get_staleness_response()
-        assert response.id.actual_instance == "system_default"
+        assert response.json()["id"] == "system_default"
 
 
 @pytest.mark.usefixtures("no_write_permission_user_setup")
@@ -172,8 +171,8 @@ class TestRBACStalenessNoWritePermission:
                 staleness settings
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        with raises_apierror(403):
-            host_inventory_non_org_admin.apis.account_staleness.create_staleness(**settings)
+        resp = host_inventory_non_org_admin.apis.account_staleness.create_staleness(**settings)
+        assert resp.status_code == 403
 
     def test_rbac_staleness_no_write_permission_update_staleness(
         self,
@@ -200,8 +199,8 @@ class TestRBACStalenessNoWritePermission:
         host_inventory.apis.account_staleness.create_staleness(**settings)
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
-        with raises_apierror(403):
-            host_inventory_non_org_admin.apis.account_staleness.update_staleness(**settings)
+        resp = host_inventory_non_org_admin.apis.account_staleness.update_staleness(**settings)
+        assert resp.status_code == 403
 
     def test_rbac_staleness_no_write_permission_delete_staleness(
         self,
@@ -225,7 +224,7 @@ class TestRBACStalenessNoWritePermission:
                 staleness settings
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
-        with raises_apierror(403):
-            host_inventory_non_org_admin.apis.account_staleness.delete_staleness()
+        resp = host_inventory_non_org_admin.apis.account_staleness.delete_staleness()
+        assert resp.status_code == 403

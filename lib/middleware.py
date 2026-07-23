@@ -697,7 +697,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled.
 
-    Single source of truth for the platform.rbac.workspaces feature flag.
+    Single source of truth for the hbi.rbac-v2 feature flag.
     Used to gate both Kessel permission checks and RBAC v2 workspace API calls.
 
     When True: Kessel/RBAC v2 workspace API handles all authorization
