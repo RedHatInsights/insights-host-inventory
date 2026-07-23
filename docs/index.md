@@ -370,8 +370,9 @@ NOTE: When using PATCH endpoints, the API responds with HTTP 200 because the ope
 
 ### Admin host create/update
 
-`POST /_admin/hosts` is an internal endpoint for creating or updating hosts in non-production
-environments (local, ephemeral, Stage). It is **not** listed in the public OpenAPI specification.
+`POST /api/inventory/v1/_admin/hosts` is an internal endpoint for creating or updating hosts in
+non-production environments (local, ephemeral, Stage). It is **not** listed in the public OpenAPI
+specification.
 
 Access is controlled by the `INVENTORY_ADMIN_HOSTS_ENABLED` environment variable
 (default `false`). Keep this disabled in production.
@@ -391,10 +392,13 @@ created/updated Kafka events, and new-system-registered notifications on create)
 The request body uses the same host fields as the [ingress message `data` object](#expected-message-format).
 At minimum provide `org_id`, `reporter`, and at least one ID fact.
 
+For Stage, call the same path through the console API host with a Bearer token
+(`https://console.stage.redhat.com/api/inventory/v1/_admin/hosts`).
+
 Example create:
 
 ```bash
-curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+curl -sS -X POST "http://localhost:8080/api/inventory/v1/_admin/hosts" \
   -H "Content-Type: application/json" \
   -d '{
     "org_id": "321",
