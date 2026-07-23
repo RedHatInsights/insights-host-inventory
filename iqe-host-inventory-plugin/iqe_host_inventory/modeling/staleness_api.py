@@ -11,14 +11,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import attr
+import requests
 from iqe.base.modeling import BaseEntity
 
-from iqe_host_inventory.utils.api_utils import check_org_id
+from iqe_host_inventory.modeling.base_api_wrapper import BaseAPIWrapper
+from iqe_host_inventory.utils.api_utils import assert_response_org_id_matches
 from iqe_host_inventory.utils.staleness_utils import extract_staleness_fields
-from iqe_host_inventory_api_v7 import AccountsStalenessApi
-from iqe_host_inventory_api_v7 import ApiException
-from iqe_host_inventory_api_v7 import StalenessIn
-from iqe_host_inventory_api_v7 import StalenessOutput
 
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
@@ -33,47 +31,51 @@ class AccountStalenessAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def raw_api(self) -> AccountsStalenessApi:
-        """
-        Raw auto-generated OpenAPI client.
-        Use high level API wrapper methods instead of this raw API client.
-        Outside this class this should be used only for negative validation testing.
-        """
-        return self._host_inventory.api_v7.accounts_staleness_api
+    def _base_wrapper(self) -> BaseAPIWrapper:
+        return BaseAPIWrapper(self.application)
 
-    @check_org_id
-    def get_default_staleness_response(self, **api_kwargs: Any) -> StalenessOutput:
-        """Retrieve the default staleness settings from GET /account/staleness/defaults
+    def _build_staleness_body(
+        self,
+        conventional_time_to_stale: int | None,
+        conventional_time_to_stale_warning: int | None,
+        conventional_time_to_delete: int | None,
+        immutable_time_to_stale: int | None,
+        immutable_time_to_stale_warning: int | None,
+        immutable_time_to_delete: int | None,
+    ) -> dict[str, int]:
+        return {
+            k: v
+            for k, v in {
+                "conventional_time_to_stale": conventional_time_to_stale,
+                "conventional_time_to_stale_warning": conventional_time_to_stale_warning,
+                "conventional_time_to_delete": conventional_time_to_delete,
+                "immutable_time_to_stale": immutable_time_to_stale,
+                "immutable_time_to_stale_warning": immutable_time_to_stale_warning,
+                "immutable_time_to_delete": immutable_time_to_delete,
+            }.items()
+            if v is not None
+        }
 
-        :return StalenessOutput: Default staleness (response from GET /account/staleness/defaults)
-        """
+    def get_default_staleness_response(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("GET /account/staleness/defaults"):
-            return self.raw_api.api_staleness_get_default_staleness(**api_kwargs)
+            response = self._base_wrapper.get("/account/staleness/defaults", **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
 
     def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        """Retrieve the default staleness settings and extract staleness fields from the response.
+        response = self.get_default_staleness_response(**api_kwargs)
+        response.raise_for_status()
+        return extract_staleness_fields(response.json())
 
-        :return dict[str, int]: Extracted staleness fields from the retrieved default staleness
-        """
-        return extract_staleness_fields(self.get_default_staleness_response(**api_kwargs))
-
-    @check_org_id
-    def get_staleness_response(self, **api_kwargs: Any) -> StalenessOutput:
-        """Retrieve the current staleness settings from GET /account/staleness
-
-        :return StalenessOutput: Current staleness (response from GET /account/staleness)
-        """
+    def get_staleness_response(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("GET /account/staleness"):
-            return self.raw_api.api_staleness_get_staleness(**api_kwargs)
+            response = self._base_wrapper.get("/account/staleness", **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
 
     def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
-        """Retrieve the current staleness settings and extract staleness fields from the response.
+        response = self.get_staleness_response(**api_kwargs)
+        response.raise_for_status()
+        return extract_staleness_fields(response.json())
 
-        :return dict[str, int]: Extracted staleness fields from the retrieved current staleness
-        """
-        return extract_staleness_fields(self.get_staleness_response(**api_kwargs))
-
-    @check_org_id
     def create_staleness(
         self,
         *,
@@ -84,29 +86,19 @@ class AccountStalenessAPIWrapper(BaseEntity):
         immutable_time_to_stale_warning: int | None = None,
         immutable_time_to_delete: int | None = None,
         **api_kwargs: Any,
-    ) -> StalenessOutput:
-        """Create a staleness record. Currently, these values can only be set at the account level.
-
-        :param int conventional_time_to_stale: host state fresh->stale in seconds
-        :param int conventional_time_to_stale_warning: host state stale->stale warning in seconds
-        :param int conventional_time_to_delete: host state stale warning->culled in seconds
-        :param int immutable_time_to_stale: host state fresh->stale in seconds
-        :param int immutable_time_to_stale_warning: host state stale->stale warning in seconds
-        :param int immutable_time_to_delete: host state stale warning->culled in seconds
-        :return StalenessOutput: Created staleness (response from POST /account/staleness)
-        """
-        staleness_in = StalenessIn(
-            conventional_time_to_stale=conventional_time_to_stale,
-            conventional_time_to_stale_warning=conventional_time_to_stale_warning,
-            conventional_time_to_delete=conventional_time_to_delete,
-            immutable_time_to_stale=immutable_time_to_stale,
-            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
-            immutable_time_to_delete=immutable_time_to_delete,
+    ) -> requests.Response:
+        body = self._build_staleness_body(
+            conventional_time_to_stale,
+            conventional_time_to_stale_warning,
+            conventional_time_to_delete,
+            immutable_time_to_stale,
+            immutable_time_to_stale_warning,
+            immutable_time_to_delete,
         )
         with self._host_inventory.apis.measure_time("POST /account/staleness"):
-            return self.raw_api.api_staleness_create_staleness(staleness_in, **api_kwargs)
+            response = self._base_wrapper.post("/account/staleness", json=body, **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
 
-    @check_org_id
     def update_staleness(
         self,
         *,
@@ -117,44 +109,51 @@ class AccountStalenessAPIWrapper(BaseEntity):
         immutable_time_to_stale_warning: int | None = None,
         immutable_time_to_delete: int | None = None,
         **api_kwargs: Any,
-    ) -> StalenessOutput:
-        """Update the staleness record.
-
-        :param int conventional_time_to_stale: host state fresh->stale in seconds
-        :param int conventional_time_to_stale_warning: host state stale->stale warning in seconds
-        :param int conventional_time_to_delete: host state stale warning->culled in seconds
-        :param int immutable_time_to_stale: host state fresh->stale in seconds
-        :param int immutable_time_to_stale_warning: host state stale->stale warning in seconds
-        :param int immutable_time_to_delete: host state stale warning->culled in seconds
-        :return StalenessOutput: Updated staleness (response from PATCH /account/staleness)
-        """
-        staleness_in = StalenessIn(
-            conventional_time_to_stale=conventional_time_to_stale,
-            conventional_time_to_stale_warning=conventional_time_to_stale_warning,
-            conventional_time_to_delete=conventional_time_to_delete,
-            immutable_time_to_stale=immutable_time_to_stale,
-            immutable_time_to_stale_warning=immutable_time_to_stale_warning,
-            immutable_time_to_delete=immutable_time_to_delete,
+    ) -> requests.Response:
+        body = self._build_staleness_body(
+            conventional_time_to_stale,
+            conventional_time_to_stale_warning,
+            conventional_time_to_delete,
+            immutable_time_to_stale,
+            immutable_time_to_stale_warning,
+            immutable_time_to_delete,
         )
         with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
-            return self.raw_api.api_staleness_update_staleness(staleness_in, **api_kwargs)
+            response = self._base_wrapper.patch("/account/staleness", json=body, **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
 
-    @check_org_id
-    def delete_staleness(self, **api_kwargs: Any) -> None:
-        """Delete the staleness record.
-
-        :return None:
-        """
+    def delete_staleness(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
-            return self.raw_api.api_staleness_delete_staleness(**api_kwargs)
+            response = self._base_wrapper.delete("/account/staleness", **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
+
+    def raw_post_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
+        """POST an arbitrary, untyped body to /account/staleness.
+
+        For negative-validation tests that need to send malformed or unknown
+        fields that the typed ``create_staleness`` signature can't express.
+        """
+        with self._host_inventory.apis.measure_time("POST /account/staleness"):
+            response = self._base_wrapper.post("/account/staleness", json=body, **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
+
+    def raw_patch_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
+        """PATCH an arbitrary, untyped body to /account/staleness.
+
+        For negative-validation tests that need to send malformed or unknown
+        fields that the typed ``update_staleness`` signature can't express.
+        """
+        with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
+            response = self._base_wrapper.patch("/account/staleness", json=body, **api_kwargs)
+        return assert_response_org_id_matches(self.application, response)
 
     @contextmanager
     def cleanup_before_and_after(self) -> Generator[None]:
-        with suppress(ApiException):
+        with suppress(requests.RequestException):
             self.delete_staleness()
 
         try:
             yield
         finally:
-            with suppress(ApiException):
+            with suppress(requests.RequestException):
                 self.delete_staleness()

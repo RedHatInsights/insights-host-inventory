@@ -247,7 +247,7 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 #### Using the admin hosts endpoint
 
 For local development and other non-production environments, you can create or update hosts
-directly via `POST /_admin/hosts` instead of publishing to Kafka.
+directly via `POST /api/inventory/v1/_admin/hosts` instead of publishing to Kafka.
 
 This endpoint is **not** part of the public OpenAPI spec. It is gated by
 `INVENTORY_ADMIN_HOSTS_ENABLED` (default `false`). Local `dev.yml` enables it by default.
@@ -270,7 +270,7 @@ Required payload fields: `org_id`, `reporter`, and at least one ID fact
 **Create a host:**
 
 ```bash
-curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+curl -sS -X POST "http://localhost:8080/api/inventory/v1/_admin/hosts" \
   -H "Content-Type: application/json" \
   -d '{
     "org_id": "321",
@@ -284,7 +284,7 @@ curl -sS -X POST "http://localhost:8080/_admin/hosts" \
 **Update that host** (use the `id` from the create response):
 
 ```bash
-curl -sS -X POST "http://localhost:8080/_admin/hosts" \
+curl -sS -X POST "http://localhost:8080/api/inventory/v1/_admin/hosts" \
   -H "Content-Type: application/json" \
   -d '{
     "id": "<host-id-from-create>",
@@ -298,6 +298,10 @@ curl -sS -X POST "http://localhost:8080/_admin/hosts" \
 
 If the flag is disabled, the endpoint returns `403`. An unknown `id` returns `404`.
 Invalid JSON or payload validation failures return `400`.
+
+For Stage, call the same path through the console API host with a Bearer token:
+
+`https://console.stage.redhat.com/api/inventory/v1/_admin/hosts`
 
 See also the [Admin host create/update](docs/index.md#admin-host-createupdate) section in the HBI docs.
 
