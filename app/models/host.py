@@ -121,7 +121,14 @@ class LimitedHost(db.Model, HostTypeDeriver):
         else:
             raise TypeError("Tags must be dict or list")
 
-        return transformed_tags
+        # Deduplicate to ensure no duplicate (namespace, key, value) entries exist.
+        seen = set()
+        return [
+            t
+            for t in transformed_tags
+            if (t["namespace"], t["key"], t.get("value")) not in seen
+            and not seen.add((t["namespace"], t["key"], t.get("value")))
+        ]
 
     @hybrid_property
     def operating_system(self):
@@ -499,7 +506,15 @@ class Host(LimitedHost):
             for key, values in ns_items.items():
                 final_tags_alt.extend({"namespace": ns, "key": key, "value": value} for value in values)
 
-        self.tags_alt = final_tags_alt
+        # Deduplicate to ensure no duplicate (namespace, key, value) entries exist.
+        # This guarantees count(*) == count(DISTINCT id) in tag aggregation queries.
+        seen = set()
+        self.tags_alt = [
+            t
+            for t in final_tags_alt
+            if (t["namespace"], t["key"], t.get("value")) not in seen
+            and not seen.add((t["namespace"], t["key"], t.get("value")))
+        ]
 
         orm.attributes.flag_modified(self, "tags_alt")
 
