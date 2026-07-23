@@ -289,15 +289,19 @@ def test_tags_alt_deduplication_on_create():
 
 
 def test_tags_alt_deduplication_on_update(db_create_host):
-    """Updating tags must not introduce duplicates in tags_alt."""
+    """Updating tags must not introduce duplicates in tags or tags_alt."""
     host = db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}}})
 
-    # Update with duplicates in the incoming data
-    host._replace_tags_alt_in_namespace({"ns1": {"key1": ["val1", "val1", "val2"]}})
+    # Update with duplicates in the incoming data (via _update_tags, the public entry point)
+    host._update_tags({"ns1": {"key1": ["val1", "val1", "val2"]}})
 
+    # Verify tags_alt has no duplicates
     tag_tuples = [(t["namespace"], t["key"], t.get("value")) for t in host.tags_alt]
     assert len(tag_tuples) == len(set(tag_tuples))
     assert len(tag_tuples) == 2  # val1 + val2, no duplicate val1
+
+    # Verify tags column also has no duplicate values
+    assert host.tags["ns1"]["key1"] == ["val1", "val2"]
 
 
 @pytest.mark.parametrize(

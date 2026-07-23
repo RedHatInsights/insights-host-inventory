@@ -496,6 +496,44 @@ def _convert_null_string(input: str | list):
     return input
 
 
+def _build_tags_aggregation_query(filtered_hosts, search: str | None, order_by: str, order_how: str | None):
+    """Build the SQL aggregation query for tag listing using jsonb_array_elements."""
+    tag_lateral = (
+        func.jsonb_array_elements(func.coalesce(filtered_hosts.c.tags_alt, literal("[]").cast(JSONB)))
+        .table_valued(column("value", JSONB))
+        .lateral("t")
+    )
+
+    namespace_expr = tag_lateral.c.value["namespace"].astext
+    key_expr = tag_lateral.c.value["key"].astext
+    value_expr = tag_lateral.c.value["value"].astext
+    # count(*) is safe because tags_alt write paths deduplicate (ns, key, value) entries per host
+    host_count_expr = func.count()
+    tag_string_expr = func.concat(
+        func.coalesce(namespace_expr, "None"), "/", func.coalesce(key_expr, "None"), "=", func.coalesce(value_expr, "")
+    )
+
+    agg_stmt = (
+        select(
+            namespace_expr.label("namespace"),
+            key_expr.label("key"),
+            value_expr.label("value"),
+            host_count_expr.label("host_count"),
+        )
+        .select_from(filtered_hosts)
+        .join(tag_lateral, literal(True))
+        .group_by(namespace_expr, key_expr, value_expr)
+    )
+
+    if search:
+        agg_stmt = agg_stmt.where(tag_string_expr.op("~*")(search))
+
+    order_col = tag_string_expr if order_by == "tag" else host_count_expr
+    agg_stmt = agg_stmt.order_by(order_col.desc()) if order_how == "DESC" else agg_stmt.order_by(order_col.asc())
+
+    return agg_stmt
+
+
 def get_tag_list(
     display_name: str | None,
     fqdn: str | None,
@@ -557,36 +595,7 @@ def get_tag_list(
     host_query = _find_hosts_entities_query(query=query_base, columns=[Host.id, Host.tags_alt])
     filtered_hosts = host_query.filter(*all_filters).subquery("filtered_hosts")
 
-    # Unnest tags_alt using jsonb_array_elements and aggregate via GROUP BY
-    tag_lateral = (
-        func.jsonb_array_elements(filtered_hosts.c.tags_alt).table_valued(column("value", JSONB)).lateral("t")
-    )
-    namespace_expr = tag_lateral.c.value["namespace"].astext
-    key_expr = tag_lateral.c.value["key"].astext
-    value_expr = tag_lateral.c.value["value"].astext
-    # count(*) is safe here because tags_alt never contains duplicate (ns, key, value)
-    host_count_expr = func.count()
-    tag_string_expr = func.concat(
-        func.coalesce(namespace_expr, "None"), "/", func.coalesce(key_expr, "None"), "=", func.coalesce(value_expr, "")
-    )
-
-    agg_stmt = (
-        select(
-            namespace_expr.label("namespace"),
-            key_expr.label("key"),
-            value_expr.label("value"),
-            host_count_expr.label("host_count"),
-        )
-        .select_from(filtered_hosts)
-        .join(tag_lateral, literal(True))
-        .group_by(namespace_expr, key_expr, value_expr)
-    )
-
-    if search:
-        agg_stmt = agg_stmt.where(tag_string_expr.op("~*")(search))
-
-    order_col = tag_string_expr if order_by == "tag" else host_count_expr
-    agg_stmt = agg_stmt.order_by(order_col.desc()) if order_how == "DESC" else agg_stmt.order_by(order_col.asc())
+    agg_stmt = _build_tags_aggregation_query(filtered_hosts, search, order_by, order_how)
 
     total = db.session.execute(select(func.count()).select_from(agg_stmt.subquery())).scalar()
     results = db.session.execute(agg_stmt.limit(limit).offset(offset)).all()

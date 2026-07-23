@@ -80,6 +80,8 @@ class LimitedHost(db.Model, HostTypeDeriver):
             tags = {}
             tags_alt = []
         else:
+            if isinstance(tags, dict):
+                tags = self._deduplicate_tags_dict(tags)
             tags_alt = self._populate_tags_alt_from_tags(tags)
         if groups is None:
             groups = []
@@ -112,20 +114,22 @@ class LimitedHost(db.Model, HostTypeDeriver):
         if ansible_host is not None:
             self.ansible_host = ansible_host
 
+    @staticmethod
+    def _deduplicate_tags_dict(tags_dict: dict) -> dict:
+        """Deduplicate values per key in a nested tags dict."""
+        return {
+            ns: {k: list(dict.fromkeys(v)) if isinstance(v, list) else v for k, v in keys.items()} if keys else keys
+            for ns, keys in tags_dict.items()
+        }
+
     def _populate_tags_alt_from_tags(self, tags):
         if isinstance(tags, dict):
             transformed_tags_obj = Tag.create_tags_from_nested(tags)
-            transformed_tags = [tag.data() for tag in transformed_tags_obj]
+            return [tag.data() for tag in transformed_tags_obj]
         elif isinstance(tags, list):
-            transformed_tags = tags
+            return tags
         else:
             raise TypeError("Tags must be dict or list")
-
-        # Deduplicate to ensure no duplicate (namespace, key, value) entries exist.
-        seen = {}
-        for t in transformed_tags:
-            seen.setdefault((t["namespace"], t["key"], t.get("value")), t)
-        return list(seen.values())
 
     @hybrid_property
     def operating_system(self):
@@ -475,6 +479,8 @@ class Host(LimitedHost):
                 title="Invalid request", detail="Tags must be either an object or an array, and cannot be null."
             )
 
+        tags_dict = self._deduplicate_tags_dict(tags_dict)
+
         for namespace, ns_tags in tags_dict.items():
             if ns_tags:
                 self._replace_tags_in_namespace(namespace, ns_tags)
@@ -503,11 +509,7 @@ class Host(LimitedHost):
             for key, values in ns_items.items():
                 final_tags_alt.extend({"namespace": ns, "key": key, "value": value} for value in values)
 
-        # Deduplicate to ensure no duplicate (namespace, key, value) entries exist.
-        seen = {}
-        for t in final_tags_alt:
-            seen.setdefault((t["namespace"], t["key"], t.get("value")), t)
-        self.tags_alt = list(seen.values())
+        self.tags_alt = final_tags_alt
 
         orm.attributes.flag_modified(self, "tags_alt")
 
