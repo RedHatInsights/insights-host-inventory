@@ -369,7 +369,7 @@ def db_create_view(flask_app):  # noqa: ARG001
         view = InventoryView(
             org_id=org_id,
             name=name,
-            configuration=configuration or {"columns": [{"key": "display_name", "visible": True}]},
+            configuration=configuration or {"columns": [{"key": "display_name"}]},
             org_wide=org_wide,
             created_by=created_by,
         )
@@ -386,7 +386,7 @@ def db_create_system_view(flask_app):  # noqa: ARG001
         view = InventoryView(
             org_id=None,
             name=name,
-            configuration=configuration or {"columns": [{"key": "display_name", "visible": True}]},
+            configuration=configuration or {"columns": [{"key": "display_name"}]},
             org_wide=True,
             created_by=None,
         )

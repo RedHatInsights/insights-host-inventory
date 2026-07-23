@@ -20,7 +20,7 @@ OTHER_ORG = "test-org-2"
 USER_ID = "51234567"
 OTHER_USER_ID = "98765432"
 
-VALID_CONFIG = {"columns": [{"key": "display_name", "visible": True}]}
+VALID_CONFIG = {"columns": [{"key": "display_name"}]}
 
 
 class TestGetViewsList:
@@ -262,7 +262,7 @@ class TestCloneView:
         assert result.name.startswith(CLONE_NAME_PREFIX)
 
     def test_clone_deep_copies_configuration(self, db_create_view):
-        config = {"columns": [{"key": "id", "visible": True}], "filters": {"os": "RHEL"}}
+        config = {"columns": [{"key": "id"}], "filters": {"os": "RHEL"}}
         original = db_create_view(configuration=config, org_id=ORG_ID, created_by=USER_ID)
 
         result = clone_view(str(original.id), ORG_ID, USER_ID)
