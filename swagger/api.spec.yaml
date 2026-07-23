@@ -2900,10 +2900,6 @@ components:
             "advisor:recommendations"). Validated server-side against
             the field registry.
           type: string
-        visible:
-          description: Whether the column is visible in the view.
-          type: boolean
-          default: true
     ViewSortConfig:
       title: View Sort Configuration
       description: Sort configuration for a view.

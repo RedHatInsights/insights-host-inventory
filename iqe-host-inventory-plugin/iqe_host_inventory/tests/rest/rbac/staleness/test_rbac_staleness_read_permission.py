@@ -12,7 +12,6 @@ from pytest_lazy_fixtures import lf
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.staleness_utils import get_staleness_defaults
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
-from iqe_host_inventory_api_v7.exceptions import ForbiddenException
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +77,9 @@ class TestRBACStalenessReadPermission:
         response = (
             host_inventory_non_org_admin.apis.account_staleness.get_default_staleness_response()
         )
-        validate_staleness_response(response.to_dict(), get_staleness_defaults())
+        validate_staleness_response(response.json(), get_staleness_defaults())
 
-        assert response.org_id == hbi_non_org_admin_user_org_id
+        assert response.json()["org_id"] == hbi_non_org_admin_user_org_id
 
     @pytest.mark.usefixtures("read_permission_user_setup")
     def test_rbac_staleness_read_permission_get_staleness(
@@ -105,9 +104,9 @@ class TestRBACStalenessReadPermission:
                 the current staleness settings
         """
         response = host_inventory_non_org_admin.apis.account_staleness.get_staleness_response()
-        validate_staleness_response(response.to_dict(), hbi_staleness_defaults)
+        validate_staleness_response(response.json(), hbi_staleness_defaults)
 
-        assert response.org_id == hbi_non_org_admin_user_org_id
+        assert response.json()["org_id"] == hbi_non_org_admin_user_org_id
 
 
 class TestRBACStalenessNoReadPermission:
@@ -131,10 +130,8 @@ class TestRBACStalenessNoReadPermission:
             title: Inventory: Confirm users without read permission can't access the
                 default staleness settings
         """
-        with pytest.raises(ForbiddenException) as err:
-            host_inventory_non_org_admin.apis.account_staleness.get_default_staleness()
-
-        assert err.value.status == 403
+        resp = host_inventory_non_org_admin.apis.account_staleness.get_default_staleness_response()
+        assert resp.status_code == 403
 
     @pytest.mark.usefixtures("no_read_permission_user_setup")
     def test_rbac_staleness_no_read_permission_get_staleness(
@@ -156,7 +153,5 @@ class TestRBACStalenessNoReadPermission:
             title: Inventory: Confirm users without read permission can't access the
                 current staleness settings
         """
-        with pytest.raises(ForbiddenException) as err:
-            host_inventory_non_org_admin.apis.account_staleness.get_staleness()
-
-        assert err.value.status == 403
+        resp = host_inventory_non_org_admin.apis.account_staleness.get_staleness_response()
+        assert resp.status_code == 403

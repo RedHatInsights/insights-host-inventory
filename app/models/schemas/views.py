@@ -9,7 +9,6 @@ from app.models.views import MAX_VIEW_NAME_LENGTH
 
 class ColumnSchema(MarshmallowSchema):
     key = fields.Str(required=True, validate=marshmallow_validate.Length(min=1))
-    visible = fields.Bool(required=False, load_default=True)
 
 
 class SortSchema(MarshmallowSchema):

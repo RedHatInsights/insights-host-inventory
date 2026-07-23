@@ -19,6 +19,13 @@ on:
 permissions:
   pull-requests: read
 
+# Accounts whose reviews/comments should not count as "human activity."
+# Add new bot/app accounts here to prevent their automated comments from
+# hiding PRs in the daily reminder. This does NOT exclude PRs authored
+# by these accounts — those still appear if they need review.
+env:
+  BOT_PATTERN: "^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot|failure-analysis|bugkiller-agent)$"
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -39,8 +46,6 @@ jobs:
             --state open \
             --json number,title,author,createdAt,url,isDraft,reviewDecision,reviews,comments \
             --limit 100)
-
-          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
 
           FILTERED=$(echo "$PRS" | jq --argjson now "$NOW" --argjson day "$ONE_DAY" --arg bots "$BOT_PATTERN" '
             [ .[]
@@ -193,8 +198,6 @@ jobs:
             echo "New year detected ($STORED_YEAR -> $YEAR). Resetting quarterly data."
             EXISTING=$(echo "$EXISTING" | jq --arg y "$YEAR" '.year = $y | .quarters = {}')
           fi
-
-          BOT_PATTERN="^(dependabot\\[bot\\]|red-hat-konflux\\[bot\\]|github-actions\\[bot\\]|sourcery-ai\\[bot\\]|sourcery-ai|insights-inventory-bot)$"
 
           # jq function for computing metrics from a PR list
           COMPUTE_JQ='
