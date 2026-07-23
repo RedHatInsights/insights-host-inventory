@@ -423,6 +423,10 @@ class TestUpdateView:
 
         assert_response_status(response_status, 200)
         assert response_data["name"] == "New Name"
+        assert response_data["id"] == str(view.id)
+        assert response_data["created_by"] == USER_ID
+        assert response_data["org_id"] == USER_IDENTITY["org_id"]
+        assert response_data["org_wide"] is False
 
     def test_updates_description(self, flask_client: TestClient, db_create_view: Callable) -> None:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
