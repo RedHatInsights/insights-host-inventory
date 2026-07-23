@@ -236,6 +236,7 @@ class HBIMessageConsumerBase:
         self.processed_rows: list[OperationResult] = []
         self._is_retry = False
         self._messages_pending_retry: list | None = None
+        self._producer_ctx = None
 
     @property
     def success_metric(self):
@@ -303,15 +304,17 @@ class HBIMessageConsumerBase:
         return otel_extract(carrier=carrier)
 
     @contextmanager
-    def _message_span(self, msg, producer_ctx=None, **extra_attrs):
+    def _message_span(self, msg, **extra_attrs):
         """Create a per-message span that automatically enriches from threadctx on exit.
 
         Enrichment is deferred to span exit because handle_message() populates
         threadctx during processing. Using this context manager means callers
         never need to call _enrich_span_from_threadctx manually.
+
+        Uses self._producer_ctx if set (by _process_single_message_in_batch);
+        otherwise extracts the producer context from message headers directly.
         """
-        if producer_ctx is None:
-            producer_ctx = self._extract_producer_context(msg)
+        producer_ctx = self._producer_ctx or self._extract_producer_context(msg)
         span_kwargs = {"attributes": self._message_span_attrs(msg, **extra_attrs)}
         if producer_ctx is not None:
             span_kwargs["context"] = producer_ctx
@@ -378,14 +381,15 @@ class HBIMessageConsumerBase:
             self._process_single_message(msg)
             return
 
-        producer_ctx, upstream_sc = self._get_upstream_span_context(msg)
+        self._producer_ctx, upstream_sc = self._get_upstream_span_context(msg)
         links = [Link(upstream_sc)] if upstream_sc else []
         attrs = {"messaging.batch.message_index": index}
 
         with tracer.start_as_current_span(f"msg {index}", links=links, attributes=attrs):
-            self._process_single_message(msg, producer_ctx=producer_ctx)
+            self._process_single_message(msg)
+        self._producer_ctx = None
 
-    def _process_single_message(self, msg, producer_ctx=None) -> None:
+    def _process_single_message(self, msg) -> None:
         """Process a single Kafka message, conditionally emitting a child span.
 
         Span emission rules:
@@ -396,9 +400,9 @@ class HBIMessageConsumerBase:
         logger.debug("Message received")
 
         if self._should_emit_message_span():
-            self._process_message_with_span(msg, producer_ctx=producer_ctx)
+            self._process_message_with_span(msg)
         else:
-            self._process_message_without_span(msg, producer_ctx=producer_ctx)
+            self._process_message_without_span(msg)
 
     def _enrich_span_from_threadctx(self, span) -> None:
         """Add rh.org_id and rh.request_id to a span from thread-local storage.
@@ -414,9 +418,9 @@ class HBIMessageConsumerBase:
         if request_id:
             span.set_attribute("rh.request_id", request_id)
 
-    def _process_message_with_span(self, msg, producer_ctx=None) -> None:
+    def _process_message_with_span(self, msg) -> None:
         """Process a message with a full tracing span (used when spans are enabled or on retry)."""
-        with self._message_span(msg, producer_ctx=producer_ctx, **{"hbi.retry": self._is_retry}) as span:
+        with self._message_span(msg, **{"hbi.retry": self._is_retry}) as span:
             try:
                 result = self.handle_message(msg.value(), headers=msg.headers())
                 if result is not None:
@@ -438,7 +442,7 @@ class HBIMessageConsumerBase:
                 self.failure_metric.inc()
                 logger.exception("Unable to process message", extra={"incoming_message": msg.value()})
 
-    def _process_message_without_span(self, msg, producer_ctx=None) -> None:
+    def _process_message_without_span(self, msg) -> None:
         """Process a message without an eager span; emit retroactively on error or slow threshold."""
         start_ns = time.time_ns()
         try:
