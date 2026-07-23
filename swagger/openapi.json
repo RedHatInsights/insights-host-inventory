@@ -5447,11 +5447,6 @@
           "key": {
             "description": "The column key identifier. Core fields use bare names (e.g. \"display_name\", \"last_check_in\"). App fields use colon-delimited format (e.g. \"compliance:last_scan\", \"advisor:recommendations\"). Validated server-side against the field registry.",
             "type": "string"
-          },
-          "visible": {
-            "description": "Whether the column is visible in the view.",
-            "type": "boolean",
-            "default": true
           }
         }
       },
