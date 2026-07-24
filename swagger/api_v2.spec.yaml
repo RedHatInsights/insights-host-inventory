@@ -1,0 +1,1107 @@
+---
+# V2 API spec — built from DESIGN_DOC_HBI_V2_API.docx.pdf.
+# OpenAPI 3.0.0 because Connexion 3.x does not support 3.1+.
+# Paths are empty; Phase 1/2/3 tasks add endpoint definitions.
+openapi: 3.0.0
+info:
+  description: >-
+    REST interface for the Insights Platform Host Inventory application — V2 API.
+    V2 is the full successor to V1, delivering contract-quality improvements
+    (RFC 7807 errors, stricter schemas, unified sorting and pagination) across
+    a phased endpoint migration.
+  version: 2.0.0
+  title: Insights Host Inventory V2 REST Interface
+servers:
+  - url: /api/inventory/v2
+    description: V2 API server
+externalDocs:
+  description: How to use the Red Hat Insights API
+  url: https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index
+
+paths: {}
+
+components:
+  # ---------------------------------------------------------------------------
+  # Security Schemes (same as V1)
+  # ---------------------------------------------------------------------------
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.auth.bearer_token_handler
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-rh-identity
+      description: >-
+        Base64-encoded JSON identity header provided by 3Scale. Contains an
+        org_id of the user issuing the request.
+        Format: {"identity": {"org_id": "12345678"}}
+      x-apikeyInfoFunc: app.auth.authentication_header_handler
+
+  # ---------------------------------------------------------------------------
+  # Shared Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    # -- Pagination -----------------------------------------------------------
+    pageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 21474837
+        default: 1
+      description: A page number of the items to return.
+    perPageParam:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: A number of items to return per page.
+
+    # -- Sorting (replaces V1 order_by + order_how) ---------------------------
+    sortParam:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+      description: >-
+        Comma-separated list of sort fields. Prefix a field with `-` for
+        descending order. Examples: `?sort=-updated`, `?sort=display_name,-updated`,
+        `?sort=-vulnerability.critical_cves,display_name`.
+
+    # -- Filters --------------------------------------------------------------
+    displayName:
+      name: display_name
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter by display_name (case-insensitive substring match).
+    fqdn:
+      name: fqdn
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter by FQDN (case-insensitive substring match).
+    hostnameOrId:
+      name: hostname_or_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: >-
+        Filter by display_name, fqdn, or id (case-insensitive substring match
+        on the first two, exact match on id).
+    insightsId:
+      name: insights_id
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Filter by insights_id.
+    subscriptionManagerId:
+      name: subscription_manager_id
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Filter by subscription_manager_id.
+    providerId:
+      name: provider_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter by provider_id.
+    providerType:
+      name: provider_type
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - alibaba
+          - aws
+          - azure
+          - gcp
+          - ibm
+      description: Filter by provider_type.
+    updatedStart:
+      name: updated_start
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts updated after this timestamp.
+    updatedEnd:
+      name: updated_end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts updated before this timestamp.
+    lastCheckInStart:
+      name: last_check_in_start
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts whose last check-in is after this timestamp.
+    lastCheckInEnd:
+      name: last_check_in_end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts whose last check-in is before this timestamp.
+    tagsParam:
+      name: tags
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+      description: >-
+        Filter by host tags. Tags are in namespace/key=value format.
+    stalenessParam:
+      name: staleness
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+      description: >-
+        Filter by host staleness state. V2 removes "unknown" from the allowed
+        values (RHINENG-5893).
+    registeredWithParam:
+      name: registered_with
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - puptoo
+            - yupana
+            - satellite
+            - discovery
+            - rhsm-conduit
+            - cloud-connector
+      description: >-
+        Filter by reporter that registered the host. V2 removes "insights"
+        from the allowed values (RHINENG-4846).
+    systemTypeParam:
+      name: system_type
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - nil
+          - not_nil
+          - edge
+      description: Filter by system type.
+    workspaceNameListParam:
+      name: workspace_name
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+      description: >-
+        Filter by workspace name. Replaces V1's deprecated group_name parameter.
+    workspaceIdListParam:
+      name: workspace_id
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+      description: >-
+        Filter by workspace ID. Replaces V1's deprecated group_id parameter.
+
+    # -- Path parameters ------------------------------------------------------
+    hostIdParam:
+      name: host_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: A single host UUID.
+    hostIdListParam:
+      name: host_id_list
+      in: path
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+        maxItems: 20
+      description: A comma-separated list of host UUIDs (max 20).
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    # -- RFC 7807 Error Response ----------------------------------------------
+    ErrorResponse:
+      title: RFC 7807 Problem Details
+      description: >-
+        Standard error response following RFC 7807 Problem Details for HTTP APIs.
+      type: object
+      required:
+        - status
+        - title
+        - detail
+      properties:
+        type:
+          description: >-
+            A URI reference that identifies the problem type. Defaults to
+            "about:blank" when no specific problem type URI is defined.
+          type: string
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          description: A short, human-readable summary of the problem type.
+          type: string
+          example: Bad Request
+        status:
+          description: The HTTP status code.
+          type: integer
+          example: 400
+        detail:
+          description: >-
+            A human-readable explanation specific to this occurrence of the problem.
+          type: string
+          example: The request body failed validation.
+        instance:
+          description: >-
+            A URI reference that identifies the specific occurrence of the problem.
+          type: string
+          example: /api/inventory/v2/hosts/query
+
+    # -- Pagination -----------------------------------------------------------
+    PaginationOut:
+      title: Paginated Response Envelope
+      description: >-
+        V2 unified pagination envelope. All V2 collection endpoints use this
+        structure, including resource-types (which used a different envelope in V1).
+        The links field provides navigation URLs with full query string preservation.
+      type: object
+      required:
+        - total
+        - count
+        - page
+        - per_page
+        - links
+      properties:
+        total:
+          description: Total number of items matching the query.
+          type: integer
+        count:
+          description: The number of items on the current page.
+          type: integer
+        page:
+          description: The current page number.
+          type: integer
+        per_page:
+          description: The number of items per page.
+          type: integer
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+    PaginationLinks:
+      title: Pagination Navigation Links
+      description: >-
+        Navigation links for paginated responses. Each link is a full URL path
+        preserving all original query parameters; only the page parameter changes.
+      type: object
+      required:
+        - first
+        - previous
+        - next
+        - last
+      properties:
+        first:
+          description: URL for the first page.
+          type: string
+        previous:
+          description: URL for the previous page, or null on page 1.
+          type: string
+          nullable: true
+        next:
+          description: URL for the next page, or null on the last page.
+          type: string
+          nullable: true
+        last:
+          description: URL for the last page.
+          type: string
+
+    # -- Primitive / ID Types -------------------------------------------------
+    AccountNumber:
+      description: A Red Hat Account number that owns the host.
+      type: string
+      nullable: true
+      example: '000102'
+    OrgId:
+      description: The Org ID of the tenant that owns the host.
+      type: string
+      example: '000102'
+    HyphenatedUuid:
+      type: string
+      nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    NonNullableString:
+      type: string
+      nullable: false
+    NonNullableStringArray:
+      type: array
+      items:
+        type: string
+      nullable: false
+    TimeStamp:
+      type: string
+      format: date-time
+      example: '2020-02-10T08:07:03.354307+00:00'
+    HostId:
+      description: A durable and reliable platform-wide host identifier.
+      type: string
+      format: uuid
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    GroupId:
+      description: A durable and reliable platform-wide group/workspace identifier.
+      type: string
+      format: uuid
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    GroupName:
+      description: >-
+        A group/workspace human-readable name.
+        Must contain only letters, numbers, spaces, hyphens, and underscores.
+      type: string
+      nullable: false
+      example: sre-group
+
+    # -- Canonical Facts ------------------------------------------------------
+    InsightsId:
+      description: >-
+        An ID defined in /etc/insights-client/machine-id. This field is a
+        canonical fact.
+      type: string
+      nullable: true
+      example: 3f01b55457674041b75e41829bcee1dc
+    SubscriptionManagerId:
+      description: >-
+        A Red Hat Subscription Manager ID of a RHEL host. This field is a
+        canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    SatelliteId:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host. This field is a canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    BiosUuid:
+      description: >-
+        A UUID of the host machine BIOS. This field is a canonical fact.
+      type: string
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    IpAddresses:
+      description: >-
+        Host's network IP addresses. This field is a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 10.10.0.1
+        - 10.0.0.2
+    Fqdn:
+      description: >-
+        A host's Fully Qualified Domain Name. This field is a canonical fact.
+      type: string
+      nullable: true
+      example: my.host.example.com
+    MacAddresses:
+      description: >-
+        Host's network interfaces MAC addresses. This field is a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 'c2:00:d0:c8:61:01'
+    ProviderId:
+      description: >-
+        Host's reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is a canonical fact and requires provider_type.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
+    ProviderType:
+      description: >-
+        Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
+        This field is a canonical fact and requires provider_id.
+      type: string
+      nullable: true
+      example: aws
+    CanonicalFactsOut:
+      type: object
+      properties:
+        insights_id:
+          $ref: '#/components/schemas/InsightsId'
+        subscription_manager_id:
+          $ref: '#/components/schemas/SubscriptionManagerId'
+        satellite_id:
+          $ref: '#/components/schemas/SatelliteId'
+        bios_uuid:
+          $ref: '#/components/schemas/BiosUuid'
+        ip_addresses:
+          $ref: '#/components/schemas/IpAddresses'
+        fqdn:
+          $ref: '#/components/schemas/Fqdn'
+        mac_addresses:
+          $ref: '#/components/schemas/MacAddresses'
+        provider_id:
+          $ref: '#/components/schemas/ProviderId'
+        provider_type:
+          $ref: '#/components/schemas/ProviderType'
+    CanonicalFactsIn:
+      allOf:
+        - properties:
+            insights_id:
+              allOf:
+                - $ref: '#/components/schemas/InsightsId'
+                - $ref: '#/components/schemas/HyphenatedUuid'
+            subscription_manager_id:
+              allOf:
+                - $ref: '#/components/schemas/SubscriptionManagerId'
+                - $ref: '#/components/schemas/HyphenatedUuid'
+            satellite_id:
+              allOf:
+                - $ref: '#/components/schemas/SatelliteId'
+                - $ref: '#/components/schemas/HyphenatedUuid'
+            bios_uuid:
+              allOf:
+                - $ref: '#/components/schemas/BiosUuid'
+                - $ref: '#/components/schemas/HyphenatedUuid'
+            ip_addresses:
+              $ref: '#/components/schemas/NonNullableStringArray'
+            fqdn:
+              $ref: '#/components/schemas/NonNullableString'
+            mac_addresses:
+              $ref: '#/components/schemas/NonNullableStringArray'
+            provider_id:
+              $ref: '#/components/schemas/NonNullableString'
+            provider_type:
+              $ref: '#/components/schemas/NonNullableString'
+        - anyOf:
+            - required: [insights_id]
+            - required: [subscription_manager_id]
+            - required: [satellite_id]
+            - required: [bios_uuid]
+            - required: [ip_addresses]
+            - required: [fqdn]
+            - required: [mac_addresses]
+            - required:
+                - provider_id
+                - provider_type
+
+    # -- Supporting Schemas ---------------------------------------------------
+    FactSet:
+      title: Host facts under a namespace
+      description: A set of string facts belonging to a single namespace.
+      type: object
+      properties:
+        namespace:
+          type: string
+          minLength: 1
+          description: A namespace the facts belong to.
+        facts:
+          type: object
+          description: The facts themselves.
+          example:
+            fact1: value1
+            fact2: value2
+      required:
+        - namespace
+    PerReporterStaleness:
+      type: object
+      properties:
+        last_check_in:
+          $ref: '#/components/schemas/TimeStamp'
+        stale_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        stale_warning_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        culled_timestamp:
+          $ref: '#/components/schemas/TimeStamp'
+        check_in_succeeded:
+          type: boolean
+    GroupOut:
+      title: Group/Workspace membership
+      description: Data of a single group/workspace belonging to an org.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/GroupId'
+        name:
+          $ref: '#/components/schemas/GroupName'
+        account:
+          $ref: '#/components/schemas/AccountNumber'
+        org_id:
+          $ref: '#/components/schemas/OrgId'
+        ungrouped:
+          description: Whether the group is the "ungrouped hosts" group.
+          type: boolean
+        created:
+          description: A timestamp when the entry was created.
+          type: string
+          format: date-time
+        updated:
+          description: A timestamp when the entry was last updated.
+          type: string
+          format: date-time
+    StructuredTag:
+      type: object
+      properties:
+        namespace:
+          type: string
+          nullable: true
+        key:
+          type: string
+        value:
+          type: string
+          nullable: true
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    SystemProfileNestedObject:
+      $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+
+    # -- Host Apps (V2 — replaces V1 /beta/hosts-view app_data) ---------------
+    HostApps:
+      type: object
+      description: >-
+        Downstream application data associated with a host. Populated only when
+        requested via fields parameters; otherwise absent from the response.
+      properties:
+        advisor:
+          $ref: '#/components/schemas/AdvisorAppData'
+        vulnerability:
+          $ref: '#/components/schemas/VulnerabilityAppData'
+        patch:
+          $ref: '#/components/schemas/PatchAppData'
+        remediations:
+          $ref: '#/components/schemas/RemediationsAppData'
+        compliance:
+          $ref: '#/components/schemas/ComplianceAppData'
+        malware:
+          $ref: '#/components/schemas/MalwareAppData'
+      additionalProperties: false
+    AdvisorAppData:
+      type: object
+      properties:
+        recommendations:
+          type: integer
+          minimum: 0
+          nullable: true
+        incidents:
+          type: integer
+          minimum: 0
+          nullable: true
+        critical:
+          type: integer
+          minimum: 0
+          nullable: true
+        important:
+          type: integer
+          minimum: 0
+          nullable: true
+        moderate:
+          type: integer
+          minimum: 0
+          nullable: true
+        low:
+          type: integer
+          minimum: 0
+          nullable: true
+    VulnerabilityAppData:
+      type: object
+      properties:
+        total_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        critical_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        important_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        cves_with_security_rules:
+          type: integer
+          minimum: 0
+          nullable: true
+        cves_with_known_exploits:
+          type: integer
+          minimum: 0
+          nullable: true
+    PatchAppData:
+      type: object
+      properties:
+        advisories_rhsa_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhba_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhsa_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhba_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_rhea_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        advisories_other_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_applicable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installable:
+          type: integer
+          minimum: 0
+          nullable: true
+        packages_installed:
+          type: integer
+          minimum: 0
+          nullable: true
+        template_name:
+          type: string
+          nullable: true
+        template_uuid:
+          type: string
+          format: uuid
+          nullable: true
+    RemediationsAppData:
+      type: object
+      properties:
+        remediations_plans:
+          type: integer
+          minimum: 0
+          nullable: true
+    ComplianceAppData:
+      type: object
+      properties:
+        policies:
+          type: array
+          nullable: true
+          items:
+            type: object
+        policies_count:
+          type: integer
+          minimum: 0
+          description: Number of compliance policies.
+        last_scan:
+          type: string
+          format: date-time
+          nullable: true
+    MalwareAppData:
+      type: object
+      properties:
+        last_status:
+          type: string
+          nullable: true
+        last_matches:
+          type: integer
+          minimum: 0
+          nullable: true
+        total_matches:
+          type: integer
+          minimum: 0
+          nullable: true
+        last_scan:
+          type: string
+          format: date-time
+          nullable: true
+
+    # -- Host Schemas ---------------------------------------------------------
+    HostOut:
+      title: Host Out
+      description: >-
+        Data of a single host belonging to an org. V2 improvements: id has
+        format: uuid, required fields expanded, host_apps field added.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CanonicalFactsOut'
+        - type: object
+          required:
+            - id
+            - org_id
+            - created
+            - updated
+          properties:
+            id:
+              description: >-
+                A durable and reliable platform-wide host identifier. Applications
+                should use this identifier to reference hosts.
+              type: string
+              format: uuid
+              example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+            display_name:
+              description: A host's human-readable display name.
+              type: string
+              example: host1.mydomain.com
+              nullable: true
+            ansible_host:
+              description: The ansible host name for remediations.
+              type: string
+              example: host1.mydomain.com
+              nullable: true
+            account:
+              $ref: '#/components/schemas/AccountNumber'
+            org_id:
+              $ref: '#/components/schemas/OrgId'
+            created:
+              description: A timestamp when the entry was created.
+              type: string
+              format: date-time
+            updated:
+              description: A timestamp when the entry was last updated.
+              type: string
+              format: date-time
+            facts:
+              description: A set of facts belonging to the host.
+              type: array
+              items:
+                $ref: '#/components/schemas/FactSet'
+            stale_timestamp:
+              description: Timestamp from which the host is considered stale.
+              type: string
+              format: date-time
+              nullable: true
+            stale_warning_timestamp:
+              description: >-
+                Timestamp from which the host is considered too stale to be listed
+                without an explicit toggle.
+              type: string
+              format: date-time
+              nullable: true
+            culled_timestamp:
+              description: Timestamp from which the host is considered deleted.
+              type: string
+              format: date-time
+              nullable: true
+            reporter:
+              description: Reporting source of the host.
+              type: string
+              nullable: true
+            per_reporter_staleness:
+              description: Per-reporter staleness tracking.
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/PerReporterStaleness'
+            groups:
+              description: The groups/workspaces that the host belongs to, if any.
+              type: array
+              items:
+                $ref: '#/components/schemas/GroupOut'
+            workspace:
+              description: >-
+                The workspace that the host belongs to, if any. Contains the same
+                data as the first entry in the groups list.
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/GroupId'
+                name:
+                  $ref: '#/components/schemas/GroupName'
+                account:
+                  $ref: '#/components/schemas/AccountNumber'
+                org_id:
+                  $ref: '#/components/schemas/OrgId'
+                ungrouped:
+                  description: Whether the group is the "ungrouped hosts" group.
+                  type: boolean
+                created:
+                  type: string
+                  format: date-time
+                updated:
+                  type: string
+                  format: date-time
+            system_profile:
+              $ref: '#/components/schemas/SystemProfile'
+            host_apps:
+              $ref: '#/components/schemas/HostApps'
+            last_check_in:
+              type: string
+              format: date-time
+            openshift_cluster_id:
+              description: The OpenShift cluster ID that the host belongs to.
+              type: string
+              nullable: true
+    PatchHostIn:
+      title: Host Patch Data
+      description: >-
+        Data of a single host to be updated. V2 adds additionalProperties: false
+        and field length constraints.
+      type: object
+      additionalProperties: false
+      properties:
+        ansible_host:
+          description: The ansible host name for remediations.
+          type: string
+          example: host1.mydomain.com
+          minLength: 0
+          maxLength: 255
+        display_name:
+          description: A host's human-readable display name.
+          type: string
+          example: host1.mydomain.com
+          minLength: 1
+          maxLength: 200
+    HostQueryOutput:
+      title: Host Inventory Query Result
+      description: >-
+        A paginated host search query result with host entries and their
+        Inventory metadata.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Actual host search query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostOut'
+    HostIdOut:
+      title: A Host ID query result
+      description: A single Host ID returned by the host-exists endpoint.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/HostId'
+    CreateCheckIn:
+      title: Check-in data
+      description: Data required to create a check-in record for a host.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/CanonicalFactsIn'
+        - properties:
+            checkin_frequency:
+              description: How long from now to expect another check-in (in minutes).
+              type: integer
+              minimum: 1
+              maximum: 2880
+              example: 1440
+
+    # -- System Profile Query Schemas -----------------------------------------
+    SystemProfileByHostOut:
+      title: A host system profile query result
+      description: Structure of the output of the host system profile query.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              description: Host system profile query result entries.
+              type: array
+              items:
+                $ref: '#/components/schemas/HostSystemProfileOut'
+    HostSystemProfileOut:
+      title: Individual host system profile output
+      description: Individual host record containing only the host id and system profile.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        system_profile:
+          $ref: '#/components/schemas/SystemProfile'
+
+    # -- Tags Schemas ---------------------------------------------------------
+    ActiveTags:
+      title: Tags query result
+      description: A paginated tag aggregation result.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          required:
+            - results
+          properties:
+            results:
+              type: array
+              items:
+                title: ActiveTag
+                description: A tag and its host count.
+                type: object
+                required:
+                  - tag
+                  - count
+                properties:
+                  tag:
+                    $ref: '#/components/schemas/StructuredTag'
+                  count:
+                    description: >-
+                      The number of hosts with the given tag. Null indicates the
+                      count is unknown.
+                    type: integer
+                    nullable: true
+    TagCountOut:
+      title: Per-host tag count
+      description: A paginated per-host tag count result.
+      allOf:
+        - $ref: '#/components/schemas/PaginationOut'
+        - type: object
+          properties:
+            results:
+              type: object
+              description: >-
+                Map of host ID to tag count.
+              additionalProperties:
+                type: integer
+
+    # -- Hosts/Query Request Body ---------------------------------------------
+    HostsQueryBody:
+      title: Hosts Query Request Body
+      description: >-
+        Request body for POST /v2/hosts/query. Contains a list of host UUIDs
+        to look up in bulk.
+      type: object
+      required:
+        - host_ids
+      properties:
+        host_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 1000
+          description: An array of host UUIDs to look up.
+          example:
+            - 6d0c3f8d-1111-2222-3333-444444444444
+            - 7e1d4a9e-5555-6666-7777-888888888888
+
+  # ---------------------------------------------------------------------------
+  # Shared Responses
+  # ---------------------------------------------------------------------------
+  responses:
+    NoContent:
+      description: >-
+        The operation completed successfully. No content returned.
+    BadRequestError:
+      description: Bad request — validation error or malformed input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Bad Request
+            status: 400
+            detail: The request body failed validation.
+            instance: /api/inventory/v2/hosts/query
+    ForbiddenError:
+      description: Forbidden — insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Forbidden
+            status: 403
+            detail: You do not have permission to perform this action.
+            instance: /api/inventory/v2/host-views
+    NotFoundError:
+      description: Not found — the requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Not Found
+            status: 404
+            detail: The requested host was not found.
+            instance: /api/inventory/v2/hosts/22cd8e39-13bb-4d02-8316-84b850dc5136
+    ConflictError:
+      description: Conflict — the request conflicts with the current state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Conflict
+            status: 409
+            detail: A resource with this name already exists.
+            instance: /api/inventory/v2/host-views
+    ServiceUnavailableError:
+      description: Service unavailable — a downstream dependency is not responding.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Service Unavailable
+            status: 503
+            detail: The RBAC service is not responding.
+            instance: /api/inventory/v2/hosts
