@@ -54,7 +54,7 @@ def get_host_list_by_group(
     """
     Get the list of hosts in a specific group.
 
-    Behind feature flag: platform.rbac.workspaces
+    Behind feature flag: hbi.rbac-v2
     - If enabled: Validates group via RBAC v2 workspace API
     - If disabled: Validates group via database
 

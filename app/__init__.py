@@ -305,7 +305,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
-    flask_app.register_blueprint(admin_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
+    flask_app.register_blueprint(admin_blueprint, url_prefix=app_config.api_url_path_prefix)
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 

@@ -269,6 +269,41 @@ def test_host_models_missing_reporter_field():
         Host(**values)
 
 
+def test_tags_alt_deduplication_on_create():
+    """tags_alt must never contain duplicate (namespace, key, value) entries."""
+    # Simulate a reporter sending duplicate values in the tags list
+    tags_with_dupes = {"ns1": {"key1": ["val1", "val1", "val2"], "key2": ["val3"]}}
+    host = LimitedHost(
+        account=USER_IDENTITY["account_number"],
+        fqdn="dedup-test.example.com",
+        tags=tags_with_dupes,
+    )
+
+    # Verify no duplicates in tags_alt
+    tag_tuples = [(t["namespace"], t["key"], t.get("value")) for t in host.tags_alt]
+    assert len(tag_tuples) == len(set(tag_tuples))
+    assert ("ns1", "key1", "val1") in tag_tuples
+    assert ("ns1", "key1", "val2") in tag_tuples
+    assert ("ns1", "key2", "val3") in tag_tuples
+    assert len(tag_tuples) == 3
+
+
+def test_tags_alt_deduplication_on_update(db_create_host):
+    """Updating tags must not introduce duplicates in tags or tags_alt."""
+    host = db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}}})
+
+    # Update with duplicates in the incoming data (via _update_tags, the public entry point)
+    host._update_tags({"ns1": {"key1": ["val1", "val1", "val2"]}})
+
+    # Verify tags_alt has no duplicates
+    tag_tuples = [(t["namespace"], t["key"], t.get("value")) for t in host.tags_alt]
+    assert len(tag_tuples) == len(set(tag_tuples))
+    assert len(tag_tuples) == 2  # val1 + val2, no duplicate val1
+
+    # Verify tags column also has no duplicate values
+    assert host.tags["ns1"]["key1"] == ["val1", "val2"]
+
+
 @pytest.mark.parametrize(
     "tags",
     [
@@ -2446,19 +2481,19 @@ class TestInputViewSchema:
         result = InputViewSchema().load(
             {
                 "name": "My View",
-                "configuration": {"columns": [{"key": "display_name", "visible": True}]},
+                "configuration": {"columns": [{"key": "display_name"}]},
             }
         )
 
         assert result["name"] == "My View"
-        assert result["configuration"]["columns"] == [{"key": "display_name", "visible": True}]
+        assert result["configuration"]["columns"] == [{"key": "display_name"}]
         assert result["org_wide"] is False
 
     def test_strips_whitespace_from_name(self):
         result = InputViewSchema().load(
             {
                 "name": "  Padded Name  ",
-                "configuration": {"columns": [{"key": "id", "visible": True}]},
+                "configuration": {"columns": [{"key": "id"}]},
             }
         )
 
@@ -2481,7 +2516,7 @@ class TestInputViewSchema:
             InputViewSchema().load(
                 {
                     "name": "",
-                    "configuration": {"columns": [{"key": "id", "visible": True}]},
+                    "configuration": {"columns": [{"key": "id"}]},
                 }
             )
 
@@ -2492,7 +2527,7 @@ class TestInputViewSchema:
             InputViewSchema().load(
                 {
                     "name": "a" * (MAX_VIEW_NAME_LENGTH + 1),
-                    "configuration": {"columns": [{"key": "id", "visible": True}]},
+                    "configuration": {"columns": [{"key": "id"}]},
                 }
             )
 
@@ -2503,7 +2538,7 @@ class TestInputViewSchema:
             {
                 "name": "Test",
                 "configuration": {
-                    "columns": [{"key": "display_name", "visible": True}],
+                    "columns": [{"key": "display_name"}],
                     "sort": {"key": "display_name", "direction": "asc"},
                     "filters": {"os": "RHEL"},
                 },
@@ -2523,7 +2558,7 @@ class TestInputViewSchema:
                 {
                     "name": "Test",
                     "configuration": {
-                        "columns": [{"key": "id", "visible": True}],
+                        "columns": [{"key": "id"}],
                         "sort": {"key": "name", "direction": "invalid"},
                     },
                 }
@@ -2542,6 +2577,17 @@ class TestInputViewSchema:
 
         assert "configuration" in exc_info.value.messages
 
+    def test_visible_field_rejected(self):
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            InputViewSchema().load(
+                {
+                    "name": "Test",
+                    "configuration": {"columns": [{"key": "display_name", "visible": True}]},
+                }
+            )
+
+        assert "visible" in str(exc_info.value.messages)
+
 
 class TestPatchViewSchema:
     def test_all_fields_optional(self):
@@ -2555,16 +2601,26 @@ class TestPatchViewSchema:
     def test_partial_update_configuration(self):
         result = PatchViewSchema().load(
             {
-                "configuration": {"columns": [{"key": "id", "visible": False}]},
+                "configuration": {"columns": [{"key": "id"}]},
             }
         )
-        assert result["configuration"]["columns"] == [{"key": "id", "visible": False}]
+        assert result["configuration"]["columns"] == [{"key": "id"}]
 
     def test_empty_name_still_rejected(self):
         with pytest.raises(MarshmallowValidationError) as exc_info:
             PatchViewSchema().load({"name": ""})
 
         assert "name" in exc_info.value.messages
+
+    def test_visible_field_rejected(self):
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            PatchViewSchema().load(
+                {
+                    "configuration": {"columns": [{"key": "id", "visible": False}]},
+                }
+            )
+
+        assert "visible" in str(exc_info.value.messages)
 
 
 class TestViewResponseSchema:
