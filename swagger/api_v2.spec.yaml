@@ -173,6 +173,8 @@ components:
       name: tags
       in: query
       required: false
+      style: form
+      explode: true
       schema:
         type: array
         items:
@@ -183,6 +185,8 @@ components:
       name: staleness
       in: query
       required: false
+      style: form
+      explode: true
       schema:
         type: array
         items:
@@ -198,6 +202,8 @@ components:
       name: registered_with
       in: query
       required: false
+      style: form
+      explode: true
       schema:
         type: array
         items:
@@ -227,6 +233,8 @@ components:
       name: workspace_name
       in: query
       required: false
+      style: form
+      explode: true
       schema:
         type: array
         items:
@@ -237,6 +245,8 @@ components:
       name: workspace_id
       in: query
       required: false
+      style: form
+      explode: true
       schema:
         type: array
         items:
@@ -417,7 +427,7 @@ components:
         canonical fact.
       type: string
       nullable: true
-      example: 3f01b55457674041b75e41829bcee1dc
+      example: 3f01b554-5767-4041-b75e-41829bcee1dc
     SubscriptionManagerId:
       description: >-
         A Red Hat Subscription Manager ID of a RHEL host. This field is a
