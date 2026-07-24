@@ -19,6 +19,8 @@ from marshmallow import ValidationError
 
 from api import api_operation
 from api import custom_escape
+from api.admin import ADMIN_HOSTS_ROUTE
+from api.admin import ADMIN_HOSTS_URL_PATH
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
@@ -482,6 +484,7 @@ def test_kafka_producer_defaults(subtests):
     "app.Config",
     **{
         "return_value.mgmt_url_path_prefix": "/",
+        "return_value.api_url_path_prefix": ADMIN_HOSTS_URL_PATH.removesuffix(ADMIN_HOSTS_ROUTE),
         "return_value.unleash_token": "",
         "return_value.api_cache_max_thread_pool_workers": 5,
     },

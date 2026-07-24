@@ -85,13 +85,13 @@ def test_rbac_inventory_with_rhel_roles(
     # Staleness
     # check RHEL viewer's inventory read access
     response = host_inventory_non_org_admin.apis.account_staleness.get_staleness_response()
-    validate_staleness_response(response.to_dict(), hbi_staleness_defaults)
+    validate_staleness_response(response.json(), hbi_staleness_defaults)
 
     # check at least one staleness edit operation to make sure user has write access
     if role_with_write_permissions:
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        original = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+        original = host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
         response = host_inventory_non_org_admin.apis.account_staleness.update_staleness(**settings)
-        validate_staleness_response(response.to_dict(), original, settings)
+        validate_staleness_response(response.json(), original, settings)

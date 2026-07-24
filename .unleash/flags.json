@@ -34,8 +34,8 @@
             "createdAt": "2025-02-14T16:29:19.146Z"
         },
         {
-            "name": "platform.rbac.workspaces",
-            "description": "Gates Kessel/RBAC v2 workspace-based authorization for HBI (consolidates kessel-phase-1 and kessel-groups).",
+            "name": "hbi.rbac-v2",
+            "description": "Gates Kessel/RBAC v2 workspace-based authorization for HBI.",
             "type": "release",
             "project": "default",
             "stale": false,
@@ -47,7 +47,7 @@
                 }
             ],
             "variants": [],
-            "createdAt": "2026-04-21T00:00:00.000Z"
+            "createdAt": "2026-07-21T00:00:00.000Z"
         },
         {
             "name": "hbi.api.kessel-force-single-checks-for-bulk",

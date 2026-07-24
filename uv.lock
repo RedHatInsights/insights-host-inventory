@@ -131,30 +131,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.48"
+version = "1.43.53"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4a/bc/6b285efc5a7ebb27762f20d3fa2d78b8ff86d069d8eef343876d03466273/boto3-1.43.48.tar.gz", hash = "sha256:0077b3f38d47034f53ec68f3976f9d9beeabcc0faee7b1d6fa6b666e0852eca7", size = 112674, upload-time = "2026-07-14T19:29:57.742Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/da/0e90eab875f2eb4b8708fef2c198f2559ed1e451a1016f1cd4fcdcfbfbe3/boto3-1.43.53.tar.gz", hash = "sha256:c80425acab314d7af09609562053f565139e1fe49108eacfcc1601ebfaee235b", size = 112678, upload-time = "2026-07-21T19:28:53.002Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/ec/3e4bff3d696121631174471505a7669d9d22c183991b4dcc245101603cec/boto3-1.43.48-py3-none-any.whl", hash = "sha256:5866f8a99877342db130e7236a8048b63d3d8e74c46d4ef101771350019bd3df", size = 140032, upload-time = "2026-07-14T19:29:55.819Z" },
+    { url = "https://files.pythonhosted.org/packages/45/27/7e72d25fdde77668b7bd4fa47381192dd2aa64fb77265e4bab786fd9fe2a/boto3-1.43.53-py3-none-any.whl", hash = "sha256:5383e705d8a976a14f23bb8c113c07a396931a019db98fce4cdc68650ec6e4d8", size = 140025, upload-time = "2026-07-21T19:28:50.957Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.43.48"
+version = "1.43.53"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6b/69/76c5576654c0982351a821c544042ccd7a25a060776453a3c15e0486e47e/botocore-1.43.48.tar.gz", hash = "sha256:4f60c1072fb529610359cdb6df92c59615d739df3b0a124091d3bbd28f7ea00c", size = 15700978, upload-time = "2026-07-14T19:29:45.916Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/6b/ebcefacc4de3cd4f1c449540d86877f76c2f5e586a620831012decbb2b2c/botocore-1.43.53.tar.gz", hash = "sha256:36d93dd8db68ee75f6b61ca9f775161b8168844e4601698701530e6efdded141", size = 15720336, upload-time = "2026-07-21T19:28:41.547Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/b0/28d40443ed912260d55cf7a5d377378fc43e384627fd57b632472cbea7bf/botocore-1.43.48-py3-none-any.whl", hash = "sha256:cc9b4e925c1913d662194507f4f9b37aa744dcd2361af31c013672eafe824490", size = 15385380, upload-time = "2026-07-14T19:29:41.826Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/e5/1b60e394f0fff97ee70dd16913382b7dffda85b98e639c0c9e8ff56cfaa7/botocore-1.43.53-py3-none-any.whl", hash = "sha256:b7ee9a70d187e5348883c820990ccd9436ab14e2bd6622741fc96fe561e816b8", size = 15404628, upload-time = "2026-07-21T19:28:37.475Z" },
 ]
 
 [[package]]
@@ -384,14 +384,14 @@ wheels = [
 
 [[package]]
 name = "faker"
-version = "40.28.1"
+version = "40.35.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cc/2d/3ead106cef42eab305e15f9c089dcc68a40387d5ce04af18585af4ebbb44/faker-40.28.1.tar.gz", hash = "sha256:2a63fb51abab8790636d4030a094cf942404cbccc9c288d1cad70e2e3e9ecd58", size = 2022717, upload-time = "2026-07-01T22:23:43.763Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/a1/79278f517de8437a51af4cbce9cb86b0085fc22554e7ebffc6cb43bcb957/faker-40.35.0.tar.gz", hash = "sha256:13495348ec6f80d22c8c1654906ffeae336d485fea476544642ea24b120d9e13", size = 2025535, upload-time = "2026-07-22T17:18:42.589Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/a6/6111b9f13c1564b0e2f5dbeeb611fd00dc731e6add2336f62b798598c73d/faker-40.28.1-py3-none-any.whl", hash = "sha256:e8d3f5c469100a553d246dce7937c291308068a5ec6c9c3a228d7878b50720be", size = 2061052, upload-time = "2026-07-01T22:23:41.946Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/c4/d217ea24d07fbdb00c81c83325fc814ee72ed93c70978ea5d4150604c305/faker-40.35.0-py3-none-any.whl", hash = "sha256:804224bc4ea6644256dd2ef5c951563bea318cb19be3505461c9c424c90181ec", size = 2062734, upload-time = "2026-07-22T17:18:40.919Z" },
 ]
 
 [[package]]
@@ -761,7 +761,7 @@ requires-dist = [
     { name = "flask-sqlalchemy", specifier = "~=3.1.1" },
     { name = "flask-unleash" },
     { name = "gunicorn", specifier = "~=26.0.0" },
-    { name = "kessel-sdk", extras = ["auth"], specifier = "~=2.7.0" },
+    { name = "kessel-sdk", extras = ["auth"], specifier = "~=2.8.0" },
     { name = "logstash-formatter", specifier = "~=0.5.17" },
     { name = "marshmallow", specifier = "~=4.3.0" },
     { name = "openapi-schema-validator", specifier = "==0.9.0" },
@@ -774,7 +774,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-requests", specifier = "==0.65b0" },
     { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.65b0" },
     { name = "opentelemetry-sdk", specifier = "~=1.44.0" },
-    { name = "prance", specifier = "==25.4.8.0" },
+    { name = "prance", specifier = "==26.7.19.0" },
     { name = "prometheus-client", specifier = "~=0.25.0" },
     { name = "prometheus-flask-exporter", specifier = "~=0.23.2" },
     { name = "psycopg2", specifier = "~=2.9.12" },
@@ -788,7 +788,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "<3.0.0" },
     { name = "starlette", specifier = "~=1.3.1" },
     { name = "ujson", specifier = "==5.13.0" },
-    { name = "unleashclient", specifier = "==6.7.0" },
+    { name = "unleashclient", specifier = "==6.8.0" },
     { name = "urllib3", specifier = ">=1.26.5" },
     { name = "watchtower", specifier = ">=0.6.0,<4.0.0" },
 ]
@@ -891,16 +891,16 @@ wheels = [
 
 [[package]]
 name = "kessel-sdk"
-version = "2.7.0"
+version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
     { name = "types-protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/fd/d9cece7b2a0502d4ee5b9d85a1934d9333355f6301e214ca27c7e962a777/kessel_sdk-2.7.0.tar.gz", hash = "sha256:1506564e7ea363429720cd6efb2eebba32b0829800298e9571fa58a4cc12d173", size = 100057, upload-time = "2026-06-11T20:04:18.602Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/21/04188574079c90f8e676466de9c3bd5688930cd8e1e0c62048ee9ce49e04/kessel_sdk-2.8.0.tar.gz", hash = "sha256:8f689484d2a1204ad7b93ae733cce95903cf95f457279ef22233a3ef7942f6e9", size = 100470, upload-time = "2026-07-17T14:45:24.612Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/a6/b4a966287944a343b4233d03e4bacd9bf952475aaad03bd796d1fcea3bbc/kessel_sdk-2.7.0-py3-none-any.whl", hash = "sha256:3efdb4d51d44ba646e36c75c42503b3109b9629df5dab22b704eb454068ff1e2", size = 218584, upload-time = "2026-06-11T20:04:17.333Z" },
+    { url = "https://files.pythonhosted.org/packages/94/4f/491f8e8d6bbe5f232b59c397b5249c5a9244ef733170dcaca4890ace76ab/kessel_sdk-2.8.0-py3-none-any.whl", hash = "sha256:2159e7b68fbd8b1c38d0e8dc8a314dea8ac8cf91688f2c5e789881e612efcc33", size = 218791, upload-time = "2026-07-17T14:45:23.339Z" },
 ]
 
 [package.optional-dependencies]
@@ -1393,7 +1393,7 @@ wheels = [
 
 [[package]]
 name = "prance"
-version = "25.4.8.0"
+version = "26.7.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "chardet" },
@@ -1401,9 +1401,9 @@ dependencies = [
     { name = "requests" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/5c/afa384b91354f0dbc194dfbea89bbd3e07dbe47d933a0a2c4fb989fc63af/prance-25.4.8.0.tar.gz", hash = "sha256:2f72d2983d0474b6f53fd604eb21690c1ebdb00d79a6331b7ec95fb4f25a1f65", size = 2808091, upload-time = "2025-04-07T22:22:36.739Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/a8/68f8193e875eb9ab2c4811048e6bdfebf76c33cfdf274e946fd962530f65/prance-26.7.19.0.tar.gz", hash = "sha256:18c52bc9ace4de2b58be1d810543d675a8640f06c2ea5d06427f12f1e612be8d", size = 2814867, upload-time = "2026-07-19T05:27:40.353Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/a8/fc509e514c708f43102542cdcbc2f42dc49f7a159f90f56d072371629731/prance-25.4.8.0-py3-none-any.whl", hash = "sha256:d3c362036d625b12aeee495621cb1555fd50b2af3632af3d825176bfb50e073b", size = 36386, upload-time = "2025-04-07T22:22:35.183Z" },
+    { url = "https://files.pythonhosted.org/packages/05/d3/f966d7fddc2ed0f3c9e196df4f7841020629252915d0eb1f44e47e268b50/prance-26.7.19.0-py3-none-any.whl", hash = "sha256:b98b26cd968f306e6d4ced3eddb78ef4cceb5311ab3f76d76573fca4a0e01837", size = 2818176, upload-time = "2026-07-19T05:27:38.065Z" },
 ]
 
 [[package]]
@@ -1470,11 +1470,11 @@ wheels = [
 
 [[package]]
 name = "pyasn1"
-version = "0.6.3"
+version = "0.6.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/5f/6583902b6f79b399c9c40674ac384fd9cd77805f9e6205075f828ef11fb2/pyasn1-0.6.3.tar.gz", hash = "sha256:697a8ecd6d98891189184ca1fa05d1bb00e2f84b5977c481452050549c8a72cf", size = 148685, upload-time = "2026-03-17T01:06:53.382Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/9a/23310166d960def5897e91fe20e5b724601b02a22e84ba1f94232c0b7f67/pyasn1-0.6.4.tar.gz", hash = "sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81", size = 151262, upload-time = "2026-07-09T01:12:33.988Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/a0/7d793dce3fa811fe047d6ae2431c672364b462850c6235ae306c0efd025f/pyasn1-0.6.3-py3-none-any.whl", hash = "sha256:a80184d120f0864a52a073acc6fc642847d0be408e7c7252f31390c0f4eadcde", size = 83997, upload-time = "2026-03-17T01:06:52.036Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl", hash = "sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b", size = 84410, upload-time = "2026-07-09T01:12:32.92Z" },
 ]
 
 [[package]]
@@ -2090,7 +2090,7 @@ wheels = [
 
 [[package]]
 name = "unleashclient"
-version = "6.7.0"
+version = "6.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apscheduler" },
@@ -2103,9 +2103,9 @@ dependencies = [
     { name = "semver" },
     { name = "yggdrasil-engine" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/df/34/244a4f22640c6c62ff0b9d98fedaf1e2ced416c295c4801c37bdeeaa797f/unleashclient-6.7.0.tar.gz", hash = "sha256:a34649ef2232c3e0e18232b2067c07dd0bf474b977efc67c8806d816418ebe29", size = 51334, upload-time = "2026-03-17T09:39:34.018Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/8a/e7e2167cfe75843c0fc327595567eb074ad5e964a347225b00e04cf12389/unleashclient-6.8.0.tar.gz", hash = "sha256:89319193bfffbbe2c6c4c4815aebb1755938e9b0f0cb3c080c00cd9918e9c630", size = 52640, upload-time = "2026-07-21T10:45:21.766Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/b5/2f17c404083971c7e01e74df6623d26e14fefa822ca454ef7eb82ee6e8fa/unleashclient-6.7.0-py3-none-any.whl", hash = "sha256:1fbf4bc66ec9b952e0131012f954adfc1d476d54ad320905bc5f4fdea963a9fc", size = 40865, upload-time = "2026-03-17T09:39:32.823Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/52/2f9da0f81dba2323409e291dc32975bf20d245d493e22c8295461d8025e3/unleashclient-6.8.0-py3-none-any.whl", hash = "sha256:a368ed333c462988d4110ef78ded09b81e7544a914cf63466657434206b09d95", size = 41284, upload-time = "2026-07-21T10:45:20.509Z" },
 ]
 
 [[package]]
