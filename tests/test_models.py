@@ -269,6 +269,41 @@ def test_host_models_missing_reporter_field():
         Host(**values)
 
 
+def test_tags_alt_deduplication_on_create():
+    """tags_alt must never contain duplicate (namespace, key, value) entries."""
+    # Simulate a reporter sending duplicate values in the tags list
+    tags_with_dupes = {"ns1": {"key1": ["val1", "val1", "val2"], "key2": ["val3"]}}
+    host = LimitedHost(
+        account=USER_IDENTITY["account_number"],
+        fqdn="dedup-test.example.com",
+        tags=tags_with_dupes,
+    )
+
+    # Verify no duplicates in tags_alt
+    tag_tuples = [(t["namespace"], t["key"], t.get("value")) for t in host.tags_alt]
+    assert len(tag_tuples) == len(set(tag_tuples))
+    assert ("ns1", "key1", "val1") in tag_tuples
+    assert ("ns1", "key1", "val2") in tag_tuples
+    assert ("ns1", "key2", "val3") in tag_tuples
+    assert len(tag_tuples) == 3
+
+
+def test_tags_alt_deduplication_on_update(db_create_host):
+    """Updating tags must not introduce duplicates in tags or tags_alt."""
+    host = db_create_host(extra_data={"tags": {"ns1": {"key1": ["val1"]}}})
+
+    # Update with duplicates in the incoming data (via _update_tags, the public entry point)
+    host._update_tags({"ns1": {"key1": ["val1", "val1", "val2"]}})
+
+    # Verify tags_alt has no duplicates
+    tag_tuples = [(t["namespace"], t["key"], t.get("value")) for t in host.tags_alt]
+    assert len(tag_tuples) == len(set(tag_tuples))
+    assert len(tag_tuples) == 2  # val1 + val2, no duplicate val1
+
+    # Verify tags column also has no duplicate values
+    assert host.tags["ns1"]["key1"] == ["val1", "val2"]
+
+
 @pytest.mark.parametrize(
     "tags",
     [
