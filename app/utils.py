@@ -414,10 +414,13 @@ class Tag:
         tags = []
         for namespace in nested_tags:
             for key in nested_tags[namespace]:
-                if nested_tags[namespace][key] is None or len(nested_tags[namespace][key]) == 0:
+                values = nested_tags[namespace][key]
+                if values is None or (isinstance(values, list) and len(values) == 0):
                     tags.append(Tag(Tag.serialize_namespace(namespace), key, None))
+                elif isinstance(values, str):
+                    tags.append(Tag(Tag.serialize_namespace(namespace), key, values))
                 else:
-                    for value in nested_tags[namespace][key]:
+                    for value in values:
                         tags.append(Tag(Tag.serialize_namespace(namespace), key, value))
         return tags
 
