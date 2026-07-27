@@ -216,6 +216,87 @@ prod:
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_qe
           vault_key: org_id
+    insights_inventory_qe_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_qe_no_perms:
       auth:
         refresh_token:
@@ -361,6 +442,87 @@ prod:
         refresh_token:
           vault_path: secrets/qe/prod/users/insights_inventory_test
           vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-wrt-hst-wrt-refresh_token
       identity:
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_test
@@ -718,6 +880,87 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe
           vault_key: org_id
+    insights_inventory_qe_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_qe_no_perms:
       auth:
         refresh_token:
@@ -863,6 +1106,87 @@ stage: &stage
         refresh_token:
           vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-wrt-hst-wrt-refresh_token
       identity:
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_test

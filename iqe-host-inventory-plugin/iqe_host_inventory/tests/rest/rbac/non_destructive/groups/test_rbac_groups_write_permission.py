@@ -9,14 +9,12 @@ import logging
 
 import pytest
 from pytest_lazy_fixtures import lf
-from pytest_lazy_fixtures.lazy_fixture import LazyFixtureWrapper
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
 from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
-from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
-from iqe_host_inventory_api import GroupOutWithHostCount
 from iqe_host_inventory_api import HostOut
 
 pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent]
@@ -27,37 +25,42 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(
     params=[
         # TODO: Uncomment this when https://redhat.atlassian.net/browse/RHINENG-25822 is fixed
-        # lf("rbac_inventory_groups_write_user_setup_class"),
-        lf("rbac_inventory_groups_all_user_setup_class"),
-        lf("rbac_inventory_admin_user_setup_class"),
+        # lf("host_inventory_rbac_groups_write"),
+        lf("host_inventory_rbac_inv_admin"),
+        lf("host_inventory_rbac_groups_admin"),
+        lf("host_inventory_rbac_groups_all"),
     ],
     scope="class",
 )
-def write_permission_user_setup(request: pytest.FixtureRequest) -> LazyFixtureWrapper:
+def host_inventory_write_permissions(
+    request: pytest.FixtureRequest,
+) -> ApplicationHostInventory:
     return request.param
 
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_hosts_read_user_setup_class"),
-        lf("rbac_inventory_hosts_write_user_setup_class"),
-        lf("rbac_inventory_hosts_all_user_setup_class"),
-        lf("rbac_inventory_groups_read_user_setup_class"),
-        lf("rbac_inventory_all_read_user_setup_class"),
-        lf("rbac_inventory_user_without_permissions_setup_class"),
+        lf("host_inventory_rbac_hosts_admin"),
+        lf("host_inventory_rbac_hosts_viewer"),
+        lf("host_inventory_rbac_hosts_write"),
+        lf("host_inventory_rbac_hosts_all"),
+        lf("host_inventory_rbac_groups_viewer"),
+        lf("host_inventory_rbac_all_read"),
+        lf("host_inventory_rbac_no_perms"),
     ],
     scope="class",
 )
-def no_write_permission_user_setup(request: pytest.FixtureRequest) -> LazyFixtureWrapper:
+def host_inventory_no_write_permissions(
+    request: pytest.FixtureRequest,
+) -> ApplicationHostInventory:
     return request.param
 
 
-@pytest.mark.usefixtures("write_permission_user_setup")
 class TestRBACGroupsWritePermission:
     def test_rbac_groups_write_permission_create_group(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
         request: pytest.FixtureRequest,
     ) -> None:
@@ -72,7 +75,7 @@ class TestRBACGroupsWritePermission:
         """
         group_name = generate_display_name()
 
-        group = host_inventory_non_org_admin.apis.groups.create_group(
+        group = host_inventory_write_permissions.apis.groups.create_group(
             group_name,
             hosts=hbi_upload_prepare_host_class,
             wait_for_created=False,
@@ -93,7 +96,7 @@ class TestRBACGroupsWritePermission:
     def test_rbac_groups_write_permission_patch_group(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
     ) -> None:
         """
@@ -111,7 +114,7 @@ class TestRBACGroupsWritePermission:
         new_group_name = generate_display_name()
         group = host_inventory.apis.groups.create_group(original_group_name, hosts=host1)
 
-        host_inventory_non_org_admin.apis.groups.patch_group(
+        host_inventory_write_permissions.apis.groups.patch_group(
             group, name=new_group_name, hosts=host2, wait_for_updated=False
         )
 
@@ -120,7 +123,7 @@ class TestRBACGroupsWritePermission:
     def test_rbac_groups_write_permission_delete_group(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
     ) -> None:
         """
@@ -137,13 +140,13 @@ class TestRBACGroupsWritePermission:
             group_name, hosts=hbi_upload_prepare_host_class
         )
 
-        host_inventory_non_org_admin.apis.groups.delete_groups(group, wait_for_deleted=False)
+        host_inventory_write_permissions.apis.groups.delete_groups(group, wait_for_deleted=False)
         host_inventory.apis.groups.verify_deleted(group)
 
     def test_rbac_groups_write_permission_remove_hosts(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
     ) -> None:
         """
@@ -160,7 +163,7 @@ class TestRBACGroupsWritePermission:
             group_name, hosts=hbi_upload_prepare_host_class
         )
 
-        host_inventory_non_org_admin.apis.groups.remove_hosts_from_group(
+        host_inventory_write_permissions.apis.groups.remove_hosts_from_group(
             group, hosts=hbi_upload_prepare_host_class, wait_for_removed=False
         )
 
@@ -169,7 +172,7 @@ class TestRBACGroupsWritePermission:
     def test_rbac_groups_write_permission_remove_hosts_from_multiple_groups(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
     ) -> None:
         """
@@ -187,7 +190,7 @@ class TestRBACGroupsWritePermission:
             group_name, hosts=hbi_upload_prepare_host_class
         )
 
-        host_inventory_non_org_admin.apis.groups.remove_hosts_from_multiple_groups(
+        host_inventory_write_permissions.apis.groups.remove_hosts_from_multiple_groups(
             hbi_upload_prepare_host_class, wait_for_removed=False
         )
 
@@ -196,8 +199,9 @@ class TestRBACGroupsWritePermission:
     def test_rbac_groups_write_permission_add_hosts(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_write_permissions: ApplicationHostInventory,
         hbi_upload_prepare_host_class: HostOut,
+        request: pytest.FixtureRequest,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4377
@@ -211,21 +215,30 @@ class TestRBACGroupsWritePermission:
         group_name = generate_display_name()
         group = host_inventory.apis.groups.create_group(group_name)
 
-        host_inventory_non_org_admin.apis.groups.add_hosts_to_group(
+        host_inventory_write_permissions.apis.groups.add_hosts_to_group(
             group, hosts=hbi_upload_prepare_host_class, wait_for_added=False
         )
+
+        @request.addfinalizer
+        def cleanup() -> None:
+            # The class cleanup deletes the group first, then the host is immediately deleted.
+            # However, there is a small window when the host doesn't belong to any group in Kessel,
+            # so the host deletion fails. If we remove the host from group, it will be part of the
+            # ungrouped_hosts group and it will work fine.
+            host_inventory.apis.groups.remove_hosts_from_group(
+                group, hbi_upload_prepare_host_class
+            )
 
         host_inventory.apis.groups.verify_updated(
             group, name=group_name, hosts=[hbi_upload_prepare_host_class]
         )
 
 
-@pytest.mark.usefixtures("no_write_permission_user_setup")
 class TestRBACGroupsNoWritePermission:
     def test_rbac_groups_no_write_permission_create_group(
         self,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4392
@@ -239,7 +252,7 @@ class TestRBACGroupsNoWritePermission:
         """
         group_name = generate_display_name()
         with raises_apierror(403):
-            host_inventory_non_org_admin.apis.groups.create_group(
+            host_inventory_no_write_permissions.apis.groups.create_group(
                 group_name, wait_for_created=False
             )
 
@@ -247,11 +260,9 @@ class TestRBACGroupsNoWritePermission:
 
     def test_rbac_groups_no_write_permission_patch_group(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4438
@@ -264,8 +275,8 @@ class TestRBACGroupsNoWritePermission:
           negative: true
           title: Test that users without "groups:write" permission can't patch a group
         """
-        hosts = rbac_setup_resources[0]
-        group = rbac_setup_resources[1][0]
+        hosts = rbac_setup_resources.hosts
+        group = rbac_setup_resources.groups[0]
         new_group_name = generate_display_name()
 
         with raises_apierror(
@@ -273,19 +284,17 @@ class TestRBACGroupsNoWritePermission:
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.groups.patch_group(
-                group, name=new_group_name, hosts=hosts[1].id, wait_for_updated=False
+            host_inventory_no_write_permissions.apis.groups.patch_group(
+                group, name=new_group_name, hosts=hosts[-1][0].id, wait_for_updated=False
             )
 
-        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=hosts[0].id)
+        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=hosts[0])
 
     def test_rbac_groups_no_write_permission_delete_group(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4393
@@ -297,21 +306,19 @@ class TestRBACGroupsNoWritePermission:
           negative: true
           title: Test that users without "groups:write" permission can't delete a group
         """
-        groups = rbac_setup_resources[1]
+        groups = rbac_setup_resources.groups
 
         for group in groups:
             with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
-                host_inventory_non_org_admin.apis.groups.delete_groups_raw(group)
+                host_inventory_no_write_permissions.apis.groups.delete_groups_raw(group)
 
             host_inventory.apis.groups.verify_not_deleted(group)
 
     def test_rbac_groups_no_write_permission_remove_hosts(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4394
@@ -324,27 +331,25 @@ class TestRBACGroupsNoWritePermission:
           negative: true
           title: Test that users without "groups:write" permission can't remove hosts from a group
         """
-        group = rbac_setup_resources[1][0]
-        host = rbac_setup_resources[0][0]
+        group = rbac_setup_resources.groups[0]
+        hosts = rbac_setup_resources.hosts[0]
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.groups.remove_hosts_from_group(
-                group, hosts=host.id, wait_for_removed=False
+            host_inventory_no_write_permissions.apis.groups.remove_hosts_from_group(
+                group, hosts=hosts[0].id, wait_for_removed=False
             )
 
-        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=host.id)
+        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=hosts)
 
     def test_rbac_groups_no_write_permission_remove_hosts_from_multiple_groups(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-1655
@@ -358,27 +363,25 @@ class TestRBACGroupsNoWritePermission:
           title: Test that users without "groups:write" permission can't
                  remove hosts from multiple groups via DELETE /groups/hosts/<host_ids> endpoint
         """
-        group = rbac_setup_resources[1][0]
-        host = rbac_setup_resources[0][0]
+        group = rbac_setup_resources.groups[0]
+        hosts = rbac_setup_resources.hosts[0]
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.groups.remove_hosts_from_multiple_groups(
-                host.id, wait_for_removed=False
+            host_inventory_no_write_permissions.apis.groups.remove_hosts_from_multiple_groups(
+                hosts[0].id, wait_for_removed=False
             )
 
-        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=host.id)
+        host_inventory.apis.groups.verify_not_updated(group, name=group.name, hosts=hosts)
 
     def test_rbac_groups_no_write_permission_add_hosts(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_write_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-4377
@@ -390,15 +393,15 @@ class TestRBACGroupsNoWritePermission:
           negative: true
           title: Test that users without "groups:write" permission can't add hosts to a group
         """
-        group = rbac_setup_resources[1][1]
-        host = rbac_setup_resources[0][1]
+        group = rbac_setup_resources.groups[-1]
+        host = rbac_setup_resources.hosts[-1][0]
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.groups.add_hosts_to_group(
+            host_inventory_no_write_permissions.apis.groups.add_hosts_to_group(
                 group, hosts=host.id, wait_for_added=False
             )
 

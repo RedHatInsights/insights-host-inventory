@@ -328,10 +328,27 @@ class RBACAPIWrapper(BaseEntity):
                     ws_id if ws_id is not None else ungrouped_ws_id
                     for ws_id in _hbi_groups_to_ids(hbi_groups)
                 ]
+                role_ids = [get_role_id(role) for role in roles]
+                self.create_role_bindings(role_ids, group.uuid, workspace_ids)
             else:
-                workspace_ids = [self._host_inventory.apis.workspaces.default_workspace.id]
-            role_ids = [get_role_id(role) for role in roles]
-            self.create_role_bindings(role_ids, group.uuid, workspace_ids)
+                default_ws_role_ids, root_ws_role_ids = [], []
+                for i, perm in enumerate(permissions):
+                    if "staleness" in perm.value:
+                        root_ws_role_ids.append(get_role_id(roles[i]))
+                    else:
+                        default_ws_role_ids.append(get_role_id(roles[i]))
+                if default_ws_role_ids:
+                    self.create_role_bindings(
+                        default_ws_role_ids,
+                        group.uuid,
+                        [self._host_inventory.apis.workspaces.default_workspace.id],
+                    )
+                if root_ws_role_ids:
+                    self.create_role_bindings(
+                        root_ws_role_ids,
+                        group.uuid,
+                        [self._host_inventory.apis.workspaces.root_workspace.id],
+                    )
         else:
             roles = [self.create_role_v1(perm, hbi_groups=hbi_groups) for perm in permissions]
             self.add_roles_to_a_group(roles, group.uuid)

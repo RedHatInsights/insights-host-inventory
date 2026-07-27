@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 """
 metadata:
     requirements: inv-rbac-granular-groups
@@ -8,7 +10,7 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.fixtures.rbac_fixtures import RBacResources
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
@@ -21,10 +23,10 @@ pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent, pytest.mark.servi
 class TestRBACSAGranularHosts:
     def test_rbac_sa_granular_hosts_permission_list_hosts(
         self,
-        rbac_setup_resources_for_granular_rbac: RBacResources,
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         hbi_default_org_id: str,
-    ):
+    ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-7891
 
@@ -35,7 +37,7 @@ class TestRBACSAGranularHosts:
             title: Test that service accounts with granular RBAC access
                    can get a correct list of hosts
         """
-        expected_hosts = rbac_setup_resources_for_granular_rbac.host_groups[0]
+        expected_hosts = rbac_setup_resources.hosts[0]
         expected_hosts_ids = {host.id for host in expected_hosts}
 
         response = host_inventory_sa_2.apis.hosts.get_hosts()
@@ -48,9 +50,9 @@ class TestRBACSAGranularHosts:
 
     def test_rbac_sa_granular_hosts_permission_get_hosts_by_id(
         self,
-        rbac_setup_resources_for_granular_rbac: RBacResources,
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
-    ):
+    ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-7891
 
@@ -60,8 +62,8 @@ class TestRBACSAGranularHosts:
             importance: high
             title: Test that service accounts with granular RBAC access can get correct hosts by id
         """
-        all_hosts = flatten(rbac_setup_resources_for_granular_rbac.host_groups)
-        expected_hosts = rbac_setup_resources_for_granular_rbac.host_groups[0]
+        all_hosts = flatten(rbac_setup_resources.hosts)
+        expected_hosts = rbac_setup_resources.hosts[0]
         expected_hosts_ids = {host.id for host in expected_hosts}
 
         with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
@@ -75,10 +77,10 @@ class TestRBACSAGranularHosts:
 
     def test_rbac_sa_granular_hosts_permission_delete_host_by_id(
         self,
-        rbac_setup_resources_for_granular_rbac: RBacResources,
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         host_inventory: ApplicationHostInventory,
-    ):
+    ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-7891
 
@@ -89,7 +91,7 @@ class TestRBACSAGranularHosts:
             title: Test that service accounts with granular RBAC access
                    can delete correct hosts by IDs
         """
-        correct_group = rbac_setup_resources_for_granular_rbac.groups[0]
+        correct_group = rbac_setup_resources.groups[0]
         host = host_inventory.upload.create_host()
         host_inventory.apis.groups.add_hosts_to_group(correct_group, host)
 
@@ -98,10 +100,10 @@ class TestRBACSAGranularHosts:
 
     def test_rbac_sa_granular_hosts_permission_delete_host_by_id_wrong(
         self,
-        rbac_setup_resources_for_granular_rbac: RBacResources,
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         host_inventory: ApplicationHostInventory,
-    ):
+    ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-7891
 
@@ -113,8 +115,8 @@ class TestRBACSAGranularHosts:
             title: Test that service accounts with granular RBAC access
                    can't delete incorrect hosts by IDs
         """
-        host1 = rbac_setup_resources_for_granular_rbac.host_groups[2][0]
-        host2 = rbac_setup_resources_for_granular_rbac.host_groups[3][0]
+        host1 = rbac_setup_resources.hosts[2][0]
+        host2 = rbac_setup_resources.hosts[3][0]
 
         with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_sa_2.apis.hosts.delete_by_id_raw(host1)

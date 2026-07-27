@@ -1,10 +1,18 @@
+# mypy: disallow-untyped-defs
+
 """
 metadata:
   requirements: inv-rbac-cert-auth-bypass
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 import pytest
 
+from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
 from iqe_host_inventory.utils.api_utils import FORBIDDEN_OR_NOT_FOUND
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
@@ -17,13 +25,13 @@ pytestmark = [
 ]
 
 
+@pytest.mark.usefixtures("rbac_inventory_admin_user_setup_class")
 class TestRBACGroupsCertAuth:
     def test_rbac_groups_cert_auth_bypass_checks_create_group(
         self,
-        rbac_inventory_admin_user_setup_class,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -47,11 +55,10 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_patch_group(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -62,7 +69,7 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't patch group with cert auth
         """
-        group = rbac_cert_auth_setup_resources[1][0]
+        group = rbac_setup_resources.groups[0]
         new_group_name = generate_display_name()
 
         with raises_apierror(
@@ -76,11 +83,10 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_delete_group(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -91,7 +97,7 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't delete group with cert auth
         """
-        group = rbac_cert_auth_setup_resources[1][0]
+        group = rbac_setup_resources.groups[0]
 
         with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
             host_inventory_non_org_admin_cert_auth.apis.groups.delete_groups_raw(group)
@@ -100,11 +106,10 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_remove_hosts(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -115,8 +120,8 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't remove hosts from group with cert auth
         """
-        group = rbac_cert_auth_setup_resources[1][0]
-        host = rbac_cert_auth_setup_resources[0][0]
+        group = rbac_setup_resources.groups[0]
+        host = rbac_setup_resources.hosts[0][0]
 
         with raises_apierror(
             403, "You don't have the permission to access the requested resource"
@@ -129,11 +134,10 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_remove_hosts_from_multiple_groups(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-1655
 
@@ -144,8 +148,8 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't remove hosts from multiple groups with cert auth
         """
-        group = rbac_cert_auth_setup_resources[1][0]
-        host = rbac_cert_auth_setup_resources[0][0]
+        group = rbac_setup_resources.groups[0]
+        host = rbac_setup_resources.hosts[0][0]
 
         with raises_apierror(
             403, "You don't have the permission to access the requested resource"
@@ -158,11 +162,10 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_add_hosts(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        host_inventory,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+        host_inventory: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -173,8 +176,8 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't add hosts to group with cert auth
         """
-        group = rbac_cert_auth_setup_resources[1][1]
-        host = rbac_cert_auth_setup_resources[0][1]
+        group = rbac_setup_resources.groups[-1]
+        host = rbac_setup_resources.hosts[-1][0]
 
         with raises_apierror(
             403, "You don't have the permission to access the requested resource"
@@ -185,13 +188,11 @@ class TestRBACGroupsCertAuth:
 
         host_inventory.apis.groups.verify_not_updated(group, hosts=[])
 
+    @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_groups_cert_auth_bypass_checks_get_groups_list(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-        hbi_non_org_admin_user_org_id,
-    ):
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -209,10 +210,9 @@ class TestRBACGroupsCertAuth:
 
     def test_rbac_groups_cert_auth_bypass_checks_get_groups_by_id(
         self,
-        rbac_inventory_admin_user_setup_class,
-        rbac_cert_auth_setup_resources,
-        host_inventory_non_org_admin_cert_auth,
-    ):
+        rbac_setup_resources: RBACResources,
+        host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+    ) -> None:
         """
         https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -223,7 +223,7 @@ class TestRBACGroupsCertAuth:
           negative: true
           title: Test that you can't get groups by IDs with cert auth
         """
-        groups = rbac_cert_auth_setup_resources[1]
+        groups = rbac_setup_resources.groups
 
         with raises_apierror(
             403, "You don't have the permission to access the requested resource"
@@ -232,10 +232,10 @@ class TestRBACGroupsCertAuth:
 
 
 def test_rbac_granular_groups_cert_auth_bypass_checks_get_groups_by_id(
-    hbi_non_org_admin_user_rbac_setup,
-    rbac_cert_auth_setup_resources,
-    host_inventory_non_org_admin_cert_auth,
-):
+    hbi_non_org_admin_user_rbac_setup: Any,
+    rbac_setup_resources: RBACResources,
+    host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
+) -> None:
     """
     https://issues.redhat.com/browse/ESSNTL-5262
 
@@ -247,7 +247,7 @@ def test_rbac_granular_groups_cert_auth_bypass_checks_get_groups_by_id(
       title: Test that granular RBAC doesn't work on Groups endpoints with cert auth
     """
     # Setup
-    groups = rbac_cert_auth_setup_resources[1]
+    groups = rbac_setup_resources.groups
     hbi_non_org_admin_user_rbac_setup(
         permissions=[RBACInventoryPermission.GROUPS_READ], hbi_groups=[groups[0]]
     )
