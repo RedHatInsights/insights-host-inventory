@@ -2,7 +2,7 @@
 ARG UV_VERSION=0.11.21
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 
-FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1784784059 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1784819222 AS kafka_build
 
 USER 0
 ADD librdkafka .
