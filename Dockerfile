@@ -53,7 +53,9 @@ COPY run.py run.py
 COPY wait_for_migrations.py wait_for_migrations.py
 COPY jobs/ jobs/
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
+# Keep default in sync with uv-build-version (enforced in checks.yaml)
+ARG UV_VERSION=0.11.21
+COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1
 

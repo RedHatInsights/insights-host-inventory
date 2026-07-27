@@ -32,7 +32,9 @@ COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
 COPY run.py run.py
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
+# Keep default in sync with uv-build-version (enforced in checks.yaml)
+ARG UV_VERSION=0.11.21
+COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
 
 RUN chown -R 1001:0 ./
 USER 1001

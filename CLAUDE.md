@@ -19,7 +19,7 @@ Red Hat Insights Host Based Inventory (HBI) — Flask REST API managing system i
 - Main app: `uv sync --frozen` at repo root. IQE: `uv --project iqe-host-inventory-plugin sync --frozen` (see `docs/IQE.md`). Both use uv with separate venvs and lockfiles.
 - Set a minimum `uv` CLI version via `[tool.uv] required-version` in `pyproject.toml` (for Dependabot/MintMaker compatibility).
 - Pin the exact `uv` version used in hermetic builds via `uv-build-version` (must satisfy `required-version`).
-- Dockerfiles install uv via `COPY --from=ghcr.io/astral-sh/uv:<version>` — update the tag in all Dockerfiles when bumping `uv`.
+- Dockerfiles install uv via `COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION}` with `ARG UV_VERSION` defaulted to the same pin as `uv-build-version` (CI checks they match). Override with `--build-arg UV_VERSION=…` when needed. Runtime images do not include `pip`; use `uv`.
 - Auth uses `x-rh-identity` header (Base64-encoded JSON with org_id) — org_id isolates tenant data
 - DB schema is `hbi.*` with partitioned tables
 - The `hbi-web` container auto-reloads on code changes — no manual restart needed

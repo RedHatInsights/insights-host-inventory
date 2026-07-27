@@ -15,6 +15,20 @@ jobs:
         with:
             fetch-depth: 0
 
+      - name: Verify Dockerfile uv pin matches uv-build-version
+        run: |
+          PIN=$(tr -d '[:space:]' < uv-build-version)
+          for f in Dockerfile Dockerfile.upstream dev.dockerfile; do
+            if ! grep -q "ARG UV_VERSION=${PIN}" "$f"; then
+              echo "error: $f must declare ARG UV_VERSION=${PIN} to match uv-build-version" >&2
+              exit 1
+            fi
+            if ! grep -Fq 'ghcr.io/astral-sh/uv:${UV_VERSION}' "$f"; then
+              echo "error: $f must COPY uv from ghcr.io/astral-sh/uv:\${UV_VERSION}" >&2
+              exit 1
+            fi
+          done
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
