@@ -46,8 +46,6 @@ COPY logconfig.yaml logconfig.yaml
 COPY manage.py manage.py
 COPY pyproject.toml pyproject.toml
 COPY uv.lock uv.lock
-COPY uv-build-version uv-build-version
-COPY scripts/get_uv_pip_specifier.py scripts/get_uv_pip_specifier.py
 COPY pytest.ini pytest.ini
 COPY run_gunicorn.py run_gunicorn.py
 COPY run_command.sh run_command.sh
@@ -55,12 +53,13 @@ COPY run.py run.py
 COPY wait_for_migrations.py wait_for_migrations.py
 COPY jobs/ jobs/
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
+
 ENV PIP_NO_CACHE_DIR=1
 ENV UV_COMPILE_BYTECODE=1
 
-RUN UV_SPEC=$(python3 scripts/get_uv_pip_specifier.py --build-pin) && \
-    python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install "uv${UV_SPEC}" dumb-init && \
+RUN python3 -m pip install --upgrade pip setuptools wheel && \
+    python3 -m pip install dumb-init && \
     uv sync --frozen --no-dev && \
     chown -R 1001:0 "$APP_ROOT/.venv"
 
