@@ -16,7 +16,7 @@ ENV APP_ROOT=/opt/app-root/src
 WORKDIR $APP_ROOT
 
 RUN (microdnf module enable -y postgresql:16 || curl -o /etc/yum.repos.d/postgresql.repo $pgRepo) && \
-    microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 python3.12-pip rsync tar procps-ng make git && \
+    microdnf install --setopt=tsflags=nodocs -y postgresql python3.12 rsync tar procps-ng make git && \
     microdnf update -y gnupg2 glib2 libcap && \
     rpm -qa | sort > packages-before-devel-install.txt && \
     microdnf install --setopt=tsflags=nodocs -y libpq-devel python3.12-devel gcc libatomic cargo rust glibc-devel krb5-libs krb5-devel libffi-devel gcc-c++ make zlib zlib-devel openssl-libs openssl-devel libzstd libzstd-devel unzip which diffutils && \
@@ -55,11 +55,9 @@ COPY jobs/ jobs/
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
 
-ENV PIP_NO_CACHE_DIR=1
 ENV UV_COMPILE_BYTECODE=1
 
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
-    python3 -m pip install dumb-init && \
+RUN uv pip install --system dumb-init && \
     uv sync --frozen --no-dev && \
     chown -R 1001:0 "$APP_ROOT/.venv"
 
