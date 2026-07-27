@@ -276,6 +276,7 @@ class HBIMessageConsumerBase:
     def _message_span_attrs(self, msg, **extra) -> dict:
         """Build common span attributes for a Kafka message."""
         attrs = {
+            "messaging.system": "kafka",
             "messaging.operation": "process",
             "messaging.destination.name": msg.topic() or "",
             "messaging.kafka.partition": msg.partition() or 0,
@@ -303,6 +304,14 @@ class HBIMessageConsumerBase:
 
         return otel_extract(carrier=carrier)
 
+    def _consumer_span_kwargs(self, msg, **extra_attrs) -> dict:
+        """Build common kwargs for consumer spans (shared by _message_span and _retroactive_span)."""
+        producer_ctx = self._producer_ctx or self._extract_producer_context(msg)
+        kwargs = {"attributes": self._message_span_attrs(msg, **extra_attrs)}
+        if producer_ctx is not None:
+            kwargs["context"] = producer_ctx
+        return kwargs
+
     @contextmanager
     def _message_span(self, msg, **extra_attrs):
         """Create a per-message span that automatically enriches from threadctx on exit.
@@ -314,12 +323,9 @@ class HBIMessageConsumerBase:
         Uses self._producer_ctx if set (by _process_single_message_in_batch);
         otherwise extracts the producer context from message headers directly.
         """
-        producer_ctx = self._producer_ctx or self._extract_producer_context(msg)
-        span_kwargs = {"attributes": self._message_span_attrs(msg, **extra_attrs)}
-        if producer_ctx is not None:
-            span_kwargs["context"] = producer_ctx
+        span_kwargs = self._consumer_span_kwargs(msg, **extra_attrs)
 
-        with tracer.start_as_current_span(f"mq.process {msg.topic()}", **span_kwargs) as span:
+        with tracer.start_as_current_span(f"mq.process {msg.topic()}", kind=SpanKind.CONSUMER, **span_kwargs) as span:
             try:
                 yield span
             finally:
@@ -333,15 +339,10 @@ class HBIMessageConsumerBase:
         handle_message() has already run (or raised), so threadctx is
         already populated and enrichment can happen eagerly.
         """
-        producer_ctx = self._extract_producer_context(msg)
-        span_kwargs = {
-            "attributes": self._message_span_attrs(msg, **extra_attrs),
-            "start_time": start_ns,
-        }
-        if producer_ctx is not None:
-            span_kwargs["context"] = producer_ctx
+        span_kwargs = self._consumer_span_kwargs(msg, **extra_attrs)
+        span_kwargs["start_time"] = start_ns
 
-        span = tracer.start_span(f"mq.process {msg.topic()}", **span_kwargs)
+        span = tracer.start_span(f"mq.process {msg.topic()}", kind=SpanKind.CONSUMER, **span_kwargs)
         self._enrich_span_from_threadctx(span)
         yield span
 
@@ -383,7 +384,7 @@ class HBIMessageConsumerBase:
 
         self._producer_ctx, upstream_sc = self._get_upstream_span_context(msg)
         links = [Link(upstream_sc)] if upstream_sc else []
-        attrs = {"messaging.batch.message_index": index}
+        attrs = self._message_span_attrs(msg, **{"messaging.batch.message_index": index})
 
         with tracer.start_as_current_span(f"msg {index}", links=links, attributes=attrs):
             self._process_single_message(msg)
