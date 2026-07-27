@@ -1,3 +1,7 @@
+# Keep default in sync with uv-build-version (enforced in checks.yaml)
+ARG UV_VERSION=0.11.21
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 ARG pgRepo="https://copr.fedorainfracloud.org/coprs/g/insights/postgresql-16/repo/epel-9/group_insights-postgresql-16-epel-9.repo"
@@ -39,9 +43,7 @@ COPY run_command.sh run_command.sh
 COPY run.py run.py
 COPY jobs/ jobs/
 
-# Keep default in sync with uv-build-version (enforced in checks.yaml)
-ARG UV_VERSION=0.11.21
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
+COPY --from=uv /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1
 

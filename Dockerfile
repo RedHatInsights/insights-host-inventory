@@ -1,3 +1,7 @@
+# Keep default in sync with uv-build-version (enforced in checks.yaml)
+ARG UV_VERSION=0.11.21
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1784784059 AS kafka_build
 
 USER 0
@@ -53,9 +57,7 @@ COPY run.py run.py
 COPY wait_for_migrations.py wait_for_migrations.py
 COPY jobs/ jobs/
 
-# Keep default in sync with uv-build-version (enforced in checks.yaml)
-ARG UV_VERSION=0.11.21
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
+COPY --from=uv /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1
 

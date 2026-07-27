@@ -23,8 +23,12 @@ jobs:
               echo "error: $f must declare ARG UV_VERSION=${PIN} to match uv-build-version" >&2
               exit 1
             fi
-            if ! grep -Fq 'ghcr.io/astral-sh/uv:${UV_VERSION}' "$f"; then
-              echo "error: $f must COPY uv from ghcr.io/astral-sh/uv:\${UV_VERSION}" >&2
+            if ! grep -Fq 'FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv' "$f"; then
+              echo "error: $f must declare FROM ghcr.io/astral-sh/uv:\${UV_VERSION} AS uv" >&2
+              exit 1
+            fi
+            if ! grep -q 'COPY --from=uv ' "$f"; then
+              echo "error: $f must COPY uv binaries from the uv stage" >&2
               exit 1
             fi
           done
