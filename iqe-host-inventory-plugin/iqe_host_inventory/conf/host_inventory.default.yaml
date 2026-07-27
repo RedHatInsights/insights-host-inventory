@@ -126,6 +126,105 @@ prod:
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: org_id
+    insights_inventory_qe_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_test: # Account for testing RBAC v1
       auth:
         username:
@@ -175,6 +274,105 @@ prod:
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: org_id
+    insights_inventory_test_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
           vault_key: org_id
     inventory_service_account:
       auth:
@@ -430,6 +628,105 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: org_id
+    insights_inventory_qe_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_test:  # Account for testing RBAC v1
       auth:
         username:
@@ -479,6 +776,105 @@ stage: &stage
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_test_2
+          vault_key: org_id
+    insights_inventory_test_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: org_id
     inventory_service_account:
       auth:
