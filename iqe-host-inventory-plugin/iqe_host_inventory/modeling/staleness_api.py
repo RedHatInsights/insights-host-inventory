@@ -15,7 +15,6 @@ import requests
 from iqe.base.modeling import BaseEntity
 
 from iqe_host_inventory.modeling.base_api_wrapper import BaseAPIWrapper
-from iqe_host_inventory.utils.api_utils import assert_response_org_id_matches
 from iqe_host_inventory.utils.staleness_utils import extract_staleness_fields
 
 if TYPE_CHECKING:
@@ -59,7 +58,7 @@ class AccountStalenessAPIWrapper(BaseEntity):
     def get_default_staleness_response(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("GET /account/staleness/defaults"):
             response = self._base_wrapper.get("/account/staleness/defaults", **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def get_default_staleness(self, **api_kwargs: Any) -> dict[str, int]:
         response = self.get_default_staleness_response(**api_kwargs)
@@ -69,7 +68,7 @@ class AccountStalenessAPIWrapper(BaseEntity):
     def get_staleness_response(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("GET /account/staleness"):
             response = self._base_wrapper.get("/account/staleness", **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def get_staleness(self, **api_kwargs: Any) -> dict[str, int]:
         response = self.get_staleness_response(**api_kwargs)
@@ -97,7 +96,7 @@ class AccountStalenessAPIWrapper(BaseEntity):
         )
         with self._host_inventory.apis.measure_time("POST /account/staleness"):
             response = self._base_wrapper.post("/account/staleness", json=body, **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def update_staleness(
         self,
@@ -120,12 +119,12 @@ class AccountStalenessAPIWrapper(BaseEntity):
         )
         with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
             response = self._base_wrapper.patch("/account/staleness", json=body, **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def delete_staleness(self, **api_kwargs: Any) -> requests.Response:
         with self._host_inventory.apis.measure_time("DELETE /account/staleness"):
             response = self._base_wrapper.delete("/account/staleness", **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def raw_post_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
         """POST an arbitrary, untyped body to /account/staleness.
@@ -135,7 +134,7 @@ class AccountStalenessAPIWrapper(BaseEntity):
         """
         with self._host_inventory.apis.measure_time("POST /account/staleness"):
             response = self._base_wrapper.post("/account/staleness", json=body, **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     def raw_patch_request(self, body: dict[str, Any], **api_kwargs: Any) -> requests.Response:
         """PATCH an arbitrary, untyped body to /account/staleness.
@@ -145,7 +144,7 @@ class AccountStalenessAPIWrapper(BaseEntity):
         """
         with self._host_inventory.apis.measure_time("PATCH /account/staleness"):
             response = self._base_wrapper.patch("/account/staleness", json=body, **api_kwargs)
-        return assert_response_org_id_matches(self.application, response)
+        return response
 
     @contextmanager
     def cleanup_before_and_after(self) -> Generator[None]:

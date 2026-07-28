@@ -21,6 +21,9 @@ from _pytest._code.code import ExceptionInfo
 
 from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_GET_MULTIPLE_HOSTS
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
+
+if TYPE_CHECKING:
+    from iqe_host_inventory.modeling.tags_api import TagsAPIWrapper
 from iqe_host_inventory.utils import get_org_id
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import ApiException as ApiException_V4
@@ -34,6 +37,8 @@ from iqe_host_inventory_api_v7 import ApiException as ApiException_V7
 from .retrying import accept_when
 
 if TYPE_CHECKING:
+    from iqe.base.application import Application
+
     from iqe_host_inventory import ApplicationHostInventory
     from iqe_host_inventory.modeling import HBI_API_WRAPPER
 
@@ -211,7 +216,7 @@ def delete_hosts(host_list: list[Any], openapi_client: HostsApi) -> None:
 
 
 def delete_hosts_by_tags(
-    tag_search_term: str, openapi_client: HostsApi, tags_wrapper: Any
+    tag_search_term: str, openapi_client: HostsApi, tags_wrapper: TagsAPIWrapper
 ) -> None:
     from iqe_host_inventory.modeling.tags_api import TagsAPIWrapper
 
@@ -402,7 +407,7 @@ def _assert_matching_org_ids(data: dict | list, my_org_id: str) -> None:
 
 
 def assert_response_org_id_matches(
-    application: ApplicationHostInventory, response: requests.Response
+    application: Application, response: requests.Response
 ) -> requests.Response:
     """Assert that any org_ids in a successful JSON response match the calling tenant."""
     if not response.ok or not response.content:
