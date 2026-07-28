@@ -1,4 +1,4 @@
-UPDATE hosts 
+UPDATE hbi.hosts 
 SET 
     stale_timestamp = '5100-06-12T16:52:29.025368+00:00',
     deletion_timestamp = '5100-06-12T16:52:29.025368+00:00',
