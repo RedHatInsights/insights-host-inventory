@@ -14,7 +14,8 @@ migrate_db:
 
 upgrade_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade
-
+	PGPASSWORD=insights psql -d insights -h localhost -p 5432 -U insights -f disable_host_culling_for_existing_hosts.sql
+	
 gen_offline_sql:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade "${down_rev}:${up_rev}" --sql > "${project_dir}app_migrations/${up_rev}.sql"
 
