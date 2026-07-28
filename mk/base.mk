@@ -14,8 +14,8 @@ migrate_db:
 
 upgrade_db:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade
-	PGPASSWORD=$$INVENTORY_DB_PASS psql -d $$INVENTORY_DB_NAME -h $$INVENTORY_DB_HOST -p $$INVENTORY_DB_PORT -U $$INVENTORY_DB_USER -f disable_host_culling_for_existing_hosts.sql
-	
+	INVENTORY_MIGRATION_FILE=disable_host_culling_for_existing_hosts.sql python3 inv_migration_runner.py
+
 gen_offline_sql:
 	SQLALCHEMY_ENGINE_LOG_LEVEL=INFO FLASK_APP=manage.py flask db upgrade "${down_rev}:${up_rev}" --sql > "${project_dir}app_migrations/${up_rev}.sql"
 
