@@ -181,8 +181,10 @@ class TestRBACStalenessNoWritePermission:
                 staleness settings
         """
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
-        resp = host_inventory_staleness_no_write_permissions.apis.account_staleness.create_staleness(
-            **settings
+        resp = (
+            host_inventory_staleness_no_write_permissions.apis.account_staleness.create_staleness(
+                **settings
+            )
         )
         assert resp.status_code == 403
 
@@ -211,8 +213,10 @@ class TestRBACStalenessNoWritePermission:
         host_inventory.apis.account_staleness.create_staleness(**settings)
 
         settings = dict(zip(get_staleness_fields(), [4, 5, 6], strict=False))
-        resp = host_inventory_staleness_no_write_permissions.apis.account_staleness.update_staleness(
-            **settings
+        resp = (
+            host_inventory_staleness_no_write_permissions.apis.account_staleness.update_staleness(
+                **settings
+            )
         )
         assert resp.status_code == 403
 
@@ -240,5 +244,7 @@ class TestRBACStalenessNoWritePermission:
         settings = dict(zip(get_staleness_fields(), [1, 2, 3], strict=False))
         host_inventory.apis.account_staleness.create_staleness(**settings).json()
 
-        resp = host_inventory_staleness_no_write_permissions.apis.account_staleness.delete_staleness()
+        resp = (
+            host_inventory_staleness_no_write_permissions.apis.account_staleness.delete_staleness()
+        )
         assert resp.status_code == 403
