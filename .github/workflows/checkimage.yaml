@@ -48,7 +48,7 @@ jobs:
 
       - name: Enable auto-merge for the base image PR
         if: ${{ steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated' }}
-        run: gh pr merge --auto --rebase "$PR_URL"
+        run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

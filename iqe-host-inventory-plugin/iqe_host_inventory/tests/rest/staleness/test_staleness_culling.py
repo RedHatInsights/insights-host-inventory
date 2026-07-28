@@ -170,7 +170,7 @@ def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # ruff:ignore[line-too-long]
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]
@@ -217,7 +217,7 @@ def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     updated_host_data["display_name"] = generate_display_name()
     host = host_inventory.kafka.create_host(updated_host_data)
     logger.info(
-        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # noqa
+        f"Host id={host.id}, updated={host.updated}, display_name={host.display_name}, last_check_in={host.last_check_in}"  # ruff:ignore[line-too-long]
     )
     host_inventory.apis.hosts.wait_for_updated(
         host, display_name=updated_host_data["display_name"]

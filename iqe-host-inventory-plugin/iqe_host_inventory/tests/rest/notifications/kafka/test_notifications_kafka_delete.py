@@ -357,11 +357,9 @@ def test_notifications_kafka_delete_staleness_dont_produce(
         conventional_time_to_stale=1000
     )
 
-    with temp_headers(
-        host_inventory.apis.account_staleness.raw_api,
-        {"x-rh-insights-request-id": generate_uuid()},
-    ):
-        host_inventory.apis.account_staleness.delete_staleness()
+    host_inventory.apis.account_staleness.delete_staleness(
+        headers={"x-rh-insights-request-id": generate_uuid()},
+    )
 
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_delete_notification_message(
@@ -370,5 +368,5 @@ def test_notifications_kafka_delete_staleness_dont_produce(
 
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_delete_notification_message(
-            DeleteNotificationWrapper.inventory_id, staleness.id.actual_instance, timeout=1
+            DeleteNotificationWrapper.inventory_id, staleness.json()["id"], timeout=1
         )

@@ -1316,16 +1316,20 @@ def test_filter_hosts_by_system_profile_object_nil(
         (["[staged][image][]=quay.io/s-7:latest"], [7]),
         (
             [
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                (
+                    "[booted][image_digest][]=sha256:",
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7",
+                )
             ],
             [7],
         ),
         (["[booted][cached_image][]=quay.io/bc-7:latest"], [7]),
         (
             [
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                )
             ],
             [7],
         ),
@@ -1345,30 +1349,40 @@ def test_filter_hosts_by_system_profile_object_nil(
         (
             [
                 "[booted][image][]=quay.io/b-7:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                ),
             ],
             [7],
         ),
         (
             [
                 "[booted][image][]=quay.io/b-5:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a5",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a5"
+                ),
                 "[booted][cached_image][]=quay.io/bc-6:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6"
+                ),
             ],
             [],
         ),
         (
             [
                 "[staged][image][]=quay.io/s-7:latest",
-                "[rollback][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000b7",
+                (
+                    "[rollback][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000b7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
             ],
             [7],
@@ -1728,7 +1742,7 @@ def test_filter_hosts_with_invalid_system_profile_operating_system(
 
     with raises_apierror(
         400,
-        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # noqa
+        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # ruff:ignore[line-too-long]
     ):
         host_inventory.apis.hosts.get_hosts(filter=filter)
 

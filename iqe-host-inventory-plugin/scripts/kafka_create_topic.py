@@ -11,7 +11,7 @@ future = admin_client.create_topics(new_topics)
 for f in future.values():
     try:
         f.result()
-    except Exception:  # noqa: BLE001
+    except Exception:  # ruff:ignore[blind-except]
         print("Failed to create topic")
     else:
         print("Topic created")

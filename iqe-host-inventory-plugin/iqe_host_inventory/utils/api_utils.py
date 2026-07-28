@@ -394,6 +394,32 @@ def find_nested_fields(field_name: str, data: dict | list) -> Generator[str]:
                 yield from _find_in_list(value)
 
 
+def _assert_matching_org_ids(data: dict | list, my_org_id: str) -> None:
+    for response_org_id in find_nested_fields("org_id", data):
+        assert str(response_org_id) == my_org_id, (
+            f"Critical data leak! Org {my_org_id} accessed data from org {response_org_id}!"
+        )
+
+
+def assert_response_org_id_matches(
+    application: ApplicationHostInventory, response: requests.Response
+) -> requests.Response:
+    """Assert that any org_ids in a successful JSON response match the calling tenant."""
+    if not response.ok or not response.content:
+        return response
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        return response
+
+    if not isinstance(response_data, (dict, list)):
+        return response
+
+    _assert_matching_org_ids(response_data, get_org_id(application))
+    return response
+
+
 def check_org_id(api_wrapper_method: Callable):
     """
     Use this as a decorator in all the API Wrappers methods where we use raw OpenAPI methods.
@@ -425,11 +451,6 @@ def check_org_id(api_wrapper_method: Callable):
         orig_response = api_wrapper_method(self, *args, **kwargs)
         my_org_id = get_org_id(self.application)
 
-        def _check_org_id(response_org_id: str):
-            assert response_org_id == my_org_id, (
-                f"Critical data leak! Org {my_org_id} accessed data from org {response_org_id}!"
-            )
-
         if orig_response is None or orig_response == "":
             return orig_response
 
@@ -440,8 +461,7 @@ def check_org_id(api_wrapper_method: Callable):
         else:
             dict_response = orig_response
 
-        for org_id in find_nested_fields("org_id", dict_response):
-            _check_org_id(org_id)
+        _assert_matching_org_ids(dict_response, my_org_id)
 
         return orig_response
 

@@ -36,12 +36,12 @@ def test_staleness_get_when_unset(
       assignee: msager
       importance: high
       title: Get staleness settings (defaults) via a GET /account/staleness request when staleness is unset
-    """  # NOQA: E501
+    """  # ruff:ignore[line-too-long]
 
     logger.info("Retrieving account record with staleness unset")
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance == "system_default"
-    validate_staleness_response(extract_staleness_fields(response), hbi_staleness_defaults)
+    assert response.json()["id"] == "system_default"
+    validate_staleness_response(extract_staleness_fields(response.json()), hbi_staleness_defaults)
 
 
 def test_staleness_get_when_set(host_inventory: ApplicationHostInventory) -> None:
@@ -54,10 +54,10 @@ def test_staleness_get_when_set(host_inventory: ApplicationHostInventory) -> Non
     """
     test_data = gen_staleness_settings()
     logger.info(f"Creating account record with:\n{test_data}")
-    settings = host_inventory.apis.account_staleness.create_staleness(**test_data)
+    settings = host_inventory.apis.account_staleness.create_staleness(**test_data).json()
 
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance != "system_default"
+    assert response.json()["id"] != "system_default"
     validate_staleness_response(
-        extract_staleness_fields(response), extract_staleness_fields(settings), test_data
+        extract_staleness_fields(response.json()), extract_staleness_fields(settings), test_data
     )

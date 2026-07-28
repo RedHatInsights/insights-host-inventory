@@ -49,7 +49,7 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
-VISIBLE_WORKSPACE_TYPES = "ungrouped-hosts,standard,default"
+HIDE_WORKSPACE_TYPES = ["root", "default"]
 RESOURCE_TYPES_V2_ERROR_MESSAGE = (
     "The resource_types endpoints are only used for RBAC v1, and are not allowed for RBAC v2."
 )
@@ -697,7 +697,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     """
     Check if RBAC v2 (workspace-based) authorization is enabled.
 
-    Single source of truth for the platform.rbac.workspaces feature flag.
+    Single source of truth for the hbi.rbac-v2 feature flag.
     Used to gate both Kessel permission checks and RBAC v2 workspace API calls.
 
     When True: Kessel/RBAC v2 workspace API handles all authorization
@@ -843,10 +843,10 @@ def get_rbac_workspaces(
         name: Filter by workspace name (partial match)
         page: int,
         per_page: Items per page
-        group_type: Filter by workspace type (API spec defaults to "standard")
-            - standard: User-created groups
+        group_type: Filter by workspace type
+            - standard: User-created groups (default)
             - ungrouped-hosts: Ungrouped hosts workspace
-            - all: All visible workspace types (standard, ungrouped-hosts, default)
+            - all: All workspace types (includes standard, ungrouped-hosts, root, default)
         order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
         order_how: Sort direction ('ASC' or 'DESC')
 
@@ -863,12 +863,6 @@ def get_rbac_workspaces(
         RBAC v2 filtering: This function queries the RBAC v2 workspace API using the
         user's identity header. The RBAC v2 service automatically filters results based
         on the user's permissions, so no additional client-side filtering is needed.
-
-        Type filtering: When group_type is "all", we request VISIBLE_WORKSPACE_TYPES from
-        RBAC (ungrouped-hosts, standard, default) rather than requesting all types and
-        post-filtering. This avoids pagination issues and simplifies the logic.
-        VISIBLE_WORKSPACE_TYPES is a fixed set; update it if RBAC introduces new
-        workspace types that should be user-visible.
     """
     if inventory_config().bypass_rbac:
         # When RBAC is bypassed (e.g., in test environments), return empty results
@@ -881,12 +875,14 @@ def get_rbac_workspaces(
     if name:
         query_params["name"] = name
     if group_type:
-        query_params["type"] = VISIBLE_WORKSPACE_TYPES if group_type == "all" else group_type
+        query_params["type"] = group_type
     if page and per_page:
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        query_params["limit"] = str(per_page)
+        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
+        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
+        query_params["limit"] = str(limit)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -928,6 +924,11 @@ def get_rbac_workspaces(
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
     count = response.get("meta", {}).get("count", 0)
+
+    # If group_type is "all", account for root and default workspaces
+    if group_type == "all":
+        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
+        count -= len(HIDE_WORKSPACE_TYPES)
 
     data = data[:per_page]
 

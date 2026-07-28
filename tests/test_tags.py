@@ -543,3 +543,72 @@ def test_query_tags_by_conflicting_ids(api_get, query):
         "Only one of [fqdn, display_name, hostname_or_id, insights_id] may be provided at a time."
         in response_data["detail"]
     )
+
+
+def test_get_tags_aggregation_with_multi_value_tags(db_create_multiple_hosts, api_get):
+    """
+    Validate correct aggregation for hosts with multi-value tags.
+    When multiple hosts share the same tag, the count should reflect the number
+    of distinct hosts. Multi-value tags on a single host should produce separate
+    entries in the results.
+    """
+    shared_namespace = "app"
+    shared_key = "env"
+    shared_value = "production"
+    unique_value = "staging"
+
+    # Host 1: has "app/env=production" and "app/env=staging"
+    # Host 2: has "app/env=production" only
+    # Host 3: has a completely different tag
+    db_create_multiple_hosts(
+        how_many=1,
+        extra_data={
+            "tags": _deserialize_tags_dict({shared_namespace: {shared_key: [shared_value, unique_value]}}),
+        },
+    )
+    db_create_multiple_hosts(
+        how_many=1,
+        extra_data={
+            "tags": _deserialize_tags_dict({shared_namespace: {shared_key: [shared_value]}}),
+        },
+    )
+    db_create_multiple_hosts(
+        how_many=1,
+        extra_data={
+            "tags": _deserialize_tags_dict({"other-ns": {"other-key": ["other-value"]}}),
+        },
+    )
+
+    url = build_tags_url(query="?order_by=count&order_how=DESC")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["total"] == 3  # 3 distinct tag combinations
+
+    # The shared tag "app/env=production" should have count=2 (two hosts)
+    production_tag = next(
+        r
+        for r in response_data["results"]
+        if r["tag"]["namespace"] == shared_namespace
+        and r["tag"]["key"] == shared_key
+        and r["tag"]["value"] == shared_value
+    )
+    assert production_tag["count"] == 2
+
+    # The unique tag "app/env=staging" should have count=1
+    staging_tag = next(
+        r
+        for r in response_data["results"]
+        if r["tag"]["namespace"] == shared_namespace
+        and r["tag"]["key"] == shared_key
+        and r["tag"]["value"] == unique_value
+    )
+    assert staging_tag["count"] == 1
+
+    # The other tag should have count=1
+    other_tag = next(r for r in response_data["results"] if r["tag"]["namespace"] == "other-ns")
+    assert other_tag["count"] == 1
+
+    # Verify ordering: count DESC means production (2) comes first
+    assert response_data["results"][0]["count"] >= response_data["results"][1]["count"]
+    assert response_data["results"][1]["count"] >= response_data["results"][2]["count"]
