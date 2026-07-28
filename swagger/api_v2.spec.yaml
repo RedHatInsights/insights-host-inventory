@@ -273,8 +273,7 @@ components:
         items:
           type: string
           format: uuid
-        maxItems: 20
-      description: A comma-separated list of host UUIDs (max 20).
+      description: A comma-separated list of host UUIDs.
 
   # ---------------------------------------------------------------------------
   # Schemas
@@ -423,9 +422,9 @@ components:
     # -- Canonical Facts ------------------------------------------------------
     InsightsId:
       description: >-
-        An ID defined in /etc/insights-client/machine-id. This field is a
-        canonical fact.
+        A UUID assigned by the insights-client. This field is a canonical fact.
       type: string
+      format: uuid
       nullable: true
       example: 3f01b554-5767-4041-b75e-41829bcee1dc
     SubscriptionManagerId:
