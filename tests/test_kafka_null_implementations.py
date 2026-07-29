@@ -152,18 +152,13 @@ class TestFactoryFunctions:
         config.bootstrap_servers = "localhost:9092"
         config.kafka_consumer = {}
 
-        with (
-            patch("app.queue.host_mq.Consumer") as mock_consumer_class,
-            patch("app.queue.host_mq.instrument_kafka_consumer") as mock_instrument_consumer,
-        ):
+        with patch("app.queue.host_mq.Consumer") as mock_consumer_class:
             mock_consumer = Mock()
-            instrumented_consumer = Mock()
             mock_consumer_class.return_value = mock_consumer
-            mock_instrument_consumer.return_value = instrumented_consumer
 
             consumer = create_consumer(config)
 
-            assert consumer == instrumented_consumer
+            assert consumer == mock_consumer
             mock_consumer_class.assert_called_once_with(
                 {
                     "group.id": "test-group",
@@ -172,7 +167,6 @@ class TestFactoryFunctions:
                     **config.kafka_consumer,
                 }
             )
-            mock_instrument_consumer.assert_called_once_with(mock_consumer)
 
     def test_create_event_producer_returns_null_producer_when_replica_namespace(self):
         """Test that create_event_producer returns NullEventProducer when replica_namespace is True"""
