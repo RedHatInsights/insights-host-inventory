@@ -626,16 +626,19 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
 
     # -- Phase 1 (Hosts & Host Views) — schemas to be added with Phase 1 endpoints:
+    #    Status: pending
     #    HostOut (includes PerReporterStaleness), PatchHostIn, HostQueryOutput,
     #    HostIdOut, CreateCheckIn, HostsQueryBody, HostApps, AdvisorAppData,
     #    VulnerabilityAppData, PatchAppData, RemediationsAppData,
     #    ComplianceAppData, MalwareAppData
 
     # -- Phase 2 (Tags, Facts & Staleness) — schemas to be added with Phase 2 endpoints:
+    #    Status: pending
     #    ActiveTags, TagCountOut
 
     # -- Phase 3 (System Profile Aggregates & Resource Types) — schemas to
     #    be added with Phase 3 endpoints:
+    #    Status: pending
     #    SystemProfileByHostOut, HostSystemProfileOut
 
   # ---------------------------------------------------------------------------
