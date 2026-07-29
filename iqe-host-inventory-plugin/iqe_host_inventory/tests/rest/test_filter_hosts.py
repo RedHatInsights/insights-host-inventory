@@ -1317,8 +1317,8 @@ def test_filter_hosts_by_system_profile_object_nil(
         (
             [
                 (
-                    "[booted][image_digest][]=sha256:",
-                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7",
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
                 )
             ],
             [7],
