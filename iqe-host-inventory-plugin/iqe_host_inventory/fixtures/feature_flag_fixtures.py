@@ -78,3 +78,36 @@ def enable_rbac_workspaces_session(
 @pytest.fixture(scope="session")
 def is_rbac_workspaces_enabled_session(host_inventory: ApplicationHostInventory):
     return host_inventory.unleash.is_rbac_workspaces_enabled
+
+
+# Per-service RBAC
+
+
+@pytest.fixture
+def enable_inventory_views_rbac(
+    host_inventory: ApplicationHostInventory,
+) -> Generator[None, None, None]:
+    host_inventory.unleash.toggle_feature_flag(
+        host_inventory.unleash.inventory_views_rbac_flag, enable=True
+    )
+
+    yield
+
+    host_inventory.unleash.toggle_feature_flag(
+        host_inventory.unleash.inventory_views_rbac_flag, enable=False
+    )
+
+
+@pytest.fixture(scope="module")
+def enable_inventory_views_rbac_module(
+    host_inventory: ApplicationHostInventory,
+) -> Generator[None, None, None]:
+    host_inventory.unleash.toggle_feature_flag(
+        host_inventory.unleash.inventory_views_rbac_flag, enable=True
+    )
+
+    yield
+
+    host_inventory.unleash.toggle_feature_flag(
+        host_inventory.unleash.inventory_views_rbac_flag, enable=False
+    )
