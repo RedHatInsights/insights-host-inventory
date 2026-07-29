@@ -258,12 +258,12 @@ class TestRBACHostsReadPermission:
         """
         tags = sorted(flatten(rbac_setup_resources[2]), key=operator.itemgetter("key"))
 
-        body = host_inventory_non_org_admin.apis.tags.get_tags_response().json()
+        response = host_inventory_non_org_admin.apis.tags.get_tags_json()
 
-        assert body["count"] == len(tags)
-        for tag in body["results"]:
+        assert response["count"] == len(tags)
+        for tag in response["results"]:
             assert tag["count"] == 1
-        dict_tags = [tag["tag"] for tag in body["results"]]
+        dict_tags = [tag["tag"] for tag in response["results"]]
         assert sorted(dict_tags, key=operator.itemgetter("key")) == tags
 
     def test_rbac_hosts_read_permission_get_operating_systems(

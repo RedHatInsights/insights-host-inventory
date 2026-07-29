@@ -72,9 +72,7 @@ def test_filter_tags_by_system_profile_sap_sids(
     param_list = [*format_sap_sids_filters(use_contains, use_equals, filters)]
     logger.info(f"Retrieving tags by filtering sap_sids: {filters}")
     response = host_inventory.apis.tags.get_tags_response(filter=param_list).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -165,9 +163,7 @@ def test_filter_tags_by_system_profile_ansible(
 
     filter = [f"[ansible]{param}" for param in params]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -273,9 +269,7 @@ def test_filter_tags_by_system_profile_sap(
 
     filter = [f"[sap]{param}" for param in params]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -322,9 +316,7 @@ def test_filter_tags_by_system_profile_mssql(
 
     filter = [f"[mssql]{param}" for param in params]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -455,9 +447,7 @@ def test_filter_tags_by_system_profile_string_fields(
 
     def _test_filter(comparator: str | None = None):
         response = filter_tags(field.name, value, comparator).json()
-        assert response["count"] >= len(expected_tags)
-        assert_tags_found(expected_tags, response["results"])
-        assert_tags_not_found(not_expected_tags, response["results"])
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter()
     _test_filter("eq")
@@ -466,9 +456,7 @@ def test_filter_tags_by_system_profile_string_fields(
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
     expected_tags = host_tags(hosts[:2])
     not_expected_tags = host_tags(hosts[2:])
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -552,9 +540,7 @@ def test_filter_tags_by_system_profile_boolean_fields(
 
     def _test_filter(comparator: str | None = None):
         response = filter_tags(field.name, filtered_value, comparator).json()
-        assert response["count"] >= len(expected_tags)
-        assert_tags_found(expected_tags, response["results"])
-        assert_tags_not_found(not_expected_tags, response["results"])
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter()
     _test_filter("eq")
@@ -565,9 +551,7 @@ def test_filter_tags_by_system_profile_boolean_fields(
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
     expected_tags = host_tags(hosts[:2])
     not_expected_tags = host_tags(hosts[2:])
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -729,15 +713,11 @@ def test_filter_tags_by_system_profile_object_nil(
 
     filter = ["[ansible]=nil"]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(hosts[-1].tags)
-    assert_tags_found(hosts[-1].tags, response["results"])
-    assert_tags_not_found(not_nil_tags, response["results"])
+    check_tags_response(response, hosts[-1].tags, not_nil_tags)
 
     filter = ["[ansible]=not_nil"]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(not_nil_tags)
-    assert_tags_found(not_nil_tags, response["results"])
-    assert_tags_not_found(hosts[-1].tags, response["results"])
+    check_tags_response(response, not_nil_tags, hosts[-1].tags)
 
 
 @pytest.mark.ephemeral
@@ -899,9 +879,7 @@ def test_filter_tags_by_system_profile_bootc_status(
 
     filter = [f"[bootc_status]{param}" for param in params]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -938,9 +916,7 @@ def test_filter_tags_by_system_profile_bootc_status_host_type(
 
     filter = [f"{param}" for param in params]
     response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
-    assert response["count"] >= len(expected_tags)
-    assert_tags_found(expected_tags, response["results"])
-    assert_tags_not_found(not_expected_tags, response["results"])
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 # NOTE: test_filter_tags_by_system_profile_operating_system,

@@ -175,10 +175,10 @@ class TestRBACSAHostsReadPermission:
         """
         tags = sorted(flatten(rbac_setup_resources[2]), key=operator.itemgetter("key"))
 
-        body = host_inventory_sa_1.apis.tags.get_tags_response().json()
+        response = host_inventory_sa_1.apis.tags.get_tags_json()
 
-        assert body["count"] >= len(tags)
-        assert_tags_found(tags, body["results"])
+        assert response["count"] >= len(tags)
+        assert_tags_found(tags, response["results"])
 
     def test_rbac_sa_hosts_read_permission_get_operating_systems(
         self,

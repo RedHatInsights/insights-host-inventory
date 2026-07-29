@@ -303,7 +303,7 @@ def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHost
     assert set(host_ids).intersection(found_host_ids) == set(host_ids)
 
     # GET /tags
-    response = host_inventory.apis.tags.get_tags_response().json()
+    response = host_inventory.apis.tags.get_tags_json()
     assert response["count"] >= sum(len(host.tags) for host in all_hosts)
 
     expected_tags = {convert_tag_to_string(tag) for host in all_hosts for tag in host.tags}

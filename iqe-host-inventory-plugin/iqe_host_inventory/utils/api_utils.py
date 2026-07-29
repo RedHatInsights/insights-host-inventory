@@ -218,11 +218,6 @@ def delete_hosts(host_list: list[Any], openapi_client: HostsApi) -> None:
 def delete_hosts_by_tags(
     tag_search_term: str, openapi_client: HostsApi, tags_wrapper: TagsAPIWrapper
 ) -> None:
-    from iqe_host_inventory.modeling.tags_api import TagsAPIWrapper
-
-    if not isinstance(tags_wrapper, TagsAPIWrapper):
-        raise TypeError(f"Expected TagsAPIWrapper, got {type(tags_wrapper)}")
-
     tags: list[str] = []
     body = tags_wrapper.get_tags_json(search=tag_search_term)
     tags.extend(convert_tag_to_string(item["tag"]) for item in body["results"])
@@ -236,6 +231,7 @@ def delete_hosts_by_tags(
     for tag in tags:
         response = openapi_client.api_host_get_host_list(tags=[tag])
         hosts.extend(response.results)
+        # Prevent from "Request Line is too large" error when deleting too many hosts at once
         if len(hosts) >= 50:
             delete_hosts(hosts, openapi_client)
             hosts = []
