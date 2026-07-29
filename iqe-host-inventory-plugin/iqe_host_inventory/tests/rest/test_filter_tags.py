@@ -10,7 +10,6 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.tests.rest.test_filter_hosts import format_sap_sids_filters
 from iqe_host_inventory.utils import flatten
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -948,8 +947,9 @@ def test_filter_tags_with_invalid_system_profile_operating_system(
     """
     filter = [f"[operating_system]{param}"]
 
-    with raises_apierror(
-        400,
-        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # ruff:ignore[line-too-long]
-    ):
-        host_inventory.apis.tags.get_tags(filter=filter, per_page=100)
+    resp = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100)
+    assert resp.status_code == 400
+    assert (
+        "operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux']."
+        in resp.text
+    )
