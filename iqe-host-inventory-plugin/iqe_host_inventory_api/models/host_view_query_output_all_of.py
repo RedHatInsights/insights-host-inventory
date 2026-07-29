@@ -29,20 +29,23 @@ class HostViewQueryOutputAllOf:
       attribute_map (dict): The key is attribute name
                             and the value is json key in definition.
     """
-    openapi_types = {"results": "list[HostViewHost]"}
+    openapi_types = {"results": "list[HostViewHost]", "denied_services": "list[str]"}
 
-    attribute_map = {"results": "results"}
+    attribute_map = {"results": "results", "denied_services": "denied_services"}
 
-    def __init__(self, results=None, local_vars_configuration=None):
+    def __init__(self, results=None, denied_services=None, local_vars_configuration=None):
         """HostViewQueryOutputAllOf - a model defined in OpenAPI"""
         if local_vars_configuration is None:
             local_vars_configuration = Configuration()
         self.local_vars_configuration = local_vars_configuration
 
         self._results = None
+        self._denied_services = None
         self.discriminator = None
 
         self.results = results
+        if denied_services is not None:
+            self.denied_services = denied_services
 
     @property
     def results(self):
@@ -68,6 +71,29 @@ class HostViewQueryOutputAllOf:
             raise ValueError("Invalid value for `results`, must not be `None`")
 
         self._results = results
+
+    @property
+    def denied_services(self):
+        """Gets the denied_services of this HostViewQueryOutputAllOf.  # noqa: E501
+
+        List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed.  # noqa: E501
+
+        :return: The denied_services of this HostViewQueryOutputAllOf.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._denied_services
+
+    @denied_services.setter
+    def denied_services(self, denied_services):
+        """Sets the denied_services of this HostViewQueryOutputAllOf.
+
+        List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed.  # noqa: E501
+
+        :param denied_services: The denied_services of this HostViewQueryOutputAllOf.  # noqa: E501
+        :type: list[str]
+        """
+
+        self._denied_services = denied_services
 
     def to_dict(self):
         """Returns the model properties as a dict"""
