@@ -1996,6 +1996,7 @@ class TestHostViewPerServiceRBAC:
         """Mock RBAC permissions for per-service checks."""
         mock_data = create_mock_rbac_response(response_file)
         mocker.patch("lib.middleware.get_rbac_permissions", return_value=mock_data)
+        mocker.patch("lib.middleware.get_flag_value", return_value=True)
 
     def _find_host_in_results(self, results, host_id):
         """Find a specific host by ID in the results list."""
@@ -2152,3 +2153,19 @@ class TestHostViewPerServiceRBAC:
         assert_response_status(response_status, 200)
         result = self._find_host_in_results(response_data["results"], host_id)
         assert "vulnerability" not in result["app_data"]
+
+    def test_bypass_rbac_omits_denied_services(self, api_get, db_create_host, mocker):
+        """When RBAC is bypassed, denied_services is absent from response."""
+        host = db_create_host()
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=1, critical=1, important=2, moderate=1, low=1
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-all-apps.json")
+        mocker.patch("lib.middleware._should_bypass_app_service_rbac", return_value=True)
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert "denied_services" not in response_data

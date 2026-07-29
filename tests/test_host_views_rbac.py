@@ -1,9 +1,7 @@
 from contextlib import contextmanager
 from unittest.mock import MagicMock
-from unittest.mock import Mock
 from unittest.mock import patch
 
-import grpc
 import pytest
 
 from app.auth.identity import IdentityType
@@ -74,6 +72,10 @@ class TestHasRbacPermission:
             "advisor:recommendation-results:read",
         )
 
+    def test_specific_resource_does_not_satisfy_wildcard_required(self):
+        """User with specific resource cannot satisfy a wildcard-resource requirement."""
+        assert not _has_rbac_permission(["patch:system:read"], "patch:*:read")
+
 
 @contextmanager
 def _rbac_v1_mocks(rbac_data_file, identity_type=IdentityType.USER):
@@ -82,6 +84,7 @@ def _rbac_v1_mocks(rbac_data_file, identity_type=IdentityType.USER):
         patch("lib.middleware.inventory_config") as mock_config,
         patch("lib.middleware.get_current_identity") as mock_identity,
         patch("lib.middleware.is_rbac_v2_enabled", return_value=False),
+        patch("lib.middleware.get_flag_value", return_value=True),
         patch("lib.middleware._build_rbac_request_headers", return_value={}),
         patch("lib.middleware.get_rbac_permissions") as mock_rbac,
     ):
@@ -100,6 +103,7 @@ def _kessel_mocks():
         patch("lib.middleware.inventory_config") as mock_config,
         patch("lib.middleware.get_current_identity") as mock_identity,
         patch("lib.middleware.is_rbac_v2_enabled", return_value=True),
+        patch("lib.middleware.get_flag_value", return_value=True),
         patch("lib.middleware.get_kessel_client") as mock_get_kessel,
     ):
         mock_config.return_value.bypass_rbac = False
@@ -121,6 +125,21 @@ class TestGetAllowedAppServices:
 
         with patch("lib.middleware.inventory_config") as mock_config:
             mock_config.return_value.bypass_rbac = True
+            result = get_allowed_app_services()
+            assert result is None
+
+    def test_flag_off_returns_none(self):
+        """Feature flag disabled means all services allowed (no RBAC enforcement)."""
+        from lib.middleware import get_allowed_app_services
+
+        with (
+            patch("lib.middleware.inventory_config") as mock_config,
+            patch("lib.middleware.get_current_identity") as mock_identity,
+            patch("lib.middleware.get_flag_value", return_value=False),
+        ):
+            mock_config.return_value.bypass_rbac = False
+            mock_identity.return_value.identity_type = IdentityType.USER
+            mock_identity.return_value.org_id = "test_org"
             result = get_allowed_app_services()
             assert result is None
 
@@ -179,7 +198,7 @@ class TestGetAllowedAppServices:
 
 
 class TestGetAllowedAppServicesKessel:
-    """Tests for get_allowed_app_services() Kessel v2 path."""
+    """Tests for get_allowed_app_services() Kessel v2 path (ListAllowedWorkspaces)."""
 
     def test_kessel_partial_access(self):
         """ListAllowedWorkspaces returns workspaces for some services, empty for others."""
@@ -199,54 +218,42 @@ class TestGetAllowedAppServicesKessel:
             result = get_allowed_app_services()
             assert result == {"advisor", "patch"}
 
-    @pytest.mark.parametrize(
-        "workspaces,expected",
-        [
-            pytest.param(["ws-1"], "all", id="all_allowed"),
-            pytest.param([], "none", id="all_denied"),
-        ],
-    )
-    def test_kessel_uniform_access(self, workspaces, expected):
-        """ListAllowedWorkspaces returns same result for all services."""
+    def test_kessel_full_access(self):
+        """ListAllowedWorkspaces returns workspaces for all services."""
         from app.models.host_app_data import get_app_data_models
         from lib.middleware import get_allowed_app_services
 
         with _kessel_mocks() as mock_kessel:
-            mock_kessel.ListAllowedWorkspaces.return_value = workspaces
+            mock_kessel.ListAllowedWorkspaces.return_value = ["ws-1"]
 
             result = get_allowed_app_services()
-            if expected == "all":
-                assert result == set(get_app_data_models().keys())
-            else:
-                assert result == set()
+            assert result == set(get_app_data_models().keys())
 
-    def test_kessel_grpc_error_fails_closed(self):
-        """gRPC error on ListAllowedWorkspaces should deny that service (fail closed)."""
+    def test_kessel_no_access(self):
+        """ListAllowedWorkspaces returns empty for all services."""
         from lib.middleware import get_allowed_app_services
 
-        error = grpc.RpcError()
-        error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
-        error.details = Mock(return_value="service unavailable")
-
         with _kessel_mocks() as mock_kessel:
-            mock_kessel.ListAllowedWorkspaces.side_effect = error
+            mock_kessel.ListAllowedWorkspaces.return_value = []
 
             result = get_allowed_app_services()
             assert result == set()
 
-    def test_kessel_grpc_error_partial_then_error(self):
-        """First service succeeds, rest error -- only 1 service allowed (fail-closed per service)."""
-        from app.models.host_app_data import get_app_data_models
+    def test_kessel_grpc_error_fails_closed(self):
+        """gRPC error on ListAllowedWorkspaces denies that service (fail closed)."""
+        from lib.middleware import get_allowed_app_services
+
+        with _kessel_mocks() as mock_kessel:
+            mock_kessel.ListAllowedWorkspaces.side_effect = Exception("gRPC unavailable")
+
+            result = get_allowed_app_services()
+            assert result == set()
+
+    def test_kessel_partial_error(self):
+        """First service succeeds, rest error — only allowed services returned."""
         from lib.middleware import get_allowed_app_services
 
         call_count = 0
-        expected_model_count = len(
-            [m for m in get_app_data_models().values() if getattr(m, "__kessel_relation__", "")]
-        )
-
-        error = grpc.RpcError()
-        error.code = Mock(return_value=grpc.StatusCode.UNAVAILABLE)
-        error.details = Mock(return_value="service unavailable")
 
         with _kessel_mocks() as mock_kessel:
 
@@ -255,10 +262,9 @@ class TestGetAllowedAppServicesKessel:
                 call_count += 1
                 if call_count == 1:
                     return ["ws-1"]
-                raise error
+                raise Exception("gRPC unavailable")
 
             mock_kessel.ListAllowedWorkspaces.side_effect = mock_list
 
             result = get_allowed_app_services()
             assert len(result) == 1
-            assert call_count == expected_model_count

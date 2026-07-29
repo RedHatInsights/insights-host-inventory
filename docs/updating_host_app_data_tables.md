@@ -619,6 +619,9 @@ class HostAppDataMyApp(HostAppDataMixin, db.Model):
     __app_name__ = "my_app"
     __sortable_fields__ = ("field_one",)  # Optional: enable sorting on numeric/datetime fields
     __filterable_fields__ = ("field_one", "field_two")  # Optional: enable filtering
+    __v1_app__ = "my-app"
+    __v1_read_permission__ = "my-app:my_resource:read"
+    __kessel_relation__ = "my_app_my_resource_view"
 
     field_one = db.Column(db.Integer, nullable=True)
     field_two = db.Column(db.String(255), nullable=True)

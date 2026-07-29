@@ -36,6 +36,7 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
+from lib.feature_flags import FLAG_HBI_INVENTORY_VIEWS_RBAC
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
@@ -768,7 +769,9 @@ def _should_bypass_app_service_rbac() -> bool:
     if inventory_config().bypass_rbac:
         return True
     identity = get_current_identity()
-    return identity.identity_type not in CHECKED_TYPES
+    if identity.identity_type not in CHECKED_TYPES:
+        return True
+    return not get_flag_value(FLAG_HBI_INVENTORY_VIEWS_RBAC, identity.org_id)
 
 
 def get_allowed_app_services() -> set[str] | None:
