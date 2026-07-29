@@ -6,9 +6,6 @@ openapi: 3.0.0
 info:
   description: >-
     REST interface for the Insights Platform Host Inventory application — V2 API.
-    V2 is the full successor to V1, delivering contract-quality improvements
-    (RFC 7807 errors, stricter schemas, unified sorting and pagination) across
-    a phased endpoint migration.
   version: 2.0.0
   title: Insights Host Inventory V2 REST Interface
 servers:
@@ -16,13 +13,13 @@ servers:
     description: V2 API server
 externalDocs:
   description: How to use the Red Hat Insights API
-  url: https://docs.redhat.com/en/documentation/red_hat_insights/1-latest/html/using_the_red_hat_insights_api/index
+  url: https://docs.redhat.com/en/documentation/red_hat_lightspeed/1-latest/html-single/using_apis_to_configure_red_hat_lightspeed_services/index
 
 paths: {}
 
 components:
   # ---------------------------------------------------------------------------
-  # Security Schemes (same as V1)
+  # Security Schemes
   # ---------------------------------------------------------------------------
   securitySchemes:
     BearerAuth:
@@ -47,7 +44,7 @@ components:
     pageParam:
       name: page
       in: query
-      required: false
+
       schema:
         type: integer
         minimum: 1
@@ -57,7 +54,7 @@ components:
     perPageParam:
       name: per_page
       in: query
-      required: false
+
       schema:
         type: integer
         minimum: 1
@@ -65,13 +62,14 @@ components:
         default: 50
       description: A number of items to return per page.
 
-    # -- Sorting (replaces V1 order_by + order_how) ---------------------------
+    # -- Sorting ---------------------------
     sortParam:
       name: sort
       in: query
-      required: false
+
       schema:
         type: string
+        pattern: '^-?[a-z][a-z0-9_.]*(,-?[a-z][a-z0-9_.]*)*$'
       description: >-
         Comma-separated list of sort fields. Prefix a field with `-` for
         descending order. Examples: `?sort=-updated`, `?sort=display_name,-updated`,
@@ -81,21 +79,21 @@ components:
     displayName:
       name: display_name
       in: query
-      required: false
+
       schema:
         type: string
       description: Filter by display_name (case-insensitive substring match).
     fqdn:
       name: fqdn
       in: query
-      required: false
+
       schema:
         type: string
       description: Filter by FQDN (case-insensitive substring match).
     hostnameOrId:
       name: hostname_or_id
       in: query
-      required: false
+
       schema:
         type: string
       description: >-
@@ -104,7 +102,7 @@ components:
     insightsId:
       name: insights_id
       in: query
-      required: false
+
       schema:
         type: string
         format: uuid
@@ -112,7 +110,7 @@ components:
     subscriptionManagerId:
       name: subscription_manager_id
       in: query
-      required: false
+
       schema:
         type: string
         format: uuid
@@ -120,14 +118,14 @@ components:
     providerId:
       name: provider_id
       in: query
-      required: false
+
       schema:
         type: string
       description: Filter by provider_id.
     providerType:
       name: provider_type
       in: query
-      required: false
+
       schema:
         type: string
         enum:
@@ -140,7 +138,7 @@ components:
     updatedStart:
       name: updated_start
       in: query
-      required: false
+
       schema:
         type: string
         format: date-time
@@ -148,7 +146,7 @@ components:
     updatedEnd:
       name: updated_end
       in: query
-      required: false
+
       schema:
         type: string
         format: date-time
@@ -156,7 +154,7 @@ components:
     lastCheckInStart:
       name: last_check_in_start
       in: query
-      required: false
+
       schema:
         type: string
         format: date-time
@@ -164,7 +162,7 @@ components:
     lastCheckInEnd:
       name: last_check_in_end
       in: query
-      required: false
+
       schema:
         type: string
         format: date-time
@@ -172,19 +170,23 @@ components:
     tagsParam:
       name: tags
       in: query
-      required: false
+
       style: form
       explode: true
       schema:
         type: array
         items:
           type: string
+          pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
       description: >-
         Filter by host tags. Tags are in namespace/key=value format.
+        Namespace and value are optional (e.g. "insights-client/os=rhel",
+        "key=value", "key"). Each component is URL-encoded and limited
+        to 255 characters.
     stalenessParam:
       name: staleness
       in: query
-      required: false
+
       style: form
       explode: true
       schema:
@@ -196,12 +198,11 @@ components:
             - stale
             - stale_warning
       description: >-
-        Filter by host staleness state. V2 removes "unknown" from the allowed
-        values (RHINENG-5893).
+        Filter by host staleness state.
     registeredWithParam:
       name: registered_with
       in: query
-      required: false
+
       style: form
       explode: true
       schema:
@@ -215,24 +216,30 @@ components:
             - discovery
             - rhsm-conduit
             - cloud-connector
+            - "!yupana"
+            - "!satellite"
+            - "!discovery"
+            - "!puptoo"
+            - "!rhsm-conduit"
+            - "!cloud-connector"
       description: >-
-        Filter by reporter that registered the host. V2 removes "insights"
-        from the allowed values (RHINENG-4846).
+        Filter by reporter that has ever reported the host before.
     systemTypeParam:
       name: system_type
       in: query
-      required: false
+
       schema:
         type: string
         enum:
-          - nil
-          - not_nil
+          - conventional
+          - bootc
           - edge
+          - cluster
       description: Filter by system type.
     workspaceNameListParam:
       name: workspace_name
       in: query
-      required: false
+
       style: form
       explode: true
       schema:
@@ -240,11 +247,11 @@ components:
         items:
           type: string
       description: >-
-        Filter by workspace name. Replaces V1's deprecated group_name parameter.
+        Filter by workspace name.
     workspaceIdListParam:
       name: workspace_id
       in: query
-      required: false
+
       style: form
       explode: true
       schema:
@@ -253,7 +260,7 @@ components:
           type: string
           format: uuid
       description: >-
-        Filter by workspace ID. Replaces V1's deprecated group_id parameter.
+        Filter by workspace ID.
 
     # -- Path parameters ------------------------------------------------------
     hostIdParam:
@@ -320,8 +327,8 @@ components:
     PaginationOut:
       title: Paginated Response Envelope
       description: >-
-        V2 unified pagination envelope. All V2 collection endpoints use this
-        structure, including resource-types (which used a different envelope in V1).
+        Unified pagination envelope. All collection endpoints use this
+        structure, including resource-types.
         The links field provides navigation URLs with full query string preservation.
       type: object
       required:
@@ -382,13 +389,6 @@ components:
       description: The Org ID of the tenant that owns the host.
       type: string
       example: '000102'
-    HyphenatedUuid:
-      type: string
-      nullable: true
-      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-      minLength: 36
-      maxLength: 36
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     NonNullableString:
       type: string
       nullable: false
@@ -426,25 +426,40 @@ components:
       type: string
       format: uuid
       nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
       example: 3f01b554-5767-4041-b75e-41829bcee1dc
     SubscriptionManagerId:
       description: >-
         A Red Hat Subscription Manager ID of a RHEL host. This field is a
         canonical fact.
       type: string
+      format: uuid
       nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
       example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     SatelliteId:
       description: >-
         A Red Hat Satellite ID of a RHEL host. This field is a canonical fact.
       type: string
+      format: uuid
       nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
       example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     BiosUuid:
       description: >-
         A UUID of the host machine BIOS. This field is a canonical fact.
       type: string
+      format: uuid
       nullable: true
+      pattern: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+      minLength: 36
+      maxLength: 36
       example: 22cd8e39-13bb-4d02-8316-84b850dc5136
     IpAddresses:
       description: >-
@@ -510,31 +525,23 @@ components:
       allOf:
         - properties:
             insights_id:
-              allOf:
-                - $ref: '#/components/schemas/InsightsId'
-                - $ref: '#/components/schemas/HyphenatedUuid'
+              $ref: '#/components/schemas/InsightsId'
             subscription_manager_id:
-              allOf:
-                - $ref: '#/components/schemas/SubscriptionManagerId'
-                - $ref: '#/components/schemas/HyphenatedUuid'
+              $ref: '#/components/schemas/SubscriptionManagerId'
             satellite_id:
-              allOf:
-                - $ref: '#/components/schemas/SatelliteId'
-                - $ref: '#/components/schemas/HyphenatedUuid'
+              $ref: '#/components/schemas/SatelliteId'
             bios_uuid:
-              allOf:
-                - $ref: '#/components/schemas/BiosUuid'
-                - $ref: '#/components/schemas/HyphenatedUuid'
+              $ref: '#/components/schemas/BiosUuid'
             ip_addresses:
-              $ref: '#/components/schemas/NonNullableStringArray'
+              $ref: '#/components/schemas/IpAddresses'
             fqdn:
-              $ref: '#/components/schemas/NonNullableString'
+              $ref: '#/components/schemas/Fqdn'
             mac_addresses:
-              $ref: '#/components/schemas/NonNullableStringArray'
+              $ref: '#/components/schemas/MacAddresses'
             provider_id:
-              $ref: '#/components/schemas/NonNullableString'
+              $ref: '#/components/schemas/ProviderId'
             provider_type:
-              $ref: '#/components/schemas/NonNullableString'
+              $ref: '#/components/schemas/ProviderType'
         - anyOf:
             - required: [insights_id]
             - required: [subscription_manager_id]
@@ -566,18 +573,18 @@ components:
       required:
         - namespace
     PerReporterStaleness:
-      type: object
-      properties:
-        last_check_in:
-          $ref: '#/components/schemas/TimeStamp'
-        stale_timestamp:
-          $ref: '#/components/schemas/TimeStamp'
-        stale_warning_timestamp:
-          $ref: '#/components/schemas/TimeStamp'
-        culled_timestamp:
-          $ref: '#/components/schemas/TimeStamp'
-        check_in_succeeded:
-          type: boolean
+      type: array
+      items:
+        type: object
+        required:
+          - reporter
+          - last_check_in
+        properties:
+          reporter:
+            type: string
+            description: Name of the reporting source.
+          last_check_in:
+            $ref: '#/components/schemas/TimeStamp'
     GroupOut:
       title: Group/Workspace membership
       description: Data of a single group/workspace belonging to an org.
@@ -619,9 +626,10 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
 
     # -- Phase 1 (Hosts & Host Views) — schemas to be added with Phase 1 endpoints:
-    #    HostOut, PatchHostIn, HostQueryOutput, HostIdOut, CreateCheckIn,
-    #    HostsQueryBody, HostApps, AdvisorAppData, VulnerabilityAppData,
-    #    PatchAppData, RemediationsAppData, ComplianceAppData, MalwareAppData
+    #    HostOut (includes PerReporterStaleness), PatchHostIn, HostQueryOutput,
+    #    HostIdOut, CreateCheckIn, HostsQueryBody, HostApps, AdvisorAppData,
+    #    VulnerabilityAppData, PatchAppData, RemediationsAppData,
+    #    ComplianceAppData, MalwareAppData
 
     # -- Phase 2 (Tags, Facts & Staleness) — schemas to be added with Phase 2 endpoints:
     #    ActiveTags, TagCountOut
@@ -635,8 +643,7 @@ components:
   # ---------------------------------------------------------------------------
   responses:
     NoContent:
-      description: >-
-        The operation completed successfully. No content returned.
+      description: 204 — the operation completed successfully.
     BadRequestError:
       description: Bad request — validation error or malformed input.
       content:
