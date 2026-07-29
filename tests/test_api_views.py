@@ -419,7 +419,7 @@ class TestUpdateView:
         view = db_create_view(name="Old Name", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"name": "New Name"})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "New Name"})
 
         assert_response_status(response_status, 200)
         assert response_data["name"] == "New Name"
@@ -433,7 +433,7 @@ class TestUpdateView:
 
         url = build_views_url(view_id=str(view.id))
         response_status, response_data = do_request(
-            flask_client.put, url, USER_IDENTITY, {"description": "Updated desc"}
+            flask_client.patch, url, USER_IDENTITY, {"description": "Updated desc"}
         )
 
         assert_response_status(response_status, 200)
@@ -445,17 +445,20 @@ class TestUpdateView:
 
         url = build_views_url(view_id=str(view.id))
         response_status, response_data = do_request(
-            flask_client.put, url, USER_IDENTITY, {"configuration": new_config}
+            flask_client.patch, url, USER_IDENTITY, {"configuration": new_config}
         )
 
         assert_response_status(response_status, 200)
-        assert len(response_data["configuration"]["columns"]) == 2
+        assert response_data["configuration"]["columns"] == [
+            {"key": "display_name"},
+            {"key": "vulnerability:critical_cves"},
+        ]
 
     def test_updates_org_wide(self, flask_client: TestClient, db_create_view: Callable) -> None:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID, org_wide=False)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"org_wide": True})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"org_wide": True})
 
         assert_response_status(response_status, 200)
         assert response_data["org_wide"] is True
@@ -465,7 +468,7 @@ class TestUpdateView:
 
         url = build_views_url(view_id=str(view.id))
         response_status, response_data = do_request(
-            flask_client.put, url, USER_IDENTITY, {"name": "Updated", "description": "New desc", "org_wide": True}
+            flask_client.patch, url, USER_IDENTITY, {"name": "Updated", "description": "New desc", "org_wide": True}
         )
 
         assert_response_status(response_status, 200)
@@ -478,17 +481,26 @@ class TestUpdateView:
 
         url = build_views_url(view_id=str(view.id))
         response_status, response_data = do_request(
-            flask_client.put, url, USER_IDENTITY, {"configuration": {"columns": [{"key": "fake_field"}]}}
+            flask_client.patch, url, USER_IDENTITY, {"configuration": {"columns": [{"key": "fake_field"}]}}
         )
 
         assert_response_status(response_status, 400)
         assert "fake_field" in response_data["detail"]
 
+    def test_400_for_empty_body(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {})
+
+        assert_response_status(response_status, 400)
+        assert "at least one field" in response_data["detail"]
+
     def test_400_for_empty_name(self, flask_client: TestClient, db_create_view: Callable) -> None:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"name": ""})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": ""})
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
@@ -497,7 +509,7 @@ class TestUpdateView:
         view = db_create_system_view()
 
         url = build_views_url(view_id=str(view.id))
-        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {"name": "Hacked"})
+        response_status, _ = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "Hacked"})
 
         assert_response_status(response_status, 403)
 
@@ -505,13 +517,13 @@ class TestUpdateView:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by="98765432", org_wide=True)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {"name": "Hacked"})
+        response_status, _ = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "Hacked"})
 
         assert_response_status(response_status, 403)
 
     def test_404_for_nonexistent_view(self, flask_client: TestClient) -> None:
         url = build_views_url(view_id=str(uuid.uuid4()))
-        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {"name": "X"})
+        response_status, _ = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "X"})
 
         assert_response_status(response_status, 404)
 
@@ -519,7 +531,7 @@ class TestUpdateView:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, _ = do_request(flask_client.put, url, SYSTEM_TYPE_IDENTITY, {"name": "X"})
+        response_status, _ = do_request(flask_client.patch, url, SYSTEM_TYPE_IDENTITY, {"name": "X"})
 
         assert_response_status(response_status, 403)
 

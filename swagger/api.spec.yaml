@@ -1130,7 +1130,7 @@ paths:
           description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: View not found or not visible to the requesting user.
-    put:
+    patch:
       operationId: api.views.update_view
       tags:
         - views

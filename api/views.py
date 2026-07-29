@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from flask import Response
 from flask import abort
 from marshmallow import ValidationError
 
@@ -94,6 +95,11 @@ def update_view(view_id, body, **kwargs):  # noqa: ARG001
     except ValidationError as e:
         return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
 
+    if not validated_data:
+        return json_error_response(
+            "Validation Error", "Request body must contain at least one field to update.", HTTPStatus.BAD_REQUEST
+        )
+
     if "configuration" in validated_data:
         try:
             validate_view_configuration(validated_data["configuration"])
@@ -122,7 +128,7 @@ def delete_view(view_id, **kwargs):  # noqa: ARG001
     except ViewPermissionError as e:
         abort(HTTPStatus.FORBIDDEN, str(e.detail))
 
-    return "", HTTPStatus.NO_CONTENT
+    return Response(None, HTTPStatus.NO_CONTENT)
 
 
 def clone_view(view_id, **kwargs):  # noqa: ARG001
