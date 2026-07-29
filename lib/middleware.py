@@ -723,17 +723,18 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
 
     allowed: set[str] = set()
 
-    for app_name, model in app_models.items():
-        kessel_relation = getattr(model, "__kessel_relation__", "")
-        if not kessel_relation:
-            continue
-        try:
-            workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
-            if workspaces:
-                allowed.add(app_name)
-        except Exception as e:
-            details = e.details() if hasattr(e, "details") else str(e)
-            logger.warning(f"Kessel check failed for {app_name}: {details}")
+    with outbound_http_response_time.labels("inventory_views_kessel_rbac").time():
+        for app_name, model in app_models.items():
+            kessel_relation = getattr(model, "__kessel_relation__", "")
+            if not kessel_relation:
+                continue
+            try:
+                workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
+                if workspaces:
+                    allowed.add(app_name)
+            except Exception as e:
+                details = e.details() if hasattr(e, "details") else str(e)
+                logger.warning(f"Kessel check failed for {app_name}: {details}")
 
     return allowed
 
