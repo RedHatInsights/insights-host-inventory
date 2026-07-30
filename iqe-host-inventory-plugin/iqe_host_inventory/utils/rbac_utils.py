@@ -61,6 +61,6 @@ def wait_for_kessel_sync(host_inventory: ApplicationHostInventory) -> None:
     Wait for RBAC -> Kessel sync if the hbi.rbac-v2 feature flag is enabled.
     """
     wait_seconds = 3 if host_inventory.application.config.current_env == "clowder_smoke" else 21
-    if host_inventory.unleash.is_rbac_workspaces_enabled:
+    if host_inventory.unleash.is_hbi_rbac_v2_enabled:
         logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
         sleep(wait_seconds)
