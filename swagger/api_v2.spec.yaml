@@ -1,5 +1,5 @@
 ---
-# V2 API spec — built from DESIGN_DOC_HBI_V2_API.docx.pdf.
+# V2 API spec
 # OpenAPI 3.0.0 because Connexion 3.x does not support 3.1+.
 # Paths are empty; Phase 1/2/3 tasks add endpoint definitions.
 openapi: 3.0.0
@@ -48,6 +48,8 @@ components:
       schema:
         type: integer
         minimum: 1
+        # (page - 1) * per_page must be less than 2,147,483,647 (signed int32 max).
+        # per_page max is 100, so page max is 21,474,837.
         maximum: 21474837
         default: 1
       description: A page number of the items to return.
@@ -162,7 +164,6 @@ components:
     lastCheckInEnd:
       name: last_check_in_end
       in: query
-
       schema:
         type: string
         format: date-time
@@ -170,7 +171,6 @@ components:
     tagsParam:
       name: tags
       in: query
-
       style: form
       explode: true
       schema:
@@ -186,7 +186,6 @@ components:
     stalenessParam:
       name: staleness
       in: query
-
       style: form
       explode: true
       schema:
@@ -194,6 +193,10 @@ components:
         items:
           type: string
           enum:
+            - fresh
+            - stale
+            - stale_warning
+          default:
             - fresh
             - stale
             - stale_warning
@@ -501,29 +504,9 @@ components:
       nullable: true
       example: aws
     CanonicalFactsOut:
-      type: object
-      properties:
-        insights_id:
-          $ref: '#/components/schemas/InsightsId'
-        subscription_manager_id:
-          $ref: '#/components/schemas/SubscriptionManagerId'
-        satellite_id:
-          $ref: '#/components/schemas/SatelliteId'
-        bios_uuid:
-          $ref: '#/components/schemas/BiosUuid'
-        ip_addresses:
-          $ref: '#/components/schemas/IpAddresses'
-        fqdn:
-          $ref: '#/components/schemas/Fqdn'
-        mac_addresses:
-          $ref: '#/components/schemas/MacAddresses'
-        provider_id:
-          $ref: '#/components/schemas/ProviderId'
-        provider_type:
-          $ref: '#/components/schemas/ProviderType'
-    CanonicalFactsIn:
       allOf:
-        - properties:
+        - type: object
+          properties:
             insights_id:
               $ref: '#/components/schemas/InsightsId'
             subscription_manager_id:
@@ -542,6 +525,57 @@ components:
               $ref: '#/components/schemas/ProviderId'
             provider_type:
               $ref: '#/components/schemas/ProviderType'
+        - anyOf:
+            - required: [insights_id]
+            - required: [subscription_manager_id]
+            - required: [satellite_id]
+            - required: [bios_uuid]
+            - required: [ip_addresses]
+            - required: [fqdn]
+            - required: [mac_addresses]
+            - required:
+                - provider_id
+                - provider_type
+    CanonicalFactsIn:
+      allOf:
+        - type: object
+          properties:
+            insights_id:
+              allOf:
+                - $ref: '#/components/schemas/InsightsId'
+                - nullable: false
+            subscription_manager_id:
+              allOf:
+                - $ref: '#/components/schemas/SubscriptionManagerId'
+                - nullable: false
+            satellite_id:
+              allOf:
+                - $ref: '#/components/schemas/SatelliteId'
+                - nullable: false
+            bios_uuid:
+              allOf:
+                - $ref: '#/components/schemas/BiosUuid'
+                - nullable: false
+            ip_addresses:
+              allOf:
+                - $ref: '#/components/schemas/IpAddresses'
+                - nullable: false
+            fqdn:
+              allOf:
+                - $ref: '#/components/schemas/Fqdn'
+                - nullable: false
+            mac_addresses:
+              allOf:
+                - $ref: '#/components/schemas/MacAddresses'
+                - nullable: false
+            provider_id:
+              allOf:
+                - $ref: '#/components/schemas/ProviderId'
+                - nullable: false
+            provider_type:
+              allOf:
+                - $ref: '#/components/schemas/ProviderType'
+                - nullable: false
         - anyOf:
             - required: [insights_id]
             - required: [subscription_manager_id]
