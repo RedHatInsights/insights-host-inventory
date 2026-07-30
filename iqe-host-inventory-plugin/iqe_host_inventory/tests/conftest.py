@@ -194,6 +194,9 @@ def enable_kessel_backend_flags(
         host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.rbac_workspace_access_check_v2_flag, enable=True
         )
+        host_inventory.unleash.toggle_feature_flag(
+            host_inventory.unleash.hbi_rbac_v2_flag, enable=True
+        )
         _ensure_ungrouped_group_exists(host_inventory)
         _ensure_ungrouped_group_exists(host_inventory_secondary)
 
