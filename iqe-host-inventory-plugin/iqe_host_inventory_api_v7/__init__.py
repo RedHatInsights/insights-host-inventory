@@ -64,6 +64,10 @@ from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
 from iqe_host_inventory_api_v7.models.host_system_profile_out import HostSystemProfileOut
+from iqe_host_inventory_api_v7.models.host_view_combined_fields import HostViewCombinedFields
+from iqe_host_inventory_api_v7.models.host_view_combined_filter_value import (
+    HostViewCombinedFilterValue,
+)
 from iqe_host_inventory_api_v7.models.host_view_filter_comparison import HostViewFilterComparison
 from iqe_host_inventory_api_v7.models.host_view_host import HostViewHost
 from iqe_host_inventory_api_v7.models.host_view_query_output import HostViewQueryOutput
@@ -167,6 +171,9 @@ from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai import (
 )
 from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai_gpu_models_inner import (
     SystemProfileWorkloadsRhelAiGpuModelsInner,
+)
+from iqe_host_inventory_api_v7.models.system_profile_workloads_satellite import (
+    SystemProfileWorkloadsSatellite,
 )
 from iqe_host_inventory_api_v7.models.system_profile_yum_repo import SystemProfileYumRepo
 from iqe_host_inventory_api_v7.models.tag_count_out import TagCountOut

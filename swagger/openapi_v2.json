@@ -1597,6 +1597,38 @@
                 "maxLength": 30,
                 "pattern": "^\\d+(\\.\\d+)+$",
                 "x-wildcard": true
+              },
+              "receptor_version": {
+                "description": "The receptor version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "runner_version": {
+                "description": "The ansible-runner version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "eda_controller_version": {
+                "description": "The EDA controller version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "gateway_version": {
+                "description": "The automation gateway version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
               }
             }
           },
@@ -1925,6 +1957,38 @@
                   },
                   "sso_version": {
                     "description": "The SSO version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "receptor_version": {
+                    "description": "The receptor version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "runner_version": {
+                    "description": "The ansible-runner version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "eda_controller_version": {
+                    "description": "The EDA controller version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "gateway_version": {
+                    "description": "The automation gateway version on the host",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
