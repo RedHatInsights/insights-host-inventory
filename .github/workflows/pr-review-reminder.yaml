@@ -1,6 +1,7 @@
-# Posts a daily Slack reminder listing open PRs (older than 1 day) with no human
-# review or comment activity in the last 24 hours, and collects PR health metrics
-# to a GitHub Pages dashboard.
+# Posts a daily Slack reminder listing open PRs (older than 1 day) that still need
+# review attention (fewer than 2 human approvals, or no human review/comment
+# activity in the last 24 hours), and collects PR health metrics to a GitHub Pages
+# dashboard.
 
 name: PR Review Reminder
 
@@ -53,7 +54,8 @@ jobs:
               | .author.login as $pr_author
               | select(([.reviews[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(.submittedAt != null and ($now - (.submittedAt | fromdateiso8601)) <= $day)] | length) == 0)
               | select(([.comments[] | select(.author.login != $pr_author and (.author.login | test($bots) | not)) | select(($now - (.createdAt | fromdateiso8601)) <= $day)] | length) == 0)
-              | select(.reviewDecision != "APPROVED" and .reviewDecision != "CHANGES_REQUESTED")
+              | select(.reviewDecision != "CHANGES_REQUESTED")
+              | select(([.reviews[] | select(.state == "APPROVED" and .author.login != $pr_author and (.author.login | test($bots) | not)) | .author.login] | unique | length) < 2)
               | (.createdAt | fromdateiso8601) as $created
               | select(($now - $created) > $day)
               | . + { age_days: (($now - $created) / $day | floor) }
