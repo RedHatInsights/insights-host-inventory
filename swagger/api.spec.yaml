@@ -1546,7 +1546,7 @@ components:
         <br /><br />
         which equates to the URL param:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][workloads][sap][sap_system][eq]=true"
         <br /><br />
         To get "edge" hosts, use this explicit filter:
         <br /><br />
@@ -1556,13 +1556,21 @@ components:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
         <br /><br />
-        To get hosts with an specific operating system, use this explicit filter:
+        To get hosts with a specific operating system, use this explicit filter:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}}
         <br /><br />
         which equates to the URL param:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel"
+        <br /><br />
+        To get hosts with a specific operating system version, use this explicit filter:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"rhel": {"version": {"eq": "9"}}}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][rhel][version][eq]=9"
       style: deepObject
       explode: true
       example: {}
