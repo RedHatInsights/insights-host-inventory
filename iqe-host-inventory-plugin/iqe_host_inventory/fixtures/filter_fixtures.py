@@ -20,7 +20,6 @@ from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import HostOut
 from iqe_host_inventory_api import HostsApi
 from iqe_host_inventory_api import StructuredTag
-from iqe_host_inventory_api import TagsApi
 
 logger = logging.getLogger(__name__)
 
@@ -326,10 +325,9 @@ def mq_setup_hosts_for_sap_sids_filtering(
 def mq_setup_hosts_for_sap_system_filtering(
     host_inventory: ApplicationHostInventory,
     openapi_client: HostsApi,
-    openapi_client_tags: TagsApi,
 ):
     # Cleanup
-    delete_hosts_by_tags(SAP_FILTER_TAG, openapi_client, openapi_client_tags)
+    delete_hosts_by_tags(SAP_FILTER_TAG, openapi_client, host_inventory.apis.tags)
 
     hosts_data = [host_inventory.datagen.create_host_data_for_sap_filtering() for _ in range(3)]
     hosts_data[0]["system_profile"]["sap_system"] = False
