@@ -123,14 +123,14 @@ def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInvento
     assert http_host_ids == expected_host_ids
 
     for state in states:
-        response = host_inventory.apis.tags.get_tags_response(staleness=[state])
+        response = host_inventory.apis.tags.get_tags_json(staleness=[state])
         state_tags = [tag for host in hosts[state] for tag in host.tags]
         other_tags = [tag for s in states if s != state for host in hosts[s] for tag in host.tags]
 
-        assert response.count >= len(state_tags)
-        assert len(response.results) == response.count
-        assert_tags_found(state_tags, response.results)
-        assert_tags_not_found(other_tags, response.results)
+        assert response["count"] >= len(state_tags)
+        assert len(response["results"]) == response["count"]
+        assert_tags_found(state_tags, response["results"])
+        assert_tags_not_found(other_tags, response["results"])
 
 
 @pytest.mark.ephemeral
@@ -303,14 +303,14 @@ def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHost
     assert set(host_ids).intersection(found_host_ids) == set(host_ids)
 
     # GET /tags
-    response = host_inventory.apis.tags.get_tags_response()
-    assert response.count >= sum(len(host.tags) for host in all_hosts)
+    response = host_inventory.apis.tags.get_tags_json()
+    assert response["count"] >= sum(len(host.tags) for host in all_hosts)
 
     expected_tags = {convert_tag_to_string(tag) for host in all_hosts for tag in host.tags}
     found_tags = {
-        convert_tag_to_string(tag.tag.to_dict()): tag.count
-        for tag in response.results
-        if convert_tag_to_string(tag.tag.to_dict()) in expected_tags
+        convert_tag_to_string(tag["tag"]): tag["count"]
+        for tag in response["results"]
+        if convert_tag_to_string(tag["tag"]) in expected_tags
     }
     assert set(found_tags.keys()) == expected_tags
     assert set(found_tags.values()) == {1}
