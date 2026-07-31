@@ -56,6 +56,7 @@ IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
+V2_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi_v2.json")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
 SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
 
@@ -257,6 +258,21 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
                 validator_map=build_validator_map(system_profile_spec=sp_spec),
             )
             logger.info("Listening on API: %s", api_url)
+
+    if app_config.v2_api_enabled:
+        v2_parser = TranslatingParser(V2_SPECIFICATION_FILE)
+        v2_parser.parse()
+        v2_base_path = f"{app_config.base_url_path}/v2"
+        app.add_api(
+            v2_parser.specification,
+            arguments={"title": "HBI V2 API"},
+            resolver=RestyResolver("api.v2"),
+            validate_responses=True,
+            strict_validation=False,
+            base_path=v2_base_path,
+            validator_map=build_validator_map(system_profile_spec=sp_spec),
+        )
+        logger.info("Listening on V2 API: %s", v2_base_path)
 
     flask_app = app.app
 

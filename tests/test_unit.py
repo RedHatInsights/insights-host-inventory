@@ -26,6 +26,7 @@ from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
 from app import SPECIFICATION_FILE
+from app import V2_SPECIFICATION_FILE
 from app import create_app
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
@@ -544,6 +545,33 @@ def test_yaml_specification_create_app_connexion(_translating_parser, _init_app,
     with patch("app.create_app", side_effect=Exception("mocked error")):
         with pytest.raises(Exception):  # noqa: B017
             create_app(RuntimeEnvironment.TEST)
+
+
+@pytest.mark.parametrize(
+    "v2_enabled,expected_parser_calls,expected_add_api_calls",
+    [("true", 2, 3), ("false", 1, 2)],
+    ids=["v2-enabled", "v2-disabled"],
+)
+@patch("app.connexion.FlaskApp")
+@patch("app.db.init_app")
+@patch("app.TranslatingParser")
+def test_v2_api_registration(
+    translating_parser, _init_app, app, v2_enabled, expected_parser_calls, expected_add_api_calls
+):
+    with patch.dict("os.environ", {"HBI_V2_API_ENABLED": v2_enabled}):
+        create_app(RuntimeEnvironment.TEST)
+
+    assert translating_parser.call_count == expected_parser_calls
+    assert app.return_value.add_api.call_count == expected_add_api_calls
+
+    if v2_enabled == "true":
+        translating_parser.assert_any_call(SPECIFICATION_FILE)
+        translating_parser.assert_any_call(V2_SPECIFICATION_FILE)
+        v2_call = app.return_value.add_api.mock_calls[2]
+        assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
+        assert v2_call.kwargs["base_path"] == "/api/inventory/v2"
+    else:
+        translating_parser.assert_called_once_with(SPECIFICATION_FILE)
 
 
 def test_asc_host_order_how():

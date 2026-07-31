@@ -518,39 +518,48 @@ components:
             insights_id:
               allOf:
                 - $ref: '#/components/schemas/InsightsId'
-                - nullable: false
+                - type: string
+                  nullable: false
             subscription_manager_id:
               allOf:
                 - $ref: '#/components/schemas/SubscriptionManagerId'
-                - nullable: false
+                - type: string
+                  nullable: false
             satellite_id:
               allOf:
                 - $ref: '#/components/schemas/SatelliteId'
-                - nullable: false
+                - type: string
+                  nullable: false
             bios_uuid:
               allOf:
                 - $ref: '#/components/schemas/BiosUuid'
-                - nullable: false
+                - type: string
+                  nullable: false
             ip_addresses:
               allOf:
                 - $ref: '#/components/schemas/IpAddresses'
-                - nullable: false
+                - type: array
+                  nullable: false
             fqdn:
               allOf:
                 - $ref: '#/components/schemas/Fqdn'
-                - nullable: false
+                - type: string
+                  nullable: false
             mac_addresses:
               allOf:
                 - $ref: '#/components/schemas/MacAddresses'
-                - nullable: false
+                - type: array
+                  nullable: false
             provider_id:
               allOf:
                 - $ref: '#/components/schemas/ProviderId'
-                - nullable: false
+                - type: string
+                  nullable: false
             provider_type:
               allOf:
                 - $ref: '#/components/schemas/ProviderType'
-                - nullable: false
+                - type: string
+                  nullable: false
         - anyOf:
             - required: [insights_id]
             - required: [subscription_manager_id]
