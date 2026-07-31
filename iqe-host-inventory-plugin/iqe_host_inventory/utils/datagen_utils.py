@@ -679,6 +679,10 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
                 "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
                 "free_disk_storage": "3TB",
             },
+            "satellite": {
+                "type": "server",
+                "version": "6.17.6.1",
+            },
             "sap": {
                 "sap_system": True,
                 "sids": ["H2O", "ABC", "XYZ"],
