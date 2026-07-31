@@ -496,6 +496,13 @@ components:
       type: string
       nullable: true
       example: aws
+      enum:
+        - alibaba
+        - aws
+        - azure
+        - discovery
+        - gcp
+        - ibm
     CanonicalFactsOut:
       allOf:
         - type: object
