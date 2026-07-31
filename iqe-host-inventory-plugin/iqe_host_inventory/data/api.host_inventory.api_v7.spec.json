@@ -5098,6 +5098,28 @@
                   }
                 }
               },
+              "satellite": {
+                "description": "Object containing data specific to the Red Hat Satellite workload",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "Whether this system is a Satellite Server or Capsule",
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "capsule"
+                    ],
+                    "example": "server"
+                  },
+                  "version": {
+                    "description": "The Satellite or Capsule version",
+                    "type": "string",
+                    "example": "6.19.0",
+                    "maxLength": 30,
+                    "x-wildcard": true
+                  }
+                }
+              },
               "sap": {
                 "description": "Object containing data specific to the SAP workload",
                 "type": "object",
