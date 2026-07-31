@@ -4,6 +4,7 @@ import logging
 
 import pytest
 from fauxfactory import gen_mac
+from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -244,6 +245,74 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
 
     assert fetched_host.results[0].system_profile.workloads.sap.sap_system
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
+def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) -> None:
+    """
+    Test creation of new host with Satellite Server workload via archive upload (Ingress/Puptoo)
+
+    Confirm that a host with the satellite RPM is classified as a Satellite Server workload
+
+    1. Issue POST to create a single host via archive upload by sending a Satellite server tarball
+    2. Confirm host is created with the expected display_name
+    3. Issue a GET request to retrieve the host system profile facts
+    4. Confirm the workloads.satellite.type equals "server"
+
+     metadata:
+        requirements: inv-host-create, inv-hosts-get-system_profile
+        assignee: rantunes
+        importance: high
+        title: Inventory: POST new Satellite Server host via archive upload
+    """
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive="satellite-archive-617.tar.gz"
+    )
+
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+    assert satellite.type == "server"
+    assert satellite.version is not None
+    assert satellite.version.startswith("6.")
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
+def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory) -> None:
+    """
+    Test creation of new host with Satellite Capsule workload via archive upload (Ingress/Puptoo)
+
+    Confirm that a host with satellite-capsule RPM is classified as Satellite Capsule workload
+
+    1. Issue POST to create a single host via archive upload by sending a Satellite Capsule tarball
+    2. Confirm host is created with the expected display_name
+    3. Issue a GET request to retrieve the host system profile facts
+    4. Confirm the workloads.satellite.type equals "capsule"
+
+     metadata:
+        requirements: inv-host-create, inv-hosts-get-system_profile
+        assignee: rantunes
+        importance: high
+        title: Inventory: POST new Satellite Capsule host via archive upload
+    """
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive="satellite-capsule-archive.tar.gz"
+    )
+
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+    assert satellite.type == "capsule"
+    assert satellite.version is not None
+    assert satellite.version.startswith("6.")
 
 
 def test_create_image_mode_host(
