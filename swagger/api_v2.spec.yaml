@@ -92,15 +92,6 @@ components:
       schema:
         type: string
       description: Filter by FQDN (case-insensitive substring match).
-    hostnameOrId:
-      name: hostname_or_id
-      in: query
-
-      schema:
-        type: string
-      description: >-
-        Filter by display_name, fqdn, or id (case-insensitive substring match
-        on the first two, exact match on id).
     insightsId:
       name: insights_id
       in: query
