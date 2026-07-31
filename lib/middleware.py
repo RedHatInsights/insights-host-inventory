@@ -715,26 +715,43 @@ def _has_rbac_permission(rbac_permissions: list[str], required: str) -> bool:
 
 def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     """Kessel v2 path: check workspace-level permissions per service via ListAllowedWorkspaces."""
+    from concurrent.futures import ThreadPoolExecutor
+
     try:
         kessel_client = get_kessel_client(current_app)
     except Exception:
         logger.exception("Failed to initialize Kessel client, denying all app services")
         return set()
 
-    allowed: set[str] = set()
+    services_to_check: list[tuple[str, str]] = []
+    for app_name, model in app_models.items():
+        kessel_relation = getattr(model, "__kessel_relation__", "")
+        if kessel_relation:
+            services_to_check.append((app_name, kessel_relation))
 
+    if not services_to_check:
+        return set()
+
+    def _check_service(app_name: str, kessel_relation: str) -> str | None:
+        try:
+            workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
+            return app_name if workspaces else None
+        except Exception as e:
+            details = e.details() if hasattr(e, "details") else str(e)
+            logger.warning("Kessel ListAllowedWorkspaces failed", extra={"app_name": app_name, "details": details})
+            return None
+
+    allowed: set[str] = set()
     with outbound_http_response_time.labels("inventory_views_kessel_rbac").time():
-        for app_name, model in app_models.items():
-            kessel_relation = getattr(model, "__kessel_relation__", "")
-            if not kessel_relation:
-                continue
-            try:
-                workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
-                if workspaces:
-                    allowed.add(app_name)
-            except Exception as e:
-                details = e.details() if hasattr(e, "details") else str(e)
-                logger.warning(f"Kessel check failed for {app_name}: {details}")
+        with ThreadPoolExecutor(max_workers=len(services_to_check)) as executor:
+            futures = {executor.submit(_check_service, name, rel): name for name, rel in services_to_check}
+            for future in futures:
+                try:
+                    result = future.result(timeout=10)
+                except Exception:
+                    result = None
+                if result:
+                    allowed.add(result)
 
     return allowed
 
