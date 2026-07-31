@@ -134,6 +134,7 @@ components:
           - alibaba
           - aws
           - azure
+          - discovery
           - gcp
           - ibm
       description: Filter by provider_type.
