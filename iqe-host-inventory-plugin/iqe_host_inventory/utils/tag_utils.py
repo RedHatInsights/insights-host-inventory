@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import cast
 from urllib.parse import quote
@@ -114,6 +115,22 @@ def assert_tags_not_found(
     }
     for tag in response_tags:
         assert convert_tag_to_string(convert_tag_to_dict(tag)) not in string_not_expected_tags
+
+
+def log_response_tags_indices(
+    my_tags: list[list[StructuredTag]], response: dict, *, _logger: logging.Logger | None = None
+) -> None:
+    """Log which tag-list indices appear in a tags API response."""
+    log = _logger or logging.getLogger(__name__)
+    response_tags = [res_item["tag"] for res_item in response["results"]]
+    response_tags_indices: set[int] = set()
+    for res_tag in response_tags:
+        for i, tag_list in enumerate(my_tags):
+            search_list = [tag.to_dict() for tag in tag_list]
+            if res_tag in search_list:
+                response_tags_indices.add(i)
+                break
+    log.info(f"Response tags indices: {response_tags_indices}")
 
 
 def normalize_tags(tags: list[dict]):
