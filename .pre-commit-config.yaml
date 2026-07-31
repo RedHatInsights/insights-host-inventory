@@ -15,21 +15,13 @@ repos:
   hooks:
   - id: swagger-validation
     args: ["bundle", "swagger/api.spec.yaml", "-o", "swagger/openapi.json"]
-- repo: https://github.com/APIDevTools/swagger-cli
-  rev: v4.0.4
-  hooks:
   - id: swagger-validation
+    name: swagger-validation-v1-validate
     files: swagger/openapi.json$
     exclude: swagger/inventory-schemas/
-- repo: https://github.com/APIDevTools/swagger-cli
-  rev: v4.0.4
-  hooks:
   - id: swagger-validation
     name: swagger-validation-v2-bundle
     args: ["bundle", "swagger/api_v2.spec.yaml", "-o", "swagger/openapi_v2.json"]
-- repo: https://github.com/APIDevTools/swagger-cli
-  rev: v4.0.4
-  hooks:
   - id: swagger-validation
     name: swagger-validation-v2-validate
     files: swagger/openapi_v2.json$

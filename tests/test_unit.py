@@ -567,9 +567,14 @@ def test_v2_api_registration(
     if v2_enabled == "true":
         translating_parser.assert_any_call(SPECIFICATION_FILE)
         translating_parser.assert_any_call(V2_SPECIFICATION_FILE)
-        v2_call = app.return_value.add_api.mock_calls[2]
+        v2_call = next(
+            call for call in app.return_value.add_api.mock_calls if call.kwargs.get("base_path") == "/api/inventory/v2"
+        )
         assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
-        assert v2_call.kwargs["base_path"] == "/api/inventory/v2"
+        assert v2_call.kwargs["arguments"] == {"title": "HBI V2 API"}
+        assert v2_call.kwargs["validate_responses"] is True
+        assert v2_call.kwargs["strict_validation"] is False
+        assert v2_call.kwargs["validator_map"] is not None
     else:
         translating_parser.assert_called_once_with(SPECIFICATION_FILE)
 
