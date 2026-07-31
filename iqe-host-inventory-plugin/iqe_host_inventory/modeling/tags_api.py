@@ -55,25 +55,62 @@ class TagsAPIWrapper(BaseEntity):
         order_how: str | None = None,
         **api_kwargs: Any,
     ) -> requests.Response:
-        """
-        GET /tags. Builds the query string manually so deep-object filter params work.
+        """Get list of tags filtered by parameters, return requests response
 
-        :param filter: System profile filter strings. Nested syntax for sub-fields::
-
-            filter = ["[host_type]=edge"]
-            filter = ["[operating_system][RHEL][version][lt][]=7.10"]
-            filter = ["[operating_system][RHEL][version][gt][]=7",
-                        "[operating_system][RHEL][version][lt][]=8"]
-
-        :param staleness: Uses OR logic. Valid: fresh, stale, stale_warning, unknown
-        :param registered_with: Uses OR logic. Prefix with ``!`` to negate.
-            Valid: insights, yupana, satellite, discovery, puptoo,
-            rhsm-conduit, cloud-connector
-        :param provider_type: Valid: alibaba, aws, azure, gcp, ibm
-        :param system_type: Valid: conventional, bootc, edge, cluster
-        :param order_by: Valid: tag, count (default: tag)
-        :param order_how: Valid: ASC, DESC (default: ASC)
-        :param per_page: Default 50, max 100
+        :param list[str] tags: Filter by whole tags, uses OR logic
+            Format: namespace/key=value
+        :param str search: Filter tags by part of the tag
+        :param list[str] staleness: Filter tags by staleness of associated hosts, uses OR logic
+            Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
+        :param str display_name: Filter tags by display_name of associated hosts
+        :param str fqdn: Filter tags by fqdn of associated hosts
+        :param str hostname_or_id: Filter tags by display_name, fqdn, or id of associated hosts
+        :param str insights_id: Filter tags by insights_id of associated hosts
+        :param str provider_id: Filter tags by provider_id of associated hosts
+        :param str provider_type: Filter tags by provider_type of associated hosts
+            Valid options: alibaba, aws, azure, gcp, ibm
+        :param str | datetime updated_start:
+            Only show tags of hosts last modified after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime updated_end:
+            Only show tags of hosts last modified before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_start:
+            Only show tags of hosts last checked in after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_end:
+            Only show tags of hosts last checked in before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param list[str] workspace_name: Filter tags by workspace_name of associated hosts,
+            uses OR logic
+        :param list[str] workspace_id: Filter tags by workspace_id (UUID) of associated hosts,
+            uses OR logic
+        :param list[str] registered_with: Filter tags by reporters of associated hosts,
+            uses OR logic. Values starting with "!" mean NOT reported by given reporter.
+            Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
+                           cloud-connector, !yupana, !satellite, !discovery, !puptoo,
+                           !rhsm-conduit, !cloud-connector
+        :param list[str] system_type: Filter tags by host's type
+            Values: ["conventional", "bootc", "edge"]
+        :param list[str] filter: List of system profile filter strings.  For fields like
+            operating_system that have sub-fields, see examples for nested syntax.
+            Examples:
+                filter = ["[host_type]=edge"]
+                filter = ["[operating_system][RHEL][version][lt][]=7.10"]
+                filter = ["[operating_system][RHEL][version][gt][]=7",
+                          "[operating_system][RHEL][version][lt][]=8"]
+        :param int per_page: A number of items to return per page
+            Default: 50
+            Max: 100
+        :param int page: A page number of the items to return
+            Default: 1
+        :param str order_by: Ordering field name
+            Valid options: tag, count
+            Default: tag
+        :param str order_how: Direction of the ordering
+            Valid options: ASC, DESC
+            Default: ASC
+        :return requests.Response: Response from GET /tags
         """
 
         path = "/tags"
@@ -138,6 +175,61 @@ class TagsAPIWrapper(BaseEntity):
     ) -> dict[str, Any]:
         """GET /tags, return parsed JSON body (dict with ``count``, ``total``, ``results``).
 
+        :param list[str] tags: Filter tags by whole tags, uses OR logic
+            Format: namespace/key=value
+        :param str search: Filter by part of the tag
+        :param list[str] staleness: Filter tags by staleness of associated hosts, uses OR logic
+            Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
+        :param str display_name: Filter tags by display_name of associated hosts
+        :param str fqdn: Filter tags by fqdn of associated hosts
+        :param str hostname_or_id: Filter tags by display_name, fqdn, or id of associated hosts
+        :param str insights_id: Filter tags by insights_id of associated hosts
+        :param str provider_id: Filter tags by provider_id of associated hosts
+        :param str provider_type: Filter tags by provider_type of associated hosts
+            Valid options: alibaba, aws, azure, gcp, ibm
+        :param str | datetime updated_start:
+            Only show tags of hosts last modified after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime updated_end:
+            Only show tags of hosts last modified before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_start:
+            Only show tags of hosts last checked in after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_end:
+            Only show tags of hosts last checked in before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param list[str] workspace_name: Filter tags by workspace_name of associated hosts,
+            uses OR logic
+        :param list[str] workspace_id: Filter tags by workspace_id (UUID) of associated hosts,
+            uses OR logic
+        :param list[str] registered_with: Filter tags by reporters of associated hosts,
+            uses OR logic. Values starting with "!" mean NOT reported by given reporter.
+            Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
+                           cloud-connector, !yupana, !satellite, !discovery, !puptoo,
+                           !rhsm-conduit, !cloud-connector
+        :param list[str] system_type: Filter tags by host's type
+            Values: ["conventional", "bootc", "edge"]
+        :param list[str] filter: List of system profile filter strings.  For fields like
+            operating_system that have sub-fields, see examples for nested syntax.
+            Examples:
+                filter = ["[host_type]=edge"]
+                filter = ["[operating_system][RHEL][version][lt][]=7.10"]
+                filter = ["[operating_system][RHEL][version][gt][]=7",
+                          "[operating_system][RHEL][version][lt][]=8"]
+        :param int per_page: A number of items to return per page
+            Default: 50
+            Max: 100
+        :param int page: A page number of the items to return
+            Default: 1
+        :param str order_by: Ordering field name
+            Valid options: tag, count
+            Default: tag
+        :param str order_how: Direction of the ordering
+            Valid options: ASC, DESC
+            Default: ASC
+        :return dict[str, Any]: Dictionary with ``count``, ``total``, ``results``
+
         See :meth:`get_tags_response` for parameter details.
         """
         return self.get_tags_response(
@@ -194,6 +286,61 @@ class TagsAPIWrapper(BaseEntity):
         **api_kwargs: Any,
     ) -> list[dict[str, Any]]:
         """GET /tags, return just the ``results`` list (each item has ``tag`` and ``count``).
+
+        :param list[str] tags: Filter tags by whole tags, uses OR logic
+            Format: namespace/key=value
+        :param str search: Filter by part of the tag
+        :param list[str] staleness: Filter tags by staleness of associated hosts, uses OR logic
+            Valid options: fresh, stale, stale_warning, unknown (doesn't do anything)
+        :param str display_name: Filter tags by display_name of associated hosts
+        :param str fqdn: Filter tags by fqdn of associated hosts
+        :param str hostname_or_id: Filter tags by display_name, fqdn, or id of associated hosts
+        :param str insights_id: Filter tags by insights_id of associated hosts
+        :param str provider_id: Filter tags by provider_id of associated hosts
+        :param str provider_type: Filter tags by provider_type of associated hosts
+            Valid options: alibaba, aws, azure, gcp, ibm
+        :param str | datetime updated_start:
+            Only show tags of hosts last modified after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime updated_end:
+            Only show tags of hosts last modified before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_start:
+            Only show tags of hosts last checked in after the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param str | datetime last_check_in_end:
+            Only show tags of hosts last checked in before the given date
+            Format: datetime or str in ISO 8601 datetime format
+        :param list[str] workspace_name: Filter tags by workspace_name of associated hosts,
+            uses OR logic
+        :param list[str] workspace_id: Filter tags by workspace_id (UUID) of associated hosts,
+            uses OR logic
+        :param list[str] registered_with: Filter tags by reporters of associated hosts,
+            uses OR logic. Values starting with "!" mean NOT reported by given reporter.
+            Valid options: insights, yupana, satellite, discovery, puptoo, rhsm-conduit,
+                           cloud-connector, !yupana, !satellite, !discovery, !puptoo,
+                           !rhsm-conduit, !cloud-connector
+        :param list[str] system_type: Filter tags by host's type
+            Values: ["conventional", "bootc", "edge"]
+        :param list[str] filter: List of system profile filter strings.  For fields like
+            operating_system that have sub-fields, see examples for nested syntax.
+            Examples:
+                filter = ["[host_type]=edge"]
+                filter = ["[operating_system][RHEL][version][lt][]=7.10"]
+                filter = ["[operating_system][RHEL][version][gt][]=7",
+                          "[operating_system][RHEL][version][lt][]=8"]
+        :param int per_page: A number of items to return per page
+            Default: 50
+            Max: 100
+        :param int page: A page number of the items to return
+            Default: 1
+        :param str order_by: Ordering field name
+            Valid options: tag, count
+            Default: tag
+        :param str order_how: Direction of the ordering
+            Valid options: ASC, DESC
+            Default: ASC
+        :return list[dict[str, Any]]: List of tags
 
         See :meth:`get_tags_response` for parameter details.
         """

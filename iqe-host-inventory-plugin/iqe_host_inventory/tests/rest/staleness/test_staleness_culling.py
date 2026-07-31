@@ -123,7 +123,7 @@ def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInvento
     assert http_host_ids == expected_host_ids
 
     for state in states:
-        response = host_inventory.apis.tags.get_tags_response(staleness=[state]).json()
+        response = host_inventory.apis.tags.get_tags_json(staleness=[state])
         state_tags = [tag for host in hosts[state] for tag in host.tags]
         other_tags = [tag for s in states if s != state for host in hosts[s] for tag in host.tags]
 

@@ -464,7 +464,7 @@ class TestOperatingSystemFiltering:
             f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
         ]
         # There are too many "module" scoped hosts with tags, 50 isn't enough
-        response = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100).json()
+        response = host_inventory.apis.tags.get_tags_json(filter=filter, per_page=100)
         _log_response_tags_indices(tags, response)
 
         assert response["count"] >= len(expected_tags)
@@ -1583,7 +1583,7 @@ class TestOsRhcFiltering:
         )
 
         filter = [f"{param}" for param in params]
-        response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+        response = host_inventory.apis.tags.get_tags_json(filter=filter)
         assert response["count"] >= len(expected_tags)
         assert_tags_found(expected_tags, response["results"])
         assert_tags_not_found(not_expected_tags, response["results"])
@@ -1706,9 +1706,9 @@ class TestOsDisplayNameFiltering:
         not_expected_tags = flatten(tags[i] for i in range(len(tags)) if i not in expected_hosts)
 
         filter = [f"{param}" for param in params]
-        response = host_inventory.apis.tags.get_tags_response(
+        response = host_inventory.apis.tags.get_tags_json(
             filter=filter, display_name=f"{FILTER_OS_DISPLAY_NAME}-1"
-        ).json()
+        )
         _log_response_tags_indices(tags, response)
 
         assert response["count"] >= len(expected_tags)
