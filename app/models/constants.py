@@ -20,6 +20,7 @@ WORKLOADS_FIELDS = {
     "mssql",
     "oracle_db",
     "rhel_ai",
+    "satellite",
     "sap",
     "sap_instance_number",
     "sap_sids",

@@ -53,7 +53,7 @@ class ApiClient:
     PRIMITIVE_TYPES = (float, bool, bytes, six.text_type) + six.integer_types
     NATIVE_TYPES_MAPPING = {
         "int": int,
-        "long": int if six.PY3 else long,  # ruff:ignore[undefined-name]
+        "long": int if six.PY3 else long,  # ruff: ignore[undefined-name]
         "float": float,
         "str": str,
         "bool": bool,
