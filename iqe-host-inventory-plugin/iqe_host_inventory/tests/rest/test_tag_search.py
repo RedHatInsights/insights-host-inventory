@@ -82,14 +82,14 @@ def test_search_tags(
         search_term = search_term.upper()
     logger.info(f"Searching tags by sending the search term: {search_term}")
     get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         search=search_term,
         per_page=3,
         criteria=[(criterion_count_gte, 3)],
     )
-    assert get_tags_response.count >= 3
-    for active_tag in get_tags_response.results:
-        assert expected_term in convert_tag_to_string(active_tag.tag.to_dict()).lower()
+    assert get_tags_response["count"] >= 3
+    for active_tag in get_tags_response["results"]:
+        assert expected_term in convert_tag_to_string(active_tag["tag"]).lower()
 
 
 @pytest.fixture(scope="class")
@@ -157,12 +157,12 @@ class TestTagsTotal:
             filters["search"] = filters["search"].upper()  # type: ignore[union-attr]
         logger.info(f"Searching tags by filtering by: {filters}")
         get_tags_response = acceptance(
-            host_inventory.apis.tags.get_tags_response,
+            host_inventory.apis.tags.get_tags_json,
             **filters,
             criteria=[(criterion_total_eq, expected_total)],
         )
 
-        assert get_tags_response.total == expected_total
+        assert get_tags_response["total"] == expected_total
 
 
 @pytest.mark.ephemeral
@@ -227,14 +227,14 @@ def test_search_tags_with_multiple_search_term_combinations(
             value = value.upper()  # type: ignore[attr-defined]
         logger.info(f"Searching tags by sending the search term: {value}")
         get_tags_response = acceptance(
-            host_inventory.apis.tags.get_tags_response,
+            host_inventory.apis.tags.get_tags_json,
             search=value,
             per_page=1,
             criteria=[(criterion_count_eq, 1)],
         )
-        assert get_tags_response.count == 1
+        assert get_tags_response["count"] == 1
         str_tag = convert_tag_to_string(search_tag)
-        str_result_tag = convert_tag_to_string(get_tags_response.results[0].tag.to_dict())
+        str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
         assert search_tag[key] in str_result_tag  # type: ignore[literal-required]
         assert str_result_tag == str_tag
 
@@ -243,13 +243,13 @@ def test_search_tags_with_multiple_search_term_combinations(
     search_str_tag = str_tag.upper() if case_insensitive else str_tag
     logger.info(f"Searching tags by sending the search term: {str_tag}")
     get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         search=search_str_tag,
         per_page=1,
         criteria=[(criterion_count_eq, 1)],
     )
-    assert get_tags_response.count == 1
-    str_result_tag = convert_tag_to_string(get_tags_response.results[0].tag.to_dict())
+    assert get_tags_response["count"] == 1
+    str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
     assert str_tag == str_result_tag
 
 
@@ -308,13 +308,13 @@ def test_search_tags_with_registered_with_filter(
         f"using the filter registered_with = puptoo"
     )
     get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         search=tag_key,
         registered_with=["puptoo"],
         criteria=[(criterion_count_eq, 1)],
     )
-    assert get_tags_response.count == 1
-    str_result_tag = convert_tag_to_string(get_tags_response.results[0].tag.to_dict())
+    assert get_tags_response["count"] == 1
+    str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
     assert insights_client_str_tag == str_result_tag
 
     non_insights_client_str_tag = convert_tag_to_string(tag_non_insights_client_host)
@@ -323,12 +323,12 @@ def test_search_tags_with_registered_with_filter(
         f"without using the registered_with filter"
     )
     get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         search=tag_key,
         criteria=[(criterion_count_eq, 2)],
     )
-    assert get_tags_response.count == 2
-    result_tags = [convert_tag_to_string(item.tag.to_dict()) for item in get_tags_response.results]
+    assert get_tags_response["count"] == 2
+    result_tags = [convert_tag_to_string(item["tag"]) for item in get_tags_response["results"]]
     assert insights_client_str_tag in result_tags
     assert non_insights_client_str_tag in result_tags
 
@@ -385,13 +385,13 @@ def test_search_tags_with_staleness_filter(host_inventory: ApplicationHostInvent
             f"and the filter staleness={host_state}"
         )
         get_tags_response = acceptance(
-            host_inventory.apis.tags.get_tags_response,
+            host_inventory.apis.tags.get_tags_json,
             search=tag_key,
             staleness=[host_state],
             criteria=[(criterion_count_eq, 1)],
         )
-        assert get_tags_response.count == 1
-        str_result_tag = convert_tag_to_string(get_tags_response.results[0].tag.to_dict())
+        assert get_tags_response["count"] == 1
+        str_result_tag = convert_tag_to_string(get_tags_response["results"][0]["tag"])
         assert convert_tag_to_string(tag) in str_result_tag
 
     logger.info(
@@ -399,13 +399,13 @@ def test_search_tags_with_staleness_filter(host_inventory: ApplicationHostInvent
         f"and the filter staleness=[fresh, stale, stale_warning]"
     )
     get_tags_response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         search=tag_key,
         staleness=["fresh", "stale", "stale_warning"],
         criteria=[(criterion_count_eq, 3)],
     )
-    assert get_tags_response.count == 3
-    result_tags = [convert_tag_to_string(item.tag.to_dict()) for item in get_tags_response.results]
+    assert get_tags_response["count"] == 3
+    result_tags = [convert_tag_to_string(item["tag"]) for item in get_tags_response["results"]]
     for tag in tags.values():
         assert convert_tag_to_string(tag) in result_tags
 

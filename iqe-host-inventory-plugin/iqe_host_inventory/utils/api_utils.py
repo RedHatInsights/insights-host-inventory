@@ -21,6 +21,9 @@ from _pytest._code.code import ExceptionInfo
 
 from iqe_host_inventory.deprecations import DEPRECATE_ASYNC_GET_MULTIPLE_HOSTS
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
+
+if TYPE_CHECKING:
+    from iqe_host_inventory.modeling.tags_api import TagsAPIWrapper
 from iqe_host_inventory.utils import get_org_id
 from iqe_host_inventory.utils.tag_utils import convert_tag_to_string
 from iqe_host_inventory_api import ApiException as ApiException_V4
@@ -28,13 +31,14 @@ from iqe_host_inventory_api import HostOut
 from iqe_host_inventory_api import HostQueryOutput
 from iqe_host_inventory_api import HostsApi
 from iqe_host_inventory_api import SystemProfileApi
-from iqe_host_inventory_api import TagsApi
 from iqe_host_inventory_api.api_client import ApiClient
 from iqe_host_inventory_api_v7 import ApiException as ApiException_V7
 
 from .retrying import accept_when
 
 if TYPE_CHECKING:
+    from iqe.base.application import Application
+
     from iqe_host_inventory import ApplicationHostInventory
     from iqe_host_inventory.modeling import HBI_API_WRAPPER
 
@@ -211,17 +215,19 @@ def delete_hosts(host_list: list[Any], openapi_client: HostsApi) -> None:
             raise
 
 
-def delete_hosts_by_tags(tag_search_term, openapi_client: HostsApi, openapi_client_tags: TagsApi):
-    tags = []
-    response = openapi_client_tags.api_tag_get_tags(search=tag_search_term)
-    tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
-    pages = response.total // 50 + (response.total % 50 > 0)
+def delete_hosts_by_tags(
+    tag_search_term: str, openapi_client: HostsApi, tags_wrapper: TagsAPIWrapper
+) -> None:
+    tags: list[str] = []
+    body = tags_wrapper.get_tags_json(search=tag_search_term)
+    tags.extend(convert_tag_to_string(item["tag"]) for item in body["results"])
+    pages = body["total"] // 50 + (body["total"] % 50 > 0)
     for page in range(2, pages + 1):
-        response = openapi_client_tags.api_tag_get_tags(search=tag_search_term, page=page)
-        tags.extend(convert_tag_to_string(tag.tag.to_dict()) for tag in response.results)
+        body = tags_wrapper.get_tags_json(search=tag_search_term, page=page)
+        tags.extend(convert_tag_to_string(item["tag"]) for item in body["results"])
     logger.info(f"Deleting hosts by {len(tags)} tags: " + str(tags))
 
-    hosts = []
+    hosts: list[Any] = []
     for tag in tags:
         response = openapi_client.api_host_get_host_list(tags=[tag])
         hosts.extend(response.results)
@@ -233,20 +239,27 @@ def delete_hosts_by_tags(tag_search_term, openapi_client: HostsApi, openapi_clie
         delete_hosts(hosts, openapi_client)
 
 
+def _response_field(response: Any, field: str) -> Any:
+    """Read a field from an apigen model or a plain JSON dict body."""
+    if isinstance(response, dict):
+        return response[field]
+    return getattr(response, field)
+
+
 def criterion_count_eq(response, expected_count: int) -> bool:
-    return response.count == expected_count
+    return _response_field(response, "count") == expected_count
 
 
 def criterion_count_gte(response, expected_count: int):
-    return response.count >= expected_count
+    return _response_field(response, "count") >= expected_count
 
 
 def criterion_total_eq(response, expected_count):
-    return response.total == expected_count
+    return _response_field(response, "total") == expected_count
 
 
 def criterion_total_gte(response, expected_count):
-    return response.total >= expected_count
+    return _response_field(response, "total") >= expected_count
 
 
 def criterion_host_id_eq(response, host_id):
@@ -355,6 +368,15 @@ def raises_apierror(
             assert message in api_error.body, f"'{message}' not in error message: {api_error.body}"
 
 
+def assert_forbidden_response(resp: requests.Response) -> None:
+    """Assert that a ``requests.Response`` represents a 403 Forbidden error."""
+    assert resp.status_code == 403
+    assert (
+        "You don't have the permission to access the requested resource. "
+        "It is either read-protected or not readable by the server." in resp.text
+    )
+
+
 def find_nested_fields(field_name: str, data: dict | list) -> Generator[str]:
     def _find_in_list(list_data: list) -> Generator[str]:
         for item in list_data:
@@ -381,7 +403,7 @@ def _assert_matching_org_ids(data: dict | list, my_org_id: str) -> None:
 
 
 def assert_response_org_id_matches(
-    application: ApplicationHostInventory, response: requests.Response
+    application: Application, response: requests.Response
 ) -> requests.Response:
     """Assert that any org_ids in a successful JSON response match the calling tenant."""
     if not response.ok or not response.content:
