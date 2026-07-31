@@ -410,18 +410,6 @@ components:
       type: string
       format: uuid
       example: 22cd8e39-13bb-4d02-8316-84b850dc5136
-    GroupId:
-      description: A durable and reliable platform-wide group/workspace identifier.
-      type: string
-      format: uuid
-      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
-    GroupName:
-      description: >-
-        A group/workspace human-readable name.
-        Must contain only letters, numbers, spaces, hyphens, and underscores.
-      type: string
-      nullable: false
-      example: sre-group
 
     # -- Canonical Facts ------------------------------------------------------
     InsightsId:
@@ -619,30 +607,6 @@ components:
             description: Name of the reporting source.
           last_check_in:
             $ref: '#/components/schemas/TimeStamp'
-    GroupOut:
-      title: Group/Workspace membership
-      description: Data of a single group/workspace belonging to an org.
-      type: object
-      properties:
-        id:
-          $ref: '#/components/schemas/GroupId'
-        name:
-          $ref: '#/components/schemas/GroupName'
-        account:
-          $ref: '#/components/schemas/AccountNumber'
-        org_id:
-          $ref: '#/components/schemas/OrgId'
-        ungrouped:
-          description: Whether the group is the "ungrouped hosts" group.
-          type: boolean
-        created:
-          description: A timestamp when the entry was created.
-          type: string
-          format: date-time
-        updated:
-          description: A timestamp when the entry was last updated.
-          type: string
-          format: date-time
     StructuredTag:
       type: object
       properties:
