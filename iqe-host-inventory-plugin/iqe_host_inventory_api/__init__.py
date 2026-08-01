@@ -168,6 +168,9 @@ from iqe_host_inventory_api.models.system_profile_workloads_rhel_ai import (
 from iqe_host_inventory_api.models.system_profile_workloads_rhel_ai_gpu_models import (
     SystemProfileWorkloadsRhelAiGpuModels,
 )
+from iqe_host_inventory_api.models.system_profile_workloads_satellite import (
+    SystemProfileWorkloadsSatellite,
+)
 from iqe_host_inventory_api.models.system_profile_yum_repo import SystemProfileYumRepo
 from iqe_host_inventory_api.models.tag_count_out import TagCountOut
 from iqe_host_inventory_api.models.tag_count_out_all_of import TagCountOutAllOf

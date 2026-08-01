@@ -13,6 +13,7 @@ from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils import flatten
+from iqe_host_inventory.utils.api_utils import assert_forbidden_response
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
@@ -257,12 +258,12 @@ class TestRBACHostsReadPermission:
         """
         tags = sorted(flatten(rbac_setup_resources[2]), key=operator.itemgetter("key"))
 
-        response = host_inventory_non_org_admin.apis.tags.get_tags_response()
+        response = host_inventory_non_org_admin.apis.tags.get_tags_json()
 
-        assert response.count == len(tags)
-        for tag in response.results:
-            assert tag.count == 1
-        dict_tags = [tag.tag.to_dict() for tag in response.results]
+        assert response["count"] == len(tags)
+        for tag in response["results"]:
+            assert tag["count"] == 1
+        dict_tags = [tag["tag"] for tag in response["results"]]
         assert sorted(dict_tags, key=operator.itemgetter("key")) == tags
 
     def test_rbac_hosts_read_permission_get_operating_systems(
@@ -577,12 +578,8 @@ class TestRBACHostsNoReadPermission:
             negative: true
             title: Test that users without "hosts:read" permission can't get tags
         """
-        with raises_apierror(
-            403,
-            "You don't have the permission to access the requested resource. "
-            "It is either read-protected or not readable by the server.",
-        ):
-            host_inventory_non_org_admin.apis.tags.get_tags()
+        resp = host_inventory_non_org_admin.apis.tags.get_tags_response()
+        assert_forbidden_response(resp)
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_get_operating_systems(

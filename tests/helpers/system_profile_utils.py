@@ -688,6 +688,21 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     },
     {
         "workloads": {
+            "satellite": {  # Invalid enum value
+                "type": "invalid",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # version exceeds maxLength
+                "type": "server",
+                "version": "a" * 31,
+            }
+        }
+    },
+    {
+        "workloads": {
             "intersystems": {  # Incorrect is_intersystems value
                 "is_intersystems": "x",
                 "running_instances": [{"instance_name": "IRIS1", "product": "IRIS", "version": "2023.1"}],
@@ -1177,4 +1192,8 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
             }
         }
     },
+    {"workloads": {"satellite": {"type": "server"}}},
+    {"workloads": {"satellite": {"type": "capsule"}}},
+    {"workloads": {"satellite": {"type": "server", "version": "6.19.0"}}},
+    {"workloads": {"satellite": {"type": "capsule", "version": "6.17.9.1"}}},
 )
