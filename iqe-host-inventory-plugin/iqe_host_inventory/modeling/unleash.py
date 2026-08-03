@@ -110,6 +110,21 @@ class HBIUnleash(BaseEntity):
 
         return feature_flag
 
+    @cached_property
+    def inventory_views_rbac_flag(self) -> str:
+        feature_flag = "hbi.inventory-views-rbac"
+
+        if isinstance(self._unleash, UnleashBackend) and not self._unleash.has_flag(feature_flag):
+            flag_request = UnleashFlagRequest(
+                name=feature_flag,
+                description="Per-service RBAC for host views app_data",
+                type=_RequestType.RELEASE,
+                impressionData=False,
+            )
+            self._unleash.admin.create_flag(flag_request=flag_request)
+
+        return feature_flag
+
     def is_flag_enabled(self, flag: str) -> bool:
         return self._unleash.is_enabled(flag, context={"orgId": get_org_id(self.application)})
 
