@@ -887,7 +887,7 @@ def test_patch_group_no_permission_checks_when_platform_rbac_workspaces_disabled
     db_get_group_by_id,
     event_producer,
 ):
-    """When platform.rbac.workspaces is disabled, renaming should succeed without any Kessel permission checks."""
+    """When hbi.rbac-v2 is disabled, renaming should succeed without any Kessel permission checks."""
     mocker.patch.object(event_producer, "write_event")
 
     group = db_create_group("old_name")

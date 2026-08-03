@@ -111,20 +111,16 @@ def _needs_system_profile_joins(filter, order_by):
     if not filter:
         return requires_static_for_order, False
 
-    # Get the system profile field sets
     dynamic_fields, static_fields = _get_system_profile_fields()
-
-    # Extract all fields referenced in the filter
     filter_fields = _extract_filter_fields(filter)
 
-    # Handle workloads fields (temporary)
-    # Only needed until we stop supporting the old filter paths
+    # Handle workloads fields (temporary) — only needed until we stop supporting the old filter paths
     if filter_fields & WORKLOADS_FIELDS:
         filter_fields.add("workloads")
 
-    # Check if any filter fields match system profile fields
     needs_static = bool(filter_fields & static_fields) or requires_static_for_order
-    needs_dynamic = bool(filter_fields & dynamic_fields)
+    # Workloads filters are self-contained EXISTS subqueries — no dynamic join needed for them
+    needs_dynamic = bool((filter_fields & dynamic_fields) - {"workloads"})
 
     return needs_static, needs_dynamic
 
@@ -571,7 +567,6 @@ def query_filters(
 
     # Dynamically determine if we need system profile joins based on filtering and ordering
     needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by)
-
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
     needs_dynamic_join = needs_dynamic_join or join_dynamic_profile

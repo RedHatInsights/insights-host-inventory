@@ -1612,8 +1612,16 @@ class TestOutboxE2ECases:
         assert session_a.hash_key != session_b.hash_key, "Sessions must have different IDs"
 
         # Simulate ops being tracked in both sessions using session.info
-        session_a.info["pending_ops"] = [("created", str(uuid.uuid4())), ("updated", str(uuid.uuid4()))]
-        session_b.info["pending_ops"] = [("created", str(uuid.uuid4())), ("deleted", str(uuid.uuid4()))]
+        org_a = str(uuid.uuid4())
+        org_b = str(uuid.uuid4())
+        session_a.info["pending_ops"] = [
+            ("created", str(uuid.uuid4()), org_a),
+            ("updated", str(uuid.uuid4()), org_a),
+        ]
+        session_b.info["pending_ops"] = [
+            ("created", str(uuid.uuid4()), org_b),
+            ("deleted", str(uuid.uuid4()), org_b),
+        ]
 
         # Test: session_a should only get its own ops
         ops_a = _collect_pending_ops_for_session(session_a)
@@ -1635,11 +1643,11 @@ class TestOutboxE2ECases:
         )
 
         # Verify session_a ops are not in session_b results
-        for _op_type, host_id in ops_a:
+        for _op_type, host_id, _org_id in ops_a:
             assert host_id not in session_b_host_ids, f"Session B should not see Session A's host {host_id}"
 
         # Verify session_b ops are not in session_a results
-        for _op_type, host_id in ops_b:
+        for _op_type, host_id, _org_id in ops_b:
             assert host_id not in session_a_host_ids, f"Session A should not see Session B's host {host_id}"
 
     def test_batch_outbox_edge_cases(self, db_create_host, db_get_host):  # noqa: ARG002

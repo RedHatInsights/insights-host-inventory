@@ -21,8 +21,13 @@ from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
 from marshmallow import validate
+from opentelemetry import context as otel_context_api
 from opentelemetry import trace
+from opentelemetry.propagate import extract as otel_extract
+from opentelemetry.trace import Link
+from opentelemetry.trace import SpanKind
 from opentelemetry.trace import StatusCode
+from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import UniqueViolation
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.exc import IntegrityError
@@ -84,7 +89,6 @@ from app.telemetry import OTEL_MQ_ENABLED
 from app.telemetry import OTEL_MQ_MESSAGE_SPANS_ENABLED
 from app.telemetry import OTEL_MQ_SLOW_MESSAGE_MS
 from app.telemetry import get_tracer
-from app.telemetry import instrument_kafka_consumer
 from lib import group_repository
 from lib import host_app_repository
 from lib import host_repository
@@ -102,6 +106,16 @@ tracer = get_tracer(__name__)
 
 CONSUMER_POLL_TIMEOUT_SECONDS = 0.5
 MAX_RETRIES = 5
+
+
+def _is_deadlock_error(error: Exception) -> bool:
+    """Return True when the exception (or its DBAPI cause) is a PostgreSQL deadlock."""
+    if isinstance(error, DeadlockDetected):
+        return True
+    orig = getattr(error, "orig", None)
+    return isinstance(orig, DeadlockDetected)
+
+
 SYSTEM_IDENTITY = {"auth_type": "cert-auth", "system": {"cert_type": "system"}, "type": "System"}
 
 
@@ -137,7 +151,7 @@ def create_consumer(config):
             **config.kafka_consumer,
         }
     )
-    return instrument_kafka_consumer(consumer)
+    return consumer
 
 
 class HostOperationSchema(Schema):
@@ -178,6 +192,17 @@ class HostAppOperationSchema(Schema):
     hosts = fields.List(fields.Nested(HostAppDataSchema), required=True)
 
 
+@contextmanager
+def _use_otel_context(ctx):
+    """Temporarily activate an OTel context (or no-op if None)."""
+    token = otel_context_api.attach(ctx) if ctx is not None else None
+    try:
+        yield
+    finally:
+        if token is not None:
+            otel_context_api.detach(token)
+
+
 # Helper class to facilitate batch operations
 class OperationResult:
     def __init__(
@@ -193,6 +218,7 @@ class OperationResult:
         self.staleness_object = so
         self.event_type = et
         self.success_logger = sl
+        self.otel_context = None
 
 
 class HBIMessageConsumerBase:
@@ -209,6 +235,8 @@ class HBIMessageConsumerBase:
         self.notification_event_producer = notification_event_producer
         self.processed_rows: list[OperationResult] = []
         self._is_retry = False
+        self._messages_pending_retry: list | None = None
+        self._producer_ctx = None
 
     @property
     def success_metric(self):
@@ -248,12 +276,41 @@ class HBIMessageConsumerBase:
     def _message_span_attrs(self, msg, **extra) -> dict:
         """Build common span attributes for a Kafka message."""
         attrs = {
+            "messaging.system": "kafka",
             "messaging.operation": "process",
             "messaging.destination.name": msg.topic() or "",
             "messaging.kafka.partition": msg.partition() or 0,
         }
         attrs.update(extra)
         return attrs
+
+    def _extract_producer_context(self, msg):
+        """Extract W3C trace context from Kafka message headers.
+
+        The returned context is used as the parent for per-message spans, making
+        them part of the upstream producer's trace (enabling end-to-end distributed
+        tracing across services like puptoo → HBI → advisor).
+
+        Returns None if no valid context is found in the message headers.
+        """
+        headers = msg.headers() or []
+        carrier = {}
+        for key, value in headers:
+            if key in ("traceparent", "tracestate"):
+                carrier[key] = value.decode("utf-8") if isinstance(value, bytes) else value
+
+        if not carrier:
+            return None
+
+        return otel_extract(carrier=carrier)
+
+    def _consumer_span_kwargs(self, msg, **extra_attrs) -> dict:
+        """Build common kwargs for consumer spans (shared by _message_span and _retroactive_span)."""
+        producer_ctx = self._producer_ctx or self._extract_producer_context(msg)
+        kwargs = {"attributes": self._message_span_attrs(msg, **extra_attrs)}
+        if producer_ctx is not None:
+            kwargs["context"] = producer_ctx
+        return kwargs
 
     @contextmanager
     def _message_span(self, msg, **extra_attrs):
@@ -262,11 +319,13 @@ class HBIMessageConsumerBase:
         Enrichment is deferred to span exit because handle_message() populates
         threadctx during processing. Using this context manager means callers
         never need to call _enrich_span_from_threadctx manually.
+
+        Uses self._producer_ctx if set (by _process_single_message_in_batch);
+        otherwise extracts the producer context from message headers directly.
         """
-        with tracer.start_as_current_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **extra_attrs),
-        ) as span:
+        span_kwargs = self._consumer_span_kwargs(msg, **extra_attrs)
+
+        with tracer.start_as_current_span(f"mq.process {msg.topic()}", kind=SpanKind.CONSUMER, **span_kwargs) as span:
             try:
                 yield span
             finally:
@@ -280,11 +339,10 @@ class HBIMessageConsumerBase:
         handle_message() has already run (or raised), so threadctx is
         already populated and enrichment can happen eagerly.
         """
-        span = tracer.start_span(
-            f"mq.process {msg.topic()}",
-            attributes=self._message_span_attrs(msg, **extra_attrs),
-            start_time=start_ns,
-        )
+        span_kwargs = self._consumer_span_kwargs(msg, **extra_attrs)
+        span_kwargs["start_time"] = start_ns
+
+        span = tracer.start_span(f"mq.process {msg.topic()}", kind=SpanKind.CONSUMER, **span_kwargs)
         self._enrich_span_from_threadctx(span)
         yield span
 
@@ -299,6 +357,38 @@ class HBIMessageConsumerBase:
         extra = {"hbi.slow_message": True, "hbi.duration_ms": duration_ms}
         with self._retroactive_span(msg, start_ns, **extra) as span:
             span.end(end_time=end_ns)
+
+    def _get_upstream_span_context(self, msg):
+        """Get the upstream producer's SpanContext from message headers (for links).
+
+        Returns (producer_ctx, span_context) tuple. Either or both may be None.
+        """
+        producer_ctx = self._extract_producer_context(msg)
+        if producer_ctx is None:
+            return None, None
+        span = trace.get_current_span(producer_ctx)
+        sc = span.get_span_context()
+        if sc and sc.is_valid:
+            return producer_ctx, sc
+        return producer_ctx, None
+
+    def _process_single_message_in_batch(self, index: int, msg) -> None:
+        """Wrap message processing with a batch-child span that links to the upstream trace.
+
+        Creates a lightweight span under the batch `process` span so operators
+        can navigate from the batch view to each message's end-to-end trace.
+        """
+        if not OTEL_MQ_ENABLED:
+            self._process_single_message(msg)
+            return
+
+        self._producer_ctx, upstream_sc = self._get_upstream_span_context(msg)
+        links = [Link(upstream_sc)] if upstream_sc else []
+        attrs = self._message_span_attrs(msg, **{"messaging.batch.message_index": index})
+
+        with tracer.start_as_current_span(f"msg {index}", links=links, attributes=attrs):
+            self._process_single_message(msg)
+        self._producer_ctx = None
 
     def _process_single_message(self, msg) -> None:
         """Process a single Kafka message, conditionally emitting a child span.
@@ -333,12 +423,18 @@ class HBIMessageConsumerBase:
         """Process a message with a full tracing span (used when spans are enabled or on retry)."""
         with self._message_span(msg, **{"hbi.retry": self._is_retry}) as span:
             try:
-                self.processed_rows.append(self.handle_message(msg.value(), headers=msg.headers()))
+                result = self.handle_message(msg.value(), headers=msg.headers())
+                if result is not None:
+                    result.otel_context = otel_context_api.get_current()
+                self.processed_rows.append(result)
                 metrics.consumed_message_size.observe(len(str(msg).encode("utf-8")))
                 self.success_metric.inc()
             except OperationalError as oe:
                 span.set_status(StatusCode.ERROR, str(oe))
                 span.record_exception(oe)
+                # Deadlocks are retriable; let event_loop handle retry instead of exiting.
+                if _is_deadlock_error(oe):
+                    raise
                 logger.error(f"Could not access DB {str(oe)}")
                 sys.exit(3)
             except Exception as exc:
@@ -356,6 +452,9 @@ class HBIMessageConsumerBase:
             self.success_metric.inc()
         except OperationalError as oe:
             self._emit_error_span(msg, start_ns, oe)
+            # Deadlocks are retriable; let event_loop handle retry instead of exiting.
+            if _is_deadlock_error(oe):
+                raise
             logger.error(f"Could not access DB {str(oe)}")
             sys.exit(3)
         except Exception as exc:
@@ -377,17 +476,7 @@ class HBIMessageConsumerBase:
             span.record_exception(exc)
             span.end(end_time=end_ns)
 
-    def _process_batch(self) -> None:
-        """Process a single batch of messages from Kafka.
-
-        The Confluent Kafka instrumentor owns the batch-level consumer context for
-        the returned records. We keep lightweight per-message child spans under that
-        context so SQL spans can still be inspected message-by-message.
-
-        Raises:
-            InvalidRequestError: When the database session is in an invalid state
-            StaleDataError: When trying to update data modified by another transaction
-        """
+    def _consume_valid_messages(self) -> list:
         messages = self.consumer.consume(
             num_messages=inventory_config().mq_db_batch_max_messages,
             timeout=inventory_config().mq_db_batch_max_seconds,
@@ -403,54 +492,104 @@ class HBIMessageConsumerBase:
             else:
                 valid_messages.append(msg)
 
+        return valid_messages
+
+    def _process_batch(self, replay_messages: list | None = None) -> None:
+        """Process a single batch of messages from Kafka.
+
+        Creates a manual batch-level span for operational monitoring (batch size,
+        duration, DB queries). Per-message spans are created separately as children
+        of the upstream producer's trace for end-to-end visibility.
+
+        Args:
+            replay_messages: Messages from a failed batch to retry without re-consuming.
+                When None, a new batch is fetched from Kafka.
+
+        Raises:
+            InvalidRequestError: When the database session is in an invalid state
+            StaleDataError: When trying to update data modified by another transaction
+        """
+        if replay_messages is not None:
+            valid_messages = replay_messages
+            if self._is_retry:
+                logger.debug("Replaying %s messages from failed batch", len(valid_messages))
+        else:
+            valid_messages = self._consume_valid_messages()
+
         if not valid_messages:
+            self._messages_pending_retry = None
             return
 
-        batch_span = trace.get_current_span()
-        if OTEL_MQ_ENABLED and batch_span.is_recording():
-            topic = valid_messages[0].topic() or "unknown"
-            batch_span.update_name(f"{topic} process")
-            batch_span.set_attribute("messaging.batch.message_count", len(valid_messages))
+        self._messages_pending_retry = valid_messages
 
-        with no_expire_on_commit(db.session):
-            with (
-                session_guard(db.session, close=False),
-                db.session.no_autoflush,
-                StalenessCache(),
-                UngroupedGroupCache(),
-            ):
-                for msg in valid_messages:
-                    self._process_single_message(msg)
+        topic = valid_messages[0].topic() or "unknown"
+        span_attrs = {
+            "messaging.system": "kafka",
+            "messaging.destination.name": topic,
+            "messaging.operation.type": "process",
+            "messaging.batch.message_count": len(valid_messages),
+        }
 
-            self.post_process_rows()
-            # Commit Kafka offsets after successful batch processing
-            # This ensures offsets are persisted immediately after DB commit and event production,
-            # preventing duplicate message processing on service restart
-            if len(self.processed_rows) > 0:
-                try:
-                    self.consumer.commit(asynchronous=False)
-                    logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
-                except Exception as e:
-                    logger.exception(f"Failed to commit Kafka offsets: {e}")
+        with tracer.start_as_current_span(
+            f"{topic} process", kind=SpanKind.CONSUMER, attributes=span_attrs
+        ) as batch_span:
+            try:
+                with no_expire_on_commit(db.session):
+                    with (
+                        session_guard(db.session, close=False),
+                        db.session.no_autoflush,
+                        StalenessCache(),
+                        UngroupedGroupCache(),
+                    ):
+                        for i, msg in enumerate(valid_messages):
+                            self._process_single_message_in_batch(i, msg)
+
+                    self.post_process_rows()
+                    # Commit Kafka offsets after successful batch processing
+                    if len(self.processed_rows) > 0:
+                        try:
+                            self.consumer.commit(asynchronous=False)
+                            logger.debug(f"Successfully committed offsets for {len(self.processed_rows)} messages")
+                        except Exception as e:
+                            logger.exception(f"Failed to commit Kafka offsets: {e}")
+            except Exception as exc:
+                batch_span.set_status(StatusCode.ERROR, str(exc))
+                batch_span.record_exception(exc)
+                raise
+            else:
+                self._messages_pending_retry = None
 
     def event_loop(self, interrupt):
         with self.flask_app.app.app_context():
             try:
                 while not interrupt():
+                    retry_messages = None
                     for attempt in range(1, MAX_RETRIES + 1):
                         self.processed_rows = []
                         self._is_retry = attempt > 1
                         try:
-                            self._process_batch()
+                            self._process_batch(replay_messages=retry_messages)
                             break  # Success, exit retry loop
-                        except (InvalidRequestError, StaleDataError, IntegrityError, UniqueViolation) as e:
+                        except (
+                            InvalidRequestError,
+                            StaleDataError,
+                            IntegrityError,
+                            UniqueViolation,
+                            OperationalError,
+                        ) as e:
                             """Handle database session errors with retry logic.
                             InvalidRequestError includes PendingRollbackError which occurs when the session
                             is in an invalid state. StaleDataError occurs when trying to update data that
                             has been modified by another transaction. IntegrityError and UniqueViolation can
-                            occur when a unique constraint is violated.
+                            occur when a unique constraint is violated. OperationalError is only retried when
+                            it wraps a PostgreSQL deadlock (DeadlockDetected); other operational errors are
+                            re-raised so the process can restart.
                             Note: session_guard already calls rollback() when an exception occurs.
                             """
+                            if isinstance(e, OperationalError) and not _is_deadlock_error(e):
+                                raise
+
+                            retry_messages = self._messages_pending_retry
                             self.failure_metric.inc()
 
                             if attempt < MAX_RETRIES:
@@ -465,6 +604,8 @@ class HBIMessageConsumerBase:
                                     f"{MAX_RETRIES} attempts, continuing with next batch",
                                     exc_info=e,
                                 )
+                                # Offsets were not committed; Kafka will redeliver on rebalance/restart.
+                                retry_messages = None
             finally:
                 db.session.close()
 
@@ -1205,16 +1346,19 @@ def write_add_update_event_message(
             tracker_ctx._success_status_msg = "skipped – host deleted before event production"
             return
 
-        event_producer.write_event(event, str(result.row.id), headers, wait=False)
+        # Re-attach the per-message OTel context so outbound Kafka events carry
+        # the upstream trace
+        with _use_otel_context(result.otel_context):
+            event_producer.write_event(event, str(result.row.id), headers, wait=False)
 
-        if result.event_type.name == HOST_EVENT_TYPE_CREATED:
-            # Notifications are expected to omit null canonical facts
-            remove_null_canonical_facts(output_host)
-            send_notification(
-                notification_event_producer,
-                notification_type=NotificationType.new_system_registered,
-                host=output_host,
-            )
+            if result.event_type.name == HOST_EVENT_TYPE_CREATED:
+                # Notifications are expected to omit null canonical facts
+                remove_null_canonical_facts(output_host)
+                send_notification(
+                    notification_event_producer,
+                    notification_type=NotificationType.new_system_registered,
+                    host=output_host,
+                )
         result.success_logger(output_host)
 
         org_id = output_host.get("org_id")

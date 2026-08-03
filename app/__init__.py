@@ -14,6 +14,7 @@ from flask import request
 from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
+from api.admin import admin_blueprint
 from api.cache import init_cache
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
@@ -38,6 +39,7 @@ from app.queue.metrics import notification_event_producer_success
 from app.queue.metrics import rbac_access_denied
 from app.queue.notifications import NotificationType
 from app.tags_blueprint import tags_bp
+from app.telemetry import instrument_botocore
 from app.telemetry import instrument_flask_app
 from app.telemetry import instrument_outbound_http
 from app.telemetry import instrument_sqlalchemy
@@ -303,6 +305,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
+    flask_app.register_blueprint(admin_blueprint, url_prefix=app_config.api_url_path_prefix)
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 
@@ -373,5 +376,6 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     except RuntimeError:
         logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
     instrument_outbound_http()
+    instrument_botocore()
 
     return app

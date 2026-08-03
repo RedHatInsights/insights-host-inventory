@@ -3,6 +3,7 @@
 import contextlib
 import importlib
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from opentelemetry import trace
@@ -10,10 +11,20 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from psycopg2.errors import DeadlockDetected
+from sqlalchemy.exc import OperationalError
 
 from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import OperationResult
 from tests.helpers.mq_utils import FakeMessage
+
+
+def _deadlock_operational_error() -> OperationalError:
+    return OperationalError("deadlock detected", None, DeadlockDetected())
+
+
+def _connection_operational_error() -> OperationalError:
+    return OperationalError("connection refused", None, Exception("connection refused"))
 
 
 @pytest.fixture
@@ -39,6 +50,8 @@ def consumer():
             self.notification_event_producer = MagicMock()
             self.processed_rows = []
             self._is_retry = False
+            self._messages_pending_retry = None
+            self._producer_ctx = None
             self._handler = MagicMock(return_value=OperationResult(None, None, None, None, lambda: None))
 
         def handle_message(self, message, headers=None):
@@ -279,3 +292,31 @@ def test_config_defaults(monkeypatch):
 
     # Clean up
     importlib.reload(telemetry_mod)
+
+
+@pytest.mark.parametrize("spans_enabled", [True, False])
+def test_deadlock_operational_error_is_reraised(consumer, monkeypatch, spans_enabled):
+    """Deadlocks should bubble up so the event loop can retry, not kill the process."""
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", spans_enabled)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+    consumer._handler.side_effect = _deadlock_operational_error()
+
+    with patch("app.queue.host_mq.sys.exit") as exit_mock, pytest.raises(OperationalError):
+        consumer._process_single_message(FakeMessage())
+
+    exit_mock.assert_not_called()
+
+
+@pytest.mark.parametrize("spans_enabled", [True, False])
+def test_non_deadlock_operational_error_still_exits(consumer, monkeypatch, spans_enabled):
+    """Non-retriable OperationalErrors should still terminate the consumer process."""
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", spans_enabled)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+    consumer._handler.side_effect = _connection_operational_error()
+
+    with patch("app.queue.host_mq.sys.exit") as exit_mock:
+        consumer._process_single_message(FakeMessage())
+
+    exit_mock.assert_called_once_with(3)

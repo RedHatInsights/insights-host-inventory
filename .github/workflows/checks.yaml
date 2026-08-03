@@ -16,7 +16,7 @@ jobs:
             fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - uses: pre-commit/action@v3.0.1
@@ -74,12 +74,12 @@ jobs:
         run: |
           timeout 60 bash -c 'until docker exec postgres pg_isready; do sleep 1; done'
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           version-file: pyproject.toml
 

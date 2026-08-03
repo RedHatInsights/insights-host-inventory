@@ -81,7 +81,7 @@ class TestRBACHostsCertAuth:
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when getting host details
-        """  # NOQA: E501
+        """  # ruff:ignore[line-too-long]
         expected_hosts_ids = {host.id for host in rbac_cert_auth_setup_resources[0]}
 
         response = host_inventory_non_org_admin_cert_auth.apis.hosts.get_hosts_by_id_response(
@@ -214,12 +214,12 @@ class TestRBACHostsCertAuth:
         """
         tags = sorted(flatten(rbac_cert_auth_setup_resources[2]), key=operator.itemgetter("key"))
 
-        response = host_inventory_non_org_admin_cert_auth.apis.tags.get_tags_response()
+        response = host_inventory_non_org_admin_cert_auth.apis.tags.get_tags_json()
 
-        assert response.count == len(tags)
-        for tag in response.results:
-            assert tag.count == 1
-        dict_tags = [tag.tag.to_dict() for tag in response.results]
+        assert response["count"] == len(tags)
+        for tag in response["results"]:
+            assert tag["count"] == 1
+        dict_tags = [tag["tag"] for tag in response["results"]]
         assert sorted(dict_tags, key=operator.itemgetter("key")) == tags
 
     def test_rbac_hosts_cert_auth_bypass_checks_get_operating_systems(
@@ -239,7 +239,7 @@ class TestRBACHostsCertAuth:
         """
         hosts = rbac_cert_auth_setup_resources[0]
 
-        response = host_inventory_non_org_admin_cert_auth.apis.system_profile.get_operating_systems_response()  # noqa
+        response = host_inventory_non_org_admin_cert_auth.apis.system_profile.get_operating_systems_response()  # ruff:ignore[line-too-long]
 
         assert response.count == 1
         assert len(response.results) == 1

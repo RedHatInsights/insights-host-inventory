@@ -57,8 +57,8 @@ class TestEdgeHosts:
         """
         edge_host_tags = prepare_edge_host[1]
 
-        response = host_inventory.apis.tags.get_tags_response()
-        assert_tags_found(edge_host_tags, response.results)
+        response = host_inventory.apis.tags.get_tags_json()
+        assert_tags_found(edge_host_tags, response["results"])
 
     def test_get_edge_hosts_by_id(
         self,

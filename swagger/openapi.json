@@ -1841,7 +1841,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       },
@@ -1851,7 +1851,7 @@
           "views"
         ],
         "summary": "Create a new inventory view",
-        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Creates a new inventory view with the provided name and configuration. The view is owned by the requesting user. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1883,10 +1883,7 @@
             "description": "Invalid request."
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
-          },
-          "501": {
-            "description": "Not yet implemented."
+            "description": "Forbidden - identity type not supported or missing user_id."
           }
         }
       }
@@ -1921,20 +1918,20 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
           }
         }
       },
-      "put": {
+      "patch": {
         "operationId": "api.views.update_view",
         "tags": [
           "views"
         ],
         "summary": "Update an inventory view",
-        "description": "Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1975,9 +1972,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },
@@ -1987,7 +1981,7 @@
           "views"
         ],
         "summary": "Delete an inventory view",
-        "description": "Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -2007,9 +2001,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       }
@@ -2044,7 +2035,7 @@
             }
           },
           "403": {
-            "description": "Forbidden - identity type not supported or missing username."
+            "description": "Forbidden - identity type not supported or missing user_id."
           },
           "404": {
             "description": "Source view not found or not visible to the requesting user."
@@ -2469,7 +2460,7 @@
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"",
+        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][workloads][sap][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with a specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> To get hosts with a specific operating system version, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"rhel\": {\"version\": {\"eq\": \"9\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][rhel][version][eq]=9\"",
         "style": "deepObject",
         "explode": true,
         "example": {},
@@ -5174,6 +5165,28 @@
                   }
                 }
               },
+              "satellite": {
+                "description": "Object containing data specific to the Red Hat Satellite workload",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "Whether this system is a Satellite Server or Capsule",
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "capsule"
+                    ],
+                    "example": "server"
+                  },
+                  "version": {
+                    "description": "The Satellite or Capsule version",
+                    "type": "string",
+                    "example": "6.19.0",
+                    "maxLength": 30,
+                    "x-wildcard": true
+                  }
+                }
+              },
               "sap": {
                 "description": "Object containing data specific to the SAP workload",
                 "type": "object",
@@ -5448,13 +5461,8 @@
         ],
         "properties": {
           "key": {
-            "description": "The column key identifier, e.g. \"insights_id\", \"compliance.last_scan\", \"advisor.recommendations\".",
+            "description": "The column key identifier. Core fields use bare names (e.g. \"display_name\", \"last_check_in\"). App fields use colon-delimited format (e.g. \"compliance:last_scan\", \"advisor:recommendations\"). Validated server-side against the field registry.",
             "type": "string"
-          },
-          "visible": {
-            "description": "Whether the column is visible in the view.",
-            "type": "boolean",
-            "default": true
           }
         }
       },
@@ -5500,12 +5508,12 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
+            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value. Validated server-side against the field and operator registries.",
             "type": "object",
             "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/HostViewFilterComparison"
               }
             }
           }
@@ -5608,7 +5616,7 @@
             "type": "boolean"
           },
           "created_by": {
-            "description": "The username of the view creator.",
+            "description": "The user_id of the view creator.",
             "type": "string",
             "nullable": true
           },

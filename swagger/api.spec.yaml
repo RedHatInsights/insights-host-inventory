@@ -1073,7 +1073,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewsListOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
     post:
       operationId: api.views.create_view
       tags:
@@ -1084,8 +1084,6 @@ paths:
         The view is owned by the requesting user.
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -1105,9 +1103,7 @@ paths:
         '400':
           description: Invalid request.
         '403':
-          description: Forbidden - identity type not supported or missing username.
-        '501':
-          description: Not yet implemented.
+          description: Forbidden - identity type not supported or missing user_id.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id
@@ -1131,10 +1127,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: View not found or not visible to the requesting user.
-    put:
+    patch:
       operationId: api.views.update_view
       tags:
         - views
@@ -1145,8 +1141,6 @@ paths:
         System views cannot be updated.
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -1171,8 +1165,6 @@ paths:
           description: Forbidden - not the view owner or view is a system view.
         '404':
           description: View not found or not visible to the requesting user.
-        '501':
-          description: Not yet implemented.
     delete:
       operationId: api.views.delete_view
       tags:
@@ -1183,8 +1175,6 @@ paths:
         a view. System views cannot be deleted.
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -1196,8 +1186,6 @@ paths:
           description: Forbidden - not the view owner or view is a system view.
         '404':
           description: View not found or not visible to the requesting user.
-        '501':
-          description: Not yet implemented.
   '/beta/views/{view_id}/clone':
     post:
       operationId: api.views.clone_view
@@ -1224,7 +1212,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ViewOut'
         '403':
-          description: Forbidden - identity type not supported or missing username.
+          description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: Source view not found or not visible to the requesting user.
         '501':
@@ -1550,7 +1538,7 @@ components:
         <br /><br />
         which equates to the URL param:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][sap_system][eq]=true"
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][workloads][sap][sap_system][eq]=true"
         <br /><br />
         To get "edge" hosts, use this explicit filter:
         <br /><br />
@@ -1560,13 +1548,21 @@ components:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge"
         <br /><br />
-        To get hosts with an specific operating system, use this explicit filter:
+        To get hosts with a specific operating system, use this explicit filter:
         <br /><br />
         &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"name": {"eq": "rhel"}}}}
         <br /><br />
         which equates to the URL param:
         <br /><br />
-        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][name][eq]=rhel"
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel"
+        <br /><br />
+        To get hosts with a specific operating system version, use this explicit filter:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;{"system_profile": {"operating_system": {"rhel": {"version": {"eq": "9"}}}}}
+        <br /><br />
+        which equates to the URL param:
+        <br /><br />
+        &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][rhel][version][eq]=9"
       style: deepObject
       explode: true
       example: {}
@@ -2898,13 +2894,12 @@ components:
       properties:
         key:
           description: >-
-            The column key identifier, e.g. "insights_id",
-            "compliance.last_scan", "advisor.recommendations".
+            The column key identifier. Core fields use bare names
+            (e.g. "display_name", "last_check_in"). App fields use
+            colon-delimited format (e.g. "compliance:last_scan",
+            "advisor:recommendations"). Validated server-side against
+            the field registry.
           type: string
-        visible:
-          description: Whether the column is visible in the view.
-          type: boolean
-          default: true
     ViewSortConfig:
       title: View Sort Configuration
       description: Sort configuration for a view.
@@ -2940,13 +2935,16 @@ components:
           $ref: '#/components/schemas/ViewSortConfig'
         filters:
           description: >-
-            Active filter criteria. Keys are filter names, values are
-            arrays of selected filter values.
+            Active filter criteria. Mirrors the existing filter engine shape:
+            filter[namespace][field][operator]=value. Top-level keys are app
+            names (e.g. vulnerability, patch) or system_profile. Values are
+            nested objects of field -> operator -> value. Validated server-side
+            against the field and operator registries.
           type: object
           additionalProperties:
-            type: array
-            items:
-              type: string
+            type: object
+            additionalProperties:
+              $ref: '#/components/schemas/HostViewFilterComparison'
     ViewIn:
       title: View Create Payload
       description: Data required to create a new inventory view.
@@ -3032,7 +3030,7 @@ components:
             Only the owner can update or delete a view.
           type: boolean
         created_by:
-          description: The username of the view creator.
+          description: The user_id of the view creator.
           type: string
           nullable: true
         created_at:

@@ -150,13 +150,12 @@ def _get_session_for_instance(instance, connection):
     return object_session(instance) or Session(bind=connection)
 
 
-def _track_operation(session, event_type: str, host_id: str):
+def _track_operation(session, event_type: str, host_id: str, org_id: str):
     """Helper to track an outbox operation, avoiding duplicates."""
     ops = _get_pending_ops(session)
-    # Check if already tracked
-    if not any(op[0] == event_type and op[1] == host_id for op in ops):
-        ops.append((event_type, host_id))
-        logger.debug(f"Tracked {event_type} for host {host_id}")
+    if not any(op[0] == event_type and op[1] == host_id and op[2] == org_id for op in ops):
+        ops.append((event_type, host_id, org_id))
+        logger.debug(f"Tracked {event_type} for host {host_id} in org {org_id}")
         return True
     return False
 
@@ -166,7 +165,7 @@ def _track_operation(session, event_type: str, host_id: str):
 def _track_host_created(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was created - will write outbox entry before commit."""
     session = _get_session_for_instance(host, connection)
-    _track_operation(session, "created", str(host.id))
+    _track_operation(session, "created", str(host.id), str(host.org_id))
 
 
 # Event handler callback: registered with SQLAlchemy, not called directly
@@ -175,7 +174,7 @@ def _track_host_updated(mapper, connection, host: Host):  # noqa: ARG001
     """Track host updates when relevant fields change."""
     if _has_outbox_relevant_changes(host):
         session = _get_session_for_instance(host, connection)
-        _track_operation(session, "updated", str(host.id))
+        _track_operation(session, "updated", str(host.id), str(host.org_id))
 
 
 # Event handler callback: registered with SQLAlchemy, not called directly
@@ -187,7 +186,7 @@ def _check_host_changes_before_flush(session, flush_context, instances):  # noqa
     """
     for instance in session.dirty:
         if isinstance(instance, Host) and _has_outbox_relevant_changes(instance):
-            _track_operation(session, "updated", str(instance.id))
+            _track_operation(session, "updated", str(instance.id), str(instance.org_id))
 
 
 # Event handler callback: registered with SQLAlchemy, not called directly
@@ -195,7 +194,7 @@ def _check_host_changes_before_flush(session, flush_context, instances):  # noqa
 def _track_host_deleted(mapper, connection, host: Host):  # noqa: ARG001
     """Track that a host was deleted - will write outbox entry before commit."""
     session = _get_session_for_instance(host, connection)
-    _track_operation(session, "delete", str(host.id))
+    _track_operation(session, "delete", str(host.id), str(host.org_id))
 
 
 def init_outbox_event_processing(app_config):
@@ -210,7 +209,7 @@ def init_outbox_event_processing(app_config):
 
 def _process_outbox_ops_list(session, ops):
     """Process a list of pending outbox operations."""
-    for event_type_str, host_id in ops:
+    for event_type_str, host_id, org_id in ops:
         try:
             event_type = EventType[event_type_str]
 
@@ -222,7 +221,7 @@ def _process_outbox_ops_list(session, ops):
                 try:
                     # Always reload from database to ensure we have a fresh object
                     # attached to the current session
-                    host = session.query(Host).filter(Host.id == host_id).first()
+                    host = session.query(Host).filter(Host.org_id == org_id, Host.id == host_id).first()
                     if host is None:
                         # Host was deleted, skip this outbox entry
                         logger.debug(f"Host {host_id} was deleted, skipping outbox entry for {event_type_str}")
@@ -254,12 +253,14 @@ def _process_outbox_ops_list(session, ops):
 def _process_outbox_ops_batched(session, ops):
     """Process outbox operations using batched queries (optimized path)."""
     # Phase 1: Batch SELECT — reload all non-delete hosts in a single query
-    non_delete_host_ids = {host_id for event_type_str, host_id in ops if event_type_str != "delete"}
+    non_delete_ops = [(host_id, org_id) for event_type_str, host_id, org_id in ops if event_type_str != "delete"]
+    non_delete_host_ids = {host_id for host_id, _ in non_delete_ops}
+    org_ids = {org_id for _, org_id in non_delete_ops}
 
     hosts_by_id = {}
     if non_delete_host_ids:
         try:
-            hosts = session.query(Host).filter(Host.id.in_(non_delete_host_ids)).all()
+            hosts = session.query(Host).filter(Host.org_id.in_(org_ids), Host.id.in_(non_delete_host_ids)).all()
             hosts_by_id = {str(h.id): h for h in hosts}
             logger.debug(f"Batch-loaded {len(hosts)} hosts for outbox processing")
         except Exception as e:
@@ -272,7 +273,7 @@ def _process_outbox_ops_batched(session, ops):
 
     # Phase 2: Build batch ops list, resolving hosts from the pre-fetched dict
     batch_ops = []
-    for event_type_str, host_id in ops:
+    for event_type_str, host_id, _org_id in ops:
         try:
             event_type = EventType[event_type_str]
         except KeyError:

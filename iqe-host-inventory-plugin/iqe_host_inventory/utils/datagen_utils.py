@@ -592,21 +592,21 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
         "example": {
             "booted": {
                 "image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
                 "cached_image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
             },
             "rollback": {
                 "image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
                 "cached_image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
             },
             "staged": {
                 "image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
                 "cached_image": "quay.io/centos-bootc/fedora-bootc-cloud:eln",
-                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # noqa: E501
+                "cached_image_digest": "sha256:806d77394f96e47cf99b1233561ce970c94521244a2d8f2affa12c3261961223",  # ruff:ignore[line-too-long]
             },
         },
     },
@@ -678,6 +678,10 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
                 ],
                 "ai_models": ["granite-7b-redhat-lab", "granite-7b-starter"],
                 "free_disk_storage": "3TB",
+            },
+            "satellite": {
+                "type": "server",
+                "version": "6.17.6.1",
             },
             "sap": {
                 "sap_system": True,
@@ -1021,7 +1025,7 @@ def generate_host_field_value(host_field: Field) -> Any:
     return host_field_generators.get(host_field.name, generate_uuid)()
 
 
-def generate_sp_field_value(sp_field: Field, gen_array_item: bool = False) -> Any:  # NOQA: C901
+def generate_sp_field_value(sp_field: Field, gen_array_item: bool = False) -> Any:  # ruff:ignore[complex-structure]
     field_type = sp_field.item_type if gen_array_item else sp_field.type
     assert field_type is not None
     field_name = sp_field.name

@@ -140,7 +140,7 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
     logger.info(f"host updated: {host.updated.strftime('%m/%d/%Y %H:%M:%S')}")
     logger.info(f"host stale_timestamp: {host.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}")
     logger.info(
-        f"host stale_warning_timestamp: {host.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+        f"host stale_warning_timestamp: {host.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
     )
     logger.info(f"host culled_timestamp: {host.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}")
 
@@ -151,13 +151,13 @@ def log_staleness_timestamps(host: HostOut, reporter: str | None = None) -> None
         )
 
         logger.info(
-            f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} stale_timestamp: {per_reporter.stale_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
         logger.info(
-            f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} stale_warning_timestamp: {per_reporter.stale_warning_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
         logger.info(
-            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # noqa
+            f"{reporter} culled_timestamp: {per_reporter.culled_timestamp.strftime('%m/%d/%Y %H:%M:%S')}"  # ruff:ignore[line-too-long]
         )
 
     if not reporter:
@@ -210,7 +210,7 @@ def test_per_reporter_custom_staleness(
 
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, defaults, settings)
 
     do_reporter_check_ins(host_inventory, host_type)
@@ -234,7 +234,7 @@ def test_per_reporter_update_staleness(
     # Generate some initial settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Check in as multiple reporters and validate
@@ -243,7 +243,7 @@ def test_per_reporter_update_staleness(
     # Update the settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.update_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Verify that the per_reporter timestamps have been updated correctly
@@ -441,7 +441,7 @@ def test_per_reporter_registered_with(host_inventory: ApplicationHostInventory) 
     deltas = (1, 2, 5)
     logger.info("Setting custom staleness deltas to:")
     logger.info(
-        f"stale = {deltas[0]} second, stale_warning = {deltas[1]} seconds, culled = {deltas[2]} seconds"  # noqa
+        f"stale = {deltas[0]} second, stale_warning = {deltas[1]} seconds, culled = {deltas[2]} seconds"  # ruff:ignore[line-too-long]
     )
     set_staleness(host_inventory, deltas)
 
