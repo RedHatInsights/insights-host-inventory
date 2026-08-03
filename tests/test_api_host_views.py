@@ -8,6 +8,7 @@ import pytest
 
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_host_view_url
+from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.db_utils import db_create_host_app_data
 
 
@@ -1985,3 +1986,186 @@ class TestHostViewSystemProfileFiltering:
             assert "system_profile" in result
             assert result["system_profile"]["arch"] == "x86_64"
             assert "host_type" not in result["system_profile"]
+
+
+@pytest.mark.usefixtures("enable_rbac")
+class TestHostViewPerServiceRBAC:
+    """Integration tests for per-service RBAC filtering on /beta/hosts-view."""
+
+    def _mock_rbac(self, mocker, response_file):
+        """Mock RBAC permissions for per-service checks."""
+        mock_data = create_mock_rbac_response(response_file)
+        mocker.patch("lib.middleware.get_rbac_permissions", return_value=mock_data)
+        mocker.patch("lib.middleware.get_flag_value", return_value=True)
+
+    def _find_host_in_results(self, results, host_id):
+        """Find a specific host by ID in the results list."""
+        for r in results:
+            if str(r["id"]) == str(host_id):
+                return r
+        raise AssertionError(f"Host {host_id} not found in results")
+
+    def test_partial_access_filters_app_data(self, api_get, db_create_host, mocker):
+        """User with advisor-only permissions sees advisor data but not vulnerability."""
+        host = db_create_host()
+        host_id = str(host.id)
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=1, critical=1, important=2, moderate=1, low=1
+        )
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            important_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=0,
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = self._find_host_in_results(response_data["results"], host_id)
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" not in result["app_data"]
+        assert "denied_services" in response_data
+        assert "vulnerability" in response_data["denied_services"]
+        assert "advisor" not in response_data["denied_services"]
+
+    def test_no_service_permissions_returns_empty_app_data(self, api_get, db_create_host, mocker):
+        """User with only inventory:hosts:read gets empty app_data."""
+        host = db_create_host()
+        host_id = str(host.id)
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=1, critical=1, important=2, moderate=1, low=1
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-no-apps.json")
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = self._find_host_in_results(response_data["results"], host_id)
+        assert result["app_data"] == {}
+
+    def test_full_access_returns_all_app_data(self, api_get, db_create_host, mocker):
+        """User with all service permissions gets all app_data."""
+        host = db_create_host()
+        host_id = str(host.id)
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=1, critical=1, important=2, moderate=1, low=1
+        )
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            important_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=0,
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-all-apps.json")
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = self._find_host_in_results(response_data["results"], host_id)
+        assert "advisor" in result["app_data"]
+        assert "vulnerability" in result["app_data"]
+        assert response_data["denied_services"] == []
+
+    def test_sort_by_unauthorized_field_returns_403(self, api_get, mocker):
+        """Sorting by an unauthorized service's field returns 403."""
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?order_by=vulnerability:critical_cves")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 403)
+
+    def test_filter_by_unauthorized_field_returns_403(self, api_get, mocker):
+        """Filtering by an unauthorized service's field returns 403."""
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?filter[vulnerability][critical_cves][gte]=1")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 403)
+
+    def test_filter_by_authorized_field_works(self, api_get, db_create_host, mocker):
+        """Filtering by an authorized service's field returns 200."""
+        db_create_host()
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?filter[advisor][recommendations][gte]=0")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 200)
+
+    def test_sort_by_authorized_field_works(self, api_get, db_create_host, mocker):
+        """Sorting by an authorized service's field returns 200."""
+        db_create_host()
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?order_by=advisor:recommendations")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 200)
+
+    def test_sort_by_non_app_field_always_works(self, api_get, db_create_host, mocker):
+        """Sorting by display_name works regardless of service permissions."""
+        db_create_host()
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-no-apps.json")
+
+        url = build_host_view_url(query="?order_by=display_name")
+        response_status, _ = api_get(url)
+
+        assert_response_status(response_status, 200)
+
+    def test_sparse_fields_plus_no_permission(self, api_get, db_create_host, mocker):
+        """fields[vulnerability]=true but no vuln permission — key still omitted."""
+        host = db_create_host()
+        host_id = str(host.id)
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=10,
+            critical_cves=2,
+            important_cves=3,
+            cves_with_security_rules=1,
+            cves_with_known_exploits=0,
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json")
+
+        url = build_host_view_url(query="?fields[vulnerability]=true")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = self._find_host_in_results(response_data["results"], host_id)
+        assert "vulnerability" not in result["app_data"]
+
+    def test_bypass_rbac_omits_denied_services(self, api_get, db_create_host, mocker):
+        """When RBAC is bypassed, denied_services is absent from response."""
+        host = db_create_host()
+        db_create_host_app_data(
+            host.id, host.org_id, "advisor", recommendations=5, incidents=1, critical=1, important=2, moderate=1, low=1
+        )
+
+        self._mock_rbac(mocker, "tests/helpers/rbac-mock-data/inv-hosts-read-all-apps.json")
+        mocker.patch("lib.middleware._should_bypass_app_service_rbac", return_value=True)
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        assert "denied_services" not in response_data

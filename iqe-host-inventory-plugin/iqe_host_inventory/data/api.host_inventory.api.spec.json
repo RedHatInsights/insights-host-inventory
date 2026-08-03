@@ -306,6 +306,9 @@
           },
           "400": {
             "description": "Invalid request."
+          },
+          "403": {
+            "description": "Insufficient permissions to sort or filter by the requested service."
           }
         }
       }
@@ -3211,6 +3214,14 @@
                 "items": {
                   "$ref": "#/components/schemas/HostViewHost"
                 }
+              },
+              "denied_services": {
+                "description": "List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": ["vulnerability", "malware"]
               }
             }
           }
