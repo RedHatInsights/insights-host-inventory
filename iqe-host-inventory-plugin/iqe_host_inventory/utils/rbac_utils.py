@@ -30,6 +30,12 @@ class RBACInventoryPermission(Enum):
     STALENESS_READ = "staleness:staleness:read"
     STALENESS_WRITE = "staleness:staleness:write"
     STALENESS_ALL = "staleness:staleness:*"
+    ADVISOR_READ = "advisor:recommendation-results:read"
+    VULNERABILITY_READ = "vulnerability:vulnerability_results:read"
+    COMPLIANCE_READ = "compliance:system:read"
+    PATCH_READ = "patch:*:read"
+    REMEDIATIONS_READ = "remediations:remediation:read"
+    MALWARE_READ = "malware-detection:*:read"
 
 
 class RBACRoles(Enum):

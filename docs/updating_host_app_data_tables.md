@@ -16,6 +16,16 @@ The `/beta/hosts-view` endpoint returns host data combined with application-spec
 
 Downstream apps declare which of their fields support sorting and filtering via `__sortable_fields__` and `__filterable_fields__` on their model class. See the sections below for details.
 
+### Per-Service RBAC
+
+The endpoint checks per-service RBAC permissions before including each service's app_data in the response. Each model class must declare its required permissions:
+
+- `__v1_app__` — the RBAC v1 application name (e.g., `"vulnerability"`, `"patch"`)
+- `__v1_read_permission__` — the RBAC v1 permission string (e.g., `"vulnerability:vulnerability_results:read"`)
+- `__kessel_relation__` — the Kessel v2 relation name (e.g., `"vulnerability_vulnerability_results_view"`)
+
+Models without these attributes are **denied by default** — their data will not be included in the response. The response also includes a `denied_services` list so consumers can distinguish denied services from services with no data.
+
 ### Unknown Field Handling
 
 HBI's Kafka consumer schemas use Marshmallow's `EXCLUDE` mode for unknown fields. When a downstream app sends fields that HBI does not yet have a column for, those fields are **silently ignored** — the message is processed normally and only known fields are persisted. This is critical for safe, independent deployments between downstream apps and HBI.
@@ -167,6 +177,9 @@ Modify the SQLAlchemy model definition to reflect the new table structure.
 class HostAppDataPatch(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_patch"
     __app_name__ = "patch"
+    __v1_app__ = "patch"
+    __v1_read_permission__ = "patch:*:read"
+    __kessel_relation__ = "patch_system_view"
 
     # Existing fields...
     advisories_rhsa_applicable = db.Column(db.Integer, nullable=True)
@@ -606,6 +619,9 @@ class HostAppDataMyApp(HostAppDataMixin, db.Model):
     __app_name__ = "my_app"
     __sortable_fields__ = ("field_one",)  # Optional: enable sorting on numeric/datetime fields
     __filterable_fields__ = ("field_one", "field_two")  # Optional: enable filtering
+    __v1_app__ = "my-app"
+    __v1_read_permission__ = "my-app:my_resource:read"
+    __kessel_relation__ = "my_app_my_resource_view"
 
     field_one = db.Column(db.Integer, nullable=True)
     field_two = db.Column(db.String(255), nullable=True)
