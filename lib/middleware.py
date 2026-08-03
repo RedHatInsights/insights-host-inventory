@@ -36,6 +36,7 @@ from app.instrumentation import rbac_group_permission_denied
 from app.instrumentation import rbac_permission_denied
 from app.logging import get_logger
 from app.logging import threadctx
+from lib.feature_flags import FLAG_HBI_INVENTORY_VIEWS_RBAC
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
@@ -691,6 +692,129 @@ def check_access(permission: KesselPermission, ids: list[str] | None = None) -> 
         abort(HTTPStatus.FORBIDDEN)
 
     return rbac_filter
+
+
+def _has_rbac_permission(rbac_permissions: list[str], required: str) -> bool:
+    """Check if a required permission is satisfied by any RBAC permission, including wildcards.
+
+    Matches the same 4-pattern logic as _is_request_allowed_by_permission() but works
+    with string parameters instead of inventory-specific enums.
+    """
+    app, resource, verb = required.split(":")
+    return any(
+        p
+        in (
+            f"{app}:*:*",
+            f"{app}:{resource}:*",
+            f"{app}:*:{verb}",
+            required,
+        )
+        for p in rbac_permissions
+    )
+
+
+def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
+    """Kessel v2 path: check workspace-level permissions per service via ListAllowedWorkspaces."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    try:
+        kessel_client = get_kessel_client(current_app)
+    except Exception:
+        logger.exception("Failed to initialize Kessel client, denying all app services")
+        return set()
+
+    services_to_check: list[tuple[str, str]] = []
+    for app_name, model in app_models.items():
+        kessel_relation = getattr(model, "__kessel_relation__", "")
+        if kessel_relation:
+            services_to_check.append((app_name, kessel_relation))
+
+    if not services_to_check:
+        return set()
+
+    def _check_service(app_name: str, kessel_relation: str) -> str | None:
+        try:
+            workspaces = kessel_client.ListAllowedWorkspaces(identity, kessel_relation)
+            return app_name if workspaces else None
+        except Exception as e:
+            details = e.details() if hasattr(e, "details") else str(e)
+            logger.warning("Kessel ListAllowedWorkspaces failed", extra={"app_name": app_name, "details": details})
+            return None
+
+    allowed: set[str] = set()
+    with outbound_http_response_time.labels("inventory_views_kessel_rbac").time():
+        with ThreadPoolExecutor(max_workers=len(services_to_check)) as executor:
+            futures = {executor.submit(_check_service, name, rel): name for name, rel in services_to_check}
+            for future in futures:
+                try:
+                    result = future.result(timeout=10)
+                except Exception:
+                    result = None
+                if result:
+                    allowed.add(result)
+
+    return allowed
+
+
+def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
+    """RBAC v1 path: single multi-app call to the RBAC service."""
+    v1_apps: set[str] = set()
+    for model in app_models.values():
+        v1_app = getattr(model, "__v1_app__", "")
+        if v1_app:
+            v1_apps.add(v1_app)
+
+    if not v1_apps:
+        return set()
+
+    rbac_request_headers = _build_rbac_request_headers()
+    rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
+
+    user_permissions = [p["permission"] for p in rbac_data]
+
+    allowed: set[str] = set()
+    for app_name, model in app_models.items():
+        v1_read_permission = getattr(model, "__v1_read_permission__", "")
+        if not v1_read_permission:
+            continue
+        if _has_rbac_permission(user_permissions, v1_read_permission):
+            allowed.add(app_name)
+
+    return allowed
+
+
+def _should_bypass_app_service_rbac() -> bool:
+    if inventory_config().bypass_rbac:
+        return True
+    identity = get_current_identity()
+    if identity.identity_type not in CHECKED_TYPES:
+        return True
+    return not get_flag_value(FLAG_HBI_INVENTORY_VIEWS_RBAC, identity.org_id)
+
+
+def get_allowed_app_services() -> set[str] | None:
+    """Determine which app_data services the current user can access.
+
+    Reads permission requirements from each app_data model's __v1_read_permission__
+    and __kessel_relation__ attributes. Models without these attributes are
+    denied by default (not included).
+
+    Returns None if all services are allowed (bypass, non-checked identity).
+    Returns a set of allowed app names otherwise.
+    """
+    from app.models.host_app_data import get_app_data_models
+
+    if _should_bypass_app_service_rbac():
+        return None
+
+    identity = get_current_identity()
+
+    app_models = get_app_data_models()
+
+    if is_rbac_v2_enabled(identity.org_id):
+        return _get_allowed_app_services_v2(identity, app_models)
+
+    return _get_allowed_app_services_v1(app_models)
 
 
 def is_rbac_v2_enabled(org_id: str) -> bool:
