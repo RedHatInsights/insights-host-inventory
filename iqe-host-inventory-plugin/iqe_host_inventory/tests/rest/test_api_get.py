@@ -651,11 +651,11 @@ class TestFilterByRegisteredWith:
         wanted_tags = flatten(host.tags for host in wanted_hosts)
         not_wanted_tags = flatten(host.tags for host in not_wanted_hosts)
 
-        response = host_inventory.apis.tags.get_tags_response(registered_with=registered_with)
-        assert response.count >= len(wanted_tags)
-        assert len(response.results) == response.count
-        assert_tags_found(wanted_tags, response.results)
-        assert_tags_not_found(not_wanted_tags, response.results)
+        response = host_inventory.apis.tags.get_tags_json(registered_with=registered_with)
+        assert response["count"] >= len(wanted_tags)
+        assert len(response["results"]) == response["count"]
+        assert_tags_found(wanted_tags, response["results"])
+        assert_tags_not_found(not_wanted_tags, response["results"])
 
 
 @pytest.mark.ephemeral

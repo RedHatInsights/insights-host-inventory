@@ -214,6 +214,7 @@ Class | Method | HTTP request | Description
  - [SystemProfileWorkloadsOracleDb](iqe_host_inventory_api/docs/SystemProfileWorkloadsOracleDb.md)
  - [SystemProfileWorkloadsRhelAi](iqe_host_inventory_api/docs/SystemProfileWorkloadsRhelAi.md)
  - [SystemProfileWorkloadsRhelAiGpuModels](iqe_host_inventory_api/docs/SystemProfileWorkloadsRhelAiGpuModels.md)
+ - [SystemProfileWorkloadsSatellite](iqe_host_inventory_api/docs/SystemProfileWorkloadsSatellite.md)
  - [SystemProfileYumRepo](iqe_host_inventory_api/docs/SystemProfileYumRepo.md)
  - [TagCountOut](iqe_host_inventory_api/docs/TagCountOut.md)
  - [TagCountOutAllOf](iqe_host_inventory_api/docs/TagCountOutAllOf.md)
