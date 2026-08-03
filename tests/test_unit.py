@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from base64 import b64encode
 from copy import deepcopy
 from datetime import UTC
@@ -26,6 +27,7 @@ from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
 from app import SPECIFICATION_FILE
+from app import V2_SPECIFICATION_FILE
 from app import create_app
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
@@ -544,6 +546,40 @@ def test_yaml_specification_create_app_connexion(_translating_parser, _init_app,
     with patch("app.create_app", side_effect=Exception("mocked error")):
         with pytest.raises(Exception):  # noqa: B017
             create_app(RuntimeEnvironment.TEST)
+
+
+@pytest.mark.parametrize(
+    "v2_enabled",
+    ["true", "false", None],
+    ids=["v2-enabled", "v2-disabled", "v2-unset"],
+)
+@patch("app.connexion.FlaskApp")
+@patch("app.db.init_app")
+@patch("app.TranslatingParser")
+def test_v2_api_registration(translating_parser, _init_app, app, v2_enabled):
+    env_vars = {"HBI_V2_API_ENABLED": v2_enabled} if v2_enabled is not None else {}
+    with patch.dict("os.environ", env_vars, clear=False):
+        if v2_enabled is None:
+            os.environ.pop("HBI_V2_API_ENABLED", None)
+        create_app(RuntimeEnvironment.TEST)
+
+    v2_add_api_calls = [
+        call for call in app.return_value.add_api.call_args_list if call.kwargs.get("base_path") == "/api/inventory/v2"
+    ]
+    v2_parser_calls = [call for call in translating_parser.call_args_list if V2_SPECIFICATION_FILE in call.args]
+
+    if v2_enabled == "true":
+        assert v2_add_api_calls, "V2 API should be registered when HBI_V2_API_ENABLED is true"
+        assert v2_parser_calls, "TranslatingParser should be called with V2 spec when V2 is enabled"
+        v2_call = v2_add_api_calls[0]
+        assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
+        assert v2_call.kwargs["arguments"] == {"title": "HBI V2 API"}
+        assert v2_call.kwargs["validate_responses"] is True
+        assert v2_call.kwargs["strict_validation"] is False
+        assert v2_call.kwargs["validator_map"] is not None
+    else:
+        assert not v2_add_api_calls, "No V2 API should be registered when HBI_V2_API_ENABLED is not true"
+        assert not v2_parser_calls, "TranslatingParser should not be called with V2 spec when V2 is not enabled"
 
 
 def test_asc_host_order_how():
