@@ -1,0 +1,13 @@
+{
+  "meta": {"count": 2, "limit": 1000, "offset": 0},
+  "links": {
+    "first": "/api/rbac/v1/access/?application=inventory,advisor&limit=1000&offset=0",
+    "next": null,
+    "previous": null,
+    "last": "/api/rbac/v1/access/?application=inventory,advisor&limit=1000&offset=0"
+  },
+  "data": [
+    {"resourceDefinitions": [], "permission": "inventory:hosts:read"},
+    {"resourceDefinitions": [], "permission": "advisor:*:read"}
+  ]
+}

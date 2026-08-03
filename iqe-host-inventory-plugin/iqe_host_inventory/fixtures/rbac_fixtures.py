@@ -562,6 +562,77 @@ def rbac_setup_resources_for_granular_rbac(
     )
 
 
+@pytest.fixture(scope="class")
+def rbac_hosts_read_advisor_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.ADVISOR_READ]
+    )
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_vulnerability_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[
+            RBACInventoryPermission.HOSTS_READ,
+            RBACInventoryPermission.VULNERABILITY_READ,
+        ]
+    )
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_compliance_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.COMPLIANCE_READ]
+    )
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_patch_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.PATCH_READ]
+    )
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_remediations_read_user_setup_class(hbi_non_org_admin_user_rbac_setup_class):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.REMEDIATIONS_READ]
+    )
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_malware_read_user_setup_class(
+    host_inventory: ApplicationHostInventory,
+    hbi_non_org_admin_user_rbac_setup_class,
+):
+    hbi_non_org_admin_user_rbac_setup_class(permissions=[RBACInventoryPermission.HOSTS_READ])
+    role = host_inventory.apis.rbac.get_role_by_name("Malware detection viewer")
+    group = host_inventory.apis.rbac.raw_api.group_api.list_groups(name="iqe-hbi").data[0]
+    host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
+    wait_for_kessel_sync(host_inventory)
+
+
+@pytest.fixture(scope="class")
+def rbac_hosts_read_all_services_user_setup_class(
+    host_inventory: ApplicationHostInventory,
+    hbi_non_org_admin_user_rbac_setup_class,
+):
+    hbi_non_org_admin_user_rbac_setup_class(
+        permissions=[
+            RBACInventoryPermission.HOSTS_READ,
+            RBACInventoryPermission.ADVISOR_READ,
+            RBACInventoryPermission.VULNERABILITY_READ,
+            RBACInventoryPermission.COMPLIANCE_READ,
+            RBACInventoryPermission.PATCH_READ,
+            RBACInventoryPermission.REMEDIATIONS_READ,
+        ]
+    )
+    role = host_inventory.apis.rbac.get_role_by_name("Malware detection viewer")
+    group = host_inventory.apis.rbac.raw_api.group_api.list_groups(name="iqe-hbi").data[0]
+    host_inventory.apis.rbac.add_roles_to_a_group([role], group.uuid)
+    wait_for_kessel_sync(host_inventory)
+
+
 @pytest.fixture(scope="module")
 def rbac_clean_service_account_regular_group(host_inventory: ApplicationHostInventory):
     group = host_inventory.apis.rbac.get_group_by_name(RBAC_GROUP_SERVICE_ACCOUNT_REGULAR)

@@ -1,0 +1,20 @@
+{
+  "meta": {"count": 9, "limit": 1000, "offset": 0},
+  "links": {
+    "first": "/api/rbac/v1/access/?application=inventory&limit=1000&offset=0",
+    "next": null,
+    "previous": null,
+    "last": "/api/rbac/v1/access/?application=inventory&limit=1000&offset=0"
+  },
+  "data": [
+    {"resourceDefinitions": [], "permission": "inventory:hosts:read"},
+    {"resourceDefinitions": [], "permission": "vulnerability:vulnerability_results:read"},
+    {"resourceDefinitions": [], "permission": "advisor:*:read"},
+    {"resourceDefinitions": [], "permission": "compliance:policy:read"},
+    {"resourceDefinitions": [], "permission": "compliance:report:read"},
+    {"resourceDefinitions": [], "permission": "compliance:system:read"},
+    {"resourceDefinitions": [], "permission": "remediations:remediation:read"},
+    {"resourceDefinitions": [], "permission": "patch:*:read"},
+    {"resourceDefinitions": [], "permission": "malware-detection:*:read"}
+  ]
+}
