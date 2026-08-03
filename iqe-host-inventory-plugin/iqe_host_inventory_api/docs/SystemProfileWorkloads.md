@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **mssql** | [**SystemProfileMssql**](SystemProfileMssql.md) |  | [optional]
 **oracle_db** | [**SystemProfileWorkloadsOracleDb**](SystemProfileWorkloadsOracleDb.md) |  | [optional]
 **rhel_ai** | [**SystemProfileWorkloadsRhelAi**](SystemProfileWorkloadsRhelAi.md) |  | [optional]
+**satellite** | [**SystemProfileWorkloadsSatellite**](SystemProfileWorkloadsSatellite.md) |  | [optional]
 **sap** | [**SystemProfileSap**](SystemProfileSap.md) |  | [optional]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
