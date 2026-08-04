@@ -1,8 +1,3 @@
-"""
-metadata:
-
-"""
-
 import logging
 import multiprocessing
 from time import sleep

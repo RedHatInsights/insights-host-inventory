@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-
-"""
-
 import logging
 from typing import Any
 

@@ -1,8 +1,3 @@
-"""
-metadata:
-
-"""
-
 import pytest
 
 from iqe_host_inventory.utils.datagen_utils import generate_uuid

@@ -662,11 +662,6 @@ def setup_empty_groups(host_inventory) -> list[GroupOutWithHostCount]:
     scope="class",
 )
 class TestRBACResourceTypesRBACPermissions:
-    """
-    metadata:
-
-    """
-
     def test_rbac_resource_types_rbac_permissions_get_list(
         self, setup_empty_groups, host_inventory, host_inventory_app
     ):
@@ -704,11 +699,6 @@ class TestRBACResourceTypesRBACPermissions:
 
 @pytest.mark.rbac_dependent
 class TestRBACResourceTypesNoRBACPermissions:
-    """
-    metadata:
-
-    """
-
     def test_rbac_resource_types_no_rbac_permissions_get_list(
         self,
         setup_empty_groups,

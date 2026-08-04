@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-
-"""
-
 from __future__ import annotations
 
 import logging
