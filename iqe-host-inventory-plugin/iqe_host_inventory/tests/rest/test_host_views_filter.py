@@ -98,7 +98,6 @@ class TestAdvisor:
         """Verify integer comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test integer comparison operators on advisor host-view filter
@@ -140,7 +139,6 @@ class TestAdvisor:
         """Verify nil and not_nil operators for advisor data presence/absence.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test nil and not_nil operators on advisor host-view filter
@@ -171,7 +169,6 @@ class TestAdvisor:
         """Verify that multiple filters on advisor use AND logic.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test multiple field filters on advisor (AND logic)
@@ -223,7 +220,6 @@ class TestVulnerability:
         """Verify integer comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test integer comparison operators on vulnerability host-view filter
@@ -264,7 +260,6 @@ class TestVulnerability:
         """Verify nil and not_nil operators for vulnerability data presence/absence.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test nil and not_nil operators on vulnerability host-view filter
@@ -293,7 +288,6 @@ class TestVulnerability:
         """Verify that multiple filters on vulnerability use AND logic.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test multiple field filters on vulnerability (AND logic)
@@ -351,7 +345,6 @@ class TestPatch:
         """Verify integer comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test integer comparison operators on patch host-view filter
@@ -399,7 +392,6 @@ class TestPatch:
         """Verify nil and not_nil operators for patch data presence/absence.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test nil and not_nil operators on patch host-view filter
@@ -439,7 +431,6 @@ class TestPatch:
         """Verify string comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: medium
             title: Test string comparison operators on patch host-view filter
@@ -481,7 +472,6 @@ class TestRemediations:
         """Verify integer comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test integer comparison operators on remediations host-view filter
@@ -516,7 +506,6 @@ class TestRemediations:
         """Verify nil and not_nil operators for remediations data presence/absence.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test nil and not_nil operators on remediations host-view filter
@@ -560,7 +549,6 @@ class TestMalware:
         """Verify integer comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test integer comparison operators on malware host-view filter
@@ -599,7 +587,6 @@ class TestMalware:
         """Verify nil and not_nil operators for malware data presence/absence.
 
         metadata:
-
             assignee: jramos
             importance: high
             title: Test nil and not_nil operators on malware host-view filter
@@ -639,7 +626,6 @@ class TestMalware:
         """Verify string comparison operators filter hosts correctly.
 
         metadata:
-
             assignee: jramos
             importance: medium
             title: Test string comparison operators on malware host-view filter
@@ -680,7 +666,6 @@ class TestCombinedApps:
         - Host C: advisor recommendations=1,  vulnerability critical_cves=5  -> fails advisor
 
         metadata:
-
             assignee: jramos
             importance: critical
             title: Test cross-app combined filtering
@@ -756,7 +741,6 @@ class TestCombinedApps:
         that matches both criteria.
 
         metadata:
-
             assignee: jramos
             importance: medium
             title: Test filter combined with display_name
@@ -800,7 +784,6 @@ class TestCombinedApps:
         """Verify that invalid filter parameters return proper error responses.
 
         metadata:
-
             assignee: jramos
             importance: medium
             negative: true
@@ -820,7 +803,6 @@ class TestCombinedApps:
         """Verify that an invalid operator returns a 400 error.
 
         metadata:
-
             assignee: jramos
             importance: medium
             negative: true
@@ -849,7 +831,6 @@ class TestSystemProfileFilter:
         """filter[system_profile][host_type][eq]=edge returns only edge hosts.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test SP filter by host_type on hosts-view
@@ -878,7 +859,6 @@ class TestSystemProfileFilter:
         """SP filter + app data filter use AND logic.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test SP filter combined with app data filter
@@ -911,7 +891,6 @@ class TestSystemProfileFilter:
         """SP filter and SP sparse fields work together.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test SP filter combined with SP sparse fields

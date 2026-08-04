@@ -48,7 +48,6 @@ def os_filter_param(operating_system: str):
 def test_sap_sids_pagination(host_inventory: ApplicationHostInventory):
     """
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: sap_sid pagination
@@ -61,7 +60,6 @@ def test_sap_sids_pagination(host_inventory: ApplicationHostInventory):
 def test_sap_systems_pagination(host_inventory: ApplicationHostInventory):
     """
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: sap_system pagination
@@ -90,7 +88,6 @@ def test_system_profile_endpoint_sap_system(
        systems with this value is correct
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: sap_system values enumerating
@@ -128,7 +125,6 @@ def test_system_profile_endpoint_sap_sids(
        systems with this value is correct
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: sap_sids values enumerating
@@ -164,7 +160,6 @@ def test_system_profile_sap_sids_search(
        string from the search parameter
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: sap_sids values enumerating with search parameter

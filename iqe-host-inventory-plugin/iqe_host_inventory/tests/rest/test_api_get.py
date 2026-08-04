@@ -58,7 +58,6 @@ class TestGetHosts:
         3. Confirm the response contains some basic fields required in a response payload
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Test GET hosts response structure
@@ -111,7 +110,6 @@ class TestGetHosts:
         3. Confirm the response contains the right host details
 
         metadata:
-
             assignee: fstavela
             importance: critical
             title: Inventory: Test GET host by display_name
@@ -142,7 +140,6 @@ class TestGetHosts:
         3. Confirm the response contains the right host details
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Test GET host by display_name should not be case sensitive
@@ -170,7 +167,6 @@ class TestGetHosts:
         3. Confirm no matching host is returned
 
         metadata:
-
             assignee: fstavela
             importance: medium
             negative: true
@@ -207,7 +203,6 @@ class TestGetHosts:
         9. Issue a PATCH with multiple hosts with branch_id
 
         metadata:
-
             assignee: fstavela
             importance: low
             title: Inventory API: Confirm branch_id parameter is allowed but ignored.
@@ -257,7 +252,6 @@ def test_get_host_by_id(host_inventory: ApplicationHostInventory, operating_syst
     4. Confirm the host was fetched successfully
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: test GET of host by id
@@ -282,7 +276,6 @@ def test_get_hosts_by_fqdn(host_inventory: ApplicationHostInventory, case_insens
     JIRA: https://issues.redhat.com/browse/ESSNTL-931
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm fqdn parameter retrieves right host
@@ -312,7 +305,6 @@ def test_get_hosts_by_hostname_or_id(
     JIRA: https://issues.redhat.com/browse/ESSNTL-931
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm hostname_or_id parameter retrieves right host
@@ -353,7 +345,6 @@ def test_get_hosts_by_insights_id(
     JIRA: https://issues.redhat.com/browse/ESSNTL-931
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: Confirm insights_id parameter retrieves right host
@@ -382,7 +373,6 @@ def test_get_hosts_by_subscription_manager_id(
     JIRA: https://issues.redhat.com/browse/RHINENG-17386
 
     metadata:
-
         assignee: addubey
         importance: medium
         title: Inventory: Confirm subscription_manager_id parameter retrieves right host
@@ -413,7 +403,6 @@ def test_get_hosts_by_provider_id(
     https://issues.redhat.com/browse/RHCLOUD-12642
 
     metadata:
-
       assignee: fstavela
       importance: medium
       title: Inventory: get hosts by provider_id
@@ -437,7 +426,6 @@ def test_get_hosts_by_provider_type(setup_hosts_with_provider_fields, host_inven
     https://issues.redhat.com/browse/RHCLOUD-12642
 
     metadata:
-
       assignee: fstavela
       importance: medium
       title: Inventory: get hosts by provider_type
@@ -466,7 +454,6 @@ def test_get_host_by_non_existent_insights_id(host_inventory):
     3. Confirm that the response was empty (no hosts found)
 
     metadata:
-
         negative: true
         assignee: fstavela
         importance: medium
@@ -482,7 +469,6 @@ def test_get_host_by_non_existent_insights_id(host_inventory):
 def test_get_host_exists(host_inventory: ApplicationHostInventory):
     """
     metadata:
-
         assignee: msager
         importance: high
         title: Test the GET /host_exists endpoint
@@ -497,7 +483,6 @@ def test_get_host_exists(host_inventory: ApplicationHostInventory):
 def test_get_host_exists_non_existent_insights_id(host_inventory: ApplicationHostInventory):
     """
     metadata:
-
         assignee: msager
         importance: high
         title: Test GET /host_exists for a non-existent insights id
@@ -512,7 +497,6 @@ def test_get_host_exists_non_existent_insights_id(host_inventory: ApplicationHos
 def test_get_host_exists_two_hosts_same_insights_id(host_inventory: ApplicationHostInventory):
     """
     metadata:
-
         assignee: msager
         importance: high
         title: Test GET /host_exists when two hosts have the same insights id
@@ -541,7 +525,6 @@ def test_get_host_exists_proper_account(
 ):
     """
     metadata:
-
         assignee: msager
         importance: high
         title: Test that GET /host_exists operates on the proper account
@@ -574,7 +557,6 @@ class TestFilterByRegisteredWith:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2613
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Confirm registered_with parameter retrieves right hosts
@@ -603,7 +585,6 @@ class TestFilterByRegisteredWith:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2873
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Confirm negative values on registered_with parameter retrieves right hosts
@@ -640,7 +621,6 @@ class TestFilterByRegisteredWith:
         JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
         metadata:
-
             assignee: fstavela
             importance: medium
             title: Inventory: GET on /tags with registered_with parameter
@@ -668,7 +648,6 @@ def test_get_hosts_by_registered_with_positive_and_negative_values(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2873
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test GET of host using negative and positive values on registered_with URL parameter
@@ -693,7 +672,6 @@ def test_get_hosts_by_registered_with_temp_old(host_inventory: ApplicationHostIn
     JIRA: https://issues.redhat.com/browse/ESSNTL-2613
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Confirm registered_with=insights returns correct hosts
@@ -736,7 +714,6 @@ def test_get_hosts_valid_parameters_combinations(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2193
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: Test GET of host using valid combination of parameters.
@@ -862,7 +839,6 @@ def test_get_hosts_by_updated_start(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter hosts by updated_start
@@ -895,7 +871,6 @@ def test_get_hosts_by_updated_end(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter hosts by updated_end
@@ -921,7 +896,6 @@ def test_get_hosts_by_updated(host_inventory: ApplicationHostInventory, timestam
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter hosts by combined updated_start and updated_end
@@ -950,7 +924,6 @@ def test_get_hosts_by_updated_both_same(host_inventory: ApplicationHostInventory
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter hosts by combined updated_start and updated_end - both same
@@ -973,7 +946,6 @@ def test_get_hosts_by_updated_different_timezone(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter hosts by updated with not-UTC timezone
@@ -1005,7 +977,6 @@ def test_get_hosts_by_updated_not_created(host_inventory: ApplicationHostInvento
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Test that updated filters work by last updated, not created timestamp - hosts
@@ -1041,7 +1012,6 @@ def test_get_hosts_by_last_check_in_start(
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter hosts by last_check_in_start
@@ -1074,7 +1044,6 @@ def test_get_hosts_by_last_check_in_end(
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter hosts by last_check_in_end
@@ -1100,7 +1069,6 @@ def test_get_hosts_by_last_check_in(host_inventory: ApplicationHostInventory, ti
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter hosts by combined last_check_in_start and last_check_in_end
@@ -1133,7 +1101,6 @@ def test_get_hosts_by_group_name(host_inventory: ApplicationHostInventory, case_
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter hosts by group_name
@@ -1158,7 +1125,6 @@ def test_get_hosts_by_group_id(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-
         assignee: maarif
         importance: high
         title: Filter hosts by group_id
@@ -1181,7 +1147,6 @@ def test_get_hosts_with_workspace_name_and_workspace_id(host_inventory: Applicat
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-
             inv-api-validation
         assignee: maarif
         importance: high
@@ -1205,7 +1170,6 @@ def test_get_hosts_by_group_name_empty(host_inventory: ApplicationHostInventory)
     https://issues.redhat.com/browse/ESSNTL-5138
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter hosts by empty group_name - get ungrouped hosts
@@ -1229,7 +1193,6 @@ def test_get_hosts_by_group_name_multiple_groups(host_inventory: ApplicationHost
     https://issues.redhat.com/browse/ESSNTL-5108
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter hosts by multiple group_name values
@@ -1261,7 +1224,6 @@ def test_get_hosts_by_group_name_not_contains(host_inventory: ApplicationHostInv
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter hosts by group_name - filter uses 'eq', not 'contains'
@@ -1285,7 +1247,6 @@ def test_get_hosts_by_group_name_multiple_hosts_in_group(host_inventory: Applica
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter hosts by group_name, if the group has multiple hosts
@@ -1311,7 +1272,6 @@ def test_get_hosts_by_group_name_different_account(
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test that I can't get hosts by group_name from different account
@@ -1358,7 +1318,6 @@ def test_get_hosts_by_system_type(
     Test GET of host using system_type URL parameter.
     JIRA: https://issues.redhat.com/browse/RHINENG-19125
     metadata:
-
         assignee: zabikeno
         importance: high
         title: Confirm system_type parameter retrieves right hosts

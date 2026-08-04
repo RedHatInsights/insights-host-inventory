@@ -320,7 +320,6 @@ def test_legacy_paths(
     https://issues.redhat.com/browse/RHINENG-11455
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test that "legacy paths" are operating correctly in Stage and Prod
@@ -364,7 +363,6 @@ def test_legacy_paths_ephemeral(
     https://issues.redhat.com/browse/RHINENG-11455
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test that "legacy paths" are operating correctly in ephemeral

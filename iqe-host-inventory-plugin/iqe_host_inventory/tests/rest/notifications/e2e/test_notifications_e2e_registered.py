@@ -94,7 +94,6 @@ def test_notifications_e2e_registered(
     https://issues.redhat.com/browse/RHINENG-7918
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test email notification and event log after creating hosts
@@ -129,7 +128,6 @@ def test_notifications_e2e_registered_digest(
     https://issues.redhat.com/browse/RHINENG-7918
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test email notification digest after creating hosts

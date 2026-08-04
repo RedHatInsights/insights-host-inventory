@@ -37,7 +37,6 @@ def test_patch_display_name(
     4. Confirm the host has the new display_name value
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: PATCH display_name field of host
@@ -62,7 +61,6 @@ def test_patch_display_name_culled_host(host_inventory: ApplicationHostInventory
     3. Confirm the response from the PATCH has status code 404
 
     metadata:
-
         assignee: fstavela
         importance: low
         negative: true
@@ -89,7 +87,6 @@ def test_patch_ansible_host(
     4. Confirm the host has the new ansible_host value
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: PATCH ansible_host field of host
@@ -113,7 +110,6 @@ def test_patch_ansible_host_culled_host(host_inventory: ApplicationHostInventory
     3. Confirm the response from the PATCH has status code 404
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: PATCH ansible_host field of a culled host
@@ -138,7 +134,6 @@ def test_patch_display_name_multiple_hosts(
     4. Confirm the hosts have the new display_name value
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: PATCH display_name field of multiple hosts
@@ -165,7 +160,6 @@ def test_patch_facts_over_an_existing_fact(host_inventory: ApplicationHostInvent
     4. Confirm the host has the new fact value
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: PATCH facts in an existing namespace
@@ -198,7 +192,6 @@ def test_patch_facts_non_existing_namespace(host_inventory: ApplicationHostInven
     3. Confirm the response from the PATCH has status code 400
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: PATCH facts to a non-existing namespace
@@ -232,7 +225,6 @@ def test_patch_facts_existing_namespace(host_inventory: ApplicationHostInventory
     5. Confirm the new fact is present.
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: PATCH new fact to an existing namespace
@@ -268,7 +260,6 @@ def test_patch_facts_culled_host(host_inventory: ApplicationHostInventory):
     3. Confirm the response from the PATCH has status code 400
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: PATCH new fact to an existing namespace on a culled host
@@ -300,7 +291,6 @@ def test_patch_host_doesnt_update_last_check_in(
     https://issues.redhat.com/browse/RHINENG-15759
 
     metadata:
-
       assignee: zabikeno
       importance: high
       title: Make sure 'last_check_in' is not updated after patching host's name.

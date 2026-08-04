@@ -26,7 +26,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access
@@ -52,7 +51,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access can get correct hosts by id
@@ -80,7 +78,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access
@@ -103,7 +100,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true

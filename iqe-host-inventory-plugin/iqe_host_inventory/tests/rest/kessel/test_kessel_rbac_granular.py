@@ -120,7 +120,6 @@ class TestNestedWorkspaceReadPermissions:
     ):
         """
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that hosts:read permission on a parent workspace grants read access
@@ -166,7 +165,6 @@ class TestNestedWorkspaceReadPermissions:
     ):
         """
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that groups:read permission on a parent workspace grants read access
@@ -218,7 +216,6 @@ class TestNestedWorkspaceWritePermissions:
     ):
         """
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that hosts:write permission on a parent workspace grants write access
@@ -253,7 +250,6 @@ class TestNestedWorkspaceWritePermissions:
     ):
         """
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that groups:write permission on a parent workspace grants write access

@@ -24,7 +24,6 @@ def test_export_hosts_large_inventory(host_inventory_secondary: ApplicationHostI
     Jira: https://issues.redhat.com/browse/RHINENG-11833
 
     metadata:
-
       assignee: msager
       importance: high
       title: Export a large inventory
@@ -63,7 +62,6 @@ def test_export_hosts_add_hosts_during_export(
     that the export takes enough time for us to add hosts.
 
     metadata:
-
       assignee: msager
       importance: medium
       title: Add some hosts with an export in-progress
@@ -97,7 +95,6 @@ def test_export_hosts_delete_hosts_during_export(
     the export takes enough time for us to delete hosts.
 
     metadata:
-
       assignee: msager
       importance: medium
       title: Delete some hosts with an export in-progress

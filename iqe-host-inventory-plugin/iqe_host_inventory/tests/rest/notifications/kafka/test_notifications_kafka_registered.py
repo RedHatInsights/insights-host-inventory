@@ -104,7 +104,6 @@ def test_notifications_kafka_registered(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Creating a host triggers a new-system-registered notification
@@ -128,7 +127,6 @@ def test_notifications_kafka_registered_multiple_hosts(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Creating multiple hosts triggers multiple new-system-registered notifications
@@ -162,7 +160,6 @@ def test_notifications_kafka_registered_update_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         negative: true
@@ -197,7 +194,6 @@ def test_notifications_kafka_registered_failed_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         negative: true
@@ -224,7 +220,6 @@ def test_notifications_kafka_registered_patch_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         negative: true
@@ -258,7 +253,6 @@ def test_notifications_kafka_registered_create_group_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         negative: true
@@ -284,7 +278,6 @@ def test_notifications_kafka_registered_create_staleness_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-
         assignee: fstavela
         importance: high
         negative: true

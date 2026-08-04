@@ -31,7 +31,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -58,7 +57,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -86,7 +84,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -109,7 +106,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -137,7 +133,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -165,7 +160,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -192,7 +186,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -212,7 +205,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-
           assignee: fstavela
           importance: medium
           negative: true
@@ -235,7 +227,6 @@ def test_rbac_granular_groups_cert_auth_bypass_checks_get_groups_by_id(
     https://issues.redhat.com/browse/ESSNTL-5262
 
     metadata:
-
       assignee: fstavela
       importance: medium
       negative: true

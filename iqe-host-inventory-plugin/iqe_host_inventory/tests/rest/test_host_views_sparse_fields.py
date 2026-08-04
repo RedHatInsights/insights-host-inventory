@@ -38,7 +38,6 @@ class TestSparseFieldsSingleApp:
         """Requesting fields[advisor]=true returns only advisor with all fields.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields - single app all fields
@@ -68,7 +67,6 @@ class TestSparseFieldsSingleApp:
         """Requesting fields[vulnerability]=critical_cves returns only that field.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields - single app specific fields
@@ -107,7 +105,6 @@ class TestSparseFieldsMultipleApps:
         """Requesting fields[advisor]=true&fields[vulnerability]=true returns both apps.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields - multiple apps all fields
@@ -138,7 +135,6 @@ class TestSparseFieldsMultipleApps:
         """Request specific fields from multiple apps.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields - multiple apps specific fields
@@ -180,7 +176,6 @@ class TestSparseFieldsMetaKey:
         """fields[app_data]=true returns all available app data.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields - app_data meta-key
@@ -216,7 +211,6 @@ class TestSparseFieldsMetaKey:
         all apps with all fields (the meta-key overrides app-specific selections).
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - app_data meta-key with app-specific fields
@@ -254,7 +248,6 @@ class TestSparseFieldsEdgeCases:
         """Per JSON:API spec, fields[advisor]= (empty) returns empty object.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - empty value returns empty object
@@ -282,7 +275,6 @@ class TestSparseFieldsEdgeCases:
         """Requesting an app that has no data returns nothing for that app.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - app with no data
@@ -307,7 +299,6 @@ class TestSparseFieldsEdgeCases:
         """Unknown app name in fields parameter should return 400.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - unknown app name returns 400
@@ -327,7 +318,6 @@ class TestSparseFieldsEdgeCases:
         """Valid app with invalid field returns empty object for that app.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - invalid field returns empty
@@ -355,7 +345,6 @@ class TestSparseFieldsEdgeCases:
         """Mix of valid and invalid fields returns only valid fields.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields - mixed valid and invalid fields
@@ -386,7 +375,6 @@ class TestSparseFieldsWithFiltering:
         """Sparse fields work together with host filtering.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields combined with filtering
@@ -417,7 +405,6 @@ class TestSparseFieldsWithFiltering:
         """Sparse fields work with display_name filtering.
 
         metadata:
-
             assignee: adubey
             importance: medium
             title: Test sparse fields with display_name filter
@@ -448,7 +435,6 @@ class TestSparseFieldsWithFiltering:
         This confirms that filtering logic is independent of sparse-field projection.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test filter on one app with sparse fields on another
@@ -514,7 +500,6 @@ class TestSparseFieldsAllApps:
         Also asserts that non-requested fields are omitted/null.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields for each app
@@ -544,7 +529,6 @@ class TestSparseFieldsAllApps:
         """Verify sparse fields work for remediations (single-field app).
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test sparse fields for remediations
@@ -574,7 +558,6 @@ class TestSparseFieldsDefaultBehavior:
         """When fields is not specified, all app data is returned.
 
         metadata:
-
             assignee: adubey
             importance: high
             title: Test default behavior without fields parameter
@@ -610,7 +593,6 @@ class TestSystemProfileSparseFields:
         """fields[system_profile]=arch,host_type returns only those SP fields.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test SP sparse fields on hosts-view
@@ -640,7 +622,6 @@ class TestSystemProfileSparseFields:
         """Without fields[system_profile], no system_profile in response.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test default omits system_profile
@@ -664,7 +645,6 @@ class TestSystemProfileSparseFields:
         """fields[system_profile]=arch combined with fields[advisor]=recommendations.
 
         metadata:
-
             assignee: rantunes
             importance: high
             title: Test SP fields combined with app data fields

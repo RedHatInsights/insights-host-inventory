@@ -40,7 +40,6 @@ def test_pagination(host_inventory, hbi_setup_hosts_for_pagination):
     Create hosts and paginate through the results.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination
@@ -68,7 +67,6 @@ def test_pagination_invalid_page_index(host_inventory, hbi_setup_hosts_for_pagin
     2. last page +1
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: Test Pagination with Invalid Page Index
@@ -105,7 +103,6 @@ def test_pagination_invalid_pages(
     Try to navigate by specifying invalid values for page number. Expect 400 status code.
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: Test Pagination with Invalid Page Number Values
@@ -127,7 +124,6 @@ def test_unique_results_by_id(host_inventory, hbi_setup_hosts_for_pagination):
     Confirm that each page contains a unique set of results according to the host id.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results Are Unique
@@ -322,7 +318,6 @@ def test_unique_results_by_display_name(host_inventory, hbi_setup_hosts_for_pagi
     Confirm paginated results are unique when filtered by display_name.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results By display_name are Unique
@@ -359,7 +354,6 @@ def test_unique_results_for_id_list(host_inventory, hbi_setup_hosts_for_paginati
     Test Pagination of Multi-Host Request Contains Unique Results.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination of Multi-Host Request Contains Unique Results
@@ -401,7 +395,6 @@ def test_unique_results_by_hostname_or_id(host_inventory, hbi_setup_hosts_for_pa
     Confirm results of a GET filtered by hostname_or_id parameter are unique.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination of Multi-Host Request Contains Unique Results
@@ -452,7 +445,6 @@ def test_pagination_of_system_profile_fetching(host_inventory, hbi_setup_hosts_f
     Test Paginated Results of GET for system_profile details are unique.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results of GET for system_profile are unique
@@ -489,7 +481,6 @@ def test_pagination_of_tags(
     JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Paginated Results of GET for tags are unique
@@ -529,7 +520,6 @@ def test_pagination_tags_number_of_records(
     JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Paginated Results of GET for tags return

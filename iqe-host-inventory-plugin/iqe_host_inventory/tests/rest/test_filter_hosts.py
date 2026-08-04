@@ -139,7 +139,6 @@ def test_filter_hosts_by_system_profile_sap_sids(
     2. Make sure that all hosts from the result have the correct sap_sids value
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Hosts filtering by sap_sids
@@ -297,7 +296,6 @@ class TestOperatingSystemFiltering:
         https://issues.redhat.com/browse/RHCLOUD-13904
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Inventory: filter hosts by operating_system
@@ -451,7 +449,6 @@ class TestOperatingSystemFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Inventory: filter tags by operating_system
@@ -475,7 +472,6 @@ class TestOperatingSystemFiltering:
     def test_operating_systems_pagination(self, host_inventory: ApplicationHostInventory):
         """
         metadata:
-
             assignee: fstavela
             importance: medium
             title: Inventory: operating_system pagination
@@ -496,7 +492,6 @@ class TestOperatingSystemFiltering:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2751
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: operating_system values enumerating
@@ -533,7 +528,6 @@ class TestOperatingSystemFiltering:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2923
 
         metadata:
-
             assignee: fstavela
             importance: medium
             title: test search parameter on /system_profile/operating_system endpoint
@@ -617,7 +611,6 @@ def test_filter_hosts_by_system_profile_ansible(
     https://issues.redhat.com/browse/ESSNTL-1508
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by ansible
@@ -726,7 +719,6 @@ def test_filter_hosts_by_system_profile_sap(
     https://issues.redhat.com/browse/ESSNTL-1616
 
     metadata:
-
       assignee: zabikeno
       importance: high
       title: Inventory: filter hosts by sap object
@@ -777,7 +769,6 @@ def test_filter_hosts_by_system_profile_mssql(
     https://issues.redhat.com/browse/ESSNTL-1613
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by mssql
@@ -812,7 +803,6 @@ def test_filter_hosts_by_system_profile_fields_nil(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts with nil and not_nil values
@@ -905,7 +895,6 @@ def test_filter_hosts_by_system_profile_string_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by string fields
@@ -960,7 +949,6 @@ def test_filter_hosts_by_system_profile_integer_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by integer fields
@@ -1023,7 +1011,6 @@ def test_filter_hosts_by_system_profile_boolean_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by boolean fields
@@ -1068,7 +1055,6 @@ def test_filter_hosts_by_system_profile_datetime_fields_range_operations(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Range operations generic filtering of hosts by date-time fields
@@ -1109,7 +1095,6 @@ def test_filter_hosts_by_system_profile_multiple_types(host_inventory: Applicati
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by fields of various types at the same time
@@ -1186,7 +1171,6 @@ def test_filter_hosts_by_system_profile_fields_incorrect_comparator(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-
       assignee: fstavela
       importance: low
       title: Generic filtering of hosts with incorrect comparators
@@ -1211,7 +1195,6 @@ def test_filter_hosts_by_system_profile_multiple_values_without_brackets(
     Jira: https://issues.redhat.com/browse/ESSNTL-1960
 
     metadata:
-
       assignee: fstavela
       importance: low
       title: Filtering hosts by multiple values of the same field without [] returns error 400
@@ -1240,7 +1223,6 @@ def test_filter_hosts_by_system_profile_object_nil(
     Jira: https://issues.redhat.com/browse/ESSNTL-2362
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filtering hosts by object fields by nil/not_nil
@@ -1413,7 +1395,6 @@ def test_filter_hosts_by_system_profile_bootc_status(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by bootc_status
@@ -1452,7 +1433,6 @@ def test_filter_hosts_by_system_profile_bootc_status_host_type(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-
                     inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
@@ -1513,7 +1493,6 @@ class TestOsRhcFiltering:
         https://issues.redhat.com/browse/RHINENG-9784
 
         metadata:
-
                         inv-hosts-get-by-sp-scalar-fields
           assignee: fstavela
           importance: high
@@ -1570,7 +1549,6 @@ class TestOsRhcFiltering:
         https://issues.redhat.com/browse/RHINENG-9784
 
         metadata:
-
                         inv-hosts-get-by-sp-scalar-fields
           assignee: fstavela
           importance: high
@@ -1633,7 +1611,6 @@ class TestOsDisplayNameFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-
                         inv-hosts-filter-by-display_name
           assignee: fstavela
           importance: high
@@ -1695,7 +1672,6 @@ class TestOsDisplayNameFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-
                         inv-hosts-filter-by-display_name
           assignee: fstavela
           importance: high
@@ -1731,7 +1707,6 @@ def test_filter_hosts_with_invalid_system_profile_operating_system(
 ):
     """
     metadata:
-
       assignee: msager
       importance: medium
       negative: true
@@ -1810,7 +1785,6 @@ def test_filter_hosts_by_system_profile_rhel_ai(
     https://issues.redhat.com/browse/RHINENG-14894
 
     metadata:
-
       assignee: zabikeno
       importance: high
       title: Inventory: filter hosts by rhel_ai

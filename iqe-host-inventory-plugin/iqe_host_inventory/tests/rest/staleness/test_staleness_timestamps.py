@@ -55,7 +55,6 @@ def test_staleness_timestamps_default_settings(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps without custom staleness settings
@@ -75,7 +74,6 @@ def test_staleness_timestamps_custom_settings(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps with custom staleness settings
@@ -104,7 +102,6 @@ def test_staleness_timestamps_update_settings(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps when custom staleness settings are updated
@@ -144,7 +141,6 @@ def test_staleness_timestamps_delete_settings(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps when custom staleness settings are reset
@@ -181,7 +177,6 @@ def test_staleness_timestamps_custom_settings_proper_account(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps are set on the proper account
@@ -225,7 +220,6 @@ def test_staleness_timestamps_update_settings_proper_account(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps are updated on the proper account
@@ -284,7 +278,6 @@ def test_staleness_timestamps_delete_settings_proper_account(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: high
       title: Validate host timestamps are reset on the proper account
@@ -339,7 +332,6 @@ def test_staleness_timestamps_verify_payload_ignored(
 ) -> None:
     """
     metadata:
-
       assignee: msager
       importance: low
       title: Verify that staleness settings are used even when host payload timestamps are set

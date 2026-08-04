@@ -32,7 +32,6 @@ def test_host_checkin(host_inventory: ApplicationHostInventory) -> None:
     """POST /hosts/checkin updates the host's last_check_in and staleness timestamps.
 
     metadata:
-
         assignee: aarif
         importance: medium
         title: POST /hosts/checkin updates last_check_in and staleness timestamps
@@ -52,7 +51,6 @@ def test_host_checkin_with_frequency(host_inventory: ApplicationHostInventory) -
     """POST /hosts/checkin with an explicit checkin_frequency updates staleness timestamps.
 
     metadata:
-
         assignee: aarif
         importance: medium
         title: POST /hosts/checkin with custom checkin_frequency updates staleness timestamps
@@ -72,7 +70,6 @@ def test_host_checkin_requires_canonical_fact(host_inventory: ApplicationHostInv
     """POST /hosts/checkin requires at least one canonical fact.
 
     metadata:
-
         assignee: aarif
         importance: low
         title: POST /hosts/checkin rejects requests with no canonical facts

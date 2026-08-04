@@ -70,7 +70,6 @@ class TestRBACHostsReadPermission:
            with the user's org_id
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to list hosts
@@ -103,7 +102,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host details
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host details
@@ -137,7 +135,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host system profile facts
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to
@@ -174,7 +171,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host tags
@@ -210,7 +206,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags count
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users with "read" permission have access to host tags count
@@ -236,7 +231,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to tags
@@ -258,7 +252,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of operating systems
@@ -284,7 +277,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap system values
@@ -303,7 +295,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap sids
@@ -325,7 +316,6 @@ class TestRBACHostsReadPermission:
         3. Verify that the export succeeds
 
         metadata:
-
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have "read" permission are able to export hosts
@@ -353,7 +343,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host id
 
         metadata:
-
             assignee: msager
             importance: high
             title: Confirm users who have "read" permission can check for host existence
@@ -386,7 +375,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -417,7 +405,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -450,7 +437,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -484,7 +470,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -516,7 +501,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -540,7 +524,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -559,7 +542,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -582,7 +564,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -605,7 +586,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -627,7 +607,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-
             assignee: msager
             importance: high
             negative: true
@@ -650,7 +629,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-
             assignee: msager
             importance: high
             title: Confirm users who don't have "read" permission can't check for host existence

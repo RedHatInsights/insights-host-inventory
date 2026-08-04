@@ -25,7 +25,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure GET request returns a 403 error
 
         metadata:
-
             assignee: msager
             importance: medium
             negative: true
@@ -46,7 +45,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure GET request returns a 403 error
 
         metadata:
-
             assignee: msager
             importance: medium
             negative: true
@@ -67,7 +65,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure POST request returns a 403 error
 
         metadata:
-
             assignee: msager
             importance: medium
             negative: true
@@ -94,7 +91,6 @@ class TestRBACStalenessCertAuth:
         3. Ensure PATCH request returns a 403 error
 
         metadata:
-
             assignee: msager
             importance: medium
             negative: true
@@ -123,7 +119,6 @@ class TestRBACStalenessCertAuth:
         3. Ensure DELETE request returns a 403 error
 
         metadata:
-
             assignee: msager
             importance: medium
             negative: true

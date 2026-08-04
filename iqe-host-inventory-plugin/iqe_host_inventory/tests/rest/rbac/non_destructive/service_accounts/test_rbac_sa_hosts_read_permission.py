@@ -35,7 +35,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission can get a list of hosts
@@ -61,7 +60,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission can get hosts by IDs
@@ -85,7 +83,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission
@@ -112,7 +109,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission can get host's tags
@@ -138,7 +134,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission
@@ -162,7 +157,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission can get a list of tags
@@ -183,7 +177,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission can get a list of OSs
@@ -212,7 +205,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission
@@ -231,7 +223,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:read" permission
@@ -251,7 +242,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: msager
             importance: high
             title: Test that service accounts with "hosts:read" permission can export hosts
@@ -275,7 +265,6 @@ class TestRBACSAHostsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: msager
             importance: high
             title: Test that service accounts with "hosts:read" permission can check
@@ -300,7 +289,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -323,7 +311,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -349,7 +336,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -375,7 +361,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -400,7 +385,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -426,7 +410,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -445,7 +428,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -468,7 +450,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -491,7 +472,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -515,7 +495,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-
             assignee: msager
             importance: high
             negative: true
@@ -533,7 +512,6 @@ class TestRBACSAHostsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: msager
             importance: high
             negative: true

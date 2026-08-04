@@ -32,7 +32,6 @@ def test_groups_delete_host_in_group(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Delete a host assigned to group from Inventory
@@ -52,7 +51,6 @@ def test_groups_update_host_in_group(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Host's groups data is included in update events when updating host
@@ -74,7 +72,6 @@ def test_groups_get_host_by_id_response(host_inventory: ApplicationHostInventory
     https://issues.redhat.com/browse/ESSNTL-4771
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Host's groups data is included in GET /hosts/<host_id_list> response
@@ -99,7 +96,6 @@ def test_groups_get_hosts_list(host_inventory: ApplicationHostInventory, in_grou
     https://issues.redhat.com/browse/ESSNTL-4771
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Host's groups data is included in GET /hosts response
@@ -129,7 +125,6 @@ def test_get_hosts_from_group_basic(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Get hosts from a specific group using dedicated endpoint
@@ -163,7 +158,6 @@ def test_get_hosts_from_empty_group(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Get hosts from an empty group returns empty list
@@ -194,7 +188,6 @@ def test_get_hosts_from_group_with_pagination(host_inventory: ApplicationHostInv
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Pagination works correctly for GET /groups/{group_id}/hosts
@@ -234,7 +227,6 @@ def test_get_hosts_from_group_with_ordering(
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Ordering works correctly for GET /groups/{group_id}/hosts
@@ -276,7 +268,6 @@ def test_get_hosts_from_group_with_display_name_filter(host_inventory: Applicati
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Display name filter works for GET /groups/{group_id}/hosts
@@ -308,7 +299,6 @@ def test_get_hosts_from_group_with_fqdn_filter(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: FQDN filter works for GET /groups/{group_id}/hosts
@@ -339,7 +329,6 @@ def test_get_hosts_from_group_with_staleness_filter(host_inventory: ApplicationH
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Staleness filter works for GET /groups/{group_id}/hosts
@@ -365,7 +354,6 @@ def test_get_hosts_from_group_with_tags_filter(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Tags filter works for GET /groups/{group_id}/hosts
@@ -409,7 +397,6 @@ def test_get_hosts_from_group_multiple_filters(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Multiple filters work together for GET /groups/{group_id}/hosts
@@ -445,7 +432,6 @@ def test_get_hosts_from_group_with_hostname_or_id_filter(host_inventory: Applica
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Hostname or ID filter works for GET /groups/{group_id}/hosts
@@ -485,7 +471,6 @@ def test_get_hosts_from_group_with_insights_id_filter(host_inventory: Applicatio
     https://issues.redhat.com/browse/RHINENG-21605
 
     metadata:
-
       assignee: maarif
       importance: high
       title: Insights ID filter works for GET /groups/{group_id}/hosts

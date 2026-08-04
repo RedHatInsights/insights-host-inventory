@@ -54,7 +54,6 @@ def test_delete_multiple_hosts_with_invalid_id(
     4. Confirm no hosts were deleted.
 
     metadata:
-
         assignee: btweed
         importance: low
         title: Inventory: Confirm deletion of multiple hosts with an invalid id does not
@@ -77,7 +76,6 @@ def test_delete_existing_and_non_existent_hosts(
 ):
     """
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Try deleting existing and non-existent hosts in the same request.
@@ -105,7 +103,6 @@ def test_delete_multiple_hosts(host_inventory: ApplicationHostInventory):
     4. Confirm all three hosts were deleted
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm deletion of multiple hosts works.
@@ -126,7 +123,6 @@ def test_delete_non_existent_host(
     2. Confirm the response is 404
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: Confirm deletion of a non-existent host.
@@ -148,7 +144,6 @@ def test_delete_culled_host(host_inventory: ApplicationHostInventory):
     3. Make sure that an error 404 is returned
 
     metadata:
-
         assignee: fstavela
         importance: low
         title: Inventory: Confirm that is not possible to delete a culled host
@@ -175,7 +170,6 @@ def test_concurrency_delete(
     3. Confirm the host was successfully deleted
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Confirm concurrent deletion of same host.
@@ -226,7 +220,6 @@ def test_host_deletion_happy_path(host_inventory: ApplicationHostInventory):
     3. Confirm DELETE request was successful via a GET
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm host deletion happy path
@@ -263,7 +256,6 @@ def test_delete_hosts_by_subman_id_internal_rhsm_request(
     https://issues.redhat.com/browse/RHINENG-18446
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test DELETE on /hosts with 'group_name' parameter doesn't affect different accounts
@@ -308,7 +300,6 @@ def test_delete_bulk_hostname_or_id(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with 'hostname_or_id' parameter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test DELETE on /hosts with 'hostname_or_id' parameter
@@ -330,7 +321,6 @@ def test_delete_bulk_registered_with(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with 'registered_with' parameter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test DELETE on /hosts with 'registered_with' parameter
@@ -354,7 +344,6 @@ def test_delete_bulk_last_check_in(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with combined last_check_in_start and last_check_in_end.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Delete hosts by combined last_check_in_start and last_check_in_end
@@ -379,7 +368,6 @@ def test_delete_bulk_group_name(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with 'group_name' parameter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Delete hosts by group_name
@@ -403,7 +391,6 @@ def test_delete_bulk_system_type(
     Test DELETE on /hosts endpoint with 'system_type' parameter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Confirm system_type parameter deletes right hosts
@@ -424,7 +411,6 @@ def test_delete_bulk_tags(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with 'tags' parameter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test DELETE on /hosts with 'tags' parameter
@@ -449,7 +435,6 @@ def test_delete_bulk_workloads_sap(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts endpoint with system_profile workloads SAP filter.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test DELETE on /hosts with workloads SAP filter
@@ -472,7 +457,6 @@ def test_delete_bulk_all_hosts(host_inventory: ApplicationHostInventory):
     Test DELETE on /hosts/all endpoint with correct parameters.
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Test DELETE on /hosts/all with correct parameters
@@ -493,7 +477,6 @@ def test_delete_bulk_different_account(
     Test that bulk delete on one account doesn't affect hosts in another account.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Inventory: Test DELETE on /hosts doesn't affect different accounts

@@ -43,7 +43,6 @@ def test_rbac_inventory_with_rhel_roles(
 
     metadata:
         importance: high
-
         assignee: zabikeno
         title: Test that user with RHEL roles has required inventory permissions
     """

@@ -60,7 +60,6 @@ class TestRBACGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4499
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:read" permission can get a list of groups
@@ -80,7 +79,6 @@ class TestRBACGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4500
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:read" permission can get groups by ID
@@ -108,7 +106,6 @@ class TestRBACGroupsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4499
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -126,7 +123,6 @@ class TestRBACGroupsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4500
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true

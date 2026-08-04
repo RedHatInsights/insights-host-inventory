@@ -40,7 +40,6 @@ def test_service_proxy_get_all_hosts(application: Application, service_proxy_url
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /hosts
@@ -64,7 +63,6 @@ def test_service_proxy_get_host_by_id(application: Application, service_proxy_ur
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /hosts/<host_id>
@@ -93,7 +91,6 @@ def test_service_proxy_get_system_profile(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /hosts/<host_id>/system_profile
@@ -125,7 +122,6 @@ def test_service_proxy_get_host_tags(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /hosts/<host_id>/tags
@@ -155,7 +151,6 @@ def test_service_proxy_get_host_tags_count(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /hosts/<host_id>/tags/count
@@ -183,7 +178,6 @@ def test_service_proxy_patch_host(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - PATCH /hosts/<host_id>
@@ -213,7 +207,6 @@ def test_service_proxy_patch_facts(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - PATCH /hosts/<host_id>/facts/<namespace>
@@ -252,7 +245,6 @@ def test_service_proxy_put_facts(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - PUT /hosts/<host_id>/facts/<namespace>
@@ -287,7 +279,6 @@ def test_service_proxy_delete_host(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - DELETE /hosts/<host_id>
@@ -313,7 +304,6 @@ def test_service_proxy_get_sap_sids(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /system_profile/sap_sids
@@ -352,7 +342,6 @@ def test_service_proxy_get_sap_system(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /system_profile/sap_system
@@ -391,7 +380,6 @@ def test_service_proxy_get_tags(
     JIRA: https://issues.redhat.com/browse/ESSNTL-933
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Test service proxy - GET /tags

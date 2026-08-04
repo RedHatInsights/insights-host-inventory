@@ -73,7 +73,6 @@ def test_notifications_kafka_host_stale_toggle_via_refresh(
     https://issues.redhat.com/browse/RHINENG-7912
 
     metadata:
-
         assignee: msager
         importance: high
         title: Staleness toggling is handled correctly
@@ -121,7 +120,6 @@ def test_notifications_kafka_host_stale_retrigger(
     https://issues.redhat.com/browse/RHINENG-7912
 
     metadata:
-
         assignee: msager
         importance: high
         title: Stale notifications only trigger once

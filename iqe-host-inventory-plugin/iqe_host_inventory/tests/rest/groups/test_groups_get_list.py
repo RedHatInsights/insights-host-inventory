@@ -21,7 +21,6 @@ def test_groups_get_list_no_groups(host_inventory):
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list when there are no groups
@@ -47,7 +46,6 @@ def test_groups_get_list(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list
@@ -79,7 +77,6 @@ def test_groups_get_list_only_my_groups(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list with limited amount of groups
@@ -111,7 +108,6 @@ def test_groups_get_list_pagination(host_inventory: ApplicationHostInventory, wi
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Test pagination while getting groups list
@@ -144,7 +140,6 @@ def test_groups_get_list_pagination_only_my_groups(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Test pagination while getting groups list with limited amount of groups
@@ -189,7 +184,6 @@ def test_groups_get_list_ordering(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list - test ordering parameters (RBAC v1 only)
@@ -220,7 +214,6 @@ def test_groups_get_list_ordering_and_pagination(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list - paginate through ordered results (RBAC v1 only)
@@ -256,7 +249,6 @@ def test_groups_get_list_order_how_default(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list - default values for order_how parameter (RBAC v1 only)
@@ -283,7 +275,6 @@ def test_groups_get_list_order_by_default(host_inventory, setup_groups_for_order
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list - default value for order_by parameter
@@ -310,7 +301,6 @@ def test_groups_get_list_by_name_exact(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list by name - provide exact name
@@ -342,7 +332,6 @@ def test_groups_get_list_by_name_part(host_inventory, case_insensitive):
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list by name - provide only part of the name
@@ -376,7 +365,6 @@ def test_groups_get_list_by_name_ordering_and_pagination(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Get groups list by name - paginate through ordered results
@@ -422,7 +410,6 @@ def test_groups_get_list_different_account(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: critical
       negative: true
@@ -460,7 +447,6 @@ def test_groups_get_list_by_name_different_account(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: critical
       negative: true
@@ -496,7 +482,6 @@ def test_groups_get_list_by_name_my_and_different_account(
     https://issues.redhat.com/browse/ESSNTL-3829
 
     metadata:
-
       assignee: fstavela
       importance: critical
       negative: true
@@ -537,7 +522,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list - minimum for per_page param (1)
@@ -554,7 +538,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list - maximum for per_page param (100)
@@ -574,7 +557,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -611,7 +593,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -629,7 +610,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Get groups list - minimum for page param (1)
@@ -645,7 +625,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list - maximum for page param (21474837)
@@ -664,7 +643,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -699,7 +677,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -715,7 +692,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Get groups list - default values for pagination parameters
@@ -748,7 +724,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -785,7 +760,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -801,7 +775,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list by name - minimum length for name param (1)
@@ -818,7 +791,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list by name - maximum length for name param (256)
@@ -838,7 +810,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: low
           negative: true
@@ -854,7 +825,6 @@ class TestGetGroupListEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3829
 
         metadata:
-
           assignee: fstavela
           importance: medium
           title: Get groups list by name - not existing group name

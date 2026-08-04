@@ -68,7 +68,6 @@ class TestHostsSortOrdering:
         Confirm sort ordering parameters for GET of /hosts work as expected.
 
         metadata:
-
             assignee: fstavela
             importance: critical
             title: Inventory: Confirm sort ordering for GET of /hosts works as expected
@@ -95,7 +94,6 @@ class TestHostsSortOrdering:
         Confirm sort ordering parameters for GET of /hosts/{host_id_list} work as expected.
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm sort ordering for GET of /hosts/{host_id_list}
@@ -126,7 +124,6 @@ class TestHostsSortOrdering:
         expected.
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Confirm sort ordering for GET of
@@ -169,7 +166,6 @@ class TestHostsSortOrdering:
         order defaults to descending.
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Inventory: Omission of Sort order_how Parameter

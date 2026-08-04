@@ -34,7 +34,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission can delete hosts by IDs
@@ -57,7 +56,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission
@@ -83,7 +81,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission
@@ -114,7 +111,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -149,7 +145,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true
@@ -185,7 +180,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-
             assignee: fstavela
             importance: high
             negative: true

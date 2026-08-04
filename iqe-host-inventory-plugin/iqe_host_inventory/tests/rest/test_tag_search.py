@@ -69,7 +69,6 @@ def test_search_tags(
        tag properties (namespace, key or value)
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Confirm that is possible search through tags
@@ -147,7 +146,6 @@ class TestTagsTotal:
         3. Make sure the expected total of tags are returned in the response
 
         metadata:
-
             assignee: fstavela
             importance: high
             title: Confirm that the returned total of tags corresponds with the actual number
@@ -211,7 +209,6 @@ def test_search_tags_with_multiple_search_term_combinations(
     3. Ensure the expected tags are returned as result of the query
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Confirm that is possible search through the tags using
@@ -274,7 +271,6 @@ def test_search_tags_with_registered_with_filter(
     5. Make sure the tags from both created hosts are returned
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Confirm that is possible search tags using the
@@ -354,7 +350,6 @@ def test_search_tags_with_staleness_filter(host_inventory: ApplicationHostInvent
     5. Make sure the tags from all of the three hosts are returned as result
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Confirm that is possible search tags using the
@@ -472,7 +467,6 @@ def test_search_host_tags(
     tag properties (namespace, key or value)
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: Confirm that is possible search through host tags
@@ -534,7 +528,6 @@ def test_search_host_tags_with_invalid_terms(
     3. Make sure NO tag is being returned in the response
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: tags search using invalid terms return empty result

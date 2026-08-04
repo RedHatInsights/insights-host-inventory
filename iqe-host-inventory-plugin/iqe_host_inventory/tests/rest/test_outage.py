@@ -20,7 +20,6 @@ def test_outage_get_host_list(
     Test that we can access Inventory and get a list of hosts
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Access Inventory and get a list of hosts
@@ -41,7 +40,6 @@ def test_outage_get_host_by_id(
     Test getting host by ID
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Get host by ID
@@ -63,7 +61,6 @@ def test_outage_get_host_by_hostname_or_id(
     hosts by name.
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Get host by hostname_or_id
@@ -92,7 +89,6 @@ def test_outage_groups(
     - DELETE /groups/<group_id>
 
     metadata:
-
       assignee: fstavela
       importance: critical
       title: Create a group
@@ -125,7 +121,6 @@ def test_outage_cert_auth(
     https://issues.redhat.com/browse/RHCLOUD-12124
 
     metadata:
-
         assignee: fstavela
         importance: critical
         title: Test that creating host via archive upload using cert auth creates owner_id

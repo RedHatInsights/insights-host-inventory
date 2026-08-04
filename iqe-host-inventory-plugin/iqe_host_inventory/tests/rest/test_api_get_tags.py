@@ -46,7 +46,6 @@ def test_get_all_tags(setup_hosts_with_tags, host_inventory):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: GET on /tags without parameters
@@ -70,7 +69,6 @@ def test_get_tags_by_display_name(setup_hosts_with_tags, host_inventory, case):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: GET on /tags with display_name parameter
@@ -94,7 +92,6 @@ def test_get_tags_by_fqdn(setup_hosts_with_tags, host_inventory, case):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: GET on /tags with fqdn parameter
@@ -119,7 +116,6 @@ def test_get_tags_by_hostname_or_id(setup_hosts_with_tags, host_inventory, case)
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Inventory: GET on /tags with hostname_or_id parameter
@@ -147,7 +143,6 @@ def test_get_tags_by_insights_id(setup_hosts_with_tags, host_inventory, case):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: GET on /tags with insights_id parameter
@@ -171,7 +166,6 @@ def test_get_tags_by_provider_id(setup_hosts_with_tags, host_inventory, case):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: GET on /tags with provider_id parameter
@@ -194,7 +188,6 @@ def test_get_tags_by_provider_type(setup_hosts_with_tags, host_inventory):
     JIRA: https://issues.redhat.com/browse/ESSNTL-1383
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: GET on /tags with provider_type parameter
@@ -223,7 +216,6 @@ def test_get_tags_valid_parameters_combinations(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2193
 
     metadata:
-
         assignee: fstavela
         importance: medium
         title: Inventory: Test GET of tags using valid combination of parameters.
@@ -347,7 +339,6 @@ def test_get_tags_by_updated_start(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter tags by updated_start
@@ -384,7 +375,6 @@ def test_get_tags_by_updated_end(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter tags by updated_end
@@ -417,7 +407,6 @@ def test_get_tags_by_updated(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter tags by combined updated_start and updated_end
@@ -450,7 +439,6 @@ def test_get_tags_by_updated_both_same(host_inventory: ApplicationHostInventory)
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter tags by combined updated_start and updated_end - both same
@@ -477,7 +465,6 @@ def test_get_tags_by_updated_different_timezone(
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Filter tags by updated with not-UTC timezone
@@ -513,7 +500,6 @@ def test_get_tags_by_updated_not_created(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/ESSNTL-4356
 
     metadata:
-
       assignee: fstavela
       importance: high
       title: Test that updated filters work by last updated, not created timestamp - tags
@@ -553,7 +539,6 @@ def test_get_tags_by_last_check_in_start(
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter tags by last_check_in_start
@@ -590,7 +575,6 @@ def test_get_tags_by_last_check_in_end(
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter tags by last_check_in_end
@@ -623,7 +607,6 @@ def test_get_tags_by_last_check_in(
     https://issues.redhat.com/browse/ESSNTL-21076
 
     metadata:
-
       assignee: aprice
       importance: high
       title: Filter tags by combined last_check_in_start and last_check_in_end
@@ -660,7 +643,6 @@ def test_get_tags_by_group_name(host_inventory: ApplicationHostInventory, case_i
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter tags by group_name
@@ -686,7 +668,6 @@ def test_get_tags_by_group_id(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-
         assignee: maarif
         importance: high
         title: Filter tags by group_id
@@ -710,7 +691,6 @@ def test_get_tags_with_workspace_name_and_workspace_id(host_inventory: Applicati
     https://issues.redhat.com/browse/RHINENG-21927
 
     metadata:
-
             inv-hosts-filter-by-group_id, inv-api-validation
         assignee: maarif
         importance: high
@@ -737,7 +717,6 @@ def test_get_tags_by_group_name_empty(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-5138
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter tags by empty group_name - get tags of ungrouped hosts
@@ -758,7 +737,6 @@ def test_get_tags_by_group_name_multiple_groups(host_inventory: ApplicationHostI
     https://issues.redhat.com/browse/ESSNTL-5108
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter tags by multiple group_name values
@@ -784,7 +762,6 @@ def test_get_tags_by_group_name_multiple_hosts_in_group(host_inventory: Applicat
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Filter tags by group_name, if the group has multiple hosts
@@ -810,7 +787,6 @@ def test_get_tags_by_group_name_different_account(
     https://issues.redhat.com/browse/ESSNTL-3826
 
     metadata:
-
         assignee: fstavela
         importance: high
         title: Test that I can't get tags by group_name from different account
@@ -856,7 +832,6 @@ def test_get_tags_by_system_type(
     JIRA: https://issues.redhat.com/browse/RHINENG-19125
 
     metadata:
-
         assignee: zabikeno
         importance: high
         title: Inventory: filter tags by system_type

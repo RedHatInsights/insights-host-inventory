@@ -102,7 +102,6 @@ def test_notifications_e2e_stale(
     https://issues.redhat.com/browse/RHINENG-7916
 
     metadata:
-
         assignee: msager
         importance: high
         title: Test email notification and event log when hosts become stale
@@ -148,7 +147,6 @@ def test_notifications_e2e_stale_digest(
     https://issues.redhat.com/browse/RHINENG-7916
 
     metadata:
-
         assignee: msager
         importance: high
         title: Test email notification digest when hosts become stale

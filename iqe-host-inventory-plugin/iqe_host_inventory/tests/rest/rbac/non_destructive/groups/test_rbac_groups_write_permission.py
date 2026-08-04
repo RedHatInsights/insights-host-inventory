@@ -63,7 +63,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4392
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can create a group
@@ -98,7 +97,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4438
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can patch a group
@@ -125,7 +123,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4393
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can delete a group
@@ -148,7 +145,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4394
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can remove hosts from a group
@@ -174,7 +170,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can
@@ -202,7 +197,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4377
 
         metadata:
-
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can add hosts to a group
@@ -239,7 +233,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4392
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -264,7 +257,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -295,7 +287,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4393
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -320,7 +311,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -351,7 +341,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
@@ -382,7 +371,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4377
 
         metadata:
-
           assignee: fstavela
           importance: high
           negative: true
