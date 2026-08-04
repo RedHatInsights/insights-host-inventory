@@ -10,11 +10,11 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
+from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import raises_apierror
-from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
-from iqe_host_inventory_api import GroupOut
 from iqe_host_inventory_api import HostOut
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
 class TestRBACSAHostsWritePermission:
     def test_rbac_sa_hosts_write_permission_delete_host_by_id(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
         host_inventory_sa_1: ApplicationHostInventory,
         prepare_hosts: list[HostOut],
@@ -44,7 +44,7 @@ class TestRBACSAHostsWritePermission:
             importance: high
             title: Test that service accounts with "hosts:write" permission can delete hosts by IDs
         """
-        group = rbac_setup_resources[1][0]
+        group = rbac_setup_resources.groups[0]
         host1 = prepare_hosts[0]
         host2 = prepare_hosts[1]
         host_inventory.apis.groups.add_hosts_to_group(group, host1)
@@ -54,7 +54,7 @@ class TestRBACSAHostsWritePermission:
 
     def test_rbac_sa_hosts_write_permission_delete_hosts_filtered(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
         host_inventory_sa_1: ApplicationHostInventory,
     ) -> None:
@@ -68,7 +68,7 @@ class TestRBACSAHostsWritePermission:
             title: Test that service accounts with "hosts:write" permission
                    can delete filtered hosts
         """
-        group = rbac_setup_resources[1][0]
+        group = rbac_setup_resources.groups[0]
         prefix = f"iqe-hbi-delete-filtered_{generate_uuid()}"
         host1 = host_inventory.upload.create_host(display_name=f"{prefix}_{generate_uuid()}")
         host2 = host_inventory.upload.create_host(display_name=f"{prefix}_{generate_uuid()}")
@@ -79,7 +79,7 @@ class TestRBACSAHostsWritePermission:
 
     def test_rbac_sa_hosts_write_permission_patch_host_display_name(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory: ApplicationHostInventory,
         host_inventory_sa_1: ApplicationHostInventory,
         prepare_hosts: list[HostOut],
@@ -94,7 +94,7 @@ class TestRBACSAHostsWritePermission:
             title: Test that service accounts with "hosts:write" permission
                    can patch host's display name
         """
-        group = rbac_setup_resources[1][0]
+        group = rbac_setup_resources.groups[0]
         host1 = prepare_hosts[0]
         host2 = prepare_hosts[1]
         host_inventory.apis.groups.add_hosts_to_group(group, host1)
@@ -111,7 +111,7 @@ class TestRBACSAHostsWritePermission:
 class TestRBACSAHostsNoWritePermission:
     def test_rbac_sa_hosts_no_write_permission_delete_host_by_id(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         host_inventory: ApplicationHostInventory,
     ) -> None:
@@ -126,7 +126,7 @@ class TestRBACSAHostsNoWritePermission:
             title: Test that service accounts without "hosts:write" permission
                    can't delete hosts by IDs
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
 
         with raises_apierror(
             403,
@@ -146,7 +146,7 @@ class TestRBACSAHostsNoWritePermission:
 
     def test_rbac_sa_hosts_no_write_permission_delete_hosts_filtered(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         host_inventory: ApplicationHostInventory,
     ) -> None:
@@ -161,27 +161,28 @@ class TestRBACSAHostsNoWritePermission:
             title: Test that service accounts without "hosts:write" permission
                    can't delete filtered hosts
         """
-        hosts = rbac_setup_resources[0]
+        hosts = rbac_setup_resources.hosts
+        all_hosts_ids = [host.id for host in flatten(hosts)]
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_sa_2.apis.hosts.delete_filtered(display_name=hosts[0].display_name)
+            host_inventory_sa_2.apis.hosts.delete_filtered(display_name=hosts[0][0].display_name)
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_sa_2.apis.hosts.delete_filtered(display_name=hosts[1].display_name)
+            host_inventory_sa_2.apis.hosts.delete_filtered(display_name=hosts[-1][0].display_name)
 
-        host_inventory.apis.hosts.verify_not_deleted(hosts)
+        host_inventory.apis.hosts.verify_not_deleted(all_hosts_ids)
 
     def test_rbac_sa_hosts_no_write_permission_patch_host_display_name(
         self,
-        rbac_setup_resources: tuple[list[HostOut], list[GroupOut], list[list[TagDict]]],
+        rbac_setup_resources: RBACResources,
         host_inventory_sa_2: ApplicationHostInventory,
         host_inventory: ApplicationHostInventory,
     ) -> None:
@@ -196,7 +197,7 @@ class TestRBACSAHostsNoWritePermission:
             title: Test that service accounts without "hosts:write" permission
                    can't patch host's display name
         """
-        hosts = rbac_setup_resources[0]
+        hosts = rbac_setup_resources.hosts
         new_display_name = generate_display_name()
 
         with raises_apierror(
@@ -204,14 +205,18 @@ class TestRBACSAHostsNoWritePermission:
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_sa_2.apis.hosts.patch_hosts(hosts[0], display_name=new_display_name)
+            host_inventory_sa_2.apis.hosts.patch_hosts(hosts[0][0], display_name=new_display_name)
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_sa_2.apis.hosts.patch_hosts(hosts[1], display_name=new_display_name)
+            host_inventory_sa_2.apis.hosts.patch_hosts(hosts[-1][0], display_name=new_display_name)
 
-        host_inventory.apis.hosts.verify_not_updated(hosts[0], display_name=hosts[0].display_name)
-        host_inventory.apis.hosts.verify_not_updated(hosts[1], display_name=hosts[1].display_name)
+        host_inventory.apis.hosts.verify_not_updated(
+            hosts[0][0], display_name=hosts[0][0].display_name
+        )
+        host_inventory.apis.hosts.verify_not_updated(
+            hosts[-1][0], display_name=hosts[-1][0].display_name
+        )

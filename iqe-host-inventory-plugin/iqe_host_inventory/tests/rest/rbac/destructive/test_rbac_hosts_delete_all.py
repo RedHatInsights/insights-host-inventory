@@ -12,7 +12,6 @@ from os import getenv
 
 import pytest
 from pytest_lazy_fixtures import lf
-from pytest_lazy_fixtures.lazy_fixture import LazyFixtureWrapper
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.api_utils import raises_apierror
@@ -28,26 +27,32 @@ pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent]
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_hosts_write_user_setup"),
-        lf("rbac_inventory_hosts_all_user_setup"),
-        lf("rbac_inventory_admin_user_setup"),
+        lf("host_inventory_rbac_inv_admin"),
+        lf("host_inventory_rbac_hosts_admin"),
+        lf("host_inventory_rbac_hosts_write"),
+        lf("host_inventory_rbac_hosts_all"),
     ],
 )
-def write_permission_user_setup(request: pytest.FixtureRequest) -> LazyFixtureWrapper:
+def host_inventory_write_permissions(
+    request: pytest.FixtureRequest,
+) -> ApplicationHostInventory:
     return request.param
 
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_groups_read_user_setup"),
-        lf("rbac_inventory_groups_write_user_setup"),
-        lf("rbac_inventory_groups_all_user_setup"),
-        lf("rbac_inventory_hosts_read_user_setup"),
-        lf("rbac_inventory_all_read_user_setup"),
-        lf("rbac_inventory_user_without_permissions_setup"),
+        lf("host_inventory_rbac_groups_admin"),
+        lf("host_inventory_rbac_groups_viewer"),
+        lf("host_inventory_rbac_groups_write"),
+        lf("host_inventory_rbac_groups_all"),
+        lf("host_inventory_rbac_hosts_viewer"),
+        lf("host_inventory_rbac_all_read"),
+        lf("host_inventory_rbac_no_perms"),
     ],
 )
-def no_write_permission_user_setup(request: pytest.FixtureRequest) -> LazyFixtureWrapper:
+def host_inventory_no_write_permissions(
+    request: pytest.FixtureRequest,
+) -> ApplicationHostInventory:
     return request.param
 
 
@@ -80,11 +85,10 @@ def prepare_hosts_module(
     return hosts
 
 
-@pytest.mark.usefixtures("write_permission_user_setup")
+@pytest.mark.usefixtures("prepare_hosts")
 def test_rbac_hosts_write_permission_delete_hosts_all(
     host_inventory: ApplicationHostInventory,
-    host_inventory_non_org_admin: ApplicationHostInventory,
-    prepare_hosts: list[HostOut],
+    host_inventory_write_permissions: ApplicationHostInventory,
 ) -> None:
     """
     https://issues.redhat.com/browse/ESSNTL-2218
@@ -95,14 +99,13 @@ def test_rbac_hosts_write_permission_delete_hosts_all(
         importance: high
         title: Test that users with "hosts:write" permission can delete all hosts
     """
-    host_inventory_non_org_admin.apis.hosts.delete_all(confirm_delete_all=True)
+    host_inventory_write_permissions.apis.hosts.delete_all(confirm_delete_all=True)
     host_inventory.apis.hosts.verify_all_deleted()
 
 
-@pytest.mark.usefixtures("no_write_permission_user_setup")
 def test_rbac_hosts_no_write_permission_delete_hosts_all(
     host_inventory: ApplicationHostInventory,
-    host_inventory_non_org_admin: ApplicationHostInventory,
+    host_inventory_no_write_permissions: ApplicationHostInventory,
     prepare_hosts_module: list[HostOut],
 ) -> None:
     """
@@ -120,24 +123,9 @@ def test_rbac_hosts_no_write_permission_delete_hosts_all(
         "You don't have the permission to access the requested resource. "
         "It is either read-protected or not readable by the server.",
     ):
-        host_inventory_non_org_admin.apis.hosts.delete_all(confirm_delete_all=True)
+        host_inventory_no_write_permissions.apis.hosts.delete_all(confirm_delete_all=True)
 
     host_inventory.apis.hosts.verify_not_deleted(prepare_hosts_module)
-
-
-@pytest.fixture(
-    params=[
-        RBACInventoryPermission.HOSTS_WRITE,
-        RBACInventoryPermission.HOSTS_ALL,
-        RBACInventoryPermission.ADMIN,
-    ]
-)
-def write_permission_user_setup_granular(
-    request: pytest.FixtureRequest,
-    prepare_groups: list[GroupOutWithHostCount],
-    hbi_non_org_admin_user_rbac_setup: Callable,
-) -> None:
-    hbi_non_org_admin_user_rbac_setup(permissions=[request.param], hbi_groups=prepare_groups[:2])
 
 
 @pytest.mark.skipif(
@@ -146,11 +134,12 @@ def write_permission_user_setup_granular(
     "https://redhat-internal.slack.com/archives/C0233N2MBU6/p1755699688749819",
     # TODO: Remove skipif when https://issues.redhat.com/browse/RHCLOUD-41427 is done
 )
-@pytest.mark.usefixtures("write_permission_user_setup_granular")
 def test_rbac_granular_hosts_write_permission_delete_hosts_all(
+    hbi_non_org_admin_user_rbac_setup: Callable,
     host_inventory: ApplicationHostInventory,
     host_inventory_non_org_admin: ApplicationHostInventory,
     prepare_hosts: list[HostOut],
+    prepare_groups: list[GroupOutWithHostCount],
 ) -> None:
     """
     https://issues.redhat.com/browse/ESSNTL-2218
@@ -162,6 +151,10 @@ def test_rbac_granular_hosts_write_permission_delete_hosts_all(
         importance: high
         title: Test that users with granular RBAC access can delete all hosts (only correct ones)
     """
+    hbi_non_org_admin_user_rbac_setup(
+        permissions=[RBACInventoryPermission.HOSTS_WRITE], hbi_groups=prepare_groups[:2]
+    )
+
     host_inventory_non_org_admin.apis.hosts.delete_all(confirm_delete_all=True)
     host_inventory.apis.hosts.wait_for_deleted(prepare_hosts[:2])
     host_inventory.apis.hosts.verify_not_deleted(prepare_hosts[2:])

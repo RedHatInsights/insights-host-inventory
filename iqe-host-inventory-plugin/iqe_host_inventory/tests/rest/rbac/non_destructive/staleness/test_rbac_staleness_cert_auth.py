@@ -1,3 +1,5 @@
+# mypy: disallow-untyped-defs
+
 """
 metadata:
   requirements: inv-rbac-cert-auth-bypass
@@ -15,10 +17,10 @@ logger = logging.getLogger(__name__)
 pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent, pytest.mark.cert_auth]
 
 
+@pytest.mark.usefixtures("rbac_staleness_all_hosts_all_user_setup_class")
 class TestRBACStalenessCertAuth:
     def test_rbac_staleness_cert_auth_bypass_checks_get_staleness_defaults(
         self,
-        rbac_staleness_all_user_setup_class: None,
         host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
     ) -> None:
         """
@@ -40,7 +42,6 @@ class TestRBACStalenessCertAuth:
 
     def test_rbac_staleness_cert_auth_bypass_checks_get_staleness(
         self,
-        rbac_staleness_all_user_setup_class: None,
         host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
     ) -> None:
         """
@@ -62,7 +63,6 @@ class TestRBACStalenessCertAuth:
 
     def test_rbac_staleness_cert_auth_bypass_checks_create_staleness(
         self,
-        rbac_staleness_all_user_setup_class: None,
         host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
     ) -> None:
         """
@@ -85,12 +85,11 @@ class TestRBACStalenessCertAuth:
         )
         assert resp.status_code == 403
 
+    @pytest.mark.usefixtures("hbi_staleness_cleanup")
     def test_rbac_staleness_cert_auth_bypass_checks_update_staleness(
         self,
-        rbac_staleness_all_user_setup_class: None,
         host_inventory: ApplicationHostInventory,
         host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
-        hbi_staleness_cleanup: None,
     ) -> None:
         """
         Test response when a cert-auth client tries to update staleness settings via REST API
@@ -115,12 +114,11 @@ class TestRBACStalenessCertAuth:
         )
         assert resp.status_code == 403
 
+    @pytest.mark.usefixtures("hbi_staleness_cleanup")
     def test_rbac_staleness_cert_auth_bypass_checks_delete_staleness(
         self,
-        rbac_staleness_all_user_setup_class: None,
         host_inventory: ApplicationHostInventory,
         host_inventory_non_org_admin_cert_auth: ApplicationHostInventory,
-        hbi_staleness_cleanup: None,
     ) -> None:
         """
         Test response when a cert-auth client tries to delete staleness settings via REST API

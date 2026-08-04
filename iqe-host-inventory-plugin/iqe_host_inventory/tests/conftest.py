@@ -23,6 +23,7 @@ from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
+from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
 logger = logging.getLogger(__name__)
 
@@ -528,74 +529,6 @@ def hbi_cleanup_secondary_user_function(
         hbi_cleanup_function(hbi_maybe_application_secondary.host_inventory)
 
 
-# FRONTEND USER
-
-
-@pytest.fixture(scope="session", autouse=True)
-def hbi_cleanup_frontend_user_session(
-    hbi_maybe_application_frontend: Application | None,
-    hbi_cleanup_session: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend user which are registered for cleanup
-    at the end of the test session
-    """
-    if hbi_maybe_application_frontend is not None:
-        hbi_cleanup_session(hbi_maybe_application_frontend.host_inventory)
-
-
-@pytest.fixture(scope="package", autouse=True)
-def hbi_cleanup_frontend_user_package(
-    hbi_maybe_application_frontend: Application | None,
-    hbi_cleanup_package: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend user which are registered for cleanup
-    at the end of the test package
-    """
-    if hbi_maybe_application_frontend is not None:
-        hbi_cleanup_package(hbi_maybe_application_frontend.host_inventory)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def hbi_cleanup_frontend_user_module(
-    hbi_maybe_application_frontend: Application | None,
-    hbi_cleanup_module: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend user which are registered for cleanup
-    at the end of the test module
-    """
-    if hbi_maybe_application_frontend is not None:
-        hbi_cleanup_module(hbi_maybe_application_frontend.host_inventory)
-
-
-@pytest.fixture(scope="class", autouse=True)
-def hbi_cleanup_frontend_user_class(
-    hbi_maybe_application_frontend: Application | None,
-    hbi_cleanup_class: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend user which are registered for cleanup
-    at the end of the test class
-    """
-    if hbi_maybe_application_frontend is not None:
-        hbi_cleanup_class(hbi_maybe_application_frontend.host_inventory)
-
-
-@pytest.fixture(scope="function", autouse=True)
-def hbi_cleanup_frontend_user_function(
-    hbi_maybe_application_frontend: Application | None,
-    hbi_cleanup_function: HBICleanupRegistry,
-) -> None:
-    """
-    Deletes all resources created by frontend user which are registered for cleanup
-    at the end of the test function
-    """
-    if hbi_maybe_application_frontend is not None:
-        hbi_cleanup_function(hbi_maybe_application_frontend.host_inventory)
-
-
 # SERVICE ACCOUNT 1
 
 
@@ -943,6 +876,7 @@ def hbi_cleanup_identity_auth_service_account_function(
 def hbi_setup_ephemeral_accounts(
     application: Application,
     host_inventory: ApplicationHostInventory,
+    hbi_default_user_data: DynaBox,
     hbi_maybe_secondary_user_data: DynaBox | None,
     hbi_maybe_non_org_admin_user_data: DynaBox | None,
 ) -> None:
@@ -955,8 +889,9 @@ def hbi_setup_ephemeral_accounts(
         logger.info("Some accounts are not available in the config, skipping accounts setup")
         return
 
-    # Create accounts
     user_provider = UserProvider(application)
+
+    # Create secondary and non-org-admin users
     user_provider.get_user_from_config(hbi_maybe_secondary_user_data)
     user_provider.get_user_from_config(hbi_maybe_non_org_admin_user_data)
 
@@ -972,6 +907,33 @@ def hbi_setup_ephemeral_accounts(
     host_inventory.apis.rbac.reset_user_groups(
         non_org_admin_username, group_name=None, delete_groups=False
     )
+
+    # Set up RBAC sub-users
+    default_username = get_username(hbi_default_user_data)
+    custom_users = application.host_inventory.config.get("users", {})
+    rbac_users = {
+        key: data
+        for key, data in custom_users.items()
+        if hasattr(data, "get") and data.get("rbac") is not None
+    }
+
+    if not rbac_users:
+        logger.info("No RBAC users found in config, skipping RBAC setup")
+        return
+
+    logger.info(f"Setting up {len(rbac_users)} RBAC users in ephemeral environment")
+
+    for user_data in rbac_users.values():
+        user_provider.get_user_from_config(user_data)
+        username = get_username(user_data)
+        suffix = username.removeprefix(f"{default_username}-")
+        logger.info(f"Setting up RBAC for user {username} (suffix: {suffix})")
+        host_inventory.apis.rbac.setup_ephemeral_rbac_user(
+            username, user_data.get("rbac", []), suffix=suffix
+        )
+
+    wait_for_kessel_sync(host_inventory)
+    logger.info("Ephemeral RBAC setup complete")
 
 
 def create_data_on_secondary_account(

@@ -1,78 +1,141 @@
+# Keep in sync with RBAC sub-user entries in:
+#   iqe-host-inventory-plugin/iqe_host_inventory/conf/host_inventory.default.yaml
+#   (smoke.users section, entries with 'rbac' field)
 users:
   # --- Pre-configured role users (assign existing RBAC role) ---
   - suffix: "inv-admin"
-    type: "preconfigured"
-    role_name: "Inventory administrator"
-    workspace_type: "default"
+    roles:
+      - type: "preconfigured"
+        role_name: "Inventory administrator"
+        workspace_type: "default"
 
   - suffix: "hosts-admin"
-    type: "preconfigured"
-    role_name: "Inventory Hosts administrator"
-    workspace_type: "default"
+    roles:
+      - type: "preconfigured"
+        role_name: "Inventory Hosts administrator"
+        workspace_type: "default"
 
   - suffix: "hosts-viewer"
-    type: "preconfigured"
-    role_name: "Inventory Hosts viewer"
-    workspace_type: "default"
+    roles:
+      - type: "preconfigured"
+        role_name: "Inventory Hosts viewer"
+        workspace_type: "default"
 
   - suffix: "groups-admin"
-    type: "preconfigured"
-    role_name: "Inventory Groups administrator"
-    role_name_v2: "Workspace administrator"
-    workspace_type: "default"
+    roles:
+      - type: "preconfigured"
+        role_name: "Inventory Groups administrator"
+        role_name_v2: "Workspace administrator"
+        workspace_type: "default"
 
   - suffix: "groups-viewer"
-    type: "preconfigured"
-    role_name: "Inventory Groups viewer"
-    role_name_v2: "Workspace viewer"
-    workspace_type: "default"
+    roles:
+      - type: "preconfigured"
+        role_name: "Inventory Groups viewer"
+        role_name_v2: "Workspace viewer"
+        workspace_type: "default"
 
   - suffix: "staleness-admin"
-    type: "preconfigured"
-    role_name: "Organization Staleness and Deletion Administrator"
-    workspace_type: "root"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Administrator"
+        workspace_type: "root"
 
   - suffix: "staleness-viewer"
-    type: "preconfigured"
-    role_name: "Organization Staleness and Deletion Viewer"
-    workspace_type: "root"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Viewer"
+        workspace_type: "root"
 
   # --- Custom permission users (playbook creates the role) ---
   - suffix: "staleness-write"
-    type: "custom"
-    permission: "staleness:staleness:write"
-    workspace_type: "root"
+    roles:
+      - type: "custom"
+        permission: "staleness:staleness:write"
+        workspace_type: "root"
 
   - suffix: "hosts-write"
-    type: "custom"
-    permission: "inventory:hosts:write"
-    workspace_type: "default"
+    roles:
+      - type: "custom"
+        permission: "inventory:hosts:write"
+        workspace_type: "default"
 
   - suffix: "groups-write"
-    type: "custom"
-    permission: "inventory:groups:write"
-    workspace_type: "default"
+    roles:
+      - type: "custom"
+        permission: "inventory:groups:write"
+        workspace_type: "default"
 
   - suffix: "hosts-all"
-    type: "custom"
-    permission: "inventory:hosts:*"
-    workspace_type: "default"
+    roles:
+      - type: "custom"
+        permission: "inventory:hosts:*"
+        workspace_type: "default"
 
   - suffix: "groups-all"
-    type: "custom"
-    permission: "inventory:groups:*"
-    workspace_type: "default"
+    roles:
+      - type: "custom"
+        permission: "inventory:groups:*"
+        workspace_type: "default"
 
   - suffix: "all-read"
-    type: "custom"
-    permission: "inventory:*:read"
-    workspace_type: "default"
+    roles:
+      - type: "custom"
+        permission: "inventory:*:read"
+        workspace_type: "default"
 
   - suffix: "staleness-all"
-    type: "custom"
-    permission: "staleness:staleness:*"
-    workspace_type: "root"
+    roles:
+      - type: "custom"
+        permission: "staleness:staleness:*"
+        workspace_type: "root"
+
+  # --- Multi-role users (staleness + hosts) ---
+  - suffix: "stl-adm-hst-adm"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Administrator"
+        workspace_type: "root"
+      - type: "preconfigured"
+        role_name: "Inventory Hosts administrator"
+        workspace_type: "default"
+
+  - suffix: "stl-adm-hst-vwr"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Administrator"
+        workspace_type: "root"
+      - type: "preconfigured"
+        role_name: "Inventory Hosts viewer"
+        workspace_type: "default"
+
+  - suffix: "stl-vwr-hst-adm"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Viewer"
+        workspace_type: "root"
+      - type: "preconfigured"
+        role_name: "Inventory Hosts administrator"
+        workspace_type: "default"
+
+  - suffix: "stl-vwr-hst-vwr"
+    roles:
+      - type: "preconfigured"
+        role_name: "Organization Staleness and Deletion Viewer"
+        workspace_type: "root"
+      - type: "preconfigured"
+        role_name: "Inventory Hosts viewer"
+        workspace_type: "default"
+
+  - suffix: "stl-wrt-hst-wrt"
+    roles:
+      - type: "custom"
+        permission: "staleness:staleness:write"
+        workspace_type: "root"
+      - type: "custom"
+        permission: "inventory:hosts:write"
+        workspace_type: "default"
 
   # --- Special users ---
   - suffix: "no-perms"
-    type: "none"
+    roles: []
