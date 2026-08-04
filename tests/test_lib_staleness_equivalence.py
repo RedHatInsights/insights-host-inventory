@@ -65,3 +65,16 @@ def test_staleness_equivalent_incomplete_payload_returns_false(flask_app):
             {"conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS},
             Identity(USER_IDENTITY),
         )
+
+
+def test_staleness_equivalent_raises_value_error_when_both_none():
+    """staleness_equivalent_to_system_defaults raises ValueError when both identity
+    and sys_defaults are None — the function cannot determine defaults without at
+    least one of them."""
+    triple = {
+        "conventional_time_to_stale": CONVENTIONAL_TIME_TO_STALE_SECONDS,
+        "conventional_time_to_stale_warning": CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+        "conventional_time_to_delete": CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+    }
+    with pytest.raises(ValueError, match="identity is required when sys_defaults is not provided"):
+        staleness_equivalent_to_system_defaults(triple, identity=None)

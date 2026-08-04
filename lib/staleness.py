@@ -27,7 +27,7 @@ _STALENESS_CONVENTIONAL_KEYS = (
 
 def staleness_equivalent_to_system_defaults(
     staleness_data: dict,
-    identity: Identity,
+    identity: Identity | None = None,
     *,
     sys_defaults: Mapping[str, int] | None = None,
 ) -> bool:
@@ -40,7 +40,12 @@ def staleness_equivalent_to_system_defaults(
 
     Pass ``sys_defaults`` to avoid a second :func:`get_sys_default_staleness_api`
     call when the caller already has the defaults object.
+
+    ``identity`` may be ``None`` when ``sys_defaults`` is supplied directly (e.g. from a
+    batch job that has no request context). A :exc:`ValueError` is raised if both are absent.
     """
+    if sys_defaults is None and identity is None:
+        raise ValueError("identity is required when sys_defaults is not provided")
     if sys_defaults is None:
         from app.staleness_serialization import get_sys_default_staleness_api
 
