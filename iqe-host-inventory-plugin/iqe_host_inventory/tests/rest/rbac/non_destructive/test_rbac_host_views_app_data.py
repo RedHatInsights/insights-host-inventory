@@ -126,20 +126,19 @@ class TestAllServicesAccess:
             assert getattr(host.app_data, app) is not None
 
 
-@pytest.mark.usefixtures("rbac_inventory_hosts_read_user_setup_class")
 class TestNoServiceAccess:
     """User with only hosts:read and no service permissions sees no app_data."""
 
     def test_no_apps_user_sees_no_data(
         self,
         host_with_all_app_data,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
         metadata:
             jira: RHINENG-28773
         """
-        response = host_inventory_non_org_admin.apis.host_views.get_host_views_response(
+        response = host_inventory_rbac_hosts_viewer.apis.host_views.get_host_views_response(
             hostname_or_id=str(host_with_all_app_data.id)
         )
 
@@ -153,28 +152,28 @@ class TestNoServiceAccess:
     def test_sort_by_denied_service_returns_403(
         self,
         host_with_all_app_data,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
         metadata:
             jira: RHINENG-28773
         """
         with raises_apierror(403, "Insufficient permissions to sort"):
-            host_inventory_non_org_admin.apis.host_views.get_host_views_response(
+            host_inventory_rbac_hosts_viewer.apis.host_views.get_host_views_response(
                 order_by="vulnerability:critical_cves", order_how="DESC"
             )
 
     def test_filter_by_denied_service_returns_403(
         self,
         host_with_all_app_data,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
         metadata:
             jira: RHINENG-28773
         """
         with raises_apierror(403, "Insufficient permissions to filter"):
-            host_inventory_non_org_admin.apis.host_views.get_host_views_response(
+            host_inventory_rbac_hosts_viewer.apis.host_views.get_host_views_response(
                 filter=["[advisor][recommendations][gte]=1"]
             )
 

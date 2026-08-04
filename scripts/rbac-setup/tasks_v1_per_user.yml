@@ -8,112 +8,17 @@
   ansible.builtin.include_tasks:
     file: "tasks_user_cleanup.yml"
 
-- name: "Setup role and group for {{ username }}"
-  when: user.type != 'none'
+- name: "Setup roles and group for {{ username }}"
+  when: user.roles | length > 0
   block:
-    # --- Look up or create role ---
-
-    - name: "Look up pre-configured role '{{ user.role_name | default('N/A') }}'"
-      ansible.builtin.uri:
-        url: "{{ rbac_v1_base }}/roles/?name={{ user.role_name | urlencode }}"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: preconfigured_role_lookup
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: preconfigured_role_lookup is not failed
-      when: user.type == 'preconfigured'
-
-    - name: "Fail if pre-configured role '{{ user.role_name | default('N/A') }}' not found"
-      ansible.builtin.fail:
-        msg: "Pre-configured role '{{ user.role_name }}' not found in RBAC. Available roles may differ by environment."
-      when:
-        - user.type == 'preconfigured'
-        - preconfigured_role_lookup.json.meta.count == 0
-
-    - name: "Check if custom role '{{ role_name_custom }}' exists"
-      ansible.builtin.uri:
-        url: "{{ rbac_v1_base }}/roles/?name={{ role_name_custom | urlencode }}"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: custom_role_lookup
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: custom_role_lookup is not failed
-      when: user.type == 'custom'
-
-    - name: "Create custom role '{{ role_name_custom }}'"
-      ansible.builtin.uri:
-        url: "{{ rbac_v1_base }}/roles/"
-        method: POST
-        headers: "{{ auth_header }}"
-        body_format: json
-        body:
-          name: "{{ role_name_custom }}"
-          description: "Test role for {{ user.permission }} permission"
-          access:
-            - permission: "{{ user.permission }}"
-              resourceDefinitions: []
-          applications:
-            - "{{ user.permission.split(':')[0] }}"
-        status_code: [200, 201]
-      environment: "{{ proxy_env }}"
-      register: custom_role_created
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: custom_role_created is not failed
-      when:
-        - user.type == 'custom'
-        - custom_role_lookup.json.meta.count == 0
-
-    - name: "Set role UUID"
-      ansible.builtin.set_fact:
-        role_uuid: >-
-          {%- if user.type == 'preconfigured' -%}
-            {{ preconfigured_role_lookup.json.data[0].uuid }}
-          {%- elif user.type == 'custom' and custom_role_lookup.json.meta.count > 0 -%}
-            {{ custom_role_lookup.json.data[0].uuid }}
-          {%- else -%}
-            {{ custom_role_created.json.uuid }}
-          {%- endif -%}
-
-    # --- Check / create RBAC group ---
-
     - name: "Setup group and membership"
       ansible.builtin.include_tasks:
         file: "tasks_group_setup.yml"
 
-    # --- Add role to group ---
-
-    - name: "List roles in group '{{ group_name }}'"
-      ansible.builtin.uri:
-        url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/roles/"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: group_roles
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: group_roles is not failed
-
-    - name: "Add role to group '{{ group_name }}'"
-      ansible.builtin.uri:
-        url: "{{ rbac_v1_base }}/groups/{{ group_uuid }}/roles/"
-        method: POST
-        headers: "{{ auth_header }}"
-        body_format: json
-        body:
-          roles:
-            - "{{ role_uuid }}"
-        status_code: [200, 201]
-      environment: "{{ proxy_env }}"
-      register: role_added
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: role_added is not failed
-      when: role_uuid not in (group_roles.json.data | map(attribute='uuid') | list)
+    - name: "Setup role for {{ username }}"
+      ansible.builtin.include_tasks:
+        file: "tasks_v1_role_setup.yml"
+      loop: "{{ user.roles }}"
+      loop_control:
+        loop_var: "role"
+        label: "{{ role.role_name | default(role.permission) }}"

@@ -3,13 +3,12 @@
 # Required variables: user (from loop), org_admin_username, auth_header,
 #                     rbac_v1_base, proxy_env, platform_default_groups,
 #                     api_retries, api_delay
-# Sets: username, group_name, role_name_custom
+# Sets: username, group_name
 
 - name: "Set username for {{ user.suffix }}"
   ansible.builtin.set_fact:
     username: "{{ org_admin_username }}-{{ user.suffix }}"
     group_name: "test-{{ user.suffix }}"
-    role_name_custom: "test-role-{{ user.suffix }}"
 
 # --- Verify user exists ---
 
@@ -59,7 +58,7 @@
     label: "{{ item.name }}"
   when:
     - item.name not in platform_default_groups
-    - item.name != group_name or user.type == 'none'
+    - item.name != group_name or user.roles | length == 0
   register: group_removal
   retries: "{{ api_retries }}"
   delay: "{{ api_delay }}"
@@ -69,5 +68,5 @@
 
 - name: "Skip role/group setup for no-perms user"
   ansible.builtin.debug:
-    msg: "User {{ username }} is the no-perms user — cleanup complete, skipping role assignment."
-  when: user.type == 'none'
+    msg: "User {{ username }} has no roles — cleanup complete, skipping role assignment."
+  when: user.roles | length == 0

@@ -9,6 +9,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import attr
+from dynaconf.utils.boxing import DynaBox
 from iqe.base.modeling import BaseEntity
 from iqe_bindings.v7.rbac_v1 import Access
 from iqe_bindings.v7.rbac_v1 import ApiException as RBACApiException
@@ -328,10 +329,27 @@ class RBACAPIWrapper(BaseEntity):
                     ws_id if ws_id is not None else ungrouped_ws_id
                     for ws_id in _hbi_groups_to_ids(hbi_groups)
                 ]
+                role_ids = [get_role_id(role) for role in roles]
+                self.create_role_bindings(role_ids, group.uuid, workspace_ids)
             else:
-                workspace_ids = [self._host_inventory.apis.workspaces.default_workspace.id]
-            role_ids = [get_role_id(role) for role in roles]
-            self.create_role_bindings(role_ids, group.uuid, workspace_ids)
+                default_ws_role_ids, root_ws_role_ids = [], []
+                for i, perm in enumerate(permissions):
+                    if "staleness" in perm.value:
+                        root_ws_role_ids.append(get_role_id(roles[i]))
+                    else:
+                        default_ws_role_ids.append(get_role_id(roles[i]))
+                if default_ws_role_ids:
+                    self.create_role_bindings(
+                        default_ws_role_ids,
+                        group.uuid,
+                        [self._host_inventory.apis.workspaces.default_workspace.id],
+                    )
+                if root_ws_role_ids:
+                    self.create_role_bindings(
+                        root_ws_role_ids,
+                        group.uuid,
+                        [self._host_inventory.apis.workspaces.root_workspace.id],
+                    )
         else:
             roles = [self.create_role_v1(perm, hbi_groups=hbi_groups) for perm in permissions]
             self.add_roles_to_a_group(roles, group.uuid)
@@ -339,6 +357,89 @@ class RBACAPIWrapper(BaseEntity):
         wait_for_kessel_sync(self._host_inventory)
 
         return group, roles
+
+    def setup_ephemeral_rbac_user(
+        self, username: str, rbac_roles: list[DynaBox], *, suffix: str
+    ) -> None:
+        """Set up RBAC for a single user in an ephemeral environment.
+
+        Does NOT wait for Kessel sync — the caller should call
+        wait_for_kessel_sync() once after all users are set up.
+        """
+        self.reset_user_groups(username, group_name=None, delete_groups=False)
+
+        if not rbac_roles:
+            return
+
+        group_uuid = self._get_or_create_group(f"test-{suffix}", username)
+        self.add_user_to_a_group(username, group_uuid)
+
+        is_v2 = self._host_inventory.unleash.is_rbac_workspaces_enabled
+        for role_config in rbac_roles:
+            role_id = self._resolve_role_id(role_config, suffix, is_v2=is_v2)
+            self._assign_role(role_id, group_uuid, role_config["workspace_type"], is_v2=is_v2)
+
+    def _get_or_create_group(self, group_name: str, username: str) -> str:
+        group_lookup = self.raw_api.group_api.list_groups(name=group_name)
+        if group_lookup.meta.count > 0:
+            return group_lookup.data[0].uuid
+
+        group = self.raw_api.group_api.create_group(
+            RBACGroup(name=group_name, description=f"Test group for {username}")
+        )
+        return group.uuid
+
+    def _resolve_role_id(self, role_config: DynaBox, suffix: str, *, is_v2: bool) -> str:
+        if role_config["type"] == "preconfigured":
+            return self._find_preconfigured_role(role_config, is_v2=is_v2)
+        return self._find_or_create_custom_role(role_config, suffix, is_v2=is_v2)
+
+    def _find_preconfigured_role(self, role_config: DynaBox, *, is_v2: bool) -> str:
+        if is_v2:
+            name = role_config.get("role_name_v2") or role_config["role_name"]
+            lookup = self.raw_api_v2.roles_api.roles_list(name=name, limit=100)
+            if not lookup.data:
+                raise ValueError(f"Pre-configured role '{name}' not found in RBAC v2")
+            return lookup.data[0].id
+
+        name = role_config["role_name"]
+        lookup = self.raw_api.role_api.list_roles(name=name)
+        if not lookup.data:
+            raise ValueError(f"Pre-configured role '{name}' not found in RBAC v1")
+        return lookup.data[0].uuid
+
+    def _find_or_create_custom_role(
+        self, role_config: DynaBox, suffix: str, *, is_v2: bool
+    ) -> str:
+        permission_str = role_config["permission"]
+        role_name = f"test-role-{suffix}-{permission_str.replace(':', '-').replace('*', 'all')}"
+
+        if is_v2:
+            lookup = self.raw_api_v2.roles_api.roles_list(name=role_name, limit=10)
+            if lookup.data:
+                return lookup.data[0].id
+            return self.create_role_v2(RBACInventoryPermission(permission_str), name=role_name).id
+
+        lookup = self.raw_api.role_api.list_roles(name=role_name)
+        if lookup.data:
+            return lookup.data[0].uuid
+        return self.create_role_v1(RBACInventoryPermission(permission_str), name=role_name).uuid
+
+    def _assign_role(
+        self, role_id: str, group_uuid: str, workspace_type: str, *, is_v2: bool
+    ) -> None:
+        if is_v2:
+            workspaces = self._host_inventory.apis.workspaces
+            ws_id = (
+                workspaces.default_workspace.id
+                if workspace_type == "default"
+                else workspaces.root_workspace.id
+            )
+            self.create_role_bindings([role_id], group_uuid, [ws_id])
+        else:
+            group_roles = self.raw_api.group_api.list_roles_for_group(group_uuid)
+            if role_id not in [r.uuid for r in group_roles.data]:
+                self.raw_api.group_api.add_role_to_group(group_uuid, GroupRoleIn(roles=[role_id]))
 
     def get_role_by_name(self, name: str) -> RoleOutDynamic:
         return self.raw_api.role_api.list_roles(name=name).data[0]

@@ -1,7 +1,5 @@
 ---
-- name: "Set role name"
-  ansible.builtin.set_fact:
-    role_name_custom: "test-role-{{ user.suffix }}"
+# Required variable: role_name_custom (set by caller)
 
 - name: "Look up custom role (v1)"
   ansible.builtin.uri:

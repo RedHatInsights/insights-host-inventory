@@ -31,7 +31,7 @@
     - name: "Delete test groups"
       ansible.builtin.include_tasks:
         file: "tasks_teardown_group.yml"
-      loop: "{{ users | selectattr('type', 'ne', 'none') | list }}"
+      loop: "{{ users | selectattr('roles') | list }}"
       loop_control:
         loop_var: "user"
         label: "test-{{ user.suffix }}"
@@ -41,7 +41,10 @@
     - name: "Delete custom roles"
       ansible.builtin.include_tasks:
         file: "tasks_teardown_role.yml"
-      loop: "{{ users | selectattr('type', 'equalto', 'custom') | list }}"
+      loop: "{{ users | subelements('roles') }}"
       loop_control:
-        loop_var: "user"
-        label: "test-role-{{ user.suffix }}"
+        loop_var: "user_role"
+        label: "test-role-{{ user_role.0.suffix }}-{{ user_role.1.permission | default('') | replace(':', '-') | replace('*', 'all') }}"
+      vars:
+        role_name_custom: "test-role-{{ user_role.0.suffix }}-{{ user_role.1.permission | default('') | replace(':', '-') | replace('*', 'all') }}"
+      when: user_role.1.type == 'custom'
