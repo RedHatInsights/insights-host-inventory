@@ -236,3 +236,33 @@ def test_run_no_rows(flask_app, monkeypatch):
         run(_logger, db.session, flask_app)
 
     mock_cache.delete.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# test_run_cache_delete_failure_does_not_abort
+# ---------------------------------------------------------------------------
+
+
+def test_run_cache_delete_failure_does_not_abort(flask_app, monkeypatch):
+    """When StalenessCache.delete raises, the DB row is still deleted and the job completes."""
+    org_id = "clean-staleness-cache-failure"
+    monkeypatch.setenv("DRY_RUN", "false")
+
+    with flask_app.app.app_context():
+        _make_staleness(
+            org_id,
+            CONVENTIONAL_TIME_TO_STALE_SECONDS,
+            CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS,
+            CONVENTIONAL_TIME_TO_DELETE_SECONDS,
+        )
+        assert _row_exists(org_id)
+
+    with patch("jobs.clean_custom_staleness.StalenessCache") as mock_cache:
+        mock_cache.delete.side_effect = RuntimeError("boom")
+        # The job should complete without raising even when cache invalidation fails.
+        run(_logger, db.session, flask_app)
+
+    with flask_app.app.app_context():
+        # The database row should still be deleted despite the cache failure.
+        assert not _row_exists(org_id)
+        mock_cache.delete.assert_called_once_with(org_id)

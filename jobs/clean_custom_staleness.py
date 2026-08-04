@@ -55,12 +55,12 @@ def run(
     with application.app.app_context():
         threadctx.request_id = None
 
-        rows = session.query(Staleness).all()
-        total = len(rows)
+        staleness_query = session.query(Staleness)
+        total = staleness_query.count()
         logger.info("Inspecting %d custom staleness row(s).", total)
 
         to_delete = []
-        for row in rows:
+        for row in staleness_query.yield_per(1000):
             row_dict = {
                 "conventional_time_to_stale": row.conventional_time_to_stale,
                 "conventional_time_to_stale_warning": row.conventional_time_to_stale_warning,
@@ -98,13 +98,17 @@ def run(
             return
 
         deleted = 0
-        for row in to_delete:
-            org_id = row.org_id
-            with session_guard(session, close=False):
+        deleted_org_ids = []
+        with session_guard(session, close=False):
+            for row in to_delete:
+                org_id = row.org_id
                 session.delete(row)
-            deleted += 1
-            logger.info("Deleted staleness row for org_id=%s", org_id)
+                deleted += 1
+                deleted_org_ids.append(org_id)
+                logger.info("Deleted staleness row for org_id=%s", org_id)
 
+        # Invalidate caches after the transaction has been committed.
+        for org_id in deleted_org_ids:
             try:
                 StalenessCache.delete(org_id)
                 logger.info("Invalidated staleness cache for org_id=%s", org_id)
@@ -117,7 +121,9 @@ def run(
 if __name__ == "__main__":
     logger = get_logger(LOGGER_NAME)
     if SUSPEND_JOB:
-        logger.info("SUSPEND_JOB set to true; exiting.")
+        logger.info(
+            "SUSPEND_JOB is true; exiting without action. To enable this job, set SUSPEND_JOB=false and DRY_RUN=false."
+        )
         sys.exit(0)
 
     job_type = "Clean custom staleness"
