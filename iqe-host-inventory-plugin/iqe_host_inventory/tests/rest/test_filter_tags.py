@@ -58,7 +58,7 @@ def test_filter_tags_by_system_profile_sap_sids(
     2. Make sure that the correct tags are in the result
 
     metadata:
-        requirements: inv-tags-get-list, inv-hosts-filter-by-sp-sap_sids
+
         assignee: fstavela
         importance: medium
         title: Inventory: Tags filtering by sap_sids
@@ -149,7 +149,7 @@ def test_filter_tags_by_system_profile_ansible(
     https://issues.redhat.com/browse/ESSNTL-1508
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-ansible
+
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by ansible
@@ -255,7 +255,7 @@ def test_filter_tags_by_system_profile_sap(
     https://issues.redhat.com/browse/ESSNTL-1616
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-sap
+
       assignee: zabikeno
       importance: high
       title: Inventory: filter tags by sap
@@ -302,7 +302,7 @@ def test_filter_tags_by_system_profile_mssql(
     https://issues.redhat.com/browse/ESSNTL-1613
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-mssql
+
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by mssql
@@ -334,7 +334,7 @@ def test_filter_tags_by_system_profile_fields_nil(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Generic filtering of tags with nil and not_nil values
@@ -422,7 +422,7 @@ def test_filter_tags_by_system_profile_string_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by string fields
@@ -473,7 +473,7 @@ def test_filter_tags_by_system_profile_integer_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by integer fields
@@ -526,7 +526,7 @@ def test_filter_tags_by_system_profile_boolean_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by boolean fields
@@ -568,7 +568,7 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Range operations generic filtering of tags by date-time fields
@@ -601,7 +601,7 @@ def test_filter_tags_by_system_profile_multiple_types(host_inventory: Applicatio
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by fields of various types at the same time
@@ -679,7 +679,7 @@ def test_filter_tags_by_system_profile_fields_incorrect_comparator(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields, inv-api-validation
+
       assignee: fstavela
       importance: medium
       title: Generic filtering of hosts with incorrect comparators
@@ -702,7 +702,7 @@ def test_filter_tags_by_system_profile_object_nil(
     Jira: https://issues.redhat.com/browse/ESSNTL-2362
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
+
       assignee: fstavela
       importance: high
       title: Filtering hosts by object fields by nil/not_nil
@@ -865,7 +865,7 @@ def test_filter_tags_by_system_profile_bootc_status(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-bootc_status
+
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by bootc_status
@@ -901,7 +901,7 @@ def test_filter_tags_by_system_profile_bootc_status_host_type(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-bootc_status,
+
                     inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
@@ -939,7 +939,7 @@ def test_filter_tags_with_invalid_system_profile_operating_system(
 ):
     """
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
+
       assignee: msager
       importance: medium
       negative: true

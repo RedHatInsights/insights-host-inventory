@@ -22,7 +22,7 @@ def test_staleness_create_random_data(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: high
       title: Create staleness settings via POST /account/staleness request
@@ -53,7 +53,7 @@ def test_staleness_create_single_field(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: high
       title: Create staleness settings for a single field
@@ -73,7 +73,7 @@ def test_staleness_create_all_fields(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: high
       title: Create staleness settings for all fields
@@ -103,7 +103,7 @@ def test_staleness_create_min_max(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: low
       title: Create staleness settings using min and max allowed deltas
@@ -121,7 +121,7 @@ def test_staleness_create_min_max(
 def test_staleness_create_existing_record(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: low
       negative: true
@@ -149,7 +149,7 @@ def test_staleness_create_value_too_big(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: low
       negative: true
@@ -166,7 +166,7 @@ def test_staleness_create_value_too_big(
 def test_staleness_create_invalid_field(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: low
       negative: true
@@ -199,7 +199,7 @@ def test_staleness_create_invalid_value(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: str
       importance: low
       negative: true
@@ -226,7 +226,7 @@ def test_staleness_create_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: high
       title: Verify that creating a staleness record in one account doesn't affect another account
@@ -286,7 +286,7 @@ def test_staleness_create_invalid_ordering(
     Jira: https://issues.redhat.com/browse/ESSNTL-5541
 
     metadata:
-      requirements: inv-staleness-post
+
       assignee: msager
       importance: low
       negative: true

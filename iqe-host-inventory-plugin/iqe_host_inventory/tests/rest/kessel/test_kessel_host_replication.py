@@ -98,7 +98,7 @@ def test_kessel_repl_create_hosts(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that host info is replicated to kessel
@@ -127,7 +127,7 @@ def test_kessel_repl_create_full_host(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that full host data is replicated to Kessel
@@ -153,7 +153,7 @@ def test_kessel_repl_create_minimal_host(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that empty fields aren't replicated to Kessel
@@ -191,7 +191,7 @@ def test_kessel_repl_update_host(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that host updates are replicated to Kessel
@@ -232,7 +232,7 @@ def test_kessel_repl_update_host_multiple_fields(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that host updates are replicated to Kessel
@@ -279,7 +279,7 @@ def test_kessel_repl_update_host_via_api(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that host updates via API are replicated to Kessel
@@ -315,7 +315,7 @@ def test_kessel_repl_delete_hosts_by_id(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that deleted hosts by ID are reflected in Kessel
@@ -349,7 +349,7 @@ def test_kessel_repl_delete_hosts_by_filter(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that deleted hosts by filter are reflected in Kessel
@@ -387,7 +387,7 @@ def test_kessel_repl_create_group_with_hosts(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that grouped hosts' info is replicated to kessel
@@ -410,7 +410,7 @@ def test_kessel_repl_add_hosts_to_group(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that addings hosts to groups are reflected correctly in kessel
@@ -440,7 +440,7 @@ def test_kessel_repl_remove_hosts_from_group(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that deleting hosts from group is reflected correctly in kessel
@@ -471,7 +471,7 @@ def test_kessel_repl_remove_hosts_from_multiple_groups(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that deleting hosts from multiple groups is reflected correctly in kessel
@@ -501,7 +501,7 @@ def test_kessel_repl_patch_group_add_hosts(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that adding hosts to group via PATCH is reflected correctly in kessel
@@ -524,7 +524,7 @@ def test_kessel_repl_patch_group_remove_hosts(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that removing hosts from group via PATCH is reflected correctly in kessel
@@ -551,7 +551,7 @@ def test_kessel_repl_patch_group_change_hosts(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that changing hosts in group via PATCH is reflected correctly in kessel
@@ -587,7 +587,7 @@ def test_kessel_repl_delete_group(
     https://issues.redhat.com/browse/RHINENG-19245
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: fstavela
       importance: high
       title: Verify that deleting group is reflected correctly in kessel
@@ -612,7 +612,7 @@ def test_kessel_repl_delete_host_reaper(
     https://issues.redhat.com/browse/RHINENG-21525
 
     metadata:
-      requirements: inv-kessel-hosts
+
       assignee: msager
       importance: high
       title: Verify that reaper host deletion is reflected in kessel

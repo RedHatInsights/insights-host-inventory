@@ -68,7 +68,7 @@ class TestHostsSortOrdering:
         Confirm sort ordering parameters for GET of /hosts work as expected.
 
         metadata:
-            requirements: inv-hosts-sorting, inv-hosts-get-list
+
             assignee: fstavela
             importance: critical
             title: Inventory: Confirm sort ordering for GET of /hosts works as expected
@@ -95,7 +95,7 @@ class TestHostsSortOrdering:
         Confirm sort ordering parameters for GET of /hosts/{host_id_list} work as expected.
 
         metadata:
-            requirements: inv-hosts-sorting, inv-hosts-get-by-id
+
             assignee: fstavela
             importance: high
             title: Inventory: Confirm sort ordering for GET of /hosts/{host_id_list}
@@ -126,7 +126,7 @@ class TestHostsSortOrdering:
         expected.
 
         metadata:
-            requirements: inv-hosts-sorting, inv-hosts-get-system_profile
+
             assignee: fstavela
             importance: high
             title: Inventory: Confirm sort ordering for GET of
@@ -169,7 +169,7 @@ class TestHostsSortOrdering:
         order defaults to descending.
 
         metadata:
-            requirements: inv-hosts-sorting
+
             assignee: fstavela
             importance: high
             title: Inventory: Omission of Sort order_how Parameter
@@ -211,10 +211,6 @@ class TestHostsSortOrderingInvalidParams:
         Omission of the order_by value triggers a 400 status code when order_how is specified.
 
         metadata:
-            requirements:
-                - inv-hosts-sorting
-                - inv-hosts-get-list
-                - inv-api-validation
             assignee: fstavela
             importance: low
             negative: true
@@ -238,10 +234,6 @@ class TestHostsSortOrderingInvalidParams:
         Omission of the order_by value triggers a 400 status code when order_how is specified.
 
         metadata:
-            requirements:
-                - inv-hosts-sorting
-                - inv-hosts-get-by-id
-                - inv-api-validation
             assignee: fstavela
             importance: low
             negative: true
@@ -272,10 +264,6 @@ class TestHostsSortOrderingInvalidParams:
         Omission of the order_by value triggers a 400 status code when order_how is specified.
 
         metadata:
-            requirements:
-                - inv-hosts-sorting
-                - inv-hosts-get-system_profile
-                - inv-api-validation
             assignee: fstavela
             importance: low
             negative: true

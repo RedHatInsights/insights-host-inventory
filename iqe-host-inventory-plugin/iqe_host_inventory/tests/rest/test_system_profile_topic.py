@@ -161,7 +161,7 @@ def test_system_profile_topic_update_correct(
 ):
     """Test System Profile Kafka Topic with correct identifiers
     metadata:
-        requirements: inv-mq-system-profile-topic
+
         assignee: fstavela
         importance: high
         title: Inventory: System Profile Kafka Topic with correct identifiers
@@ -214,7 +214,7 @@ def test_system_profile_topic_update_not_found(
 ):
     """Test System Profile Kafka Topic with wrong identifiers
     metadata:
-        requirements: inv-mq-system-profile-topic, inv-mq-host-field-validation
+
         assignee: fstavela
         importance: medium
         negative: true
@@ -247,7 +247,7 @@ def test_system_profile_topic_update_not_found(
 def test_system_profile_topic_update_without_sp(host_inventory: ApplicationHostInventory):
     """Test System Profile Kafka Topic without providing system_profile
     metadata:
-        requirements: inv-mq-system-profile-topic, inv-mq-host-field-validation
+
         assignee: fstavela
         importance: medium
         negative: true
@@ -268,7 +268,7 @@ def test_system_profile_topic_update_without_sp(host_inventory: ApplicationHostI
 def test_system_profile_topic_update_without_org_id(host_inventory: ApplicationHostInventory):
     """Test System Profile Kafka Topic without providing org_id
     metadata:
-        requirements: inv-mq-system-profile-topic, inv-account-integrity
+
         assignee: fstavela
         importance: high
         negative: true
@@ -293,7 +293,7 @@ def test_system_profile_topic_update_without_platform_metadata(
     https://issues.redhat.com/browse/RHCLOUD-13868
 
     metadata:
-        requirements: inv-mq-system-profile-topic
+
         assignee: fstavela
         importance: high
         title: Inventory: System Profile Kafka Topic without providing platform_metadata

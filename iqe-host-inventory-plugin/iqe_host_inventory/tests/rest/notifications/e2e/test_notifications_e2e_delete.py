@@ -115,7 +115,7 @@ def test_notifications_e2e_delete_by_id(
     https://issues.redhat.com/browse/RHINENG-7915
 
     metadata:
-        requirements: inv-notifications-system-deleted
+
         assignee: fstavela
         importance: high
         title: Test email notification and event log after deleting hosts by IDs
@@ -141,7 +141,7 @@ def test_notifications_e2e_delete_filtered(
     https://issues.redhat.com/browse/RHINENG-7915
 
     metadata:
-        requirements: inv-notifications-system-deleted
+
         assignee: fstavela
         importance: high
         title: Test email notification and event log after deleting filtered hosts
@@ -167,7 +167,7 @@ def test_notifications_e2e_delete_all(
     https://issues.redhat.com/browse/RHINENG-7915
 
     metadata:
-        requirements: inv-notifications-system-deleted
+
         assignee: fstavela
         importance: high
         title: Test email notification and event log after deleting all hosts
@@ -197,7 +197,7 @@ def test_notifications_e2e_delete_digest(
     https://issues.redhat.com/browse/RHINENG-7915
 
     metadata:
-        requirements: inv-notifications-system-deleted
+
         assignee: fstavela
         importance: high
         title: Test email notification digest after deleting hosts

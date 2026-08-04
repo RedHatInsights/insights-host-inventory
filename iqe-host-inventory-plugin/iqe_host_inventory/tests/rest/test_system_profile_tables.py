@@ -87,7 +87,7 @@ def test_host_lifecycle_with_system_profile_tables(host_inventory: ApplicationHo
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-system-profile-tables
+
         assignee: fstavela
         importance: high
         title: Test host lifecycle with system profile table separation
@@ -161,7 +161,7 @@ def test_api_response_merges_static_and_dynamic_tables(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-system-profile-tables
+
         assignee: rantunes
         importance: critical
         title: Test API response merges static and dynamic system profile tables
@@ -218,7 +218,7 @@ def test_api_response_with_only_static_fields(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-system-profile-tables
+
         assignee: rantunes
         importance: high
         title: Test API response with only static system profile fields
@@ -263,7 +263,7 @@ def test_api_response_with_only_dynamic_fields(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-system-profile-tables
+
         assignee: rantunes
         importance: high
         title: Test API response with only dynamic system profile fields
@@ -309,7 +309,7 @@ def test_multiple_workloads_in_api_response(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-system-profile-tables
+
         assignee: rantunes
         importance: high
         title: Test multiple workloads are returned in API response

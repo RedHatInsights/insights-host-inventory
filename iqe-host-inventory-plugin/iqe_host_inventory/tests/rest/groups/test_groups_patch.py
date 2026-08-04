@@ -40,7 +40,7 @@ def test_groups_patch_response(
     https://issues.redhat.com/browse/RHINENG-21925
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: medium
       title: Test response for PATCH /groups/<group_id> request
@@ -88,7 +88,7 @@ def test_groups_patch_not_update(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Update a group with the same data
@@ -125,7 +125,7 @@ def test_groups_patch_name(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Update a group's name
@@ -163,7 +163,7 @@ def test_groups_patch_add_hosts(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Add hosts to group via PATCH request
@@ -203,7 +203,7 @@ def test_groups_patch_remove_hosts(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Remove hosts from group via PATCH request
@@ -233,7 +233,7 @@ def test_groups_patch_add_and_remove_hosts(host_inventory: ApplicationHostInvent
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Remove and add a different host to group at the same time via PATCH request
@@ -261,7 +261,7 @@ def test_groups_patch_change_hosts(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Replace group's hosts
@@ -287,7 +287,7 @@ def test_groups_patch_name_and_hosts(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Update group's name and hosts at the same time
@@ -320,7 +320,7 @@ def test_groups_patch_check_timestamps(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: medium
       title: Test that `updated` timestamp gets updated after PATCH /groups/<group_id> request
@@ -359,7 +359,7 @@ def test_groups_patch_not_existing_hosts(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/RHINENG-18151
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: medium
       negative: true
@@ -385,7 +385,7 @@ def test_groups_patch_good_and_not_existing_hosts(host_inventory: ApplicationHos
     https://issues.redhat.com/browse/RHINENG-18151
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: medium
       title: Try to update group with one existing and one not existing host at the same time
@@ -412,7 +412,7 @@ def test_groups_patch_good_and_bad_hosts(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: medium
       title: Try to update group with one good and one wrong host ID at the same time
@@ -438,7 +438,7 @@ def test_groups_patch_two_groups_same_hosts(host_inventory: ApplicationHostInven
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Update group's hosts to match hosts of other group (move allowed)
@@ -468,7 +468,7 @@ def test_groups_patch_different_account_name(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: high
       title: Update group's name to match other group's name in a different account
@@ -507,7 +507,7 @@ def test_groups_patch_different_account_host(
     https://issues.redhat.com/browse/RHINENG-18151
 
     metadata:
-      requirements: inv-groups-patch, inv-account-integrity
+
       assignee: fstavela
       importance: critical
       title: Try to add hosts from different account to group via PATCH request
@@ -549,7 +549,7 @@ def test_groups_patch_group_from_different_account(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-account-integrity
+
       assignee: fstavela
       importance: critical
       title: Try to update a group from a different account
@@ -592,7 +592,7 @@ def test_groups_patch_not_existing_group(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: low
       title: Try to update a not existing group
@@ -613,7 +613,7 @@ def test_groups_patch_empty_string(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-11389
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: low
       title: Try to update a not existing group - empty string
@@ -638,7 +638,7 @@ def test_groups_patch_validate_group_id_wrong(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       title: Try to update a group with a wrong group ID
@@ -683,7 +683,7 @@ def test_groups_patch_validate_name_wrong_length(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -708,7 +708,7 @@ def test_groups_patch_validate_name_wrong_type(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -767,7 +767,7 @@ def test_groups_patch_validate_host_ids_wrong(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -815,7 +815,7 @@ def test_groups_patch_validate_protected_fields(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: medium
       negative: true
@@ -845,7 +845,7 @@ def test_groups_patch_with_changed_org_id(
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: high
       negative: true
@@ -870,7 +870,7 @@ def test_groups_patch_with_random_field(host_inventory: ApplicationHostInventory
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -894,7 +894,7 @@ def test_groups_patch_without_data(host_inventory: ApplicationHostInventory, dat
     https://issues.redhat.com/browse/ESSNTL-3851
 
     metadata:
-      requirements: inv-groups-patch, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -917,7 +917,7 @@ def test_groups_patch_strip_whitespace(host_inventory: ApplicationHostInventory)
     https://issues.redhat.com/browse/RHINENG-3108
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: medium
       negative: true
@@ -942,7 +942,7 @@ def test_groups_patch_with_the_same_host_multiple_times(host_inventory: Applicat
     https://issues.redhat.com/browse/RHINENG-10845
 
     metadata:
-      requirements: inv-groups-patch
+
       assignee: fstavela
       importance: low
       negative: true

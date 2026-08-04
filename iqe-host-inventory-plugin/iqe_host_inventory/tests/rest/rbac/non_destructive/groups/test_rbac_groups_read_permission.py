@@ -2,7 +2,7 @@
 
 """
 metadata:
-  requirements: inv-rbac
+
 """
 
 import logging
@@ -65,7 +65,7 @@ class TestRBACGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4499
 
         metadata:
-          requirements: inv-groups-get-list
+
           assignee: fstavela
           importance: high
           title: Test that users with "groups:read" permission can get a list of groups
@@ -85,7 +85,7 @@ class TestRBACGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4500
 
         metadata:
-          requirements: inv-groups-get-by-id
+
           assignee: fstavela
           importance: high
           title: Test that users with "groups:read" permission can get groups by ID
@@ -113,7 +113,7 @@ class TestRBACGroupsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4499
 
         metadata:
-          requirements: inv-groups-get-list
+
           assignee: fstavela
           importance: high
           negative: true
@@ -131,7 +131,7 @@ class TestRBACGroupsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4500
 
         metadata:
-          requirements: inv-groups-get-by-id
+
           assignee: fstavela
           importance: high
           negative: true

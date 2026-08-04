@@ -55,7 +55,7 @@ def test_dedup_one_matching_id_fact_other_not_matching(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - one ID fact matching the existing host updates the host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -115,7 +115,7 @@ def test_dedup_one_id_fact_not_matching(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - one different ID fact creates a new host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -180,7 +180,7 @@ def test_dedup_all_id_facts_not_matching(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - all different ID facts create a new host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -242,7 +242,7 @@ def test_dedup_id_facts_priority(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - ID facts priority
     """
     hosts_data = host_inventory.datagen.create_n_hosts_data(2)
@@ -309,7 +309,7 @@ def test_dedup_immutable_facts_not_matching(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - one different immutable fact creates a new host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -355,7 +355,7 @@ def test_dedup_immutable_facts_each_matching_different_host(
     metadata:
         assignee: fstavela
         importance: high
-        requirements: inv-host-deduplication
+
         title: Test dedup - multiple immutable facts matching multiple hosts creates a new host
     """
     ansible_host_field = get_host_field_by_name("ansible_host")
@@ -402,7 +402,7 @@ def test_dedup_add_ID_fact(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - adding new ID fact to host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -469,7 +469,7 @@ def test_dedup_culled_host(host_inventory: ApplicationHostInventory) -> None:
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication, inv-staleness-hosts
+
         title: Test deduplication - culled host
     """
     host_data = host_inventory.datagen.create_host_data()
@@ -516,7 +516,7 @@ def test_dedup_of_similar_hosts(
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - two similar hosts
     """
     display_name = generate_display_name()
@@ -569,7 +569,7 @@ def test_dedup_of_similar_host_with_different_org_id(
     metadata:
         assignee: zabikeno
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - two similar hosts with different org_id
     """
     ansible_host = get_host_field_by_name("ansible_host")
@@ -610,7 +610,7 @@ def test_dedup_provider_fields_combination(host_inventory: ApplicationHostInvent
     metadata:
         assignee: fstavela
         importance: critical
-        requirements: inv-host-deduplication
+
         title: Test deduplication - provider_id + provider_type combination must match
     """
 
@@ -657,7 +657,7 @@ def test_dedup_provider_issue(host_inventory: ApplicationHostInventory) -> None:
     metadata:
         assignee: fstavela
         importance: high
-        requirements: inv-host-deduplication
+
         title: Test deduplication: RHINENG-9012
     """
     # Create the original host with all elevated canonical facts
@@ -746,7 +746,7 @@ def test_dedup_same_mac_address_issue(host_inventory: ApplicationHostInventory) 
     metadata:
         assignee: fstavela
         importance: high
-        requirements: inv-host-deduplication
+
         title: Test deduplication: RHINENG-15736
     """
     display_name = generate_display_name()

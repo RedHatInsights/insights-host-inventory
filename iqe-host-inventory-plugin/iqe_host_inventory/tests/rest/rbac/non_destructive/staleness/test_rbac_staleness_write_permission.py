@@ -2,7 +2,7 @@
 
 """
 metadata:
-    requirements: inv-rbac
+
 """
 
 import logging
@@ -73,7 +73,7 @@ class TestRBACStalenessWritePermission:
            created associated with the user's org_id
 
         metadata:
-            requirements: inv-staleness-post
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have write permission can create
@@ -107,7 +107,7 @@ class TestRBACStalenessWritePermission:
            associated with the user's org_id
 
         metadata:
-            requirements: inv-staleness-patch
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have write permission can update
@@ -143,7 +143,7 @@ class TestRBACStalenessWritePermission:
            associated with the user's org_id
 
         metadata:
-            requirements: inv-staleness-delete
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have write permission can delete
@@ -174,7 +174,7 @@ class TestRBACStalenessNoWritePermission:
         2. Ensure POST request returns a 403 response
 
         metadata:
-            requirements: inv-staleness-post
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users without write permission can't create
@@ -203,7 +203,7 @@ class TestRBACStalenessNoWritePermission:
         3. Ensure PATCH request returns a 403 response
 
         metadata:
-            requirements: inv-staleness-patch
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users without write permission can't update
@@ -235,7 +235,7 @@ class TestRBACStalenessNoWritePermission:
         3. Ensure DELETE request returns a 403 response
 
         metadata:
-            requirements: inv-staleness-delete
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users without write permission can't delete

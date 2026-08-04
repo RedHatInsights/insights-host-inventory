@@ -59,7 +59,7 @@ def test_all_canonical_facts_in_api_response(host_inventory: ApplicationHostInve
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-canonical-facts-columns
+
         assignee: rantunes
         importance: critical
         title: Test all canonical facts are in API response
@@ -95,7 +95,7 @@ def test_canonical_facts_preserved_on_host_update(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-canonical-facts-columns
+
         assignee: rantunes
         importance: high
         title: Test canonical facts are preserved on host update
@@ -145,7 +145,7 @@ def test_host_creation_with_minimal_canonical_facts(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-canonical-facts-columns
+
         assignee: rantunes
         importance: high
         title: Test host creation with minimal canonical facts
@@ -181,7 +181,7 @@ def test_canonical_facts_in_hosts_list_response(
     JIRA: https://issues.redhat.com/browse/RHINENG-19460
 
     metadata:
-        requirements: inv-canonical-facts-columns
+
         assignee: rantunes
         importance: high
         title: Test canonical facts in hosts list API response

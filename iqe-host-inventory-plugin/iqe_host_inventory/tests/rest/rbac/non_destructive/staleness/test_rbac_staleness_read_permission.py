@@ -2,7 +2,7 @@
 
 """
 metadata:
-    requirements: inv-rbac
+
 """
 
 import logging
@@ -72,7 +72,7 @@ class TestRBACStalenessReadPermission:
            associated with the user's org_id
 
         metadata:
-            requirements: inv-staleness-get-defaults
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have read permission have access to
@@ -99,7 +99,7 @@ class TestRBACStalenessReadPermission:
            associated with the user's org_id
 
         metadata:
-            requirements: inv-staleness-get
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have read permission have access to
@@ -126,7 +126,7 @@ class TestRBACStalenessNoReadPermission:
         2. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-staleness-get-defaults
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users without read permission can't access the
@@ -150,7 +150,7 @@ class TestRBACStalenessNoReadPermission:
         2. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-staleness-get
+
             assignee: msager
             importance: high
             title: Inventory: Confirm users without read permission can't access the

@@ -85,7 +85,7 @@ def test_account_create_not_provided(host_inventory: ApplicationHostInventory, i
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test creating host without providing account number
@@ -125,7 +125,7 @@ def test_account_create_same_as_org_id(host_inventory: ApplicationHostInventory,
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test creating host with the same account_number as org_id
@@ -167,7 +167,7 @@ def test_account_create_different_than_org_id(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test creating host with different account_number than org_id
@@ -209,7 +209,7 @@ def test_account_update_same_account_number(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test updating account_number on host with the same account_number as org_id
@@ -263,7 +263,7 @@ def test_account_update_different_account_number(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test updating account_number on host with different account_number than org_id
@@ -318,7 +318,7 @@ def test_account_update_host(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test updating host fields on host with account
@@ -367,7 +367,7 @@ def test_account_update_host_without_providing_account(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test updating host fields on host with account without providing account on update
@@ -419,7 +419,7 @@ def test_account_get_host_list(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test GET /hosts with various account data in identity
@@ -457,7 +457,7 @@ def test_account_get_host_by_id(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test GET /hosts/<host_id_list> with various account data in identity
@@ -495,7 +495,7 @@ def test_account_get_host_system_profile(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test GET /hosts/<host_id_list>/system_profile with various account data in identity
@@ -532,7 +532,7 @@ def test_account_get_host_tags(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test GET /hosts/<host_id_list>/tags with various account data in identity
@@ -570,7 +570,7 @@ def test_account_get_host_tags_count(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test GET /hosts/<host_id_list>/tags/count with various account data in identity
@@ -608,7 +608,7 @@ def test_account_patch_ansible_name(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test PATCH /hosts/<host_id_list> with various account data in identity
@@ -669,7 +669,7 @@ def test_account_patch_facts(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test PATCH /hosts/<host_id_list>/facts/<namespace> with various account in identity
@@ -734,7 +734,7 @@ def test_account_put(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test PUT /hosts/<host_id_list>/facts/<namespace> with various account in identity
@@ -801,7 +801,7 @@ def test_account_delete(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2745
 
     metadata:
-        requirements: inv-account-integrity
+
         assignee: fstavela
         importance: high
         title: Test DELETE with various account data in identity

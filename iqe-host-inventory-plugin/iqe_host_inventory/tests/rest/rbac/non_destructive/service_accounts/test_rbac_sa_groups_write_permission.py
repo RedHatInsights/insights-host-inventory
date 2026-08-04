@@ -2,7 +2,7 @@
 
 """
 metadata:
-  requirements: inv-rbac
+
 """
 
 import logging
@@ -36,7 +36,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-post
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission can create a group
@@ -60,7 +60,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-patch
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission can patch a group
@@ -87,7 +87,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-delete
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission can delete a group
@@ -109,7 +109,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-remove-hosts
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission
@@ -135,7 +135,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission can
@@ -161,7 +161,7 @@ class TestRBACSAGroupsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-add-hosts
+
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:write" permission can add hosts to a group
@@ -185,7 +185,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-post
+
           assignee: fstavela
           importance: high
           negative: true
@@ -207,7 +207,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-patch
+
           assignee: fstavela
           importance: high
           negative: true
@@ -238,7 +238,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-delete
+
           assignee: fstavela
           importance: high
           negative: true
@@ -262,7 +262,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-remove-hosts
+
           assignee: fstavela
           importance: high
           negative: true
@@ -293,7 +293,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
+
           assignee: fstavela
           importance: high
           negative: true
@@ -324,7 +324,7 @@ class TestRBACSAGroupsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-add-hosts
+
           assignee: fstavela
           importance: high
           negative: true

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def test_staleness_update_random_data(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: high
       title: Update staleness settings via PATCH /account/staleness request
@@ -49,7 +49,7 @@ def test_staleness_update_single_field(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: high
       title: Update staleness settings for a single field
@@ -84,7 +84,7 @@ def test_staleness_update_single_field(
 def test_staleness_update_all_fields(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: high
       title: Update staleness settings for all fields
@@ -114,7 +114,7 @@ def test_staleness_update_min_max(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       title: Update staleness settings using min and max allowed deltas
@@ -135,7 +135,7 @@ def test_staleness_update_min_max(
 def test_staleness_update_nonexistent(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       negative: true
@@ -163,7 +163,7 @@ def test_staleness_update_value_too_big(
     Jira: https://issues.redhat.com/browse/ESSNTL-5521
 
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       negative: true
@@ -182,7 +182,7 @@ def test_staleness_update_invalid_field(host_inventory: ApplicationHostInventory
     Jira: https://issues.redhat.com/browse/ESSNTL-5406
 
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       negative: true
@@ -217,7 +217,7 @@ def test_staleness_update_invalid_value(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       negative: true
@@ -244,7 +244,7 @@ def test_staleness_update_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: high
       title: Verify that updating a staleness record in one account doesn't affect another account
@@ -310,7 +310,7 @@ def test_staleness_update_invalid_ordering(
     Jira: https://issues.redhat.com/browse/ESSNTL-5541
 
     metadata:
-      requirements: inv-staleness-patch
+
       assignee: msager
       importance: low
       negative: true
@@ -332,7 +332,7 @@ def test_staleness_mq_events_not_produce_update_staleness(
     https://issues.redhat.com/browse/RHINENG-16619
 
     metadata:
-      requirements: inv-staleness-patch, inv-produce-event-messages
+
       assignee: fstavela
       importance: high
       negative: true

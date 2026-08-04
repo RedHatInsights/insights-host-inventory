@@ -46,7 +46,7 @@ def test_rbac_sa_hosts_write_permission_delete_hosts_all(
     JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
     metadata:
-        requirements: inv-rbac, inv-hosts-delete-all
+
         assignee: fstavela
         importance: high
         title: Test that service accounts with "hosts:write" permission can delete all hosts
@@ -64,7 +64,7 @@ def test_rbac_sa_hosts_no_write_permission_delete_hosts_all(
     JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
     metadata:
-        requirements: inv-rbac, inv-hosts-delete-all
+
         assignee: fstavela
         importance: high
         negative: true

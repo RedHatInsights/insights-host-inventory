@@ -33,7 +33,7 @@ def test_groups_add_hosts_response(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: medium
       title: Test response for POST /groups/<group_id>/hosts request
@@ -69,7 +69,7 @@ def test_groups_add_hosts_check_timestamps(host_inventory: ApplicationHostInvent
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: medium
       title: Test that `updated` timestamp gets updated after POST /groups/<group_id>/hosts request
@@ -107,7 +107,7 @@ def test_groups_add_hosts(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: high
       title: Add hosts to group via POST request
@@ -147,7 +147,7 @@ def test_groups_add_hosts_empty_list(host_inventory: ApplicationHostInventory, w
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: medium
       title: Send empty list of Host IDs to POST /groups/<group_id>/hosts endpoint
@@ -174,7 +174,7 @@ def test_groups_add_hosts_already_in_my_group(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: medium
       title: Try to add host that is already in my group to my group
@@ -202,7 +202,7 @@ def test_groups_add_hosts_good_and_already_in_my_group(host_inventory: Applicati
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: high
       title: Try to add new host to group together with the one that is already in my group
@@ -239,7 +239,7 @@ def test_groups_add_hosts_already_in_different_group(
     (same behavior as PATCH with host_ids).
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: high
       title: Add a host from a different group to my group (moves the host)
@@ -273,7 +273,7 @@ def test_groups_add_hosts_good_and_already_in_different_group(
     the host from the other group is moved to the target group.
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: high
       title: Add a new host together with a host from a different group to my group
@@ -308,7 +308,7 @@ def test_groups_add_hosts_not_existing(host_inventory: ApplicationHostInventory,
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: low
       negative: true
@@ -332,7 +332,7 @@ def test_groups_add_hosts_good_and_not_existing(host_inventory: ApplicationHostI
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: low
       negative: true
@@ -395,7 +395,7 @@ def test_groups_add_hosts_validate_host_ids_wrong(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -429,7 +429,7 @@ def test_groups_add_hosts_good_and_bad(host_inventory: ApplicationHostInventory)
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -460,7 +460,7 @@ def test_groups_add_hosts_from_different_account(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-account-integrity
+
       assignee: fstavela
       importance: critical
       negative: true
@@ -500,7 +500,7 @@ def test_groups_add_hosts_to_different_account_group(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-account-integrity
+
       assignee: fstavela
       importance: critical
       negative: true
@@ -546,7 +546,7 @@ def test_groups_add_hosts_not_existing_group(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: low
       negative: true
@@ -570,7 +570,7 @@ def test_groups_add_hosts_validate_group_id_wrong(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -619,7 +619,7 @@ def test_groups_add_hosts_validate_protected_fields(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: medium
       negative: true
@@ -649,7 +649,7 @@ def test_groups_add_hosts_with_changed_org_id(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: high
       negative: true
@@ -676,7 +676,7 @@ def test_groups_add_hosts_validate_wrong_data_format(host_inventory: Application
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -702,7 +702,7 @@ def test_groups_add_hosts_without_data(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-api-validation
+
       assignee: fstavela
       importance: low
       negative: true
@@ -728,7 +728,7 @@ def test_groups_add_hosts_the_same_host_multiple_times(host_inventory: Applicati
     https://issues.redhat.com/browse/RHINENG-10845
 
     metadata:
-      requirements: inv-groups-add-hosts
+
       assignee: fstavela
       importance: low
       negative: true

@@ -88,7 +88,7 @@ def test_reaper_script(
     8. Make sure that the proper deletion messages are being sent to the events kafka topic
 
     metadata:
-        requirements: inv-host-reaper, inv-staleness-hosts
+
         assignee: fstavela
         importance: high
         title: Inventory: Confirm the culled hosts being removed by the host reaper

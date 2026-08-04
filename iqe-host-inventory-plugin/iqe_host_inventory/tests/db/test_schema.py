@@ -46,7 +46,7 @@ def test_db_rhsm_schema_changes(inventory_db_session):
     2. Make sure that no errors or exceptions occurs
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Inventory API: Ensure that the database schema changes
@@ -125,7 +125,7 @@ def test_db_schema_hosts_minimal(inventory_db_session):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Hosts table schema with nullable fields
@@ -161,7 +161,7 @@ def test_db_schema_hosts_max_len(inventory_db_session):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Hosts table schema maximum string length
@@ -217,7 +217,7 @@ def test_db_schema_groups_minimal(inventory_db_session):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Groups table schema with nullable fields
@@ -251,7 +251,7 @@ def test_db_schema_groups_max_len(inventory_db_session):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Groups table schema maximum string length
@@ -287,7 +287,7 @@ def test_db_schema_hosts_groups_correct(inventory_db_session):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Hosts_Groups table schema - correct values
@@ -322,7 +322,7 @@ def test_db_schema_hosts_groups_foreign_keys(inventory_db_session, id_key):
     JIRA: https://issues.redhat.com/browse/ESSNTL-3824
 
     metadata:
-        requirements: inv-db-schema
+
         assignee: fstavela
         importance: high
         title: Check DB Hosts_Groups table schema - foreign keys

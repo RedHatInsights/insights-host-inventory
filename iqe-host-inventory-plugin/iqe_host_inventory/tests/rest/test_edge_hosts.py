@@ -29,7 +29,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-12577
 
         metadata:
-            requirements: inv-hosts-get-list
+
             assignee: fstavela
             importance: high
             title: Test that edge hosts are visible
@@ -50,7 +50,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-12577
 
         metadata:
-            requirements: inv-tags-get-list
+
             assignee: fstavela
             importance: high
             title: Test that tags of edge hosts are visible
@@ -69,7 +69,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-get-by-id
+
             assignee: fstavela
             importance: high
             title: Test that I can get edge hosts by IDs
@@ -88,7 +88,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-get-system_profile
+
             assignee: fstavela
             importance: high
             title: Test that I can get edge host's system_profile by IDs
@@ -108,7 +108,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-get-tags
+
             assignee: fstavela
             importance: high
             title: Test that I can get edge host's tags by IDs
@@ -129,7 +129,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-get-tags-count
+
             assignee: fstavela
             importance: high
             title: Test that I can get edge host's tags count by IDs
@@ -150,7 +150,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-patch
+
             assignee: fstavela
             importance: high
             title: Test that I can patch edge hosts
@@ -172,7 +172,7 @@ class TestEdgeHosts:
         https://issues.redhat.com/browse/RHINENG-2276
 
         metadata:
-            requirements: inv-hosts-delete-by-id
+
             assignee: fstavela
             importance: high
             title: Test that I can delete edge hosts by IDs

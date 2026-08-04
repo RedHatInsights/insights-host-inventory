@@ -35,7 +35,7 @@ def test_create_single_host(host_inventory: ApplicationHostInventory):
     Create a single host by putting a valid message on the ingress topic.
 
     metadata:
-        requirements: inv-host-create
+
         assignee: fstavela
         importance: critical
         title: Inventory: Test create a single host by putting a valid message on
@@ -68,7 +68,7 @@ def test_create_multiple_hosts(host_inventory: ApplicationHostInventory):
     the topic.
 
     metadata:
-        requirements: inv-host-create
+
         assignee: fstavela
         importance: critical
     """
@@ -126,7 +126,7 @@ def test_update_single_host(
     Confirm that a host can be updated by dropping a follow-up message.
 
     metadata:
-        requirements: inv-host-update
+
         assignee: fstavela
         importance: critical
     """
@@ -169,7 +169,7 @@ def test_disallowed_update_to_single_host(
     3. Updates to id are ignored.
 
     metadata:
-        requirements: inv-mq-fields-protection
+
         assignee: fstavela
         importance: medium
     """
@@ -209,7 +209,7 @@ def test_platform_metadata_passthrough(host_inventory: ApplicationHostInventory)
     events topic.
 
     metadata:
-        requirements: inv-preserve-metadata
+
         assignee: fstavela
         importance: medium
     """
@@ -257,7 +257,7 @@ def test_create_host_display_name_fallback(
 
     metadata:
         assignee: fstavela
-        requirements: inv-display_name-fallback, inv-host-create
+
         importance: medium
         title: Test display_name fallback on host creation when it is not provided
     """
@@ -300,7 +300,7 @@ def test_update_host_custom_display_name(
 
     metadata:
         assignee: fstavela
-        requirements: inv-display_name-fallback, inv-host-update
+
         importance: medium
         title: Test display_name fallback when updating host with custom display_name and
             new display_name is not provided
@@ -351,7 +351,7 @@ def test_update_host_fqdn_as_display_name(
 
     metadata:
         assignee: fstavela
-        requirements: inv-display_name-fallback, inv-host-update
+
         importance: medium
         title: Test display_name fallback when updating host with display_name == fqdn and
             new display_name is not provided
@@ -405,7 +405,7 @@ def test_update_host_host_id_as_display_name(
 
     metadata:
         assignee: fstavela
-        requirements: inv-display_name-fallback, inv-host-update
+
         importance: medium
         title: Test display_name fallback when updating host with display_name == host ID and
             new display_name is not provided
@@ -449,7 +449,7 @@ def test_mq_create_host_with_org_id_key(
 
     metadata:
         assignee: fstavela
-        requirements: inv-host-create, inv-accept-mq-key
+
         importance: high
         title: Test creating a host with populating kafka key with org_id
     """
@@ -465,7 +465,7 @@ def test_mq_update_host_with_org_id_key(
 
     metadata:
         assignee: fstavela
-        requirements: inv-host-update, inv-accept-mq-key
+
         importance: high
         title: Test updating a host with populating kafka key with org_id
     """
@@ -486,7 +486,7 @@ def test_create_host_to_compare_last_check_in_with_updated(
     https://issues.redhat.com/browse/RHINENG-15759
 
     metadata:
-      requirements: inv-hosts-last_check_in-field, inv-host-update, inv-host-create
+
       assignee: zabikeno
       importance: high
       title: Test 'last_check_in' and 'updated' is equals for new uploaded host
@@ -531,7 +531,7 @@ def test_mq_batching_race_condition(host_inventory: ApplicationHostInventory):
 
     metadata:
         assignee: fstavela
-        requirements: inv-host-create
+
         importance: high
         title: Reproduce MQ race condition issue when batched MQ processing is enabled
         automation_status: not_automated
@@ -583,7 +583,7 @@ def test_mq_batching_different_hosts(host_inventory: ApplicationHostInventory):
 
     metadata:
         assignee: fstavela
-        requirements: inv-host-create
+
         importance: high
         title: Test that HBI creates 2 hosts when it receives 2 different payloads with MQ batching
         automation_status: not_automated
@@ -625,7 +625,7 @@ def test_mq_batching_dedup_from_db(host_inventory: ApplicationHostInventory):
 
     metadata:
         assignee: fstavela
-        requirements: inv-host-create
+
         importance: high
         title: Test that HBI updates host from DB if not found in the current MQ batch
         automation_status: not_automated
@@ -693,7 +693,7 @@ def test_rhsm_update_display_name_ignored_after_created_by_puptoo(
 
     metadata:
         assignee: fstavela
-        requirements: inv-rhsm-display_name
+
         importance: high
         title: Test that HBI ignores display_name updates from RHSM if it has been set by puptoo
     """
@@ -744,7 +744,7 @@ def test_rhsm_update_display_name_ignored_after_updated_by_api(
 
     metadata:
         assignee: fstavela
-        requirements: inv-rhsm-display_name
+
         importance: high
         title: Test that HBI ignores display_name updates from RHSM if it has been set via API (UI)
     """

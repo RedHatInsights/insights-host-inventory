@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def test_staleness_delete(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-delete
+
       assignee: msager
       importance: high
       title: Delete staleness settings via DELETE /account/staleness request
@@ -39,7 +39,7 @@ def test_staleness_delete(host_inventory: ApplicationHostInventory) -> None:
 def test_staleness_delete_nonexistent(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-delete
+
       assignee: msager
       importance: low
       negative: true
@@ -57,7 +57,7 @@ def test_staleness_delete_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-delete
+
       assignee: msager
       importance: high
       title: Verify that updating a staleness record in one account doesn't affect another account
@@ -104,7 +104,7 @@ def test_staleness_mq_events_not_produce_delete_staleness(
     https://issues.redhat.com/browse/RHINENG-16619
 
     metadata:
-      requirements: inv-staleness-delete, inv-produce-event-messages
+
       assignee: fstavela
       importance: high
       negative: true

@@ -1,6 +1,6 @@
 """
 metadata:
-    requirements: inv-rbac
+
 """
 
 from __future__ import annotations

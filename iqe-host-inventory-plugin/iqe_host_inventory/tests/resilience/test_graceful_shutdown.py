@@ -1,6 +1,6 @@
 """
 metadata:
-    requirements: inv-graceful-shutdown
+
 """
 
 import logging

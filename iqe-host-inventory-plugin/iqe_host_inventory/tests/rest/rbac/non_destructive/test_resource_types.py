@@ -111,7 +111,7 @@ def test_resource_types_get_list_without_groups(host_inventory):
     https://issues.redhat.com/browse/ESSNTL-3827
 
     metadata:
-      requirements: inv-resource-types-list
+
       assignee: fstavela
       importance: medium
       title: Get resource types list without any groups
@@ -127,7 +127,7 @@ def test_resource_types_get_list_with_group_with_host(host_inventory: Applicatio
     https://issues.redhat.com/browse/ESSNTL-3827
 
     metadata:
-      requirements: inv-resource-types-list
+
       assignee: fstavela
       importance: high
       title: Get resource types list with existing groups with hosts
@@ -146,7 +146,7 @@ def test_resource_types_get_groups_without_groups(host_inventory):
     https://issues.redhat.com/browse/ESSNTL-3827
 
     metadata:
-      requirements: inv-resource-types-groups
+
       assignee: fstavela
       importance: medium
       title: Get groups resources without any groups
@@ -163,7 +163,7 @@ def test_resource_types_get_groups_with_group_with_host(host_inventory: Applicat
     https://issues.redhat.com/browse/ESSNTL-3827
 
     metadata:
-      requirements: inv-resource-types-groups
+
       assignee: fstavela
       importance: high
       title: Get groups resources with existing groups with hosts
@@ -191,7 +191,7 @@ def test_resource_types_get_groups_pagination_only_my_groups(
     https://issues.redhat.com/browse/ESSNTL-3827
 
     metadata:
-      requirements: inv-resource-types-groups
+
       assignee: fstavela
       importance: high
       title: Test pagination while getting groups resources with limited amount of groups
@@ -235,7 +235,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: high
           title: Get resource types list with existing empty groups
@@ -255,7 +255,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: low
           title: Get resource types list - page without results
@@ -275,7 +275,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: low
           negative: true
@@ -312,7 +312,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: low
           negative: true
@@ -331,7 +331,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: low
           negative: true
@@ -368,7 +368,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: low
           negative: true
@@ -390,7 +390,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           title: Get groups resources with existing empty groups
@@ -413,7 +413,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: medium
           title: Get groups resources - page without results
@@ -435,7 +435,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: low
           negative: true
@@ -472,7 +472,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: low
           negative: true
@@ -491,7 +491,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: low
           negative: true
@@ -528,7 +528,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: low
           negative: true
@@ -549,7 +549,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3827
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           title: Test pagination while getting groups resources
@@ -582,7 +582,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           title: Get groups resources by name - provide exact name
@@ -605,7 +605,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           title: Get groups resources by name - provide only part of the name
@@ -630,7 +630,7 @@ class TestResourceTypesEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-groups, inv-account-integrity
+
           assignee: fstavela
           importance: high
           negative: true
@@ -664,7 +664,7 @@ def setup_empty_groups(host_inventory) -> list[GroupOutWithHostCount]:
 class TestRBACResourceTypesRBACPermissions:
     """
     metadata:
-        requirements: inv-rbac
+
     """
 
     def test_rbac_resource_types_rbac_permissions_get_list(
@@ -674,7 +674,7 @@ class TestRBACResourceTypesRBACPermissions:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: high
           title: Test that users with "rbac:*:*" and org admins can get a list of resource types
@@ -690,7 +690,7 @@ class TestRBACResourceTypesRBACPermissions:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           title: Test that users with "rbac:*:*" and org admins can get a list of groups resources
@@ -706,7 +706,7 @@ class TestRBACResourceTypesRBACPermissions:
 class TestRBACResourceTypesNoRBACPermissions:
     """
     metadata:
-        requirements: inv-rbac
+
     """
 
     def test_rbac_resource_types_no_rbac_permissions_get_list(
@@ -719,7 +719,7 @@ class TestRBACResourceTypesNoRBACPermissions:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-list
+
           assignee: fstavela
           importance: high
           negative: true
@@ -742,7 +742,7 @@ class TestRBACResourceTypesNoRBACPermissions:
         https://issues.redhat.com/browse/ESSNTL-4501
 
         metadata:
-          requirements: inv-resource-types-groups
+
           assignee: fstavela
           importance: high
           negative: true

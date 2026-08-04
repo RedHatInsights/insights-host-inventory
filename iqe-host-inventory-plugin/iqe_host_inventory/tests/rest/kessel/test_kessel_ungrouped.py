@@ -30,7 +30,7 @@ def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
 def test_kessel_create_hosts(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-ungrouped
+
       assignee: msager
       importance: high
       title: Test that ungrouped hosts are stored in the "ungrouped" group
@@ -54,7 +54,7 @@ def test_kessel_create_hosts(host_inventory: ApplicationHostInventory):
 def test_kessel_delete_host(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-ungrouped
+
       assignee: msager
       importance: high
       title: Test that a deleted host is removed from the "ungrouped" group
@@ -80,7 +80,7 @@ def test_kessel_filter_ungrouped_hosts(
 ):
     """
     metadata:
-      requirements: inv-kessel-ungrouped
+
       assignee: msager
       importance: high
       title: Test that I can filter hosts by the "ungrouped" group
@@ -104,7 +104,7 @@ def test_kessel_get_hosts_ordering_with_ungrouped(
 ):
     """
     metadata:
-      requirements: inv-kessel-ungrouped
+
       assignee: msager
       importance: high
       title: Test get hosts group name ordering with a mix of grouped/ungrouped hosts

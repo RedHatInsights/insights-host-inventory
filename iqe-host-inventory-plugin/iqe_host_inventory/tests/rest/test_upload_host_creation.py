@@ -39,7 +39,7 @@ def test_create_new_host(
     2. Confirm host is created with the expected display_name
 
     metadata:
-        requirements: inv-host-create
+
         assignee: fstavela
         importance: critical
         title: Inventory: POST creation of new host via archive upload (Ingress/Puptoo)
@@ -76,7 +76,7 @@ def test_create_same_host_twice(host_inventory: ApplicationHostInventory) -> Non
     3. Confirm only a single host is created
 
     metadata:
-        requirements: inv-host-create, inv-host-update, inv-host-deduplication
+
         assignee: fstavela
         importance: critical
         title: Inventory: POST creation of duplicate host via archive upload (Ingress/Puptoo)
@@ -122,7 +122,7 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
     3. Confirm the original host was updated (only one host in total should have been created).
 
     metadata:
-        requirements: inv-host-create, inv-host-deduplication
+
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm duplicate hosts with the same insights_id cannot be
@@ -199,7 +199,7 @@ def test_create_new_host_with_tags(
     4. Ensure the expected tags are returned
 
     metadata:
-        requirements: inv-tags, inv-host-create
+
         assignee: fstavela
         importance: high
         title: Inventory: POST creation of new host with tags via archive upload (Ingress/Puptoo)
@@ -229,7 +229,7 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     4. Confirm the system profile fact (SAP system) equals to TRUE
 
      metadata:
-        requirements: inv-host-create, inv-hosts-get-system_profile
+
         assignee: fstavela
         importance: high
         title: Inventory: POST creation of new SAP host via archive upload (Ingress/Puptoo)
@@ -260,7 +260,7 @@ def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) 
     4. Confirm the workloads.satellite.type equals "server"
 
      metadata:
-        requirements: inv-host-create, inv-hosts-get-system_profile
+
         assignee: rantunes
         importance: high
         title: Inventory: POST new Satellite Server host via archive upload
@@ -294,7 +294,7 @@ def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory)
     4. Confirm the workloads.satellite.type equals "capsule"
 
      metadata:
-        requirements: inv-host-create, inv-hosts-get-system_profile
+
         assignee: rantunes
         importance: high
         title: Inventory: POST new Satellite Capsule host via archive upload
@@ -322,7 +322,7 @@ def test_create_image_mode_host(
     https://issues.redhat.com/browse/RHINENG-8988
 
      metadata:
-        requirements: inv-host-create, inv-hosts-filter-by-system_profile-bootc_status
+
         assignee: fstavela
         importance: high
         title: Test creating and filtering image-mode hosts

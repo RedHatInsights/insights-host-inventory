@@ -1,6 +1,6 @@
 """
 metadata:
-  requirements: inv-api-validation
+
 """
 
 import pytest
