@@ -47,7 +47,7 @@ entry-points.pytest11.iqe_host_inventory_plugin = "iqe_host_inventory.pytest_plu
 build.packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
 build.targets.sdist.include = [ "/iqe_host_inventory", "/iqe_host_inventory_api", "/iqe_host_inventory_api_v7" ]
 build.targets.wheel.packages = [ "iqe_host_inventory", "iqe_host_inventory_api", "iqe_host_inventory_api_v7" ]
-envs.default.python = "3.9"
+envs.default.python = "3.12"
 envs.default.env-vars.PIP_INDEX = "https://nexus.corp.redhat.com/repository/cqt-pypi/pypi"
 envs.default.env-vars.PIP_INDEX_URL = "https://nexus.corp.redhat.com/repository/cqt-pypi/simple"
 # enable comms with nexus and stage CRC

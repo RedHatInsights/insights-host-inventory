@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-rbac-cert-auth-bypass
-"""
-
 import logging
 from typing import Any
 
@@ -47,7 +42,6 @@ class TestRBACHostsCertAuth:
            with the user's org_id
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when listing hosts
@@ -78,7 +72,6 @@ class TestRBACHostsCertAuth:
         3. Ensure GET request returns a 200 response with the host details
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Confirm cert-auth clients bypass RBAC checks when getting host details
@@ -110,7 +103,6 @@ class TestRBACHostsCertAuth:
         3. Ensure GET request returns a 200 response with the host system profile facts
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when getting
@@ -146,7 +138,6 @@ class TestRBACHostsCertAuth:
         3. Ensure GET request returns a 200 response with the host tags
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when getting host tags
@@ -181,7 +172,6 @@ class TestRBACHostsCertAuth:
         3. Ensure GET request returns a 200 response with the host tags count
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for getting host tags count with cert auth
@@ -207,7 +197,6 @@ class TestRBACHostsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for getting tags with cert auth
@@ -229,7 +218,6 @@ class TestRBACHostsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for getting operating systems with cert auth
@@ -253,7 +241,6 @@ class TestRBACHostsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for getting sap system values with cert auth
@@ -274,7 +261,6 @@ class TestRBACHostsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for getting sap sids with cert auth
@@ -302,7 +288,6 @@ class TestRBACHostsCertAuth:
         3. Ensure the export completes successfully
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when exporting hosts
@@ -331,7 +316,6 @@ class TestRBACHostsCertAuth:
         3. Ensure GET request returns a 200 response with the host id
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when checking
@@ -366,7 +350,6 @@ class TestRBACHostsCertAuth:
         5. Ensure GET request returns a 404 response
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when deleting hosts
@@ -391,7 +374,6 @@ class TestRBACHostsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-2218
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             title: Test that RBAC is ignored for deleting filtered hosts with cert auth
@@ -427,7 +409,6 @@ class TestRBACHostsCertAuth:
         5. Ensure GET request returns a 200 and the display name is updated
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             title: Inventory: Confirm cert-auth clients bypass RBAC checks when updating
@@ -466,7 +447,6 @@ def test_rbac_hosts_cert_auth_different_certificate(
     JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-8950
 
     metadata:
-        requirements: inv-api-cert-auth
         assignee: fstavela
         importance: high
         title: Inventory: Test cert-auth different certificates
@@ -489,7 +469,6 @@ def test_rbac_granular_hosts_cert_auth_bypass_checks_get_host(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-get-by-id, inv-rbac-cert-auth-bypass
         assignee: fstavela
         importance: high
         title: Test that granular RBAC is ignored on Hosts endpoints with cert auth
