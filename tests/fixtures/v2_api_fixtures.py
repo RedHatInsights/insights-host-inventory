@@ -9,14 +9,12 @@ from connexion import FlaskApp
 from starlette.testclient import TestClient
 
 from tests.helpers.api_utils import do_request
-from tests.helpers.db_utils import clean_tables
 from tests.helpers.test_utils import USER_IDENTITY
 
 
 @pytest.fixture(scope="function")
 def v2_flask_app(flask_app: FlaskApp) -> Generator[FlaskApp]:
     yield flask_app
-    clean_tables()
 
 
 @pytest.fixture(scope="function")
