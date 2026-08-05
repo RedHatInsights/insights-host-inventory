@@ -2015,7 +2015,7 @@
           "views"
         ],
         "summary": "Clone an inventory view",
-        "description": "Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The cloned view name is prefixed with \"Copy of \". <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The cloned view name is prefixed with \"Copy of \". <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -2042,9 +2042,6 @@
           },
           "404": {
             "description": "Source view not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       }
