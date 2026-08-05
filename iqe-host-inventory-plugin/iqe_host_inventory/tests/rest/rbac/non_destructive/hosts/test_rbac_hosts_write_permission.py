@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac
-"""
-
 import logging
 import random
 
@@ -87,7 +82,6 @@ class TestRBACHostsWritePermission:
         6. Ensure GET request returns an empty result
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have only "write" permission can delete hosts
@@ -110,7 +104,6 @@ class TestRBACHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-2218
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:write" permission can delete filtered hosts
@@ -149,7 +142,6 @@ class TestRBACHostsWritePermission:
         6. Ensure GET request returns a 200 and the display name was updated
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users with "write" permission can update host's display_name
@@ -193,7 +185,6 @@ class TestRBACHostsWritePermission:
         6. Ensure GET request returns a 200 with the new facts merged with the existing ones
 
         metadata:
-            requirements: inv-hosts-patch-facts
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "write" permission can merge host facts
@@ -246,7 +237,6 @@ class TestRBACHostsWritePermission:
         6. Ensure GET request returns a 200 with the new facts
 
         metadata:
-            requirements: inv-hosts-put-facts
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "write" permission can replace existing facts
@@ -297,7 +287,6 @@ class TestRBACHostsNoWritePermission:
         6. Ensure GET request returns a 200 response meaning that the host still exists
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             negative: true
@@ -325,7 +314,6 @@ class TestRBACHostsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-2218
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             negative: true
@@ -370,7 +358,6 @@ class TestRBACHostsNoWritePermission:
         6. Ensure GET request returns a 200 but the display name was not updated
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             negative: true
@@ -421,7 +408,6 @@ class TestRBACHostsNoWritePermission:
         6. Ensure GET request returns a 200 and the facts were not updated
 
         metadata:
-            requirements: inv-hosts-patch-facts
             assignee: fstavela
             importance: high
             negative: true
@@ -477,7 +463,6 @@ class TestRBACHostsNoWritePermission:
         6. Ensure GET request returns a 200 and facts were not updated
 
         metadata:
-            requirements: inv-hosts-put-facts
             assignee: fstavela
             importance: high
             negative: true

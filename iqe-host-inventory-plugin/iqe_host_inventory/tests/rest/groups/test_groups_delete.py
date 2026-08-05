@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 def test_groups_delete_empty_group(host_inventory: ApplicationHostInventory):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: critical
         title: Inventory: Confirm deletion of group works.
@@ -36,7 +35,6 @@ def test_groups_delete_empty_group(host_inventory: ApplicationHostInventory):
 def test_groups_delete_group_with_hosts(host_inventory: ApplicationHostInventory):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: critical
         title: Inventory: Confirm deletion of group works with multiple hosts.
@@ -59,7 +57,6 @@ def test_groups_delete_group_with_hosts(host_inventory: ApplicationHostInventory
 def test_groups_delete_multiple_groups(host_inventory: ApplicationHostInventory):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: critical
         title: Inventory: Confirm deletion of group works.
@@ -98,7 +95,6 @@ def test_groups_delete_group_with_invalid_id(
 ):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: low
         negative: true
@@ -143,7 +139,6 @@ def test_groups_delete_group_with_wrong_type_id(
     a request/response.
 
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: low
         negative: true
@@ -163,7 +158,6 @@ def test_groups_delete_group_with_wrong_type_id(
 def test_groups_delete_non_existing_group(host_inventory: ApplicationHostInventory, group_id):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: low
         negative: true
@@ -181,7 +175,6 @@ def test_groups_delete_not_valid_and_existing_group(
 ):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: low
         negative: true
@@ -208,7 +201,6 @@ def test_groups_delete_group_from_different_account(
 ):
     """
     metadata:
-        requirements: inv-groups-delete
         assignee: zabikeno
         importance: critical
         negative: true

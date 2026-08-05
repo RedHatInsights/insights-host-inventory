@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac
-"""
-
 import logging
 
 import pytest
@@ -75,7 +70,6 @@ class TestRBACHostsReadPermission:
            with the user's org_id
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to list hosts
@@ -108,7 +102,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host details
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host details
@@ -142,7 +135,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host system profile facts
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to
@@ -179,7 +171,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host tags
@@ -215,7 +206,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags count
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users with "read" permission have access to host tags count
@@ -241,7 +231,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to tags
@@ -263,7 +252,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of operating systems
@@ -289,7 +277,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap system values
@@ -308,7 +295,6 @@ class TestRBACHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap sids
@@ -330,7 +316,6 @@ class TestRBACHostsReadPermission:
         3. Verify that the export succeeds
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have "read" permission are able to export hosts
@@ -358,7 +343,6 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host id
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Confirm users who have "read" permission can check for host existence
@@ -391,7 +375,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             negative: true
@@ -422,7 +405,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             negative: true
@@ -455,7 +437,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             negative: true
@@ -489,7 +470,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             negative: true
@@ -521,7 +501,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             negative: true
@@ -545,7 +524,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             negative: true
@@ -564,7 +542,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -587,7 +564,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -610,7 +586,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -632,7 +607,6 @@ class TestRBACHostsNoReadPermission:
         https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             negative: true
@@ -655,7 +629,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Confirm users who don't have "read" permission can't check for host existence

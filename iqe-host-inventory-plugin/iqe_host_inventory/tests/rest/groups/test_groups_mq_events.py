@@ -39,7 +39,6 @@ def test_groups_mq_events_produce_create_group(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when a new group is created
@@ -81,7 +80,6 @@ def test_groups_mq_events_not_produce_create_groups_same_host(
     and moves those hosts to the new group; host update events are produced.
 
     metadata:
-      requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Create group with hosts from another group moves them and produces events
@@ -114,7 +112,6 @@ def test_groups_mq_events_not_produce_create_group_without_name(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -143,7 +140,6 @@ def test_groups_mq_events_not_produce_create_group_bad_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -171,7 +167,6 @@ def test_groups_mq_events_not_produce_create_group_unknown_field(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-post, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -196,7 +191,6 @@ def test_groups_mq_events_produce_patch_add_hosts(host_inventory: ApplicationHos
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are added to group via PATCH
@@ -241,7 +235,6 @@ def test_groups_mq_events_produce_patch_remove_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are removed from group via PATCH
@@ -286,7 +279,6 @@ def test_groups_mq_events_produce_patch_add_and_remove_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are added and removed from group via PATCH
@@ -328,7 +320,6 @@ def test_groups_mq_events_produce_patch_change_hosts(host_inventory: Application
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are changed in group via PATCH
@@ -370,7 +361,6 @@ def test_groups_mq_events_produce_patch_change_name(host_inventory: ApplicationH
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when group's name is changed via PATCH
@@ -414,7 +404,6 @@ def test_groups_mq_events_produce_patch_change_name_and_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts and name are changed in group via PATCH
@@ -464,7 +453,6 @@ def test_groups_mq_events_patch_group_move_hosts_produces_events(
     host update events.
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Patching group to include hosts from another group moves them and produces events
@@ -511,7 +499,6 @@ def test_groups_mq_events_not_produce_patch_group_bad_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -541,7 +528,6 @@ def test_groups_mq_events_not_produce_patch_group_unknown_field(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -570,7 +556,6 @@ def test_groups_mq_events_produce_delete_single_group(host_inventory: Applicatio
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-delete, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when a single group is deleted
@@ -610,7 +595,6 @@ def test_groups_mq_events_produce_delete_multiple_groups(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-delete, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when multiple groups are deleted
@@ -651,7 +635,6 @@ def test_groups_mq_events_not_produce_delete_group_bad_id(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-delete, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -685,7 +668,6 @@ def test_groups_mq_events_produce_remove_hosts(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-remove-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are removed from group
@@ -727,7 +709,6 @@ def test_groups_mq_events_not_produce_remove_hosts_bad_id(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-remove-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -765,7 +746,6 @@ def test_groups_mq_events_not_produce_remove_hosts_from_bad_group(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-remove-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -795,7 +775,6 @@ def test_groups_mq_events_not_produce_remove_hosts_from_different_group(
     https://issues.redhat.com/browse/ESSNTL-3855
 
     metadata:
-      requirements: inv-groups-remove-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -829,7 +808,6 @@ def test_groups_mq_events_produce_add_hosts(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are added to group
@@ -870,7 +848,6 @@ def test_groups_mq_events_not_produce_add_hosts_bad_id(host_inventory: Applicati
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -906,7 +883,6 @@ def test_groups_mq_events_not_produce_add_hosts_to_bad_group(
     https://issues.redhat.com/browse/ESSNTL-4377
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -938,7 +914,6 @@ def test_groups_mq_events_produce_remove_hosts_from_multiple_groups(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are removed from multiple groups via
@@ -982,7 +957,6 @@ def test_groups_mq_events_not_produce_remove_hosts_from_multiple_groups(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -1021,7 +995,6 @@ def test_groups_mq_events_preserve_request_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-groups-add-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that groups MQ event messages preserve request_id in message headers and data
