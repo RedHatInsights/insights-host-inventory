@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-rbac-cert-auth-bypass
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -36,7 +31,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-post
           assignee: fstavela
           importance: medium
           negative: true
@@ -63,7 +57,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: medium
           negative: true
@@ -91,7 +84,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-delete
           assignee: fstavela
           importance: medium
           negative: true
@@ -114,7 +106,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: medium
           negative: true
@@ -142,7 +133,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: medium
           negative: true
@@ -170,7 +160,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: medium
           negative: true
@@ -197,7 +186,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-get-list
           assignee: fstavela
           importance: medium
           negative: true
@@ -217,7 +205,6 @@ class TestRBACGroupsCertAuth:
         https://issues.redhat.com/browse/ESSNTL-5262
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           negative: true
@@ -240,7 +227,6 @@ def test_rbac_granular_groups_cert_auth_bypass_checks_get_groups_by_id(
     https://issues.redhat.com/browse/ESSNTL-5262
 
     metadata:
-      requirements: inv-groups-get-by-id, inv-rbac-cert-auth-bypass
       assignee: fstavela
       importance: medium
       negative: true

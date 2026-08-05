@@ -94,7 +94,6 @@ def test_rbac_hosts_write_permission_delete_hosts_all(
     https://issues.redhat.com/browse/ESSNTL-2218
 
     metadata:
-        requirements: inv-rbac, inv-hosts-delete-all
         assignee: fstavela
         importance: high
         title: Test that users with "hosts:write" permission can delete all hosts
@@ -112,7 +111,6 @@ def test_rbac_hosts_no_write_permission_delete_hosts_all(
     https://issues.redhat.com/browse/ESSNTL-2218
 
     metadata:
-        requirements: inv-rbac, inv-hosts-delete-all
         assignee: fstavela
         importance: high
         negative: true
@@ -146,7 +144,6 @@ def test_rbac_granular_hosts_write_permission_delete_hosts_all(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-rbac-granular-groups, inv-hosts-delete-all
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC access can delete all hosts (only correct ones)

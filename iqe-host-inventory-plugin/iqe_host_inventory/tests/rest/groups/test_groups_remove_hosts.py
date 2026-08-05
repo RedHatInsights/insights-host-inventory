@@ -22,7 +22,6 @@ def test_groups_remove_host(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       title: Remove single host from group
@@ -50,7 +49,6 @@ def test_groups_remove_hosts_check_timestamps(host_inventory: ApplicationHostInv
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: fstavela
       importance: medium
       title: Test that `updated` timestamp gets updated after
@@ -86,7 +84,6 @@ def test_groups_remove_multiple_hosts(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       title: Remove multiple hosts from group
@@ -107,7 +104,6 @@ def test_groups_remove_all_hosts(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       title: Remove all hosts from group
@@ -128,7 +124,6 @@ def test_groups_remove_hosts_not_belong_to_group(host_inventory: ApplicationHost
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       negative: true
@@ -163,7 +158,6 @@ def test_groups_remove_host_with_wrong_type_id(
 ):
     """
     metadata:
-        requirements: inv-groups-remove-hosts
         assignee: zabikeno
         importance: low
         negative: true
@@ -203,7 +197,6 @@ def test_groups_remove_hosts_with_invalid_id(
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       negative: true
@@ -246,7 +239,6 @@ def test_groups_remove_host_from_group_with_invalid_id(
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       negative: true
@@ -291,7 +283,6 @@ def test_groups_remove_host_from_non_existing_group(
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       negative: true
@@ -319,7 +310,6 @@ def test_groups_remove_not_existing_host(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/ESSNTL-3853
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: zabikeno
       importance: high
       negative: true
@@ -346,7 +336,6 @@ def test_groups_remove_hosts_from_different_account(
 ):
     """
     metadata:
-        requirements: inv-groups-remove-hosts
         assignee: zabikeno
         importance: critical
         negative: true
@@ -380,7 +369,6 @@ def test_groups_remove_hosts_from_group_with_different_account(
 ):
     """
     metadata:
-        requirements: inv-groups-remove-hosts
         assignee: zabikeno
         importance: critical
         negative: true

@@ -72,7 +72,6 @@ def test_hosts_mq_events_produce_patch_hosts(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are updated via PATCH /hosts/<host_ids> endpoint
@@ -106,7 +105,6 @@ def test_hosts_mq_events_not_produce_patch_hosts(host_inventory: ApplicationHost
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -127,7 +125,6 @@ def test_hosts_mq_events_produce_patch_hosts_facts(host_inventory: ApplicationHo
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch-facts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are updated via
@@ -165,7 +162,6 @@ def test_hosts_mq_events_not_produce_patch_hosts_facts(host_inventory: Applicati
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch-facts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -190,7 +186,6 @@ def test_hosts_mq_events_produce_put_hosts_facts(host_inventory: ApplicationHost
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-put-facts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are updated via
@@ -228,7 +223,6 @@ def test_hosts_mq_events_not_produce_put_hosts_facts(host_inventory: Application
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-put-facts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -258,7 +252,6 @@ def test_hosts_mq_events_produce_delete_hosts_by_ids(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are deleted via
@@ -282,7 +275,6 @@ def test_hosts_mq_events_not_produce_delete_hosts_by_ids(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -306,7 +298,6 @@ def test_hosts_mq_events_produce_delete_hosts_filtered(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-filtered-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are deleted via DELETE /hosts endpoint
@@ -333,7 +324,6 @@ def test_hosts_mq_events_not_produce_delete_hosts_filtered(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-filtered-hosts, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -357,7 +347,6 @@ def test_hosts_mq_events_produce_delete_hosts_all(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-all, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Produce kafka event message when hosts are deleted via DELETE /hosts/all endpoint
@@ -382,7 +371,6 @@ def test_hosts_mq_events_not_produce_delete_hosts_all(host_inventory: Applicatio
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-all, inv-produce-event-messages
       assignee: fstavela
       importance: high
       negative: true
@@ -407,7 +395,6 @@ def test_hosts_mq_events_update_preserves_host_type(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'updated' MQ event messages preserve host_type in message headers
@@ -443,7 +430,6 @@ def test_hosts_mq_events_delete_preserves_host_type(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' MQ event messages preserve host_type in message headers
@@ -480,7 +466,6 @@ def test_hosts_mq_events_update_preserves_os_name(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'updated' MQ event messages preserve os_name in message headers
@@ -520,7 +505,6 @@ def test_hosts_mq_events_delete_preserves_os_name(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' MQ event messages preserve os_name in message headers
@@ -553,7 +537,6 @@ def test_hosts_mq_events_update_preserves_is_bootc(
     https://issues.redhat.com/browse/RHINENG-11272
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'updated' MQ event messages preserve is_bootc in message headers
@@ -586,7 +569,6 @@ def test_hosts_mq_events_delete_preserves_is_bootc(
     https://issues.redhat.com/browse/RHINENG-11272
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' MQ event messages preserve is_bootc in message headers
@@ -616,7 +598,6 @@ def test_hosts_mq_events_update_preserves_insights_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'updated' MQ event messages preserve insights_id in message headers and data
@@ -657,7 +638,6 @@ def test_hosts_mq_events_delete_preserves_insights_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' MQ event messages preserve insights_id in message headers and data
@@ -697,7 +677,6 @@ def test_hosts_mq_events_delete_preserves_subscription_manager_id_and_initiated_
     https://issues.redhat.com/browse/RHINENG-12780
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' event has subscription_manager_id and indicates manual (UI) delete
@@ -741,7 +720,6 @@ def test_hosts_mq_events_delete_not_initiated_by_frontend(
     https://issues.redhat.com/browse/RHINENG-12780
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' event doesn't indicate manual (UI) delete with different UI headers
@@ -777,7 +755,6 @@ def test_hosts_mq_events_update_preserves_request_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-patch, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'updated' MQ event messages preserve request_id in message headers and data
@@ -819,7 +796,6 @@ def test_hosts_mq_events_delete_preserves_request_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-      requirements: inv-hosts-delete-by-id, inv-produce-event-messages
       assignee: fstavela
       importance: high
       title: Test that 'delete' MQ event messages preserve request_id in message headers and data
@@ -852,7 +828,6 @@ def test_hosts_mq_events_kafka_create_preserves_host_type(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-create
         assignee: fstavela
         importance: high
         title: Test creating a host produces a kafka message with host_type in headers
@@ -895,7 +870,6 @@ def test_hosts_mq_events_kafka_update_preserves_host_type(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test updating a host produces a kafka message with host_type in headers
@@ -946,7 +920,6 @@ def test_hosts_mq_events_kafka_create_preserves_os_name(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-create
         assignee: fstavela
         importance: high
         title: Test creating a host produces a kafka message with os_name in headers
@@ -988,7 +961,6 @@ def test_hosts_mq_events_kafka_update_preserves_os_name(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test updating a host produces a kafka message with os_name in headers
@@ -1036,7 +1008,6 @@ def test_hosts_mq_events_kafka_create_preserves_is_bootc(
     https://issues.redhat.com/browse/RHINENG-11272
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-create
         assignee: fstavela
         importance: high
         title: Test creating a host produces a kafka message with is_bootc in headers
@@ -1077,7 +1048,6 @@ def test_hosts_mq_events_kafka_update_preserves_is_bootc(
     https://issues.redhat.com/browse/RHINENG-11272
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test updating a host produces a kafka message with is_bootc in headers
@@ -1121,7 +1091,6 @@ def test_hosts_mq_events_kafka_create_preserves_insights_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-create
         assignee: fstavela
         importance: high
         title: Test creating a host produces a kafka message with insights_id in headers
@@ -1165,7 +1134,6 @@ def test_hosts_mq_events_kafka_update_preserves_insights_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test updating a host produces a kafka message with insights_id in headers
@@ -1219,7 +1187,6 @@ def test_hosts_mq_events_kafka_create_preserves_request_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-create
         assignee: fstavela
         importance: high
         title: Test creating a host produces a kafka message with request_id in headers
@@ -1270,7 +1237,6 @@ def test_hosts_mq_events_kafka_update_preserves_request_id(
     https://issues.redhat.com/browse/ESSNTL-5471
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test updating a host produces a kafka message with request_id in headers
@@ -1325,7 +1291,6 @@ def test_hosts_mq_events_kafka_update_preserves_headers_without_provided_data(
     https://github.com/RedHatInsights/insights-host-inventory/pull/1528
 
     metadata:
-        requirements: inv-produce-event-messages, inv-host-update
         assignee: fstavela
         importance: high
         title: Test headers in updated event have data from updated host, instead of input data

@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac-granular-groups
-"""
-
 import logging
 import operator
 from os import getenv
@@ -51,7 +46,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get a correct list of hosts
@@ -76,7 +70,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct hosts by ids
@@ -106,7 +99,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct system profiles
@@ -139,7 +131,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct host tags
@@ -171,7 +162,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct host tags counts
@@ -205,7 +195,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct tags
@@ -237,7 +226,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct operating systems
@@ -263,7 +251,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct sap system values
@@ -282,7 +269,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can get correct sap sids
@@ -300,7 +286,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             title: Test that users with granular RBAC access can export only
@@ -324,7 +309,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Test that users with granular RBAC access can check host existence
@@ -345,7 +329,6 @@ class TestRBACGranularHostsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Test that users with granular RBAC access can't check host
@@ -369,7 +352,6 @@ class TestRBACGranularHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can delete correct hosts by IDs
@@ -396,7 +378,6 @@ class TestRBACGranularHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can delete correct filtered hosts
@@ -426,7 +407,6 @@ class TestRBACGranularHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC access can patch correct hosts
@@ -460,7 +440,6 @@ class TestRBACGranularHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             negative: true
@@ -487,7 +466,6 @@ class TestRBACGranularHostsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             negative: true
@@ -523,7 +501,6 @@ class TestRBACGranularHostsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             negative: true
@@ -550,7 +527,6 @@ class TestRBACGranularHostsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             negative: true
@@ -584,7 +560,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC on wrong permission can't get list of hosts
@@ -605,7 +580,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC on wrong permission can't get hosts by ids
@@ -627,7 +601,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC on wrong permission can't get system profiles
@@ -649,7 +622,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC on wrong permission can't get tags
@@ -671,7 +643,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             title: Test that users with granular RBAC on wrong permission can't get tags counts
@@ -693,7 +664,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             title: Test that users with granular RBAC on wrong permission can't export hosts
@@ -707,7 +677,6 @@ class TestRBACGranularHostsWrongPermissionReadEndpoints:
     ) -> None:
         """
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Test that users with granular RBAC access on wrong permission can't
@@ -733,7 +702,6 @@ def test_rbac_granular_hosts_read_permission_null_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-get-by-id
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null group can access only not assigned hosts
@@ -770,7 +738,6 @@ def test_rbac_granular_hosts_write_permission_null_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-patch
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null group can edit not assigned hosts
@@ -805,7 +772,6 @@ def test_rbac_granular_hosts_write_permission_null_group_wrong(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-patch
         assignee: fstavela
         importance: high
         negative: true
@@ -839,7 +805,6 @@ def test_rbac_granular_hosts_read_permission_null_and_normal_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-get-by-id
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null and normal group can access correct hosts
@@ -880,7 +845,6 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-patch
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null and normal group can edit correct hosts
@@ -925,7 +889,6 @@ def test_rbac_granular_hosts_write_permission_null_and_normal_group_wrong(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-hosts-patch
         assignee: fstavela
         importance: high
         negative: true

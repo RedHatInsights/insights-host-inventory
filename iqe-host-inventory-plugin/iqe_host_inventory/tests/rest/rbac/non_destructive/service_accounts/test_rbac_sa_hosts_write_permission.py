@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac
-"""
-
 import logging
 
 import pytest
@@ -39,7 +34,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission can delete hosts by IDs
@@ -62,7 +56,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission
@@ -88,7 +81,6 @@ class TestRBACSAHostsWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             title: Test that service accounts with "hosts:write" permission
@@ -119,7 +111,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             negative: true
@@ -154,7 +145,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-filtered-hosts
             assignee: fstavela
             importance: high
             negative: true
@@ -190,7 +180,6 @@ class TestRBACSAHostsNoWritePermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             negative: true
