@@ -35,7 +35,6 @@ def test_system_profile_facts_update_single_field(
     - Field merging logic (RHINENG-17920)
 
     metadata:
-        requirements: inv-host-create, inv-host-update, inv-hosts-get-system_profile
         assignee: fstavela
         importance: critical
         title: E2E: System Profile Facts - Create, Update, and Retrieve

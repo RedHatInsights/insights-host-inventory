@@ -95,7 +95,6 @@ def test_get_specific_fields(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         importance: high
         assignee: rpfannsc
     """
@@ -125,7 +124,6 @@ def test_get_specific_fields_multiple_fields(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         assignee: rpfannsc
         importance: high
     """
@@ -162,7 +160,6 @@ def test_get_specific_fields_bad_field(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields, inv-api-validation
         assignee: rpfannsc
         importance: low
         negative: true
@@ -209,7 +206,6 @@ def test_sparse_legacy_workload_root_fields_omitted_from_response(
     columns. Requesting them returns 200 with the field omitted from the response.
 
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         assignee: rpfannsc
         importance: medium
     """
@@ -242,7 +238,6 @@ def test_get_specific_fields_bad_type(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields, inv-api-validation
         assignee: rpfannsc
         negative: true
         importance: low
@@ -316,7 +311,6 @@ def test_get_host_list_selected_fields(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         assignee: msager
         importance: high
         title: Verify that GET /hosts returns only the selected fields
@@ -357,7 +351,6 @@ def test_get_host_by_id_selected_fields(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         assignee: msager
         importance: high
         title: Verify that GET /hosts/{host_id} returns only the selected fields
@@ -396,7 +389,6 @@ def test_get_host_system_profile_by_id_selected_fields(
 ):
     """
     metadata:
-        requirements: inv-hosts-get-specific-sp-fields
         assignee: msager
         importance: high
         title: Verify that GET /hosts/{host_id}/system_profile returns only

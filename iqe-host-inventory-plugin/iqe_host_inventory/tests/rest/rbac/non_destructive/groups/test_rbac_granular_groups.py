@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac-granular-groups
-"""
-
 from __future__ import annotations
 
 import logging
@@ -59,7 +54,6 @@ class TestRBACGranularGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-list
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can get a correct list of groups
@@ -86,7 +80,6 @@ class TestRBACGranularGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can get correct groups by IDs
@@ -113,7 +106,6 @@ class TestRBACGranularGroupsReadPermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           negative: true
@@ -136,7 +128,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-post
           assignee: fstavela
           importance: high
           negative: true
@@ -161,7 +152,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can patch correct groups
@@ -192,7 +182,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can remove hosts from correct groups
@@ -224,7 +213,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can remove hosts from correct groups
@@ -253,7 +241,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: high
           title: Test that users with granular RBAC access can add hosts to correct groups
@@ -281,7 +268,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           negative: true
@@ -312,7 +298,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: high
           negative: true
@@ -342,7 +327,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           negative: true
@@ -373,7 +357,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           negative: true
@@ -406,7 +389,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: high
           negative: true
@@ -437,7 +419,6 @@ class TestRBACGranularGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-delete
           assignee: fstavela
           importance: high
           negative: true
@@ -462,7 +443,6 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           negative: true
@@ -492,7 +472,6 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-delete
           assignee: fstavela
           importance: high
           negative: true
@@ -515,7 +494,6 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: high
           negative: true
@@ -547,7 +525,6 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           negative: true
@@ -580,7 +557,6 @@ class TestRBACGranularGroupsWrongPermissionWriteEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: high
           negative: true
@@ -616,7 +592,6 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-list
           assignee: fstavela
           importance: high
           negative: true
@@ -634,7 +609,6 @@ class TestRBACGranularGroupsWrongPermissionReadEndpoints:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           negative: true
@@ -656,7 +630,6 @@ def test_rbac_granular_groups_write_permission_delete_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-      requirements: inv-groups-delete
       assignee: fstavela
       importance: high
       title: Test that users with granular RBAC access can delete correct groups
@@ -681,7 +654,6 @@ def test_rbac_granular_groups_read_permission_null_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: medium
       negative: true
@@ -711,7 +683,6 @@ def test_rbac_granular_groups_write_permission_null_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-      requirements: inv-groups-patch
       assignee: fstavela
       importance: medium
       negative: true
@@ -750,7 +721,6 @@ def test_rbac_granular_groups_read_permission_null_and_normal_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-groups-get-by-id
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null and normal group can access correct groups
@@ -787,7 +757,6 @@ def test_rbac_granular_groups_write_permission_null_and_normal_group(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-groups-patch
         assignee: fstavela
         importance: high
         title: Test that users with granular RBAC null and normal group can edit correct groups
@@ -824,7 +793,6 @@ def test_rbac_granular_groups_write_permission_null_and_normal_group_wrong(
     https://issues.redhat.com/browse/ESSNTL-4961
 
     metadata:
-        requirements: inv-groups-patch
         assignee: fstavela
         importance: high
         negative: true
@@ -928,7 +896,6 @@ class TestRBACGranularWithAndWithoutResourceDefinitions:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Test that users with and without granular RBAC can access all groups
@@ -951,7 +918,6 @@ class TestRBACGranularWithAndWithoutResourceDefinitions:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Test that users with and without granular RBAC can access all hosts
@@ -1027,7 +993,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Test granular RBAC - groups in multiple roles: user can get correct groups by IDs
@@ -1054,7 +1019,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           negative: true
@@ -1075,7 +1039,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           title: Test granular RBAC - groups in multiple roles: user can patch correct groups
@@ -1103,7 +1066,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           negative: true
@@ -1133,7 +1095,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Test granular RBAC - groups in multiple roles: user can get correct hosts by ids
@@ -1164,7 +1125,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             title: Test granular RBAC - groups in multiple roles: user can patch correct hosts
@@ -1198,7 +1158,6 @@ class TestRBACGranularResourceDefinitionsInMultipleRoles:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: high
             negative: true
@@ -1276,7 +1235,6 @@ class TestRBACGranularBadAttributeFilter:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           negative: true
@@ -1298,7 +1256,6 @@ class TestRBACGranularBadAttributeFilter:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: medium
           negative: true
@@ -1325,7 +1282,6 @@ class TestRBACGranularBadAttributeFilter:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: medium
             negative: true
@@ -1348,7 +1304,6 @@ class TestRBACGranularBadAttributeFilter:
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-hosts-patch
             assignee: fstavela
             importance: medium
             negative: true

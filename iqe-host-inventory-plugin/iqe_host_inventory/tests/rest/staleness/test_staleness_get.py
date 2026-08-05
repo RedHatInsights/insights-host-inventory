@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 def test_staleness_defaults(hbi_staleness_defaults: dict[str, int]) -> None:
     """
     metadata:
-      requirements: inv-staleness-get-defaults
       assignee: msager
       importance: low
       title: Verify staleness default settings via a GET /account/staleness/defaults request
@@ -32,7 +31,6 @@ def test_staleness_get_when_unset(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-get
       assignee: msager
       importance: high
       title: Get staleness settings (defaults) via a GET /account/staleness request when staleness is unset
@@ -47,7 +45,6 @@ def test_staleness_get_when_unset(
 def test_staleness_get_when_set(host_inventory: ApplicationHostInventory) -> None:
     """
     metadata:
-      requirements: inv-staleness-get
       assignee: msager
       importance: high
       title: Get staleness settings via a GET /account/staleness request when staleness is set
