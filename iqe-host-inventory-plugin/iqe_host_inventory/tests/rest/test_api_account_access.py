@@ -35,7 +35,6 @@ def test_access_host_from_another_account(
     3. Fetch the host using the secondary account and confirm the information is not accessible.
 
     metadata:
-        requirements: inv-account-integrity
         assignee: fstavela
         importance: critical
         title: Inventory: confirm hosts cannot be accessed from another account
@@ -81,7 +80,6 @@ def test_delete_multiple_accounts(
     fails.
 
     metadata:
-        requirements: inv-account-integrity
         assignee: fstavela
         importance: critical
         title: Inventory: Deletion from another account should fail with 404
@@ -108,7 +106,6 @@ def test_access_other_orgs_with_org_id_header(
     https://issues.redhat.com/browse/RHINENG-18446
 
     metadata:
-        requirements: inv-account-integrity, inv-rhsm-org_id-header
         assignee: fstavela
         importance: critical
         title: Test that org-id header is ignored on requests that aren't coming from internal RHSM
