@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac-granular-groups
-"""
-
 import logging
 
 import pytest
@@ -31,7 +26,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access
@@ -57,7 +51,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access can get correct hosts by id
@@ -85,7 +78,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             title: Test that service accounts with granular RBAC access
@@ -108,7 +100,6 @@ class TestRBACSAGranularHosts:
         https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-            requirements: inv-hosts-delete-by-id
             assignee: fstavela
             importance: high
             negative: true

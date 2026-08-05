@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-per-reporter-staleness
-"""
-
 from __future__ import annotations
 
 import logging
@@ -181,7 +176,6 @@ def test_per_reporter_default_staleness(
     JIRA: https://issues.redhat.com/browse/ESSNTL-1261
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: fstavela
         importance: high
         title: Test per reporter staleness
@@ -201,7 +195,6 @@ def test_per_reporter_custom_staleness(
     JIRA: https://issues.redhat.com/browse/ESSNTL-1261
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: fstavela
         importance: high
         title: Test per reporter staleness
@@ -226,7 +219,6 @@ def test_per_reporter_update_staleness(
     """Test per reporter custom staleness settings update
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: msager
         importance: high
         title: Test per reporter staleness
@@ -415,7 +407,6 @@ def test_per_reporter_registered_with(host_inventory: ApplicationHostInventory) 
     """Test per reporter registered_with filter with custom staleness
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-registered_with
         assignee: msager
         importance: high
         title: Test per reporter staleness

@@ -49,7 +49,6 @@ class TestHostViewAppDataSort:
         """Two hosts with distinct values appear in the expected order.
 
         metadata:
-            requirements: inv-host-views-sorting
             assignee: adubey
             importance: high
             title: Test sort by app data field ASC/DESC
@@ -79,7 +78,6 @@ class TestHostViewAppDataSort:
         """Three hosts with distinct values are fully ordered.
 
         metadata:
-            requirements: inv-host-views-sorting
             assignee: adubey
             importance: high
             title: Test full sort ordering with three hosts
@@ -112,7 +110,6 @@ class TestHostViewAppDataSort:
         """Hosts without app data appear after those with data (NULLS LAST).
 
         metadata:
-            requirements: inv-host-views-sorting
             assignee: adubey
             importance: high
             title: Test NULLS LAST for app data sorting
@@ -140,7 +137,6 @@ class TestHostViewAppDataSort:
         """Filter by advisor but sort by vulnerability — independent operations.
 
         metadata:
-            requirements: inv-host-views-sorting, inv-host-views-filter
             assignee: adubey
             importance: high
             title: Test cross-app sort + filter

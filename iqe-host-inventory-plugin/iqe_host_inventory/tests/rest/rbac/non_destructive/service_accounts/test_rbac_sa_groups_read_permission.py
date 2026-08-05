@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-rbac
-"""
-
 import logging
 
 import pytest
@@ -31,7 +26,6 @@ class TestRBACSAGroupsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-get-list
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:read" permission can get a list of groups
@@ -51,7 +45,6 @@ class TestRBACSAGroupsReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Test that service accounts with "groups:read" permission can get groups by ID
@@ -79,7 +72,6 @@ class TestRBACSAGroupsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-get-list
           assignee: fstavela
           importance: high
           negative: true
@@ -98,7 +90,6 @@ class TestRBACSAGroupsNoReadPermission:
         JIRA: https://issues.redhat.com/browse/RHINENG-7891
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           negative: true
