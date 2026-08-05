@@ -3,6 +3,8 @@ import logging
 import pytest
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
+from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.staleness_utils import get_staleness_fields
 from iqe_host_inventory.utils.staleness_utils import validate_staleness_response
@@ -27,7 +29,7 @@ def _skip_if_rbac_workspaces(host_inventory: ApplicationHostInventory):
 def test_rbac_inventory_with_rhel_roles(
     host_inventory: ApplicationHostInventory,
     host_inventory_non_org_admin: ApplicationHostInventory,
-    rbac_setup_resources,
+    rbac_setup_resources: RBACResources,
     hbi_staleness_defaults: dict[str, int],
     rbac_setup_user_with_rhel_role: str,
 ):
@@ -41,7 +43,6 @@ def test_rbac_inventory_with_rhel_roles(
 
     metadata:
         importance: high
-        requirements: inv-rbac
         assignee: zabikeno
         title: Test that user with RHEL roles has required inventory permissions
     """
@@ -50,13 +51,13 @@ def test_rbac_inventory_with_rhel_roles(
 
     # Hosts
     # check RHEL viewer's inventory read access
-    hosts = rbac_setup_resources[0]
+    hosts = flatten(rbac_setup_resources.hosts)
     expected_hosts_ids = {host.id for host in hosts}
 
     response = host_inventory_non_org_admin.apis.hosts.get_hosts_response()
     response_hosts_ids = {host.id for host in response.results}
 
-    assert len(response.results) >= 2
+    assert len(response.results) >= len(hosts)
     assert expected_hosts_ids.issubset(response_hosts_ids)
 
     # check at least one hosts edit operation to make sure user has write access
@@ -68,13 +69,13 @@ def test_rbac_inventory_with_rhel_roles(
 
     # Groups
     # check RHEL viewer's inventory read access
-    groups = rbac_setup_resources[1]
+    groups = rbac_setup_resources.groups
     expected_groups_ids = {group.id for group in groups}
 
     response = host_inventory_non_org_admin.apis.groups.get_groups()
     response_groups_ids = {group.id for group in response}
 
-    assert len(response) >= 2
+    assert len(response) >= len(groups)
     assert expected_groups_ids.issubset(response_groups_ids)
 
     # check at least one groups edit operation to make sure user has write access

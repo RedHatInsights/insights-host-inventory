@@ -126,6 +126,186 @@ prod:
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_qe_2
           vault_key: org_id
+    insights_inventory_qe_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_test: # Account for testing RBAC v1
       auth:
         username:
@@ -175,6 +355,186 @@ prod:
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/prod/users/insights_inventory_test_2
+          vault_key: org_id
+    insights_inventory_test_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/prod/users/insights_inventory_test
           vault_key: org_id
     inventory_service_account:
       auth:
@@ -430,6 +790,186 @@ stage: &stage
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_qe_2
           vault_key: org_id
+    insights_inventory_qe_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
+    insights_inventory_qe_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_qe
+          vault_key: org_id
     insights_inventory_test:  # Account for testing RBAC v1
       auth:
         username:
@@ -479,6 +1019,186 @@ stage: &stage
           vault_key: account_number
         org_id:
           vault_path: secrets/qe/stage/users/insights_inventory_test_2
+          vault_key: org_id
+    insights_inventory_test_inv_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: inv-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_hosts_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: hosts-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_groups_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: groups-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_all_read:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: all-read-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_admin:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-admin-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_viewer:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-viewer-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_write:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-write-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_staleness_all:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: staleness-all-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-adm-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_adm_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-adm-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_adm:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-vwr-hst-adm-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_vwr_hst_vwr:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-vwr-hst-vwr-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_stl_wrt_hst_wrt:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: stl-wrt-hst-wrt-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: org_id
+    insights_inventory_test_no_perms:
+      auth:
+        refresh_token:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
+          vault_key: no-perms-refresh_token
+      identity:
+        org_id:
+          vault_path: secrets/qe/stage/users/insights_inventory_test
           vault_key: org_id
     inventory_service_account:
       auth:
@@ -713,6 +1433,394 @@ smoke:
         x509:
           subject_dn: "/O=mpaas/OU=serviceaccounts/UID=mpp:rhsm:prod-errata-notifications"
           issuer_dn: "/O=Red Hat/OU=prod/CN=2023 Certificate Authority RHCSv2"
+
+    # ------------------------------------------------------------------
+    # RBAC sub-users
+    # Keep in sync with scripts/rbac-setup/vars/users.yml
+    # ------------------------------------------------------------------
+    insights_inventory_qe_inv_admin:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: &smoke-rbac-user-defaults
+            first_name: Insights
+            last_name: RBAC
+            is_active: true
+            is_org_admin: false
+            is_internal: false
+            locale: en_US
+          username: "insights_inventory_qe-inv-admin"
+          email: insights_inventory_qe_inv_admin@redhat.com
+          user_id: "70001"
+        internal: &smoke-rbac-internal
+          org_id: *smoke-primary-org
+          auth_time: 6300
+      entitlements: &smoke-rbac-entitlements
+        insights:
+          is_entitled: true
+      rbac:
+        - type: preconfigured
+          role_name: "Inventory administrator"
+          workspace_type: default
+
+    insights_inventory_qe_hosts_admin:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-hosts-admin"
+          email: insights_inventory_qe_hosts_admin@redhat.com
+          user_id: "70002"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Inventory Hosts administrator"
+          workspace_type: default
+
+    insights_inventory_qe_hosts_viewer:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-hosts-viewer"
+          email: insights_inventory_qe_hosts_viewer@redhat.com
+          user_id: "70003"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Inventory Hosts viewer"
+          workspace_type: default
+
+    insights_inventory_qe_groups_admin:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-groups-admin"
+          email: insights_inventory_qe_groups_admin@redhat.com
+          user_id: "70004"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Inventory Groups administrator"
+          role_name_v2: "Workspace administrator"
+          workspace_type: default
+
+    insights_inventory_qe_groups_viewer:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-groups-viewer"
+          email: insights_inventory_qe_groups_viewer@redhat.com
+          user_id: "70005"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Inventory Groups viewer"
+          role_name_v2: "Workspace viewer"
+          workspace_type: default
+
+    insights_inventory_qe_staleness_admin:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-staleness-admin"
+          email: insights_inventory_qe_staleness_admin@redhat.com
+          user_id: "70006"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Administrator"
+          workspace_type: root
+
+    insights_inventory_qe_staleness_viewer:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-staleness-viewer"
+          email: insights_inventory_qe_staleness_viewer@redhat.com
+          user_id: "70007"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Viewer"
+          workspace_type: root
+
+    insights_inventory_qe_staleness_write:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-staleness-write"
+          email: insights_inventory_qe_staleness_write@redhat.com
+          user_id: "70008"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "staleness:staleness:write"
+          workspace_type: root
+
+    insights_inventory_qe_hosts_write:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-hosts-write"
+          email: insights_inventory_qe_hosts_write@redhat.com
+          user_id: "70009"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "inventory:hosts:write"
+          workspace_type: default
+
+    insights_inventory_qe_groups_write:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-groups-write"
+          email: insights_inventory_qe_groups_write@redhat.com
+          user_id: "70010"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "inventory:groups:write"
+          workspace_type: default
+
+    insights_inventory_qe_hosts_all:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-hosts-all"
+          email: insights_inventory_qe_hosts_all@redhat.com
+          user_id: "70011"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "inventory:hosts:*"
+          workspace_type: default
+
+    insights_inventory_qe_groups_all:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-groups-all"
+          email: insights_inventory_qe_groups_all@redhat.com
+          user_id: "70012"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "inventory:groups:*"
+          workspace_type: default
+
+    insights_inventory_qe_all_read:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-all-read"
+          email: insights_inventory_qe_all_read@redhat.com
+          user_id: "70013"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "inventory:*:read"
+          workspace_type: default
+
+    insights_inventory_qe_staleness_all:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-staleness-all"
+          email: insights_inventory_qe_staleness_all@redhat.com
+          user_id: "70014"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "staleness:staleness:*"
+          workspace_type: root
+
+    insights_inventory_qe_stl_adm_hst_adm:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-stl-adm-hst-adm"
+          email: insights_inventory_qe_stl_adm_hst_adm@redhat.com
+          user_id: "70015"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Administrator"
+          workspace_type: root
+        - type: preconfigured
+          role_name: "Inventory Hosts administrator"
+          workspace_type: default
+
+    insights_inventory_qe_stl_adm_hst_vwr:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-stl-adm-hst-vwr"
+          email: insights_inventory_qe_stl_adm_hst_vwr@redhat.com
+          user_id: "70016"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Administrator"
+          workspace_type: root
+        - type: preconfigured
+          role_name: "Inventory Hosts viewer"
+          workspace_type: default
+
+    insights_inventory_qe_stl_vwr_hst_adm:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-stl-vwr-hst-adm"
+          email: insights_inventory_qe_stl_vwr_hst_adm@redhat.com
+          user_id: "70017"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Viewer"
+          workspace_type: root
+        - type: preconfigured
+          role_name: "Inventory Hosts administrator"
+          workspace_type: default
+
+    insights_inventory_qe_stl_vwr_hst_vwr:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-stl-vwr-hst-vwr"
+          email: insights_inventory_qe_stl_vwr_hst_vwr@redhat.com
+          user_id: "70018"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: preconfigured
+          role_name: "Organization Staleness and Deletion Viewer"
+          workspace_type: root
+        - type: preconfigured
+          role_name: "Inventory Hosts viewer"
+          workspace_type: default
+
+    insights_inventory_qe_stl_wrt_hst_wrt:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-stl-wrt-hst-wrt"
+          email: insights_inventory_qe_stl_wrt_hst_wrt@redhat.com
+          user_id: "70019"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac:
+        - type: custom
+          permission: "staleness:staleness:write"
+          workspace_type: root
+        - type: custom
+          permission: "inventory:hosts:write"
+          workspace_type: default
+
+    insights_inventory_qe_no_perms:
+      identity:
+        account_number: *smoke-primary-account
+        org_id: *smoke-primary-org
+        type: User
+        auth_type: basic-auth
+        user:
+          <<: *smoke-rbac-user-defaults
+          username: "insights_inventory_qe-no-perms"
+          email: insights_inventory_qe_no_perms@redhat.com
+          user_id: "70020"
+        internal: *smoke-rbac-internal
+      entitlements: *smoke-rbac-entitlements
+      rbac: []
 
 
 clowder_smoke:

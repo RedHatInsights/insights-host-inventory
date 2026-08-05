@@ -1,25 +1,18 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-    requirements: inv-rbac
-"""
-
 import logging
-import operator
 
 import pytest
 from pytest_lazy_fixtures import lf
 
 from iqe_host_inventory import ApplicationHostInventory
+from iqe_host_inventory.fixtures.rbac_fixtures import RBACResources
 from iqe_host_inventory.utils import flatten
 from iqe_host_inventory.utils.api_utils import assert_forbidden_response
 from iqe_host_inventory.utils.api_utils import raises_apierror
-from iqe_host_inventory.utils.datagen_utils import TagDict
 from iqe_host_inventory.utils.datagen_utils import get_default_operating_system
+from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory_api import ApiException
-from iqe_host_inventory_api import GroupOutWithHostCount
-from iqe_host_inventory_api import HostOut
 
 logger = logging.getLogger(__name__)
 
@@ -28,40 +21,41 @@ pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent]
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_hosts_read_user_setup_class"),
-        lf("rbac_inventory_all_read_user_setup_class"),
-        lf("rbac_inventory_hosts_all_user_setup_class"),
-        lf("rbac_inventory_admin_user_setup_class"),
+        lf("host_inventory_rbac_inv_admin"),
+        lf("host_inventory_rbac_hosts_admin"),
+        lf("host_inventory_rbac_hosts_viewer"),
+        lf("host_inventory_rbac_hosts_all"),
+        lf("host_inventory_rbac_all_read"),
     ],
     scope="class",
 )
-def read_permission_user_setup(request: pytest.FixtureRequest) -> None:
+def host_inventory_read_permissions(request: pytest.FixtureRequest) -> ApplicationHostInventory:
     return request.param
 
 
 @pytest.fixture(
     params=[
-        lf("rbac_inventory_groups_read_user_setup_class"),
-        lf("rbac_inventory_groups_write_user_setup_class"),
-        lf("rbac_inventory_groups_all_user_setup_class"),
-        lf("rbac_inventory_hosts_write_user_setup_class"),
-        lf("rbac_inventory_user_without_permissions_setup_class"),
+        lf("host_inventory_rbac_groups_admin"),
+        lf("host_inventory_rbac_groups_viewer"),
+        lf("host_inventory_rbac_groups_write"),
+        lf("host_inventory_rbac_groups_all"),
+        lf("host_inventory_rbac_hosts_write"),
+        lf("host_inventory_rbac_no_perms"),
     ],
     scope="class",
 )
-def no_read_permission_user_setup(request: pytest.FixtureRequest) -> None:
+def host_inventory_no_read_permissions(
+    request: pytest.FixtureRequest,
+) -> ApplicationHostInventory:
     return request.param
 
 
-@pytest.mark.usefixtures("read_permission_user_setup")
 class TestRBACHostsReadPermission:
     def test_rbac_hosts_read_permission_list_hosts(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
-        hbi_non_org_admin_user_org_id: str,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
+        hbi_default_org_id: str,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to list hosts via REST API
@@ -76,27 +70,24 @@ class TestRBACHostsReadPermission:
            with the user's org_id
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to list hosts
         """
-        expected_hosts_ids = {host.id for host in rbac_setup_resources[0]}
+        expected_hosts_ids = {host.id for host in flatten(rbac_setup_resources.hosts)}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_response()
+        response = host_inventory_read_permissions.apis.hosts.get_hosts_response()
         response_hosts_ids = {host.id for host in response.results}
 
-        assert len(response.results) >= 2
+        assert len(response.results) >= len(expected_hosts_ids)
         for result in response.results:
-            assert result.org_id == hbi_non_org_admin_user_org_id
+            assert result.org_id == hbi_default_org_id
         assert expected_hosts_ids.issubset(response_hosts_ids)
 
     def test_rbac_hosts_read_permission_get_host(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to access host details
@@ -111,27 +102,24 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host details
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host details
         """
-        expected_hosts_ids = {host.id for host in rbac_setup_resources[0]}
+        expected_hosts_ids = {host.id for host in flatten(rbac_setup_resources.hosts)}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_by_id_response(
+        response = host_inventory_read_permissions.apis.hosts.get_hosts_by_id_response(
             list(expected_hosts_ids)
         )
         response_hosts_ids = {host.id for host in response.results}
 
-        assert response.count == 2
+        assert response.count == len(expected_hosts_ids)
         assert response_hosts_ids == expected_hosts_ids
 
     def test_rbac_hosts_read_permission_get_host_system_profile(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to access host system profile
@@ -147,30 +135,27 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host system profile facts
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to
                 host system profile facts
         """
-        expected_hosts_ids = {host.id for host in rbac_setup_resources[0]}
+        expected_hosts_ids = {host.id for host in flatten(rbac_setup_resources.hosts)}
 
-        response = host_inventory_non_org_admin.apis.hosts.get_hosts_system_profile_response(
+        response = host_inventory_read_permissions.apis.hosts.get_hosts_system_profile_response(
             list(expected_hosts_ids)
         )
         response_hosts_ids = {host.id for host in response.results}
 
-        assert response.count == 2
+        assert response.count == len(expected_hosts_ids)
         assert response_hosts_ids == expected_hosts_ids
         for host in response.results:
             assert host.system_profile.operating_system.to_dict() == get_default_operating_system()
 
     def test_rbac_hosts_read_permission_get_host_tags(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to access host tags
@@ -186,31 +171,26 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to host tags
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
+        tags = flatten(rbac_setup_resources.tags)
 
-        response = host_inventory_non_org_admin.apis.hosts.get_host_tags_response(hosts_ids)
+        response = host_inventory_read_permissions.apis.hosts.get_host_tags_response(hosts_ids)
 
-        assert response.count == 2
-        dict_tags = [tag.to_dict() for tag in response.results[hosts_ids[0]]]
-        assert sorted(dict_tags, key=operator.itemgetter("key")) == sorted(
-            rbac_setup_resources[2][0], key=operator.itemgetter("key")
-        )
-        dict_tags = [tag.to_dict() for tag in response.results[hosts_ids[1]]]
-        assert sorted(dict_tags, key=operator.itemgetter("key")) == sorted(
-            rbac_setup_resources[2][1], key=operator.itemgetter("key")
-        )
+        assert response.count == len(hosts_ids)
+        for i in range(len(hosts_ids)):
+            assert len(response.results[hosts_ids[i]]) == len(tags[i])
+            assert_tags_found(
+                tags[i], response.results[hosts_ids[i]], check_api_response_count=False
+            )
 
     def test_rbac_hosts_read_permission_get_host_tags_count(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to access host tags count
@@ -226,67 +206,60 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host tags count
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users with "read" permission have access to host tags count
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
+        tags = flatten(rbac_setup_resources.tags)
 
-        response = host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(hosts_ids)
+        response = host_inventory_read_permissions.apis.hosts.get_host_tags_count_response(
+            hosts_ids
+        )
 
-        assert response.count == 2
-        assert response.results[hosts_ids[0]] == len(rbac_setup_resources[2][0])
-        assert response.results[hosts_ids[1]] == len(rbac_setup_resources[2][1])
+        assert response.count == len(hosts_ids)
+        for i in range(len(hosts_ids)):
+            assert response.results[hosts_ids[i]] == len(tags[i])
 
     def test_rbac_hosts_read_permission_get_tags(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             title: Inventory: Confirm users who have "read" permission have access to tags
         """
-        tags = sorted(flatten(rbac_setup_resources[2]), key=operator.itemgetter("key"))
+        tags = flatten(flatten(rbac_setup_resources.tags))
 
-        response = host_inventory_non_org_admin.apis.tags.get_tags_json()
+        response = host_inventory_read_permissions.apis.tags.get_tags_json()
 
         assert response["count"] == len(tags)
-        for tag in response["results"]:
-            assert tag["count"] == 1
-        dict_tags = [tag["tag"] for tag in response["results"]]
-        assert sorted(dict_tags, key=operator.itemgetter("key")) == tags
+        assert_tags_found(tags, response["results"])
 
     def test_rbac_hosts_read_permission_get_operating_systems(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of operating systems
         """
-        hosts = rbac_setup_resources[0]
+        hosts = flatten(rbac_setup_resources.hosts)
 
         response = (
-            host_inventory_non_org_admin.apis.system_profile.get_operating_systems_response()
+            host_inventory_read_permissions.apis.system_profile.get_operating_systems_response()
         )
 
         assert response.count == 1
@@ -297,47 +270,43 @@ class TestRBACHostsReadPermission:
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_read_permission_get_sap_system(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap system values
         """
-        response = host_inventory_non_org_admin.apis.system_profile.get_sap_systems_response()
+        response = host_inventory_read_permissions.apis.system_profile.get_sap_systems_response()
         assert response.count == 0
         assert len(response.results) == 0
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_read_permission_get_sap_sids(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Test that users with "hosts:read" permission can get a list of sap sids
         """
-        response = host_inventory_non_org_admin.apis.system_profile.get_sap_sids_response()
+        response = host_inventory_read_permissions.apis.system_profile.get_sap_sids_response()
         assert response.count == 0
         assert len(response.results) == 0
 
     def test_rbac_hosts_read_permission_export_hosts(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission tries to export hosts via REST API
@@ -347,14 +316,13 @@ class TestRBACHostsReadPermission:
         3. Verify that the export succeeds
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             title: Inventory: Confirm users who have "read" permission are able to export hosts
         """
-        expected_hosts_ids = {host.id for host in rbac_setup_resources[0]}
+        expected_hosts_ids = {host.id for host in flatten(rbac_setup_resources.hosts)}
 
-        report: list[dict] = host_inventory_non_org_admin.apis.exports.export_hosts()  # type: ignore[assignment]
+        report: list[dict] = host_inventory_read_permissions.apis.exports.export_hosts()  # type: ignore[assignment]
         exported_hosts_ids = {host["host_id"] for host in report}
 
         assert len(report) >= len(expected_hosts_ids)
@@ -362,10 +330,8 @@ class TestRBACHostsReadPermission:
 
     def test_rbac_hosts_read_permission_get_host_exists(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who has "read" permission checks to see if a
@@ -377,25 +343,24 @@ class TestRBACHostsReadPermission:
         4. Ensure GET request returns a 200 response with the host id
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Confirm users who have "read" permission can check for host existence
         """
-        insights_id = rbac_setup_resources[0][0].insights_id
-        expected_host_id = rbac_setup_resources[0][0].id
+        all_hosts = flatten(rbac_setup_resources.hosts)
+        insights_id = all_hosts[0].insights_id
+        expected_host_id = all_hosts[0].id
 
-        response = host_inventory_non_org_admin.apis.hosts.get_host_exists(insights_id)
+        response = host_inventory_read_permissions.apis.hosts.get_host_exists(insights_id)
 
         assert response.id == expected_host_id
 
 
-@pytest.mark.usefixtures("no_read_permission_user_setup")
 class TestRBACHostsNoReadPermission:
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_list_hosts(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who doesn't have "read" permission tries to list hosts
@@ -410,7 +375,6 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-list
             assignee: fstavela
             importance: high
             negative: true
@@ -418,16 +382,14 @@ class TestRBACHostsNoReadPermission:
                 access to list hosts
         """
         with pytest.raises(ApiException) as err:
-            host_inventory_non_org_admin.apis.hosts.get_hosts_response()
+            host_inventory_no_read_permissions.apis.hosts.get_hosts_response()
 
         assert err.value.status == 403
 
     def test_rbac_hosts_no_read_permission_get_host(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who doesn't have "read" permission tries to access host details
@@ -443,26 +405,23 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-by-id
             assignee: fstavela
             importance: high
             negative: true
             title: Inventory: Confirm users who don't have "read" permission don't have access
                 to host details
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
 
         for host_id in hosts_ids:
             with pytest.raises(ApiException) as err:
-                host_inventory_non_org_admin.apis.hosts.get_hosts_by_id(host_id)
+                host_inventory_no_read_permissions.apis.hosts.get_hosts_by_id(host_id)
             assert err.value.status == 403
 
     def test_rbac_hosts_no_read_permission_get_host_system_profile(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who doesn't have "read" permission tries to access
@@ -478,27 +437,24 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-system_profile
             assignee: fstavela
             importance: high
             negative: true
             title: Inventory: Confirm users who don't have "read" permission don't have access to
                 host system profile facts
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
 
         for host_id in hosts_ids:
             with pytest.raises(ApiException) as err:
-                host_inventory_non_org_admin.apis.hosts.get_hosts_system_profile(host_id)
+                host_inventory_no_read_permissions.apis.hosts.get_hosts_system_profile(host_id)
 
             assert err.value.status == 403
 
     def test_rbac_hosts_no_read_permission_get_host_tags(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who doesn't have "read" permission tries to access host tags
@@ -514,25 +470,22 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-tags
             assignee: fstavela
             importance: high
             negative: true
             title: Confirm users without "read" permission don't have access to host tags
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
 
         for host_id in hosts_ids:
             with pytest.raises(ApiException) as err:
-                host_inventory_non_org_admin.apis.hosts.get_host_tags_response(host_id)
+                host_inventory_no_read_permissions.apis.hosts.get_host_tags_response(host_id)
             assert err.value.status == 403
 
     def test_rbac_hosts_no_read_permission_get_host_tags_count(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test response when a user who doesn't have "read" permission tries to access
@@ -548,50 +501,47 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-hosts-get-tags-count
             assignee: fstavela
             importance: high
             negative: true
             title: Inventory: Confirm users who don't have "read" permission don't have access
                 to host tags count
         """
-        hosts_ids = [host.id for host in rbac_setup_resources[0]]
+        hosts_ids = [host.id for host in flatten(rbac_setup_resources.hosts)]
 
         for host_id in hosts_ids:
             with pytest.raises(ApiException) as err:
-                host_inventory_non_org_admin.apis.hosts.get_host_tags_count_response(host_id)
+                host_inventory_no_read_permissions.apis.hosts.get_host_tags_count_response(host_id)
             assert err.value.status == 403
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_get_tags(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-tags-get-list
             assignee: fstavela
             importance: high
             negative: true
             title: Test that users without "hosts:read" permission can't get tags
         """
-        resp = host_inventory_non_org_admin.apis.tags.get_tags_response()
+        resp = host_inventory_no_read_permissions.apis.tags.get_tags_response()
         assert_forbidden_response(resp)
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_get_operating_systems(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -602,19 +552,18 @@ class TestRBACHostsNoReadPermission:
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.system_profile.get_operating_systems()
+            host_inventory_no_read_permissions.apis.system_profile.get_operating_systems()
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_get_sap_system(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -625,19 +574,18 @@ class TestRBACHostsNoReadPermission:
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.system_profile.get_sap_systems()
+            host_inventory_no_read_permissions.apis.system_profile.get_sap_systems()
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_get_sap_sids(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
 
         https://issues.redhat.com/browse/ESSNTL-4961
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             negative: true
@@ -648,31 +596,28 @@ class TestRBACHostsNoReadPermission:
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.system_profile.get_sap_sids()
+            host_inventory_no_read_permissions.apis.system_profile.get_sap_sids()
 
     @pytest.mark.usefixtures("rbac_setup_resources")
     def test_rbac_hosts_no_read_permission_export_hosts(
         self,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         https://issues.redhat.com/browse/RHINENG-11863
 
         metadata:
-            requirements: inv-export-hosts
             assignee: msager
             importance: high
             negative: true
             title: Test that users without "hosts:read" permission can't export hosts
         """
-        host_inventory_non_org_admin.apis.exports.verify_access_denied()
+        host_inventory_no_read_permissions.apis.exports.verify_access_denied()
 
     def test_rbac_hosts_no_read_permission_get_host_exists(
         self,
-        rbac_setup_resources: tuple[
-            list[HostOut], list[GroupOutWithHostCount], list[list[TagDict]]
-        ],
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        rbac_setup_resources: RBACResources,
+        host_inventory_no_read_permissions: ApplicationHostInventory,
     ) -> None:
         """
         Test that users without "read" permission can't check to see if a
@@ -684,16 +629,15 @@ class TestRBACHostsNoReadPermission:
         4. Ensure GET request returns a 403 response
 
         metadata:
-            requirements: inv-host_exists-get-by-insights-id
             assignee: msager
             importance: high
             title: Confirm users who don't have "read" permission can't check for host existence
         """
-        insights_id = rbac_setup_resources[0][0].insights_id
+        insights_id = flatten(rbac_setup_resources.hosts)[0].insights_id
 
         with raises_apierror(
             403,
             "You don't have the permission to access the requested resource. "
             "It is either read-protected or not readable by the server.",
         ):
-            host_inventory_non_org_admin.apis.hosts.get_host_exists(insights_id)
+            host_inventory_no_read_permissions.apis.hosts.get_host_exists(insights_id)

@@ -28,7 +28,6 @@ def test_put_facts_replaces_all_facts(host_inventory: ApplicationHostInventory) 
     5. Confirm the new fact is present
 
     metadata:
-        requirements: inv-hosts-put-facts
         assignee: fstavela
         importance: medium
         title: Inventory: PUT replacement of all facts for a host
@@ -57,7 +56,6 @@ def test_put_facts_culled_host(host_inventory: ApplicationHostInventory) -> None
     3. Confirm the response from the PUT has status code 400
 
     metadata:
-        requirements: inv-hosts-put-facts, inv-staleness-hosts
         assignee: fstavela
         importance: low
         title: Inventory: PUT replacement of all facts for a culled host

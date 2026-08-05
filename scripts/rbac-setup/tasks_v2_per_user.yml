@@ -9,133 +9,17 @@
   ansible.builtin.include_tasks:
     file: "tasks_user_cleanup.yml"
 
-- name: "Setup role, group, and binding for {{ username }}"
-  when: user.type != 'none'
+- name: "Setup roles, group, and bindings for {{ username }}"
+  when: user.roles | length > 0
   block:
-    # --- Look up or create role (via v2 API) ---
-
-    - name: "Set v2 role name"
-      ansible.builtin.set_fact:
-        v2_role_name: "{{ user.role_name_v2 | default(user.role_name) }}"
-      when: user.type == 'preconfigured'
-
-    - name: "Look up pre-configured role '{{ v2_role_name | default('N/A') }}' via v2"
-      ansible.builtin.uri:
-        url: "{{ rbac_v2_base }}/roles/?name={{ v2_role_name | urlencode }}&limit=100"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: preconfigured_role_lookup_v2
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: preconfigured_role_lookup_v2 is not failed
-      when: user.type == 'preconfigured'
-
-    - name: "Fail if pre-configured role '{{ v2_role_name | default('N/A') }}' not found"
-      ansible.builtin.fail:
-        msg: "Pre-configured role '{{ v2_role_name }}' not found in RBAC v2."
-      when:
-        - user.type == 'preconfigured'
-        - preconfigured_role_lookup_v2.json.data | length == 0
-
-    - name: "Check if custom role '{{ role_name_custom }}' exists in v2"
-      ansible.builtin.uri:
-        url: "{{ rbac_v2_base }}/roles/?name={{ role_name_custom | urlencode }}&limit=10"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: custom_role_lookup_v2
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: custom_role_lookup_v2 is not failed
-      when: user.type == 'custom'
-
-    - name: "Create custom role '{{ role_name_custom }}' via v2"
-      ansible.builtin.uri:
-        url: "{{ rbac_v2_base }}/roles/"
-        method: POST
-        headers: "{{ auth_header }}"
-        body_format: json
-        body:
-          name: "{{ role_name_custom }}"
-          description: "Test role for {{ user.permission }} permission"
-          permissions:
-            - application: "{{ user.permission.split(':')[0] }}"
-              resource_type: "{{ user.permission.split(':')[1] }}"
-              operation: "{{ user.permission.split(':')[2] }}"
-        status_code: [200, 201]
-      environment: "{{ proxy_env }}"
-      register: custom_role_created_v2
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: custom_role_created_v2 is not failed
-      when:
-        - user.type == 'custom'
-        - custom_role_lookup_v2.json.data | length == 0
-
-    - name: "Set role ID (v2 uses 'id' not 'uuid')"
-      ansible.builtin.set_fact:
-        role_id: >-
-          {%- if user.type == 'preconfigured' -%}
-            {{ preconfigured_role_lookup_v2.json.data[0].id }}
-          {%- elif user.type == 'custom' and custom_role_lookup_v2.json.data | length > 0 -%}
-            {{ custom_role_lookup_v2.json.data[0].id }}
-          {%- else -%}
-            {{ custom_role_created_v2.json.id }}
-          {%- endif -%}
-
-    # --- Check / create RBAC group (via v1 — groups are v1 entities) ---
-
     - name: "Setup group and membership"
       ansible.builtin.include_tasks:
         file: "tasks_group_setup.yml"
 
-    # --- Create role binding (v2) ---
-
-    - name: "Set target workspace ID"
-      ansible.builtin.set_fact:
-        target_workspace_id: "{{ workspace_ids[user.workspace_type] }}"
-
-    - name: "Check existing role bindings for group"
-      ansible.builtin.uri:
-        url: "{{ rbac_v2_base }}/role-bindings/?subject_type=group&subject_id={{ group_uuid }}&limit=100"
-        method: GET
-        headers: "{{ auth_header }}"
-        status_code: 200
-      environment: "{{ proxy_env }}"
-      register: existing_bindings
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: existing_bindings is not failed
-
-    - name: "Check if correct binding already exists"
-      ansible.builtin.set_fact:
-        binding_exists: >-
-          {{ existing_bindings.json.data | selectattr('role.id', 'equalto', role_id)
-             | selectattr('resource.id', 'equalto', target_workspace_id) | list | length > 0 }}
-
-    - name: "Create role binding for {{ username }}"
-      ansible.builtin.uri:
-        url: "{{ rbac_v2_base }}/role-bindings:batchCreate/"
-        method: POST
-        headers: "{{ auth_header }}"
-        body_format: json
-        body:
-          requests:
-            - role:
-                id: "{{ role_id }}"
-              resource:
-                id: "{{ target_workspace_id }}"
-                type: "workspace"
-              subject:
-                id: "{{ group_uuid }}"
-                type: "group"
-        status_code: [200, 201]
-      environment: "{{ proxy_env }}"
-      retries: "{{ api_retries }}"
-      delay: "{{ api_delay }}"
-      until: role_binding_created is not failed
-      register: role_binding_created
-      when: not binding_exists
+    - name: "Setup role for {{ username }}"
+      ansible.builtin.include_tasks:
+        file: "tasks_v2_role_setup.yml"
+      loop: "{{ user.roles }}"
+      loop_control:
+        loop_var: "role"
+        label: "{{ role.role_name | default(role.permission) }}"
