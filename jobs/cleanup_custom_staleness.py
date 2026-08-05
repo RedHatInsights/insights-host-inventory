@@ -71,19 +71,23 @@ def run(
         deleted = 0
         retained = 0
 
+        near_default_rows = []
         for row in rows:
             if _is_near_default(row):
                 logger.info("org_id=%s is eligible for deletion (near-default staleness values)", row.org_id)
-                if not dry_run:
-                    with session_guard(session, close=False):
-                        session.delete(row)
-                    StalenessCache.delete(row.org_id)
-                    deleted += 1
+                near_default_rows.append(row)
             else:
                 retained += 1
 
         if dry_run:
             logger.info("DRY_RUN is enabled; no changes written.")
+        elif near_default_rows:
+            with session_guard(session, close=False):
+                for row in near_default_rows:
+                    session.delete(row)
+            for row in near_default_rows:
+                StalenessCache.delete(row.org_id)
+            deleted = len(near_default_rows)
 
         logger.info(
             "Summary: total=%d scanned, deleted=%d, retained=%d",
