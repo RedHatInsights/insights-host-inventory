@@ -63,7 +63,6 @@ def test_produce_host_app_message_for_single_host(
     3. Verify the data via the /hosts-view endpoint
 
     metadata:
-        requirements: inv-host-create, inv-host-apps-topic
         assignee: rantunes
         importance: high
         title: Test producing host-apps message for single host
@@ -110,7 +109,6 @@ def test_produce_host_app_message_for_multiple_hosts(
     3. Verify the data via the /hosts-view endpoint
 
     metadata:
-        requirements: inv-host-create, inv-host-apps-topic
         assignee: rantunes
         importance: high
         title: Test producing host-apps message for multiple hosts
@@ -171,7 +169,6 @@ def test_create_host_then_send_app_data(
     5. The application data is available via the /hosts-view endpoint
 
     metadata:
-        requirements: inv-host-apps-topic, inv-host-create
         assignee: rantunes
         importance: critical
         title: Test full flow from host creation to application data
@@ -229,7 +226,6 @@ def test_update_application_data_for_existing_host(
     8. The updated application data is available via the /hosts-view endpoint
 
     metadata:
-        requirements: inv-host-apps-topic, inv-host-create
         assignee: rantunes
         importance: high
         title: Test updating application data for existing host
@@ -304,7 +300,6 @@ def test_send_data_from_multiple_applications(
     (Advisor, Vulnerability, Patch, etc.) all send their data for the same host.
 
     metadata:
-        requirements: inv-host-apps-topic, inv-host-create
         assignee: rantunes
         importance: critical
         title: Test sending data from multiple applications for same host

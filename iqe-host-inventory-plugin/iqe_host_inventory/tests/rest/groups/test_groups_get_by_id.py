@@ -102,7 +102,6 @@ def test_groups_get_by_id_single_group(host_inventory: ApplicationHostInventory,
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get a single group by ID
@@ -130,7 +129,6 @@ def test_groups_get_by_id_multiple_groups(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get multiple groups by IDs
@@ -162,7 +160,6 @@ def test_groups_get_by_id_pagination(host_inventory: ApplicationHostInventory, w
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Test pagination while getting groups by their IDs
@@ -206,7 +203,6 @@ def test_groups_get_by_id_ordering(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get groups by IDs - test ordering parameters
@@ -236,7 +232,6 @@ def test_groups_get_by_id_ordering_and_pagination(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get groups by IDs - paginate through ordered results
@@ -276,7 +271,6 @@ def test_groups_get_by_id_order_how_default(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get groups by IDs - default values for order_how parameter
@@ -298,7 +292,6 @@ def test_groups_get_by_id_order_by_default(host_inventory, setup_groups_for_orde
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id
       assignee: fstavela
       importance: high
       title: Get groups by IDs - default value for order_by parameter
@@ -324,7 +317,6 @@ def test_groups_get_by_id_different_account(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id, inv-account-integrity
       assignee: fstavela
       importance: critical
       negative: true
@@ -357,7 +349,6 @@ def test_groups_get_by_id_my_and_different_account(
     https://issues.redhat.com/browse/ESSNTL-3849
 
     metadata:
-      requirements: inv-groups-get-by-id, inv-account-integrity
       assignee: fstavela
       importance: critical
       title: Get groups by IDs - try to get groups from my and different account
@@ -403,7 +394,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           title: Get groups by IDs - minimum for per_page param (1)
@@ -421,7 +411,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           title: Get groups by IDs - maximum for per_page param (100)
@@ -442,7 +431,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -480,7 +468,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -499,7 +486,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Get groups by IDs - minimum for page param (1)
@@ -516,7 +502,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           title: Get groups by IDs - maximum for page param (21474837)
@@ -536,7 +521,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -574,7 +558,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -593,7 +576,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           title: Get groups by IDs - page without any groups
@@ -611,7 +593,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Get groups by IDs - default values for pagination parameters
@@ -645,7 +626,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -683,7 +663,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -705,7 +684,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: medium
           negative: true
@@ -730,7 +708,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: high
           title: Get groups by IDs - existing and not existing group
@@ -784,7 +761,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true
@@ -816,7 +792,6 @@ class TestGetGroupByIDEmptyGroups:
         https://issues.redhat.com/browse/ESSNTL-3849
 
         metadata:
-          requirements: inv-groups-get-by-id
           assignee: fstavela
           importance: low
           negative: true

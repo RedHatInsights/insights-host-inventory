@@ -1,8 +1,3 @@
-"""
-metadata:
-  requirements: inv-mq-operation-args
-"""
-
 from __future__ import annotations
 
 import logging
@@ -244,7 +239,6 @@ def test_mq_operation_args_defer_to_fresh_reporter(
     https://issues.redhat.com/browse/ESSNTL-4462
 
     metadata:
-      requirements: inv-mq-defer-to-reporter
       assignee: fstavela
       importance: high
       title: MQ operation_args: defer_to_reporter - fresh reporter
@@ -294,7 +288,6 @@ def test_mq_operation_args_defer_to_previous_reporter(
     Reporter workflow: puptoo -> rhsm/rep2 -> rhsm (defer to puptoo)
 
     metadata:
-      requirements: inv-mq-defer-to-reporter
       assignee: fstavela
       importance: high
       title: MQ operation_args: defer_to_reporter - previous fresh reporter
@@ -350,7 +343,6 @@ def test_mq_operation_args_defer_to_stale_reporter(
     https://issues.redhat.com/browse/ESSNTL-4462
 
     metadata:
-      requirements: inv-mq-defer-to-reporter
       assignee: fstavela
       importance: high
       title: MQ operation_args: defer_to_reporter - stale reporter
@@ -412,7 +404,6 @@ def test_mq_operation_args_defer_to_not_existing_reporter(
     https://issues.redhat.com/browse/ESSNTL-4462
 
     metadata:
-      requirements: inv-mq-defer-to-reporter
       assignee: fstavela
       importance: high
       title: MQ operation_args: defer_to_reporter - not existing reporter
@@ -455,7 +446,6 @@ def test_mq_operation_args_defer_to_reporter_create_host(host_inventory: Applica
     https://issues.redhat.com/browse/ESSNTL-4462
 
     metadata:
-      requirements: inv-mq-defer-to-reporter
       assignee: fstavela
       importance: medium
       title: MQ operation_args: defer_to_reporter - while creating new host

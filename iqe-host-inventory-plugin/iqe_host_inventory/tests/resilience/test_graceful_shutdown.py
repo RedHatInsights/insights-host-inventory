@@ -1,8 +1,3 @@
-"""
-metadata:
-    requirements: inv-graceful-shutdown
-"""
-
 import logging
 import multiprocessing
 from time import sleep

@@ -1,8 +1,3 @@
-"""
-metadata:
-  requirements: inv-cache-invalidation-insights-client, inv-hosts-get-list
-"""
-
 import os
 from time import sleep
 
@@ -27,7 +22,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_create_host(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-host-create
       assignee: fstavela
       importance: high
       title: Invalidate cache on insights-client API calls when a host is created
@@ -54,7 +48,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_update_host(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-host-update
       assignee: fstavela
       importance: high
       title: Invalidate cache on insights-client API calls when a host is updated
@@ -86,7 +79,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_patch_host(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-hosts-patch
       assignee: fstavela
       importance: high
       title: Invalidate cache on insights-client API calls when a host is patched
@@ -115,7 +107,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_host_by_id(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-hosts-delete-by-id
       assignee: fstavela
       importance: high
       title: Invalidate cache on insights-client API calls when a host is deleted by ID
@@ -153,7 +144,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_filtered(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-hosts-delete-filtered-hosts
       assignee: fstavela
       importance: high
       title: Invalidate cache on insights-client API calls when a host is deleted by filter
@@ -191,7 +181,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_create_group(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client API calls when a group is created
@@ -223,7 +212,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_patch_group(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-patch
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client API calls when a group is patched
@@ -262,7 +250,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_add_to_group(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-add-hosts
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client API calls when a host is added to a group
@@ -297,7 +284,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_remove_from_group(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-remove-hosts
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client API calls when a host is removed from a group
@@ -332,7 +318,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_remove_from_multiple_
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client calls when hosts are removed from multiple groups
@@ -367,7 +352,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_group(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-groups-delete
       assignee: fstavela
       importance: medium
       title: Invalidate cache on insights-client API calls when a group is deleted
@@ -416,7 +400,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_create_staleness(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-staleness-post
       assignee: fstavela
       importance: low
       title: Invalidate cache on insights-client API calls when a staleness config is created
@@ -455,7 +438,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_update_staleness(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-staleness-patch
       assignee: fstavela
       importance: low
       title: Invalidate cache on insights-client API calls when a staleness config is updated
@@ -497,7 +479,6 @@ def test_cache_invalidation_insights_client_get_hosts_list_delete_staleness(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-staleness-delete
       assignee: fstavela
       importance: low
       title: Invalidate cache on insights-client API calls when a staleness config is deleted
@@ -533,7 +514,6 @@ def test_cache_invalidation_insights_client_get_host_exists(
     https://issues.redhat.com/browse/RHINENG-11687
 
     metadata:
-      requirements: inv-host_exists-get-by-insights-id
       assignee: msager
       importance: medium
       title: Invalidate cache on insights-client API calls when checking a host's existence

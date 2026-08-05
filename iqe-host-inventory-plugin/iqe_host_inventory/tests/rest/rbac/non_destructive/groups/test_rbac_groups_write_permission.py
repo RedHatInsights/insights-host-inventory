@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-rbac
-"""
-
 import logging
 
 import pytest
@@ -68,7 +63,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4392
 
         metadata:
-          requirements: inv-groups-post
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can create a group
@@ -103,7 +97,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4438
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can patch a group
@@ -130,7 +123,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4393
 
         metadata:
-          requirements: inv-groups-delete
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can delete a group
@@ -153,7 +145,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4394
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can remove hosts from a group
@@ -179,7 +170,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/RHINENG-1655
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can
@@ -207,7 +197,6 @@ class TestRBACGroupsWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4377
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: high
           title: Test that users with "groups:write" permission can add hosts to a group
@@ -244,7 +233,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4392
 
         metadata:
-          requirements: inv-groups-post
           assignee: fstavela
           importance: high
           negative: true
@@ -269,7 +257,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-          requirements: inv-groups-patch
           assignee: fstavela
           importance: high
           negative: true
@@ -300,7 +287,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4393
 
         metadata:
-          requirements: inv-groups-delete
           assignee: fstavela
           importance: high
           negative: true
@@ -325,7 +311,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-          requirements: inv-groups-remove-hosts
           assignee: fstavela
           importance: high
           negative: true
@@ -356,7 +341,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/RHINENG-18151
 
         metadata:
-          requirements: inv-groups-remove-hosts-multiple-groups
           assignee: fstavela
           importance: high
           negative: true
@@ -387,7 +371,6 @@ class TestRBACGroupsNoWritePermission:
         https://issues.redhat.com/browse/ESSNTL-4377
 
         metadata:
-          requirements: inv-groups-add-hosts
           assignee: fstavela
           importance: high
           negative: true
