@@ -178,6 +178,20 @@ class TestViewUpdate:
         assert updated.id == view.id
         assert len(updated.configuration.columns) == 3
 
+    def test_update_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
+        """
+        metadata:
+            requirements: inv-views-patch
+            assignee: adubey
+            importance: medium
+            title: PATCH returns 404 when updating a nonexistent view
+        """
+        fake_id = generate_uuid()
+        with raises_apierror(404):
+            host_inventory.apis.views.raw_api.api_views_update_view(
+                fake_id, {"name": generate_display_name()}
+            )
+
 
 class TestViewDelete:
     """DELETE /beta/views/{id}"""

@@ -176,7 +176,10 @@ class ViewsAPIWrapper(BaseEntity):
             self.raw_api.api_views_delete_view(view_id, **api_kwargs)
 
     def delete_views(self, view_ids: set[str] | list[str]) -> None:
-        """Delete multiple views, suppressing 404 errors.
+        """Delete multiple views, suppressing 404 and 403 errors.
+
+        404 is expected when a view was already deleted (e.g. by the test itself).
+        403 is expected for system views that cannot be deleted.
 
         :param view_ids: Collection of view IDs to delete
         """
@@ -187,7 +190,7 @@ class ViewsAPIWrapper(BaseEntity):
                 self.delete_view(view_id)
             except ApiException as err:
                 if err.status in (403, 404):
-                    logger.info(f"Couldn't delete view {view_id}: HTTP {err.status}")
+                    logger.info(f"Skipping cleanup for view {view_id}: HTTP {err.status}")
                 else:
                     raise
 
