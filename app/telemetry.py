@@ -22,7 +22,10 @@ Usage:
 
 import contextlib
 import os
+from contextlib import contextmanager
 from urllib.parse import urlparse
+
+from opentelemetry import context as otel_context_api
 
 from app.logging import get_logger
 
@@ -131,6 +134,17 @@ def get_tracer(name: str):
     from opentelemetry import trace
 
     return trace.get_tracer(name)
+
+
+@contextmanager
+def use_otel_context(ctx):
+    """Temporarily activate an OTel context (or no-op if None)."""
+    token = otel_context_api.attach(ctx) if ctx is not None else None
+    try:
+        yield
+    finally:
+        if token is not None:
+            otel_context_api.detach(token)
 
 
 def init_otel(
