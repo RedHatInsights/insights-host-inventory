@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **mssql** | [**SystemProfileMssql**](SystemProfileMssql.md) |  | [optional]
 **oracle_db** | [**SystemProfileWorkloadsOracleDb**](SystemProfileWorkloadsOracleDb.md) |  | [optional]
 **rhel_ai** | [**SystemProfileWorkloadsRhelAi**](SystemProfileWorkloadsRhelAi.md) |  | [optional]
+**satellite** | [**SystemProfileWorkloadsSatellite**](SystemProfileWorkloadsSatellite.md) |  | [optional]
 **sap** | [**SystemProfileSap**](SystemProfileSap.md) |  | [optional]
 
 ## Example
