@@ -27,7 +27,10 @@ from iqe_host_inventory_api_v7.models.create_check_in import CreateCheckIn
 from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
-from iqe_host_inventory_api_v7.models.host_view_filter_comparison import HostViewFilterComparison
+from iqe_host_inventory_api_v7.models.host_view_combined_fields import HostViewCombinedFields
+from iqe_host_inventory_api_v7.models.host_view_combined_filter_value import (
+    HostViewCombinedFilterValue,
+)
 from iqe_host_inventory_api_v7.models.host_view_query_output import HostViewQueryOutput
 from iqe_host_inventory_api_v7.models.patch_host_in import PatchHostIn
 from iqe_host_inventory_api_v7.models.system_profile_by_host_out import SystemProfileByHostOut
@@ -5015,15 +5018,15 @@ class HostsApi:
             list[StrictStr] | None, Field(description="Filters systems by type")
         ] = None,
         filter: Annotated[
-            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            dict[str, dict[str, HostViewCombinedFilterValue]] | None,
             Field(
-                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+                description='Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[vulnerability][critical_cves][gte]=1" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[patch][template_name][eq]=production" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"'
             ),
         ] = None,
         fields: Annotated[
-            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            HostViewCombinedFields | None,
             Field(
-                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+                description='Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations"'
             ),
         ] = None,
         _request_timeout: None
@@ -5082,10 +5085,10 @@ class HostsApi:
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
-        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
-        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
-        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
-        :type fields: Dict[str, Dict[str, bool]]
+        :param filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
+        :type filter: Dict[str, HostViewCombinedFilterValue]
+        :param fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
+        :type fields: HostViewCombinedFields
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -5239,15 +5242,15 @@ class HostsApi:
             list[StrictStr] | None, Field(description="Filters systems by type")
         ] = None,
         filter: Annotated[
-            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            dict[str, dict[str, HostViewCombinedFilterValue]] | None,
             Field(
-                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+                description='Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[vulnerability][critical_cves][gte]=1" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[patch][template_name][eq]=production" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"'
             ),
         ] = None,
         fields: Annotated[
-            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            HostViewCombinedFields | None,
             Field(
-                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+                description='Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations"'
             ),
         ] = None,
         _request_timeout: None
@@ -5306,10 +5309,10 @@ class HostsApi:
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
-        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
-        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
-        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
-        :type fields: Dict[str, Dict[str, bool]]
+        :param filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
+        :type filter: Dict[str, HostViewCombinedFilterValue]
+        :param fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
+        :type fields: HostViewCombinedFields
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -5463,15 +5466,15 @@ class HostsApi:
             list[StrictStr] | None, Field(description="Filters systems by type")
         ] = None,
         filter: Annotated[
-            dict[str, dict[str, dict[str, HostViewFilterComparison]]] | None,
+            dict[str, dict[str, HostViewCombinedFilterValue]] | None,
             Field(
-                description="Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`."
+                description='Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][operating_system][name][eq]=rhel" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[vulnerability][critical_cves][gte]=1" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[patch][template_name][eq]=production" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1"'
             ),
         ] = None,
         fields: Annotated[
-            dict[str, dict[str, dict[str, StrictBool]]] | None,
+            HostViewCombinedFields | None,
             Field(
-                description="Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification)."
+                description='Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations"'
             ),
         ] = None,
         _request_timeout: None
@@ -5530,10 +5533,10 @@ class HostsApi:
         :type registered_with: List[str]
         :param system_type: Filters systems by type
         :type system_type: List[str]
-        :param filter: Filters on aggregated application data using the syntax `filter[app_name][field_name][operator]=value`. Supported operators are `eq`, `ne`, `gte`, and `lte`. For example: `filter[vulnerability][critical_cves][gte]=1` or `filter[patch][template][eq]=production`.
-        :type filter: Dict[str, Dict[str, HostViewFilterComparison]]
-        :param fields: Selects which application objects (or sub-fields) should be joined into the host view response. Use `fields[advisor]=recommendations` to request specific fields, or `fields[advisor]=recommendations&fields[vulnerability]=critical_cves` for multiple apps. When this parameter is omitted, all fields from all applications are returned by default (per JSON:API sparse fieldsets specification).
-        :type fields: Dict[str, Dict[str, bool]]
+        :param filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
+        :type filter: Dict[str, HostViewCombinedFilterValue]
+        :param fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
+        :type fields: HostViewCombinedFields
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of

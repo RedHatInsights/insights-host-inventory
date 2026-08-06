@@ -32,6 +32,7 @@ EDGE_STAGE_INVENTORY_ACCOUNT_ARCHIVE = "edge_stage_inventory_rhel95.tar.gz"
 EDGE_PROD_INVENTORY_ACCOUNT_ARCHIVE = "edge_prod_inventory_rhel95.tar.gz"
 EDGE_STAGE_INSIGHTS_QA_ARCHIVE = "new_edge_device_85.tar.gz"
 IMAGE_MODE_ARCHIVE = "image-mode-rhel94.tar.gz"
+ANSIBLE_EXECUTION_NODE_ARCHIVE = "rhel9.8-ansible2.6-execution-node.tar.gz"
 
 TAGS_METADATA = {
     "name": "insights.specs.Specs.tags",

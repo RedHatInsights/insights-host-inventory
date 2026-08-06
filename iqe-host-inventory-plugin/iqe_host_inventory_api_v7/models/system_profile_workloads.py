@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re  # ruff:ignore[unused-import]
+import re  # ruff: ignore[unused-import]
 from typing import Any
 from typing import ClassVar
 from typing import Self
@@ -37,6 +37,9 @@ from iqe_host_inventory_api_v7.models.system_profile_workloads_oracle_db import 
 from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai import (
     SystemProfileWorkloadsRhelAi,
 )
+from iqe_host_inventory_api_v7.models.system_profile_workloads_satellite import (
+    SystemProfileWorkloadsSatellite,
+)
 
 
 class SystemProfileWorkloads(BaseModel):
@@ -51,6 +54,7 @@ class SystemProfileWorkloads(BaseModel):
     mssql: SystemProfileMssql | None = None
     oracle_db: SystemProfileWorkloadsOracleDb | None = None
     rhel_ai: SystemProfileWorkloadsRhelAi | None = None
+    satellite: SystemProfileWorkloadsSatellite | None = None
     sap: SystemProfileSap | None = None
     additional_properties: dict[str, Any] = {}
     __properties: ClassVar[list[str]] = [
@@ -61,6 +65,7 @@ class SystemProfileWorkloads(BaseModel):
         "mssql",
         "oracle_db",
         "rhel_ai",
+        "satellite",
         "sap",
     ]
 
@@ -125,6 +130,9 @@ class SystemProfileWorkloads(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of rhel_ai
         if self.rhel_ai:
             _dict["rhel_ai"] = self.rhel_ai.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of satellite
+        if self.satellite:
+            _dict["satellite"] = self.satellite.to_dict()
         # override the default output from pydantic by calling `to_dict()` of sap
         if self.sap:
             _dict["sap"] = self.sap.to_dict()
@@ -165,6 +173,9 @@ class SystemProfileWorkloads(BaseModel):
             else None,
             "rhel_ai": SystemProfileWorkloadsRhelAi.from_dict(obj["rhel_ai"])
             if obj.get("rhel_ai") is not None
+            else None,
+            "satellite": SystemProfileWorkloadsSatellite.from_dict(obj["satellite"])
+            if obj.get("satellite") is not None
             else None,
             "sap": SystemProfileSap.from_dict(obj["sap"]) if obj.get("sap") is not None else None,
         })
