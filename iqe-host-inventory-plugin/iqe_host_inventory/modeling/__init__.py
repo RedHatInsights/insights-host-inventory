@@ -45,6 +45,7 @@ from .resource_types_api import ResourceTypesAPIWrapper
 from .staleness_api import AccountStalenessAPIWrapper
 from .system_profile_api import SystemProfileAPIWrapper
 from .tags_api import TagsAPIWrapper
+from .views_api import ViewsAPIWrapper
 from .workspaces_api import WORKSPACE_OR_WORKSPACES
 from .workspaces_api import WorkspacesAPIWrapper
 from .workspaces_api import _ids_from_workspaces
@@ -60,6 +61,7 @@ HBI_API_WRAPPER = (
     | GroupsAPIWrapper
     | ResourceTypesAPIWrapper
     | AccountStalenessAPIWrapper
+    | ViewsAPIWrapper
     | WorkspacesAPIWrapper
 )
 
@@ -260,6 +262,10 @@ class HBIApis(BaseEntity):
         return ExportsAPIWrapper(self)
 
     @cached_property
+    def views(self) -> ViewsAPIWrapper:
+        return ViewsAPIWrapper(self)
+
+    @cached_property
     def workspaces(self) -> WorkspacesAPIWrapper:
         return WorkspacesAPIWrapper(self)
 
@@ -332,6 +338,7 @@ class HBICleanUp(BaseEntity):
     host_ids_to_clean: dict[str, set[str]] = attr.ib(factory=dict)
     group_ids_to_clean: dict[str, set[str]] = attr.ib(factory=dict)
     export_ids_to_clean: dict[str, set[str]] = attr.ib(factory=dict)
+    view_ids_to_clean: dict[str, set[str]] = attr.ib(factory=dict)
     workspace_ids_to_clean: dict[str, set[str]] = attr.ib(factory=dict)
 
     def add_hosts(self, hosts: HOST_OR_HOSTS, scope: str = "function") -> None:
@@ -351,6 +358,15 @@ class HBICleanUp(BaseEntity):
         if scope not in self.export_ids_to_clean:
             self.export_ids_to_clean[scope] = set()
         self.export_ids_to_clean[scope].update(export_ids)
+
+    def add_views(self, view_ids: str | set[str], scope: str = "function") -> None:
+        _check_cleanup_scope(scope)
+        if scope not in self.view_ids_to_clean:
+            self.view_ids_to_clean[scope] = set()
+        if isinstance(view_ids, str):
+            self.view_ids_to_clean[scope].add(view_ids)
+        else:
+            self.view_ids_to_clean[scope].update(view_ids)
 
     def add_workspaces(self, workspaces: WORKSPACE_OR_WORKSPACES, scope: str = "function") -> None:
         _check_cleanup_scope(scope)
@@ -379,6 +395,13 @@ class HBICleanUp(BaseEntity):
             hbi_exports_api.delete_exports(self.export_ids_to_clean[scope])
             self.export_ids_to_clean[scope].clear()
 
+    def clean_views(self, scope: str) -> None:
+        _check_cleanup_scope(scope)
+        hbi_views_api: ViewsAPIWrapper = self.application.host_inventory.apis.views
+        if self.view_ids_to_clean.get(scope):
+            hbi_views_api.delete_views(self.view_ids_to_clean[scope])
+            self.view_ids_to_clean[scope].clear()
+
     def clean_workspaces(self, scope: str) -> None:
         _check_cleanup_scope(scope)
         workspaces_api: WorkspacesAPIWrapper = self.application.host_inventory.apis.workspaces
@@ -390,4 +413,5 @@ class HBICleanUp(BaseEntity):
         self.clean_hosts(scope)
         self.clean_groups(scope)
         self.clean_exports(scope)
+        self.clean_views(scope)
         self.clean_workspaces(scope)
