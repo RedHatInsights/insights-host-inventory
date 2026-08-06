@@ -1358,5 +1358,6 @@ Name | Type | Description  | Notes
 |-------------|-------------|------------------|
 **200** | Successfully read host views. |  -  |
 **400** | Invalid request. |  -  |
+**403** | Insufficient permissions to sort or filter by the requested service. |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

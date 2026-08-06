@@ -567,6 +567,10 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
             "hub_version": "4.5.6",
             "catalog_worker_version": "7.8.9",
             "sso_version": "10.11.12",
+            "receptor_version": "1.5.2",
+            "runner_version": "2.4.1",
+            "eda_controller_version": "1.1.0",
+            "gateway_version": "2.5.3",
         },
     },
     {
@@ -640,6 +644,10 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
                 "hub_version": "4.5.6",
                 "catalog_worker_version": "7.8.9",
                 "sso_version": "1.2.3",
+                "receptor_version": "1.5.2",
+                "runner_version": "2.4.1",
+                "eda_controller_version": "1.1.0",
+                "gateway_version": "2.5.3",
             },
             "crowdstrike": {
                 "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",

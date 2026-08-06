@@ -2,6 +2,7 @@
 
 from collections.abc import Generator
 from copy import deepcopy
+from unittest.mock import patch
 
 import pytest
 from connexion import FlaskApp
@@ -16,7 +17,8 @@ from tests.helpers.db_utils import clean_tables
 
 @pytest.fixture(scope="session")
 def new_flask_app(database: str) -> Generator[FlaskApp]:  # noqa: ARG001
-    application = create_app(RuntimeEnvironment.TEST)
+    with patch.dict("os.environ", {"HBI_V2_API_ENABLED": "true"}):
+        application = create_app(RuntimeEnvironment.TEST)
     with application.app.app_context():
         db.session.execute(sa_text("CREATE SCHEMA IF NOT EXISTS hbi"))
         db.session.commit()
