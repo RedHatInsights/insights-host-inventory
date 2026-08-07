@@ -22,3 +22,11 @@ def common_message_parser(message: str | bytes):
         logger.exception("Unable to parse json message from message queue", extra={"incoming_message": message})
         metrics.common_message_parsing_failure.labels("invalid").inc()
         raise
+
+
+def decode_kafka_headers(headers: list[tuple[str, bytes]] | None) -> dict[str, str]:
+    """Decode Kafka message headers into a plain dict of strings."""
+    result = {}
+    for key, value in headers or []:
+        result[key] = value.decode("utf-8") if isinstance(value, bytes) else value
+    return result
