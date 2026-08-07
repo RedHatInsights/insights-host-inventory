@@ -33,10 +33,10 @@ A record should be deleted when `abs(row.field - default) <= 3600` holds true fo
 8. Define `run(logger, session, application)`:
    - Read `dry_run = os.environ.get('DRY_RUN', 'true').lower() == 'true'`.
    - Inside `with application.app.app_context():`, set `threadctx.request_id = None`.
-   - Query `rows = session.query(Staleness).all()`.
-   - Filter with `_is_near_default`: collect `candidates` (list of matching rows) and `skipped` count.
+   - Query staleness rows in batches using `session.query(Staleness).yield_per(1000)` to avoid loading the entire table into memory at once (the staleness table could be large).
+   - Filter with `_is_near_default`: collect `candidates` (list of matching `org_id`s and their field values) and `skipped` count.
    - Log total found, how many match, how many skipped.
-   - Log each candidate's `org_id` and field values.
+   - Log a summary of candidates: total count plus a sample of the first 20 `org_id`s and their field values (to keep log volume manageable in production while still providing enough detail for verification).
    - If `dry_run`, log `'DRY_RUN is enabled; no changes written.'` and return.
    - Otherwise, collect `org_ids_to_delete = [r.org_id for r in candidates]`; if empty, log and return.
    - Use `with session_guard(session, close=False):` to execute a bulk `session.query(Staleness).filter(Staleness.org_id.in_(org_ids_to_delete)).delete(synchronize_session=False)`.
@@ -195,6 +195,8 @@ A record should be deleted when `abs(row.field - default) <= 3600` holds true fo
 - The `session_guard` wraps the delete, so any DB error will trigger a rollback; confirm `lib/db.py::session_guard` behaves as expected (commit on success, rollback on exception).
 - All three fields must be within threshold simultaneously — the `all()` predicate in `_is_near_default` enforces this; a bug that uses `any()` instead would cause catastrophic data loss.
 - No cache invalidation is needed here (unlike `update_staleness.py`) because we are only deleting rows; the code already falls back to system defaults when no row exists, so stale cache entries will simply be evicted naturally.
+- The query uses `yield_per(1000)` to iterate in batches rather than loading all rows into memory at once, preventing excessive memory usage if the staleness table is large.
+- Per-row logging is intentionally limited to a sample (first 20 candidates) to avoid generating excessively large logs in production environments while still providing enough detail for verification.
 
 ## Constraints
 - The job must default SUSPEND_JOB=true and DRY_RUN=true to prevent accidental mass deletions on first deployment.
