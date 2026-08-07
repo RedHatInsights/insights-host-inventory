@@ -50,7 +50,6 @@ def test_host_creation_with_tags(
     2. Verify "tags" field is present in host message output with proper value
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: high
         title: create hosts with tags
@@ -90,7 +89,6 @@ def test_create_hosts_with_tag_containing_special_characters(
     2. Make sure hosts were created and corresponding tags are present
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: high
         title: create hosts with tags with special characters
@@ -122,7 +120,6 @@ def test_tags_with_commas(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3631
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: medium
         title: Create hosts with tags with commas and filter by them
@@ -173,7 +170,6 @@ def test_tags_with_slashes(host_inventory: ApplicationHostInventory, tag: dict[s
     https://issues.redhat.com/browse/RHINENG-17045
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: medium
         title: Create hosts with tags with slashes and filter by them
@@ -229,7 +225,6 @@ def test_host_creation_with_nested_tags(
     2. Verify "tags" field is present in host output message with proper value
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: high
         title: create hosts with tags in the nested format
@@ -277,7 +272,6 @@ def test_remove_all_tags_from_a_namespace(
     4. Ensure the "tags" were correctly removed by checking the host output message
 
     metadata:
-        requirements: inv-tags, inv-host-update
         assignee: fstavela
         importance: high
         title: confirm removing all tags of a specific name-space using nested tag input
@@ -344,7 +338,6 @@ def test_update_host_tags(
         with proper value
 
      metadata:
-        requirements: inv-tags, inv-host-update
         assignee: fstavela
         importance: high
         title: update hosts with tags in the nested format
@@ -391,7 +384,6 @@ def test_host_creation_with_invalid_nested_tags(
     2. Make sure hosts were not created
 
     metadata:
-        requirements: inv-tags, inv-mq-host-field-validation
         assignee: fstavela
         importance: medium
         negative: true
@@ -415,7 +407,6 @@ def test_filter_host_by_tag(host_inventory: ApplicationHostInventory):
     3. Make sure only one host with expected id is found
 
     metadata:
-        requirements: inv-hosts-filter-by-tags
         assignee: fstavela
         importance: high
         title: Inventory: Filter by tag name
@@ -460,7 +451,6 @@ def test_filter_host_by_tag_combinations(
     5. Make sure only one host with expected id is found
 
     metadata:
-        requirements: inv-hosts-filter-by-tags
         assignee: fstavela
         importance: high
         title: Inventory: Filter by tag name combinations
@@ -489,7 +479,6 @@ def test_filter_hosts_by_tag(host_inventory: ApplicationHostInventory):
     5. Filter hosts by "tag_2" via REST API, make sure only 1 host found
 
     metadata:
-        requirements: inv-hosts-filter-by-tags
         assignee: fstavela
         importance: high
         title: Inventory: Confirm filtering by different tags works as expected
@@ -528,7 +517,6 @@ def test_filter_hosts_by_tags(host_inventory: ApplicationHostInventory):
     3. Filter hosts by "tag_1" and "tag_2" via REST API, make sure only 1 host found
 
     metadata:
-        requirements: inv-hosts-filter-by-tags
         assignee: fstavela
         importance: high
         title: Inventory: Confirm filtering by multiple tags works as expected
@@ -564,7 +552,6 @@ def test_filter_hosts_by_shared_tags(host_inventory: ApplicationHostInventory):
     5. Filter hosts by "tag_1" and "tag_2" via REST API, make sure only 3 hosts found
 
     metadata:
-        requirements: inv-hosts-filter-by-tags
         assignee: zabikeno
         importance: high
         title: Inventory: Confirm filtering by multiple tags works as expected
@@ -621,7 +608,6 @@ def test_filter_hosts_by_invalid_tag(tag, host_inventory: ApplicationHostInvento
     4. Make sure 0 results returned and/or error was thrown
 
     metadata:
-        requirements: inv-hosts-filter-by-tags, inv-api-validation
         assignee: fstavela
         importance: low
         negative: true
@@ -652,7 +638,6 @@ def test_host_tags_count(host_inventory: ApplicationHostInventory, tags: list[Ta
     3. Create a host with 3 tags via MQ, make sure tag_count call returns 3 results
 
     metadata:
-        requirements: inv-hosts-get-tags-count
         assignee: fstavela
         importance: medium
         title: confirm 0/1/many tags from creation match the resulting facts
@@ -676,7 +661,6 @@ def test_hosts_tags_count(host_inventory: ApplicationHostInventory):
        make sure response contains proper numbers
 
     metadata:
-        requirements: inv-hosts-get-tags-count
         assignee: fstavela
         importance: medium
         title: Confirm that is possible to create hosts with 0/1/many tags
@@ -721,7 +705,6 @@ def test_post_tags(
     https://issues.redhat.com/browse/RHINENG-17910
 
     metadata:
-        requirements: inv-post-tags-endpoints
         assignee: addubey
         importance: high
         title: Inventory: Test that "post tags" are operating correctly in ephemeral.

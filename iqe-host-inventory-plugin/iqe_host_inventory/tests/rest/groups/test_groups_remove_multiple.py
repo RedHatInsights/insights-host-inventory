@@ -25,7 +25,6 @@ def test_groups_remove_hosts_from_multiple_groups_response(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: high
       title: Test response for DELETE /groups/hosts/<host_ids> endpoint
@@ -47,7 +46,6 @@ def test_groups_remove_hosts_from_multiple_groups_check_timestamps(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: medium
       title: Test that `updated` timestamp gets updated after
@@ -84,7 +82,6 @@ def test_groups_remove_hosts_from_multiple_groups_single_host(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: high
       title: Test removing one host from group by using DELETE /groups/hosts/<host_ids> endpoint
@@ -105,7 +102,6 @@ def test_groups_remove_hosts_from_multiple_groups_same_group(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: high
       title: Test removing hosts from the same group by using
@@ -126,7 +122,6 @@ def test_groups_remove_hosts_from_multiple_groups_different_groups(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: high
       title: Test removing hosts from different groups by using
@@ -152,7 +147,6 @@ def test_groups_remove_hosts_from_multiple_groups_ungrouped_host(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: medium
       negative: true
@@ -177,7 +171,6 @@ def test_groups_remove_hosts_from_multiple_groups_non_existing_host(host_invento
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: low
       negative: true
@@ -198,7 +191,6 @@ def test_groups_remove_hosts_from_multiple_groups_good_and_non_existing_hosts(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: medium
       title: Test removing grouped and non-existing hosts from groups by using
@@ -234,7 +226,6 @@ def test_groups_remove_hosts_from_multiple_groups_bad_host_id(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: low
       negative: true
@@ -252,7 +243,6 @@ def test_groups_remove_hosts_from_multiple_groups_good_and_bad_host_id(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: medium
       negative: true
@@ -280,7 +270,6 @@ def test_groups_remove_hosts_from_multiple_groups_different_account(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: critical
       negative: true
@@ -309,7 +298,6 @@ def test_groups_remove_hosts_from_multiple_groups_my_and_different_account(
     https://issues.redhat.com/browse/RHINENG-1655
 
     metadata:
-      requirements: inv-groups-remove-hosts-multiple-groups
       assignee: fstavela
       importance: critical
       title: Test host ID from my and different account on DELETE /groups/hosts/<host_ids> endpoint

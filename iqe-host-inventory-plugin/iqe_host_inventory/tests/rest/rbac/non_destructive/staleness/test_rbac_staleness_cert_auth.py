@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-rbac-cert-auth-bypass
-"""
-
 import logging
 
 import pytest
@@ -30,7 +25,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure GET request returns a 403 error
 
         metadata:
-            requirements: inv-staleness-get-defaults
             assignee: msager
             importance: medium
             negative: true
@@ -51,7 +45,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure GET request returns a 403 error
 
         metadata:
-            requirements: inv-staleness-get
             assignee: msager
             importance: medium
             negative: true
@@ -72,7 +65,6 @@ class TestRBACStalenessCertAuth:
         2. Ensure POST request returns a 403 error
 
         metadata:
-            requirements: inv-staleness-post
             assignee: msager
             importance: medium
             negative: true
@@ -99,7 +91,6 @@ class TestRBACStalenessCertAuth:
         3. Ensure PATCH request returns a 403 error
 
         metadata:
-            requirements: inv-staleness-patch
             assignee: msager
             importance: medium
             negative: true
@@ -128,7 +119,6 @@ class TestRBACStalenessCertAuth:
         3. Ensure DELETE request returns a 403 error
 
         metadata:
-            requirements: inv-staleness-delete
             assignee: msager
             importance: medium
             negative: true

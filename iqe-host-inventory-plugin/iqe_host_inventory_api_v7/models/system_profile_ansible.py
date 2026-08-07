@@ -42,12 +42,28 @@ class SystemProfileAnsible(BaseModel):
     sso_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
         default=None, description="The SSO version on the host"
     )
+    receptor_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
+        default=None, description="The receptor version on the host"
+    )
+    runner_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
+        default=None, description="The ansible-runner version on the host"
+    )
+    eda_controller_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
+        default=None, description="The EDA controller version on the host"
+    )
+    gateway_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
+        default=None, description="The automation gateway version on the host"
+    )
     additional_properties: dict[str, Any] = {}
     __properties: ClassVar[list[str]] = [
         "controller_version",
         "hub_version",
         "catalog_worker_version",
         "sso_version",
+        "receptor_version",
+        "runner_version",
+        "eda_controller_version",
+        "gateway_version",
     ]
 
     @field_validator("controller_version")
@@ -82,6 +98,46 @@ class SystemProfileAnsible(BaseModel):
 
     @field_validator("sso_version")
     def sso_version_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"^\d+(\.\d+)+$", value):
+            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
+        return value
+
+    @field_validator("receptor_version")
+    def receptor_version_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"^\d+(\.\d+)+$", value):
+            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
+        return value
+
+    @field_validator("runner_version")
+    def runner_version_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"^\d+(\.\d+)+$", value):
+            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
+        return value
+
+    @field_validator("eda_controller_version")
+    def eda_controller_version_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"^\d+(\.\d+)+$", value):
+            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
+        return value
+
+    @field_validator("gateway_version")
+    def gateway_version_validate_regular_expression(cls, value):
         """Validates the regular expression"""
         if value is None:
             return value
@@ -151,6 +207,10 @@ class SystemProfileAnsible(BaseModel):
             "hub_version": obj.get("hub_version"),
             "catalog_worker_version": obj.get("catalog_worker_version"),
             "sso_version": obj.get("sso_version"),
+            "receptor_version": obj.get("receptor_version"),
+            "runner_version": obj.get("runner_version"),
+            "eda_controller_version": obj.get("eda_controller_version"),
+            "gateway_version": obj.get("gateway_version"),
         })
         # store additional fields in additional_properties
         for _key in obj.keys():
