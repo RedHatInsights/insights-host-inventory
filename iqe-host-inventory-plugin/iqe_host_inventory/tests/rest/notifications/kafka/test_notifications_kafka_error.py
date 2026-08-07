@@ -72,7 +72,6 @@ def test_notifications_kafka_error_create_wrong_provider_fields(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: high
         title: Test notifications after creating host with only one provider field
@@ -116,7 +115,6 @@ def test_notifications_kafka_error_create_wrong_host_format(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: high
         title: Test notifications after creating host with wrong host field format
@@ -163,7 +161,6 @@ def test_notifications_kafka_error_create_wrong_sp_format(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: high
         title: Test notifications after creating host with wrong system profile field format
@@ -208,7 +205,6 @@ def test_notifications_kafka_error_create_wrong_identity(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: high
         title: Test notifications after creating host with invalid identity
@@ -248,7 +244,6 @@ def test_notifications_kafka_error_update_wrong_provider_fields(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: medium
         title: Test notifications after updating host with only one provider field
@@ -289,7 +284,6 @@ def test_notifications_kafka_error_update_wrong_host_format(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: medium
         title: Test notifications after updating host with wrong host field format
@@ -331,7 +325,6 @@ def test_notifications_kafka_error_update_wrong_sp_format(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: medium
         title: Test notifications after updating host with wrong system profile field format
@@ -372,7 +365,6 @@ def test_notifications_kafka_error_update_wrong_identity(
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: medium
         title: Test notifications after updating host with invalid identity
@@ -408,7 +400,6 @@ def test_notifications_kafka_error_should_not_trigger(host_inventory: Applicatio
     JIRA: https://issues.redhat.com/browse/ESSNTL-2965
 
     metadata:
-        requirements: inv-notifications-validation-error
         assignee: fstavela
         importance: high
         negative: true

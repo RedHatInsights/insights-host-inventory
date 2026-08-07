@@ -1476,8 +1476,17 @@ def test_get_hosts_filter_by_reporter_and_staleness(
         "[mssql][version]=15.3",
         "[mssql][version][]=15.3",
         "[mssql][version][]=not_nil",
+        "[workloads][ansible][is]=not_nil",
         "[workloads][ansible][controller_version]=1.0",
         "[ansible][controller_version]=1.0",
+        "[workloads][ansible][receptor_version]=1.5.2",
+        "[ansible][receptor_version]=1.5.2",
+        "[workloads][ansible][runner_version]=2.4.1",
+        "[ansible][runner_version]=2.4.1",
+        "[workloads][ansible][eda_controller_version]=1.1.0",
+        "[ansible][eda_controller_version]=1.1.0",
+        "[workloads][ansible][gateway_version]=2.5.3",
+        "[ansible][gateway_version]=2.5.3",
         "[workloads][sap][sap_system]=True",
         "[workloads][sap][sap_system]=TRUE",
         "[workloads][sap][sap_system][is]=not_nil",
@@ -1541,7 +1550,13 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "workloads": {
                 "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
                 "mssql": {"version": "15.3"},
-                "ansible": {"controller_version": "1.0"},
+                "ansible": {
+                    "controller_version": "1.0",
+                    "receptor_version": "1.5.2",
+                    "runner_version": "2.4.1",
+                    "eda_controller_version": "1.1.0",
+                    "gateway_version": "2.5.3",
+                },
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
                     "gpu_models": [

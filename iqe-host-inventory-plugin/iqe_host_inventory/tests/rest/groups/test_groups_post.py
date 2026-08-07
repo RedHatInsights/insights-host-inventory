@@ -44,7 +44,6 @@ def test_groups_create_response(
     https://issues.redhat.com/browse/RHINENG-21925
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Test response for POST /groups request
@@ -89,7 +88,6 @@ def test_groups_create_empty(host_inventory, hosts_list):
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: high
       title: Create a group without any hosts
@@ -110,7 +108,6 @@ def test_groups_create_with_one_host(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/RHINENG-8990
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: high
       title: Create a group with one host
@@ -135,7 +132,6 @@ def test_groups_create_with_multiple_hosts(
     https://issues.redhat.com/browse/RHINENG-8990
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: high
       title: Create a group with multiple hosts
@@ -177,7 +173,6 @@ def test_groups_create_two_groups_same_host(
     succeeds and moves those hosts to the new group.
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Create two groups with the same host (second create moves the host)
@@ -215,7 +210,6 @@ def test_groups_create_different_account_name(
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: high
       title: Create a group with the same name as group in different account
@@ -242,7 +236,6 @@ def test_groups_create_different_account_hosts(
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: critical
       title: Try to create a group with hosts from different account
@@ -263,7 +256,6 @@ def test_groups_create_without_data(host_inventory: ApplicationHostInventory):
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -288,7 +280,6 @@ def test_groups_create_without_name(host_inventory: ApplicationHostInventory, ho
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -314,7 +305,6 @@ def test_groups_create_validate_name_wrong_length(host_inventory, group_name):
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -339,7 +329,6 @@ def test_groups_create_validate_name_wrong_type(host_inventory, group_name):
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -375,7 +364,6 @@ def test_groups_create_validate_host_ids_wrong(
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -405,7 +393,6 @@ def test_groups_create_with_not_existing_host(host_inventory: ApplicationHostInv
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Create a group with correct and bad host IDs
@@ -427,7 +414,6 @@ def test_groups_create_with_good_and_not_existing_hosts(host_inventory: Applicat
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Create a group with correct and bad host IDs
@@ -450,7 +436,6 @@ def test_groups_create_with_good_and_bad_hosts(host_inventory: ApplicationHostIn
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       title: Create a group with correct and bad host IDs
@@ -485,7 +470,6 @@ def test_groups_create_validate_protected_fields(
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       negative: true
@@ -511,7 +495,6 @@ def test_groups_create_with_changed_org_id(
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: high
       negative: true
@@ -532,7 +515,6 @@ def test_groups_create_with_random_field(host_inventory: ApplicationHostInventor
     https://issues.redhat.com/browse/ESSNTL-3828
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
@@ -551,7 +533,6 @@ def test_groups_create_strip_whitespace(host_inventory):
     https://issues.redhat.com/browse/RHINENG-3108
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: medium
       negative: true
@@ -578,7 +559,6 @@ def test_groups_create_with_the_same_host_multiple_times(host_inventory: Applica
     https://issues.redhat.com/browse/RHINENG-10845
 
     metadata:
-      requirements: inv-groups-post
       assignee: fstavela
       importance: low
       negative: true
