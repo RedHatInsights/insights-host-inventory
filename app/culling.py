@@ -2,6 +2,7 @@ from collections import namedtuple
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -113,6 +114,8 @@ def should_host_stay_fresh_forever(host: "Host") -> bool:
     Returns:
         bool: True if the host should stay fresh forever, False otherwise
     """
+    if os.environ.get("DISABLE_HOST_CULLING", "").lower() in ("true", "1", "yes"):
+        return True
     # If the host has no per_reporter_staleness, it's a new host, and we should check the reporter instead
     if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
         return host.reporter == "rhsm-system-profile-bridge"
