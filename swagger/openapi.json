@@ -5607,10 +5607,11 @@
         ],
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[a-zA-Z0-9 _-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
@@ -5634,10 +5635,11 @@
         "type": "object",
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[a-zA-Z0-9 _-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
