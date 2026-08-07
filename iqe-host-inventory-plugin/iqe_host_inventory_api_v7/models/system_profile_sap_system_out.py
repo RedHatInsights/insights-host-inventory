@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re  # ruff:ignore[unused-import]
+import re  # ruff: ignore[unused-import]
 from typing import Any
 from typing import ClassVar
 from typing import Self

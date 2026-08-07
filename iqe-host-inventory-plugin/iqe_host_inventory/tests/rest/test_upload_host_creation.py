@@ -14,6 +14,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import rand_str
 from iqe_host_inventory.utils.staleness_utils import validate_host_timestamps
 from iqe_host_inventory.utils.tag_utils import sort_tags
+from iqe_host_inventory.utils.upload_utils import ANSIBLE_EXECUTION_NODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import IMAGE_MODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import HostOut
@@ -346,3 +347,48 @@ def test_create_image_mode_host(
     response_ids = {host.id for host in response.results}
     assert conventional_host.id in response_ids
     assert image_host.id not in response_ids
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-28024", category=iqe_blocker.PRODUCT_RFE))
+def test_create_ansible_execution_node_host(
+    host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
+) -> None:
+    """
+    https://issues.redhat.com/browse/RHINENG-28024
+
+    Test creation of an Ansible execution node host via archive upload.
+
+    1. Upload an Ansible execution node archive
+    2. Verify the host is created
+    3. Verify receptor_version and runner_version are populated in system_profile
+    4. Filter by workloads.ansible presence and verify the host appears
+
+    metadata:
+        requirements: inv-host-create, inv-hosts-filter-by-system_profile-workloads-ansible
+        assignee: fstavela
+        importance: high
+        title: Test creating and filtering Ansible execution node hosts
+    """
+    conventional_host = hbi_upload_prepare_host_module
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=ANSIBLE_EXECUTION_NODE_ARCHIVE
+    )
+
+    assert host.display_name == display_name
+
+    # Verify ansible workload fields in system profile
+    response_host = host_inventory.apis.hosts.get_host_system_profile(host.id)
+    assert response_host.system_profile.workloads.ansible
+    assert response_host.system_profile.workloads.ansible.receptor_version
+    assert response_host.system_profile.workloads.ansible.runner_version
+
+    # Verify filtering by ansible workload presence
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][ansible][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids
+    assert conventional_host.id not in response_ids
