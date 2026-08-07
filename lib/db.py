@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 
 import psycopg2
+from psycopg2.errors import DeadlockDetected
 
 from app.models import db
 
@@ -74,3 +75,11 @@ def raw_db_connection():
         user=url.username,
         password=url.password,
     )
+
+
+def is_deadlock_error(error: Exception) -> bool:
+    """Return True when the exception (or its DBAPI cause) is a PostgreSQL deadlock."""
+    if isinstance(error, DeadlockDetected):
+        return True
+    orig = getattr(error, "orig", None)
+    return isinstance(orig, DeadlockDetected)
