@@ -43,16 +43,18 @@ countParam:
 
 ### Step 3: Three sub-changes:
 
-(A) Add `skip_count: bool = True` parameter to `_get_host_list_using_filters`. When `skip_count=True`, skip the `filtered_query.with_entities(func.count(Host.id.distinct())).scalar()` call entirely and set `count_total = None`. Also skip the early-exit `if count_total == 0` block (it relies on the count). The paginated query still runs; SQLAlchemy returns an empty list naturally when there are no results. Change return type hint from `int` to `int | None`.
+(A) Add `count: bool = False` parameter to `_get_host_list_using_filters`. When `count=False` (the default), skip the `filtered_query.with_entities(func.count(Host.id.distinct())).scalar()` call entirely and set `count_total = None`. Also skip the early-exit `if count_total == 0` block (it relies on the count). The paginated query still runs; SQLAlchemy returns an empty list naturally when there are no results. Change return type hint from `int` to `int | None`.
 
-(B) Add `count: bool = False` keyword parameter (at the end, before `rbac_filter`) to `get_host_list`. Pass `skip_count=not count` in the call to `_get_host_list_using_filters`.
+(B) Add `count: bool = False` keyword parameter (at the end, before `rbac_filter`) to `get_host_list`. Pass `count=count` in the call to `_get_host_list_using_filters`.
 
-(C) Add `count: bool = False` keyword parameter (at the end) to `get_host_list_for_views`. Pass `skip_count=not count` in the call to `_get_host_list_using_filters`.
+(C) Add `count: bool = False` keyword parameter (at the end) to `get_host_list_for_views`. Pass `count=count` in the call to `_get_host_list_using_filters`.
 
-Leave `get_host_list_by_id_list` unchanged — it feeds `check_all_ids_found` which requires a real integer total.
+Note: The `count` flag uses consistent positive-logic naming across all layers (API → handler → DB). Callers pass `count=True` to request a total, and the DB layer checks `if count:` to run the COUNT query. This avoids confusing negation between layers.
+
+Leave `get_host_list_by_id_list` unchanged — it feeds `check_all_ids_found` which requires a real integer total (it always passes `count=True` internally).
 - File: `api/host_query_db.py`
 - Change type: modify
-- Rationale: This is the core change that eliminates the slow `SELECT COUNT(DISTINCT hosts.id)` query on the common (no-`?count=true`) path. The flag propagates from the API layer to the DB layer.
+- Rationale: This is the core change that eliminates the slow `SELECT COUNT(DISTINCT hosts.id)` query on the common (no-`?count=true`) path. The `count` flag propagates from the API layer to the DB layer with consistent naming and positive logic throughout.
 
 ### Step 4: Add `count=False` as a keyword argument to the `get_host_list` view function (connexion injects it from the `?count` query param). Forward it to `get_host_list_from_db` (i.e., `get_host_list` imported from `api/host_query_db.py`) by passing `count=count` at the call site.
 - File: `api/host.py`
@@ -78,14 +80,20 @@ Also update any existing tests that assert on the exact value of `response_data[
 ## Test Strategy
 - Approach: Unit-style integration tests using the existing pytest + Flask test client setup (api_get fixture, db_create_host / mq_create_three_specific_hosts fixtures). Test the new `?count=true` boolean parameter on both GET /hosts and GET /beta/hosts-view. Verify the slow COUNT query is skipped (null total) and that opting in returns the correct integer total.
 - Test files: tests/test_api_hosts_get.py, tests/test_api_host_views.py
-- Coverage targets: GET /hosts without ?count returns total=null, GET /hosts with ?count=true returns total as a non-negative integer equal to the number of matching hosts, GET /beta/hosts-view without ?count returns total=null, GET /beta/hosts-view with ?count=true returns total as a non-negative integer, _get_host_list_using_filters with skip_count=True never calls func.count(...).scalar(), Existing tests that assert total is an integer are updated to pass ?count=true or assert total is None
+- Coverage targets: GET /hosts without ?count returns total=null, GET /hosts with ?count=true returns total as a non-negative integer equal to the number of matching hosts, GET /beta/hosts-view without ?count returns total=null, GET /beta/hosts-view with ?count=true returns total as a non-negative integer, _get_host_list_using_filters with count=False never calls func.count(...).scalar(), Existing tests that assert total is an integer are updated to pass ?count=true or assert total is None
 
 ## Risk Notes
-- Breaking change for existing API consumers: the `total` field defaults to `null` instead of an integer. Consumers that assume `total` is always an integer (e.g., for pagination UI) will need to handle null or pass `?count=true`.
+- **Breaking change for existing API consumers**: the `total` field defaults to `null` instead of an integer. Consumers that assume `total` is always an integer (e.g., for pagination UI) will need to handle null or pass `?count=true`. To mitigate:
+  - Coordinate with known consumers (e.g., Chrome/Inventory UI) before rollout to ensure they handle `total: null` gracefully or pass `?count=true`.
+  - Consider a phased rollout: deploy behind a feature flag or environment variable first, defaulting to `count=True` (preserving current behaviour) in production, then flip the default once consumers have adapted.
+  - If a versioned endpoint approach is preferred, the `count` parameter can initially default to `true` to maintain backward compatibility, then switch to `false` in a future API version.
+- **Response path consistency**: All response-building paths must consistently return either `null` or a real integer for `total` — never omit the field or return mixed types. Specifically:
+  - The cached system-identity shortcut path in `api/host.py` hardcodes `total=1`; this is correct and unaffected since it bypasses the DB query layer entirely.
+  - `build_paginated_host_list_response` in `api/host_query.py` and the direct dict construction in `api/host_views.py` both serialize `None` → JSON `null`, which is consistent with the nullable schema.
+  - Any future response-building shortcuts must also respect this contract.
 - Existing unit/integration tests that assert a numeric `total` from a plain GET /hosts call will fail — they must all be updated to pass `?count=true` or change the assertion to `total is None`.
-- The early-exit optimisation (`if count_total == 0: return early`) is removed for the skip-count path. With 0 results the paginated query still executes, but its cost is negligible and this preserves correctness.
+- The early-exit optimisation (`if count_total == 0: return early`) is removed for the no-count path. With 0 results the paginated query still executes, but its cost is negligible and this preserves correctness.
 - `get_host_list_by_id_list` (used by GET /hosts/{host_id_list} → check_all_ids_found) intentionally keeps the count query so 404 detection for missing IDs continues to work.
-- The cached system-identity path in api/host.py builds the response with `total=1` hardcoded; this code path is unaffected by the change.
 - If connexion strict mode is enabled, the `count` param must match the spec exactly (boolean type). Verify the connexion version in use handles boolean query params correctly (it typically coerces 'true'/'false' strings).
 
 ## Constraints
