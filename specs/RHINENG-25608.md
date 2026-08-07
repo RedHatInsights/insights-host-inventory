@@ -1,5 +1,7 @@
 # Spec: RHINENG-25608
 
+> **Note:** This is a specification document that describes the planned implementation. The actual code change to `.pre-commit-config.yaml` will be made in the implementation phase based on this spec.
+
 ## Summary
 Add a PR check that verifies job files in the `jobs/` directory have the executable permission bit set, preventing the recurring issue of missing execute permissions being caught only after merging.
 
