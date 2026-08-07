@@ -14,7 +14,7 @@ from _pytest.fixtures import FixtureRequest
 from _pytest.nodes import Item
 from dynaconf.utils.boxing import DynaBox
 from iqe.base.application import Application
-from iqe.users.user_provider_standalone import StandaloneUserProvider
+from iqe.users.user_provider import UserProvider
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
@@ -875,7 +875,6 @@ def hbi_cleanup_identity_auth_service_account_function(
 @pytest.fixture(scope="session", autouse=True)
 def hbi_setup_ephemeral_accounts(
     application: Application,
-    user_provider: StandaloneUserProvider,
     host_inventory: ApplicationHostInventory,
     hbi_default_user_data: DynaBox,
     hbi_maybe_secondary_user_data: DynaBox | None,
@@ -890,9 +889,11 @@ def hbi_setup_ephemeral_accounts(
         logger.info("Some accounts are not available in the config, skipping accounts setup")
         return
 
-    # Create accounts in Keycloak
-    user_provider.ensure_user_from_config(hbi_maybe_secondary_user_data)
-    user_provider.ensure_user_from_config(hbi_maybe_non_org_admin_user_data)
+    user_provider = UserProvider(application)
+
+    # Create secondary and non-org-admin users
+    user_provider.get_user_from_config(hbi_maybe_secondary_user_data)
+    user_provider.get_user_from_config(hbi_maybe_non_org_admin_user_data)
 
     # Setup RBAC on non org admin user - remove all permissions
     # There are 2 RBAC groups assigned to non org admin user after the user is created
