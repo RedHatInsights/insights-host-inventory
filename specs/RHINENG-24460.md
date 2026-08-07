@@ -20,8 +20,8 @@ In `api/host_query_db.py`, the function `_get_host_list_using_filters` unconditi
 
 ### Step 1: 1. Add a `count: bool = False` parameter to `_get_host_list_using_filters`. When `count=False`, skip the `filtered_query.with_entities(func.count(Host.id.distinct())).scalar()` call entirely and skip the `count_total == 0` early-exit guard (the paginate call still handles empty results correctly via error_out). Return `None` as the total in this case. When `count=True`, execute the COUNT as today and use the existing early-exit.
 2. Add `count: bool = False` to the public `get_host_list` function signature and pass it through to `_get_host_list_using_filters`.
-3. Update the `get_host_list_for_views` function similarly — add `count: bool = False` and pass to `_get_host_list_using_filters`.
-4. Update `get_host_list_by_id_list` similarly for consistency.
+3. Update the `get_host_list_for_views` function similarly — add `count: bool = True` and pass to `_get_host_list_using_filters`. **Note**: The default is `True` here (not `False`) to preserve backward compatibility for `GET /beta/hosts-view`, whose OpenAPI contract is not being updated in this change.
+4. Update `get_host_list_by_id_list` similarly — add `count: bool = True` and pass through. This preserves existing behavior for callers like `GET /groups/{group_id}/hosts` whose contracts are not updated here.
 
 Concrete diff for `_get_host_list_using_filters`:
 - Change signature: `def _get_host_list_using_filters(..., count: bool = False) -> tuple[list[Host], int | None, ...]:`
@@ -101,8 +101,9 @@ Also add a brief unit test (can be in the same file or a new `tests/test_host_qu
 - Breaking change for existing API consumers: `total` will now be `null` by default instead of an integer. Any UI or client that does arithmetic on `total` without a null-check will break. Coordinate with consumers before deploying.
 - The `count_total == 0` early-exit optimization is lost when count=False. For orgs with zero matching hosts the query will proceed to paginate() and return an empty list — this is correct but one extra DB round-trip.
 - Flask-SQLAlchemy paginate() with error_out=True raises 404 when page > 1 and results are empty. This behavior is unchanged, but without a count we cannot proactively catch out-of-bounds page numbers before hitting the DB.
-- host_group.py (GET /groups/{group_id}/hosts) and host_views.py (GET /beta/hosts-view) call _get_host_list_using_filters indirectly. Because the new default is count=False, they will automatically skip the COUNT query without needing API-level changes. If those endpoints need count=true support, their swagger specs and view functions must be updated in a follow-up.
+- host_group.py (GET /groups/{group_id}/hosts) and host_views.py (GET /beta/hosts-view) call _get_host_list_using_filters indirectly. To avoid silent behavioral changes on endpoints whose OpenAPI contracts are not being updated, their callers will explicitly pass `count=True` to preserve the existing behavior. A follow-up ticket can add opt-in `?count` support to those endpoints if needed.
 - The cached fast-path in api/host.py (insights-client system queries) hardcodes total=1 and is unaffected by this change.
+- **Incremental rollout option**: If there is concern about breaking existing consumers of GET /hosts, the `count` default can be gated behind an application configuration flag (e.g., `HOSTS_COUNT_DEFAULT=false` in app config / environment). This allows toggling back to `count=True` quickly in production without a code deploy if clients misbehave with `total: null`. The flag would set the default value used when the `?count` query parameter is omitted.
 - Once RHINENG-25499 (staleness timestamp removal) lands, re-evaluate enabling count=True by default and adding a B-tree index on (org_id, last_check_in) to make exact counts cheap again.
 
 ## Constraints
