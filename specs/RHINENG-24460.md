@@ -69,7 +69,22 @@ def delete_cached_host_count(cache_key: str):
 ### Step 3: 1) Add `import hashlib` to the imports at the top of the file. 2) Add imports `from api.cache import get_cached_host_count, set_cached_host_count` alongside existing cache imports. 3) Also import `from app.common import inventory_config` if not already present (needed to read `host_count_cache_timeout`). 4) In `_get_host_list_using_filters`, replace the single `count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()` line (currently at ~line 159) with:
 
 ```python
-# Build a stable cache key from org + filter hash to avoid per-request COUNT scan
+# Build a stable, deterministic cache key from org + filter hash to avoid per-request COUNT scan.
+#
+# NOTE on `all_filters` determinism: The `all_filters` list is constructed by `query_filters()`
+# in `api/filtering/db_filters.py`, which appends filter clauses in a fixed, code-defined order
+# (fqdn → display_name → hostname_or_id → insights_id → system_type → provider → timestamps →
+# groups → tags → staleness → registered_with → rbac). For the same set of request parameters,
+# the list order is always identical, so `str(all_filters)` is deterministic for equivalent requests.
+#
+# CAVEAT: The `md5(str(all_filters))` approach relies on SQLAlchemy's `__str__` representation
+# of filter/clause objects remaining stable across versions. If SQLAlchemy changes its string
+# output, cache keys will change — causing extra cache misses (not incorrect data). A more robust
+# alternative is to construct the key from explicit, normalized filter inputs (e.g.,
+# `org_id + sorted(filter_param_name=value)` pairs) passed down from `query_filters()`. This
+# would require threading an additional `cache_key_components` dict through the call chain.
+# The current approach is chosen for minimal code change; if cache fragmentation is observed
+# after a SQLAlchemy upgrade, switch to the explicit key approach.
 identity = get_current_identity()
 filter_hash = hashlib.md5(str(all_filters).encode(), usedforsecurity=False).hexdigest()[:12]
 count_cache_key = f"{identity.org_id}:{filter_hash}"
@@ -84,7 +99,7 @@ if count_total is None:
 No other changes to function signatures or callers are needed.
 - File: `api/host_query_db.py`
 - Change type: modify
-- Rationale: This is the minimal surgical fix: the expensive COUNT query still runs on a cache miss, but subsequent requests within the TTL window (default 120s) are served from Redis in O(1) time. Using org_id + filter-hash as the key means different filter combinations (by display_name, tags, etc.) each get their own cache slot, preventing false hits. `hashlib.md5` with `usedforsecurity=False` is appropriate here since this is used as a hash key, not a cryptographic purpose. The existing `get_current_identity()` is already imported and called in this file.
+- Rationale: This is the minimal surgical fix: the expensive COUNT query still runs on a cache miss, but subsequent requests within the TTL window (default 120s) are served from Redis in O(1) time. Using org_id + filter-hash as the key means different filter combinations (by display_name, tags, etc.) each get their own cache slot, preventing false hits. `hashlib.md5` with `usedforsecurity=False` is appropriate here since this is used as a hash key, not a cryptographic purpose. The existing `get_current_identity()` is already imported and called in this file. The `all_filters` list produced by `query_filters()` is constructed in a deterministic, fixed append order (see `api/filtering/db_filters.py` lines 489–585), so equivalent requests always produce the same `str()` output and the same cache key.
 
 ### Step 4: Create a new unit test file modelled on `tests/test_staleness_cache.py`. Tests should cover:
 
@@ -107,10 +122,15 @@ Use helper functions `_mock_redis()` and `_host_count_cache_patches()` following
 - Coverage targets: get_cached_host_count returns None when HOST_COUNT_L2_CACHE_ENABLED is False, get_cached_host_count returns integer on cache hit, get_cached_host_count returns None on Redis error (graceful degradation), set_cached_host_count skips Redis when cache disabled, set_cached_host_count stores count as string with correct key prefix and TTL, delete_cached_host_count removes the correct Redis key, Existing GET /hosts tests remain green (total is still a non-null integer)
 
 ## Risk Notes
-- The cache key uses md5(str(all_filters)) — SQLAlchemy filter object str() output is generally stable for the same query parameters, but if the output format changes across SQLAlchemy versions, cache keys may change (causing extra cache misses, not incorrect data).
+- The cache key uses `md5(str(all_filters))` — SQLAlchemy filter object `str()` output is generally stable for the same query parameters, but if the output format changes across SQLAlchemy versions, cache keys may change (causing extra cache misses, not incorrect data). A more robust long-term alternative is to build the cache key from explicit, normalized filter inputs (e.g., `org_id` + sorted `param_name=value` pairs) threaded through from `query_filters()`. The current approach is chosen for minimal diff size; see the implementation note in Step 3 for migration guidance.
 - With a 120-second TTL, the displayed `total` may be stale by up to 2 minutes. Paginated UIs that compute 'page N of M' from `total` may briefly show an incorrect page count after bulk host additions/deletions. This is an acceptable tradeoff for the performance gain on large orgs.
 - The first GET /hosts request after a cache miss (or on cold start) still runs the full `COUNT(DISTINCT)` query. For 466K-host orgs, this means the first request per 120s window still takes ~416ms.
-- Cache invalidation on host insert/delete is NOT implemented in this minimal plan — the TTL provides eventual consistency. If stricter consistency is needed, `delete_cached_host_count` should be called from the host creation/deletion code paths (e.g., in `lib/host_repository.py`), but that increases scope significantly.
+- Cache invalidation on host insert/delete is NOT implemented in this minimal plan — the TTL provides eventual consistency. If stricter consistency is needed, `delete_cached_host_count` should be called from the following specific code paths:
+  - **Host creation**: `lib/host_repository.py:add_host()` (line ~58) — after a new host is successfully committed, invalidate the cache for that org_id. Since `add_host` already has access to the identity/org_id, a call to `delete_cached_host_count(f"{org_id}:*")` (or a wildcard-based invalidation) could be added at the end of the function.
+  - **Host deletion**: `lib/host_delete.py:delete_hosts()` (line ~68) and `lib/host_delete.py:_delete_host()` (line ~95) — after host records are removed. The `_delete_host` function receives the `Host` object (which contains `org_id`) and the `identity`, so it can call invalidation directly.
+  - **Bulk deletion**: `api/host.py:delete_hosts_by_filter()` (line ~195) and `api/host.py:delete_all_hosts()` (line ~323) — these bulk operations could invalidate the cache for the requesting org after completion.
+  - Note: Wildcard key deletion (e.g., invalidating all filter-variant cache keys for an org) requires `SCAN`-based iteration in Redis, which adds complexity. An alternative is to use a per-org generation counter as part of the cache key; incrementing the counter on any host mutation effectively invalidates all prior cache entries for that org without needing key enumeration.
+  Implementing this increases scope significantly and is deferred to a follow-up ticket.
 - inventory_config() must be callable from within _get_host_list_using_filters. Verify it is available in the Flask app context at request time (it should be, based on existing usage in the codebase).
 - HOST_COUNT_L2_CACHE_ENABLED is only True when Redis is configured AND the new flag is enabled. In environments without Redis (e.g., NullCache), the code falls back to the original COUNT query — no regression.
 
