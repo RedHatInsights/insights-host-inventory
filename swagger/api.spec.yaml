@@ -1204,8 +1204,6 @@ paths:
         prefixed with "Copy of ".
         <br /><br />
         Required permissions: inventory:views:write
-        <br /><br />
-        <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -1221,8 +1219,6 @@ paths:
           description: Forbidden - identity type not supported or missing user_id.
         '404':
           description: Source view not found or not visible to the requesting user.
-        '501':
-          description: Not yet implemented.
 
 components:
   securitySchemes:
