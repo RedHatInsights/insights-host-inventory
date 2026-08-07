@@ -578,3 +578,102 @@ class TestDeleteView:
         response_status, _ = do_request(flask_client.delete, url, SYSTEM_TYPE_IDENTITY)
 
         assert_response_status(response_status, 403)
+
+
+class TestCloneView:
+    def test_clones_own_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(name="Original", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "Copy of Original"
+        assert response_data["id"] != str(view.id)
+        assert response_data["is_owner"] is True
+        assert response_data["org_wide"] is False
+        assert response_data["is_system_view"] is False
+        assert response_data["created_by"] == USER_ID
+
+    def test_clones_system_view(self, flask_client: TestClient, db_create_system_view: Callable) -> None:
+        view = db_create_system_view(name="Red Hat Default")
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "Copy of Red Hat Default"
+        assert response_data["is_system_view"] is False
+        assert response_data["org_id"] == USER_IDENTITY["org_id"]
+
+    def test_clones_org_wide_view_from_other_user(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(
+            name="Shared View",
+            org_id=USER_IDENTITY["org_id"],
+            created_by="98765432",
+            org_wide=True,
+        )
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 201)
+        assert response_data["created_by"] == USER_ID
+        assert response_data["org_wide"] is False
+
+    def test_clone_preserves_configuration(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        config = {
+            "columns": [{"key": "display_name"}, {"key": "vulnerability:critical_cves"}],
+            "sort": {"key": "display_name", "direction": "asc"},
+        }
+        view = db_create_view(
+            name="Configured",
+            org_id=USER_IDENTITY["org_id"],
+            created_by=USER_ID,
+            configuration=config,
+        )
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 201)
+        assert response_data["configuration"] == config
+
+    def test_clone_truncates_long_name(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        from app.models.views import MAX_VIEW_NAME_LENGTH
+
+        long_name = "A" * MAX_VIEW_NAME_LENGTH
+        view = db_create_view(name=long_name, org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 201)
+        assert len(response_data["name"]) == MAX_VIEW_NAME_LENGTH
+        assert response_data["name"].startswith("Copy of ")
+
+    def test_404_for_nonexistent_view(self, flask_client: TestClient) -> None:
+        url = build_views_url(view_id=str(uuid.uuid4()), clone=True)
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 404)
+
+    def test_404_for_other_users_private_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(
+            org_id=USER_IDENTITY["org_id"],
+            created_by="98765432",
+            org_wide=False,
+        )
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, _ = do_request(flask_client.post, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 404)
+
+    def test_403_for_unsupported_identity_type(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id), clone=True)
+        response_status, _ = do_request(flask_client.post, url, SYSTEM_TYPE_IDENTITY)
+
+        assert_response_status(response_status, 403)

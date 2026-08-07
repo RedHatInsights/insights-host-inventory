@@ -18,6 +18,7 @@ from app.models.schemas.views import PatchViewSchema
 from app.serialization import serialize_view
 from lib.views_repository import ViewNotFoundError
 from lib.views_repository import ViewPermissionError
+from lib.views_repository import clone_view as repo_clone_view
 from lib.views_repository import create_view as repo_create_view
 from lib.views_repository import delete_view as repo_delete_view
 from lib.views_repository import get_view_by_id as repo_get_view_by_id
@@ -131,5 +132,14 @@ def delete_view(view_id, **kwargs):  # noqa: ARG001
     return Response(None, HTTPStatus.NO_CONTENT)
 
 
+@api_operation
+@metrics.api_request_time.time()
 def clone_view(view_id, **kwargs):  # noqa: ARG001
-    abort(HTTPStatus.NOT_IMPLEMENTED)
+    org_id, user_id = _get_view_identity()
+
+    try:
+        cloned = repo_clone_view(view_id, org_id, user_id)
+    except ViewNotFoundError:
+        abort(HTTPStatus.NOT_FOUND, "View not found.")
+
+    return flask_json_response(serialize_view(cloned, user_id), HTTPStatus.CREATED)
