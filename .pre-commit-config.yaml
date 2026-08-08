@@ -10,6 +10,8 @@ repos:
   - id: check-yaml
   - id: check-json
   - id: debug-statements
+  - id: check-shebang-scripts-are-executable
+    files: '^jobs/'
 - repo: https://github.com/APIDevTools/swagger-cli
   rev: v4.0.4
   hooks:
