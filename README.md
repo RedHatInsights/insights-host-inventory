@@ -517,6 +517,14 @@ SP_FIELDS_TO_LOG="cpu_model,disk_devices"
 
 This logging helps with debugging hosts in Kibana.
 
+## Host Culling Configuration
+
+Use the environment variable DISABLE_HOST_CULLING to prevent hosts from becoming stale or being culled. When enabled, host stale timestamps are set to distant future dates.
+
+```bash
+DISABLE_HOST_CULLING="true"  # or "1" or "yes"
+```
+
 ## Running ad hoc jobs using a different image
 
 There may be a job `ClowdJobInvocation` which requires using a special image that is different
