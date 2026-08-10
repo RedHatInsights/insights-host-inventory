@@ -17,9 +17,8 @@ The `jobs/` directory contains Python scripts (e.g., `host_reaper.py`, `delete_h
 - Rationale: The `pre-commit/pre-commit-hooks` repo is already present at v6.0.0, which includes this hook. Adding it here — scoped to `jobs/` — means both local pre-commit runs and the existing CI `pre-commit/action@v3.0.1` step in `.github/workflows/checks.yaml` will enforce that any file with a shebang line in `jobs/` also has the executable bit set. All current `jobs/` files are already executable, so no existing files will fail.
 
 ## Test Strategy
-- Approach: Manually verify the hook's behavior in two scenarios: (1) confirm all existing `jobs/*.py` files with shebangs still pass the hook (no regression), and (2) confirm that a hypothetical non-executable file with a shebang in `jobs/` would be caught. In CI, the `checks.yaml` workflow runs `pre-commit/action@v3.0.1` on every PR, which will automatically exercise the new hook against all changed files.
-- Test files: .pre-commit-config.yaml
-- Coverage targets: Hook is present in the pre-commit/pre-commit-hooks section of .pre-commit-config.yaml, Hook is scoped to the jobs/ directory, All existing jobs/ files with shebangs pass the check (executable bit already set), CI pipeline enforces the check on every pull request via pre-commit/action
+- No dedicated tests are needed. This change is minimal (a single hook addition to `.pre-commit-config.yaml`) and purely adds a validation check — it does not alter application logic.
+- Verification: Confirm the existing CI pipeline (`checks.yaml` running `pre-commit/action@v3.0.1`) passes with the new hook enabled, which implicitly validates that all current `jobs/` files with shebangs already have the executable bit set.
 
 ## Risk Notes
 - The hook checks ALL files in `jobs/` with shebang lines. Files like `common.py` and `__init__.py` have no shebang and are unaffected.
