@@ -23,7 +23,7 @@ The `jobs/` directory contains Python job scripts (e.g., `host_reaper.py`, `host
 - Rationale: The `local` repo section already exists for custom hooks. Using `language: script` and pointing to the new shell script integrates with the existing pre-commit infrastructure, and is automatically enforced in CI via the `pre-commit/action@v3.0.1` step already present in `.github/workflows/checks.yaml`. Using `files` instead of `always_run: true` scopes the hook to only trigger when relevant files are changed, reducing overhead for unrelated commits.
 
 ## Test Strategy
-No additional tests are required. This change is simple and purely additive validation — the pre-commit hook and CI integration (`pre-commit/action@v3.0.1` with `--all-files`) serve as sufficient verification that the check works correctly.
+No additional tests are required. This is a simple, purely additive validation change — testing can be omitted for this implementation.
 
 ## Risk Notes
 - The new script itself must be committed with mode `100755`; if it is accidentally committed as `100644`, pre-commit will fail to execute it with `language: script`.
