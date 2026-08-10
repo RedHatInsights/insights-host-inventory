@@ -1137,7 +1137,7 @@ paths:
         '404':
           description: View not found or not visible to the requesting user.
     patch:
-      operationId: api.views.update_view
+      operationId: api.views.patch_view
       tags:
         - views
       summary: Update an inventory view

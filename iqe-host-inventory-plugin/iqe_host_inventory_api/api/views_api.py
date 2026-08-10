@@ -593,13 +593,13 @@ class ViewsApi:
             collection_formats=collection_formats,
         )
 
-    def api_views_update_view(self, view_id, view_patch, **kwargs):
+    def api_views_patch_view(self, view_id, view_patch, **kwargs):
         """Update an inventory view  # noqa: E501
 
-        Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.  # noqa: E501
+        Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.api_views_update_view(view_id, view_patch, async_req=True)
+        >>> thread = api.api_views_patch_view(view_id, view_patch, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
@@ -617,15 +617,15 @@ class ViewsApi:
                  returns the request thread.
         """
         kwargs["_return_http_data_only"] = True
-        return self.api_views_update_view_with_http_info(view_id, view_patch, **kwargs)
+        return self.api_views_patch_view_with_http_info(view_id, view_patch, **kwargs)
 
-    def api_views_update_view_with_http_info(self, view_id, view_patch, **kwargs):
+    def api_views_patch_view_with_http_info(self, view_id, view_patch, **kwargs):
         """Update an inventory view  # noqa: E501
 
-        Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.  # noqa: E501
+        Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write  # noqa: E501
         This method makes a synchronous HTTP request by default. To make an
         asynchronous HTTP request, please pass async_req=True
-        >>> thread = api.api_views_update_view_with_http_info(view_id, view_patch, async_req=True)
+        >>> thread = api.api_views_patch_view_with_http_info(view_id, view_patch, async_req=True)
         >>> result = thread.get()
 
         :param async_req bool: execute request asynchronously
@@ -658,7 +658,7 @@ class ViewsApi:
         for key, val in local_var_params["kwargs"].items():
             if key not in all_params:
                 raise ApiTypeError(
-                    f"Got an unexpected keyword argument '{key}' to method api_views_update_view"
+                    f"Got an unexpected keyword argument '{key}' to method api_views_patch_view"
                 )
             local_var_params[key] = val
         del local_var_params["kwargs"]
@@ -667,14 +667,14 @@ class ViewsApi:
             "view_id" not in local_var_params or local_var_params["view_id"] is None
         ):
             raise ApiValueError(
-                "Missing the required parameter `view_id` when calling `api_views_update_view`"
+                "Missing the required parameter `view_id` when calling `api_views_patch_view`"
             )
         # verify the required parameter 'view_patch' is set
         if self.api_client.client_side_validation and (
             "view_patch" not in local_var_params or local_var_params["view_patch"] is None
         ):
             raise ApiValueError(
-                "Missing the required parameter `view_patch` when calling `api_views_update_view`"
+                "Missing the required parameter `view_patch` when calling `api_views_patch_view`"
             )
 
         collection_formats = {}
@@ -706,7 +706,7 @@ class ViewsApi:
 
         return self.api_client.call_api(
             "/beta/views/{view_id}",
-            "PUT",
+            "PATCH",
             path_params,
             query_params,
             header_params,

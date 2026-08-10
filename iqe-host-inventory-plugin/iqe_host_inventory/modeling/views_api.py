@@ -163,7 +163,7 @@ class ViewsAPIWrapper(BaseEntity):
             data["org_wide"] = org_wide
 
         with self._host_inventory.apis.measure_time("PATCH /views/<view_id>"):
-            return self.raw_api.api_views_update_view(view_id, data, **api_kwargs)
+            return self.raw_api.api_views_patch_view(view_id, data, **api_kwargs)
 
     @check_org_id
     def delete_view(self, view: VIEW_OR_ID, **api_kwargs: Any) -> None:

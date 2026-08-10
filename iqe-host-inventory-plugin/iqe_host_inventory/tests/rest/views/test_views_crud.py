@@ -188,7 +188,7 @@ class TestViewUpdate:
         """
         fake_id = generate_uuid()
         with raises_apierror(404):
-            host_inventory.apis.views.raw_api.api_views_update_view(
+            host_inventory.apis.views.raw_api.api_views_patch_view(
                 fake_id, {"name": generate_display_name()}
             )
 
