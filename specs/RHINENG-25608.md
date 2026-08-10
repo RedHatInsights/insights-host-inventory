@@ -23,9 +23,7 @@ The `jobs/` directory contains Python job scripts (e.g., `host_reaper.py`, `host
 - Rationale: The `local` repo section already exists for custom hooks. Using `language: script` and pointing to the new shell script integrates with the existing pre-commit infrastructure, and is automatically enforced in CI via the `pre-commit/action@v3.0.1` step already present in `.github/workflows/checks.yaml`. Using `files` instead of `always_run: true` scopes the hook to only trigger when relevant files are changed, reducing overhead for unrelated commits.
 
 ## Test Strategy
-- Approach: Verify the script's two code paths manually or via a lightweight shell test: (1) run it against the current repo state (all `jobs/` files at `100755`) and confirm it exits 0; (2) mock a `git ls-files --stage` output containing a `100644`-mode file and confirm the script exits 1 and prints the offending filename. Since the project has no existing shell test harness, these verifications can be done by running `pre-commit run check-job-file-permissions --all-files` in the local checkout and confirming it passes, then manually staging a test file without executable permission to confirm the hook catches it.
-- Test files: scripts/check_job_permissions.sh
-- Coverage targets: Script exits 0 when all Python files in jobs/ have git mode 100755, Script exits 1 and prints offending filenames when any Python file in jobs/ has a non-100755 git mode, Script exits 0 silently when jobs/ contains no tracked Python files (empty directory edge case), Pre-commit hook triggers when Python files under jobs/ are staged
+No additional tests are required. This change is simple and purely additive validation — the pre-commit hook and CI integration (`pre-commit/action@v3.0.1` with `--all-files`) serve as sufficient verification that the check works correctly.
 
 ## Risk Notes
 - The new script itself must be committed with mode `100755`; if it is accidentally committed as `100644`, pre-commit will fail to execute it with `language: script`.
