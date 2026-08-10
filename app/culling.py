@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 __all__ = ("Conditions", "Timestamps", "days_to_seconds")
 
+config = inventory_config()
+__disable_host_culling__ = config.disable_host_culling
 
 class _Config(namedtuple("_Config", ("stale_warning_offset_delta", "culled_offset_delta"))):
     @classmethod
@@ -114,8 +116,7 @@ def should_host_stay_fresh_forever(host: "Host") -> bool:
     Returns:
         bool: True if the host should stay fresh forever, False otherwise
     """
-    config = inventory_config()
-    if config.disable_host_culling:
+    if __disable_host_culling__:
         return True
     # If the host has no per_reporter_staleness, it's a new host, and we should check the reporter instead
     if not hasattr(host, "per_reporter_staleness") or not host.per_reporter_staleness:
