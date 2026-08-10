@@ -264,14 +264,19 @@ class TestViewClone:
         config = {
             "columns": [{"key": "display_name"}, {"key": "updated"}],
             "sort": {"key": "display_name", "direction": "asc"},
+            "filters": {"vulnerability": {"critical_cves": {"gte": "1"}}},
         }
         original = host_inventory.apis.views.create_view(name, configuration=config)
         cloned = host_inventory.apis.views.clone_view(original)
 
-        assert len(cloned.configuration.columns) == len(original.configuration.columns)
         cloned_keys = [c.key for c in cloned.configuration.columns]
         original_keys = [c.key for c in original.configuration.columns]
         assert cloned_keys == original_keys
+
+        assert cloned.configuration.sort.key == original.configuration.sort.key
+        assert cloned.configuration.sort.direction == original.configuration.sort.direction
+
+        assert cloned.configuration.filters == original.configuration.filters
 
     def test_clone_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
         """

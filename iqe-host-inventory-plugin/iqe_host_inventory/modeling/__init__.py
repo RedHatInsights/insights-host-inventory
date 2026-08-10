@@ -359,7 +359,7 @@ class HBICleanUp(BaseEntity):
             self.export_ids_to_clean[scope] = set()
         self.export_ids_to_clean[scope].update(export_ids)
 
-    def add_views(self, view_ids: str | set[str], scope: str = "function") -> None:
+    def add_views(self, view_ids: str | set[str] | list[str], scope: str = "function") -> None:
         _check_cleanup_scope(scope)
         if scope not in self.view_ids_to_clean:
             self.view_ids_to_clean[scope] = set()
