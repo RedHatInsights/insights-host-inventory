@@ -2,6 +2,8 @@ name: Konflux Auto-merge
 on:
   pull_request_target:
     paths:
+      - 'pyproject.toml'
+      - 'uv.lock'
       - 'Dockerfile'
       - '.pre-commit-config.yaml'
       - 'iqe-host-inventory-plugin/.pre-commit-config.yaml'
