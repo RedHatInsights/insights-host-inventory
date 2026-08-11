@@ -342,10 +342,9 @@ def test_process_message_without_span_captures_otel_context(otel_spans, consumer
     assert result.otel_context is not None
 
 
-def test_end_deferred_span_enriches_with_threadctx(otel_spans, consumer, monkeypatch):
-    """Verify that _end_deferred_span enriches spans with rh.org_id and rh.request_id."""
+def test_end_all_deferred_spans_enriches_with_threadctx(otel_spans, consumer, monkeypatch):
+    """Verify that _end_all_deferred_spans enriches spans with rh.org_id and rh.request_id."""
     from app.logging import threadctx
-    from app.queue.host_mq import _end_deferred_span
 
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
@@ -358,7 +357,7 @@ def test_end_deferred_span_enriches_with_threadctx(otel_spans, consumer, monkeyp
     threadctx.org_id = "enrichment_org"
     threadctx.request_id = "enrichment_req"
 
-    _end_deferred_span(result)
+    consumer._end_all_deferred_spans()
 
     assert result.otel_span is None
     spans = otel_spans.get_finished_spans()
