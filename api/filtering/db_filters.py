@@ -371,6 +371,14 @@ def _build_filter(filter: dict) -> tuple[list, set]:
     return query_filters, app_models_to_join
 
 
+def validate_filter_structure(filter_dict: dict) -> None:
+    """Validate filter structure without returning query artifacts.
+
+    Raises ValidationException for invalid namespaces, fields, or operators.
+    """
+    _build_filter(filter_dict)
+
+
 def _hostname_or_id_filter(hostname_or_id: str) -> tuple:
     wildcard_id = f"%{escape_ilike_value(hostname_or_id)}%"
     filter_list = [

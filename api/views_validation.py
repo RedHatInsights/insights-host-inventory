@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 
 from api.filtering.app_data_sorting import get_app_sort_field_map
-from api.filtering.db_filters import _build_filter
+from api.filtering.db_filters import validate_filter_structure
 from app.exceptions import ValidationException
 from app.models.host_app_data import get_app_data_models
 
@@ -72,4 +72,4 @@ def validate_view_configuration(configuration: dict) -> None:
 
 
 def _validate_filters(filters: dict) -> None:
-    _build_filter(filters)
+    validate_filter_structure(filters)

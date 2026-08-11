@@ -450,6 +450,23 @@ class TestCreateView:
         assert_response_status(response_status, 400)
         assert "invalid_op" in response_data["detail"]
 
+    def test_400_for_invalid_system_profile_os_name(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "system_profile": {
+                    "operating_system": {"INVALID_OS": {"version": {"eq": ["9.6"]}}},
+                },
+            },
+        }
+        data = {"name": "Bad OS Name", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "operating_system" in response_data["detail"]
+
     def test_400_for_unknown_visible_field(self, flask_client: TestClient) -> None:
         data = {"name": "Bad", "configuration": {"columns": [{"key": "display_name", "visible": True}]}}
 
