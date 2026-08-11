@@ -1351,7 +1351,7 @@ def write_add_update_event_message(
             tracker_ctx._success_status_msg = "skipped – host deleted before event production"
             return
 
-        event_producer.write_event(event, str(result.row.id), headers, wait=False)
+        event_producer.write_event(event, str(result.row.id), headers, wait=True)
 
         if result.event_type.name == HOST_EVENT_TYPE_CREATED:
             # Notifications are expected to omit null canonical facts
@@ -1379,21 +1379,6 @@ def write_add_update_event_message(
             logger.error("Error during set cache", ex)
 
 
-def _end_deferred_span(result: OperationResult) -> None:
-    """Enrich and end the deferred mq.process span after post-processing completes."""
-    if result.otel_span is not None:
-        span = result.otel_span
-        if span.is_recording():
-            org_id = getattr(threadctx, "org_id", None)
-            if org_id:
-                span.set_attribute("rh.org_id", org_id)
-            request_id = getattr(threadctx, "request_id", None)
-            if request_id:
-                span.set_attribute("rh.request_id", request_id)
-        span.end()
-        result.otel_span = None
-
-
 def write_message_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
@@ -1407,10 +1392,6 @@ def write_message_batch(
             except Exception as exc:
                 metrics.ingress_message_handler_failure.inc()
                 logger.exception("Error while producing message", exc_info=exc)
-            finally:
-                _end_deferred_span(result)
-
-    event_producer.flush()
 
 
 def initialize_thread_local_storage(
