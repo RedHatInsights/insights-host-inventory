@@ -6,6 +6,7 @@ import sys
 import time
 import uuid
 from collections.abc import Callable
+from contextlib import nullcontext
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -25,6 +26,7 @@ from marshmallow import validate
 from opentelemetry import context as otel_context_api
 from opentelemetry import trace as trace_api
 from opentelemetry.context import Context as OtelContext
+from opentelemetry.instrumentation.utils import suppress_instrumentation
 from opentelemetry.propagate import extract as otel_extract
 from opentelemetry.trace import SpanKind
 from opentelemetry.trace import StatusCode
@@ -537,7 +539,12 @@ class HBIMessageConsumerBase:
                     for msg in valid_messages:
                         self._process_single_message_in_batch(msg)
 
-                db.session.commit()
+                # Suppress instrumentation during commit for host-ingestion topics.
+                # The before_commit event listener (outbox processing) runs SQL queries
+                # (SELECT/INSERT/DELETE) that would otherwise appear as orphaned root
+                # traces since per-message span contexts have already been detached.
+                with suppress_instrumentation() if self._has_upstream_trace else nullcontext():
+                    db.session.commit()
             except Exception as exc:
                 db.session.rollback()
                 self._end_all_deferred_spans(error=exc)
