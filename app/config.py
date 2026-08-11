@@ -368,6 +368,8 @@ class Config:
         if self.replica_namespace:
             self.logger.info("***PROD REPLICA NAMESPACE DETECTED - Kafka operations will be disabled ***")
 
+        self.disable_host_culling = os.environ.get("DISABLE_HOST_CULLING", "false").lower() in ("true", "1", "yes")
+        
     def _build_base_url_path(self):
         app_name = os.getenv("APP_NAME", "inventory")
         path_prefix = os.getenv("PATH_PREFIX", "api")
