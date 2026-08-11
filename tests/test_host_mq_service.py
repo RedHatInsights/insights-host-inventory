@@ -2817,6 +2817,9 @@ def test_write_add_update_event_message(mocker):
     assert cached_group == serialized_group
     mock_host_exists.assert_called_once_with("host-id", org_id="org-id", session=db.session)
 
+    # Assert synchronous flush per ADR-0002
+    assert mock_event_producer.write_event.call_args.kwargs["wait"] is True
+
 
 @pytest.mark.usefixtures("flask_app")
 def test_write_add_update_event_message_skips_deleted_host(mocker):
@@ -3082,8 +3085,8 @@ def test_batch_50_messages_no_system_profile_accumulation(mocker, event_producer
     )
 
 
-def test_write_message_batch_flushes_once(mocker):
-    """Kafka events should be produced with wait=False and flushed once at the end of the batch."""
+def test_write_message_batch_produces_all_messages(mocker):
+    """Each event in the batch should be produced via write_add_update_event_message (flushed per-message)."""
     from uuid import uuid4
 
     from app.queue.host_mq import write_message_batch
@@ -3104,4 +3107,6 @@ def test_write_message_batch_flushes_once(mocker):
     write_message_batch(mock_event_producer, notification_producer, mock_results)
 
     assert mock_write.call_count == 5
-    assert mock_event_producer.flush.call_count == 1, "flush() should be called exactly once at the end of the batch"
+    assert mock_event_producer.flush.call_count == 0, (
+        "flush() should not be called; each event is flushed via wait=True"
+    )
