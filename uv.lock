@@ -805,7 +805,7 @@ requires-dist = [
     { name = "rpds-py", specifier = "==2026.6.3" },
     { name = "segment-analytics-python" },
     { name = "sqlalchemy", specifier = "<3.0.0" },
-    { name = "starlette", specifier = "~=1.4.1" },
+    { name = "starlette", specifier = "~=1.5.1" },
     { name = "ujson", specifier = "==5.13.0" },
     { name = "unleashclient", specifier = "==6.8.0" },
     { name = "urllib3", specifier = ">=1.26.5" },
@@ -1916,15 +1916,15 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "1.4.1"
+version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/3c/76d2fd1f1357ed0f0108d8a5aa233dcf16e2946a8559c84912fe08e01ac7/starlette-1.4.1.tar.gz", hash = "sha256:b7332de6e9375593a29ba9eee1e6ecfeb3eb2043e2e19a13b4b71da73ff35540", size = 2709041, upload-time = "2026-08-05T15:17:26.23Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/1f/b3f556fa9fd223ef7d00e1d2ef0192f0020767cbe7eb3a2f147e80ea48e4/starlette-1.5.1.tar.gz", hash = "sha256:ac3795c54313f3717a37c41b4b998ad67561b6f57c779de4cb5b0e4ab69e328f", size = 2712742, upload-time = "2026-08-08T17:01:46.037Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/0a/67e95f21498de41433babf7b1db0eeab449eb58872dfb831b27747a70fd0/starlette-1.4.1-py3-none-any.whl", hash = "sha256:7d078e0fbefae0d2cecfb80a799d6fb84b1c0c6acd4f14ac79d17d0e7ec27f19", size = 74019, upload-time = "2026-08-05T15:17:24.357Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/e9/b68fe9746932000210e4116bf8ed1246f86540e2b876d3f9f869f4b442de/starlette-1.5.1-py3-none-any.whl", hash = "sha256:08b5aa725dbb52de43633a6318628444b8979bf94396d93196703f73a466e9af", size = 74376, upload-time = "2026-08-08T17:01:44.414Z" },
 ]
 
 [[package]]
