@@ -5583,14 +5583,9 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value. Validated server-side against the field and operator registries.",
+            "description": "Active filter criteria for this view. Top-level keys are filter namespaces: app names (e.g. vulnerability, patch) or system_profile. Each namespace value is a nested object of field -> operator -> value conditions. system_profile filters may be deeply nested (e.g. operating_system.RHEL.version). Validated server-side using the hosts API filter engine.",
             "type": "object",
-            "additionalProperties": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/components/schemas/HostViewFilterComparison"
-              }
-            }
+            "additionalProperties": true
           }
         }
       },
