@@ -8,7 +8,12 @@ The `jobs/` directory contains Python scripts (e.g., `host_reaper.py`, `delete_h
 
 ## Plan
 
+> **Note:** This spec describes the planned implementation. The actual `.pre-commit-config.yaml` modification will be made in the implementation phase following spec approval.
+
 - `.pre-commit-config.yaml` (modify): Add the `check-shebang-scripts-are-executable` hook to the existing `pre-commit/pre-commit-hooks` block (already pinned at v6.0.0, alongside `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, and `debug-statements`). No version bump or new repo block is needed.
+
+### Scope of the hook
+The `check-shebang-scripts-are-executable` hook applies to **all files in the repo** that contain a shebang line, not just those in `jobs/`. This broader scope is intentional and acceptable — it provides a useful safeguard for any executable script (e.g., `pr_check.sh`, `build_deploy.sh`, `run.py`, `manage.py`). An audit confirmed all shebang-bearing files in the repo already have the execute bit set, so no false positives are expected upon merging.
 
 ## Notes
 - Developers with pre-commit installed locally will need to run `pre-commit install` or `pre-commit autoupdate` to pick up the new hook in their local environment.
