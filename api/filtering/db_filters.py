@@ -363,7 +363,7 @@ def _build_filter(filter: dict) -> tuple[list, set]:
             elif key in app_data_models:
                 app_filter_dict[key] = filter[key]
             else:
-                raise ValidationException("filter key is invalid")
+                raise ValidationException(f"Invalid filter key '{key}'")
         if app_filter_dict:
             app_filters, app_models_to_join = build_app_data_filters(app_filter_dict)
             query_filters += app_filters

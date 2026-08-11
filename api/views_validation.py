@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 
 from api.filtering.app_data_sorting import get_app_sort_field_map
-from api.filtering.db_app_data_filters import build_app_data_filters
+from api.filtering.db_filters import _build_filter
 from app.exceptions import ValidationException
 from app.models.host_app_data import get_app_data_models
 
@@ -72,18 +72,4 @@ def validate_view_configuration(configuration: dict) -> None:
 
 
 def _validate_filters(filters: dict) -> None:
-    app_data_models = get_app_data_models()
-    valid_namespaces = set(app_data_models.keys()) | {"system_profile"}
-
-    app_data_filters = {}
-    for namespace, fields_dict in filters.items():
-        if namespace not in valid_namespaces:
-            raise ValidationException(
-                f"Invalid filter namespace '{namespace}'. Valid namespaces: {', '.join(sorted(valid_namespaces))}"
-            )
-
-        if namespace != "system_profile":
-            app_data_filters[namespace] = fields_dict
-
-    if app_data_filters:
-        build_app_data_filters(app_data_filters)
+    _build_filter(filters)
