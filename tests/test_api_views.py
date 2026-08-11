@@ -257,6 +257,60 @@ class TestCreateView:
         assert_response_status(response_status, 201)
         assert response_data["configuration"]["filters"]["vulnerability"]["critical_cves"]["gte"] == "1"
 
+    def test_creates_view_with_system_profile_os_filter(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "system_profile": {
+                    "operating_system": {"RHEL": {"version": {"eq": ["9.6"]}}},
+                },
+            },
+        }
+        data = {"name": "RHEL 9.6 View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["configuration"]["filters"]["system_profile"]["operating_system"] == {
+            "RHEL": {"version": {"eq": ["9.6"]}}
+        }
+
+    def test_creates_view_with_system_profile_host_type_filter(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "system_profile": {"host_type": {"eq": "edge"}},
+            },
+        }
+        data = {"name": "Edge Hosts", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["configuration"]["filters"]["system_profile"]["host_type"]["eq"] == "edge"
+
+    def test_creates_view_with_combined_system_profile_and_app_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}, {"key": "operating_system"}],
+            "filters": {
+                "system_profile": {
+                    "operating_system": {"RHEL": {"version": {"eq": ["9.0"]}}},
+                },
+                "vulnerability": {"critical_cves": {"gte": "1"}},
+            },
+        }
+        data = {"name": "Vuln RHEL Hosts", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        filters = response_data["configuration"]["filters"]
+        assert filters["system_profile"]["operating_system"] == {"RHEL": {"version": {"eq": ["9.0"]}}}
+        assert filters["vulnerability"]["critical_cves"]["gte"] == "1"
+
     def test_created_view_appears_in_list(self, flask_client: TestClient) -> None:
         data = {"name": "Listed View", "configuration": VALID_CONFIG}
 
@@ -395,6 +449,23 @@ class TestCreateView:
 
         assert_response_status(response_status, 400)
         assert "invalid_op" in response_data["detail"]
+
+    def test_400_for_invalid_system_profile_os_name(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "system_profile": {
+                    "operating_system": {"INVALID_OS": {"version": {"eq": ["9.6"]}}},
+                },
+            },
+        }
+        data = {"name": "Bad OS Name", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "operating_system" in response_data["detail"]
 
     def test_400_for_unknown_visible_field(self, flask_client: TestClient) -> None:
         data = {"name": "Bad", "configuration": {"columns": [{"key": "display_name", "visible": True}]}}
