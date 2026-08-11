@@ -1929,7 +1929,7 @@
         }
       },
       "patch": {
-        "operationId": "api.views.update_view",
+        "operationId": "api.views.patch_view",
         "tags": [
           "views"
         ],
