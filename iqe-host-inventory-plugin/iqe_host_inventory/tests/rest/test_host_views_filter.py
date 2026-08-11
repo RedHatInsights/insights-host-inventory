@@ -763,9 +763,7 @@ class TestCombinedApps:
     @pytest.mark.parametrize(
         "filter_str,expected_status,expected_msg",
         [
-            pytest.param(
-                "[fake_app][field][eq]=5", 400, "filter key is invalid", id="invalid-app"
-            ),
+            pytest.param("[fake_app][field][eq]=5", 400, "Invalid filter key", id="invalid-app"),
             pytest.param(
                 "[advisor][nonexistent_field][eq]=5",
                 400,
