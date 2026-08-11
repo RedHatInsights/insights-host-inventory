@@ -88,7 +88,7 @@ def create_view(body, **kwargs):  # noqa: ARG001
 
 @api_operation
 @metrics.api_request_time.time()
-def update_view(view_id, body, **kwargs):  # noqa: ARG001
+def patch_view(view_id, body, **kwargs):  # noqa: ARG001
     org_id, user_id = _get_view_identity()
 
     try:
