@@ -8,16 +8,12 @@ The `jobs/` directory contains Python scripts (e.g., `host_reaper.py`, `pendo_sy
 
 ## Plan
 
-- `scripts/check_job_permissions.sh` (create): Create a new bash script that accepts filenames as arguments (as pre-commit passes them) and verifies each has the executable bit set using `test -x`. It should print a clear error message for any non-executable file and exit non-zero if any violations are found. The script must itself be marked executable (`chmod +x`) before committing, modelled after the shebang/`set -euo pipefail` style already used in `scripts/worktree.sh`.
-
-- `.pre-commit-config.yaml` (modify): Add a new hook entry to the existing `local` repo section (after the `redocly-validate` hook) with `language: script`, `entry: scripts/check_job_permissions.sh`, and `files: '^jobs/.*\.py$'`. This scopes the check to all Python files under the `jobs/` directory.
+- `.pre-commit-config.yaml` (modify): Add the `check-shebang-scripts-are-executable` hook to the existing `pre-commit/pre-commit-hooks` repo section (which is already pinned at `rev: v6.0.0`). Scope it with `files: '^jobs/.*\.py$'` so the check targets all Python files under the `jobs/` directory. This hook ships with `pre-commit/pre-commit-hooks` v6.0.0, so no version bump is required.
 
 ## Notes
-- The script file itself must be committed with executable permissions; if the Coder agent writes the file without running `chmod +x scripts/check_job_permissions.sh`, the `language: script` hook will fail to execute.
+- The `check-shebang-scripts-are-executable` hook is provided by `pre-commit/pre-commit-hooks` and verifies that files containing a shebang (`#!`) have the executable bit set. This is exactly the check needed for `jobs/*.py` files.
 - All existing `jobs/*.py` files (including `__init__.py` and `common.py`) currently have executable permissions, so the hook will pass on the current codebase without any remediation needed.
-- Pre-commit's `language: script` runs the entry path directly as an executable — ensure the shebang line (`#!/usr/bin/env bash`) is present and correct.
-- The pre-commit hook must use `language: script` (pointing to the shell script) or `language: system` (using a bash/python inline command) — both are supported in pre-commit local hooks.
 - The `files` pattern in the hook should target `^jobs/.*\.py$` to match all Python files in the jobs directory.
 - Care should be taken to handle the `jobs/__init__.py` file: it currently also has executable permissions, so including or excluding it from the check should be a deliberate decision.
 - The check must work both locally (when developers run pre-commit) and in CI (GitHub Actions `lints` job runs `pre-commit/action@v3.0.1`).
-- Any new script file (e.g., `scripts/check_job_permissions.sh`) must itself be executable, otherwise the hook will fail to run.
+- Only one file is touched (`.pre-commit-config.yaml`); no custom script is needed.
