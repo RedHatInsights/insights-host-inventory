@@ -43,7 +43,7 @@ dependencies = [
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.8.0",
     "rpds-py==2026.6.3",
-    "starlette~=1.5.1",
+    "starlette~=1.6.0",
 ]
 
 [tool.ruff]
