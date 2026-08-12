@@ -11,11 +11,7 @@ The `jobs/` directory contains Python scripts (e.g., `host_reaper.py`, `pendo_sy
 - `.pre-commit-config.yaml` (modify): Add `check-shebang-scripts-are-executable` as an additional hook entry under the existing `pre-commit/pre-commit-hooks` block (already at v6.0.0, alongside `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, and `debug-statements`). No other configuration is needed — the hook will automatically detect any file with a shebang line that lacks the executable bit.
 
 ## Notes
-- On Windows, git may not track executable bits correctly unless core.fileMode=true is set; contributors on Windows may need to use `git update-index --chmod=+x` to set the bit.
-- All current job files already have the executable bit set, so adding this hook will not break the existing codebase or CI.
-- The hook inspects git-tracked metadata, so the executable bit must be committed (not just set on disk) to be detected correctly.
+- All current job files already have the executable bit set (`-rwxr-xr-x`), so adding this hook will not break the existing codebase or CI.
+- The hook inspects git-tracked file metadata, so the executable bit must be committed (via `chmod +x` before staging, or `git update-index --chmod=+x`) to be detected correctly. On Windows, git may not track executable bits unless `core.fileMode=true` is set; contributors on Windows should use `git update-index --chmod=+x` explicitly.
 - The `check-shebang-scripts-are-executable` hook only flags files that contain a shebang line AND are NOT marked executable — it won't flag `jobs/common.py` or `jobs/__init__.py` (which have no shebangs), so no false positives are expected.
-- All current job files already have the executable bit set (`-rwxr-xr-x`), so adding the hook will not break the existing codebase or CI.
-- The hook relies on git-tracked file metadata for the executable bit; the executable bit must be committed via `git update-index --chmod=+x` or `chmod +x` before staging.
-- On Windows, git may not track executable bits correctly unless `core.fileMode=true` is set; developers on Windows may need to use `git update-index --chmod=+x` explicitly.
-- If a local pre-commit hook approach is chosen, the `stages` configuration in `.pre-commit-config.yaml` should be reviewed to ensure the hook runs on the correct stage (default `pre-commit` stage is appropriate here).
+- No `stages` configuration is needed for this hook; the default `pre-commit` stage is correct and matches the existing hooks in the config.
