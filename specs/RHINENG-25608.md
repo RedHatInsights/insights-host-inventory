@@ -8,7 +8,7 @@ The `jobs/` directory contains Python scripts with shebang lines (`#!/usr/bin/en
 
 ## Plan
 
-- `.pre-commit-config.yaml` (modify): Add a new hook entry for `check-shebang-scripts-are-executable` to the existing `pre-commit/pre-commit-hooks` block (rev v6.0.0), scoped to the `jobs/` directory via a `files` pattern. Place it after the existing `debug-statements` hook, following the same style as the other hook entries in that block.
+- `.pre-commit-config.yaml` (modify): Add a new hook entry for `check-shebang-scripts-are-executable` to the existing `pre-commit/pre-commit-hooks` block (rev v6.0.0), scoped to the `jobs/` directory via a `files` pattern anchored to the start of the path (e.g., `^jobs/`). The `^` anchor ensures the pattern only matches files rooted in the `jobs/` directory and does not accidentally match paths that merely contain `jobs/` as a subdirectory elsewhere. Place it immediately after the existing `debug-statements` hook entry, following the same YAML style as the other hook entries in that block.
 
 ## Constraints
 - Do not add `check-executables-have-shebangs` — it is out of scope for this issue.
