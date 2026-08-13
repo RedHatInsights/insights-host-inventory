@@ -23,7 +23,9 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
-from iqe_host_inventory_api import ActiveTags
+from iqe_host_inventory.utils.tag_utils import (
+    log_response_tags_indices as _log_response_tags_indices,
+)
 from iqe_host_inventory_api import ApiException
 from iqe_host_inventory_api import ApiTypeError
 from iqe_host_inventory_api import HostOut
@@ -137,7 +139,6 @@ def test_filter_hosts_by_system_profile_sap_sids(
     2. Make sure that all hosts from the result have the correct sap_sids value
 
     metadata:
-        requirements: inv-hosts-filter-by-sp-sap_sids
         assignee: fstavela
         importance: high
         title: Inventory: Hosts filtering by sap_sids
@@ -155,21 +156,6 @@ def test_filter_hosts_by_system_profile_sap_sids(
     log_response_hosts_indices(setup_hosts, response_ids)
     assert response.count >= len(expected_ids)
     assert response_ids & all_hosts_ids == expected_ids
-
-
-def _log_response_tags_indices(my_tags: list[list[StructuredTag]], response: ActiveTags):
-    response_tags = [res_item.tag for res_item in response.results]
-    response_tags_indices = set()
-    for res_tag in response_tags:
-        found_index = -1
-        for i, tag_list in enumerate(my_tags):
-            search_list = [tag.to_dict() for tag in tag_list]
-            if res_tag in search_list:
-                found_index = i
-                break
-        if found_index != -1:
-            response_tags_indices.add(found_index)
-    logger.info(f"Response tags indices: {response_tags_indices}")
 
 
 # All tests that use the setup_hosts_for_operating_system_filtering fixture are grouped here
@@ -310,7 +296,6 @@ class TestOperatingSystemFiltering:
         https://issues.redhat.com/browse/RHCLOUD-13904
 
         metadata:
-          requirements: inv-hosts-filter-by-sp-operating_system
           assignee: fstavela
           importance: high
           title: Inventory: filter hosts by operating_system
@@ -464,7 +449,6 @@ class TestOperatingSystemFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
           assignee: fstavela
           importance: high
           title: Inventory: filter tags by operating_system
@@ -477,18 +461,17 @@ class TestOperatingSystemFiltering:
             f"[operating_system]{param.lower() if case_insensitive else param}" for param in params
         ]
         # There are too many "module" scoped hosts with tags, 50 isn't enough
-        response = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100)
+        response = host_inventory.apis.tags.get_tags_json(filter=filter, per_page=100)
         _log_response_tags_indices(tags, response)
 
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
     @pytest.mark.ephemeral
     def test_operating_systems_pagination(self, host_inventory: ApplicationHostInventory):
         """
         metadata:
-            requirements: inv-pagination, inv-system_profile-operating_system
             assignee: fstavela
             importance: medium
             title: Inventory: operating_system pagination
@@ -509,7 +492,6 @@ class TestOperatingSystemFiltering:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2751
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: high
             title: Inventory: operating_system values enumerating
@@ -546,7 +528,6 @@ class TestOperatingSystemFiltering:
         JIRA: https://issues.redhat.com/browse/ESSNTL-2923
 
         metadata:
-            requirements: inv-system_profile-operating_system
             assignee: fstavela
             importance: medium
             title: test search parameter on /system_profile/operating_system endpoint
@@ -630,7 +611,6 @@ def test_filter_hosts_by_system_profile_ansible(
     https://issues.redhat.com/browse/ESSNTL-1508
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-ansible
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by ansible
@@ -739,7 +719,6 @@ def test_filter_hosts_by_system_profile_sap(
     https://issues.redhat.com/browse/ESSNTL-1616
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-sap
       assignee: zabikeno
       importance: high
       title: Inventory: filter hosts by sap object
@@ -790,7 +769,6 @@ def test_filter_hosts_by_system_profile_mssql(
     https://issues.redhat.com/browse/ESSNTL-1613
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-mssql
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by mssql
@@ -825,7 +803,6 @@ def test_filter_hosts_by_system_profile_fields_nil(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts with nil and not_nil values
@@ -918,7 +895,6 @@ def test_filter_hosts_by_system_profile_string_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by string fields
@@ -973,7 +949,6 @@ def test_filter_hosts_by_system_profile_integer_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by integer fields
@@ -1036,7 +1011,6 @@ def test_filter_hosts_by_system_profile_boolean_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by boolean fields
@@ -1081,7 +1055,6 @@ def test_filter_hosts_by_system_profile_datetime_fields_range_operations(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Range operations generic filtering of hosts by date-time fields
@@ -1122,7 +1095,6 @@ def test_filter_hosts_by_system_profile_multiple_types(host_inventory: Applicati
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of hosts by fields of various types at the same time
@@ -1199,7 +1171,6 @@ def test_filter_hosts_by_system_profile_fields_incorrect_comparator(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields, inv-api-validation
       assignee: fstavela
       importance: low
       title: Generic filtering of hosts with incorrect comparators
@@ -1224,7 +1195,6 @@ def test_filter_hosts_by_system_profile_multiple_values_without_brackets(
     Jira: https://issues.redhat.com/browse/ESSNTL-1960
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields, inv-api-validation
       assignee: fstavela
       importance: low
       title: Filtering hosts by multiple values of the same field without [] returns error 400
@@ -1253,7 +1223,6 @@ def test_filter_hosts_by_system_profile_object_nil(
     Jira: https://issues.redhat.com/browse/ESSNTL-2362
 
     metadata:
-      requirements: inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Filtering hosts by object fields by nil/not_nil
@@ -1329,16 +1298,20 @@ def test_filter_hosts_by_system_profile_object_nil(
         (["[staged][image][]=quay.io/s-7:latest"], [7]),
         (
             [
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                )
             ],
             [7],
         ),
         (["[booted][cached_image][]=quay.io/bc-7:latest"], [7]),
         (
             [
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                )
             ],
             [7],
         ),
@@ -1358,30 +1331,40 @@ def test_filter_hosts_by_system_profile_object_nil(
         (
             [
                 "[booted][image][]=quay.io/b-7:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                ),
             ],
             [7],
         ),
         (
             [
                 "[booted][image][]=quay.io/b-5:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a5",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a5"
+                ),
                 "[booted][cached_image][]=quay.io/bc-6:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6"
+                ),
             ],
             [],
         ),
         (
             [
                 "[staged][image][]=quay.io/s-7:latest",
-                "[rollback][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000b7",
+                (
+                    "[rollback][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000b7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
             ],
             [7],
@@ -1412,7 +1395,6 @@ def test_filter_hosts_by_system_profile_bootc_status(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-bootc_status
       assignee: fstavela
       importance: high
       title: Inventory: filter hosts by bootc_status
@@ -1451,7 +1433,6 @@ def test_filter_hosts_by_system_profile_bootc_status_host_type(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-bootc_status,
                     inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
@@ -1512,7 +1493,6 @@ class TestOsRhcFiltering:
         https://issues.redhat.com/browse/RHINENG-9784
 
         metadata:
-          requirements: inv-hosts-filter-by-sp-operating_system,
                         inv-hosts-get-by-sp-scalar-fields
           assignee: fstavela
           importance: high
@@ -1569,7 +1549,6 @@ class TestOsRhcFiltering:
         https://issues.redhat.com/browse/RHINENG-9784
 
         metadata:
-          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
                         inv-hosts-get-by-sp-scalar-fields
           assignee: fstavela
           importance: high
@@ -1582,10 +1561,10 @@ class TestOsRhcFiltering:
         )
 
         filter = [f"{param}" for param in params]
-        response = host_inventory.apis.tags.get_tags_response(filter=filter)
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        response = host_inventory.apis.tags.get_tags_json(filter=filter)
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
 
 # All tests that use the setup_hosts_for_os_display_name_filtering fixture are grouped here
@@ -1632,7 +1611,6 @@ class TestOsDisplayNameFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-          requirements: inv-hosts-filter-by-sp-operating_system,
                         inv-hosts-filter-by-display_name
           assignee: fstavela
           importance: high
@@ -1694,7 +1672,6 @@ class TestOsDisplayNameFiltering:
         https://issues.redhat.com/browse/RHINENG-10785
 
         metadata:
-          requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
                         inv-hosts-filter-by-display_name
           assignee: fstavela
           importance: high
@@ -1705,14 +1682,14 @@ class TestOsDisplayNameFiltering:
         not_expected_tags = flatten(tags[i] for i in range(len(tags)) if i not in expected_hosts)
 
         filter = [f"{param}" for param in params]
-        response = host_inventory.apis.tags.get_tags_response(
+        response = host_inventory.apis.tags.get_tags_json(
             filter=filter, display_name=f"{FILTER_OS_DISPLAY_NAME}-1"
         )
         _log_response_tags_indices(tags, response)
 
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        assert response["count"] >= len(expected_tags)
+        assert_tags_found(expected_tags, response["results"])
+        assert_tags_not_found(not_expected_tags, response["results"])
 
 
 @pytest.mark.ephemeral
@@ -1730,7 +1707,6 @@ def test_filter_hosts_with_invalid_system_profile_operating_system(
 ):
     """
     metadata:
-      requirements: inv-hosts-filter-by-sp-operating_system
       assignee: msager
       importance: medium
       negative: true
@@ -1809,7 +1785,6 @@ def test_filter_hosts_by_system_profile_rhel_ai(
     https://issues.redhat.com/browse/RHINENG-14894
 
     metadata:
-      requirements: inv-hosts-filter-by-system_profile-rhel_ai
       assignee: zabikeno
       importance: high
       title: Inventory: filter hosts by rhel_ai

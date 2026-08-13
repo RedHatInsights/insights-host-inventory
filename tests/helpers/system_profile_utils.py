@@ -497,6 +497,16 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
         }
     },
     {
+        "ansible": {  # wrong data type for receptor_version
+            "receptor_version": 1.0,
+        }
+    },
+    {
+        "ansible": {  # runner_version too long
+            "runner_version": "1.4" * 11,
+        }
+    },
+    {
         "intersystems": {  # Incorrect is_intersystems value
             "is_intersystems": "x",
             "running_instances": [{"instance_name": "IRIS1", "product": "IRIS", "version": "2023.1"}],
@@ -657,6 +667,20 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     },
     {
         "workloads": {
+            "ansible": {  # wrong data type for receptor_version
+                "receptor_version": 1.0,
+            }
+        }
+    },
+    {
+        "workloads": {
+            "ansible": {  # runner_version too long
+                "runner_version": "1.4" * 11,
+            }
+        }
+    },
+    {
+        "workloads": {
             "crowdstrike": {  # Too long falcon_aid
                 "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8bx",
                 "falcon_backend": "kernel",
@@ -683,6 +707,21 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
         "workloads": {
             "ibm_db2": {  # Must be a boolean, not a string
                 "is_running": "yes",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # Invalid enum value
+                "type": "invalid",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # version exceeds maxLength
+                "type": "server",
+                "version": "a" * 31,
             }
         }
     },
@@ -1089,6 +1128,10 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
                 "hub_version": "3.4.1",
                 "catalog_worker_version": "100.387.9846.12",
                 "sso_version": "1.28.3.52641.10000513168495123",
+                "receptor_version": "1.5.2",
+                "runner_version": "2.4.1",
+                "eda_controller_version": "1.1.0",
+                "gateway_version": "2.5.3",
             },
             "crowdstrike": {
                 "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
@@ -1156,6 +1199,10 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
                 "hub_version": "3.4.1",
                 "catalog_worker_version": "100.387.9846.12",
                 "sso_version": "1.28.3.52641.10000513168495123",
+                "receptor_version": "1.5.2",
+                "runner_version": "2.4.1",
+                "eda_controller_version": "1.1.0",
+                "gateway_version": "2.5.3",
             }
         }
     },
@@ -1177,4 +1224,8 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
             }
         }
     },
+    {"workloads": {"satellite": {"type": "server"}}},
+    {"workloads": {"satellite": {"type": "capsule"}}},
+    {"workloads": {"satellite": {"type": "server", "version": "6.19.0"}}},
+    {"workloads": {"satellite": {"type": "capsule", "version": "6.17.9.1"}}},
 )

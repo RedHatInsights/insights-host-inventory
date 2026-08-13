@@ -40,7 +40,6 @@ def test_pagination(host_inventory, hbi_setup_hosts_for_pagination):
     Create hosts and paginate through the results.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination
@@ -68,7 +67,6 @@ def test_pagination_invalid_page_index(host_inventory, hbi_setup_hosts_for_pagin
     2. last page +1
 
     metadata:
-        requirements: inv-api-validation
         assignee: fstavela
         importance: low
         title: Inventory: Test Pagination with Invalid Page Index
@@ -105,7 +103,6 @@ def test_pagination_invalid_pages(
     Try to navigate by specifying invalid values for page number. Expect 400 status code.
 
     metadata:
-        requirements: inv-api-validation
         assignee: fstavela
         importance: low
         title: Inventory: Test Pagination with Invalid Page Number Values
@@ -127,7 +124,6 @@ def test_unique_results_by_id(host_inventory, hbi_setup_hosts_for_pagination):
     Confirm that each page contains a unique set of results according to the host id.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results Are Unique
@@ -322,7 +318,6 @@ def test_unique_results_by_display_name(host_inventory, hbi_setup_hosts_for_pagi
     Confirm paginated results are unique when filtered by display_name.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results By display_name are Unique
@@ -359,7 +354,6 @@ def test_unique_results_for_id_list(host_inventory, hbi_setup_hosts_for_paginati
     Test Pagination of Multi-Host Request Contains Unique Results.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination of Multi-Host Request Contains Unique Results
@@ -401,7 +395,6 @@ def test_unique_results_by_hostname_or_id(host_inventory, hbi_setup_hosts_for_pa
     Confirm results of a GET filtered by hostname_or_id parameter are unique.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Pagination of Multi-Host Request Contains Unique Results
@@ -452,7 +445,6 @@ def test_pagination_of_system_profile_fetching(host_inventory, hbi_setup_hosts_f
     Test Paginated Results of GET for system_profile details are unique.
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: critical
         title: Inventory: Paginated Results of GET for system_profile are unique
@@ -489,32 +481,31 @@ def test_pagination_of_tags(
     JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: high
         title: Inventory: Paginated Results of GET for tags are unique
     """
     all_tags = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         display_name="pagination",
         criteria=[(criterion_total_gte, 40)],
     )
     paged_tags = set()
-    num_tags = all_tags.total
+    num_tags = all_tags["total"]
     num_iterations = 10
     rand_start, end = rand_start_end(num_tags, num_iterations)
     for i in range(rand_start, end):
         response = acceptance(
-            host_inventory.apis.tags.get_tags_response,
+            host_inventory.apis.tags.get_tags_json,
             per_page=1,
             page=i,
             display_name="pagination",
             criteria=[(criterion_count_eq, 1)],
         )
 
-        assert hasattr(response, "results"), f"Response for page {i} was not good"
+        assert "results" in response, f"Response for page {i} was not good"
 
-        paged_tags.add(convert_tag_to_string(response.results[0].tag.to_dict()))
+        paged_tags.add(convert_tag_to_string(response["results"][0]["tag"]))
 
     assert num_iterations == len(paged_tags), str(paged_tags)
 
@@ -529,17 +520,16 @@ def test_pagination_tags_number_of_records(
     JIRA: https://projects.engineering.redhat.com/browse/RHCLOUD-5676
 
     metadata:
-        requirements: inv-pagination
         assignee: fstavela
         importance: high
         title: Inventory: Paginated Results of GET for tags return
             the correct amount of tags
     """
     response = acceptance(
-        host_inventory.apis.tags.get_tags_response,
+        host_inventory.apis.tags.get_tags_json,
         per_page=tags_per_page,
         criteria=[(criterion_count_eq, tags_per_page)],
     )
 
-    assert hasattr(response, "results"), "Response for page {} was not good"
-    assert response.count == tags_per_page
+    assert "results" in response, "Response for page {} was not good"
+    assert response["count"] == tags_per_page

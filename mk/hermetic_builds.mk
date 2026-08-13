@@ -59,7 +59,7 @@ $(hermetic_builds_dir)/ubi.repo:
 		"$$ENTITLEMENT_KEY" "$$ENTITLEMENT_CERT" >> $(hermetic_builds_path)/ubi.repo;
 
 
-rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi.repo
+$(hermetic_builds_dir)/rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi.repo
 	@if ! command -v $(AWK) >/dev/null 2>&1; then \
 		echo "Error: AWK command not found"; \
 		exit 1; \
@@ -92,7 +92,7 @@ rpms.in.yaml: $(CONTAINERFILE) $(hermetic_builds_dir)/ubi.repo
 # Usage: make rpms.lock.yaml [BASE_IMAGE=<image>]
 # Example: make rpms.lock.yaml BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
 #          make rpms.lock.yaml (uses default BASE_IMAGE)
-rpms.lock.yaml: rpms.in.yaml
+$(hermetic_builds_dir)/rpms.lock.yaml: $(hermetic_builds_dir)/rpms.in.yaml
 	@if ! command -v rpm-lockfile-prototype >/dev/null 2>&1; then \
 		echo "Error: Command rpm-lockfile-prototype not found"; \
 		echo "Please install it using 'python3 -m pip install --user https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip'"; \
@@ -100,7 +100,7 @@ rpms.lock.yaml: rpms.in.yaml
 		exit 1; \
 	fi;
 	@rpm-lockfile-prototype --outfile=$@ $<
-	@if [ ! -f rpms.lock.yaml ]; then \
+	@if [ ! -f $(hermetic_builds_dir)/rpms.lock.yaml ]; then \
 		echo "Error: rpms.lock.yaml was not generated"; \
 		exit 1; \
 	fi

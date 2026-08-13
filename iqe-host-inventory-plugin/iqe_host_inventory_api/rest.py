@@ -12,13 +12,13 @@ import json
 import logging
 import re
 import ssl
+from urllib.parse import urlencode
 
 import certifi
 
 # python 2 and python 3 compatibility library
 import six
 import urllib3
-from six.moves.urllib.parse import urlencode
 
 from iqe_host_inventory_api.exceptions import ApiException
 from iqe_host_inventory_api.exceptions import ApiValueError
@@ -140,7 +140,7 @@ class RESTClientObject:
 
         timeout = None
         if _request_timeout:
-            if isinstance(_request_timeout, (int,) if six.PY3 else (int, long)):  # ruff:ignore[undefined-name]
+            if isinstance(_request_timeout, (int,) if six.PY3 else (int, long)):  # ruff: ignore[undefined-name]
                 timeout = urllib3.Timeout(total=_request_timeout)
             elif isinstance(_request_timeout, tuple) and len(_request_timeout) == 2:
                 timeout = urllib3.Timeout(connect=_request_timeout[0], read=_request_timeout[1])

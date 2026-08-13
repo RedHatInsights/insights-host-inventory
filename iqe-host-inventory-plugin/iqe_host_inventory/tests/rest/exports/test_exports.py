@@ -25,7 +25,6 @@ class TestExports:
         Perform an export specifying json format
 
         metadata:
-          requirements: inv-export-hosts
           assignee: msager
           importance: high
           title: Export hosts to json
@@ -41,7 +40,6 @@ class TestExports:
         Perform an export specifying csv format
 
         metadata:
-          requirements: inv-export-hosts
           assignee: msager
           importance: high
           title: Export hosts to csv
@@ -59,7 +57,6 @@ class TestExports:
         hosts are included
 
         metadata:
-          requirements: inv-export-hosts
           assignee: msager
           importance: high
           title: Export, then add hosts, then export again
@@ -89,7 +86,6 @@ class TestExports:
         hosts are not included
 
         metadata:
-          requirements: inv-export-hosts
           assignee: msager
           importance: high
           title: Export hosts, then delete hosts, then export again
@@ -121,7 +117,6 @@ class TestExports:
         Verify that only hosts from the proper account are exported.
 
         metadata:
-          requirements: inv-export-hosts
           assignee: msager
           importance: critical
           title: Verify exported hosts are from the proper account
@@ -145,7 +140,6 @@ def test_export_hosts_mixed_states(host_inventory: ApplicationHostInventory) -> 
     Perform an export in which hosts are in various states of staleness
 
     metadata:
-      requirements: inv-export-hosts
       assignee: msager
       importance: high
       title: Export hosts that are in various staleness states
@@ -204,7 +198,6 @@ def test_export_uploaded_hosts(
     test creates hosts in-between the delete_all and the export.
 
     metadata:
-      requirements: inv-export-hosts
       assignee: msager
       importance: high
       title: Upload hosts and export them via POST /exports request
@@ -241,7 +234,6 @@ def test_export_hosts_unicode_char(
     Jira: https://issues.redhat.com/browse/RHINENG-15180
 
     metadata:
-      requirements: inv-export-hosts
       assignee: msager
       importance: low
       title: Export host with special unicode characters

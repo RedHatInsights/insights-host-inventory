@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from flask import Response
 from flask import abort
 from marshmallow import ValidationError
 
@@ -13,11 +14,16 @@ from app.auth import get_current_identity
 from app.auth.identity import IdentityType
 from app.exceptions import ValidationException
 from app.models.schemas.views import InputViewSchema
+from app.models.schemas.views import PatchViewSchema
 from app.serialization import serialize_view
 from lib.views_repository import ViewNotFoundError
+from lib.views_repository import ViewPermissionError
+from lib.views_repository import clone_view as repo_clone_view
 from lib.views_repository import create_view as repo_create_view
+from lib.views_repository import delete_view as repo_delete_view
 from lib.views_repository import get_view_by_id as repo_get_view_by_id
 from lib.views_repository import get_views_list as repo_get_views_list
+from lib.views_repository import update_view as repo_update_view
 
 
 def _get_view_identity():
@@ -80,13 +86,60 @@ def create_view(body, **kwargs):  # noqa: ARG001
     return flask_json_response(serialize_view(view, user_id), HTTPStatus.CREATED)
 
 
-def update_view(view_id, body, **kwargs):  # noqa: ARG001
-    abort(HTTPStatus.NOT_IMPLEMENTED)
+@api_operation
+@metrics.api_request_time.time()
+def patch_view(view_id, body, **kwargs):  # noqa: ARG001
+    org_id, user_id = _get_view_identity()
+
+    try:
+        validated_data = PatchViewSchema().load(body)
+    except ValidationError as e:
+        return json_error_response("Validation Error", str(e.messages), HTTPStatus.BAD_REQUEST)
+
+    if not validated_data:
+        return json_error_response(
+            "Validation Error", "Request body must contain at least one field to update.", HTTPStatus.BAD_REQUEST
+        )
+
+    if "configuration" in validated_data:
+        try:
+            validate_view_configuration(validated_data["configuration"])
+        except ValidationException as e:
+            return json_error_response("Validation Error", str(e.detail), HTTPStatus.BAD_REQUEST)
+
+    try:
+        view = repo_update_view(view_id, validated_data, org_id, user_id)
+    except ViewNotFoundError:
+        abort(HTTPStatus.NOT_FOUND, "View not found.")
+    except ViewPermissionError as e:
+        abort(HTTPStatus.FORBIDDEN, str(e.detail))
+
+    return flask_json_response(serialize_view(view, user_id))
 
 
+@api_operation
+@metrics.api_request_time.time()
 def delete_view(view_id, **kwargs):  # noqa: ARG001
-    abort(HTTPStatus.NOT_IMPLEMENTED)
+    org_id, user_id = _get_view_identity()
+
+    try:
+        repo_delete_view(view_id, org_id, user_id)
+    except ViewNotFoundError:
+        abort(HTTPStatus.NOT_FOUND, "View not found.")
+    except ViewPermissionError as e:
+        abort(HTTPStatus.FORBIDDEN, str(e.detail))
+
+    return Response(None, HTTPStatus.NO_CONTENT)
 
 
+@api_operation
+@metrics.api_request_time.time()
 def clone_view(view_id, **kwargs):  # noqa: ARG001
-    abort(HTTPStatus.NOT_IMPLEMENTED)
+    org_id, user_id = _get_view_identity()
+
+    try:
+        cloned = repo_clone_view(view_id, org_id, user_id)
+    except ViewNotFoundError:
+        abort(HTTPStatus.NOT_FOUND, "View not found.")
+
+    return flask_json_response(serialize_view(cloned, user_id), HTTPStatus.CREATED)

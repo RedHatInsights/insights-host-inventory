@@ -34,7 +34,6 @@ def prepare_hosts(host_inventory: ApplicationHostInventory) -> list[HostOut]:
 def test_kessel_get_ungrouped_group(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Verify the "ungrouped" group and workspace exist
@@ -57,7 +56,6 @@ def test_kessel_get_ungrouped_group(host_inventory: ApplicationHostInventory):
 def test_kessel_create_empty_group(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Create an empty group and verify that a corresponding workspace is created
@@ -78,7 +76,6 @@ def test_kessel_create_empty_group(host_inventory: ApplicationHostInventory):
 def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Verify the GET /groups type param works correctly
@@ -110,7 +107,6 @@ def test_kessel_create_group_with_hosts(
 ):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Create a group with hosts and verify that the corresponding workspace is correct
@@ -133,7 +129,6 @@ def test_kessel_create_group_with_hosts(
 def test_kessel_rename_group(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Rename a group and verify that the corresponding workspace is renamed
@@ -160,7 +155,6 @@ def test_kessel_rename_group(host_inventory: ApplicationHostInventory):
 def test_kessel_delete_group(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Delete a group and verify that the corresponding workspace is deleted
@@ -186,7 +180,6 @@ def test_kessel_add_hosts_to_group(
 ):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Test that a host is moved from ungrouped to grouped
@@ -232,7 +225,6 @@ def test_kessel_remove_hosts_from_group(
 ):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Test that a host is moved properly from grouped to ungrouped
@@ -277,7 +269,6 @@ def test_kessel_remove_hosts_from_group(
 def test_kessel_create_ungrouped(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: low
       title: Attempt to create a group named Ungrouped Hosts
@@ -295,7 +286,6 @@ def test_kessel_create_ungrouped(host_inventory: ApplicationHostInventory):
 def test_kessel_rename_ungrouped(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: low
       title: Attempt to rename the ungrouped group
@@ -309,7 +299,6 @@ def test_kessel_rename_ungrouped(host_inventory: ApplicationHostInventory):
 def test_kessel_delete_ungrouped(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: low
       title: Attempt to delete the ungrouped group
@@ -325,7 +314,6 @@ def test_kessel_remove_host_from_ungrouped(
 ):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: low
       title: Attempt to remove a host from the ungrouped group
@@ -344,7 +332,6 @@ def test_kessel_remove_host_from_ungrouped(
 def test_kessel_get_multiple_groups_with_ungrouped(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Get a list of groups that includes the ungrouped group
@@ -365,7 +352,6 @@ def test_kessel_get_multiple_groups_with_ungrouped(host_inventory: ApplicationHo
 def test_kessel_delete_multiple_groups_with_ungrouped(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-groups
       assignee: msager
       importance: high
       title: Attempt to delete a list of groups that includes the ungrouped group
@@ -388,7 +374,6 @@ def test_kessel_delete_multiple_groups_with_ungrouped(host_inventory: Applicatio
 def test_kessel_create_workspace(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-workspaces
       assignee: msager
       importance: high
       title: Verify that a new HBI group is created when I create a new workspace
@@ -413,7 +398,6 @@ def test_kessel_create_workspace(host_inventory: ApplicationHostInventory):
 def test_kessel_rename_workspace(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-workspaces
       assignee: msager
       importance: high
       title: Rename a workspace and verify the name change propagates to HBI
@@ -445,7 +429,6 @@ def test_kessel_rename_workspace(host_inventory: ApplicationHostInventory):
 def test_kessel_delete_workspace(host_inventory: ApplicationHostInventory):
     """
     metadata:
-      requirements: inv-kessel-workspaces
       assignee: msager
       importance: high
       title: Delete a workspace and verify the corresponding HBI group is deleted
@@ -491,7 +474,6 @@ def test_kessel_create_workspace_same_name(
     https://issues.redhat.com/browse/RHINENG-17234
 
     metadata:
-      requirements: inv-kessel-workspaces, inv-kessel-groups
       assignee: msager
       importance: high
       title: Verify that creating groups with the same name, different parent is allowed
@@ -544,7 +526,6 @@ def test_kessel_update_workspace_same_name(
     https://issues.redhat.com/browse/RHINENG-17234
 
     metadata:
-      requirements: inv-kessel-workspaces, inv-kessel-groups
       assignee: msager
       importance: high
       title: Verify that updating a group to the same name, different parent is allowed
@@ -611,7 +592,6 @@ def test_kessel_delete_parent_with_sub_workspaces(
 ):
     """
     metadata:
-      requirements: inv-kessel-workspaces, inv-kessel-groups
       assignee: msager
       importance: medium
       title: Verify that deleting a workspace with sub-workspaces isn't allowed

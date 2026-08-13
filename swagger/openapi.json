@@ -213,7 +213,7 @@
           "hosts"
         ],
         "summary": "Read aggregated host and application data",
-        "description": "Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read",
+        "description": "Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read. App data is filtered by per-service permissions — services the user lacks read access for are omitted from app_data and listed in denied_services. Sorting or filtering by a denied service returns 403.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -306,6 +306,9 @@
           },
           "400": {
             "description": "Invalid request."
+          },
+          "403": {
+            "description": "Insufficient permissions to sort or filter by the requested app_data service field."
           }
         }
       }
@@ -1925,13 +1928,13 @@
           }
         }
       },
-      "put": {
-        "operationId": "api.views.update_view",
+      "patch": {
+        "operationId": "api.views.patch_view",
         "tags": [
           "views"
         ],
         "summary": "Update an inventory view",
-        "description": "Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Updates an existing inventory view's name, description, configuration, or sharing settings. Only the view creator can update a view. System views cannot be updated. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1972,9 +1975,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       },
@@ -1984,7 +1984,7 @@
           "views"
         ],
         "summary": "Delete an inventory view",
-        "description": "Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Deletes an existing inventory view. Only the view creator can delete a view. System views cannot be deleted. <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -2004,9 +2004,6 @@
           },
           "404": {
             "description": "View not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       }
@@ -2018,7 +2015,7 @@
           "views"
         ],
         "summary": "Clone an inventory view",
-        "description": "Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The cloned view name is prefixed with \"Copy of \". <br /><br /> Required permissions: inventory:views:write <br /><br /> <b>NOTE:</b> This endpoint is not yet implemented and will return HTTP 501.",
+        "description": "Creates a copy of any visible view (including system views) as a new private view owned by the requesting user. The cloned view name is prefixed with \"Copy of \". <br /><br /> Required permissions: inventory:views:write",
         "security": [
           {
             "ApiKeyAuth": []
@@ -2045,9 +2042,6 @@
           },
           "404": {
             "description": "Source view not found or not visible to the requesting user."
-          },
-          "501": {
-            "description": "Not yet implemented."
           }
         }
       }
@@ -2466,7 +2460,7 @@
         "in": "query",
         "name": "filter",
         "required": false,
-        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with an specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][name][eq]=rhel\"",
+        "description": "Filters hosts based on system_profile fields. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"workloads\": {\"sap\": {\"sap_system\": {\"eq\": \"true\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][workloads][sap][sap_system][eq]=true\" <br /><br /> To get \"edge\" hosts, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"host_type\": {\"eq\": \"edge\"}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> To get hosts with a specific operating system, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"name\": {\"eq\": \"rhel\"}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> To get hosts with a specific operating system version, use this explicit filter: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;{\"system_profile\": {\"operating_system\": {\"rhel\": {\"version\": {\"eq\": \"9\"}}}}} <br /><br /> which equates to the URL param: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][rhel][version][eq]=9\"",
         "style": "deepObject",
         "explode": true,
         "example": {},
@@ -3270,6 +3264,17 @@
                 "items": {
                   "$ref": "#/components/schemas/HostViewHost"
                 }
+              },
+              "denied_services": {
+                "description": "List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed. Allows consumers to distinguish denied services from services with no data.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "vulnerability",
+                  "malware"
+                ]
               }
             }
           }
@@ -4714,6 +4719,38 @@
                 "maxLength": 30,
                 "pattern": "^\\d+(\\.\\d+)+$",
                 "x-wildcard": true
+              },
+              "receptor_version": {
+                "description": "The receptor version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "runner_version": {
+                "description": "The ansible-runner version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "eda_controller_version": {
+                "description": "The EDA controller version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "gateway_version": {
+                "description": "The automation gateway version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
               }
             }
           },
@@ -5025,6 +5062,38 @@
                     "maxLength": 30,
                     "pattern": "^\\d+(\\.\\d+)+$",
                     "x-wildcard": true
+                  },
+                  "receptor_version": {
+                    "description": "The receptor version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "runner_version": {
+                    "description": "The ansible-runner version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "eda_controller_version": {
+                    "description": "The EDA controller version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "gateway_version": {
+                    "description": "The automation gateway version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
                   }
                 }
               },
@@ -5168,6 +5237,28 @@
                     "type": "string",
                     "example": "698GB, 3TB",
                     "maxLength": 32
+                  }
+                }
+              },
+              "satellite": {
+                "description": "Object containing data specific to the Red Hat Satellite workload",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "Whether this system is a Satellite Server or Capsule",
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "capsule"
+                    ],
+                    "example": "server"
+                  },
+                  "version": {
+                    "description": "The Satellite or Capsule version",
+                    "type": "string",
+                    "example": "6.19.0",
+                    "maxLength": 30,
+                    "x-wildcard": true
                   }
                 }
               },
@@ -5447,11 +5538,6 @@
           "key": {
             "description": "The column key identifier. Core fields use bare names (e.g. \"display_name\", \"last_check_in\"). App fields use colon-delimited format (e.g. \"compliance:last_scan\", \"advisor:recommendations\"). Validated server-side against the field registry.",
             "type": "string"
-          },
-          "visible": {
-            "description": "Whether the column is visible in the view.",
-            "type": "boolean",
-            "default": true
           }
         }
       },
@@ -5497,14 +5583,9 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Mirrors the existing filter engine shape: filter[namespace][field][operator]=value. Top-level keys are app names (e.g. vulnerability, patch) or system_profile. Values are nested objects of field -> operator -> value. Validated server-side against the field and operator registries.",
+            "description": "Active filter criteria for this view. Top-level keys are filter namespaces: app names (e.g. vulnerability, patch) or system_profile. Each namespace value is a nested object of field -> operator -> value conditions. system_profile filters may be deeply nested (e.g. operating_system.RHEL.version). Validated server-side using the hosts API filter engine.",
             "type": "object",
-            "additionalProperties": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/components/schemas/HostViewFilterComparison"
-              }
-            }
+            "additionalProperties": true
           }
         }
       },
@@ -5518,10 +5599,11 @@
         ],
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[a-zA-Z0-9 _-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
@@ -5545,10 +5627,11 @@
         "type": "object",
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^[a-zA-Z0-9 _-]+$"
           },
           "description": {
             "description": "An optional description of the view.",

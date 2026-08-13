@@ -53,7 +53,6 @@ def test_notifications_kafka_delete_by_id(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         title: Deleting hosts via DELETE /hosts/<hosts_ids> endpoint triggers a delete notification
@@ -97,7 +96,6 @@ def test_notifications_kafka_delete_filtered(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         title: Deleting hosts via DELETE /hosts endpoint triggers a system-delete notification
@@ -140,7 +138,6 @@ def test_notifications_kafka_delete_all(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         title: Deleting hosts via DELETE /hosts/all endpoint triggers a system-delete notification
@@ -173,7 +170,6 @@ def test_notifications_kafka_delete_multiple_hosts(host_inventory: ApplicationHo
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         title: Deleting multiple hosts triggers multiple system-delete notifications
@@ -207,7 +203,6 @@ def test_notifications_kafka_delete_by_id_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -234,7 +229,6 @@ def test_notifications_kafka_delete_filtered_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -260,7 +254,6 @@ def test_notifications_kafka_delete_get_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -286,7 +279,6 @@ def test_notifications_kafka_delete_patch_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -312,7 +304,6 @@ def test_notifications_kafka_delete_group_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -346,7 +337,6 @@ def test_notifications_kafka_delete_staleness_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7911
 
     metadata:
-        requirements: inv-notifications-system-deleted
         assignee: fstavela
         importance: high
         negative: true
@@ -357,11 +347,9 @@ def test_notifications_kafka_delete_staleness_dont_produce(
         conventional_time_to_stale=1000
     )
 
-    with temp_headers(
-        host_inventory.apis.account_staleness.raw_api,
-        {"x-rh-insights-request-id": generate_uuid()},
-    ):
-        host_inventory.apis.account_staleness.delete_staleness()
+    host_inventory.apis.account_staleness.delete_staleness(
+        headers={"x-rh-insights-request-id": generate_uuid()},
+    )
 
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_delete_notification_message(
@@ -370,5 +358,5 @@ def test_notifications_kafka_delete_staleness_dont_produce(
 
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_delete_notification_message(
-            DeleteNotificationWrapper.inventory_id, staleness.id.actual_instance, timeout=1
+            DeleteNotificationWrapper.inventory_id, staleness.json()["id"], timeout=1
         )

@@ -9,6 +9,8 @@ from typing import Any
 import requests
 from iqe.base.http import RobustSession
 
+from iqe_host_inventory.utils.api_utils import assert_response_org_id_matches
+
 if TYPE_CHECKING:
     from iqe.base.application import Application
 
@@ -65,7 +67,7 @@ class BaseAPIWrapper:
             body,
             request_id,
         )
-        return response
+        return assert_response_org_id_matches(self._app, response)
 
     def get(self, path: str, **kwargs: Any) -> requests.Response:
         return self._request("get", path, **kwargs)

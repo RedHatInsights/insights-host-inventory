@@ -250,6 +250,8 @@ class Config:
 
         self.bypass_rbac = os.environ.get("BYPASS_RBAC", "false").lower() == "true"
         self.bypass_kessel = os.environ.get("BYPASS_KESSEL", "false").lower() == "true"
+        self.v2_api_enabled = os.environ.get("HBI_V2_API_ENABLED", "false").lower() == "true"
+        self.admin_hosts_endpoint_enabled = os.environ.get("INVENTORY_ADMIN_HOSTS_ENABLED", "false").lower() == "true"
         self.rbac_retries = os.environ.get("RBAC_RETRIES", 2)
         self.rbac_timeout = os.environ.get("RBAC_TIMEOUT", 10)
 
@@ -507,9 +509,11 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+            self.logger.info("Admin hosts endpoint enabled: %s", self.admin_hosts_endpoint_enabled)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
             self.logger.info("Kessel is running in %s mode.", "INSECURE" if self.kessel_insecure else "SECURE")
+            self.logger.info("V2 API Enabled: %s", self.v2_api_enabled)
 
             self.logger.info("Unleash (feature flags) Bypassed by config: %s", self.bypass_unleash)
             self.logger.info("Unleash (feature flags) Bypassed by missing token: %s", self.unleash_token is None)

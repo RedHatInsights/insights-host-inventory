@@ -1,0 +1,702 @@
+---
+# V2 API spec
+# OpenAPI 3.0.0 because Connexion 3.x does not support 3.1+.
+# Paths are empty; Phase 1/2/3 tasks add endpoint definitions.
+openapi: 3.0.0
+info:
+  description: >-
+    REST interface for the Insights Platform Host Inventory application — V2 API.
+  version: 2.0.0
+  title: Insights Host Inventory V2 REST Interface
+servers:
+  - url: /api/inventory/v2
+    description: V2 API server
+externalDocs:
+  description: How to use the Red Hat Insights API
+  url: https://docs.redhat.com/en/documentation/red_hat_lightspeed/1-latest/html-single/using_apis_to_configure_red_hat_lightspeed_services/index
+
+paths: {}
+
+components:
+  # ---------------------------------------------------------------------------
+  # Security Schemes
+  # ---------------------------------------------------------------------------
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.auth.bearer_token_handler
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-rh-identity
+      description: >-
+        Base64-encoded JSON identity header provided by 3Scale. Contains an
+        org_id of the user issuing the request.
+        Format: {"identity": {"org_id": "12345678"}}
+      x-apikeyInfoFunc: app.auth.authentication_header_handler
+
+  # ---------------------------------------------------------------------------
+  # Shared Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    # -- Pagination -----------------------------------------------------------
+    pageParam:
+      name: page
+      in: query
+
+      schema:
+        type: integer
+        minimum: 1
+        # (page - 1) * per_page must be less than 2,147,483,647 (signed int32 max).
+        # per_page max is 100, so page max is 21,474,837.
+        maximum: 21474837
+        default: 1
+      description: A page number of the items to return.
+    perPageParam:
+      name: per_page
+      in: query
+
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: A number of items to return per page.
+
+    # -- Sorting ---------------------------
+    sortParam:
+      name: sort
+      in: query
+
+      schema:
+        type: string
+        pattern: '^-?[a-z][a-z0-9_.]*(,-?[a-z][a-z0-9_.]*)*$'
+      description: >-
+        Comma-separated list of sort fields. Prefix a field with `-` for
+        descending order. Examples: `?sort=-updated`, `?sort=display_name,-updated`,
+        `?sort=-vulnerability.critical_cves,display_name`.
+
+    # -- Filters --------------------------------------------------------------
+    displayName:
+      name: display_name
+      in: query
+
+      schema:
+        type: string
+      description: Filter by display_name (case-insensitive substring match).
+    fqdn:
+      name: fqdn
+      in: query
+
+      schema:
+        type: string
+      description: Filter by FQDN (case-insensitive substring match).
+    insightsId:
+      name: insights_id
+      in: query
+
+      schema:
+        type: string
+        format: uuid
+      description: Filter by insights_id.
+    subscriptionManagerId:
+      name: subscription_manager_id
+      in: query
+
+      schema:
+        type: string
+        format: uuid
+      description: Filter by subscription_manager_id.
+    providerId:
+      name: provider_id
+      in: query
+
+      schema:
+        type: string
+      description: Filter by provider_id.
+    providerType:
+      name: provider_type
+      in: query
+
+      schema:
+        type: string
+        enum:
+          - alibaba
+          - aws
+          - azure
+          - discovery
+          - gcp
+          - ibm
+      description: Filter by provider_type.
+    updatedStart:
+      name: updated_start
+      in: query
+
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts updated after this timestamp.
+    updatedEnd:
+      name: updated_end
+      in: query
+
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts updated before this timestamp.
+    lastCheckInStart:
+      name: last_check_in_start
+      in: query
+
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts whose last check-in is after this timestamp.
+    lastCheckInEnd:
+      name: last_check_in_end
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Only show hosts whose last check-in is before this timestamp.
+    tagsParam:
+      name: tags
+      in: query
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
+      description: >-
+        Filter by host tags. Tags are in namespace/key=value format.
+        Namespace and value are optional (e.g. "insights-client/os=rhel",
+        "key=value", "key"). Each component is URL-encoded and limited
+        to 255 characters.
+    stalenessParam:
+      name: staleness
+      in: query
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - fresh
+            - stale
+            - stale_warning
+        default:
+          - fresh
+          - stale
+          - stale_warning
+      description: Filter by host staleness state.
+    registeredWithParam:
+      name: registered_with
+      in: query
+
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - puptoo
+            - yupana
+            - satellite
+            - discovery
+            - rhsm-conduit
+            - cloud-connector
+            - "!yupana"
+            - "!satellite"
+            - "!discovery"
+            - "!puptoo"
+            - "!rhsm-conduit"
+            - "!cloud-connector"
+      description: >-
+        Filter by reporter that has ever reported the host before.
+    systemTypeParam:
+      name: system_type
+      in: query
+
+      schema:
+        type: string
+        enum:
+          - conventional
+          - bootc
+          - edge
+          - cluster
+      description: Filter by system type.
+    workspaceNameListParam:
+      name: workspace_name
+      in: query
+
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+      description: >-
+        Filter by workspace name.
+    workspaceIdListParam:
+      name: workspace_id
+      in: query
+
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+      description: >-
+        Filter by workspace ID.
+
+    # -- Path parameters ------------------------------------------------------
+    hostIdParam:
+      name: host_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: A single host UUID.
+    hostIdListParam:
+      name: host_id_list
+      in: path
+      required: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+      description: A comma-separated list of host UUIDs.
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    # -- RFC 7807 Error Response ----------------------------------------------
+    ErrorResponse:
+      title: RFC 7807 Problem Details
+      description: >-
+        Standard error response following RFC 7807 Problem Details for HTTP APIs.
+      type: object
+      required:
+        - status
+        - title
+        - detail
+      properties:
+        type:
+          description: >-
+            A URI reference that identifies the problem type. Defaults to
+            "about:blank" when no specific problem type URI is defined.
+          type: string
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          description: A short, human-readable summary of the problem type.
+          type: string
+          example: Bad Request
+        status:
+          description: The HTTP status code.
+          type: integer
+          example: 400
+        detail:
+          description: >-
+            A human-readable explanation specific to this occurrence of the problem.
+          type: string
+          example: The request body failed validation.
+        instance:
+          description: >-
+            A URI reference that identifies the specific occurrence of the problem.
+          type: string
+          example: /api/inventory/v2/hosts/query
+
+    # -- Pagination -----------------------------------------------------------
+    PaginationOut:
+      title: Paginated Response Envelope
+      description: >-
+        Unified pagination envelope. All collection endpoints use this
+        structure, including resource-types.
+        The links field provides navigation URLs with full query string preservation.
+      type: object
+      required:
+        - total
+        - count
+        - page
+        - per_page
+        - links
+      properties:
+        total:
+          description: Total number of items matching the query.
+          type: integer
+        count:
+          description: The number of items on the current page.
+          type: integer
+        page:
+          description: The current page number.
+          type: integer
+        per_page:
+          description: The number of items per page.
+          type: integer
+        links:
+          $ref: '#/components/schemas/PaginationLinks'
+    PaginationLinks:
+      title: Pagination Navigation Links
+      description: >-
+        Navigation links for paginated responses. Each link is a full URL path
+        preserving all original query parameters; only the page parameter changes.
+      type: object
+      required:
+        - first
+        - previous
+        - next
+        - last
+      properties:
+        first:
+          description: URL for the first page.
+          type: string
+        previous:
+          description: URL for the previous page, or null on page 1.
+          type: string
+          nullable: true
+        next:
+          description: URL for the next page, or null on the last page.
+          type: string
+          nullable: true
+        last:
+          description: URL for the last page.
+          type: string
+
+    # -- Primitive / ID Types -------------------------------------------------
+    AccountNumber:
+      description: A Red Hat Account number that owns the host.
+      type: string
+      nullable: true
+      example: '000102'
+    OrgId:
+      description: The Org ID of the tenant that owns the host.
+      type: string
+      example: '000102'
+    NonNullableString:
+      type: string
+      nullable: false
+    NonNullableStringArray:
+      type: array
+      items:
+        type: string
+      nullable: false
+    TimeStamp:
+      type: string
+      format: date-time
+      example: '2020-02-10T08:07:03.354307+00:00'
+    HostId:
+      description: A durable and reliable platform-wide host identifier.
+      type: string
+      format: uuid
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+
+    # -- Canonical Facts ------------------------------------------------------
+    InsightsId:
+      description: >-
+        A UUID assigned by the insights-client. This field is a canonical fact.
+      type: string
+      format: uuid
+      nullable: true
+      example: 3f01b554-5767-4041-b75e-41829bcee1dc
+    SubscriptionManagerId:
+      description: >-
+        A Red Hat Subscription Manager ID of a RHEL host. This field is a
+        canonical fact.
+      type: string
+      format: uuid
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    SatelliteId:
+      description: >-
+        A Red Hat Satellite ID of a RHEL host. This field is a canonical fact.
+      type: string
+      format: uuid
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    BiosUuid:
+      description: >-
+        A UUID of the host machine BIOS. This field is a canonical fact.
+      type: string
+      format: uuid
+      nullable: true
+      example: 22cd8e39-13bb-4d02-8316-84b850dc5136
+    IpAddresses:
+      description: >-
+        Host's network IP addresses. This field is a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 10.10.0.1
+        - 10.0.0.2
+    Fqdn:
+      description: >-
+        A host's Fully Qualified Domain Name. This field is a canonical fact.
+      type: string
+      nullable: true
+      example: my.host.example.com
+    MacAddresses:
+      description: >-
+        Host's network interfaces MAC addresses. This field is a canonical fact.
+      type: array
+      nullable: true
+      items:
+        type: string
+      example:
+        - 'c2:00:d0:c8:61:01'
+    ProviderId:
+      description: >-
+        Host's reference in the external source e.g. Alibaba, AWS EC2, Azure,
+        GCP, IBM etc. This field is a canonical fact and requires provider_type.
+      type: string
+      nullable: true
+      example: i-05d2313e6b9a42b16
+    ProviderType:
+      description: >-
+        Type of external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM, etc.
+        This field is a canonical fact and requires provider_id.
+      type: string
+      nullable: true
+      example: aws
+      enum:
+        - alibaba
+        - aws
+        - azure
+        - discovery
+        - gcp
+        - ibm
+    CanonicalFactsOut:
+      allOf:
+        - type: object
+          properties:
+            insights_id:
+              $ref: '#/components/schemas/InsightsId'
+            subscription_manager_id:
+              $ref: '#/components/schemas/SubscriptionManagerId'
+            satellite_id:
+              $ref: '#/components/schemas/SatelliteId'
+            bios_uuid:
+              $ref: '#/components/schemas/BiosUuid'
+            ip_addresses:
+              $ref: '#/components/schemas/IpAddresses'
+            fqdn:
+              $ref: '#/components/schemas/Fqdn'
+            mac_addresses:
+              $ref: '#/components/schemas/MacAddresses'
+            provider_id:
+              $ref: '#/components/schemas/ProviderId'
+            provider_type:
+              $ref: '#/components/schemas/ProviderType'
+        - anyOf:
+            - required: [insights_id]
+            - required: [subscription_manager_id]
+            - required: [satellite_id]
+            - required: [bios_uuid]
+            - required: [ip_addresses]
+            - required: [fqdn]
+            - required: [mac_addresses]
+            - required:
+                - provider_id
+                - provider_type
+    CanonicalFactsIn:
+      allOf:
+        - type: object
+          properties:
+            insights_id:
+              allOf:
+                - $ref: '#/components/schemas/InsightsId'
+                - type: string
+                  nullable: false
+            subscription_manager_id:
+              allOf:
+                - $ref: '#/components/schemas/SubscriptionManagerId'
+                - type: string
+                  nullable: false
+            satellite_id:
+              allOf:
+                - $ref: '#/components/schemas/SatelliteId'
+                - type: string
+                  nullable: false
+            bios_uuid:
+              allOf:
+                - $ref: '#/components/schemas/BiosUuid'
+                - type: string
+                  nullable: false
+            ip_addresses:
+              allOf:
+                - $ref: '#/components/schemas/IpAddresses'
+                - type: array
+                  nullable: false
+            fqdn:
+              allOf:
+                - $ref: '#/components/schemas/Fqdn'
+                - type: string
+                  nullable: false
+            mac_addresses:
+              allOf:
+                - $ref: '#/components/schemas/MacAddresses'
+                - type: array
+                  nullable: false
+            provider_id:
+              allOf:
+                - $ref: '#/components/schemas/ProviderId'
+                - type: string
+                  nullable: false
+            provider_type:
+              allOf:
+                - $ref: '#/components/schemas/ProviderType'
+                - type: string
+                  nullable: false
+        - anyOf:
+            - required: [insights_id]
+            - required: [subscription_manager_id]
+            - required: [satellite_id]
+            - required: [bios_uuid]
+            - required: [ip_addresses]
+            - required: [fqdn]
+            - required: [mac_addresses]
+            - required:
+                - provider_id
+                - provider_type
+
+    # -- Supporting Schemas ---------------------------------------------------
+    FactSet:
+      title: Host facts under a namespace
+      description: A set of string facts belonging to a single namespace.
+      type: object
+      properties:
+        namespace:
+          type: string
+          minLength: 1
+          description: A namespace the facts belong to.
+        facts:
+          type: object
+          description: The facts themselves.
+          example:
+            fact1: value1
+            fact2: value2
+      required:
+        - namespace
+    PerReporterStaleness:
+      type: array
+      items:
+        type: object
+        required:
+          - reporter
+          - last_check_in
+        properties:
+          reporter:
+            type: string
+            description: Name of the reporting source.
+          last_check_in:
+            $ref: '#/components/schemas/TimeStamp'
+    StructuredTag:
+      type: object
+      properties:
+        namespace:
+          type: string
+          nullable: true
+        key:
+          type: string
+        value:
+          type: string
+          nullable: true
+    SystemProfile:
+      $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
+    SystemProfileNestedObject:
+      $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+
+    # -- Phase 1 (Hosts & Host Views) — schemas to be added with Phase 1 endpoints:
+    #    Status: pending
+    #    HostOut (includes PerReporterStaleness), PatchHostIn, HostQueryOutput,
+    #    HostIdOut, CreateCheckIn, HostsQueryBody, HostApps, AdvisorAppData,
+    #    VulnerabilityAppData, PatchAppData, RemediationsAppData,
+    #    ComplianceAppData, MalwareAppData
+
+    # -- Phase 2 (Tags, Facts & Staleness) — schemas to be added with Phase 2 endpoints:
+    #    Status: pending
+    #    ActiveTags, TagCountOut
+
+    # -- Phase 3 (System Profile Aggregates & Resource Types) — schemas to
+    #    be added with Phase 3 endpoints:
+    #    Status: pending
+    #    SystemProfileByHostOut, HostSystemProfileOut
+
+  # ---------------------------------------------------------------------------
+  # Shared Responses
+  # ---------------------------------------------------------------------------
+  responses:
+    NoContent:
+      description: 204 — the operation completed successfully.
+    BadRequestError:
+      description: Bad request — validation error or malformed input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Bad Request
+            status: 400
+            detail: The request body failed validation.
+            instance: /api/inventory/v2/hosts/query
+    ForbiddenError:
+      description: Forbidden — insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Forbidden
+            status: 403
+            detail: You do not have permission to perform this action.
+            instance: /api/inventory/v2/host-views
+    NotFoundError:
+      description: Not found — the requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Not Found
+            status: 404
+            detail: The requested host was not found.
+            instance: /api/inventory/v2/hosts/22cd8e39-13bb-4d02-8316-84b850dc5136
+    ConflictError:
+      description: Conflict — the request conflicts with the current state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Conflict
+            status: 409
+            detail: A resource with this name already exists.
+            instance: /api/inventory/v2/host-views
+    ServiceUnavailableError:
+      description: Service unavailable — a downstream dependency is not responding.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            type: "about:blank"
+            title: Service Unavailable
+            status: 503
+            detail: The RBAC service is not responding.
+            instance: /api/inventory/v2/hosts

@@ -30,6 +30,12 @@ class RBACInventoryPermission(Enum):
     STALENESS_READ = "staleness:staleness:read"
     STALENESS_WRITE = "staleness:staleness:write"
     STALENESS_ALL = "staleness:staleness:*"
+    ADVISOR_READ = "advisor:recommendation-results:read"
+    VULNERABILITY_READ = "vulnerability:vulnerability_results:read"
+    COMPLIANCE_READ = "compliance:system:read"
+    PATCH_READ = "patch:*:read"
+    REMEDIATIONS_READ = "remediations:remediation:read"
+    MALWARE_READ = "malware-detection:*:read"
 
 
 class RBACRoles(Enum):
@@ -58,9 +64,9 @@ def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2Permission:
 
 def wait_for_kessel_sync(host_inventory: ApplicationHostInventory) -> None:
     """
-    Wait for RBAC -> Kessel sync if the platform.rbac.workspaces feature flag is enabled.
+    Wait for RBAC -> Kessel sync if the hbi.rbac-v2 feature flag is enabled.
     """
     wait_seconds = 3 if host_inventory.application.config.current_env == "clowder_smoke" else 21
-    if host_inventory.unleash.is_rbac_workspaces_enabled:
+    if host_inventory.unleash.is_hbi_rbac_v2_enabled:
         logger.info(f"Waiting {wait_seconds} seconds for RBAC -> Kessel sync...")
         sleep(wait_seconds)

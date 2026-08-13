@@ -813,10 +813,14 @@ class GroupsAPIWrapper(BaseEntity):
         ):
             self._host_inventory.apis.workspaces.delete_all_workspaces()
 
-        groups = self.get_groups(per_page=100)
+        def _get_groups() -> list[GroupOutWithHostCount]:
+            all_groups = self.get_groups(per_page=100)
+            return [group for group in all_groups if group.name != "Default Workspace"]
+
+        groups = _get_groups()
         while groups:
             self.delete_groups(groups, wait_for_deleted=wait_for_deleted, **api_kwargs)
-            groups = self.get_groups(per_page=100)
+            groups = _get_groups()
 
     def wait_for_deleted(
         self,

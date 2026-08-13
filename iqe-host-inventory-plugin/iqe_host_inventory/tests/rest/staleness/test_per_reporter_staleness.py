@@ -1,10 +1,5 @@
 # mypy: disallow-untyped-defs
 
-"""
-metadata:
-  requirements: inv-per-reporter-staleness
-"""
-
 from __future__ import annotations
 
 import logging
@@ -181,7 +176,6 @@ def test_per_reporter_default_staleness(
     JIRA: https://issues.redhat.com/browse/ESSNTL-1261
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: fstavela
         importance: high
         title: Test per reporter staleness
@@ -201,7 +195,6 @@ def test_per_reporter_custom_staleness(
     JIRA: https://issues.redhat.com/browse/ESSNTL-1261
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: fstavela
         importance: high
         title: Test per reporter staleness
@@ -210,7 +203,7 @@ def test_per_reporter_custom_staleness(
 
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, defaults, settings)
 
     do_reporter_check_ins(host_inventory, host_type)
@@ -226,7 +219,6 @@ def test_per_reporter_update_staleness(
     """Test per reporter custom staleness settings update
 
     metadata:
-        requirements: inv-staleness-hosts
         assignee: msager
         importance: high
         title: Test per reporter staleness
@@ -234,7 +226,7 @@ def test_per_reporter_update_staleness(
     # Generate some initial settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.create_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.create_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Check in as multiple reporters and validate
@@ -243,7 +235,7 @@ def test_per_reporter_update_staleness(
     # Update the settings
     settings = gen_staleness_settings(want_sample=False)
     logger.info(f"Creating account record with:\n{settings}")
-    response = host_inventory.apis.account_staleness.update_staleness(**settings).to_dict()
+    response = host_inventory.apis.account_staleness.update_staleness(**settings).json()
     validate_staleness_response(response, hbi_staleness_defaults, settings)
 
     # Verify that the per_reporter timestamps have been updated correctly
@@ -415,7 +407,6 @@ def test_per_reporter_registered_with(host_inventory: ApplicationHostInventory) 
     """Test per reporter registered_with filter with custom staleness
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-registered_with
         assignee: msager
         importance: high
         title: Test per reporter staleness

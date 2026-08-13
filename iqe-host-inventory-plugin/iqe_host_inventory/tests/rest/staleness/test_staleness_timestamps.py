@@ -55,13 +55,12 @@ def test_staleness_timestamps_default_settings(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts
       assignee: msager
       importance: high
       title: Validate host timestamps without custom staleness settings
     """
     response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert response.id.actual_instance == "system_default"
+    assert response.json()["id"] == "system_default"
 
     create_hosts_and_validate(host_inventory, host_type, host_count=3)
 
@@ -75,7 +74,6 @@ def test_staleness_timestamps_custom_settings(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-post
       assignee: msager
       importance: high
       title: Validate host timestamps with custom staleness settings
@@ -104,7 +102,6 @@ def test_staleness_timestamps_update_settings(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-patch
       assignee: msager
       importance: high
       title: Validate host timestamps when custom staleness settings are updated
@@ -144,7 +141,6 @@ def test_staleness_timestamps_delete_settings(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-delete
       assignee: msager
       importance: high
       title: Validate host timestamps when custom staleness settings are reset
@@ -163,7 +159,7 @@ def test_staleness_timestamps_delete_settings(
 
     host_inventory.apis.account_staleness.delete_staleness()
     stale_response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert stale_response.id.actual_instance == "system_default"
+    assert stale_response.json()["id"] == "system_default"
 
     for host in hosts:
         retrieved_host = host_inventory.apis.hosts.get_host_by_id(host)
@@ -181,7 +177,6 @@ def test_staleness_timestamps_custom_settings_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-post
       assignee: msager
       importance: high
       title: Validate host timestamps are set on the proper account
@@ -225,7 +220,6 @@ def test_staleness_timestamps_update_settings_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-patch
       assignee: msager
       importance: high
       title: Validate host timestamps are updated on the proper account
@@ -284,7 +278,6 @@ def test_staleness_timestamps_delete_settings_proper_account(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-delete
       assignee: msager
       importance: high
       title: Validate host timestamps are reset on the proper account
@@ -319,7 +312,7 @@ def test_staleness_timestamps_delete_settings_proper_account(
     # Delete the staleness settings on the primary account only
     host_inventory.apis.account_staleness.delete_staleness()
     stale_response = host_inventory.apis.account_staleness.get_staleness_response()
-    assert stale_response.id.actual_instance == "system_default"
+    assert stale_response.json()["id"] == "system_default"
 
     for host in primary_hosts:
         retrieved_host = host_inventory.apis.hosts.get_host_by_id(host)
@@ -339,7 +332,6 @@ def test_staleness_timestamps_verify_payload_ignored(
 ) -> None:
     """
     metadata:
-      requirements: inv-staleness-hosts, inv-staleness-post
       assignee: msager
       importance: low
       title: Verify that staleness settings are used even when host payload timestamps are set

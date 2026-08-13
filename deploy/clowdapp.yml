@@ -274,6 +274,8 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: INVENTORY_ADMIN_HOSTS_ENABLED
+            value: ${INVENTORY_ADMIN_HOSTS_ENABLED}
           - name: OTEL_ENABLED
             value: ${OTEL_ENABLED}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -356,6 +358,8 @@ objects:
             value: ${KESSEL_INSECURE}
           - name: KESSEL_AUTH_ENABLED
             value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         volumeMounts: *readReplicaVolumeMounts
@@ -417,6 +421,8 @@ objects:
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
             value: ${BYPASS_KESSEL}
+          - name: INVENTORY_ADMIN_HOSTS_ENABLED
+            value: ${INVENTORY_ADMIN_HOSTS_ENABLED}
           - name: OTEL_ENABLED
             value: ${OTEL_ENABLED}
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -499,6 +505,8 @@ objects:
             value: ${KESSEL_INSECURE}
           - name: KESSEL_AUTH_ENABLED
             value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
@@ -2167,6 +2175,65 @@ objects:
           requests:
             cpu: ${CPU_REQUEST_UPDATE_STALENESS_JOB}
             memory: ${MEMORY_REQUEST_UPDATE_STALENESS_JOB}
+    - name: delete-empty-org-groups
+      restartPolicy: Never
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args: [ "./jobs/delete_empty_org_groups.py" ]
+        env:
+          - name: PYTHONPATH
+            value: '/opt/app-root/src'
+          - name: INVENTORY_LOG_LEVEL
+            value: ${LOG_LEVEL}
+          - name: INVENTORY_DB_SSL_MODE
+            value: ${INVENTORY_DB_SSL_MODE}
+          - name: INVENTORY_DB_SSL_CERT
+            value: ${INVENTORY_DB_SSL_CERT}
+          - name: INVENTORY_DB_SCHEMA
+            value: "${INVENTORY_DB_SCHEMA}"
+          - name: KAFKA_BOOTSTRAP_SERVERS
+            value: ${KAFKA_BOOTSTRAP_HOST}:${KAFKA_BOOTSTRAP_PORT}
+          - name: KAFKA_EVENT_TOPIC
+            value: ${KAFKA_EVENT_TOPIC}
+          - name: KAFKA_NOTIFICATION_TOPIC
+            value: ${KAFKA_NOTIFICATION_TOPIC}
+          - name: PAYLOAD_TRACKER_KAFKA_TOPIC
+            value: ${PAYLOAD_TRACKER_KAFKA_TOPIC}
+          - name: PAYLOAD_TRACKER_SERVICE_NAME
+            value: inventory-mq-service
+          - name: PAYLOAD_TRACKER_ENABLED
+            value: 'true'
+          - name: PROMETHEUS_PUSHGATEWAY
+            value: ${PROMETHEUS_PUSHGATEWAY}
+          - name: KAFKA_PRODUCER_ACKS
+            value: ${KAFKA_PRODUCER_ACKS}
+          - name: KAFKA_PRODUCER_RETRIES
+            value: ${KAFKA_PRODUCER_RETRIES}
+          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
+            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
+          - name: KAFKA_SECURITY_PROTOCOL
+            value: ${KAFKA_SECURITY_PROTOCOL}
+          - name: KAFKA_SASL_MECHANISM
+            value: ${KAFKA_SASL_MECHANISM}
+          - <<: *namespaceFieldRef
+            name: NAMESPACE
+          - name: CLOWDER_ENABLED
+            value: "true"
+          - name: DRY_RUN
+            value: ${DELETE_EMPTY_ORG_GROUPS_DRY_RUN}
+          - name: SUSPEND_JOB
+            value: ${DELETE_EMPTY_ORG_GROUPS_SUSPEND_JOB}
+          - name: ORG_IDS
+            value: ${DELETE_EMPTY_ORG_GROUPS_ORG_IDS}
+          - name: REPLICA_NAMESPACE
+            value: ${REPLICA_NAMESPACE}
+        resources:
+          limits:
+            cpu: ${CPU_LIMIT_DELETE_EMPTY_ORG_GROUPS_JOB}
+            memory: ${MEMORY_LIMIT_DELETE_EMPTY_ORG_GROUPS_JOB}
+          requests:
+            cpu: ${CPU_REQUEST_DELETE_EMPTY_ORG_GROUPS_JOB}
+            memory: ${MEMORY_REQUEST_DELETE_EMPTY_ORG_GROUPS_JOB}
     - name: run-db-migrations
       restartPolicy: OnFailure
       podSpec:
@@ -2826,6 +2893,14 @@ parameters:
   value: 256Mi
 - name: MEMORY_LIMIT_UPDATE_STALENESS_JOB
   value: 512Mi
+- name: CPU_REQUEST_DELETE_EMPTY_ORG_GROUPS_JOB
+  value: 250m
+- name: CPU_LIMIT_DELETE_EMPTY_ORG_GROUPS_JOB
+  value: 500m
+- name: MEMORY_REQUEST_DELETE_EMPTY_ORG_GROUPS_JOB
+  value: 256Mi
+- name: MEMORY_LIMIT_DELETE_EMPTY_ORG_GROUPS_JOB
+  value: 512Mi
 - name: CPU_REQUEST_DB_MIGRATIONS_JOB
   value: 250m
 - name: CPU_LIMIT_DB_MIGRATIONS_JOB
@@ -2990,12 +3065,20 @@ parameters:
 - description: disable Kessel middleware
   name: BYPASS_KESSEL
   value: 'false'
+- description: >-
+    Enable POST /api/inventory/v1/_admin/hosts for programmatic host create/update.
+    Must remain false in production; set true only in dev, ephemeral, and Stage.
+  name: INVENTORY_ADMIN_HOSTS_ENABLED
+  value: 'false'
 - description: enable Kessel authentication
   name: KESSEL_AUTH_ENABLED
   value: 'false'
 - description: enable Kessel insecure mode
   name: KESSEL_INSECURE
   value: 'true'
+- description: OIDC issuer URL used for Kessel auth token requests
+  name: KESSEL_AUTH_OIDC_ISSUER
+  value: https://sso.redhat.com/auth/realms/redhat-external
 - description: How long to wait for DB migrations to complete
   name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
   value: '300'
@@ -3170,6 +3253,17 @@ parameters:
   value: ''
 - name: UPDATE_STALENESS_TIME_TO_DELETE
   description: conventional_time_to_delete value in seconds (optional)
+  value: ''
+
+# -- Delete empty org groups Job --
+- name: DELETE_EMPTY_ORG_GROUPS_DRY_RUN
+  description: Whether the delete-empty-org-groups job should run in dry-run mode
+  value: 'true'
+- name: DELETE_EMPTY_ORG_GROUPS_SUSPEND_JOB
+  description: Whether the delete-empty-org-groups job should be suspended
+  value: 'true'
+- name: DELETE_EMPTY_ORG_GROUPS_ORG_IDS
+  description: Comma-separated list of org_ids whose groups should be deleted (only if the org has no hosts)
   value: ''
 
 # -- Remove null values in workloads fields data Job --

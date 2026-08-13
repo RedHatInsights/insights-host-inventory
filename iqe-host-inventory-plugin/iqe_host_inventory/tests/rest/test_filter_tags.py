@@ -10,7 +10,6 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.tests.rest.test_filter_hosts import format_sap_sids_filters
 from iqe_host_inventory.utils import flatten
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import SYSTEM_PROFILE
 from iqe_host_inventory.utils.datagen_utils import Field
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -19,9 +18,6 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import get_sp_field_by_name
 from iqe_host_inventory.utils.tag_utils import assert_tags_found
 from iqe_host_inventory.utils.tag_utils import assert_tags_not_found
-from iqe_host_inventory_api import ActiveTags
-from iqe_host_inventory_api import ApiException
-from iqe_host_inventory_api import StructuredTag
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
@@ -31,19 +27,12 @@ def host_tags(input_hosts: list[Any]) -> list[TagDict]:
     return [tag for host in input_hosts for tag in host.tags]
 
 
-def log_response_tags_indices(my_tags: list[list[StructuredTag]], response: ActiveTags):
-    response_tags = [res_item.tag for res_item in response.results]
-    response_tags_indices = set()
-    for res_tag in response_tags:
-        found_index = -1
-        for i, tag_list in enumerate(my_tags):
-            search_list = [tag.to_dict() for tag in tag_list]
-            if res_tag in search_list:
-                found_index = i
-                break
-        if found_index != -1:
-            response_tags_indices.add(found_index)
-    logger.info(f"Response tags indices: {response_tags_indices}")
+def check_tags_response(
+    response: dict, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
+) -> None:
+    assert response["count"] >= len(expected_tags)
+    assert_tags_found(expected_tags, response["results"])
+    assert_tags_not_found(not_expected_tags, response["results"])
 
 
 @pytest.mark.smoke
@@ -69,7 +58,6 @@ def test_filter_tags_by_system_profile_sap_sids(
     2. Make sure that the correct tags are in the result
 
     metadata:
-        requirements: inv-tags-get-list, inv-hosts-filter-by-sp-sap_sids
         assignee: fstavela
         importance: medium
         title: Inventory: Tags filtering by sap_sids
@@ -81,10 +69,8 @@ def test_filter_tags_by_system_profile_sap_sids(
 
     param_list = [*format_sap_sids_filters(use_contains, use_equals, filters)]
     logger.info(f"Retrieving tags by filtering sap_sids: {filters}")
-    response = host_inventory.apis.tags.get_tags_response(filter=param_list)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=param_list).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -162,7 +148,6 @@ def test_filter_tags_by_system_profile_ansible(
     https://issues.redhat.com/browse/ESSNTL-1508
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-ansible
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by ansible
@@ -174,10 +159,8 @@ def test_filter_tags_by_system_profile_ansible(
     )
 
     filter = [f"[ansible]{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -270,7 +253,6 @@ def test_filter_tags_by_system_profile_sap(
     https://issues.redhat.com/browse/ESSNTL-1616
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-sap
       assignee: zabikeno
       importance: high
       title: Inventory: filter tags by sap
@@ -282,10 +264,8 @@ def test_filter_tags_by_system_profile_sap(
     )
 
     filter = [f"[sap]{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -319,7 +299,6 @@ def test_filter_tags_by_system_profile_mssql(
     https://issues.redhat.com/browse/ESSNTL-1613
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-mssql
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by mssql
@@ -331,10 +310,8 @@ def test_filter_tags_by_system_profile_mssql(
     )
 
     filter = [f"[mssql]{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -353,7 +330,6 @@ def test_filter_tags_by_system_profile_fields_nil(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of tags with nil and not_nil values
@@ -363,65 +339,63 @@ def test_filter_tags_by_system_profile_fields_nil(
     non_nil_tags: list[TagDict] = flatten(host.tags for host in hosts[:-1])
 
     # nil without eq comparator
-    response = filter_tags(field.name, "nil")
-    assert response.count >= 1
-    assert_tags_found(hosts[-1].tags, response.results)
-    assert_tags_not_found(non_nil_tags, response.results)
+    response = filter_tags(field.name, "nil").json()
+    assert response["count"] >= 1
+    assert_tags_found(hosts[-1].tags, response["results"])
+    assert_tags_not_found(non_nil_tags, response["results"])
 
     # nil with eq comparator
-    response = filter_tags(field.name, "nil", "eq")
-    assert response.count >= 1
-    assert_tags_found(hosts[-1].tags, response.results)
-    assert_tags_not_found(non_nil_tags, response.results)
+    response = filter_tags(field.name, "nil", "eq").json()
+    assert response["count"] >= 1
+    assert_tags_found(hosts[-1].tags, response["results"])
+    assert_tags_not_found(non_nil_tags, response["results"])
 
     # not nil without eq comparator
-    response = filter_tags(field.name, "not_nil")
-    assert response.count >= 1
-    assert_tags_found(non_nil_tags, response.results)
-    assert_tags_not_found(hosts[-1].tags, response.results)
+    response = filter_tags(field.name, "not_nil").json()
+    assert response["count"] >= 1
+    assert_tags_found(non_nil_tags, response["results"])
+    assert_tags_not_found(hosts[-1].tags, response["results"])
 
     # not nil with eq comparator
-    response = filter_tags(field.name, "not_nil", "eq")
-    assert response.count >= 1
-    assert_tags_found(non_nil_tags, response.results)
-    assert_tags_not_found(hosts[-1].tags, response.results)
+    response = filter_tags(field.name, "not_nil", "eq").json()
+    assert response["count"] >= 1
+    assert_tags_found(non_nil_tags, response["results"])
+    assert_tags_not_found(hosts[-1].tags, response["results"])
 
     # empty value
     if field.type in ("bool", "int", "int64"):
         # empty value without eq comparator
-        with pytest.raises(ApiException) as err:
-            filter_tags(field.name, "")
-        assert err.value.status == 400
-        assert f" is an invalid value for field {field.name}" in err.value.body
+        resp = filter_tags(field.name, "")
+        assert resp.status_code == 400
+        assert f" is an invalid value for field {field.name}" in resp.text
 
         # empty value with eq comparator
-        with pytest.raises(ApiException) as err:
-            filter_tags(field.name, "", "eq")
-        assert err.value.status == 400
-        assert f" is an invalid value for field {field.name}" in err.value.body
+        resp = filter_tags(field.name, "", "eq")
+        assert resp.status_code == 400
+        assert f" is an invalid value for field {field.name}" in resp.text
     elif field.type == "str" and field.min_len == 0:
         not_empty_tags = flatten(hosts[i].tags for i in range(len(hosts)) if i != len(hosts) - 2)
         # empty value without eq comparator
-        response = filter_tags(field.name, "")
-        assert response.count >= 1
-        assert_tags_found(hosts[-2].tags, response.results)
-        assert_tags_not_found(not_empty_tags, response.results)
+        response = filter_tags(field.name, "").json()
+        assert response["count"] >= 1
+        assert_tags_found(hosts[-2].tags, response["results"])
+        assert_tags_not_found(not_empty_tags, response["results"])
 
         # empty value with eq comparator
-        response = filter_tags(field.name, "", "eq")
-        assert response.count >= 1
-        assert_tags_found(hosts[-2].tags, response.results)
-        assert_tags_not_found(not_empty_tags, response.results)
+        response = filter_tags(field.name, "", "eq").json()
+        assert response["count"] >= 1
+        assert_tags_found(hosts[-2].tags, response["results"])
+        assert_tags_not_found(not_empty_tags, response["results"])
     else:
         # empty value without eq comparator
-        response = filter_tags(field.name, "")
-        assert response.count == 0
-        assert_tags_not_found(all_tags, response.results)
+        response = filter_tags(field.name, "").json()
+        assert response["count"] == 0
+        assert_tags_not_found(all_tags, response["results"])
 
         # empty value with eq comparator
-        response = filter_tags(field.name, "", "eq")
-        assert response.count == 0
-        assert_tags_not_found(all_tags, response.results)
+        response = filter_tags(field.name, "", "eq").json()
+        assert response["count"] == 0
+        assert_tags_not_found(all_tags, response["results"])
 
 
 @pytest.mark.ephemeral
@@ -443,7 +417,6 @@ def test_filter_tags_by_system_profile_string_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by string fields
@@ -466,21 +439,17 @@ def test_filter_tags_by_system_profile_string_fields(
     another_value = quote(hosts[1].system_profile[field.name])
 
     def _test_filter(comparator: str | None = None):
-        response = filter_tags(field.name, value, comparator)
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        response = filter_tags(field.name, value, comparator).json()
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter()
     _test_filter("eq")
 
     filter = [f"[{field.name}][]={value}", f"[{field.name}][]={another_value}"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
     expected_tags = host_tags(hosts[:2])
     not_expected_tags = host_tags(hosts[2:])
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -498,7 +467,6 @@ def test_filter_tags_by_system_profile_integer_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by integer fields
@@ -508,18 +476,11 @@ def test_filter_tags_by_system_profile_integer_fields(
     lower_value = hosts[0].system_profile[field.name]
     higher_value = hosts[2].system_profile[field.name]
 
-    def _check_response(
-        response: ActiveTags, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
-    ):
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
-
     def _test_filter(
         comparator: str | None, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
     ):
-        response = filter_tags(field.name, value, comparator)
-        _check_response(response, expected_tags, not_expected_tags)
+        response = filter_tags(field.name, value, comparator).json()
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter(None, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
     _test_filter("eq", hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
@@ -530,13 +491,13 @@ def test_filter_tags_by_system_profile_integer_fields(
 
     # Combination on 'eq' filtering uses OR logic
     filter = [f"[{field.name}][]={lower_value}", f"[{field.name}][]={value}"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    _check_response(response, host_tags(hosts[:2]), host_tags(hosts[2:]))
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, host_tags(hosts[:2]), host_tags(hosts[2:]))
 
     # Combination on range filtering uses AND logic
     filter = [f"[{field.name}][gt][]={lower_value}", f"[{field.name}][lt][]={higher_value}"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    _check_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
 
 
 @pytest.mark.ephemeral
@@ -558,7 +519,6 @@ def test_filter_tags_by_system_profile_boolean_fields(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by boolean fields
@@ -570,10 +530,8 @@ def test_filter_tags_by_system_profile_boolean_fields(
     filtered_value = getattr(filtered_value, filtered_type)()
 
     def _test_filter(comparator: str | None = None):
-        response = filter_tags(field.name, filtered_value, comparator)
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
+        response = filter_tags(field.name, filtered_value, comparator).json()
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter()
     _test_filter("eq")
@@ -581,12 +539,10 @@ def test_filter_tags_by_system_profile_boolean_fields(
     # Combination on 'eq' filtering uses OR logic
     logger.info("Filtering by multiple filters combined")
     filter = [f"[{field.name}][]=true", f"[{field.name}][]=false"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
     expected_tags = host_tags(hosts[:2])
     not_expected_tags = host_tags(hosts[2:])
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -604,7 +560,6 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Range operations generic filtering of tags by date-time fields
@@ -614,18 +569,11 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
     lower_value = quote(hosts[0].system_profile[field.name])
     higher_value = quote(hosts[2].system_profile[field.name])
 
-    def _check_response(
-        response: ActiveTags, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
-    ):
-        assert response.count >= len(expected_tags)
-        assert_tags_found(expected_tags, response.results)
-        assert_tags_not_found(not_expected_tags, response.results)
-
     def _test_filter(
         comparator: str, expected_tags: list[TagDict], not_expected_tags: list[TagDict]
     ):
-        response = filter_tags(field.name, value, comparator)
-        _check_response(response, expected_tags, not_expected_tags)
+        response = filter_tags(field.name, value, comparator).json()
+        check_tags_response(response, expected_tags, not_expected_tags)
 
     _test_filter("gt", hosts[2].tags, host_tags(hosts[:2] + hosts[3:]))
     _test_filter("gte", host_tags(hosts[1:3]), host_tags(hosts[:1] + hosts[3:]))
@@ -634,8 +582,8 @@ def test_filter_tags_by_system_profile_datetime_fields_range_operations(
 
     # Combination on range filtering uses AND logic
     filter = [f"[{field.name}][gt][]={lower_value}", f"[{field.name}][lt][]={higher_value}"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    _check_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, hosts[1].tags, host_tags(hosts[:1] + hosts[2:]))
 
 
 @pytest.mark.ephemeral
@@ -644,7 +592,6 @@ def test_filter_tags_by_system_profile_multiple_types(host_inventory: Applicatio
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Generic filtering of tags by fields of various types at the same time
@@ -682,10 +629,10 @@ def test_filter_tags_by_system_profile_multiple_types(host_inventory: Applicatio
         f"[number_of_cpus]={hosts[0].system_profile['number_of_cpus']}",
         f"[is_marketplace][]={hosts[0].system_profile['is_marketplace']}",
     ]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count == 2
-    assert_tags_found(hosts[0].tags, response.results)
-    assert_tags_not_found(not_matching_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    assert response["count"] == 2
+    assert_tags_found(hosts[0].tags, response["results"])
+    assert_tags_not_found(not_matching_tags, response["results"])
 
 
 @pytest.mark.ephemeral
@@ -722,18 +669,15 @@ def test_filter_tags_by_system_profile_fields_incorrect_comparator(
     https://issues.redhat.com/browse/RHCLOUD-13901
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields, inv-api-validation
       assignee: fstavela
       importance: medium
       title: Generic filtering of hosts with incorrect comparators
     """
     value = "True" if field.type == "bool" else "123"
 
-    with raises_apierror(400) as err:
-        filter_tags(field.name, value, comparator)
-
-    assert err.value.body is not None
-    assert "invalid operation" in err.value.body.lower()
+    resp = filter_tags(field.name, value, comparator)
+    assert resp.status_code == 400
+    assert "invalid operation" in resp.text.lower()
 
 
 @pytest.mark.ephemeral
@@ -747,7 +691,6 @@ def test_filter_tags_by_system_profile_object_nil(
     Jira: https://issues.redhat.com/browse/ESSNTL-2362
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
       title: Filtering hosts by object fields by nil/not_nil
@@ -756,16 +699,12 @@ def test_filter_tags_by_system_profile_object_nil(
     not_nil_tags = flatten(host.tags for host in hosts[:-1])
 
     filter = ["[ansible]=nil"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(hosts[-1].tags)
-    assert_tags_found(hosts[-1].tags, response.results)
-    assert_tags_not_found(not_nil_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, hosts[-1].tags, not_nil_tags)
 
     filter = ["[ansible]=not_nil"]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(not_nil_tags)
-    assert_tags_found(not_nil_tags, response.results)
-    assert_tags_not_found(hosts[-1].tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, not_nil_tags, hosts[-1].tags)
 
 
 @pytest.mark.ephemeral
@@ -817,16 +756,20 @@ def test_filter_tags_by_system_profile_object_nil(
         (["[staged][image][]=quay.io/s-7:latest"], [7]),
         (
             [
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                )
             ],
             [7],
         ),
         (["[booted][cached_image][]=quay.io/bc-7:latest"], [7]),
         (
             [
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                )
             ],
             [7],
         ),
@@ -846,30 +789,40 @@ def test_filter_tags_by_system_profile_object_nil(
         (
             [
                 "[booted][image][]=quay.io/b-7:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a7",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac7"
+                ),
             ],
             [7],
         ),
         (
             [
                 "[booted][image][]=quay.io/b-5:latest",
-                "[booted][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000a5",
+                (
+                    "[booted][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000a5"
+                ),
                 "[booted][cached_image][]=quay.io/bc-6:latest",
-                "[booted][cached_image_digest][]=sha256:"
-                "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6",
+                (
+                    "[booted][cached_image_digest][]=sha256:"
+                    "abcdefABCDEF0123456789000000000000000000000000000000000000000ac6"
+                ),
             ],
             [],
         ),
         (
             [
                 "[staged][image][]=quay.io/s-7:latest",
-                "[rollback][image_digest][]=sha256:"
-                "abcdefABCDEF01234567890000000000000000000000000000000000000000b7",
+                (
+                    "[rollback][image_digest][]=sha256:"
+                    "abcdefABCDEF01234567890000000000000000000000000000000000000000b7"
+                ),
                 "[booted][cached_image][]=quay.io/bc-7:latest",
             ],
             [7],
@@ -900,7 +853,6 @@ def test_filter_tags_by_system_profile_bootc_status(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-bootc_status
       assignee: fstavela
       importance: high
       title: Inventory: filter tags by bootc_status
@@ -912,10 +864,8 @@ def test_filter_tags_by_system_profile_bootc_status(
     )
 
     filter = [f"[bootc_status]{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 @pytest.mark.ephemeral
@@ -938,7 +888,6 @@ def test_filter_tags_by_system_profile_bootc_status_host_type(
     https://issues.redhat.com/browse/RHINENG-8987
 
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-system_profile-bootc_status,
                     inv-hosts-get-by-sp-scalar-fields
       assignee: fstavela
       importance: high
@@ -951,10 +900,8 @@ def test_filter_tags_by_system_profile_bootc_status_host_type(
     )
 
     filter = [f"{param}" for param in params]
-    response = host_inventory.apis.tags.get_tags_response(filter=filter)
-    assert response.count >= len(expected_tags)
-    assert_tags_found(expected_tags, response.results)
-    assert_tags_not_found(not_expected_tags, response.results)
+    response = host_inventory.apis.tags.get_tags_response(filter=filter).json()
+    check_tags_response(response, expected_tags, not_expected_tags)
 
 
 # NOTE: test_filter_tags_by_system_profile_operating_system,
@@ -978,7 +925,6 @@ def test_filter_tags_with_invalid_system_profile_operating_system(
 ):
     """
     metadata:
-      requirements: inv-tags-get-list, inv-hosts-filter-by-sp-operating_system,
       assignee: msager
       importance: medium
       negative: true
@@ -986,8 +932,9 @@ def test_filter_tags_with_invalid_system_profile_operating_system(
     """
     filter = [f"[operating_system]{param}"]
 
-    with raises_apierror(
-        400,
-        match_message="operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux'].",  # ruff:ignore[line-too-long]
-    ):
-        host_inventory.apis.tags.get_tags(filter=filter, per_page=100)
+    resp = host_inventory.apis.tags.get_tags_response(filter=filter, per_page=100)
+    assert resp.status_code == 400
+    assert (
+        "operating_system filter only supports these OS names: ['RHEL', 'CentOS', 'CentOS Linux']."
+        in resp.text
+    )

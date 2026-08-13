@@ -306,6 +306,9 @@
           },
           "400": {
             "description": "Invalid request."
+          },
+          "403": {
+            "description": "Insufficient permissions to sort or filter by the requested service."
           }
         }
       }
@@ -3211,6 +3214,14 @@
                 "items": {
                   "$ref": "#/components/schemas/HostViewHost"
                 }
+              },
+              "denied_services": {
+                "description": "List of app_data service names the user lacks permission for. Present when per-service RBAC is active; omitted when RBAC is bypassed.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": ["vulnerability", "malware"]
               }
             }
           }
@@ -4609,6 +4620,38 @@
                 "maxLength": 30,
                 "pattern": "^\\d+(\\.\\d+)+$",
                 "x-wildcard": true
+              },
+              "receptor_version": {
+                "description": "The receptor version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "runner_version": {
+                "description": "The ansible-runner version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "eda_controller_version": {
+                "description": "The EDA controller version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
+              },
+              "gateway_version": {
+                "description": "The automation gateway version on the host",
+                "type": "string",
+                "example": "1.2.3, 4.5.6, 7.8.9",
+                "maxLength": 30,
+                "pattern": "^\\d+(\\.\\d+)+$",
+                "x-wildcard": true
               }
             }
           },
@@ -4919,6 +4962,38 @@
                     "maxLength": 30,
                     "pattern": "^\\d+(\\.\\d+)+$",
                     "x-wildcard": true
+                  },
+                  "receptor_version": {
+                    "description": "The receptor version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "runner_version": {
+                    "description": "The ansible-runner version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "eda_controller_version": {
+                    "description": "The EDA controller version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "gateway_version": {
+                    "description": "The automation gateway version on the host",
+                    "type": "string",
+                    "example": "1.2.3, 4.5.6, 7.8.9",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
                   }
                 }
               },
@@ -5062,6 +5137,28 @@
                     "type": "string",
                     "example": "698GB, 3TB",
                     "maxLength": 32
+                  }
+                }
+              },
+              "satellite": {
+                "description": "Object containing data specific to the Red Hat Satellite workload",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "Whether this system is a Satellite Server or Capsule",
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "capsule"
+                    ],
+                    "example": "server"
+                  },
+                  "version": {
+                    "description": "The Satellite or Capsule version",
+                    "type": "string",
+                    "example": "6.19.0",
+                    "maxLength": 30,
+                    "x-wildcard": true
                   }
                 }
               },

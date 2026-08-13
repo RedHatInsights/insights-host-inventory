@@ -54,6 +54,13 @@ def get_app_sort_field_map() -> dict[str, tuple[type[HostAppDataMixin], str]]:
     return _build_app_sort_field_map()
 
 
+def get_app_name_from_sort(order_by: str | None) -> str | None:
+    """Extract the app name from an app:field sort value, or None if not an app sort field."""
+    if order_by and ":" in order_by:
+        return order_by.split(":")[0]
+    return None
+
+
 def resolve_app_sort(order_by: str | None) -> tuple[type[HostAppDataMixin], ColumnElement] | None:
     """
     Resolve an order_by value into (model_class, column) for app sort fields.

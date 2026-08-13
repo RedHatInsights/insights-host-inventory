@@ -50,6 +50,8 @@ def consumer():
             self.notification_event_producer = MagicMock()
             self.processed_rows = []
             self._is_retry = False
+            self._messages_pending_retry = None
+            self._producer_ctx = None
             self._handler = MagicMock(return_value=OperationResult(None, None, None, None, lambda: None))
 
         def handle_message(self, message, headers=None):
@@ -75,6 +77,7 @@ def test_span_emitted_when_enabled(otel_spans, consumer, monkeypatch):
     monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
 
     consumer._process_single_message(FakeMessage())
+    consumer._end_all_deferred_spans()
 
     spans = otel_spans.get_finished_spans()
     assert len(spans) == 1
@@ -90,6 +93,8 @@ def test_message_span_is_child_of_current_consume_context(otel_spans, consumer, 
 
     with host_mq.tracer.start_as_current_span("inventory process") as consume_span:
         consumer._process_single_message(FakeMessage())
+
+    consumer._end_all_deferred_spans()
 
     process_spans = [span for span in otel_spans.get_finished_spans() if span.name.startswith("mq.process ")]
     assert len(process_spans) == 1
@@ -128,6 +133,7 @@ def test_retry_emits_span_when_disabled(otel_spans, consumer, monkeypatch):
     consumer._is_retry = True
 
     consumer._process_single_message(FakeMessage())
+    consumer._end_all_deferred_spans()
 
     spans = otel_spans.get_finished_spans()
     assert len(spans) == 1
@@ -193,6 +199,7 @@ def test_span_includes_org_id_and_request_id_from_threadctx(otel_spans, consumer
     consumer._handler.side_effect = populate_threadctx
 
     consumer._process_single_message(FakeMessage())
+    consumer._end_all_deferred_spans()
 
     spans = otel_spans.get_finished_spans()
     assert len(spans) == 1
@@ -268,6 +275,7 @@ def test_span_without_threadctx_has_no_rh_attributes(otel_spans, consumer, monke
             delattr(threadctx, attr)
 
     consumer._process_single_message(FakeMessage())
+    consumer._end_all_deferred_spans()
 
     spans = otel_spans.get_finished_spans()
     assert len(spans) == 1
@@ -318,3 +326,58 @@ def test_non_deadlock_operational_error_still_exits(consumer, monkeypatch, spans
         consumer._process_single_message(FakeMessage())
 
     exit_mock.assert_called_once_with(3)
+
+
+def test_process_message_without_span_captures_otel_context(otel_spans, consumer, monkeypatch):
+    """Verify that _process_message_core stores otel_context on the result when spans are disabled."""
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", False)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    consumer._process_single_message(FakeMessage())
+
+    assert len(otel_spans.get_finished_spans()) == 0
+    assert len(consumer.processed_rows) == 1
+    result = consumer.processed_rows[0]
+    assert result.otel_context is not None
+
+
+def test_end_all_deferred_spans_enriches_with_threadctx(otel_spans, consumer, monkeypatch):
+    """Verify that _end_all_deferred_spans enriches spans with rh.org_id and rh.request_id."""
+    from app.logging import threadctx
+
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    consumer._process_single_message(FakeMessage())
+    result = consumer.processed_rows[0]
+    assert result.otel_span is not None
+
+    threadctx.org_id = "enrichment_org"
+    threadctx.request_id = "enrichment_req"
+
+    consumer._end_all_deferred_spans()
+
+    assert result.otel_span is None
+    spans = otel_spans.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].attributes["rh.org_id"] == "enrichment_org"
+    assert spans[0].attributes["rh.request_id"] == "enrichment_req"
+
+
+def test_end_all_deferred_spans_marks_error(otel_spans, consumer, monkeypatch):
+    """Verify that _end_all_deferred_spans records error status on spans when an error is provided."""
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_MESSAGE_SPANS_ENABLED", True)
+    monkeypatch.setattr("app.queue.host_mq.OTEL_MQ_SLOW_MESSAGE_MS", 0)
+
+    consumer._process_single_message(FakeMessage())
+    assert consumer.processed_rows[0].otel_span is not None
+
+    error = RuntimeError("flush failed")
+    consumer._end_all_deferred_spans(error=error)
+
+    spans = otel_spans.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].status.status_code.name == "ERROR"

@@ -4,6 +4,7 @@ import logging
 
 import pytest
 from fauxfactory import gen_mac
+from iqe.utils.blockers import iqe_blocker
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.utils.datagen_utils import TagDict
@@ -13,6 +14,7 @@ from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.datagen_utils import rand_str
 from iqe_host_inventory.utils.staleness_utils import validate_host_timestamps
 from iqe_host_inventory.utils.tag_utils import sort_tags
+from iqe_host_inventory.utils.upload_utils import ANSIBLE_EXECUTION_NODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import IMAGE_MODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import HostOut
@@ -38,7 +40,6 @@ def test_create_new_host(
     2. Confirm host is created with the expected display_name
 
     metadata:
-        requirements: inv-host-create
         assignee: fstavela
         importance: critical
         title: Inventory: POST creation of new host via archive upload (Ingress/Puptoo)
@@ -75,7 +76,6 @@ def test_create_same_host_twice(host_inventory: ApplicationHostInventory) -> Non
     3. Confirm only a single host is created
 
     metadata:
-        requirements: inv-host-create, inv-host-update, inv-host-deduplication
         assignee: fstavela
         importance: critical
         title: Inventory: POST creation of duplicate host via archive upload (Ingress/Puptoo)
@@ -121,7 +121,6 @@ def test_create_two_hosts_almost_equal(host_inventory: ApplicationHostInventory)
     3. Confirm the original host was updated (only one host in total should have been created).
 
     metadata:
-        requirements: inv-host-create, inv-host-deduplication
         assignee: fstavela
         importance: critical
         title: Inventory: Confirm duplicate hosts with the same insights_id cannot be
@@ -198,7 +197,6 @@ def test_create_new_host_with_tags(
     4. Ensure the expected tags are returned
 
     metadata:
-        requirements: inv-tags, inv-host-create
         assignee: fstavela
         importance: high
         title: Inventory: POST creation of new host with tags via archive upload (Ingress/Puptoo)
@@ -228,7 +226,6 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     4. Confirm the system profile fact (SAP system) equals to TRUE
 
      metadata:
-        requirements: inv-host-create, inv-hosts-get-system_profile
         assignee: fstavela
         importance: high
         title: Inventory: POST creation of new SAP host via archive upload (Ingress/Puptoo)
@@ -246,6 +243,72 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     assert fetched_host.results[0].system_profile.workloads.sap.sap_system
 
 
+@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
+def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) -> None:
+    """
+    Test creation of new host with Satellite Server workload via archive upload (Ingress/Puptoo)
+
+    Confirm that a host with the satellite RPM is classified as a Satellite Server workload
+
+    1. Issue POST to create a single host via archive upload by sending a Satellite server tarball
+    2. Confirm host is created with the expected display_name
+    3. Issue a GET request to retrieve the host system profile facts
+    4. Confirm the workloads.satellite.type equals "server"
+
+     metadata:
+        assignee: rantunes
+        importance: high
+        title: Inventory: POST new Satellite Server host via archive upload
+    """
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive="satellite-archive-617.tar.gz"
+    )
+
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+    assert satellite.type == "server"
+    assert satellite.version is not None
+    assert satellite.version.startswith("6.")
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
+def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory) -> None:
+    """
+    Test creation of new host with Satellite Capsule workload via archive upload (Ingress/Puptoo)
+
+    Confirm that a host with satellite-capsule RPM is classified as Satellite Capsule workload
+
+    1. Issue POST to create a single host via archive upload by sending a Satellite Capsule tarball
+    2. Confirm host is created with the expected display_name
+    3. Issue a GET request to retrieve the host system profile facts
+    4. Confirm the workloads.satellite.type equals "capsule"
+
+     metadata:
+        assignee: rantunes
+        importance: high
+        title: Inventory: POST new Satellite Capsule host via archive upload
+    """
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive="satellite-capsule-archive.tar.gz"
+    )
+
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+    assert satellite.type == "capsule"
+    assert satellite.version is not None
+    assert satellite.version.startswith("6.")
+
+
 def test_create_image_mode_host(
     host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
 ) -> None:
@@ -253,7 +316,6 @@ def test_create_image_mode_host(
     https://issues.redhat.com/browse/RHINENG-8988
 
      metadata:
-        requirements: inv-host-create, inv-hosts-filter-by-system_profile-bootc_status
         assignee: fstavela
         importance: high
         title: Test creating and filtering image-mode hosts
@@ -285,3 +347,48 @@ def test_create_image_mode_host(
     response_ids = {host.id for host in response.results}
     assert conventional_host.id in response_ids
     assert image_host.id not in response_ids
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-28024", category=iqe_blocker.PRODUCT_RFE))
+def test_create_ansible_execution_node_host(
+    host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
+) -> None:
+    """
+    https://issues.redhat.com/browse/RHINENG-28024
+
+    Test creation of an Ansible execution node host via archive upload.
+
+    1. Upload an Ansible execution node archive
+    2. Verify the host is created
+    3. Verify receptor_version and runner_version are populated in system_profile
+    4. Filter by workloads.ansible presence and verify the host appears
+
+    metadata:
+        requirements: inv-host-create, inv-hosts-filter-by-system_profile-workloads-ansible
+        assignee: fstavela
+        importance: high
+        title: Test creating and filtering Ansible execution node hosts
+    """
+    conventional_host = hbi_upload_prepare_host_module
+    display_name = generate_display_name()
+
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=ANSIBLE_EXECUTION_NODE_ARCHIVE
+    )
+
+    assert host.display_name == display_name
+
+    # Verify ansible workload fields in system profile
+    response_host = host_inventory.apis.hosts.get_host_system_profile(host.id)
+    assert response_host.system_profile.workloads.ansible
+    assert response_host.system_profile.workloads.ansible.receptor_version
+    assert response_host.system_profile.workloads.ansible.runner_version
+
+    # Verify filtering by ansible workload presence
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][ansible][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids
+    assert conventional_host.id not in response_ids

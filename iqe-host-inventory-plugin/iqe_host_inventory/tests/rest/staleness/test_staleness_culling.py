@@ -91,7 +91,6 @@ def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInvento
     4. Verify that /tags also respects the staleness filter
 
     metadata:
-        requirements: inv-hosts-filter-by-staleness, inv-staleness-hosts, inv-tags-get-list
         assignee: fstavela
         importance: critical
         title: Inventory: Filter hosts and tags by staleness values
@@ -123,14 +122,14 @@ def test_list_hosts_and_tags_by_staleness(host_inventory: ApplicationHostInvento
     assert http_host_ids == expected_host_ids
 
     for state in states:
-        response = host_inventory.apis.tags.get_tags_response(staleness=[state])
+        response = host_inventory.apis.tags.get_tags_json(staleness=[state])
         state_tags = [tag for host in hosts[state] for tag in host.tags]
         other_tags = [tag for s in states if s != state for host in hosts[s] for tag in host.tags]
 
-        assert response.count >= len(state_tags)
-        assert len(response.results) == response.count
-        assert_tags_found(state_tags, response.results)
-        assert_tags_not_found(other_tags, response.results)
+        assert response["count"] >= len(state_tags)
+        assert len(response["results"]) == response["count"]
+        assert_tags_found(state_tags, response["results"])
+        assert_tags_not_found(other_tags, response["results"])
 
 
 @pytest.mark.ephemeral
@@ -145,7 +144,6 @@ def test_host_stale_warning_to_fresh(host_inventory: ApplicationHostInventory) -
     4. Make sure host is returned by GET request with staleness="fresh".
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-staleness
         assignee: fstavela
         importance: high
         title: Inventory: Confirm stale warning host becomes fresh
@@ -193,7 +191,6 @@ def test_host_stale_to_fresh(host_inventory: ApplicationHostInventory) -> None:
     4. Make sure host is returned by GET request with staleness="fresh".
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-staleness
         assignee: fstavela
         importance: high
         title: Inventory: Confirm stale host becomes fresh if its last_check_in was updated
@@ -241,7 +238,6 @@ def test_host_stale_warning_to_culled(host_inventory: ApplicationHostInventory) 
     5. Make sure host is culled and not returned even by direct GET by id request.
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-filter-by-staleness
         assignee: fstavela
         importance: high
         title: Inventory: Confirm host is culled after its culling date
@@ -280,7 +276,6 @@ def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHost
     JIRA: https://issues.redhat.com/browse/ESSNTL-1382
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-get-list
         assignee: fstavela
         importance: medium
         title: Test default staleness filter on /hosts
@@ -303,14 +298,14 @@ def test_default_staleness_filter_hosts_and_tags(host_inventory: ApplicationHost
     assert set(host_ids).intersection(found_host_ids) == set(host_ids)
 
     # GET /tags
-    response = host_inventory.apis.tags.get_tags_response()
-    assert response.count >= sum(len(host.tags) for host in all_hosts)
+    response = host_inventory.apis.tags.get_tags_json()
+    assert response["count"] >= sum(len(host.tags) for host in all_hosts)
 
     expected_tags = {convert_tag_to_string(tag) for host in all_hosts for tag in host.tags}
     found_tags = {
-        convert_tag_to_string(tag.tag.to_dict()): tag.count
-        for tag in response.results
-        if convert_tag_to_string(tag.tag.to_dict()) in expected_tags
+        convert_tag_to_string(tag["tag"]): tag["count"]
+        for tag in response["results"]
+        if convert_tag_to_string(tag["tag"]) in expected_tags
     }
     assert set(found_tags.keys()) == expected_tags
     assert set(found_tags.values()) == {1}
@@ -325,7 +320,6 @@ def test_staleness_filter_max_delta(
     https://issues.redhat.com/browse/RHINENG-8730
 
     metadata:
-      requirements: inv-staleness-hosts
       assignee: fstavela
       importance: high
       title: Create staleness settings with max allowed deltas and get hosts by staleness filter
@@ -361,7 +355,6 @@ def test_get_culled_hosts(
     to determine staleness, not 'updated'.
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-get-list
         assignee: fstavela
         importance: medium
         title: Test that culled hosts are not returned by API, even if patched
@@ -408,7 +401,6 @@ def test_staleness_stage_prod(host_inventory: ApplicationHostInventory) -> None:
     https://issues.redhat.com/browse/RHINENG-20318
 
     metadata:
-        requirements: inv-staleness-hosts, inv-hosts-get-list
         assignee: fstavela
         importance: high
         title: Test that staleness filtering works correctly after staleness config updates

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 from base64 import b64encode
 from copy import deepcopy
 from datetime import UTC
@@ -19,11 +20,14 @@ from marshmallow import ValidationError
 
 from api import api_operation
 from api import custom_escape
+from api.admin import ADMIN_HOSTS_ROUTE
+from api.admin import ADMIN_HOSTS_URL_PATH
 from api.host_query_db import _order_how
 from api.host_query_db import params_to_order_by
 from api.parsing import custom_fields_parser
 from api.parsing import customURIParser
 from app import SPECIFICATION_FILE
+from app import V2_SPECIFICATION_FILE
 from app import create_app
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
@@ -482,6 +486,7 @@ def test_kafka_producer_defaults(subtests):
     "app.Config",
     **{
         "return_value.mgmt_url_path_prefix": "/",
+        "return_value.api_url_path_prefix": ADMIN_HOSTS_URL_PATH.removesuffix(ADMIN_HOSTS_ROUTE),
         "return_value.unleash_token": "",
         "return_value.api_cache_max_thread_pool_workers": 5,
     },
@@ -541,6 +546,40 @@ def test_yaml_specification_create_app_connexion(_translating_parser, _init_app,
     with patch("app.create_app", side_effect=Exception("mocked error")):
         with pytest.raises(Exception):  # noqa: B017
             create_app(RuntimeEnvironment.TEST)
+
+
+@pytest.mark.parametrize(
+    "v2_enabled",
+    ["true", "false", None],
+    ids=["v2-enabled", "v2-disabled", "v2-unset"],
+)
+@patch("app.connexion.FlaskApp")
+@patch("app.db.init_app")
+@patch("app.TranslatingParser")
+def test_v2_api_registration(translating_parser, _init_app, app, v2_enabled):
+    env_vars = {"HBI_V2_API_ENABLED": v2_enabled} if v2_enabled is not None else {}
+    with patch.dict("os.environ", env_vars, clear=False):
+        if v2_enabled is None:
+            os.environ.pop("HBI_V2_API_ENABLED", None)
+        create_app(RuntimeEnvironment.TEST)
+
+    v2_add_api_calls = [
+        call for call in app.return_value.add_api.call_args_list if call.kwargs.get("base_path") == "/api/inventory/v2"
+    ]
+    v2_parser_calls = [call for call in translating_parser.call_args_list if V2_SPECIFICATION_FILE in call.args]
+
+    if v2_enabled == "true":
+        assert v2_add_api_calls, "V2 API should be registered when HBI_V2_API_ENABLED is true"
+        assert v2_parser_calls, "TranslatingParser should be called with V2 spec when V2 is enabled"
+        v2_call = v2_add_api_calls[0]
+        assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
+        assert v2_call.kwargs["arguments"] == {"title": "HBI V2 API"}
+        assert v2_call.kwargs["validate_responses"] is True
+        assert v2_call.kwargs["strict_validation"] is False
+        assert v2_call.kwargs["validator_map"] is not None
+    else:
+        assert not v2_add_api_calls, "No V2 API should be registered when HBI_V2_API_ENABLED is not true"
+        assert not v2_parser_calls, "TranslatingParser should not be called with V2 spec when V2 is not enabled"
 
 
 def test_asc_host_order_how():
@@ -3011,3 +3050,108 @@ def test_sanitize_workloads_none_values_preserves_valid_values():
     assert result["workloads"]["crowdstrike"]["falcon_aid"] == "abc123"
     assert result["workloads"]["sap"]["sap_system"] is True
     assert result["workloads"]["sap"]["sids"] == ["H2O"]
+
+
+# --- Workloads filter SQL shape assertions ---
+
+
+def _compile_filters_to_sql(filters: tuple) -> str:
+    """Compile a tuple of filter expressions to a SQL string for structural assertions."""
+    from sqlalchemy import and_
+    from sqlalchemy.dialects.postgresql import dialect as pg_dialect
+
+    combined = and_(*filters) if len(filters) > 1 else filters[0]
+    return str(combined.compile(dialect=pg_dialect()))
+
+
+def test_workloads_boolean_true_produces_exists(flask_app):
+    """sap_system=true should produce an EXISTS subquery with @> containment."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter({"workloads": {"sap": {"sap_system": "true"}}})
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "NOT (EXISTS" not in sql
+        assert "@>" in sql
+
+
+def test_workloads_nil_produces_not_exists(flask_app):
+    """sap_system=nil should produce a NOT EXISTS subquery."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter({"workloads": {"sap": {"sap_system": {"is": "nil"}}}})
+        sql = _compile_filters_to_sql(filters)
+        assert "NOT (EXISTS" in sql
+
+
+def test_workloads_string_equality_produces_exists_with_containment(flask_app):
+    """String equality on a non-wildcard field should produce EXISTS with full @> containment."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter({"workloads": {"crowdstrike": {"falcon_backend": "auto"}}})
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "@>" in sql
+        # Should NOT fall back to #>> text extraction
+        assert "#>>" not in sql
+
+
+def test_workloads_wildcard_not_nil_produces_exists_with_containment(flask_app):
+    """Wildcard fields like controller_version[is]=not_nil should hit the optimized path."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter({"workloads": {"ansible": {"controller_version": {"is": "not_nil"}}}})
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "@>" in sql
+        assert "NOT (EXISTS" not in sql
+
+
+def test_workloads_wildcard_exact_equality_produces_containment(flask_app):
+    """Wildcard field with exact value (no *) should use @> containment."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter({"workloads": {"mssql": {"version": "15.3"}}})
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "@>" in sql
+        assert "#>>" not in sql
+        assert "ILIKE" not in sql.upper()
+
+
+def test_workloads_multiple_positive_filters_produce_single_exists(flask_app):
+    """Multiple positive workloads filters should merge into one EXISTS(... AND ...)."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter(
+            {
+                "workloads": {"sap": {"sap_system": "true"}},
+                "ansible": {"controller_version": {"is": "not_nil"}},
+            }
+        )
+        sql = _compile_filters_to_sql(filters)
+        # Both filters in a single EXISTS — count occurrences
+        assert sql.count("EXISTS") == 1
+        assert "NOT (EXISTS" not in sql
+
+
+def test_workloads_mixed_positive_and_nil_produces_exists_and_not_exists(flask_app):
+    """Positive + nil workloads filters produce one EXISTS and one NOT EXISTS."""
+    from api.filtering.db_custom_filters import build_system_profile_filter
+
+    with flask_app.app.app_context():
+        filters = build_system_profile_filter(
+            {
+                "workloads": {"sap": {"sap_system": "true"}},
+                "mssql": {"version": {"is": "nil"}},
+            }
+        )
+        sql = _compile_filters_to_sql(filters)
+        assert "EXISTS" in sql
+        assert "NOT (EXISTS" in sql

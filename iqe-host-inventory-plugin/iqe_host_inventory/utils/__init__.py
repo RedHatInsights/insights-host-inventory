@@ -18,7 +18,7 @@ from iqe.users.user import User
 
 if TYPE_CHECKING:
     from iqe_host_inventory.modeling.wrappers import HostWrapper
-from iqe_host_inventory_api.api.hosts_api import HostsApi as HostsApi
+
 
 logger = logging.getLogger(__name__)
 

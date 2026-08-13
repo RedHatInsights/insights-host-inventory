@@ -104,7 +104,6 @@ def test_notifications_kafka_registered(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         title: Creating a host triggers a new-system-registered notification
@@ -128,7 +127,6 @@ def test_notifications_kafka_registered_multiple_hosts(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         title: Creating multiple hosts triggers multiple new-system-registered notifications
@@ -162,7 +160,6 @@ def test_notifications_kafka_registered_update_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         negative: true
@@ -197,7 +194,6 @@ def test_notifications_kafka_registered_failed_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         negative: true
@@ -224,7 +220,6 @@ def test_notifications_kafka_registered_patch_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         negative: true
@@ -258,7 +253,6 @@ def test_notifications_kafka_registered_create_group_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         negative: true
@@ -284,21 +278,20 @@ def test_notifications_kafka_registered_create_staleness_dont_produce(
     https://issues.redhat.com/browse/RHINENG-7914
 
     metadata:
-        requirements: inv-notifications-new-system-registered
         assignee: fstavela
         importance: high
         negative: true
         title: Creating a staleness config doesn't trigger a new-system-registered notification
     """
-    with temp_headers(
-        host_inventory.apis.account_staleness.raw_api,
-        {"x-rh-insights-request-id": generate_uuid()},
-    ):
-        staleness = host_inventory.apis.account_staleness.create_staleness(
-            conventional_time_to_stale=1000
-        )
+    staleness = host_inventory.apis.account_staleness.create_staleness(
+        conventional_time_to_stale=1000,
+        headers={"x-rh-insights-request-id": generate_uuid()},
+    )
+
+    assert staleness.status_code in (200, 201)
+    assert "id" in staleness.json()
 
     with pytest.raises(KafkaMessageNotFoundError):
         host_inventory.kafka.wait_for_filtered_registered_notification_message(
-            RegisteredNotificationWrapper.inventory_id, staleness.id.actual_instance, timeout=3
+            RegisteredNotificationWrapper.inventory_id, staleness.json()["id"], timeout=3
         )

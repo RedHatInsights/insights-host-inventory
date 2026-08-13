@@ -1476,8 +1476,17 @@ def test_get_hosts_filter_by_reporter_and_staleness(
         "[mssql][version]=15.3",
         "[mssql][version][]=15.3",
         "[mssql][version][]=not_nil",
+        "[workloads][ansible][is]=not_nil",
         "[workloads][ansible][controller_version]=1.0",
         "[ansible][controller_version]=1.0",
+        "[workloads][ansible][receptor_version]=1.5.2",
+        "[ansible][receptor_version]=1.5.2",
+        "[workloads][ansible][runner_version]=2.4.1",
+        "[ansible][runner_version]=2.4.1",
+        "[workloads][ansible][eda_controller_version]=1.1.0",
+        "[ansible][eda_controller_version]=1.1.0",
+        "[workloads][ansible][gateway_version]=2.5.3",
+        "[ansible][gateway_version]=2.5.3",
         "[workloads][sap][sap_system]=True",
         "[workloads][sap][sap_system]=TRUE",
         "[workloads][sap][sap_system][is]=not_nil",
@@ -1517,6 +1526,12 @@ def test_get_hosts_filter_by_reporter_and_staleness(
         "[workloads][rhel_ai][rhel_ai_version_id][eq][]=v1.1.2",
         "[workloads][rhel_ai][variant][is]=nil",
         "[workloads][rhel_ai][gpu_models][is]=not_nil",
+        "[workloads][satellite][is]=not_nil",
+        "[workloads][satellite][type][]=server",
+        "[workloads][satellite][type][]=not_nil",
+        "[workloads][satellite][version]=6.17.6.1",
+        "[workloads][satellite][version][]=6.17.6.1",
+        "[workloads][satellite][version][]=not_nil",
         # JSON object notation (value is a JSON string instead of square bracket path)
         '={"arch": "x86_64"}',
         '={"arch": {"eq": "x86_64"}}',
@@ -1535,7 +1550,13 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
             "workloads": {
                 "sap": {"sap_system": True, "sids": ["ABC", "DEF"]},
                 "mssql": {"version": "15.3"},
-                "ansible": {"controller_version": "1.0"},
+                "ansible": {
+                    "controller_version": "1.0",
+                    "receptor_version": "1.5.2",
+                    "runner_version": "2.4.1",
+                    "eda_controller_version": "1.1.0",
+                    "gateway_version": "2.5.3",
+                },
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
                     "gpu_models": [
@@ -1543,6 +1564,7 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                         {"name": "AMD Device 0c31", "vendor": "AMD"},
                     ],
                 },
+                "satellite": {"type": "server", "version": "6.17.6.1"},
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -2911,6 +2933,116 @@ def test_get_hosts_sp_workload_filters_no_matches(db_create_host, api_get):
 
     assert response_status == 200
     assert response_data["results"] == []
+
+
+def test_workloads_exists_subquery_with_mixed_static_sp_filter(db_create_host, api_get):
+    """When workloads filter is combined with a static SP filter (e.g. arch),
+    the static filter must stay on the outer query, not inside EXISTS over dynamic table.
+    Verifies both filters narrow results correctly (AND semantics).
+    """
+    match_host = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "x86_64",
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    wrong_arch = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "aarch64",
+                    "workloads": {"sap": {"sap_system": True}},
+                }
+            }
+        ).id
+    )
+    no_sap = str(
+        db_create_host(
+            extra_data={
+                "system_profile_facts": {
+                    "arch": "x86_64",
+                    "workloads": {"sap": {"sap_system": False}},
+                }
+            }
+        ).id
+    )
+
+    url = build_hosts_url(
+        query="?filter[system_profile][arch]=x86_64&filter[system_profile][workloads][sap][sap_system]=true"
+    )
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert match_host in response_ids
+    assert wrong_arch not in response_ids
+    assert no_sap not in response_ids
+
+
+def test_workloads_nil_filter_uses_not_exists(db_create_host, api_get):
+    """Nil workloads filters use NOT EXISTS to match hosts with no matching
+    system_profiles_dynamic row. Also covers partial data where the parent key exists
+    but the leaf field is absent.
+    """
+    empty_sp_host = str(db_create_host(extra_data={"system_profile_facts": {}}).id)
+    sap_true_host = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
+    )
+    # workloads.sap exists but sap_system is not set — should match nil
+    sap_no_field_host = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {}}}}).id)
+
+    url = build_hosts_url(query="?filter[system_profile][sap_system][is]=nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert empty_sp_host in response_ids
+    assert sap_no_field_host in response_ids
+    assert sap_true_host not in response_ids
+
+
+def test_workloads_string_not_nil_finds_hosts_with_field_set(db_create_host, api_get):
+    """String/wildcard not_nil filter (e.g. ansible controller_version) should find hosts with the field set."""
+    match_host = str(
+        db_create_host(
+            extra_data={"system_profile_facts": {"workloads": {"ansible": {"controller_version": "4.5.0"}}}}
+        ).id
+    )
+    ansible_no_version = str(db_create_host(extra_data={"system_profile_facts": {"workloads": {"ansible": {}}}}).id)
+    no_ansible = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"sap": {"sap_system": True}}}}).id
+    )
+
+    url = build_hosts_url(query="?filter[system_profile][workloads][ansible][controller_version][is]=not_nil")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert match_host in response_ids
+    assert ansible_no_version not in response_ids
+    assert no_ansible not in response_ids
+
+
+def test_workloads_wildcard_glob_uses_ilike(db_create_host, api_get):
+    """Wildcard field with glob pattern (e.g. version=15.*) should use ILIKE, not @> containment."""
+    host_15_3 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.3"}}}}).id
+    )
+    host_15_10 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "15.10"}}}}).id
+    )
+    host_14_9 = str(
+        db_create_host(extra_data={"system_profile_facts": {"workloads": {"mssql": {"version": "14.9"}}}}).id
+    )
+
+    url = build_hosts_url(query="?filter[system_profile][workloads][mssql][version]=15.*")
+    response_status, response_data = api_get(url)
+    assert response_status == 200
+    response_ids = {r["id"] for r in response_data["results"]}
+    assert host_15_3 in response_ids
+    assert host_15_10 in response_ids
+    assert host_14_9 not in response_ids
 
 
 def test_no_hosts_in_org(api_get):

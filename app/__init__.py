@@ -14,6 +14,7 @@ from flask import request
 from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
+from api.admin import admin_blueprint
 from api.cache import init_cache
 from api.mgmt import monitoring_blueprint
 from api.parsing import customURIParser
@@ -55,6 +56,7 @@ IDENTITY_HEADER = "x-rh-identity"
 REQUEST_ID_HEADER = "x-rh-insights-request-id"
 
 SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi.json")
+V2_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "openapi_v2.json")
 SYSTEM_PROFILE_SPECIFICATION_FILE = join(SPECIFICATION_DIR, "system_profile.spec.yaml")
 SYSTEM_PROFILE_BLOCK_LIST_FILE = join(SPECIFICATION_DIR, "system_profile_block_list.yaml")
 
@@ -257,6 +259,21 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
             )
             logger.info("Listening on API: %s", api_url)
 
+    if app_config.v2_api_enabled:
+        v2_parser = TranslatingParser(V2_SPECIFICATION_FILE)
+        v2_parser.parse()
+        v2_base_path = f"{app_config.base_url_path}/v2"
+        app.add_api(
+            v2_parser.specification,
+            arguments={"title": "HBI V2 API"},
+            resolver=RestyResolver("api.v2"),
+            validate_responses=True,
+            strict_validation=False,
+            base_path=v2_base_path,
+            validator_map=build_validator_map(system_profile_spec=sp_spec),
+        )
+        logger.info("Listening on V2 API: %s", v2_base_path)
+
     flask_app = app.app
 
     # Add an error handler that will convert our top level exceptions
@@ -304,6 +321,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
+    flask_app.register_blueprint(admin_blueprint, url_prefix=app_config.api_url_path_prefix)
     for api_url in app_config.api_urls:
         flask_app.register_blueprint(spec_blueprint, url_prefix=api_url, name=f"{api_url}{spec_blueprint.name}")
 
