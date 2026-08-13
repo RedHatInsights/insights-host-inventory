@@ -9,9 +9,9 @@ import logging
 from uuid import UUID
 
 import pytest
+import requests
 
 from iqe_host_inventory import ApplicationHostInventory
-from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 
@@ -38,10 +38,10 @@ class TestViewsList:
             importance: high
             title: List views returns paginated response
         """
-        response = host_inventory.apis.views.get_views_response()
-        assert response.total >= 0
-        assert response.page == 1
-        assert response.per_page == 50
+        body = host_inventory.apis.views.get_views_json()
+        assert body["total"] >= 0
+        assert body["page"] == 1
+        assert body["per_page"] == 50
 
     def test_created_view_appears_in_list(self, host_inventory: ApplicationHostInventory):
         """
@@ -55,8 +55,8 @@ class TestViewsList:
         created = host_inventory.apis.views.create_view(name, configuration=VALID_CONFIGURATION)
 
         views = host_inventory.apis.views.get_views()
-        view_ids = {v.id for v in views}
-        assert created.id in view_ids
+        view_ids = {v["id"] for v in views}
+        assert created["id"] in view_ids
 
 
 class TestViewGetById:
@@ -73,9 +73,9 @@ class TestViewGetById:
         name = generate_display_name()
         created = host_inventory.apis.views.create_view(name, configuration=VALID_CONFIGURATION)
 
-        fetched = host_inventory.apis.views.get_view_by_id(created)
-        assert fetched.id == created.id
-        assert fetched.name == name
+        fetched = host_inventory.apis.views.get_view_by_id(created["id"])
+        assert fetched["id"] == created["id"]
+        assert fetched["name"] == name
 
     def test_get_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
         """
@@ -86,8 +86,9 @@ class TestViewGetById:
             title: GET for nonexistent view returns 404
         """
         fake_id = generate_uuid()
-        with raises_apierror(404):
+        with pytest.raises(requests.HTTPError) as exc_info:
             host_inventory.apis.views.get_view_by_id(fake_id)
+        assert exc_info.value.response.status_code == 404
 
 
 class TestViewCreate:
@@ -109,12 +110,12 @@ class TestViewCreate:
             description=description,
         )
 
-        assert UUID(view.id)
-        assert view.name == name
-        assert view.description == description
-        assert view.is_owner is True
-        assert view.is_system_view is False
-        assert view.org_wide is False
+        assert UUID(view["id"])
+        assert view["name"] == name
+        assert view["description"] == description
+        assert view["is_owner"] is True
+        assert view["is_system_view"] is False
+        assert view["org_wide"] is False
 
     def test_create_view_validation_rejects_invalid_column(
         self, host_inventory: ApplicationHostInventory
@@ -128,11 +129,12 @@ class TestViewCreate:
         """
         name = generate_display_name()
         bad_config = {"columns": [{"key": "totally_fake_field"}]}
-        with raises_apierror(400, "Invalid column key"):
-            host_inventory.apis.views.raw_api.api_views_create_view({
-                "name": name,
-                "configuration": bad_config,
-            })
+        with pytest.raises(requests.HTTPError) as exc_info:
+            host_inventory.apis.views.create_view(
+                name, configuration=bad_config, register_for_cleanup=False
+            )
+        assert exc_info.value.response.status_code == 400
+        assert "Invalid column key" in exc_info.value.response.text
 
 
 class TestViewUpdate:
@@ -152,11 +154,11 @@ class TestViewUpdate:
         )
 
         new_name = generate_display_name()
-        updated = host_inventory.apis.views.update_view(view, name=new_name)
+        updated = host_inventory.apis.views.update_view(view["id"], name=new_name)
 
-        assert updated.id == view.id
-        assert updated.name == new_name
-        assert updated.created_by == view.created_by
+        assert updated["id"] == view["id"]
+        assert updated["name"] == new_name
+        assert updated["created_by"] == view["created_by"]
 
     def test_update_view_configuration(self, host_inventory: ApplicationHostInventory):
         """
@@ -173,10 +175,10 @@ class TestViewUpdate:
             "columns": [{"key": "display_name"}, {"key": "updated"}, {"key": "last_check_in"}],
             "sort": {"key": "updated", "direction": "desc"},
         }
-        updated = host_inventory.apis.views.update_view(view, configuration=new_config)
+        updated = host_inventory.apis.views.update_view(view["id"], configuration=new_config)
 
-        assert updated.id == view.id
-        assert len(updated.configuration.columns) == 3
+        assert updated["id"] == view["id"]
+        assert len(updated["configuration"]["columns"]) == 3
 
     def test_update_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
         """
@@ -187,10 +189,9 @@ class TestViewUpdate:
             title: PATCH returns 404 when updating a nonexistent view
         """
         fake_id = generate_uuid()
-        with raises_apierror(404):
-            host_inventory.apis.views.raw_api.api_views_patch_view(
-                fake_id, {"name": generate_display_name()}
-            )
+        with pytest.raises(requests.HTTPError) as exc_info:
+            host_inventory.apis.views.update_view(fake_id, name=generate_display_name())
+        assert exc_info.value.response.status_code == 404
 
 
 class TestViewDelete:
@@ -209,11 +210,12 @@ class TestViewDelete:
             name, configuration=VALID_CONFIGURATION, register_for_cleanup=False
         )
 
-        response = host_inventory.apis.views.raw_api.api_views_delete_view_with_http_info(view.id)
-        assert response[1] == 204
+        response = host_inventory.apis.views.delete_view(view["id"])
+        assert response.status_code == 204
 
-        with raises_apierror(404):
-            host_inventory.apis.views.get_view_by_id(view.id)
+        with pytest.raises(requests.HTTPError) as exc_info:
+            host_inventory.apis.views.get_view_by_id(view["id"])
+        assert exc_info.value.response.status_code == 404
 
     def test_delete_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
         """
@@ -224,8 +226,9 @@ class TestViewDelete:
             title: Delete a nonexistent view returns 404
         """
         fake_id = generate_uuid()
-        with raises_apierror(404):
-            host_inventory.apis.views.raw_api.api_views_delete_view(fake_id)
+        with pytest.raises(requests.HTTPError) as exc_info:
+            host_inventory.apis.views.delete_view(fake_id)
+        assert exc_info.value.response.status_code == 404
 
 
 class TestViewClone:
@@ -244,13 +247,13 @@ class TestViewClone:
             name, configuration=VALID_CONFIGURATION, description="original"
         )
 
-        cloned = host_inventory.apis.views.clone_view(original)
+        cloned = host_inventory.apis.views.clone_view(original["id"])
 
-        assert UUID(cloned.id)
-        assert cloned.id != original.id
-        assert cloned.name == f"Copy of {name}"
-        assert cloned.is_owner is True
-        assert cloned.org_wide is False
+        assert UUID(cloned["id"])
+        assert cloned["id"] != original["id"]
+        assert cloned["name"] == f"Copy of {name}"
+        assert cloned["is_owner"] is True
+        assert cloned["org_wide"] is False
 
     def test_clone_preserves_configuration(self, host_inventory: ApplicationHostInventory):
         """
@@ -267,16 +270,19 @@ class TestViewClone:
             "filters": {"vulnerability": {"critical_cves": {"gte": "1"}}},
         }
         original = host_inventory.apis.views.create_view(name, configuration=config)
-        cloned = host_inventory.apis.views.clone_view(original)
+        cloned = host_inventory.apis.views.clone_view(original["id"])
 
-        cloned_keys = [c.key for c in cloned.configuration.columns]
-        original_keys = [c.key for c in original.configuration.columns]
+        cloned_keys = [c["key"] for c in cloned["configuration"]["columns"]]
+        original_keys = [c["key"] for c in original["configuration"]["columns"]]
         assert cloned_keys == original_keys
 
-        assert cloned.configuration.sort.key == original.configuration.sort.key
-        assert cloned.configuration.sort.direction == original.configuration.sort.direction
+        assert cloned["configuration"]["sort"]["key"] == original["configuration"]["sort"]["key"]
+        assert (
+            cloned["configuration"]["sort"]["direction"]
+            == original["configuration"]["sort"]["direction"]
+        )
 
-        assert cloned.configuration.filters == original.configuration.filters
+        assert cloned["configuration"]["filters"] == original["configuration"]["filters"]
 
     def test_clone_nonexistent_view_returns_404(self, host_inventory: ApplicationHostInventory):
         """
@@ -287,8 +293,9 @@ class TestViewClone:
             title: Clone nonexistent view returns 404
         """
         fake_id = generate_uuid()
-        with raises_apierror(404):
+        with pytest.raises(requests.HTTPError) as exc_info:
             host_inventory.apis.views.clone_view(fake_id)
+        assert exc_info.value.response.status_code == 404
 
     def test_clone_and_modify_independently(self, host_inventory: ApplicationHostInventory):
         """
@@ -301,12 +308,12 @@ class TestViewClone:
         name = generate_display_name()
         original = host_inventory.apis.views.create_view(name, configuration=VALID_CONFIGURATION)
 
-        cloned = host_inventory.apis.views.clone_view(original)
+        cloned = host_inventory.apis.views.clone_view(original["id"])
         new_name = generate_display_name()
-        host_inventory.apis.views.update_view(cloned, name=new_name)
+        host_inventory.apis.views.update_view(cloned["id"], name=new_name)
 
-        refetched_original = host_inventory.apis.views.get_view_by_id(original)
-        assert refetched_original.name == name
+        refetched_original = host_inventory.apis.views.get_view_by_id(original["id"])
+        assert refetched_original["name"] == name
 
 
 class TestViewCrossOrg:
@@ -329,5 +336,5 @@ class TestViewCrossOrg:
         view = host_inventory.apis.views.create_view(name, configuration=VALID_CONFIGURATION)
 
         secondary_views = host_inventory_secondary.apis.views.get_views()
-        secondary_view_ids = {v.id for v in secondary_views}
-        assert view.id not in secondary_view_ids
+        secondary_view_ids = {v["id"] for v in secondary_views}
+        assert view["id"] not in secondary_view_ids
