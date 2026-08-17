@@ -3,28 +3,22 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
 
 import attr
+import requests
 from iqe.base.modeling import BaseEntity
 
-from iqe_host_inventory.utils.api_utils import check_org_id
-from iqe_host_inventory_api import ViewOut
-from iqe_host_inventory_api import ViewsApi
-from iqe_host_inventory_api import ViewsListOut
+from iqe_host_inventory.modeling.base_api_wrapper import BaseAPIWrapper
+from iqe_host_inventory.utils.api_utils import build_query_string
 
 if TYPE_CHECKING:
     from iqe_host_inventory import ApplicationHostInventory
 
-VIEW_OR_ID = ViewOut | str
-
 logger = logging.getLogger(__name__)
-
-
-def _id_from_view(view: VIEW_OR_ID) -> str:
-    return view if isinstance(view, str) else view.id
 
 
 @attr.s
@@ -34,66 +28,70 @@ class ViewsAPIWrapper(BaseEntity):
         return self.application.host_inventory
 
     @cached_property
-    def raw_api(self) -> ViewsApi:
-        """
-        Raw auto-generated OpenAPI client.
-        Use high level API wrapper methods instead of this raw API client.
-        Outside this class this should be used only for negative validation testing.
-        """
-        return self._host_inventory.rest_client.views_api
+    def _base_wrapper(self) -> BaseAPIWrapper:
+        return BaseAPIWrapper(self.application)
 
-    @check_org_id
     def get_views_response(
         self,
         *,
         per_page: int | None = None,
         page: int | None = None,
-        **api_kwargs: Any,
-    ) -> ViewsListOut:
-        """Get list of views, return OpenAPI client response.
+    ) -> requests.Response:
+        """Get list of views, return raw HTTP response.
 
         :param int per_page: Number of items to return per page (default: 50)
         :param int page: Page number (default: 1)
-        :return ViewsListOut: API response
+        :return requests.Response: API response
         """
+        query = build_query_string(per_page=per_page, page=page)
+        path = "/beta/views"
+        if query:
+            path += "?" + query
+
         with self._host_inventory.apis.measure_time("GET /views"):
-            return self.raw_api.api_views_get_views_list(
-                per_page=per_page,
-                page=page,
-                **api_kwargs,
-            )
+            response = self._base_wrapper.get(path)
+        response.raise_for_status()
+        return response
+
+    def get_views_json(
+        self,
+        *,
+        per_page: int | None = None,
+        page: int | None = None,
+    ) -> dict[str, Any]:
+        """Get list of views, return parsed JSON body.
+
+        :param int per_page: Number of items to return per page (default: 50)
+        :param int page: Page number (default: 1)
+        :return dict: Dictionary with total, count, page, per_page, results
+        """
+        return self.get_views_response(per_page=per_page, page=page).json()
 
     def get_views(
         self,
         *,
         per_page: int | None = None,
         page: int | None = None,
-        **api_kwargs: Any,
-    ) -> list[ViewOut]:
-        """Get list of views, return list of view objects.
+    ) -> list[dict[str, Any]]:
+        """Get list of views, return just the results list.
 
         :param int per_page: Number of items to return per page (default: 50)
         :param int page: Page number (default: 1)
-        :return list[ViewOut]: List of views
+        :return list[dict]: List of view dicts
         """
-        return self.get_views_response(
-            per_page=per_page,
-            page=page,
-            **api_kwargs,
-        ).results
+        return self.get_views_json(per_page=per_page, page=page)["results"]
 
-    @check_org_id
-    def get_view_by_id(self, view: VIEW_OR_ID, **api_kwargs: Any) -> ViewOut:
+    def get_view_by_id(self, view_id: str) -> dict[str, Any]:
         """Get a single view by its ID.
 
-        :param VIEW_OR_ID view: A view ID string or ViewOut object
-        :return ViewOut: Retrieved view
+        :param str view_id: View UUID
+        :return dict: View data
         """
-        view_id = _id_from_view(view)
         with self._host_inventory.apis.measure_time("GET /views/<view_id>"):
-            return self.raw_api.api_views_get_view_by_id(view_id, **api_kwargs)
+            response = self._base_wrapper.get(f"/beta/views/{view_id}")
+        response.raise_for_status()
+        return response.json()
 
-    @check_org_id
     def create_view(
         self,
         name: str,
@@ -103,17 +101,16 @@ class ViewsAPIWrapper(BaseEntity):
         org_wide: bool | None = None,
         register_for_cleanup: bool = True,
         cleanup_scope: str = "function",
-        **api_kwargs: Any,
-    ) -> ViewOut:
+    ) -> dict[str, Any]:
         """Create a new inventory view.
 
         :param str name: View name (required)
-        :param dict configuration: View configuration (columns, sort, filters)
+        :param dict configuration: View configuration (columns, sort, filters, host_filters)
         :param str description: View description
         :param bool org_wide: Whether the view is visible to the whole org
         :param bool register_for_cleanup: Register the view for automatic cleanup
         :param str cleanup_scope: Scope for cleanup (function, class, module, package, session)
-        :return ViewOut: Created view
+        :return dict: Created view data
         """
         data: dict[str, Any] = {"name": name}
         if configuration is not None:
@@ -124,34 +121,33 @@ class ViewsAPIWrapper(BaseEntity):
             data["org_wide"] = org_wide
 
         with self._host_inventory.apis.measure_time("POST /views"):
-            created_view: ViewOut = self.raw_api.api_views_create_view(data, **api_kwargs)
+            response = self._base_wrapper.post("/beta/views", json=data)
+        response.raise_for_status()
+        created_view = response.json()
 
         if register_for_cleanup:
-            self._host_inventory.cleanup.add_views(created_view.id, scope=cleanup_scope)
+            self._host_inventory.cleanup.add_views(created_view["id"], scope=cleanup_scope)
 
         return created_view
 
-    @check_org_id
     def update_view(
         self,
-        view: VIEW_OR_ID,
+        view_id: str,
         *,
         name: str | None = None,
         description: str | None = None,
         configuration: dict[str, Any] | None = None,
         org_wide: bool | None = None,
-        **api_kwargs: Any,
-    ) -> ViewOut:
+    ) -> dict[str, Any]:
         """Update an existing inventory view (partial update).
 
-        :param VIEW_OR_ID view: A view ID string or ViewOut object
+        :param str view_id: View UUID
         :param str name: Updated view name
         :param str description: Updated description
         :param dict configuration: Updated configuration
         :param bool org_wide: Updated org_wide flag
-        :return ViewOut: Updated view
+        :return dict: Updated view data
         """
-        view_id = _id_from_view(view)
         data: dict[str, Any] = {}
         if name is not None:
             data["name"] = name
@@ -163,58 +159,60 @@ class ViewsAPIWrapper(BaseEntity):
             data["org_wide"] = org_wide
 
         with self._host_inventory.apis.measure_time("PATCH /views/<view_id>"):
-            return self.raw_api.api_views_patch_view(view_id, data, **api_kwargs)
+            response = self._base_wrapper.patch(f"/beta/views/{view_id}", json=data)
+        response.raise_for_status()
+        return response.json()
 
-    @check_org_id
-    def delete_view(self, view: VIEW_OR_ID, **api_kwargs: Any) -> None:
+    def delete_view(self, view_id: str) -> requests.Response:
         """Delete an inventory view.
 
-        :param VIEW_OR_ID view: A view ID string or ViewOut object
+        :param str view_id: View UUID
+        :return requests.Response: Raw HTTP response
         """
-        view_id = _id_from_view(view)
         with self._host_inventory.apis.measure_time("DELETE /views/<view_id>"):
-            self.raw_api.api_views_delete_view(view_id, **api_kwargs)
+            response = self._base_wrapper.delete(f"/beta/views/{view_id}")
+        response.raise_for_status()
+        return response
 
-    def delete_views(self, view_ids: set[str] | list[str]) -> None:
-        """Delete multiple views, suppressing 404 and 403 errors.
+    def delete_views(self, view_ids: Iterable[str]) -> None:
+        """Delete multiple views, suppressing 404 errors.
 
         404 is expected when a view was already deleted (e.g. by the test itself).
-        403 is expected for system views that cannot be deleted.
 
-        :param view_ids: Collection of view IDs to delete
+        :param view_ids: Collection of view IDs to delete (must not be a bare str)
         """
-        from iqe_host_inventory_api import ApiException
+        if isinstance(view_ids, str):
+            view_ids = [view_ids]
 
         for view_id in view_ids:
             try:
                 self.delete_view(view_id)
-            except ApiException as err:
-                if err.status in (403, 404):
-                    logger.info(f"Skipping cleanup for view {view_id}: HTTP {err.status}")
+            except requests.HTTPError as err:
+                if err.response is not None and err.response.status_code == 404:
+                    logger.info(f"Skipping cleanup for view {view_id}: HTTP 404")
                 else:
                     raise
 
-    @check_org_id
     def clone_view(
         self,
-        view: VIEW_OR_ID,
+        view_id: str,
         *,
         register_for_cleanup: bool = True,
         cleanup_scope: str = "function",
-        **api_kwargs: Any,
-    ) -> ViewOut:
+    ) -> dict[str, Any]:
         """Clone an existing inventory view.
 
-        :param VIEW_OR_ID view: A view ID string or ViewOut object
+        :param str view_id: View UUID
         :param bool register_for_cleanup: Register the cloned view for automatic cleanup
         :param str cleanup_scope: Scope for cleanup
-        :return ViewOut: Cloned view
+        :return dict: Cloned view data
         """
-        view_id = _id_from_view(view)
         with self._host_inventory.apis.measure_time("POST /views/<view_id>/clone"):
-            cloned_view: ViewOut = self.raw_api.api_views_clone_view(view_id, **api_kwargs)
+            response = self._base_wrapper.post(f"/beta/views/{view_id}/clone")
+        response.raise_for_status()
+        cloned_view = response.json()
 
         if register_for_cleanup:
-            self._host_inventory.cleanup.add_views(cloned_view.id, scope=cleanup_scope)
+            self._host_inventory.cleanup.add_views(cloned_view["id"], scope=cleanup_scope)
 
         return cloned_view
