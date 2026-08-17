@@ -2947,13 +2947,73 @@ components:
         filters:
           description: >-
             Active filter criteria for this view. Top-level keys are filter
-            namespaces: app names (e.g. vulnerability, patch) or system_profile.
-            Each namespace value is a nested object of field -> operator -> value
-            conditions. system_profile filters may be deeply nested
-            (e.g. operating_system.RHEL.version). Validated server-side using
-            the hosts API filter engine.
+            namespaces: app names (e.g. vulnerability, patch), system_profile,
+            or host (for host-level query parameters). Each namespace value is
+            a nested object. system_profile filters may be deeply nested
+            (e.g. operating_system.RHEL.version). The reserved "host" key
+            holds host-level query parameters (staleness, tags, etc.) that
+            the frontend replays as /hosts query params. Validated server-side.
           type: object
           additionalProperties: true
+          properties:
+            host:
+              $ref: '#/components/schemas/HostFilters'
+    HostFilters:
+      title: Host Query Filters
+      description: >-
+        Host-level query filters that correspond to the /hosts endpoint
+        query parameters. Stored with the view so the frontend can
+        reconstruct the full query when loading hosts for this view.
+      type: object
+      properties:
+        hostname_or_id:
+          description: Display name or ID substring search.
+          type: string
+        staleness:
+          description: Culling states to include.
+          type: array
+          items:
+            type: string
+            enum:
+              - fresh
+              - stale
+              - stale_warning
+              - unknown
+        registered_with:
+          description: Filter by reporting source.
+          type: array
+          items:
+            type: string
+        tags:
+          description: Tag filters in namespace/key=value format.
+          type: array
+          items:
+            type: string
+        group_name:
+          description: Filter by workspace/group name.
+          type: array
+          items:
+            type: string
+        last_check_in_start:
+          description: Start of last check-in date range (ISO 8601).
+          type: string
+          format: date-time
+        last_check_in_end:
+          description: End of last check-in date range (ISO 8601).
+          type: string
+          format: date-time
+        updated_start:
+          description: Start of last-modified date range (ISO 8601).
+          type: string
+          format: date-time
+        updated_end:
+          description: End of last-modified date range (ISO 8601).
+          type: string
+          format: date-time
+        system_type:
+          description: Filter by system type.
+          type: string
+      additionalProperties: false
     ViewIn:
       title: View Create Payload
       description: Data required to create a new inventory view.

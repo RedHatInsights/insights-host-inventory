@@ -21,6 +21,25 @@ class FiltersSchema(MarshmallowSchema):
         unknown = INCLUDE
 
 
+VALID_STALENESS_VALUES = ("fresh", "stale", "stale_warning", "unknown")
+
+
+class HostFiltersSchema(MarshmallowSchema):
+    hostname_or_id = fields.Str(required=False)
+    staleness = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_STALENESS_VALUES)),
+        required=False,
+    )
+    registered_with = fields.List(fields.Str(), required=False)
+    tags = fields.List(fields.Str(), required=False)
+    group_name = fields.List(fields.Str(), required=False)
+    last_check_in_start = fields.Str(required=False)
+    last_check_in_end = fields.Str(required=False)
+    updated_start = fields.Str(required=False)
+    updated_end = fields.Str(required=False)
+    system_type = fields.Str(required=False)
+
+
 class ConfigurationSchema(MarshmallowSchema):
     columns = fields.List(fields.Nested(ColumnSchema), required=True)
     sort = fields.Nested(SortSchema, required=False)
