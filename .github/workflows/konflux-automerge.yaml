@@ -7,7 +7,7 @@ on:
       - 'Dockerfile'
       - '.pre-commit-config.yaml'
       - 'iqe-host-inventory-plugin/.pre-commit-config.yaml'
-      - 'rpms.lock.yaml'
+      - '.hermetic_builds/rpms.lock.yaml'
       - 'librdkafka'
 
 jobs:

@@ -56,7 +56,7 @@ It will do these steps to generate the lock file:
 After completing the RPM lock file steps, commit the generated files to `git`:
 
 ```bash
-git add rpms.in.yaml rpms.lock.yaml
+git add .hermetic_builds/rpms.in.yaml .hermetic_builds/rpms.lock.yaml
 git commit -m "Add generated RPM lock files"
 ```
 
@@ -109,7 +109,7 @@ make generate-requirements-build-in
 After completing the Python requirements steps, commit the generated files and any script updates to `git`:
 
 ```bash
-git add requirements.txt requirements-build.in requirements-build.txt requirements-extras.in requirements-extras.txt .hermetic_builds/*.sh
+git add .hermetic_builds/requirements.txt .hermetic_builds/requirements-build.in .hermetic_builds/requirements-build.txt .hermetic_builds/requirements-extras.in .hermetic_builds/requirements-extras.txt .hermetic_builds/*.sh
 git commit -m "Add generated Python requirements files and hermetic build scripts"
 ```
 

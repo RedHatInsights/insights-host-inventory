@@ -266,7 +266,7 @@ class TestCreateView:
                 },
             },
         }
-        data = {"name": "RHEL 9.6 View", "configuration": config}
+        data = {"name": "RHEL 96 View OS Filter", "configuration": config}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
@@ -476,6 +476,42 @@ class TestCreateView:
         assert_response_status(response_status, 400)
         assert "visible" in response_data["detail"]
 
+    def test_400_for_special_characters_in_name(self, flask_client: TestClient) -> None:
+        data = {"name": "Bad@Name!", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_400_for_control_characters_in_name(self, flask_client: TestClient) -> None:
+        data = {"name": "Bad\nName", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_400_for_punctuation_only_name(self, flask_client: TestClient) -> None:
+        data = {"name": "!!!", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_creates_view_with_hyphens_and_underscores(self, flask_client: TestClient) -> None:
+        data = {"name": "my-view_2024", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "my-view_2024"
+
     def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
         data = {"name": "Test", "configuration": VALID_CONFIG}
 
@@ -575,6 +611,44 @@ class TestUpdateView:
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_400_for_special_characters_in_name(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "New@Name!"})
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_400_for_control_characters_in_name(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "Bad\nName"})
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_400_for_punctuation_only_name(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "!!!"})
+
+        assert_response_status(response_status, 400)
+        assert "name" in response_data["detail"]
+
+    def test_updates_name_with_hyphens_and_underscores(
+        self, flask_client: TestClient, db_create_view: Callable
+    ) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "my-view_2024"})
+
+        assert_response_status(response_status, 200)
+        assert response_data["name"] == "my-view_2024"
 
     def test_403_for_system_view(self, flask_client: TestClient, db_create_system_view: Callable) -> None:
         view = db_create_system_view()
