@@ -18,7 +18,6 @@ Over time, custom staleness records have been written into the `staleness` table
 
 ## Constraints
 - All three staleness fields must simultaneously be within ±TOLERANCE of their defaults for a row to be deleted — any single field outside tolerance keeps the whole row.
-- All three staleness columns in the `Staleness` model are defined as `nullable=False` with system-default values, so null checks are unnecessary; the `abs(row.field - default) <= TOLERANCE` comparison is always safe.
 - TOLERANCE is read from the `CLEANUP_STALENESS_TOLERANCE` environment variable (default: `3600` seconds), allowing operations to tune the threshold without code changes.
 - SUSPEND_JOB and DRY_RUN must both default to 'true' so accidental production runs are safe.
 - Qualifying rows should be deleted using a bulk `DELETE` statement (or batched deletes for very large candidate sets) inside a single `session_guard` block, rather than per-row transactions, to minimise transaction overhead. Cache invalidation (`StalenessCache.delete`) is still called per org_id after the delete.
