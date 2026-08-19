@@ -2488,6 +2488,21 @@ def test_workspace_mq_update(
         assert call_arg["host"]["groups"][0]["id"] == workspace_id
 
 
+def test_workspace_mq_update_after_delete(mocker, flask_app, caplog):
+    """An update message for a workspace that was already deleted is logged as a warning and skipped."""
+    import logging
+
+    workspace_id = str(generate_uuid())
+    message = generate_kessel_workspace_message("update", workspace_id, "deleted-workspace")
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
+
+    with caplog.at_level(logging.WARNING):
+        result = consumer.handle_message(json.dumps(message))
+
+    assert result is None
+    assert f"Group with ID {workspace_id} not found for update" in caplog.text
+
+
 @pytest.mark.parametrize("num_hosts", (0, 3))
 def test_workspace_mq_delete(
     db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, num_hosts, flask_app, mocker
