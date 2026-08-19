@@ -3137,3 +3137,187 @@ def test_write_message_batch_produces_all_messages(mocker):
     assert mock_event_producer.flush.call_count == 0, (
         "flush() should not be called; each event is flushed via wait=True"
     )
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_rhsm_preserves_ansible_containers(reporter, mq_create_or_update_host, db_get_host):
+    """RHSM reporter should preserve existing ansible containers it can't populate."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    update_sp = {"workloads": {"ansible": {"controller_version": "2.0"}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        reporter=reporter,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["ansible"]["controller_version"] == "2.0"
+    assert workloads["ansible"]["containers"] == [
+        {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+    ]
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_rhsm_preserves_satellite_containers(reporter, mq_create_or_update_host, db_get_host):
+    """RHSM reporter should preserve existing satellite containers it can't populate."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "satellite": {
+                "type": "server",
+                "version": "6.17.0",
+                "containers": [{"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    update_sp = {"workloads": {"satellite": {"type": "server", "version": "6.18.0", "foremanctl_version": "3.0.0"}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        reporter=reporter,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["satellite"]["version"] == "6.18.0"
+    assert workloads["satellite"]["foremanctl_version"] == "3.0.0"
+    assert workloads["satellite"]["containers"] == [
+        {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+    ]
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_non_rhsm_clears_ansible_containers(mq_create_or_update_host, db_get_host):
+    """Non-RHSM reporter sending ansible without containers should clear existing containers."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    update_sp = {"workloads": {"ansible": {"controller_version": "2.0"}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["ansible"]["controller_version"] == "2.0"
+    assert "containers" not in workloads["ansible"]
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+def test_non_rhsm_clears_satellite_containers(mq_create_or_update_host, db_get_host):
+    """Non-RHSM reporter sending satellite without containers should clear existing containers."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "satellite": {
+                "type": "server",
+                "version": "6.17.0",
+                "containers": [{"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    update_sp = {"workloads": {"satellite": {"type": "server", "version": "6.18.0"}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["satellite"]["version"] == "6.18.0"
+    assert "containers" not in workloads["satellite"]
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_rhsm_explicit_empty_containers_wins(reporter, mq_create_or_update_host, db_get_host):
+    """RHSM reporter explicitly sending empty containers should update to empty."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    update_sp = {"workloads": {"ansible": {"controller_version": "2.0", "containers": []}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        reporter=reporter,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["ansible"]["controller_version"] == "2.0"
+    assert workloads["ansible"]["containers"] == []
+
+
+@pytest.mark.usefixtures("event_datetime_mock")
+@pytest.mark.parametrize("reporter", ["rhsm-conduit", "rhsm-system-profile-bridge"])
+def test_rhsm_with_containers_updates_normally(reporter, mq_create_or_update_host, db_get_host):
+    """RHSM reporter sending containers should update them normally."""
+    expected_insights_id = generate_uuid()
+    initial_sp = {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}],
+            }
+        }
+    }
+    existing_host = create_reference_host_in_db(expected_insights_id, "puptoo", initial_sp)
+
+    new_containers = [{"name": "receptor", "image": "quay.io/ansible/receptor:2.0", "state": "stopped"}]
+    update_sp = {"workloads": {"ansible": {"controller_version": "2.0", "containers": new_containers}}}
+    host = minimal_host(
+        org_id=SYSTEM_IDENTITY["org_id"],
+        insights_id=expected_insights_id,
+        reporter=reporter,
+        system_profile=update_sp,
+    )
+    mq_create_or_update_host(host)
+
+    returned_host = db_get_host(existing_host.id)
+    workloads = returned_host.dynamic_system_profile.workloads
+    assert workloads["ansible"]["controller_version"] == "2.0"
+    assert workloads["ansible"]["containers"] == new_containers
