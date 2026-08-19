@@ -6,6 +6,14 @@ from marshmallow import validate as marshmallow_validate
 
 from app.models.views import MAX_VIEW_NAME_LENGTH
 
+VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _-]+$"
+VIEW_NAME_VALIDATION_ERROR = "View name must contain only letters, numbers, spaces, hyphens, and underscores."
+
+_VIEW_NAME_VALIDATION = marshmallow_validate.And(
+    marshmallow_validate.Length(min=1, max=MAX_VIEW_NAME_LENGTH),
+    marshmallow_validate.Regexp(VIEW_NAME_PATTERN, error=VIEW_NAME_VALIDATION_ERROR),
+)
+
 
 class ColumnSchema(MarshmallowSchema):
     key = fields.Str(required=True, validate=marshmallow_validate.Length(min=1))
@@ -52,7 +60,7 @@ class ConfigurationSchema(MarshmallowSchema):
 
 
 class InputViewSchema(MarshmallowSchema):
-    name = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=MAX_VIEW_NAME_LENGTH))
+    name = fields.Str(required=True, validate=_VIEW_NAME_VALIDATION)
     description = fields.Str(required=False, allow_none=True, validate=marshmallow_validate.Length(max=1024))
     configuration = fields.Nested(ConfigurationSchema, required=True)
     org_wide = fields.Bool(required=False, load_default=False)
@@ -65,7 +73,7 @@ class InputViewSchema(MarshmallowSchema):
 
 
 class PatchViewSchema(MarshmallowSchema):
-    name = fields.Str(required=False, validate=marshmallow_validate.Length(min=1, max=MAX_VIEW_NAME_LENGTH))
+    name = fields.Str(required=False, validate=_VIEW_NAME_VALIDATION)
     description = fields.Str(required=False, allow_none=True, validate=marshmallow_validate.Length(max=1024))
     configuration = fields.Nested(ConfigurationSchema, required=False)
     org_wide = fields.Bool(required=False)

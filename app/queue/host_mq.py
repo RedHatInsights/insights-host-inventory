@@ -655,6 +655,12 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
+            if group_to_update is None:
+                logger.warning(
+                    f"Group with ID {workspace['id']} not found for update; "
+                    "it may have been deleted by a concurrent operation. Skipping update."
+                )
+                return None
             group_repository.patch_group(
                 group=group_to_update,
                 patch_data=workspace,
