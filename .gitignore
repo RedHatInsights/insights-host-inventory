@@ -23,6 +23,7 @@ sonarqube/
 .claude/hooks/*.log
 .claude/settings.local.json
 
+.cursor/
 .vscode/
 .hypothesis/
 
