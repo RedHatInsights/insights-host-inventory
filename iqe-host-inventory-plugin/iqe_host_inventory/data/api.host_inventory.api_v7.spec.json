@@ -2852,7 +2852,7 @@
         "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "IpAddresses": {
-        "description": "Host’s network IP addresses.  This field is considered to be a canonical fact.",
+        "description": "Host\u2019s network IP addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2864,13 +2864,13 @@
         ]
       },
       "Fqdn": {
-        "description": "A host’s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
+        "description": "A host\u2019s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
         "example": "my.host.example.com"
       },
       "MacAddresses": {
-        "description": "Host’s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
+        "description": "Host\u2019s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2881,7 +2881,7 @@
         ]
       },
       "ProviderId": {
-        "description": "Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
+        "description": "Host\u2019s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
         "type": "string",
         "nullable": true,
         "example": "i-05d2313e6b9a42b16"
@@ -3076,7 +3076,7 @@
           {
             "properties": {
               "display_name": {
-                "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+                "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
                 "type": "string",
                 "example": "host1.mydomain.com",
                 "nullable": true
@@ -3457,7 +3457,7 @@
       },
       "HostViewCombinedFilter": {
         "type": "object",
-        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field → operator → value` structure.",
+        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field \u2192 operator \u2192 value` structure.",
         "additionalProperties": {
           "$ref": "#/components/schemas/HostViewCombinedFilterValue"
         }
@@ -3613,7 +3613,7 @@
             "example": "host1.mydomain.com"
           },
           "display_name": {
-            "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+            "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
             "type": "string",
             "example": "host1.mydomain.com"
           }
@@ -3715,7 +3715,7 @@
         }
       },
       "GroupName": {
-        "description": "A group’s human-readable name.",
+        "description": "A group\u2019s human-readable name.",
         "type": "string",
         "nullable": false,
         "example": "sre-group"
@@ -4954,7 +4954,7 @@
                 "type": "object",
                 "properties": {
                   "controller_version": {
-                    "description": "The ansible-tower or automation-controller version on the host",
+                    "description": "The installed ansible-tower or automation-controller RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -4962,7 +4962,7 @@
                     "x-wildcard": true
                   },
                   "hub_version": {
-                    "description": "The automation-hub version on the host",
+                    "description": "The installed automation-hub RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -4970,7 +4970,7 @@
                     "x-wildcard": true
                   },
                   "catalog_worker_version": {
-                    "description": "The catalog-worker version on the host",
+                    "description": "The installed catalog-worker RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -4978,7 +4978,7 @@
                     "x-wildcard": true
                   },
                   "sso_version": {
-                    "description": "The SSO version on the host",
+                    "description": "The installed SSO RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -4986,7 +4986,7 @@
                     "x-wildcard": true
                   },
                   "receptor_version": {
-                    "description": "The receptor version on the host",
+                    "description": "The installed receptor RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -4994,7 +4994,7 @@
                     "x-wildcard": true
                   },
                   "runner_version": {
-                    "description": "The ansible-runner version on the host",
+                    "description": "The installed ansible-runner RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -5002,7 +5002,7 @@
                     "x-wildcard": true
                   },
                   "eda_controller_version": {
-                    "description": "The EDA controller version on the host",
+                    "description": "The installed automation-eda-controller RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -5010,12 +5010,18 @@
                     "x-wildcard": true
                   },
                   "gateway_version": {
-                    "description": "The automation gateway version on the host",
+                    "description": "The installed automation-gateway RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
                     "pattern": "^\\d+(\\.\\d+)+$",
                     "x-wildcard": true
+                  },
+                  "containers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Container"
+                    }
                   }
                 }
               },
@@ -5176,11 +5182,24 @@
                     "example": "server"
                   },
                   "version": {
-                    "description": "The Satellite or Capsule version",
+                    "description": "The installed satellite or satellite-capsule RPM version",
                     "type": "string",
                     "example": "6.19.0",
                     "maxLength": 30,
                     "x-wildcard": true
+                  },
+                  "foremanctl_version": {
+                    "description": "The installed foremanctl RPM version",
+                    "type": "string",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "containers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Container"
+                    }
                   }
                 }
               },
@@ -5802,6 +5821,24 @@
           "title",
           "detail"
         ]
+      },
+      "Container": {
+        "description": "A container on the system",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 30
+          }
+        }
       }
     },
     "responses": {
