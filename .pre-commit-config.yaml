@@ -38,7 +38,7 @@ repos:
   - id: ruff-format
     exclude: iqe-host-inventory-plugin/iqe_host_inventory_api/
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: 'v2.3.0'
+  rev: 'v2.3.1'
   hooks:
   - id: mypy
     additional_dependencies:
