@@ -320,8 +320,8 @@ class TestCreateView:
                     "staleness": ["fresh", "stale"],
                     "registered_with": ["insights"],
                     "tags": ["namespace/key=value"],
-                    "group_name": ["production"],
-                    "system_type": "edge",
+                    "workspace_name": ["production"],
+                    "system_type": ["edge"],
                 },
             },
         }
@@ -336,8 +336,8 @@ class TestCreateView:
         assert hf["staleness"] == ["fresh", "stale"]
         assert hf["registered_with"] == ["insights"]
         assert hf["tags"] == ["namespace/key=value"]
-        assert hf["group_name"] == ["production"]
-        assert hf["system_type"] == "edge"
+        assert hf["workspace_name"] == ["production"]
+        assert hf["system_type"] == ["edge"]
 
     def test_creates_view_with_host_filters_date_ranges(self, flask_client: TestClient) -> None:
         config = {

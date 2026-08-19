@@ -2989,8 +2989,8 @@ components:
           type: array
           items:
             type: string
-        group_name:
-          description: Filter by workspace/group name.
+        workspace_name:
+          description: Filter by workspace name.
           type: array
           items:
             type: string
@@ -3012,7 +3012,14 @@ components:
           format: date-time
         system_type:
           description: Filter by system type.
-          type: string
+          type: array
+          items:
+            type: string
+            enum:
+              - conventional
+              - bootc
+              - edge
+              - cluster
       additionalProperties: false
     ViewIn:
       title: View Create Payload

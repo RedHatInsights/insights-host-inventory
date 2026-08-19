@@ -16,11 +16,6 @@ class SortSchema(MarshmallowSchema):
     direction = fields.Str(required=True, validate=marshmallow_validate.OneOf(["asc", "desc"]))
 
 
-class FiltersSchema(MarshmallowSchema):
-    class Meta:
-        unknown = INCLUDE
-
-
 VALID_STALENESS_VALUES = ("fresh", "stale", "stale_warning", "unknown")
 
 
@@ -32,18 +27,28 @@ class HostFiltersSchema(MarshmallowSchema):
     )
     registered_with = fields.List(fields.Str(), required=False)
     tags = fields.List(fields.Str(), required=False)
-    group_name = fields.List(fields.Str(), required=False)
+    workspace_name = fields.List(fields.Str(), required=False)
     last_check_in_start = fields.Str(required=False)
     last_check_in_end = fields.Str(required=False)
     updated_start = fields.Str(required=False)
     updated_end = fields.Str(required=False)
-    system_type = fields.Str(required=False)
+    system_type = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(["conventional", "bootc", "edge", "cluster"])),
+        required=False,
+    )
+
+
+class ViewFiltersSchema(MarshmallowSchema):
+    class Meta:
+        unknown = INCLUDE
+
+    host = fields.Nested(HostFiltersSchema, required=False)
 
 
 class ConfigurationSchema(MarshmallowSchema):
     columns = fields.List(fields.Nested(ColumnSchema), required=True)
     sort = fields.Nested(SortSchema, required=False)
-    filters = fields.Nested(FiltersSchema, required=False)
+    filters = fields.Nested(ViewFiltersSchema, required=False)
 
 
 class InputViewSchema(MarshmallowSchema):
