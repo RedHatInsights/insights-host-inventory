@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from functools import cache
 
 from api.filtering.app_data_sorting import get_app_sort_field_map
@@ -68,8 +69,43 @@ def validate_view_configuration(configuration: dict) -> None:
 
     filters = configuration.get("filters")
     if filters:
-        _validate_filters(filters)
+        host = filters.pop("host", None)
+        if filters:
+            _validate_filters(filters)
+        if host:
+            _validate_host_filters(host)
+            filters["host"] = host
 
 
 def _validate_filters(filters: dict) -> None:
     validate_filter_structure(filters)
+
+
+_DATE_FIELDS = ("last_check_in_start", "last_check_in_end", "updated_start", "updated_end")
+
+
+def _validate_host_filters(host_filters: dict) -> None:
+    for field in _DATE_FIELDS:
+        value = host_filters.get(field)
+        if value is not None:
+            _parse_iso_datetime(field, value)
+
+    _validate_date_range(host_filters, "last_check_in_start", "last_check_in_end")
+    _validate_date_range(host_filters, "updated_start", "updated_end")
+
+
+def _parse_iso_datetime(field_name: str, value: str) -> datetime:
+    try:
+        return datetime.fromisoformat(value)
+    except (ValueError, TypeError) as err:
+        raise ValidationException(f"'{field_name}' is not a valid ISO 8601 datetime: {value}") from err
+
+
+def _validate_date_range(host_filters: dict, start_key: str, end_key: str) -> None:
+    start_str = host_filters.get(start_key)
+    end_str = host_filters.get(end_key)
+    if start_str and end_str:
+        start = _parse_iso_datetime(start_key, start_str)
+        end = _parse_iso_datetime(end_key, end_str)
+        if start > end:
+            raise ValidationException(f"'{start_key}' must be before '{end_key}'.")

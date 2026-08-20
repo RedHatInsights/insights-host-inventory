@@ -20,6 +20,7 @@ from app.queue.export_service import _handle_export_response
 from app.queue.export_service import _StreamingExportBody
 from app.queue.export_service import create_export
 from app.queue.export_service_mq import parse_export_service_message
+from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import serialize_host_for_export_svc
 from app.staleness_serialization import get_sys_default_staleness
@@ -39,7 +40,7 @@ def test_handle_create_export_happy_path(mock_post, db_create_host, flask_app, e
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = export_service_consumer_mock.handle_message(export_message)
-        assert resp is True
+        assert isinstance(resp, OperationResult)
 
 
 @pytest.mark.parametrize("format", ("json", "csv"))
@@ -66,7 +67,7 @@ def test_handle_create_export_request_with_data_to_export(mock_post, flask_app, 
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = export_service_consumer_mock.handle_message(export_message)
-        assert resp is True
+        assert isinstance(resp, OperationResult)
 
 
 @mock.patch("requests.Session.post", autospec=True)
@@ -79,7 +80,7 @@ def test_handle_create_export_request_with_no_data_to_export(mock_post, flask_ap
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = export_service_consumer_mock.handle_message(export_message)
-        assert resp is False
+        assert resp is None
 
 
 @pytest.mark.parametrize(
@@ -101,7 +102,7 @@ def test_handle_create_export_wrong_application(flask_app, export_service_consum
 
         resp = export_service_consumer_mock.handle_message(export_message)
 
-        assert resp is False
+        assert resp is None
 
 
 def test_handle_create_export_empty_message(flask_app, export_service_consumer_mock):
@@ -164,7 +165,7 @@ def test_handle_rbac_allowed(mock_post, subtests, flask_app, db_create_host, moc
                 export_message = es_utils.create_export_message_mock()
                 mock_post.return_value.status_code = 202
                 resp = export_service_consumer_mock.handle_message(export_message)
-                assert resp is True
+                assert isinstance(resp, OperationResult)
 
 
 @pytest.mark.usefixtures("enable_rbac")
@@ -182,7 +183,7 @@ def test_handle_rbac_prohibited(mock_post, subtests, flask_app, db_create_host, 
                 export_message = es_utils.create_export_message_mock()
                 mock_post.return_value.status_code = 202
                 resp = export_service_consumer_mock.handle_message(export_message)
-                assert resp is False
+                assert resp is None
 
 
 @mock.patch("requests.Session.post", autospec=True)
@@ -195,7 +196,7 @@ def test_handle_kessel_allowed(mock_resolve, mock_post, flask_app, db_create_hos
 
         resp = export_service_consumer_mock.handle_message(export_message)
 
-        assert resp is True
+        assert isinstance(resp, OperationResult)
         mock_resolve.assert_called_once()
 
         args, kwargs = mock_resolve.call_args
@@ -214,7 +215,7 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         export_message = es_utils.create_export_message_mock()
         mock_post.return_value.status_code = 202
         resp = export_service_consumer_mock.handle_message(export_message)
-        assert resp is False
+        assert resp is None
         mock_resolve.assert_called_once()
 
 
