@@ -1,4 +1,5 @@
 from functools import partial
+from typing import override
 
 from marshmallow import Schema
 from marshmallow import ValidationError
@@ -48,6 +49,7 @@ class ExportEventSchema(Schema):
 
 class ExportServiceConsumer(HBIMessageConsumerBase):
     @metrics.export_service_message_handler_time.time()
+    @override
     def handle_message(
         self,
         message: str | bytes,
