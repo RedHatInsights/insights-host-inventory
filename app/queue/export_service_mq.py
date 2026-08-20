@@ -1,3 +1,5 @@
+from functools import partial
+
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -7,6 +9,7 @@ from app.logging import get_logger
 from app.queue import metrics
 from app.queue.export_service import create_export
 from app.queue.host_mq import HBIMessageConsumerBase
+from app.queue.host_mq import OperationResult
 from app.queue.mq_common import common_message_parser
 
 logger = get_logger(__name__)
@@ -45,9 +48,12 @@ class ExportEventSchema(Schema):
 
 class ExportServiceConsumer(HBIMessageConsumerBase):
     @metrics.export_service_message_handler_time.time()
-    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):  # noqa: ARG002
+    def handle_message(
+        self,
+        message: str | bytes,
+        headers: list[tuple[str, bytes]] | None = None,  # noqa: ARG002
+    ) -> OperationResult | None:
         validated_msg = parse_export_service_message(message)
-        message_handled = False
         try:
             if (
                 validated_msg["source"] == EXPORT_EVENT_SOURCE
@@ -59,19 +65,19 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
 
                 if create_export(validated_msg, base64_x_rh_identity, inventory_config()):
                     metrics.export_service_message_handler_success.inc()
-                    message_handled = True
+                    return OperationResult(
+                        None, None, None, None, partial(logger.info, "Export message processed successfully")
+                    )
                 else:
                     metrics.export_service_message_handler_failure.inc()
-                    message_handled = False
+                    return None
             else:
                 logger.debug("Found export message not related to host-inventory")
-                message_handled = False
+                return None
         except Exception as e:
             logger.error(e)
             metrics.export_service_message_handler_failure.inc()
-            message_handled = False
-
-        return message_handled
+            return None
 
 
 @metrics.export_service_message_parsing_time.time()

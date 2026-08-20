@@ -265,7 +265,7 @@ class HBIMessageConsumerBase:
         error status before ending them.
         """
         for result in self.processed_rows:
-            if result is not None and result.otel_span is not None:
+            if isinstance(result, OperationResult) and result.otel_span is not None:
                 if error:
                     self._mark_span_error(result.otel_span, error)
                 self._enrich_span_from_threadctx(result.otel_span)
@@ -407,7 +407,7 @@ class HBIMessageConsumerBase:
         start_ns = None if span else time.time_ns()
         try:
             result = self.handle_message(msg.value(), headers=msg.headers())
-            if result is not None:
+            if isinstance(result, OperationResult):
                 result.otel_context = otel_context_api.get_current()
                 result.otel_span = span
             self.processed_rows.append(result)
