@@ -2691,8 +2691,16 @@ def test_workspace_bulk_mq_duplicate_does_not_rollback_prior_creates(
     "processed_rows,event_type,should_notify",
     [
         ([], EventType.created, False),
-        ([mock.Mock()], EventType.created, True),
-        ([mock.Mock()], None, False),
+        (
+            [OperationResult(mock.Mock(id="workspace-id"), None, None, EventType.created, lambda: None)],
+            EventType.created,
+            True,
+        ),
+        (
+            [OperationResult(mock.Mock(id="workspace-id"), None, None, None, lambda: None)],
+            None,
+            False,
+        ),
     ],
 )
 def test_post_process_rows_commit_and_notify(
