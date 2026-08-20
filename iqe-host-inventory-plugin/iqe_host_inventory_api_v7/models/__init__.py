@@ -31,6 +31,7 @@ from iqe_host_inventory_api_v7.models.canonical_facts_in_all_of_subscription_man
 from iqe_host_inventory_api_v7.models.canonical_facts_out import CanonicalFactsOut
 from iqe_host_inventory_api_v7.models.compliance_app_data import ComplianceAppData
 from iqe_host_inventory_api_v7.models.consumer_applications_data import ConsumerApplicationsData
+from iqe_host_inventory_api_v7.models.container import Container
 from iqe_host_inventory_api_v7.models.create_check_in import CreateCheckIn
 from iqe_host_inventory_api_v7.models.fact_set import FactSet
 from iqe_host_inventory_api_v7.models.group_in import GroupIn
@@ -137,6 +138,9 @@ from iqe_host_inventory_api_v7.models.system_profile_third_party_services_crowds
     SystemProfileThirdPartyServicesCrowdstrike,
 )
 from iqe_host_inventory_api_v7.models.system_profile_workloads import SystemProfileWorkloads
+from iqe_host_inventory_api_v7.models.system_profile_workloads_ansible import (
+    SystemProfileWorkloadsAnsible,
+)
 from iqe_host_inventory_api_v7.models.system_profile_workloads_ibm_db2 import (
     SystemProfileWorkloadsIbmDb2,
 )
