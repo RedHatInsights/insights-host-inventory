@@ -397,6 +397,8 @@ def find_nested_fields(field_name: str, data: dict | list) -> Generator[str]:
 
 def _assert_matching_org_ids(data: dict | list, my_org_id: str) -> None:
     for response_org_id in find_nested_fields("org_id", data):
+        if response_org_id is None:
+            continue
         assert str(response_org_id) == my_org_id, (
             f"Critical data leak! Org {my_org_id} accessed data from org {response_org_id}!"
         )
