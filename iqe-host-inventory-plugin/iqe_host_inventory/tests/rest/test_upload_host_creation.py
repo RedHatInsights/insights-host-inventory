@@ -15,6 +15,7 @@ from iqe_host_inventory.utils.datagen_utils import rand_str
 from iqe_host_inventory.utils.staleness_utils import validate_host_timestamps
 from iqe_host_inventory.utils.tag_utils import sort_tags
 from iqe_host_inventory.utils.upload_utils import ANSIBLE_EXECUTION_NODE_ARCHIVE
+from iqe_host_inventory.utils.upload_utils import CONTAINERIZED_SATELLITE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import IMAGE_MODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import HostOut
@@ -274,6 +275,34 @@ def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) 
     assert satellite.type == "server"
     assert satellite.version is not None
     assert satellite.version.startswith("6.")
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+def test_create_containerized_satellite_host(host_inventory: ApplicationHostInventory) -> None:
+    """Verify containerized Satellite host creation with correct system profile."""
+    display_name = generate_display_name()
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=CONTAINERIZED_SATELLITE_ARCHIVE
+    )
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+
+    assert satellite.type == "server"
+    assert satellite.foremanctl_version == "3.0.0"
+    assert len(satellite.containers) == 1
+    container = satellite.containers[0]
+    assert container.name == "foreman"
+    assert container.image == "quay.io/foreman/foreman:nightly"
+    assert container.state == "running"
+
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][satellite][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids
 
 
 @iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
