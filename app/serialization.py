@@ -53,6 +53,11 @@ _EXPORT_SERVICE_FIELDS = [
     "state",
     "tags",
     "host_type",
+    "bios_uuid",
+    "satellite_managed",
+    "cloud_provider",
+    "is_marketplace",
+    "ip_addresses",
 ]
 
 DEFAULT_FIELDS = (
@@ -85,6 +90,11 @@ ADDITIONAL_EXPORT_SERVICE_FIELDS = (
     "state",
     "tags",
     "host_type",
+    "bios_uuid",
+    "satellite_managed",
+    "cloud_provider",
+    "is_marketplace",
+    "ip_addresses",
 )
 
 
@@ -297,9 +307,8 @@ def serialize_host_for_export_svc(
         group_id = host.groups[0]["id"]
         group_name = host.groups[0]["name"]
 
-    os_release = None
-    if host.static_system_profile is not None:
-        os_release = host.static_system_profile.os_release
+    static_profile = host.static_system_profile
+    os_release = static_profile.os_release if static_profile is not None else None
 
     field_values = {
         "display_name": host.display_name,
@@ -317,6 +326,11 @@ def serialize_host_for_export_svc(
         ),
         "tags": _serialize_tags(host.tags),
         "host_type": host.host_type or "conventional",
+        "bios_uuid": host.bios_uuid,
+        "satellite_managed": static_profile.satellite_managed if static_profile is not None else None,
+        "cloud_provider": static_profile.cloud_provider if static_profile is not None else None,
+        "is_marketplace": static_profile.is_marketplace if static_profile is not None else None,
+        "ip_addresses": host.ip_addresses,
     }
     return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
 

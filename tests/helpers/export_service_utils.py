@@ -154,19 +154,4 @@ def create_export_csv_mock(mocker):
 
 
 def create_export_json_mock(mocker):
-    return [
-        {
-            "display_name": mocker.ANY,
-            "fqdn": mocker.ANY,
-            "host_id": mocker.ANY,
-            "subscription_manager_id": mocker.ANY,
-            "satellite_id": mocker.ANY,
-            "group_id": mocker.ANY,
-            "group_name": mocker.ANY,
-            "os_release": mocker.ANY,
-            "updated": mocker.ANY,
-            "state": mocker.ANY,
-            "tags": mocker.ANY,
-            "host_type": mocker.ANY,
-        }
-    ]
+    return [{field: mocker.ANY for field in _EXPORT_SERVICE_FIELDS}]
