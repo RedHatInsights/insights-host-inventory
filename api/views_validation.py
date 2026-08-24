@@ -10,11 +10,17 @@ from app.models.host_app_data import get_app_data_models
 
 VALID_CORE_VIEW_FIELDS = frozenset(
     {
-        "updated",
+        "created",
         "display_name",
         "group_name",
-        "operating_system",
+        "infrastructure",
         "last_check_in",
+        "operating_system",
+        "status",
+        "tags",
+        "updated",
+        "vendor",
+        "workload",
     }
 )
 
