@@ -3180,52 +3180,6 @@ def test_workloads_mixed_positive_and_nil_produces_exists_and_not_exists(flask_a
         ({"a": True}, {"a": False}, {"a": False}),
         ({"a": 1}, {"a": 0}, {"a": 0}),
         ({"a": "b"}, {}, {"a": "b"}),
-        # System Profile specific deep merge test vectors
-        (
-            {
-                "workloads": {
-                    "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
-                    "satellite": {"version": "6.11"},
-                }
-            },
-            {"workloads": {"ansible": {"runner_version": "3.0"}}},
-            {
-                "workloads": {
-                    "ansible": {"controller_version": "1.0", "hub_version": "2.0", "runner_version": "3.0"},
-                    "satellite": {"version": "6.11"},
-                }
-            },
-        ),
-        (
-            {
-                "workloads": {
-                    "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
-                    "satellite": {"version": "6.11"},
-                }
-            },
-            {"workloads": {"ansible": {"hub_version": None}}},
-            {
-                "workloads": {
-                    "ansible": {"controller_version": "1.0"},
-                    "satellite": {"version": "6.11"},
-                }
-            },
-        ),
-        (
-            {
-                "workloads": {
-                    "ansible": {"controller_version": "1.0"},
-                    "satellite": {"version": "6.11"},
-                }
-            },
-            {"workloads": {"ansible": None}},
-            {"workloads": {"satellite": {"version": "6.11"}}},
-        ),
-        (
-            {"arch": "x86_64", "number_of_cpus": 4, "cpu_model": "Intel"},
-            {"cpu_model": None, "number_of_cpus": 8},
-            {"arch": "x86_64", "number_of_cpus": 8},
-        ),
     ],
 )
 def test_json_merge_patch_rfc7396(target, patch, expected):
@@ -3245,27 +3199,17 @@ def test_merge_system_profile_fields_only_touches_patched_keys():
     assert "arch" not in merged
 
 
-def test_host_schema_allows_null_nested_fields_in_patch(flask_app):  # noqa: ARG001
-    """Deletion-only nested patches must not be rejected before merge."""
-    payload = {
-        "org_id": "test",
-        "reporter": "puptoo",
-        "insights_id": "11111111-1111-1111-1111-111111111111",
-        "system_profile": {"operating_system": {"minor": None}, "cpu_model": None},
-    }
-    result = HostSchema().load(payload)
-    assert result["system_profile"]["cpu_model"] is None
-    assert result["system_profile"]["operating_system"]["minor"] is None
-
-
-def test_host_schema_allows_system_profile_null_and_empty_objects(flask_app):  # noqa: ARG001
-    """system_profile: null and empty nested objects are RFC 7396 no-ops, not schema errors."""
+def test_host_schema_allows_rfc7396_nulls_and_empty_objects(flask_app):  # noqa: ARG001
+    """Nulls and empty nested objects must not be rejected before merge."""
     schema = HostSchema()
     base = {
         "org_id": "test",
         "reporter": "puptoo",
         "insights_id": "11111111-1111-1111-1111-111111111111",
     }
+    result = schema.load({**base, "system_profile": {"operating_system": {"minor": None}, "cpu_model": None}})
+    assert result["system_profile"]["cpu_model"] is None
+    assert result["system_profile"]["operating_system"]["minor"] is None
     assert schema.load({**base, "system_profile": None})["system_profile"] is None
     assert schema.validate({**base, "system_profile": {"systemd": {}}}) == {}
 

@@ -2795,23 +2795,6 @@ class TestSystemProfileJsonMergePatch:
         assert host.static_system_profile.arch == "x86_64"
         assert host.static_system_profile.number_of_cpus == 8
 
-    def test_delete_all_workloads_with_null(self, db_create_host):
-        """Setting workloads to null removes all workloads."""
-        initial_sp = {
-            "workloads": {
-                "ansible": {"controller_version": "4.5.6"},
-            }
-        }
-        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
-        assert host.dynamic_system_profile.workloads is not None
-
-        # Patch: remove all workloads
-        patch_sp = {"workloads": None}
-        host.update_system_profile(patch_sp)
-        db.session.commit()
-
-        assert host.dynamic_system_profile.workloads is None
-
     def test_array_replacement_and_deletion(self, db_create_host):
         """Per RFC 7396, arrays are replaced atomically or deleted with null."""
         initial_sp = {
@@ -2882,22 +2865,6 @@ class TestSystemProfileJsonMergePatch:
             },
         }
 
-    def test_empty_object_patch_is_noop(self, db_create_host):
-        """RFC 7396: an empty object patch does not clear existing fields."""
-        initial_sp = {
-            "arch": "x86_64",
-            "rhsm": {"version": "9.1", "environment_ids": ["abc"]},
-            "workloads": {"ansible": {"controller_version": "1.0"}},
-        }
-        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
-
-        host.update_system_profile({})
-        db.session.commit()
-
-        assert host.static_system_profile.arch == "x86_64"
-        assert host.static_system_profile.rhsm == {"version": "9.1", "environment_ids": ["abc"]}
-        assert host.dynamic_system_profile.workloads == {"ansible": {"controller_version": "1.0"}}
-
     def test_empty_object_does_not_clear_rhsm_or_workloads(self, db_create_host):
         """Empty objects are RFC no-ops; only null clears rhsm/workloads."""
         initial_sp = {
@@ -2917,22 +2884,6 @@ class TestSystemProfileJsonMergePatch:
 
         assert host.static_system_profile.rhsm is None
         assert host.dynamic_system_profile.workloads is None
-
-    def test_boolean_false_and_zero_are_not_deletes(self, db_create_host):
-        """false and 0 are stored values; only null deletes."""
-        initial_sp = {
-            "katello_agent_running": True,
-            "number_of_cpus": 4,
-            "is_marketplace": True,
-        }
-        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
-
-        host.update_system_profile({"katello_agent_running": False, "number_of_cpus": 0, "is_marketplace": False})
-        db.session.commit()
-
-        assert host.static_system_profile.katello_agent_running is False
-        assert host.static_system_profile.number_of_cpus == 0
-        assert host.static_system_profile.is_marketplace is False
 
     def test_deleting_required_nested_property_is_rejected(self, db_create_host):
         """Merge result must still satisfy nested required fields (operating_system)."""
