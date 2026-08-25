@@ -2665,3 +2665,292 @@ class TestViewResponseSchema:
         assert result["org_id"] is None
         assert result["is_system_view"] is True
         assert result["created_by"] is None
+
+
+class TestSystemProfileJsonMergePatch:
+    """Tests for RFC 7396 JSON Merge Patch behavior on host system profile updates."""
+
+    def test_workloads_deep_merge_preserves_sibling_and_nested_fields(self, db_create_host):
+        """
+        Verify the prompt scenario:
+        Existing host: system_profile.workloads.[ansible.[a,b],satellite.[c,d]]
+        Update with: system_profile.workloads.ansible.[e]
+        Result: system_profile.workloads.[ansible.[a,b,e],satellite.[c,d]]
+        """
+        initial_sp = {
+            "workloads": {
+                "ansible": {
+                    "controller_version": "4.5.6",
+                    "hub_version": "1.2.3",
+                },
+                "satellite": {
+                    "version": "6.11",
+                    "type": "server",
+                },
+            }
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+        assert host.dynamic_system_profile.workloads == initial_sp["workloads"]
+
+        # Patch with only workloads.ansible.runner_version (field e)
+        patch_sp = {
+            "workloads": {
+                "ansible": {
+                    "runner_version": "2.4.1",
+                }
+            }
+        }
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        expected_workloads = {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "hub_version": "1.2.3",
+                "runner_version": "2.4.1",
+            },
+            "satellite": {
+                "version": "6.11",
+                "type": "server",
+            },
+        }
+        assert host.dynamic_system_profile.workloads == expected_workloads
+
+    def test_delete_nested_field_with_null(self, db_create_host):
+        """Setting a nested field to null in patch removes it from the record."""
+        initial_sp = {
+            "workloads": {
+                "ansible": {
+                    "controller_version": "4.5.6",
+                    "hub_version": "1.2.3",
+                }
+            }
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+        assert host.dynamic_system_profile.workloads["ansible"]["hub_version"] == "1.2.3"
+
+        # Patch: delete hub_version by setting to None
+        patch_sp = {
+            "workloads": {
+                "ansible": {
+                    "hub_version": None,
+                }
+            }
+        }
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        assert host.dynamic_system_profile.workloads == {
+            "ansible": {
+                "controller_version": "4.5.6",
+            }
+        }
+
+    def test_delete_entire_workload_with_null(self, db_create_host):
+        """Setting a workload to null in patch removes that entire workload."""
+        initial_sp = {
+            "workloads": {
+                "ansible": {"controller_version": "4.5.6"},
+                "satellite": {"version": "6.11"},
+            }
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        # Patch: remove ansible
+        patch_sp = {
+            "workloads": {
+                "ansible": None,
+            }
+        }
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        assert host.dynamic_system_profile.workloads == {
+            "satellite": {
+                "version": "6.11",
+            }
+        }
+
+    def test_delete_top_level_field_with_null(self, db_create_host):
+        """Setting a top-level field to null in patch removes it from the record."""
+        initial_sp = {
+            "arch": "x86_64",
+            "number_of_cpus": 4,
+            "cpu_model": "Intel Xeon",
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+        assert host.static_system_profile.cpu_model == "Intel Xeon"
+        assert host.static_system_profile.arch == "x86_64"
+        assert host.static_system_profile.number_of_cpus == 4
+
+        # Patch: remove cpu_model and update number_of_cpus
+        patch_sp = {
+            "cpu_model": None,
+            "number_of_cpus": 8,
+        }
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        assert host.static_system_profile.cpu_model is None
+        assert host.static_system_profile.arch == "x86_64"
+        assert host.static_system_profile.number_of_cpus == 8
+
+    def test_delete_all_workloads_with_null(self, db_create_host):
+        """Setting workloads to null removes all workloads."""
+        initial_sp = {
+            "workloads": {
+                "ansible": {"controller_version": "4.5.6"},
+            }
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+        assert host.dynamic_system_profile.workloads is not None
+
+        # Patch: remove all workloads
+        patch_sp = {"workloads": None}
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        assert host.dynamic_system_profile.workloads is None
+
+    def test_array_replacement_and_deletion(self, db_create_host):
+        """Per RFC 7396, arrays are replaced atomically or deleted with null."""
+        initial_sp = {
+            "yum_repos": [
+                {"id": "r1", "name": "Repo 1", "base_url": "http://repo1.com"},
+                {"id": "r2", "name": "Repo 2", "base_url": "http://repo2.com"},
+            ]
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+        assert len(host.static_system_profile.yum_repos) == 2
+
+        # Replace array
+        patch_sp = {
+            "yum_repos": [
+                {"id": "r3", "name": "Repo 3", "base_url": "http://repo3.com"},
+            ]
+        }
+        host.update_system_profile(patch_sp)
+        db.session.commit()
+
+        assert host.static_system_profile.yum_repos == [{"id": "r3", "name": "Repo 3", "base_url": "http://repo3.com"}]
+
+        # Delete array
+        host.update_system_profile({"yum_repos": None})
+        db.session.commit()
+
+        assert host.static_system_profile.yum_repos is None
+
+    def test_host_update_method_with_patch(self, db_create_host):
+        """Test Host.update() applies JSON Merge Patch when update_system_profile=True."""
+        initial_sp = {
+            "arch": "x86_64",
+            "number_of_cpus": 2,
+            "workloads": {
+                "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
+                "satellite": {"version": "6.11"},
+            },
+        }
+        existing_host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        # Create input_host with patch
+        from app.serialization import deserialize_host
+
+        update_payload = {
+            "reporter": "puptoo",
+            "org_id": existing_host.org_id,
+            "insights_id": str(existing_host.insights_id),
+            "system_profile": {
+                "number_of_cpus": 4,
+                "workloads": {
+                    "ansible": {"hub_version": None, "receptor_version": "1.5"},
+                },
+            },
+        }
+        input_host = deserialize_host(update_payload)
+        existing_host.update(input_host, update_system_profile=True)
+        db.session.commit()
+
+        assert existing_host.static_system_profile.arch == "x86_64"
+        assert existing_host.static_system_profile.number_of_cpus == 4
+        assert existing_host.dynamic_system_profile.workloads == {
+            "ansible": {
+                "controller_version": "1.0",
+                "receptor_version": "1.5",
+            },
+            "satellite": {
+                "version": "6.11",
+            },
+        }
+
+    def test_empty_object_patch_is_noop(self, db_create_host):
+        """RFC 7396: an empty object patch does not clear existing fields."""
+        initial_sp = {
+            "arch": "x86_64",
+            "rhsm": {"version": "9.1", "environment_ids": ["abc"]},
+            "workloads": {"ansible": {"controller_version": "1.0"}},
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        host.update_system_profile({})
+        db.session.commit()
+
+        assert host.static_system_profile.arch == "x86_64"
+        assert host.static_system_profile.rhsm == {"version": "9.1", "environment_ids": ["abc"]}
+        assert host.dynamic_system_profile.workloads == {"ansible": {"controller_version": "1.0"}}
+
+    def test_empty_object_does_not_clear_rhsm_or_workloads(self, db_create_host):
+        """Empty objects are RFC no-ops; only null clears rhsm/workloads."""
+        initial_sp = {
+            "rhsm": {"version": "9.1", "environment_ids": ["abc"]},
+            "workloads": {"ansible": {"controller_version": "1.0"}},
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        host.update_system_profile({"rhsm": {}, "workloads": {}})
+        db.session.commit()
+
+        assert host.static_system_profile.rhsm == {"version": "9.1", "environment_ids": ["abc"]}
+        assert host.dynamic_system_profile.workloads == {"ansible": {"controller_version": "1.0"}}
+
+        host.update_system_profile({"rhsm": None, "workloads": None})
+        db.session.commit()
+
+        assert host.static_system_profile.rhsm is None
+        assert host.dynamic_system_profile.workloads is None
+
+    def test_boolean_false_and_zero_are_not_deletes(self, db_create_host):
+        """false and 0 are stored values; only null deletes."""
+        initial_sp = {
+            "katello_agent_running": True,
+            "number_of_cpus": 4,
+            "is_marketplace": True,
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        host.update_system_profile({"katello_agent_running": False, "number_of_cpus": 0, "is_marketplace": False})
+        db.session.commit()
+
+        assert host.static_system_profile.katello_agent_running is False
+        assert host.static_system_profile.number_of_cpus == 0
+        assert host.static_system_profile.is_marketplace is False
+
+    def test_deleting_required_nested_property_is_rejected(self, db_create_host):
+        """Merge result must still satisfy nested required fields (operating_system)."""
+        initial_sp = {"operating_system": {"name": "RHEL", "major": 9, "minor": 1}}
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        with pytest.raises(ValidationException, match="schema"):
+            host.update_system_profile({"operating_system": {"minor": None}})
+
+        db.session.refresh(host)
+        assert host.static_system_profile.operating_system == {"name": "RHEL", "major": 9, "minor": 1}
+
+    def test_null_operating_system_deletes_the_object(self, db_create_host):
+        initial_sp = {"operating_system": {"name": "RHEL", "major": 9, "minor": 1}, "arch": "x86_64"}
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        host.update_system_profile({"operating_system": None})
+        db.session.commit()
+
+        assert host.static_system_profile.operating_system is None
+        assert host.static_system_profile.arch == "x86_64"

@@ -1711,6 +1711,148 @@ def test_update_system_profile(mq_create_or_update_host, db_get_host, id_type):
     }
 
 
+def test_mq_ingress_system_profile_rfc7396_deep_merge_and_delete(mq_create_or_update_host, db_get_host):
+    """Test full host MQ ingress message processing with RFC 7396 deep merge and deletion."""
+    insights_id = generate_uuid()
+    initial_host = base_host(
+        insights_id=insights_id,
+        fqdn="test-rfc7396.redhat.com",
+        system_profile={
+            "arch": "x86_64",
+            "number_of_cpus": 4,
+            "cpu_model": "Intel Xeon",
+            "workloads": {
+                "ansible": {
+                    "controller_version": "4.5.6",
+                    "hub_version": "1.2.3",
+                },
+                "satellite": {
+                    "version": "6.11",
+                    "type": "server",
+                },
+            },
+        },
+    )
+    first_host_event = mq_create_or_update_host(initial_host)
+    host_db = db_get_host(first_host_event.id)
+
+    assert host_db.static_system_profile.arch == "x86_64"
+    assert host_db.static_system_profile.cpu_model == "Intel Xeon"
+    assert host_db.static_system_profile.number_of_cpus == 4
+
+    # Send update payload that:
+    # 1. Updates number_of_cpus to 16
+    # 2. Deletes cpu_model (set to None)
+    # 3. Deep-merges ansible (adds runner_version, removes hub_version via None)
+    # 4. Leaves satellite untouched (omitted)
+    # 5. Leaves arch untouched (omitted)
+    update_host = base_host(
+        insights_id=insights_id,
+        fqdn="test-rfc7396.redhat.com",
+        system_profile={
+            "number_of_cpus": 16,
+            "cpu_model": None,
+            "workloads": {
+                "ansible": {
+                    "hub_version": None,
+                    "runner_version": "2.4.1",
+                },
+            },
+        },
+    )
+    second_host_event = mq_create_or_update_host(update_host)
+    updated_host_db = db_get_host(second_host_event.id)
+
+    assert str(updated_host_db.id) == first_host_event.id
+    assert updated_host_db.static_system_profile.arch == "x86_64"
+    assert updated_host_db.static_system_profile.cpu_model is None
+    assert updated_host_db.static_system_profile.number_of_cpus == 16
+    assert updated_host_db.dynamic_system_profile.workloads == {
+        "ansible": {
+            "controller_version": "4.5.6",
+            "runner_version": "2.4.1",
+        },
+        "satellite": {
+            "version": "6.11",
+            "type": "server",
+        },
+    }
+
+
+def test_mq_system_profile_consumer_rfc7396_deep_merge_and_delete(mq_create_or_update_host, db_get_host):
+    """Test SystemProfileMessageConsumer with RFC 7396 deep merge and deletion."""
+    insights_id = generate_uuid()
+    initial_host = base_host(
+        insights_id=insights_id,
+        fqdn="test-sp-consumer-rfc7396.redhat.com",
+        system_profile={
+            "arch": "x86_64",
+            "cpu_model": "Intel Xeon",
+            "workloads": {
+                "ansible": {"controller_version": "4.5.6", "hub_version": "1.2.3"},
+                "satellite": {"version": "6.11"},
+            },
+        },
+    )
+    first_host_event = mq_create_or_update_host(initial_host)
+
+    # Patch via SystemProfileMessageConsumer
+    patch_host = base_host(
+        insights_id=insights_id,
+        system_profile={
+            "cpu_model": None,
+            "workloads": {
+                "ansible": {"hub_version": None, "catalog_worker_version": "3.0.0"},
+            },
+        },
+    )
+    patch_host.reporter = None
+    mq_create_or_update_host(patch_host, consumer_class=SystemProfileMessageConsumer)
+
+    updated_host_db = db_get_host(first_host_event.id)
+    assert updated_host_db.static_system_profile.arch == "x86_64"
+    assert updated_host_db.static_system_profile.cpu_model is None
+    assert updated_host_db.dynamic_system_profile.workloads == {
+        "ansible": {
+            "controller_version": "4.5.6",
+            "catalog_worker_version": "3.0.0",
+        },
+        "satellite": {
+            "version": "6.11",
+        },
+    }
+
+
+def test_mq_empty_system_profile_object_does_not_wipe_existing(mq_create_or_update_host, db_get_host):
+    insights_id = generate_uuid()
+    first = mq_create_or_update_host(
+        base_host(
+            insights_id=insights_id,
+            system_profile={"arch": "x86_64", "cpu_model": "Intel Xeon", "number_of_cpus": 4},
+        )
+    )
+
+    mq_create_or_update_host(base_host(insights_id=insights_id, system_profile={}))
+    host_db = db_get_host(first.id)
+
+    assert host_db.static_system_profile.arch == "x86_64"
+    assert host_db.static_system_profile.cpu_model == "Intel Xeon"
+    assert host_db.static_system_profile.number_of_cpus == 4
+
+
+def test_mq_deletion_only_cpu_model_null(mq_create_or_update_host, db_get_host):
+    insights_id = generate_uuid()
+    first = mq_create_or_update_host(
+        base_host(insights_id=insights_id, system_profile={"arch": "x86_64", "cpu_model": "Intel Xeon"})
+    )
+
+    mq_create_or_update_host(base_host(insights_id=insights_id, system_profile={"cpu_model": None}))
+    host_db = db_get_host(first.id)
+
+    assert host_db.static_system_profile.arch == "x86_64"
+    assert host_db.static_system_profile.cpu_model is None
+
+
 @pytest.mark.usefixtures("db_get_host")
 def test_update_system_profile_not_found(mocker, mq_create_or_update_host):
     mock_notification_event_producer = mocker.Mock()

@@ -36,6 +36,18 @@ def _get_schemas_package():
     return pkg
 
 
+def _strip_none_values(data):
+    """Strip RFC 7396 nulls (and empty objects they leave) for jsonschema only.
+
+    The original patch is unchanged; this copy is used so a deletion-only nested
+    object is not rejected as an incomplete System Profile before merge.
+    """
+    if isinstance(data, dict):
+        stripped = {k: _strip_none_values(v) for k, v in data.items() if v is not None}
+        return {k: v for k, v in stripped.items() if not (isinstance(v, dict) and not v)}
+    return data
+
+
 class FactsSchema(MarshmallowSchema):
     namespace = fields.Str()
     facts = fields.Dict(validate=check_empty_keys)
@@ -118,7 +130,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
     account = fields.Str(validate=marshmallow_validate.Length(min=0, max=10))
     org_id = fields.Str(required=True, validate=marshmallow_validate.Length(min=1, max=36))
     facts = fields.List(fields.Nested(FactsSchema))
-    system_profile = fields.Dict()
+    system_profile = fields.Dict(allow_none=True)
     tags = fields.Raw()
     tags_alt = fields.Raw()
     groups = fields.List(fields.Dict())
@@ -173,7 +185,7 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @staticmethod
     def _normalize_system_profile(normalize, data):
-        if "system_profile" not in data:
+        if "system_profile" not in data or data["system_profile"] is None:
             return data
 
         system_profile = deepcopy(data["system_profile"])
@@ -216,17 +228,22 @@ class LimitedHostSchema(CanonicalFactsSchema):
 
     @validates("system_profile")
     def system_profile_is_valid(self, system_profile, data_key):  # noqa: ARG002, required for marshmallow validator functions
+        if system_profile is None:
+            return
+
         _p = _get_schemas_package()
+
+        sanitized_profile = _strip_none_values(system_profile)
 
         try:
             _p.jsonschema_validate(
-                system_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
+                sanitized_profile, self.system_profile_normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
             )
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
-        for dd_i, disk_device in enumerate(system_profile.get("disk_devices", [])):
-            if not check_empty_keys(disk_device.get("options")):
+        for dd_i, disk_device in enumerate(sanitized_profile.get("disk_devices", []) or []):
+            if isinstance(disk_device, dict) and not check_empty_keys(disk_device.get("options")):
                 raise MarshmallowValidationError(f"Empty key in /system_profile/disk_devices/{dd_i}/options.")
 
 

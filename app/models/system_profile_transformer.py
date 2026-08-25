@@ -1,5 +1,9 @@
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
+
+from jsonschema import validate as jsonschema_validate
+from jsonschema.validators import Draft4Validator
 
 from app.logging import get_logger
 from app.models.constants import WORKLOADS_FIELDS
@@ -16,6 +20,91 @@ PRIMARY_KEY_FIELDS = ["org_id", "host_id"]
 _normalizer = SystemProfileNormalizer()
 STATIC_FIELDS = list(_normalizer.get_static_fields())
 DYNAMIC_FIELDS = list(_normalizer.get_dynamic_fields())
+STATIC_FIELD_SET = set(STATIC_FIELDS)
+DYNAMIC_FIELD_SET = set(DYNAMIC_FIELDS)
+
+
+def json_merge_patch(target: Any, patch: Any) -> Any:
+    """
+    Apply a JSON Merge Patch (RFC 7396 §3) to a target document.
+
+    If patch is an object (dict):
+        - If target is not an object, target becomes an empty object.
+        - For each key/value in patch:
+            - If value is None: remove key from target (if present).
+            - Else: target[key] = json_merge_patch(target.get(key), value).
+        - Returns target.
+    If patch is anything other than an object (scalar, array, None):
+        - Returns patch (replacing target entirely).
+
+    The target is copied once at the top of the call; nested object patches mutate
+    that copy in place so large sibling arrays are not recopied at each depth.
+    """
+    if not isinstance(patch, dict):
+        return deepcopy(patch)
+
+    result = deepcopy(target) if isinstance(target, dict) else {}
+    _apply_merge_patch(result, patch)
+    return result
+
+
+def _apply_merge_patch(target: dict[str, Any], patch: dict[str, Any]) -> None:
+    for key, value in patch.items():
+        if value is None:
+            target.pop(key, None)
+        elif isinstance(value, dict):
+            nested = target.get(key)
+            if not isinstance(nested, dict):
+                nested = {}
+                target[key] = nested
+            _apply_merge_patch(nested, value)
+        else:
+            target[key] = deepcopy(value)
+
+
+def merge_system_profile_fields(existing_getter: Callable[[str], Any], patch: dict[str, Any]) -> dict[str, Any]:
+    """Apply RFC 7396 independently to each top-level system profile field in ``patch``.
+
+    ``existing_getter(field_name)`` returns the current column value, or None if unset.
+    Primary-key fields are ignored. Unknown fields are kept so later validation can reject them.
+    """
+    merged: dict[str, Any] = {}
+    for key, value in patch.items():
+        if key in PRIMARY_KEY_FIELDS:
+            continue
+        merged[key] = json_merge_patch(existing_getter(key), value)
+    return merged
+
+
+def prepare_system_profile_patch(patch: dict[str, Any]) -> dict[str, Any]:
+    """Copy a patch and migrate/strip legacy root-level workload fields."""
+    prepared = migrate_legacy_workload_root_fields_to_workloads(deepcopy(patch))
+    return strip_legacy_workload_root_fields(prepared)
+
+
+def _contains_null(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return any(_contains_null(v) for v in value.values())
+    return False
+
+
+def validate_merged_fields_after_deletes(patch: dict[str, Any], merged_updates: dict[str, Any]) -> None:
+    """If the patch deletes nested keys, jsonschema-validate the merged objects that remain.
+
+    Full-document jsonschema on every write would reject historically stored (marshmallow-valid)
+    incomplete objects. Deletion is the case RFC 7396 can produce a newly invalid nested object.
+    """
+    remaining_after_delete = {
+        key: merged_updates[key]
+        for key, value in patch.items()
+        if _contains_null(value) and merged_updates.get(key) is not None
+    }
+    if remaining_after_delete:
+        jsonschema_validate(
+            remaining_after_delete, _normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
+        )
 
 
 def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -35,9 +124,7 @@ def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict
     dynamic_data = {}
 
     for key, value in system_profile_data.items():
-        if value is None:
-            pass
-        elif key in STATIC_FIELDS:
+        if key in STATIC_FIELDS:
             static_data[key] = value
         elif key in DYNAMIC_FIELDS:
             dynamic_data[key] = value
@@ -161,6 +248,12 @@ def _remove_legacy_fields_for_workload(system_profile: dict[str, Any], config: d
 
 def migrate_legacy_workload_root_fields_to_workloads(system_profile_data: dict[str, Any]) -> dict[str, Any]:
     """Move legacy root-level workload fields into workloads.* before storage."""
+    if "workloads" in system_profile_data and system_profile_data["workloads"] is None:
+        # Explicit RFC 7396 delete of the whole object; do not recreate it for migration.
+        for config in _WORKLOAD_INGEST_MIGRATION_CONFIG.values():
+            _remove_legacy_fields_for_workload(system_profile_data, config)
+        return system_profile_data
+
     workloads = system_profile_data.setdefault("workloads", {})
 
     for workload_type, config in _WORKLOAD_INGEST_MIGRATION_CONFIG.items():

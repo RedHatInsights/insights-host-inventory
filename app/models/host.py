@@ -42,9 +42,6 @@ logger = get_logger(__name__)
 RHSM_REPORTERS = {"rhsm-conduit", "rhsm-system-profile-bridge"}
 DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
-# Fields that should be merged (shallow) instead of replaced when updating system profiles.
-SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
-
 
 class LimitedHost(db.Model, HostTypeDeriver):
     __tablename__ = "hosts"
@@ -94,6 +91,8 @@ class LimitedHost(db.Model, HostTypeDeriver):
         self.facts = facts or {}
         self.tags = tags
         self.tags_alt = tags_alt
+        # Not a mapped column. Original ingest patch, including JSON nulls (RFC 7396 deletions).
+        self._system_profile_patch = system_profile_facts
         self._add_or_update_normalized_system_profiles(system_profile_facts)
         self.groups = groups or []
 
@@ -173,57 +172,83 @@ class LimitedHost(db.Model, HostTypeDeriver):
             self.host_type = derived
             orm.attributes.flag_modified(self, "host_type")
 
-    @staticmethod
-    def _update_profile_attributes(profile, data: dict, skip_keys: set | None = None):
-        """
-        Update a system profile object's attributes from a dictionary.
+    def _existing_system_profile_value(self, field: str):
+        from app.models.system_profile_transformer import DYNAMIC_FIELD_SET
+        from app.models.system_profile_transformer import STATIC_FIELD_SET
 
-        For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
-        For all other fields, replaces the value entirely.
-        Skips writes when the new value matches the current value.
-        """
-        skip_keys = skip_keys or set()
+        if field in STATIC_FIELD_SET and self.static_system_profile:
+            return getattr(self.static_system_profile, field, None)
+        if field in DYNAMIC_FIELD_SET and self.dynamic_system_profile:
+            return getattr(self.dynamic_system_profile, field, None)
+        return None
 
-        for key, value in data.items():
-            if key in skip_keys:
-                continue
+    def _apply_merged_profile_fields(
+        self, *, profile, create_factory, field_names: set[str], merged_updates: dict, validated_data: dict
+    ):
+        field_updates = {key: value for key, value in merged_updates.items() if key in field_names}
+        if not field_updates:
+            return profile
 
-            if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
-                existing = getattr(profile, key, None) or {}
-                merged = {**existing, **value}
-                if merged != existing:
-                    setattr(profile, key, merged)
-            else:
-                if getattr(profile, key, None) != value:
-                    setattr(profile, key, value)
+        if profile is None:
+            if all(value is None for value in field_updates.values()):
+                return None
+            return create_factory(**validated_data)
 
-    def _add_or_update_normalized_system_profiles(self, input_system_profile: dict):
-        """Update the normalized system profile tables."""
+        for key, value in field_updates.items():
+            new_val = None if value is None else validated_data.get(key, value)
+            if getattr(profile, key, None) != new_val:
+                setattr(profile, key, new_val)
+                orm.attributes.flag_modified(profile, key)
+        return profile
+
+    def _add_or_update_normalized_system_profiles(self, input_system_profile: dict | None):
+        """Update normalized system profile tables using per-field JSON Merge Patch (RFC 7396)."""
+        from jsonschema import ValidationError as JsonSchemaValidationError
+        from marshmallow import ValidationError as MarshmallowValidationError
+
+        from app.models.system_profile_transformer import DYNAMIC_FIELD_SET
+        from app.models.system_profile_transformer import STATIC_FIELD_SET
+        from app.models.system_profile_transformer import merge_system_profile_fields
+        from app.models.system_profile_transformer import prepare_system_profile_patch
         from app.models.system_profile_transformer import validate_and_transform
+        from app.models.system_profile_transformer import validate_merged_fields_after_deletes
 
         if not input_system_profile:
+            # None and {} are no-ops: omit means "do not modify"; empty object merges nothing.
             self._update_derived_host_type()
             return
 
-        # Transform and validate the data
-        static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), input_system_profile)
+        try:
+            patch = prepare_system_profile_patch(input_system_profile)
+            merged_updates = merge_system_profile_fields(self._existing_system_profile_value, patch)
+            to_validate = {key: value for key, value in merged_updates.items() if value is not None}
 
-        # Keys that are managed automatically and should not be updated from input
-        skip_keys = {"org_id", "host_id"}
+            static_data: dict = {}
+            dynamic_data: dict = {}
+            if to_validate:
+                validate_merged_fields_after_deletes(patch, merged_updates)
+                static_data, dynamic_data = validate_and_transform(str(self.org_id), str(self.id), to_validate)
 
-        # Update or create static system profile
-        if static_data:
-            if self.static_system_profile:
-                self._update_profile_attributes(self.static_system_profile, static_data, skip_keys)
-            else:
-                self.static_system_profile = HostStaticSystemProfile(**static_data)
-
-        # Update or create dynamic system profile
-        if dynamic_data:
-            if self.dynamic_system_profile:
-                self._update_profile_attributes(self.dynamic_system_profile, dynamic_data, skip_keys)
-            else:
-                self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
+            self.static_system_profile = self._apply_merged_profile_fields(
+                profile=self.static_system_profile,
+                create_factory=HostStaticSystemProfile,
+                field_names=STATIC_FIELD_SET,
+                merged_updates=merged_updates,
+                validated_data=static_data,
+            )
+            self.dynamic_system_profile = self._apply_merged_profile_fields(
+                profile=self.dynamic_system_profile,
+                create_factory=HostDynamicSystemProfile,
+                field_names=DYNAMIC_FIELD_SET,
+                merged_updates=merged_updates,
+                validated_data=dynamic_data,
+            )
+        except MarshmallowValidationError as e:
+            raise ValidationException(str(e.messages)) from e
+        except JsonSchemaValidationError as e:
+            raise ValidationException(f"System profile does not conform to schema.\n{e}") from e
+        except ValueError as e:
+            raise ValidationException(str(e)) from e
 
         self._update_derived_host_type()
 
@@ -381,10 +406,11 @@ class Host(LimitedHost):
         self.reporter = input_host.reporter
 
         if update_system_profile:
-            # Get system profile data from the serialized representation
             from app.serialization import build_system_profile_from_normalized
 
-            system_profile = build_system_profile_from_normalized(input_host)
+            system_profile = getattr(input_host, "_system_profile_patch", None)
+            if system_profile is None:
+                system_profile = build_system_profile_from_normalized(input_host)
             if system_profile:
                 self.update_system_profile(system_profile)
 
@@ -545,11 +571,7 @@ class Host(LimitedHost):
 
     def update_system_profile(self, input_system_profile: dict):
         logger.debug("Updating host's (id=%s) system profile", self.id)
-
-        try:
-            self._add_or_update_normalized_system_profiles(input_system_profile)
-        except Exception as e:
-            logger.warning("Failed to update normalized system profile tables for host %s: %s", self.id, str(e))
+        self._add_or_update_normalized_system_profiles(input_system_profile)
 
     def reporter_stale(self, reporter):
         reporter_data = self.per_reporter_staleness.get(reporter, None)

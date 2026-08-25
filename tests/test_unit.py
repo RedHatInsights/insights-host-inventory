@@ -3155,3 +3155,136 @@ def test_workloads_mixed_positive_and_nil_produces_exists_and_not_exists(flask_a
         sql = _compile_filters_to_sql(filters)
         assert "EXISTS" in sql
         assert "NOT (EXISTS" in sql
+
+
+@pytest.mark.parametrize(
+    ("target", "patch", "expected"),
+    [
+        # RFC 7396 Section 3 Test Vectors
+        ({"a": "b"}, {"a": "c"}, {"a": "c"}),
+        ({"a": "b"}, {"b": "c"}, {"a": "b", "b": "c"}),
+        ({"a": "b"}, {"a": None}, {}),
+        ({"a": "b", "b": "c"}, {"a": None}, {"b": "c"}),
+        ({"a": ["b"]}, {"a": "c"}, {"a": "c"}),
+        ({"a": "c"}, {"a": ["b"]}, {"a": ["b"]}),
+        ({"a": {"b": "c"}}, {"a": {"b": "d", "c": None}}, {"a": {"b": "d"}}),
+        ({"a": [{"b": "c"}]}, {"a": [1]}, {"a": [1]}),
+        (["a", "b"], ["c", "d"], ["c", "d"]),
+        ({"a": "b"}, ["c"], ["c"]),
+        ({"a": "foo"}, None, None),
+        ({"a": "foo"}, "bar", "bar"),
+        ({"e": None}, {"a": 1}, {"e": None, "a": 1}),
+        ([1, 2], {"a": "b", "c": None}, {"a": "b"}),
+        ({}, {"a": {"bb": {"ccc": None}}}, {"a": {"bb": {}}}),
+        # Falsy scalars are values, not deletes
+        ({"a": True}, {"a": False}, {"a": False}),
+        ({"a": 1}, {"a": 0}, {"a": 0}),
+        ({"a": "b"}, {}, {"a": "b"}),
+        # System Profile specific deep merge test vectors
+        (
+            {
+                "workloads": {
+                    "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
+                    "satellite": {"version": "6.11"},
+                }
+            },
+            {"workloads": {"ansible": {"runner_version": "3.0"}}},
+            {
+                "workloads": {
+                    "ansible": {"controller_version": "1.0", "hub_version": "2.0", "runner_version": "3.0"},
+                    "satellite": {"version": "6.11"},
+                }
+            },
+        ),
+        (
+            {
+                "workloads": {
+                    "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
+                    "satellite": {"version": "6.11"},
+                }
+            },
+            {"workloads": {"ansible": {"hub_version": None}}},
+            {
+                "workloads": {
+                    "ansible": {"controller_version": "1.0"},
+                    "satellite": {"version": "6.11"},
+                }
+            },
+        ),
+        (
+            {
+                "workloads": {
+                    "ansible": {"controller_version": "1.0"},
+                    "satellite": {"version": "6.11"},
+                }
+            },
+            {"workloads": {"ansible": None}},
+            {"workloads": {"satellite": {"version": "6.11"}}},
+        ),
+        (
+            {"arch": "x86_64", "number_of_cpus": 4, "cpu_model": "Intel"},
+            {"cpu_model": None, "number_of_cpus": 8},
+            {"arch": "x86_64", "number_of_cpus": 8},
+        ),
+    ],
+)
+def test_json_merge_patch_rfc7396(target, patch, expected):
+    from app.models.system_profile_transformer import json_merge_patch
+
+    assert json_merge_patch(target, patch) == expected
+
+
+def test_merge_system_profile_fields_only_touches_patched_keys():
+    from app.models.system_profile_transformer import merge_system_profile_fields
+
+    existing = {"arch": "x86_64", "number_of_cpus": 4, "cpu_model": "Intel"}
+
+    merged = merge_system_profile_fields(existing.get, {"cpu_model": None, "number_of_cpus": 8})
+
+    assert merged == {"cpu_model": None, "number_of_cpus": 8}
+    assert "arch" not in merged
+
+
+def test_host_schema_allows_null_nested_fields_in_patch(flask_app):  # noqa: ARG001
+    """Deletion-only nested patches must not be rejected before merge."""
+    payload = {
+        "org_id": "test",
+        "reporter": "puptoo",
+        "insights_id": "11111111-1111-1111-1111-111111111111",
+        "system_profile": {"operating_system": {"minor": None}, "cpu_model": None},
+    }
+    result = HostSchema().load(payload)
+    assert result["system_profile"]["cpu_model"] is None
+    assert result["system_profile"]["operating_system"]["minor"] is None
+
+
+def test_prepare_system_profile_patch_preserves_workloads_null():
+    from app.models.system_profile_transformer import prepare_system_profile_patch
+
+    assert prepare_system_profile_patch({"workloads": None, "cpu_model": "Intel"}) == {
+        "workloads": None,
+        "cpu_model": "Intel",
+    }
+
+
+def test_validate_merged_fields_after_deletes_skips_when_no_nulls():
+    from jsonschema import ValidationError
+
+    from app.models.system_profile_transformer import validate_merged_fields_after_deletes
+
+    # Incomplete stored objects are marshmallow-valid; do not jsonschema them on non-delete writes.
+    validate_merged_fields_after_deletes(
+        {"systemd": {"services_enabled": 52}},
+        {"systemd": {"services_enabled": 52}},
+    )
+
+    with pytest.raises(ValidationError):
+        validate_merged_fields_after_deletes(
+            {"operating_system": {"minor": None}},
+            {"operating_system": {"name": "RHEL", "major": 9}},
+        )
+
+    validate_merged_fields_after_deletes(
+        {"operating_system": None},
+        {"operating_system": None},
+    )

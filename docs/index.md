@@ -762,10 +762,108 @@ The system profile contains general facts about a host such as OS version, Kerne
 The system profile is stored in 2 tables, the system_profiles_static and system_profiles_dynamic table as you can see at the [HBI EDR](#entity-relationship-diagram).
 
 System profile facts are reported by reporters in the [host insertion](#host-insertion) process.
-All the system profile facts are optional, i.e.
-a reporter does not need to specify any.
-If a reporter does specify a system profile fact, then its value overrides the previously stored value of the given fact (if any) in a shallow merge.
-Any previously stored system profile facts that a reporter does not define remain unchanged.
+All the system profile facts are optional, i.e., a reporter does not need to specify any.
+
+### System Profile Merging (RFC 7396 JSON Merge Patch)
+
+System Profile updates follow the **JSON Merge Patch standard ([RFC 7396](https://datatracker.ietf.org/doc/html/rfc7396))**.
+This provides a recursive deep merge of objects and allows fine-grained deletion of fields at any depth:
+
+- **Deep Merge**: Objects (including nested objects such as `workloads.*` or `operating_system`) are deeply merged rather than replaced at the top level. Omitting a field from a payload preserves its existing value on the host record.
+- **Field Deletion**: Any field (top-level or nested at any depth) can be removed by explicitly setting its value to `null` in the payload.
+- **Array / Scalar Replacement**: Non-object fields (such as scalar types or arrays like `yum_repos`, `disk_devices`, `installed_packages`) are replaced entirely when a new value is provided, or removed when set to `null`.
+- **Empty object is not a delete**: `"rhsm": {}` or `"workloads": {}` is a no-op under RFC 7396 (no keys to merge). To clear those objects, send `null`.
+- **Falsy scalars are values**: `false` and `0` are stored as-is; only `null` deletes.
+- **`system_profile: null` (or omitting `system_profile`) does not modify the stored profile.** That is treated as "no system profile patch", not as deleting every field.
+
+Nested objects that have JSON Schema `required` properties (for example `operating_system` requires `name`, `major`, and `minor`) cannot end up missing those properties. Sending `"operating_system": { "minor": null }` is rejected if the merge result would be an incomplete OS object. To remove OS data, send `"operating_system": null`.
+
+After deleting the last nested key of an object, RFC 7396 leaves an empty object (`"ansible": {}`). That empty object still counts as present for existence filters. To remove a workload entirely, send `"ansible": null`.
+
+#### Examples
+
+**1. Deep Merge of Nested Workloads**:
+If a host currently has:
+```json
+{
+  "system_profile": {
+    "workloads": {
+      "ansible": {
+        "controller_version": "4.5.6",
+        "hub_version": "1.2.3"
+      },
+      "satellite": {
+        "version": "6.11"
+      }
+    }
+  }
+}
+```
+And a reporter sends:
+```json
+{
+  "system_profile": {
+    "workloads": {
+      "ansible": {
+        "runner_version": "2.4.1"
+      }
+    }
+  }
+}
+```
+The resulting host record will preserve `satellite` and merge the `ansible` fields:
+```json
+{
+  "system_profile": {
+    "workloads": {
+      "ansible": {
+        "controller_version": "4.5.6",
+        "hub_version": "1.2.3",
+        "runner_version": "2.4.1"
+      },
+      "satellite": {
+        "version": "6.11"
+      }
+    }
+  }
+}
+```
+
+**2. Deleting a Nested Field with `null`**:
+Sending `"hub_version": null` removes that specific field while preserving other fields in `ansible`:
+```json
+{
+  "system_profile": {
+    "workloads": {
+      "ansible": {
+        "hub_version": null
+      }
+    }
+  }
+}
+```
+
+**3. Deleting an Entire Workload with `null`**:
+Sending `"ansible": null` removes the entire `ansible` workload object while leaving other workloads (e.g. `satellite`) intact:
+```json
+{
+  "system_profile": {
+    "workloads": {
+      "ansible": null
+    }
+  }
+}
+```
+
+**4. Deleting a Top-Level Field with `null`**:
+Sending `"cpu_model": null` removes `cpu_model` from the system profile without modifying other top-level fields:
+```json
+{
+  "system_profile": {
+    "cpu_model": null
+  }
+}
+```
 
 ### Workloads Fields
 

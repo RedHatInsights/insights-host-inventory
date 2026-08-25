@@ -359,7 +359,9 @@ def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_f
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
-    system_profile_data = build_system_profile_from_normalized(input_host)
+    system_profile_data = getattr(input_host, "_system_profile_patch", None)
+    if system_profile_data is None:
+        system_profile_data = build_system_profile_from_normalized(input_host)
 
     if not system_profile_data:
         raise InventoryException(
