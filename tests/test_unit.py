@@ -3258,6 +3258,18 @@ def test_host_schema_allows_null_nested_fields_in_patch(flask_app):  # noqa: ARG
     assert result["system_profile"]["operating_system"]["minor"] is None
 
 
+def test_host_schema_allows_system_profile_null_and_empty_objects(flask_app):  # noqa: ARG001
+    """system_profile: null and empty nested objects are RFC 7396 no-ops, not schema errors."""
+    schema = HostSchema()
+    base = {
+        "org_id": "test",
+        "reporter": "puptoo",
+        "insights_id": "11111111-1111-1111-1111-111111111111",
+    }
+    assert schema.load({**base, "system_profile": None})["system_profile"] is None
+    assert schema.validate({**base, "system_profile": {"systemd": {}}}) == {}
+
+
 def test_prepare_system_profile_patch_preserves_workloads_null():
     from app.models.system_profile_transformer import prepare_system_profile_patch
 

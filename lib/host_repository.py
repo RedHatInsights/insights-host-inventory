@@ -359,11 +359,15 @@ def matches_at_least_one_canonical_fact_filter_in_memory(host: Host, canonical_f
 
 
 def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
-    system_profile_data = getattr(input_host, "_system_profile_patch", None)
-    if system_profile_data is None:
+    if hasattr(input_host, "_system_profile_patch"):
+        system_profile_data = input_host._system_profile_patch
+        # RFC 7396: system_profile: null is a no-op, not a wipe and not an error.
+        skip_profile_write = system_profile_data is None
+    else:
         system_profile_data = build_system_profile_from_normalized(input_host)
+        skip_profile_write = False
 
-    if not system_profile_data:
+    if not skip_profile_write and not system_profile_data:
         raise InventoryException(
             title="Invalid request", detail="Cannot update System Profile, since no System Profile data was provided."
         )
@@ -374,20 +378,24 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         input_host_canonical_facts = serialize_canonical_facts(input_host, include_none=False)
         existing_host = find_existing_host(identity, input_host_canonical_facts)
 
-    if existing_host:
-        logger.debug("Updating system profile on an existing host")
-        logger.debug(f"existing host = {existing_host}")
-
-        existing_host.update_system_profile(system_profile_data)
-
-        metrics.update_host_count.inc()
-        logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
-
-        return existing_host, AddHostResult.updated
-    else:
+    if not existing_host:
         raise InventoryException(
             title="Invalid request", detail="Could not find an existing host with the provided facts."
         )
+
+    if skip_profile_write:
+        logger.debug("system_profile is null; skipping system profile update for host %s", existing_host.id)
+        return existing_host, AddHostResult.updated
+
+    logger.debug("Updating system profile on an existing host")
+    logger.debug(f"existing host = {existing_host}")
+
+    existing_host.update_system_profile(system_profile_data)
+
+    metrics.update_host_count.inc()
+    logger.debug("Updated system profile for host (uncommitted):%s", existing_host)
+
+    return existing_host, AddHostResult.updated
 
 
 def get_host_list_by_id_list_from_db(host_id_list, identity, rbac_filter=None, columns=None) -> Query:

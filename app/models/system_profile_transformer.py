@@ -102,9 +102,7 @@ def validate_merged_fields_after_deletes(patch: dict[str, Any], merged_updates: 
         if _contains_null(value) and merged_updates.get(key) is not None
     }
     if remaining_after_delete:
-        jsonschema_validate(
-            remaining_after_delete, _normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER
-        )
+        jsonschema_validate(remaining_after_delete, _normalizer.schema, format_checker=Draft4Validator.FORMAT_CHECKER)
 
 
 def split_system_profile_data(system_profile_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:

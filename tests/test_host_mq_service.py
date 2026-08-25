@@ -1840,6 +1840,23 @@ def test_mq_empty_system_profile_object_does_not_wipe_existing(mq_create_or_upda
     assert host_db.static_system_profile.number_of_cpus == 4
 
 
+def test_mq_system_profile_null_does_not_wipe_existing(mq_create_or_update_host, db_get_host):
+    insights_id = generate_uuid()
+    first = mq_create_or_update_host(
+        base_host(
+            insights_id=insights_id,
+            system_profile={"arch": "x86_64", "cpu_model": "Intel Xeon", "number_of_cpus": 4},
+        )
+    )
+
+    mq_create_or_update_host(base_host(insights_id=insights_id, system_profile=None))
+    host_db = db_get_host(first.id)
+
+    assert host_db.static_system_profile.arch == "x86_64"
+    assert host_db.static_system_profile.cpu_model == "Intel Xeon"
+    assert host_db.static_system_profile.number_of_cpus == 4
+
+
 def test_mq_deletion_only_cpu_model_null(mq_create_or_update_host, db_get_host):
     insights_id = generate_uuid()
     first = mq_create_or_update_host(
@@ -1890,6 +1907,21 @@ def test_update_system_profile_not_provided(mocker, mq_create_or_update_host, db
             consumer_class=SystemProfileMessageConsumer,
         )
     mock_notification_event_producer.write_event.assert_called_once()
+
+
+def test_update_system_profile_null_is_noop(mq_create_or_update_host, db_get_host):
+    expected_ids = {"insights_id": generate_uuid(), "fqdn": "foo.test.redhat.com"}
+    input_host = minimal_host(**expected_ids, system_profile={"owner_id": OWNER_ID, "number_of_cpus": 1})
+    first_host_from_event = mq_create_or_update_host(input_host)
+
+    mq_create_or_update_host(
+        minimal_host(id=str(first_host_from_event.id), system_profile=None),
+        consumer_class=SystemProfileMessageConsumer,
+    )
+    host_db = db_get_host(first_host_from_event.id)
+
+    assert host_db.static_system_profile.number_of_cpus == 1
+    assert str(host_db.static_system_profile.owner_id) == OWNER_ID
 
 
 @pytest.mark.usefixtures("flask_app")

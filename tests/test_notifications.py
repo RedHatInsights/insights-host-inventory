@@ -77,17 +77,10 @@ def test_new_system_notification_fields(mq_create_or_update_host, notification_e
     assert notification["org_id"] == SYSTEM_IDENTITY["org_id"]
 
 
-@pytest.mark.parametrize(
-    "sp_data",
-    (
-        {"owner_id": "Mike Wazowski"},
-        None,
-    ),
-)
-def test_add_host_fail(mq_create_or_update_host, notification_event_producer_mock, sp_data):
+def test_add_host_fail(mq_create_or_update_host, notification_event_producer_mock):
     # Test new system notification is not produced after add host fails
 
-    host = minimal_host(org_id=SYSTEM_IDENTITY["org_id"], system_profile=sp_data)
+    host = minimal_host(org_id=SYSTEM_IDENTITY["org_id"], system_profile={"owner_id": "Mike Wazowski"})
 
     with pytest.raises(ValidationException):
         mq_create_or_update_host(host, notification_event_producer=notification_event_producer_mock)

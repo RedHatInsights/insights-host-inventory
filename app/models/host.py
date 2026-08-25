@@ -408,8 +408,9 @@ class Host(LimitedHost):
         if update_system_profile:
             from app.serialization import build_system_profile_from_normalized
 
-            system_profile = getattr(input_host, "_system_profile_patch", None)
-            if system_profile is None:
+            if hasattr(input_host, "_system_profile_patch"):
+                system_profile = input_host._system_profile_patch
+            else:
                 system_profile = build_system_profile_from_normalized(input_host)
             if system_profile:
                 self.update_system_profile(system_profile)

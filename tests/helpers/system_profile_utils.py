@@ -542,7 +542,7 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     },
     {"threads_per_core": 2147483648},  # over max
     {"virtual_host_uuid": "not-a-uuid"},  # invalid UUID
-    {"systemd": {}},  # missing required fields
+    # {"systemd": {}} is a valid RFC 7396 no-op, not an invalid profile
     {"systemd": {"failed": -1, "jobs_queued": 4, "state": "running"}},  # negative integer
     {"systemd": {"failed": 1, "jobs_queued": 4, "state": "invalid"}},  # bad enum
     {"systemd": [{"failed": 1, "state": "running", "jobs_queued": 0}]},  # list not object
