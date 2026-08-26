@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 import zipfile
+from ast import literal_eval
 from functools import cached_property
 from typing import Any
 
@@ -47,7 +48,14 @@ HBI_EXPORT_FIELD_MAP = {
     "subscription_manager_id": "subscription_manager_id",
     "tags": "tags",
     "updated": "updated",
+    "bios_uuid": "bios_uuid",
+    "satellite_managed": "satellite_managed",
+    "cloud_provider": "cloud_provider",
+    "is_marketplace": "is_marketplace",
+    "ip_addresses": "ip_addresses",
 }
+
+HBI_EXPORT_CSV_BOOLEAN_FIELDS = frozenset({"satellite_managed", "is_marketplace"})
 
 
 def _process_json_report(report: list[Any]) -> dict:
@@ -118,6 +126,10 @@ def _process_csv_report(report: list[Any]) -> dict:
                 data[field] = None
             elif field == "tags":
                 data[field] = _convert_tags(data[field])
+            elif field == "ip_addresses":
+                data[field] = literal_eval(data[field])
+            elif field in HBI_EXPORT_CSV_BOOLEAN_FIELDS:
+                data[field] = data[field] == "True"
 
         processed_report[data["host_id"]] = data
 
@@ -480,6 +492,20 @@ class ExportsAPIWrapper(BaseEntity):
                 )
 
             assert export_entry[HBI_EXPORT_FIELD_MAP["os_release"]] == sp.system_profile.os_release
+            assert export_entry[HBI_EXPORT_FIELD_MAP["bios_uuid"]] == host.bios_uuid
+            assert export_entry[HBI_EXPORT_FIELD_MAP["ip_addresses"]] == host.ip_addresses
+            assert (
+                export_entry[HBI_EXPORT_FIELD_MAP["satellite_managed"]]
+                == sp.system_profile.satellite_managed
+            )
+            assert (
+                export_entry[HBI_EXPORT_FIELD_MAP["cloud_provider"]]
+                == sp.system_profile.cloud_provider
+            )
+            assert (
+                export_entry[HBI_EXPORT_FIELD_MAP["is_marketplace"]]
+                == sp.system_profile.is_marketplace
+            )
 
             if host.groups:
                 assert export_entry[HBI_EXPORT_FIELD_MAP["group_id"]] == host.groups[0].id
