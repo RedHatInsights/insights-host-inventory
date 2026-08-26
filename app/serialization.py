@@ -85,18 +85,6 @@ ADDITIONAL_HOST_MQ_FIELDS = (
     "system_profile",
 )
 
-ADDITIONAL_EXPORT_SERVICE_FIELDS = (
-    "fqdn",
-    "state",
-    "tags",
-    "host_type",
-    "bios_uuid",
-    "satellite_managed",
-    "cloud_provider",
-    "is_marketplace",
-    "ip_addresses",
-)
-
 
 def deserialize_host(
     raw_data: dict, schema: type[HostSchema | LimitedHostSchema] = HostSchema, system_profile_spec: dict | None = None

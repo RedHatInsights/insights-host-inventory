@@ -22,6 +22,11 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:41.159435+00:00",
+        "bios_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "satellite_managed": False,
+        "cloud_provider": "aws",
+        "is_marketplace": False,
+        "ip_addresses": ["10.0.0.1"],
     },
     {
         "display_name": "063406.foo.redhat.com",
@@ -41,6 +46,11 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:40.562889+00:00",
+        "bios_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "satellite_managed": True,
+        "cloud_provider": "azure",
+        "is_marketplace": True,
+        "ip_addresses": ["10.0.0.2", "192.168.1.1"],
     },
     {
         "display_name": "43794f.foo.redhat.com",
@@ -60,6 +70,11 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:41.167465+00:00",
+        "bios_uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "satellite_managed": False,
+        "cloud_provider": None,
+        "is_marketplace": False,
+        "ip_addresses": None,
     },
 ]
 
