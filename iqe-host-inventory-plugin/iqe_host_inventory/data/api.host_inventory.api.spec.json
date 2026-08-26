@@ -2842,7 +2842,7 @@
         "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "IpAddresses": {
-        "description": "Host\u2019s network IP addresses.  This field is considered to be a canonical fact.",
+        "description": "Host’s network IP addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2854,13 +2854,13 @@
         ]
       },
       "Fqdn": {
-        "description": "A host\u2019s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
+        "description": "A host’s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
         "example": "my.host.example.com"
       },
       "MacAddresses": {
-        "description": "Host\u2019s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
+        "description": "Host’s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2871,7 +2871,7 @@
         ]
       },
       "ProviderId": {
-        "description": "Host\u2019s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
+        "description": "Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
         "type": "string",
         "nullable": true,
         "example": "i-05d2313e6b9a42b16"
@@ -3066,7 +3066,7 @@
           {
             "properties": {
               "display_name": {
-                "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
+                "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
                 "type": "string",
                 "example": "host1.mydomain.com",
                 "nullable": true
@@ -3221,10 +3221,7 @@
                 "items": {
                   "type": "string"
                 },
-                "example": [
-                  "vulnerability",
-                  "malware"
-                ]
+                "example": ["vulnerability", "malware"]
               }
             }
           }
@@ -3458,7 +3455,7 @@
       },
       "HostViewCombinedFilter": {
         "type": "object",
-        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field \u2192 operator \u2192 value` structure.",
+        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field → operator → value` structure.",
         "additionalProperties": {
           "$ref": "#/components/schemas/HostViewCombinedFilterValue"
         }
@@ -3614,7 +3611,7 @@
             "example": "host1.mydomain.com"
           },
           "display_name": {
-            "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
+            "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
             "type": "string",
             "example": "host1.mydomain.com"
           }
@@ -3716,7 +3713,7 @@
         }
       },
       "GroupName": {
-        "description": "A group\u2019s human-readable name.",
+        "description": "A group’s human-readable name.",
         "type": "string",
         "nullable": false,
         "example": "sre-group"

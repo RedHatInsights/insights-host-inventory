@@ -44,13 +44,13 @@ DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
 # Fields that should be merged (shallow) instead of replaced when updating system profiles.
 SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
-RHSM_PRESERVED_WORKLOAD_FIELDS: set[tuple[str, str]] = {("ansible", "containers"), ("satellite", "containers")}
+RHSM_PRESERVED_WORKLOAD_FIELDS = {("ansible", "containers"), ("satellite", "containers")}
 
 
 def _preserve_rhsm_workload_fields(merged: dict, incoming: dict, existing: dict) -> None:
     """Restore workload fields that RHSM reporters cannot populate.
 
-    RHSM reporters have no visibility into container metadata, so when they
+    RHSM doesn't collect data about containers on a machine, so when RHSM reporters
     update a workload they will omit container fields.  A shallow merge would
     silently drop the existing data.  This function re-injects preserved fields
     from *existing* into *merged* when the RHSM reporter did not send them.
