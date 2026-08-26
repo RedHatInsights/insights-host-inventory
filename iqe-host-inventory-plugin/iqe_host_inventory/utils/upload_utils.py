@@ -34,6 +34,8 @@ EDGE_STAGE_INSIGHTS_QA_ARCHIVE = "new_edge_device_85.tar.gz"
 IMAGE_MODE_ARCHIVE = "image-mode-rhel94.tar.gz"
 ANSIBLE_EXECUTION_NODE_ARCHIVE = "rhel9.8-ansible2.6-execution-node.tar.gz"
 CONTAINERIZED_SATELLITE_ARCHIVE = "rhel9_8-foreman-3_16-containerized.tar.gz"
+CONTAINERIZED_AAP_ARCHIVE = "rhel10_2-aap27-containerized.tar.gz"
+CONTAINERIZED_AAP_EXEC_NODE_ARCHIVE = "rhel10_2-aap27-exec-node-containerized.tar.gz"
 
 TAGS_METADATA = {
     "name": "insights.specs.Specs.tags",
