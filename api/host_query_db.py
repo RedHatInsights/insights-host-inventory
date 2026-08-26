@@ -911,12 +911,19 @@ def get_hosts_to_export(
         Host.subscription_manager_id,
         Host.satellite_id,
         Host.last_check_in,
+        Host.bios_uuid,
+        Host.ip_addresses,
     ]
 
     export_host_query = (
         _find_hosts_model_query(identity=identity, columns=columns)
         .options(
-            joinedload(Host.static_system_profile).load_only(HostStaticSystemProfile.os_release),
+            joinedload(Host.static_system_profile).load_only(
+                HostStaticSystemProfile.os_release,
+                HostStaticSystemProfile.satellite_managed,
+                HostStaticSystemProfile.cloud_provider,
+                HostStaticSystemProfile.is_marketplace,
+            ),
             noload(Host.dynamic_system_profile),
         )
         .filter(*q_filters)
