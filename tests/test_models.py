@@ -2670,12 +2670,10 @@ class TestViewResponseSchema:
 class TestSystemProfileJsonMergePatch:
     """Tests for RFC 7396 JSON Merge Patch behavior on host system profile updates."""
 
-    def test_workloads_deep_merge_preserves_sibling_and_nested_fields(self, db_create_host):
-        """
-        Verify the prompt scenario:
-        Existing host: system_profile.workloads.[ansible.[a,b],satellite.[c,d]]
-        Update with: system_profile.workloads.ansible.[e]
-        Result: system_profile.workloads.[ansible.[a,b,e],satellite.[c,d]]
+    def test_workloads_snapshot_without_nulls_replaces_object_keeps_siblings(self, db_create_host):
+        """Old puptoo omits empty nested keys. No JSON nulls → replace that workload object.
+
+        Sibling workloads are still kept (omit at the workloads key level).
         """
         initial_sp = {
             "workloads": {
@@ -2692,7 +2690,6 @@ class TestSystemProfileJsonMergePatch:
         host = db_create_host(extra_data={"system_profile_facts": initial_sp})
         assert host.dynamic_system_profile.workloads == initial_sp["workloads"]
 
-        # Patch with only workloads.ansible.runner_version (field e)
         patch_sp = {
             "workloads": {
                 "ansible": {
@@ -2705,8 +2702,6 @@ class TestSystemProfileJsonMergePatch:
 
         expected_workloads = {
             "ansible": {
-                "controller_version": "4.5.6",
-                "hub_version": "1.2.3",
                 "runner_version": "2.4.1",
             },
             "satellite": {
@@ -2715,6 +2710,45 @@ class TestSystemProfileJsonMergePatch:
             },
         }
         assert host.dynamic_system_profile.workloads == expected_workloads
+
+    def test_workloads_rfc_merge_when_patch_contains_null(self, db_create_host):
+        """A null in the workload object enables RFC 7396: omit keeps, null deletes."""
+        initial_sp = {
+            "workloads": {
+                "ansible": {
+                    "controller_version": "4.5.6",
+                    "hub_version": "1.2.3",
+                },
+                "satellite": {
+                    "version": "6.11",
+                    "type": "server",
+                },
+            }
+        }
+        host = db_create_host(extra_data={"system_profile_facts": initial_sp})
+
+        host.update_system_profile(
+            {
+                "workloads": {
+                    "ansible": {
+                        "hub_version": None,
+                        "runner_version": "2.4.1",
+                    }
+                }
+            }
+        )
+        db.session.commit()
+
+        assert host.dynamic_system_profile.workloads == {
+            "ansible": {
+                "controller_version": "4.5.6",
+                "runner_version": "2.4.1",
+            },
+            "satellite": {
+                "version": "6.11",
+                "type": "server",
+            },
+        }
 
     def test_delete_nested_field_with_null(self, db_create_host):
         """Setting a nested field to null in patch removes it from the record."""

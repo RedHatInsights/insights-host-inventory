@@ -3199,6 +3199,50 @@ def test_merge_system_profile_fields_only_touches_patched_keys():
     assert "arch" not in merged
 
 
+def test_merge_workloads_snapshot_without_nulls_replaces_child():
+    """No nulls in ansible → replace that object; omitted satellite is kept."""
+    from app.models.system_profile_transformer import merge_system_profile_fields
+
+    existing = {
+        "workloads": {
+            "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
+            "satellite": {"version": "6.11"},
+        }
+    }
+    merged = merge_system_profile_fields(
+        existing.get,
+        {"workloads": {"ansible": {"runner_version": "2.4.1"}}},
+    )
+    assert merged == {
+        "workloads": {
+            "ansible": {"runner_version": "2.4.1"},
+            "satellite": {"version": "6.11"},
+        }
+    }
+
+
+def test_merge_workloads_rfc_when_child_contains_null():
+    """Null in ansible → RFC merge: hub_version deleted, controller_version kept."""
+    from app.models.system_profile_transformer import merge_system_profile_fields
+
+    existing = {
+        "workloads": {
+            "ansible": {"controller_version": "1.0", "hub_version": "2.0"},
+            "satellite": {"version": "6.11"},
+        }
+    }
+    merged = merge_system_profile_fields(
+        existing.get,
+        {"workloads": {"ansible": {"hub_version": None, "runner_version": "2.4.1"}}},
+    )
+    assert merged == {
+        "workloads": {
+            "ansible": {"controller_version": "1.0", "runner_version": "2.4.1"},
+            "satellite": {"version": "6.11"},
+        }
+    }
+
+
 def test_host_schema_allows_rfc7396_nulls_and_empty_objects(flask_app):  # noqa: ARG001
     """Nulls and empty nested objects must not be rejected before merge."""
     schema = HostSchema()

@@ -24,7 +24,15 @@ STATIC_FIELD_SET = set(STATIC_FIELDS)
 DYNAMIC_FIELD_SET = set(DYNAMIC_FIELDS)
 
 
-def json_merge_patch(target: Any, patch: Any) -> Any:
+def _contains_null(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return any(_contains_null(v) for v in value.values())
+    return False
+
+
+def json_merge_patch(target: Any, patch: Any, *, snapshot_objects_without_nulls: bool = False) -> Any:
     """
     Apply a JSON Merge Patch (RFC 7396 §3) to a target document.
 
@@ -39,25 +47,49 @@ def json_merge_patch(target: Any, patch: Any) -> Any:
 
     The target is copied once at the top of the call; nested object patches mutate
     that copy in place so large sibling arrays are not recopied at each depth.
+
+    snapshot_objects_without_nulls:
+        When True, a nested object that contains no JSON nulls replaces the stored
+        object instead of deep-merging. Old puptoo omits empty nested keys; replace
+        matches pre-RFC shallow workloads merge and avoids stale values (e.g.
+        hub_version) until reporters send explicit nulls (RHINENG-30320). Objects
+        that contain null still RFC-merge. Used for the workloads field only.
+
+        Temporary: remove this once RHINENG-30320 is fully rolled out and before puptoo
+        emits workloads.*.containers (RHINENG-29755 / insights-puptoo#915). 915
+        omits containers when podman was not collected. If that object has no
+        nulls (all RPM versions present), snapshot replace would wipe stored
+        containers. RFC omit must keep them. Do not leave snapshot enabled
+        together with omit-containers.
     """
     if not isinstance(patch, dict):
         return deepcopy(patch)
 
     result = deepcopy(target) if isinstance(target, dict) else {}
-    _apply_merge_patch(result, patch)
+    _apply_merge_patch(result, patch, snapshot_objects_without_nulls=snapshot_objects_without_nulls)
     return result
 
 
-def _apply_merge_patch(target: dict[str, Any], patch: dict[str, Any]) -> None:
+def _apply_merge_patch(
+    target: dict[str, Any], patch: dict[str, Any], *, snapshot_objects_without_nulls: bool = False
+) -> None:
     for key, value in patch.items():
         if value is None:
             target.pop(key, None)
         elif isinstance(value, dict):
+            # Bridge for old puptoo (no nested nulls). Remove before puptoo#915:
+            # omit-containers + no nulls would replace the parent and drop containers.
+            if snapshot_objects_without_nulls and not _contains_null(value):
+                target[key] = deepcopy(value)
+                continue
             nested = target.get(key)
             if not isinstance(nested, dict):
                 nested = {}
                 target[key] = nested
-            _apply_merge_patch(nested, value)
+            # Snapshot only at this level (workload objects). Nested RFC patches
+            # deep-merge so a null sibling can delete one key without replacing
+            # the rest of the object.
+            _apply_merge_patch(nested, value, snapshot_objects_without_nulls=False)
         else:
             target[key] = deepcopy(value)
 
@@ -67,12 +99,23 @@ def merge_system_profile_fields(existing_getter: Callable[[str], Any], patch: di
 
     ``existing_getter(field_name)`` returns the current column value, or None if unset.
     Primary-key fields are ignored. Unknown fields are kept so later validation can reject them.
+
+    ``workloads`` children with no JSON nulls are replaced (old puptoo snapshot).
+    Children that contain null RFC-merge so RHINENG-30320 can delete nested keys.
+
+    Remove ``snapshot_objects_without_nulls`` for workloads after RHINENG-30320 is in
+    prod and before Puptoo PR#915 is merged. Leaving it would wipe ``containers`` when #915
+    omits that key on an ansible/satellite object that has no nulls.
     """
     merged: dict[str, Any] = {}
     for key, value in patch.items():
         if key in PRIMARY_KEY_FIELDS:
             continue
-        merged[key] = json_merge_patch(existing_getter(key), value)
+        merged[key] = json_merge_patch(
+            existing_getter(key),
+            value,
+            snapshot_objects_without_nulls=(key == "workloads" and isinstance(value, dict)),
+        )
     return merged
 
 
@@ -80,14 +123,6 @@ def prepare_system_profile_patch(patch: dict[str, Any]) -> dict[str, Any]:
     """Copy a patch and migrate/strip legacy root-level workload fields."""
     prepared = migrate_legacy_workload_root_fields_to_workloads(deepcopy(patch))
     return strip_legacy_workload_root_fields(prepared)
-
-
-def _contains_null(value: Any) -> bool:
-    if value is None:
-        return True
-    if isinstance(value, dict):
-        return any(_contains_null(v) for v in value.values())
-    return False
 
 
 def validate_merged_fields_after_deletes(patch: dict[str, Any], merged_updates: dict[str, Any]) -> None:

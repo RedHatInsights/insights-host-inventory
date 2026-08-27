@@ -769,7 +769,8 @@ All the system profile facts are optional, i.e., a reporter does not need to spe
 System Profile updates follow the **JSON Merge Patch standard ([RFC 7396](https://datatracker.ietf.org/doc/html/rfc7396))**.
 This provides a recursive deep merge of objects and allows fine-grained deletion of fields at any depth:
 
-- **Deep Merge**: Objects (including nested objects such as `workloads.*` or `operating_system`) are deeply merged rather than replaced at the top level. Omitting a field from a payload preserves its existing value on the host record.
+- **Deep Merge**: Objects (for example `operating_system`) are deeply merged rather than replaced. Omitting a field from a payload preserves its existing value on the host record.
+- **Workload snapshot (temporary)**: Each child of `workloads` (for example `ansible`, `satellite`) that contains **no** JSON `null` **replaces** the stored object. That matches current puptoo, which omits empty nested keys instead of sending `null`. Sibling workloads omitted from the patch are still kept. A child that **contains** `null` follows RFC 7396 (omit keeps, `null` deletes). Remove this once reporters emit nested `null` (RHINENG-30320) and **before** puptoo emits `workloads.*.containers` (insights-puptoo#915); snapshot plus omit-`containers` would wipe stored container lists.
 - **Field Deletion**: Any field (top-level or nested at any depth) can be removed by explicitly setting its value to `null` in the payload.
 - **Array / Scalar Replacement**: Non-object fields (such as scalar types or arrays like `yum_repos`, `disk_devices`, `installed_packages`) are replaced entirely when a new value is provided, or removed when set to `null`.
 - **Empty object is not a delete**: `"rhsm": {}` or `"workloads": {}` is a no-op under RFC 7396 (no keys to merge). To clear those objects, send `null`.
@@ -782,7 +783,7 @@ After deleting the last nested key of an object, RFC 7396 leaves an empty object
 
 #### Examples
 
-**1. Deep Merge of Nested Workloads**:
+**1. Workload object with no `null`s is replaced** (omitted siblings are kept):
 If a host currently has:
 ```json
 {
@@ -811,14 +812,12 @@ And a reporter sends:
   }
 }
 ```
-The resulting host record will preserve `satellite` and merge the `ansible` fields:
+The resulting host record replaces `ansible` (no `null`s in that object) and keeps omitted `satellite`:
 ```json
 {
   "system_profile": {
     "workloads": {
       "ansible": {
-        "controller_version": "4.5.6",
-        "hub_version": "1.2.3",
         "runner_version": "2.4.1"
       },
       "satellite": {
@@ -830,7 +829,7 @@ The resulting host record will preserve `satellite` and merge the `ansible` fiel
 ```
 
 **2. Deleting a Nested Field with `null`**:
-Sending `"hub_version": null` removes that specific field while preserving other fields in `ansible`:
+Because this patch contains `null`, `ansible` is RFC-merged: sending `"hub_version": null` removes that field and keeps other `ansible` fields (for example `controller_version`):
 ```json
 {
   "system_profile": {
