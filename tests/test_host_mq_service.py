@@ -2488,6 +2488,25 @@ def test_workspace_mq_update(
         assert call_arg["host"]["groups"][0]["id"] == workspace_id
 
 
+def test_workspace_mq_update_after_delete(mocker, flask_app, caplog):
+    """An update message for a workspace that was already deleted is logged as a warning and skipped."""
+    import logging
+
+    mocker.patch("app.queue.host_mq.group_repository.get_group_by_id_from_db", return_value=None)
+    mock_patch_group = mocker.patch("app.queue.host_mq.group_repository.patch_group")
+
+    workspace_id = str(generate_uuid())
+    message = generate_kessel_workspace_message("update", workspace_id, "deleted-workspace")
+    consumer = WorkspaceMessageConsumer(mocker.Mock(), flask_app, mocker.Mock(), mocker.Mock())
+
+    with caplog.at_level(logging.WARNING):
+        result = consumer.handle_message(json.dumps(message))
+
+    assert result is None
+    assert f"Group with ID {workspace_id} not found for update" in caplog.text
+    mock_patch_group.assert_not_called()
+
+
 @pytest.mark.parametrize("num_hosts", (0, 3))
 def test_workspace_mq_delete(
     db_create_group_with_hosts, db_get_group_by_id, db_get_hosts_for_group, num_hosts, flask_app, mocker
@@ -2672,8 +2691,16 @@ def test_workspace_bulk_mq_duplicate_does_not_rollback_prior_creates(
     "processed_rows,event_type,should_notify",
     [
         ([], EventType.created, False),
-        ([mock.Mock()], EventType.created, True),
-        ([mock.Mock()], None, False),
+        (
+            [OperationResult(mock.Mock(id="workspace-id"), None, None, EventType.created, lambda: None)],
+            EventType.created,
+            True,
+        ),
+        (
+            [OperationResult(mock.Mock(id="workspace-id"), None, None, None, lambda: None)],
+            None,
+            False,
+        ),
     ],
 )
 def test_post_process_rows_commit_and_notify(

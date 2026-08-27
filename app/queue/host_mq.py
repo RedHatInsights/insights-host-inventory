@@ -13,6 +13,7 @@ from datetime import datetime
 from functools import partial
 from typing import Any
 from typing import ClassVar
+from typing import override
 from uuid import UUID
 
 from confluent_kafka import Consumer
@@ -221,7 +222,7 @@ class HBIMessageConsumerBase:
         self.flask_app = flask_app
         self.event_producer = event_producer
         self.notification_event_producer = notification_event_producer
-        self.processed_rows: list[OperationResult] = []
+        self.processed_rows: list[OperationResult | None] = []
         self._is_retry = False
         self._messages_pending_retry: list | None = None
         self._producer_ctx: OtelContext | None = None
@@ -245,12 +246,17 @@ class HBIMessageConsumerBase:
     def process_message(self, *args, **kwargs):
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
-    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
+    def handle_message(
+        self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None
+    ) -> OperationResult | None:
         """
         Process a message from Kafka.
 
         Subclasses must override this method and should apply their own
         timing metric decorator (e.g., @metrics.ingress_message_handler_time.time())
+
+        Returns an OperationResult on success, or None if the message was
+        consumed but no action was needed (e.g. idempotent duplicate, stale update).
         """
         raise NotImplementedError("Not implemented in the HBIMessageConsumerBase class")
 
@@ -265,7 +271,7 @@ class HBIMessageConsumerBase:
         error status before ending them.
         """
         for result in self.processed_rows:
-            if result is not None and result.otel_span is not None:
+            if isinstance(result, OperationResult) and result.otel_span is not None:
                 if error:
                     self._mark_span_error(result.otel_span, error)
                 self._enrich_span_from_threadctx(result.otel_span)
@@ -407,7 +413,7 @@ class HBIMessageConsumerBase:
         start_ns = None if span else time.time_ns()
         try:
             result = self.handle_message(msg.value(), headers=msg.headers())
-            if result is not None:
+            if isinstance(result, OperationResult):
                 result.otel_context = otel_context_api.get_current()
                 result.otel_span = span
             self.processed_rows.append(result)
@@ -619,7 +625,10 @@ class HBIMessageConsumerBase:
 
 class WorkspaceMessageConsumer(HBIMessageConsumerBase):
     @metrics.ingress_message_handler_time.time()
-    def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None):
+    @override
+    def handle_message(
+        self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None
+    ) -> OperationResult | None:
         payload_schema = parse_operation_message(message, DebeziumEnvelopeSchema)
         validated_operation_msg = parse_operation_message(payload_schema["payload"], WorkspaceOperationSchema)
         org_id = validated_operation_msg["org_id"]
@@ -652,9 +661,16 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
 
             except (IntegrityError, UniqueViolation):
                 logger.warning(f"Group with ID {workspace['id']} already exists; skipping creation")
+                return None
 
         elif operation == "update":
             group_to_update = group_repository.get_group_by_id_from_db(str(workspace["id"]), org_id)
+            if group_to_update is None:
+                logger.warning(
+                    f"Group with ID {workspace['id']} not found for update; "
+                    "it may have been deleted by a concurrent operation. Skipping update."
+                )
+                return None
             group_repository.patch_group(
                 group=group_to_update,
                 patch_data=workspace,
@@ -685,15 +701,16 @@ class WorkspaceMessageConsumer(HBIMessageConsumerBase):
         else:
             raise ValidationError("Operation must be 'create', 'update', or 'delete'.")
 
+    @override
     def post_process_rows(self) -> None:
         # Note: Commit happens in event_loop before this is called
         for processed_row in self.processed_rows:
             # Invoke OperationResult success logger for each processed row
-            if hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+            if isinstance(processed_row, OperationResult) and callable(processed_row.success_logger):
                 processed_row.success_logger()
 
             # PG Notify for each processed workspace
-            if processed_row and processed_row.event_type and processed_row.row:
+            if isinstance(processed_row, OperationResult) and processed_row.event_type and processed_row.row:
                 _pg_notify_workspace(processed_row.event_type.name, str(processed_row.row.id))
 
 
@@ -701,6 +718,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
     _has_upstream_trace = True
 
     @metrics.ingress_message_handler_time.time()
+    @override
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         validated_operation_msg = parse_operation_message(message, HostOperationSchema)
         platform_metadata = validated_operation_msg.get("platform_metadata", {})
@@ -760,6 +778,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
                 )
                 raise
 
+    @override
     def post_process_rows(self) -> None:
         # Note: Commit happens in event_loop before this is called
         if len(self.processed_rows) > 0:
@@ -767,6 +786,7 @@ class HostMessageConsumer(HBIMessageConsumerBase):
 
 
 class IngressMessageConsumer(HostMessageConsumer):
+    @override
     def process_message(
         self,
         host_data: dict[str, Any],
@@ -796,7 +816,7 @@ class IngressMessageConsumer(HostMessageConsumer):
                 _validate_payload_owner_id(input_host, identity)
 
             log_add_host_attempt(logger, input_host, sp_fields_to_log, identity)
-            processed_hosts = [result.row for result in self.processed_rows]
+            processed_hosts = [result.row for result in self.processed_rows if result is not None]
             host_row, add_result = host_repository.add_host(
                 input_host, identity, operation_args=operation_args, existing_hosts=processed_hosts
             )
@@ -837,6 +857,7 @@ class SystemProfileMessageConsumer(HostMessageConsumer):
     # Overrides parent: system-profile updates come from rhsm-conduit directly, not from ingress
     _has_upstream_trace = False
 
+    @override
     def process_message(
         self,
         host_data: dict[str, Any],
@@ -902,6 +923,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
     }
 
     @metrics.host_app_message_handler_time.time()
+    @override
     def handle_message(self, message: str | bytes, headers: list[tuple[str, bytes]] | None = None) -> OperationResult:
         application_str, request_id = self._extract_headers(headers)
 
@@ -929,6 +951,7 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
         initialize_thread_local_storage(request_id, org_id=validated_msg.get("org_id"))
         return self.process_message(application, validated_msg)
 
+    @override
     def process_message(self, application: ConsumerApplication, validated_msg: dict[str, Any]) -> OperationResult:
         org_id = validated_msg["org_id"]
         timestamp = validated_msg["timestamp"]
@@ -1073,10 +1096,11 @@ class HostAppMessageConsumer(HBIMessageConsumerBase):
             metrics.host_app_data_failure.labels(application=application, reason="unexpected_error").inc()
             raise
 
+    @override
     def post_process_rows(self) -> None:
         """Process the results after batch commit - call success loggers."""
         for processed_row in self.processed_rows:
-            if processed_row and hasattr(processed_row, "success_logger") and callable(processed_row.success_logger):
+            if isinstance(processed_row, OperationResult) and callable(processed_row.success_logger):
                 processed_row.success_logger()
 
 
@@ -1382,7 +1406,7 @@ def write_add_update_event_message(
 def write_message_batch(
     event_producer: EventProducer,
     notification_event_producer: EventProducer,
-    processed_rows: list[OperationResult],
+    processed_rows: list[OperationResult | None],
 ):
     for result in processed_rows:
         if result is not None:

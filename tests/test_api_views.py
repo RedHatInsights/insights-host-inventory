@@ -311,6 +311,154 @@ class TestCreateView:
         assert filters["system_profile"]["operating_system"] == {"RHEL": {"version": {"eq": ["9.0"]}}}
         assert filters["vulnerability"]["critical_cves"]["gte"] == "1"
 
+    def test_creates_view_with_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "host": {
+                    "hostname_or_id": "web-server",
+                    "staleness": ["fresh", "stale"],
+                    "registered_with": ["insights"],
+                    "tags": ["namespace/key=value"],
+                    "workspace_name": ["production"],
+                    "system_type": ["edge"],
+                },
+            },
+        }
+        data = {"name": "Host Filtered View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        hf = response_data["configuration"]["filters"]["host"]
+        assert hf["hostname_or_id"] == "web-server"
+        assert hf["staleness"] == ["fresh", "stale"]
+        assert hf["registered_with"] == ["insights"]
+        assert hf["tags"] == ["namespace/key=value"]
+        assert hf["workspace_name"] == ["production"]
+        assert hf["system_type"] == ["edge"]
+
+    def test_creates_view_with_host_filters_date_ranges(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "host": {
+                    "last_check_in_start": "2025-01-01T00:00:00+00:00",
+                    "last_check_in_end": "2025-06-01T00:00:00+00:00",
+                    "updated_start": "2025-03-01T00:00:00+00:00",
+                    "updated_end": "2025-06-01T00:00:00+00:00",
+                },
+            },
+        }
+        data = {"name": "Date Range View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        hf = response_data["configuration"]["filters"]["host"]
+        assert hf["last_check_in_start"] == "2025-01-01T00:00:00+00:00"
+        assert hf["last_check_in_end"] == "2025-06-01T00:00:00+00:00"
+        assert hf["updated_start"] == "2025-03-01T00:00:00+00:00"
+        assert hf["updated_end"] == "2025-06-01T00:00:00+00:00"
+
+    def test_creates_view_with_combined_filters_and_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "vulnerability": {"critical_cves": {"gte": "1"}},
+                "host": {
+                    "staleness": ["fresh"],
+                    "hostname_or_id": "prod",
+                },
+            },
+        }
+        data = {"name": "Combined Filters", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["configuration"]["filters"]["vulnerability"]["critical_cves"]["gte"] == "1"
+        assert response_data["configuration"]["filters"]["host"]["staleness"] == ["fresh"]
+        assert response_data["configuration"]["filters"]["host"]["hostname_or_id"] == "prod"
+
+    def test_400_for_invalid_staleness_in_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {"host": {"staleness": ["invalid_state"]}},
+        }
+        data = {"name": "Bad Staleness", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "invalid_state" in response_data["detail"]
+
+    def test_400_for_unknown_host_filter_key(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {"host": {"nonexistent_param": "value"}},
+        }
+        data = {"name": "Bad Host Filter", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "nonexistent_param" in response_data["detail"]
+
+    def test_400_for_inverted_last_check_in_range_in_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "host": {
+                    "last_check_in_start": "2025-06-01T00:00:00+00:00",
+                    "last_check_in_end": "2025-01-01T00:00:00+00:00",
+                }
+            },
+        }
+        data = {"name": "Bad Date Range", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "last_check_in_start" in response_data["detail"]
+
+    def test_400_for_inverted_updated_range_in_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "host": {
+                    "updated_start": "2025-12-01T00:00:00+00:00",
+                    "updated_end": "2025-01-01T00:00:00+00:00",
+                }
+            },
+        }
+        data = {"name": "Bad Updated Range", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "updated_start" in response_data["detail"]
+
+    def test_400_for_invalid_iso_datetime_in_host_filters(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {"host": {"last_check_in_start": "not-a-date"}},
+        }
+        data = {"name": "Invalid Datetime", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 400)
+        assert "last_check_in_start" in response_data["detail"]
+
     def test_created_view_appears_in_list(self, flask_client: TestClient) -> None:
         data = {"name": "Listed View", "configuration": VALID_CONFIG}
 
@@ -582,6 +730,60 @@ class TestUpdateView:
         assert response_data["name"] == "Updated"
         assert response_data["description"] == "New desc"
         assert response_data["org_wide"] is True
+
+    def test_updates_configuration_with_host_filters(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        new_config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {
+                "host": {
+                    "staleness": ["fresh"],
+                    "hostname_or_id": "db-server",
+                }
+            },
+        }
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"configuration": new_config}
+        )
+
+        assert_response_status(response_status, 200)
+        hf = response_data["configuration"]["filters"]["host"]
+        assert hf["staleness"] == ["fresh"]
+        assert hf["hostname_or_id"] == "db-server"
+
+    def test_400_for_invalid_host_filters_on_update(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        bad_config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {"host": {"staleness": ["rotten"]}},
+        }
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"configuration": bad_config}
+        )
+
+        assert_response_status(response_status, 400)
+        assert "rotten" in response_data["detail"]
+
+    def test_400_for_unknown_host_filter_key_on_update(
+        self, flask_client: TestClient, db_create_view: Callable
+    ) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        bad_config = {
+            "columns": [{"key": "display_name"}],
+            "filters": {"host": {"nonexistent_param": "value"}},
+        }
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"configuration": bad_config}
+        )
+
+        assert_response_status(response_status, 400)
+        assert "nonexistent_param" in response_data["detail"]
 
     def test_400_for_invalid_column_key(self, flask_client: TestClient, db_create_view: Callable) -> None:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
