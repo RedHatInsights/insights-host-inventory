@@ -323,9 +323,13 @@ class TestHandleExportResponse:
     def test_accepted_response(self):
         _handle_export_response(_make_response(HTTPStatus.ACCEPTED, "payload delivered"), uuid4(), "json")
 
-    def test_already_processed_does_not_raise(self):
+    @pytest.mark.parametrize(
+        "status_code",
+        [HTTPStatus.BAD_REQUEST, HTTPStatus.CONFLICT, HTTPStatus.INTERNAL_SERVER_ERROR],
+    )
+    def test_already_processed_does_not_raise(self, status_code):
         resp = _make_response(
-            HTTPStatus.BAD_REQUEST,
+            status_code,
             '{"detail": "this resource has already been processed", "status": 400}',
         )
         _handle_export_response(resp, uuid4(), "csv")
