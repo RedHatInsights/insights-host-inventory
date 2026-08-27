@@ -1,3 +1,4 @@
+import inspect
 import json
 from functools import wraps
 
@@ -38,6 +39,8 @@ class SQLDump:
     def __init__(self, dump_method=None, write_method=print):
         if dump_method is None:
             self.dump_method = self.dump_sql
+        else:
+            self.dump_method = dump_method
         self.write_method = write_method
 
     def __enter__(self):
@@ -56,15 +59,27 @@ class SQLDump:
 
 def dumps_sql(_func=None, *, dump_method=None, write_method=print):
     def decorator_dumps_sql(old_func):
-        @wraps(old_func)
-        def new_func(*args, **kwargs):
-            sqld = SQLDump(dump_method=dump_method, write_method=write_method)
-            sqld.__enter__()
+        if inspect.isgeneratorfunction(old_func):
 
-            results = old_func(*args, **kwargs)
+            @wraps(old_func)
+            def new_func(*args, **kwargs):
+                sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+                sqld.__enter__()
+                try:
+                    yield from old_func(*args, **kwargs)
+                finally:
+                    sqld.__exit__(None, None, None)
 
-            sqld.__exit__(None, None, None)
-            return results
+        else:
+
+            @wraps(old_func)
+            def new_func(*args, **kwargs):
+                sqld = SQLDump(dump_method=dump_method, write_method=write_method)
+                sqld.__enter__()
+                try:
+                    return old_func(*args, **kwargs)
+                finally:
+                    sqld.__exit__(None, None, None)
 
         return new_func
 
