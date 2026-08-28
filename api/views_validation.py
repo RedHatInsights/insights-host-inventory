@@ -16,6 +16,7 @@ VALID_CORE_VIEW_FIELDS = frozenset(
         "infrastructure",
         "last_check_in",
         "operating_system",
+        "per_reporter_staleness",
         "status",
         "tags",
         "updated",

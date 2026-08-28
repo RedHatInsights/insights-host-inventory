@@ -237,6 +237,7 @@ class TestCreateView:
                 {"key": "operating_system"},
                 {"key": "updated"},
                 {"key": "last_check_in"},
+                {"key": "per_reporter_staleness"},
                 {"key": "tags"},
                 {"key": "status"},
                 {"key": "infrastructure"},
@@ -251,7 +252,7 @@ class TestCreateView:
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
 
         assert_response_status(response_status, 201)
-        assert len(response_data["configuration"]["columns"]) == 11
+        assert len(response_data["configuration"]["columns"]) == 12
 
     def test_creates_view_with_sort(self, flask_client: TestClient) -> None:
         config = {
