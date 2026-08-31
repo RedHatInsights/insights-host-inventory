@@ -49,11 +49,11 @@ wheels = [
 
 [[package]]
 name = "app-common-python"
-version = "0.2.9"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a0/d3/d3d17d46e980ff8e54e95b7588a20b0bd0f1a16dec6bacf8fa64f2a8d214/app_common_python-0.2.9.tar.gz", hash = "sha256:74125371e2865bcba7a7c34f0700d4b8b97a0c0a9ff67bbb06fdb20a3da4b75c", size = 9183, upload-time = "2025-10-23T21:14:28.524Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/b0/c850a44f8e6f12e078b6d9a062594d58427d0badb656fc014c80e5bbea98/app_common_python-0.3.0.tar.gz", hash = "sha256:aa00beda4abcc40fdceb0a104776dbe33bc2131ea89d908716dcf47106c94dcf", size = 23113, upload-time = "2026-08-26T16:51:13.653Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d1/38/84a27304f074c00d815701376f585c93dbefac4553d994dc6b21c4d01939/app_common_python-0.2.9-py3-none-any.whl", hash = "sha256:861bd93482edabd00a85eb6512e0d7df08597be6f76b864be8e53d6294f81389", size = 4894, upload-time = "2025-10-23T21:14:27.733Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/e4/2c5204999c5c154ed62513bc63d18ff2da7c1b4cb6279599f30a3c5fdb7a/app_common_python-0.3.0-py3-none-any.whl", hash = "sha256:1eec3bcebbdae79b13332dd300c16e2037bfd02948804a529f2005dac2a94f4d", size = 7259, upload-time = "2026-08-26T16:51:12.855Z" },
 ]
 
 [[package]]
@@ -783,7 +783,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.12.0" },
-    { name = "app-common-python", specifier = "~=0.2.9" },
+    { name = "app-common-python", specifier = "~=0.3.0" },
     { name = "boto3", specifier = "~=1.43" },
     { name = "confluent-kafka", specifier = "==2.15.0" },
     { name = "connexion", extras = ["swagger-ui", "flask", "uvicorn"], specifier = "~=3.3.0" },
