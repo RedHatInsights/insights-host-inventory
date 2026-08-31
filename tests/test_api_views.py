@@ -229,6 +229,31 @@ class TestCreateView:
         assert_response_status(response_status, 201)
         assert len(response_data["configuration"]["columns"]) == 4
 
+    def test_creates_view_with_all_core_columns(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [
+                {"key": "display_name"},
+                {"key": "group_name"},
+                {"key": "operating_system"},
+                {"key": "updated"},
+                {"key": "last_check_in"},
+                {"key": "per_reporter_staleness"},
+                {"key": "tags"},
+                {"key": "status"},
+                {"key": "infrastructure"},
+                {"key": "vendor"},
+                {"key": "workload"},
+                {"key": "created"},
+            ]
+        }
+        data = {"name": "All Core Columns View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert len(response_data["configuration"]["columns"]) == 12
+
     def test_creates_view_with_sort(self, flask_client: TestClient) -> None:
         config = {
             "columns": [{"key": "display_name"}],
