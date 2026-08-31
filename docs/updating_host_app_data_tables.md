@@ -386,13 +386,12 @@ make migrate_db message "Add my_new_field to hosts_app_data_patch"
 ```python
 def upgrade():
     op.add_column(
-        'hosts_app_data_patch',
-        sa.Column('my_new_field', sa.String(length=255), nullable=True),
-        schema='hbi'
+        "hosts_app_data_patch", sa.Column("my_new_field", sa.String(length=255), nullable=True), schema="hbi"
     )
 
+
 def downgrade():
-    op.drop_column('hosts_app_data_patch', 'my_new_field', schema='hbi')
+    op.drop_column("hosts_app_data_patch", "my_new_field", schema="hbi")
 ```
 
 ### 5. Update Tests
@@ -452,9 +451,7 @@ def test_create_host_app_data_patch(db_create_host):
     db.session.add(patch_data)
     db.session.commit()
 
-    retrieved = db.session.query(HostAppDataPatch).filter_by(
-        org_id=host.org_id, host_id=host.id
-    ).first()
+    retrieved = db.session.query(HostAppDataPatch).filter_by(org_id=host.org_id, host_id=host.id).first()
 
     assert retrieved is not None
     assert retrieved.my_new_field == "test_value"  # NEW: Verify your field

@@ -30,6 +30,8 @@ print(HostViewCombinedFields.to_json())
 # convert the object into a dict
 host_view_combined_fields_dict = host_view_combined_fields_instance.to_dict()
 # create an instance of HostViewCombinedFields from a dict
-host_view_combined_fields_from_dict = HostViewCombinedFields.from_dict(host_view_combined_fields_dict)
+host_view_combined_fields_from_dict = HostViewCombinedFields.from_dict(
+    host_view_combined_fields_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
