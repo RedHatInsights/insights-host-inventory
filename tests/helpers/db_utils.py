@@ -120,7 +120,7 @@ def db_staleness_culling(**values):
     return Staleness(**data)
 
 
-def create_reference_host_in_db(insights_id, reporter, system_profile, last_check_in):
+def create_reference_host_in_db(insights_id, reporter, system_profile, last_check_in=None):
     host = Host(
         org_id=SYSTEM_IDENTITY["org_id"],
         insights_id=insights_id,
@@ -129,7 +129,8 @@ def create_reference_host_in_db(insights_id, reporter, system_profile, last_chec
     )
     db.session.add(host)
     db.session.flush()
-    host.last_check_in = last_check_in
+    if last_check_in is not None:
+        host.last_check_in = last_check_in
     if system_profile:
         host.update_system_profile(system_profile)
     db.session.commit()
