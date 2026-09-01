@@ -1482,6 +1482,67 @@ class TestHostViewAppDataSorting:
         assert results[0]["display_name"] == "host-with-data.example.com"
         assert results[1]["display_name"] == "host-no-data.example.com"
 
+    @pytest.mark.parametrize("order_how,expected_order", [("ASC", [0, 3, 210, 2310]), ("DESC", [2310, 210, 3, 0])])
+    def test_sort_by_advisor_total_severity(
+        self, api_get, db_create_host, db_create_host_app_data, order_how, expected_order
+    ):
+        """Sort by advisor:total_severity should sort by weighted severity score."""
+        hosts_data = [
+            {"name": "host-0.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 0},
+            {"name": "host-3.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 3},
+            {"name": "host-210.example.com", "critical": 0, "important": 2, "moderate": 1, "low": 0},
+            {"name": "host-2310.example.com", "critical": 2, "important": 3, "moderate": 1, "low": 0},
+        ]
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "advisor",
+                critical=hd["critical"],
+                important=hd["important"],
+                moderate=hd["moderate"],
+                low=hd["low"],
+                recommendations=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query=f"?order_by=advisor:total_severity&order_how={order_how}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        result_names = [r["display_name"] for r in results]
+        expected_names = [f"host-{t}.example.com" for t in expected_order]
+        assert result_names == expected_names
+
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+    def test_sort_by_advisor_total_severity_nulls_last(
+        self, api_get, db_create_host, db_create_host_app_data, order_how
+    ):
+        """Hosts without advisor data should appear last regardless of sort direction."""
+        host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
+        db_create_host(extra_data={"display_name": "host-no-data.example.com"})
+
+        db_create_host_app_data(
+            host_with_data.id,
+            host_with_data.org_id,
+            "advisor",
+            critical=0,
+            important=0,
+            moderate=0,
+            low=0,
+            recommendations=0,
+        )
+
+        url = build_host_view_url(query=f"?order_by=advisor:total_severity&order_how={order_how}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-with-data.example.com"
+        assert results[1]["display_name"] == "host-no-data.example.com"
+
     def test_sort_by_remediations_plans(self, api_get, db_create_host, db_create_host_app_data):
         """Sort by remediations:remediations_plans should work correctly."""
         host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
