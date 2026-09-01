@@ -1567,7 +1567,7 @@
             "type": "object",
             "properties": {
               "controller_version": {
-                "description": "The ansible-tower or automation-controller version on the host",
+                "description": "The installed ansible-tower or automation-controller RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1575,7 +1575,7 @@
                 "x-wildcard": true
               },
               "hub_version": {
-                "description": "The automation-hub version on the host",
+                "description": "The installed automation-hub RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1583,7 +1583,7 @@
                 "x-wildcard": true
               },
               "catalog_worker_version": {
-                "description": "The catalog-worker version on the host",
+                "description": "The installed catalog-worker RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1591,7 +1591,7 @@
                 "x-wildcard": true
               },
               "sso_version": {
-                "description": "The SSO version on the host",
+                "description": "The installed SSO RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1599,7 +1599,7 @@
                 "x-wildcard": true
               },
               "receptor_version": {
-                "description": "The receptor version on the host",
+                "description": "The installed receptor RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1607,7 +1607,7 @@
                 "x-wildcard": true
               },
               "runner_version": {
-                "description": "The ansible-runner version on the host",
+                "description": "The installed ansible-runner RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1615,7 +1615,7 @@
                 "x-wildcard": true
               },
               "eda_controller_version": {
-                "description": "The EDA controller version on the host",
+                "description": "The installed automation-eda-controller RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
@@ -1623,12 +1623,33 @@
                 "x-wildcard": true
               },
               "gateway_version": {
-                "description": "The automation gateway version on the host",
+                "description": "The installed automation-gateway RPM version",
                 "type": "string",
                 "example": "1.2.3, 4.5.6, 7.8.9",
                 "maxLength": 30,
                 "pattern": "^\\d+(\\.\\d+)+$",
                 "x-wildcard": true
+              },
+              "containers": {
+                "type": "array",
+                "items": {
+                  "description": "A container on the system",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "maxLength": 255
+                    },
+                    "image": {
+                      "type": "string",
+                      "maxLength": 255
+                    },
+                    "state": {
+                      "type": "string",
+                      "maxLength": 30
+                    }
+                  }
+                }
               }
             }
           },
@@ -1932,7 +1953,7 @@
                 "type": "object",
                 "properties": {
                   "controller_version": {
-                    "description": "The ansible-tower or automation-controller version on the host",
+                    "description": "The installed ansible-tower or automation-controller RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1940,7 +1961,7 @@
                     "x-wildcard": true
                   },
                   "hub_version": {
-                    "description": "The automation-hub version on the host",
+                    "description": "The installed automation-hub RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1948,7 +1969,7 @@
                     "x-wildcard": true
                   },
                   "catalog_worker_version": {
-                    "description": "The catalog-worker version on the host",
+                    "description": "The installed catalog-worker RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1956,7 +1977,7 @@
                     "x-wildcard": true
                   },
                   "sso_version": {
-                    "description": "The SSO version on the host",
+                    "description": "The installed SSO RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1964,7 +1985,7 @@
                     "x-wildcard": true
                   },
                   "receptor_version": {
-                    "description": "The receptor version on the host",
+                    "description": "The installed receptor RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1972,7 +1993,7 @@
                     "x-wildcard": true
                   },
                   "runner_version": {
-                    "description": "The ansible-runner version on the host",
+                    "description": "The installed ansible-runner RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1980,7 +2001,7 @@
                     "x-wildcard": true
                   },
                   "eda_controller_version": {
-                    "description": "The EDA controller version on the host",
+                    "description": "The installed automation-eda-controller RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
@@ -1988,12 +2009,18 @@
                     "x-wildcard": true
                   },
                   "gateway_version": {
-                    "description": "The automation gateway version on the host",
+                    "description": "The installed automation-gateway RPM version",
                     "type": "string",
                     "example": "1.2.3, 4.5.6, 7.8.9",
                     "maxLength": 30,
                     "pattern": "^\\d+(\\.\\d+)+$",
                     "x-wildcard": true
+                  },
+                  "containers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                    }
                   }
                 }
               },
@@ -2154,11 +2181,24 @@
                     "example": "server"
                   },
                   "version": {
-                    "description": "The Satellite or Capsule version",
+                    "description": "The installed satellite or satellite-capsule RPM version",
                     "type": "string",
                     "example": "6.19.0",
                     "maxLength": 30,
                     "x-wildcard": true
+                  },
+                  "foremanctl_version": {
+                    "description": "The installed foremanctl RPM version",
+                    "type": "string",
+                    "maxLength": 30,
+                    "pattern": "^\\d+(\\.\\d+)+$",
+                    "x-wildcard": true
+                  },
+                  "containers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                    }
                   }
                 }
               },

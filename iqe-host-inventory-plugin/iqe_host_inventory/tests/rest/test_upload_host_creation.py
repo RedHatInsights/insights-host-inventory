@@ -15,6 +15,9 @@ from iqe_host_inventory.utils.datagen_utils import rand_str
 from iqe_host_inventory.utils.staleness_utils import validate_host_timestamps
 from iqe_host_inventory.utils.tag_utils import sort_tags
 from iqe_host_inventory.utils.upload_utils import ANSIBLE_EXECUTION_NODE_ARCHIVE
+from iqe_host_inventory.utils.upload_utils import CONTAINERIZED_AAP_ARCHIVE
+from iqe_host_inventory.utils.upload_utils import CONTAINERIZED_AAP_EXEC_NODE_ARCHIVE
+from iqe_host_inventory.utils.upload_utils import CONTAINERIZED_SATELLITE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import IMAGE_MODE_ARCHIVE
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
 from iqe_host_inventory_api import HostOut
@@ -309,6 +312,34 @@ def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory)
     assert satellite.version.startswith("6.")
 
 
+@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+def test_create_containerized_satellite_host(host_inventory: ApplicationHostInventory) -> None:
+    """Verify containerized Satellite host creation with correct system profile."""
+    display_name = generate_display_name()
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=CONTAINERIZED_SATELLITE_ARCHIVE
+    )
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+    satellite = fetched_host.results[0].system_profile.workloads.satellite
+
+    assert satellite.type == "server"
+    assert satellite.foremanctl_version == "1.1.0"
+    assert len(satellite.containers) == 1
+    container = satellite.containers[0]
+    assert container.name == "foreman"
+    assert container.image == "quay.io/foreman/foreman:3.16"
+    assert container.state == "running"
+
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][satellite][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids
+
+
 def test_create_image_mode_host(
     host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
 ) -> None:
@@ -392,3 +423,65 @@ def test_create_ansible_execution_node_host(
     response_ids = {h.id for h in response.results}
     assert host.id in response_ids
     assert conventional_host.id not in response_ids
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+def test_create_containerized_aap_host(host_inventory: ApplicationHostInventory) -> None:
+    """Verify containerized AAP host creation with correct system profile."""
+    display_name = generate_display_name()
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=CONTAINERIZED_AAP_ARCHIVE
+    )
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+    ansible = fetched_host.results[0].system_profile.workloads.ansible
+
+    assert ansible is not None
+    # A containerized AAP server runs many containers, so instead of asserting on
+    # each one we just check that some are reported and that they are AAP images.
+    assert ansible.containers
+    assert len(ansible.containers) > 1
+    for container in ansible.containers:
+        assert container.name
+        assert container.state == "running"
+        assert container.image.startswith("registry.redhat.io/ansible-automation-platform")
+
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][ansible][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids
+
+
+@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+def test_create_containerized_aap_execution_node_host(
+    host_inventory: ApplicationHostInventory,
+) -> None:
+    """Verify containerized AAP execution node host creation with correct system profile."""
+    display_name = generate_display_name()
+    host = host_inventory.upload.create_host(
+        display_name=display_name, base_archive=CONTAINERIZED_AAP_EXEC_NODE_ARCHIVE
+    )
+    assert host.display_name == display_name
+
+    fetched_host = host_inventory.apis.hosts.get_hosts_system_profile_response(host.id)
+    ansible = fetched_host.results[0].system_profile.workloads.ansible
+
+    assert ansible is not None
+    assert len(ansible.containers) == 1
+    container = ansible.containers[0]
+    assert container.name == "receptor"
+    assert (
+        container.image
+        == "registry.redhat.io/ansible-automation-platform-27/receptor-rhel9:latest"
+    )
+    assert container.state == "running"
+
+    response = host_inventory.apis.hosts.get_hosts_response(
+        filter=["[workloads][ansible][is]=not_nil"]
+    )
+    assert response.count >= 1
+    response_ids = {h.id for h in response.results}
+    assert host.id in response_ids

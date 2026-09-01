@@ -1532,6 +1532,10 @@ def test_get_hosts_filter_by_reporter_and_staleness(
         "[workloads][satellite][version]=6.17.6.1",
         "[workloads][satellite][version][]=6.17.6.1",
         "[workloads][satellite][version][]=not_nil",
+        "[workloads][satellite][foremanctl_version]=3.0.0",
+        "[workloads][satellite][foremanctl_version][]=3.0.0",
+        "[workloads][satellite][foremanctl_version][]=not_nil",
+        "[workloads][satellite][foremanctl_version]=3.*",
         # JSON object notation (value is a JSON string instead of square bracket path)
         '={"arch": "x86_64"}',
         '={"arch": {"eq": "x86_64"}}',
@@ -1556,6 +1560,9 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                     "runner_version": "2.4.1",
                     "eda_controller_version": "1.1.0",
                     "gateway_version": "2.5.3",
+                    "containers": [
+                        {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                    ],
                 },
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
@@ -1564,7 +1571,14 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                         {"name": "AMD Device 0c31", "vendor": "AMD"},
                     ],
                 },
-                "satellite": {"type": "server", "version": "6.17.6.1"},
+                "satellite": {
+                    "type": "server",
+                    "version": "6.17.6.1",
+                    "foremanctl_version": "3.0.0",
+                    "containers": [
+                        {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                    ],
+                },
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1604,6 +1618,108 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     assert response_status == 200
 
     # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "workload_sp_data,sp_filter_param",
+    (
+        # Satellite: only containers (containerized-only, no RPM fields)
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ]
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: only foremanctl_version
+        (
+            {"workloads": {"satellite": {"foremanctl_version": "3.0.0"}}},
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: containers + foremanctl_version
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "foremanctl_version": "3.0.0",
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: all fields (hybrid RPM + containerized)
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "type": "server",
+                        "version": "6.17.6.1",
+                        "foremanctl_version": "3.0.0",
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Ansible: only containers (containerized-only)
+        (
+            {
+                "workloads": {
+                    "ansible": {
+                        "containers": [
+                            {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                        ]
+                    }
+                }
+            },
+            "[workloads][ansible][is]=not_nil",
+        ),
+        # Ansible: containers + traditional version fields (hybrid)
+        (
+            {
+                "workloads": {
+                    "ansible": {
+                        "controller_version": "1.0",
+                        "containers": [
+                            {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][ansible][is]=not_nil",
+        ),
+        # Ansible: only traditional version fields (RPM-based, regression check)
+        (
+            {"workloads": {"ansible": {"controller_version": "1.0", "receptor_version": "1.5.2"}}},
+            "[workloads][ansible][is]=not_nil",
+        ),
+    ),
+)
+def test_workload_not_nil_filter_combinations(db_create_host, api_get, workload_sp_data, sp_filter_param):
+    match_sp_data = {"system_profile_facts": workload_sp_data}
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    nomatch_sp_data = {"system_profile_facts": {"arch": "x86_64"}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
     response_ids = [result["id"] for result in response_data["results"]]
     assert match_host_id in response_ids
     assert nomatch_host_id not in response_ids
