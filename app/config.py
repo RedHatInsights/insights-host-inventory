@@ -6,6 +6,8 @@ import tempfile
 from datetime import timedelta
 
 from app_common_python import DependencyEndpoints
+from app_common_python import get_v2_dependency_endpoint
+from app_common_python import get_v2_private_dependency_endpoint
 
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -100,21 +102,15 @@ class Config:
             self._cache_host = cfg.inMemoryDb.hostname
             self._cache_port = cfg.inMemoryDb.port
 
-        self.rbac_endpoint = ""
-        for endpoint in cfg.endpoints:
-            if endpoint.app == "rbac":
-                protocol = "https" if cfg.tlsCAPath else "http"
-                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
-                self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
+        v2_rbac = get_v2_dependency_endpoint("rbac", "service")
+        self.rbac_endpoint = v2_rbac.uri
+        self.rbac_endpoint_ca_certificate = v2_rbac.ca_certificate
+        self.rbac_endpoint_authenticated = v2_rbac.authenticated
 
-        self.export_service_endpoint = ""
-        for endpoint in cfg.privateEndpoints:
-            if endpoint.app == "export-service":
-                protocol = "https" if cfg.tlsCAPath else "http"
-                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
-                self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
+        v2_export = get_v2_private_dependency_endpoint("export-service", "service")
+        self.export_service_endpoint = v2_export.uri
+        self.export_service_endpoint_ca_certificate = v2_export.ca_certificate
+        self.export_service_endpoint_authenticated = v2_export.authenticated
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
@@ -179,8 +175,12 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.rbac_endpoint_ca_certificate = None
+        self.rbac_endpoint_authenticated = False
         self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
+        self.export_service_endpoint_ca_certificate = None
+        self.export_service_endpoint_authenticated = False
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
@@ -509,6 +509,9 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+            self.logger.info("RBAC Endpoint Authenticated: %s", self.rbac_endpoint_authenticated)
+            if self.rbac_endpoint_ca_certificate:
+                self.logger.info("RBAC Endpoint CA Certificate: %s", self.rbac_endpoint_ca_certificate)
             self.logger.info("Admin hosts endpoint enabled: %s", self.admin_hosts_endpoint_enabled)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
@@ -531,6 +534,13 @@ class Config:
                 self.logger.info("Kafka Export Service Topic: %s", self.export_service_topic)
                 self.logger.info("Kafka Host App Data Topic: %s", self.host_app_data_topic)
                 self.logger.info("Export Service Endpoint: %s", self.export_service_endpoint)
+                self.logger.info(
+                    "Export Service Endpoint Authenticated: %s", self.export_service_endpoint_authenticated
+                )
+                if self.export_service_endpoint_ca_certificate:
+                    self.logger.info(
+                        "Export Service Endpoint CA Certificate: %s", self.export_service_endpoint_ca_certificate
+                    )
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)

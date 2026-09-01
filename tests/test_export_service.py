@@ -18,6 +18,7 @@ from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
 from app.queue.export_service import _StreamingExportBody
+from app.queue.export_service import build_headers
 from app.queue.export_service import create_export
 from app.queue.export_service_mq import parse_export_service_message
 from app.queue.host_mq import OperationResult
@@ -398,3 +399,48 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
 
         result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
         assert result is True
+
+
+class TestBuildHeaders:
+    """Auth selection for export-service based on the V2 `authenticated` field."""
+
+    def test_unauthenticated_endpoint_uses_psk(self, inventory_config):
+        inventory_config.export_service_endpoint_authenticated = False
+        inventory_config.export_service_token = "test-psk"
+
+        _, request_headers = build_headers("dummy-identity", uuid4(), inventory_config, "json")
+
+        assert request_headers["x-rh-exports-psk"] == "test-psk"
+        assert "Authorization" not in request_headers
+
+    def test_authenticated_endpoint_uses_kessel_token(self, inventory_config, mocker):
+        inventory_config.export_service_endpoint_authenticated = True
+        mocker.patch(
+            "app.queue.export_service._get_export_service_access_token",
+            return_value="kessel-token-xyz",
+        )
+
+        _, request_headers = build_headers("dummy-identity", uuid4(), inventory_config, "json")
+
+        assert request_headers["Authorization"] == "Bearer kessel-token-xyz"
+        assert "x-rh-exports-psk" not in request_headers
+
+
+@mock.patch("requests.Session.post", autospec=True)
+def test_create_export_honors_ca_certificate(mock_post, db_create_host, flask_app, inventory_config):
+    """create_export must set session.verify from the V2 endpoint CA certificate."""
+    with flask_app.app.app_context():
+        db_create_host()
+
+        inventory_config.export_service_endpoint_ca_certificate = "/path/to/ca.crt"
+        mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+        mock_post.return_value.text = ""
+
+        validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+
+        # The Session instance is the first positional arg (autospec=True) of the post call.
+        session_instance = mock_post.call_args_list[-1][0][0]
+        assert session_instance.verify == "/path/to/ca.crt"

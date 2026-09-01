@@ -238,3 +238,118 @@ def test_build_rbac_auth_request_headers(mocker):
     assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
     assert len(headers) == 3
     assert "x-rh-identity" not in {k.lower() for k in headers}
+
+
+def test_build_rbac_auth_request_headers_authenticated_forces_bearer(mocker):
+    """authenticated=True forces the kessel-sdk bearer even when kessel_auth_enabled is False,
+    and must never emit a PSK alongside it."""
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_xyz")
+
+    mock_config = mocker.Mock()
+    mock_config.kessel_auth_enabled = False
+    mock_config.rbac_endpoint_authenticated = True
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    headers = lib.middleware._build_rbac_auth_request_headers("org-7")
+
+    assert headers["Authorization"] == "Bearer sa_token_xyz"
+    assert "X-RH-RBAC-PSK" not in headers
+
+
+def test_build_rbac_auth_request_headers_psk_fallback(mocker):
+    """When neither authenticated nor kessel_auth_enabled, fall back to PSK and emit no bearer."""
+    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
+
+    mock_config = mocker.Mock()
+    mock_config.kessel_auth_enabled = False
+    mock_config.rbac_endpoint_authenticated = False
+    mock_config.rbac_psk = "psk-secret"
+    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+
+    headers = lib.middleware._build_rbac_auth_request_headers("org-7")
+
+    assert headers["X-RH-RBAC-PSK"] == "psk-secret"
+    assert "Authorization" not in headers
+    token_mock.assert_not_called()
+
+
+def _mock_rbac_transport_config(mocker, authenticated=False, ca_certificate=None):
+    config = mocker.Mock()
+    config.rbac_retries = 0
+    config.rbac_timeout = 10
+    config.rbac_endpoint_authenticated = authenticated
+    config.rbac_endpoint_ca_certificate = ca_certificate
+    mocker.patch("lib.middleware.inventory_config", return_value=config)
+    return config
+
+
+def _mock_rbac_session(mocker):
+    mock_response = mocker.Mock()
+    mock_response.text = "{}"
+    mock_response.json.return_value = {}
+    mock_response.raise_for_status.return_value = None
+
+    mock_session = mocker.Mock()
+    mock_session.get.return_value = mock_response
+    mocker.patch("lib.middleware.Session", return_value=mock_session)
+    return mock_session
+
+
+class TestExecuteRbacHttpRequestTransportAuth:
+    """Transport-level auth attachment in _execute_rbac_http_request (the choke point every
+    RBAC request funnels through)."""
+
+    def test_authenticated_endpoint_attaches_bearer(self, mocker):
+        _mock_rbac_transport_config(mocker, authenticated=True)
+        mocker.patch("lib.middleware._get_rbac_access_token", return_value="tok-123")
+        session = _mock_rbac_session(mocker)
+
+        headers = {"x-rh-identity": "abc"}
+        lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", headers)
+
+        assert headers["Authorization"] == "Bearer tok-123"
+        assert session.get.call_args.kwargs["headers"]["Authorization"] == "Bearer tok-123"
+
+    def test_authenticated_does_not_overwrite_existing_authorization(self, mocker):
+        """Service-to-service calls that already set Authorization must be left untouched (the guard)."""
+        _mock_rbac_transport_config(mocker, authenticated=True)
+        token_mock = mocker.patch("lib.middleware._get_rbac_access_token", return_value="tok-123")
+        _mock_rbac_session(mocker)
+
+        headers = {"Authorization": "Bearer preexisting"}
+        lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", headers)
+
+        assert headers["Authorization"] == "Bearer preexisting"
+        token_mock.assert_not_called()
+
+    def test_unauthenticated_endpoint_attaches_no_bearer(self, mocker):
+        _mock_rbac_transport_config(mocker, authenticated=False)
+        token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
+        session = _mock_rbac_session(mocker)
+
+        headers = {"x-rh-identity": "abc"}
+        lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", headers)
+
+        assert "Authorization" not in headers
+        assert "Authorization" not in session.get.call_args.kwargs["headers"]
+        token_mock.assert_not_called()
+
+
+class TestExecuteRbacHttpRequestTls:
+    """Per-endpoint TLS verification honors the V2 ca_certificate."""
+
+    def test_ca_certificate_used_as_verify(self, mocker):
+        _mock_rbac_transport_config(mocker, ca_certificate="/path/to/ca.crt")
+        session = _mock_rbac_session(mocker)
+
+        lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", {})
+
+        assert session.get.call_args.kwargs["verify"] == "/path/to/ca.crt"
+
+    def test_no_ca_certificate_defaults_to_system_trust(self, mocker):
+        _mock_rbac_transport_config(mocker, ca_certificate=None)
+        session = _mock_rbac_session(mocker)
+
+        lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", {})
+
+        assert session.get.call_args.kwargs["verify"] is True
