@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re
+import re  # ruff: ignore[unused-import]
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
@@ -22,49 +22,18 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import StrictStr
-from pydantic import field_validator
-
-from iqe_host_inventory_api_v7.models.container import Container
 
 
-class SystemProfileWorkloadsSatellite(BaseModel):
+class Container(BaseModel):
     """
-    Object containing data specific to the Red Hat Satellite workload
+    A container on the system
     """
 
-    type: StrictStr | None = Field(
-        default=None, description="Whether this system is a Satellite Server or Capsule"
-    )
-    version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
-        default=None, description="The installed satellite or satellite-capsule RPM version"
-    )
-    foremanctl_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
-        default=None, description="The installed foremanctl RPM version"
-    )
-    containers: list[Container] | None = None
+    name: Annotated[str, Field(strict=True, max_length=255)] | None = None
+    image: Annotated[str, Field(strict=True, max_length=255)] | None = None
+    state: Annotated[str, Field(strict=True, max_length=30)] | None = None
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["type", "version", "foremanctl_version", "containers"]
-
-    @field_validator("type")
-    def type_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in {"server", "capsule"}:
-            raise ValueError("must be one of enum values ('server', 'capsule')")
-        return value
-
-    @field_validator("foremanctl_version")
-    def foremanctl_version_validate_regular_expression(cls, value):
-        """Validates the regular expression"""
-        if value is None:
-            return value
-
-        if not re.match(r"^\d+(\.\d+)+$", value):
-            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
-        return value
+    __properties: ClassVar[list[str]] = ["name", "image", "state"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,7 +52,7 @@ class SystemProfileWorkloadsSatellite(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self | None:
-        """Create an instance of SystemProfileWorkloadsSatellite from a JSON string"""
+        """Create an instance of Container from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> dict[str, Any]:
@@ -106,13 +75,6 @@ class SystemProfileWorkloadsSatellite(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each item in containers (list)
-        _items = []
-        if self.containers:
-            for _item in self.containers:
-                if _item:
-                    _items.append(_item.to_dict())
-            _dict["containers"] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -122,7 +84,7 @@ class SystemProfileWorkloadsSatellite(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: dict[str, Any] | None) -> Self | None:
-        """Create an instance of SystemProfileWorkloadsSatellite from a dict"""
+        """Create an instance of Container from a dict"""
         if obj is None:
             return None
 
@@ -130,12 +92,9 @@ class SystemProfileWorkloadsSatellite(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "type": obj.get("type"),
-            "version": obj.get("version"),
-            "foremanctl_version": obj.get("foremanctl_version"),
-            "containers": [Container.from_dict(_item) for _item in obj["containers"]]
-            if obj.get("containers") is not None
-            else None,
+            "name": obj.get("name"),
+            "image": obj.get("image"),
+            "state": obj.get("state"),
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

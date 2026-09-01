@@ -28,7 +28,7 @@ class SystemProfileWorkloads:
                             and the value is json key in definition.
     """
     openapi_types = {
-        "ansible": "SystemProfileAnsible",
+        "ansible": "SystemProfileWorkloadsAnsible",
         "crowdstrike": "SystemProfileThirdPartyServicesCrowdstrike",
         "ibm_db2": "SystemProfileWorkloadsIbmDb2",
         "intersystems": "SystemProfileIntersystems",
@@ -105,7 +105,7 @@ class SystemProfileWorkloads:
 
 
         :return: The ansible of this SystemProfileWorkloads.  # noqa: E501
-        :rtype: SystemProfileAnsible
+        :rtype: SystemProfileWorkloadsAnsible
         """
         return self._ansible
 
@@ -115,7 +115,7 @@ class SystemProfileWorkloads:
 
 
         :param ansible: The ansible of this SystemProfileWorkloads.  # noqa: E501
-        :type: SystemProfileAnsible
+        :type: SystemProfileWorkloadsAnsible
         """
 
         self._ansible = ansible

@@ -648,6 +648,13 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
                 "runner_version": "2.4.1",
                 "eda_controller_version": "1.1.0",
                 "gateway_version": "2.5.3",
+                "containers": [
+                    {
+                        "name": "automation-controller",
+                        "image": "registry.redhat.io/aap/controller-rhel9:4.6",
+                        "state": "running",
+                    }
+                ],
             },
             "crowdstrike": {
                 "falcon_aid": "44e3b7d20b434a2bb2815d9808fa3a8b",
@@ -690,6 +697,14 @@ SYSTEM_PROFILE_: list[dict[str, Any]] = [
             "satellite": {
                 "type": "server",
                 "version": "6.17.6.1",
+                "foremanctl_version": "1.1.0",
+                "containers": [
+                    {
+                        "name": "foreman",
+                        "image": "quay.io/foreman/foreman:3.16",
+                        "state": "running",
+                    }
+                ],
             },
             "sap": {
                 "sap_system": True,
