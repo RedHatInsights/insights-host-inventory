@@ -43,6 +43,16 @@ class TestResolveAppSort:
         assert model is HostAppDataPatch
         assert column.key == "advisories_rhsa_installable"
 
+    def test_advisor_total_severity(self):
+        """advisor:total_severity should resolve to correct model and a computed expression."""
+        from sqlalchemy.sql.expression import Case
+
+        result = resolve_app_sort("advisor:total_severity")
+        assert result is not None
+        model, expr = result
+        assert model is HostAppDataAdvisor
+        assert isinstance(expr, Case), "Expected a CASE expression for computed sort field"
+
     def test_patch_advisories_total_installable(self):
         """patch:advisories_total_installable should resolve to correct model and a computed expression."""
         from sqlalchemy.sql.expression import Case
@@ -249,6 +259,7 @@ class TestAppSortFieldMap:
             "advisor:important",
             "advisor:moderate",
             "advisor:low",
+            "advisor:total_severity",
         }
 
     def test_exact_vulnerability_fields(self):
