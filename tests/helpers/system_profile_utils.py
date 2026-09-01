@@ -727,6 +727,55 @@ INVALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     },
     {
         "workloads": {
+            "ansible": {  # container name must be string, not integer
+                "containers": [{"name": 123, "image": "quay.io/test:latest", "state": "running"}],
+            }
+        }
+    },
+    {
+        "workloads": {
+            "ansible": {  # container image must be string, not integer
+                "containers": [{"name": "test", "image": 456, "state": "running"}],
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # container name exceeds maxLength
+                "containers": [{"name": "x" * 256, "image": "quay.io/test:latest", "state": "running"}],
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # container image exceeds maxLength
+                "containers": [{"name": "test", "image": "x" * 256, "state": "running"}],
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # container state exceeds maxLength
+                "containers": [{"name": "test", "image": "quay.io/test:latest", "state": "x" * 31}],
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # foremanctl_version invalid pattern
+                "foremanctl_version": "not-a-version",
+            }
+        }
+    },
+    {
+        "workloads": {
+            "satellite": {  # foremanctl_version exceeds maxLength
+                "foremanctl_version": "1.0" * 11,
+            }
+        }
+    },
+    {
+        "workloads": {
             "intersystems": {  # Incorrect is_intersystems value
                 "is_intersystems": "x",
                 "running_instances": [{"instance_name": "IRIS1", "product": "IRIS", "version": "2023.1"}],
@@ -1228,4 +1277,40 @@ VALID_SYSTEM_PROFILES: tuple[dict, ...] = (
     {"workloads": {"satellite": {"type": "capsule"}}},
     {"workloads": {"satellite": {"type": "server", "version": "6.19.0"}}},
     {"workloads": {"satellite": {"type": "capsule", "version": "6.17.9.1"}}},
+    {
+        "workloads": {
+            "ansible": {
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}]
+            }
+        }
+    },
+    {"workloads": {"ansible": {"containers": []}}},
+    {
+        "workloads": {
+            "satellite": {
+                "type": "server",
+                "foremanctl_version": "3.0.0",
+                "containers": [{"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}],
+            }
+        }
+    },
+    {"workloads": {"satellite": {"foremanctl_version": "3.0.0"}}},
+    {"workloads": {"satellite": {"containers": []}}},
+    {
+        "workloads": {
+            "ansible": {
+                "controller_version": "1.0",
+                "containers": [{"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}],
+            },
+            "satellite": {
+                "type": "server",
+                "version": "6.19.0",
+                "foremanctl_version": "3.0.0",
+                "containers": [
+                    {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"},
+                    {"name": "foreman-proxy", "image": "quay.io/foreman/foreman-proxy:nightly", "state": "stopped"},
+                ],
+            },
+        }
+    },
 )
