@@ -417,7 +417,7 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
 
 
 class TestLoadViewFilters:
-    def test_splits_host_and_app_filters(self, flask_app, db_create_view):
+    def test_splits_host_kwargs_from_query_filter(self, flask_app, db_create_view):
         with flask_app.app.app_context():
             view = db_create_view(
                 configuration={
@@ -434,17 +434,15 @@ class TestLoadViewFilters:
                 },
                 created_by="51234567",
             )
-            host_filter, sp_filter, app_filter = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
 
             assert host_filter == {
                 "staleness": ["fresh"],
                 "tags": ["namespace/key=value"],
                 "last_check_in_start": "2025-01-01T00:00:00Z",
             }
-            assert sp_filter == {
+            assert query_filter == {
                 "system_profile": {"host_type": {"eq": "conventional"}},
-            }
-            assert app_filter == {
                 "vulnerability": {"critical_cves": {"gte": 1}},
             }
 
@@ -454,11 +452,10 @@ class TestLoadViewFilters:
                 configuration={"columns": [{"key": "display_name"}]},
                 created_by="51234567",
             )
-            host_filter, sp_filter, app_filter = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
 
             assert host_filter == {}
-            assert sp_filter == {}
-            assert app_filter == {}
+            assert query_filter == {}
 
     def test_view_not_found_raises(self, flask_app):
         from lib.views_repository import ViewNotFoundError

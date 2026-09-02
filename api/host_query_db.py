@@ -908,8 +908,7 @@ def get_hosts_to_export(
     identity: Identity,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
-    system_profile_filter: dict | None = None,
-    app_filter: dict | None = None,
+    query_filter: dict | None = None,
     host_filter: dict | None = None,
 ) -> Iterator[dict]:
     """Query hosts for export, optionally filtered by a saved view's configuration.
@@ -918,16 +917,11 @@ def get_hosts_to_export(
         identity: The authenticated user identity.
         rbac_filter: RBAC permission filter.
         batch_size: Number of rows per DB batch (yield_per).
-        system_profile_filter: System profile filters from the view (os, host_type, etc.).
-        app_filter: App-data filters from the view keyed by app name (advisor, vulnerability, etc.).
-        host_filter: Host-level filter kwargs from the view (staleness, tags, date ranges, etc.).
+        query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
+        host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
     """
     if rbac_filter is None:
         rbac_filter = {}
-    if system_profile_filter is None:
-        system_profile_filter = {}
-    if app_filter is None:
-        app_filter = {}
     if host_filter is None:
         host_filter = {}
 
@@ -935,10 +929,8 @@ def get_hosts_to_export(
 
     staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
 
-    combined_filter = {**system_profile_filter, **app_filter}
-
     q_filters, _ = query_filters(
-        filter=combined_filter or None,
+        filter=query_filter or None,
         rbac_filter=rbac_filter,
         staleness=staleness_states,
         identity=identity,

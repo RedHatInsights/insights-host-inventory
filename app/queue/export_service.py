@@ -34,33 +34,32 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
 
 
-def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict, dict]:
-    """Load a saved view and split its filters into three categories.
+def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict]:
+    """Load a saved view and split its filters for query_filters().
+
+    The view stores all filters under ``configuration.filters``, but ``query_filters()``
+    accepts them in two different ways:
+    - ``"host"`` filters (staleness, tags, dates …) → unpacked as **kwargs
+    - everything else (system_profile, app-data) → passed as the ``filter=`` dict
 
     Returns:
-        (host_filter, system_profile_filter, app_filter):
-        - host_filter: query_filters() kwargs (staleness, tags, date ranges, etc.)
-        - system_profile_filter: system_profile filter dict (os, host_type, etc.)
-        - app_filter: app-data filter dict keyed by app name (advisor, vulnerability, etc.)
+        (host_filter, query_filter)
     """
     view = get_view_by_id(view_id, org_id, user_id)
     config_filters = view.configuration.get("filters") or {}
 
     host_filter: dict = {}
-    system_profile_filter: dict = {}
-    app_filter: dict = {}
+    query_filter: dict = {}
 
     for key, value in config_filters.items():
         if key == "host":
             for hk, hv in value.items():
                 if hk in VALID_HOST_FILTER_KEYS:
                     host_filter[hk] = hv
-        elif key == "system_profile":
-            system_profile_filter[key] = value
         else:
-            app_filter[key] = value
+            query_filter[key] = value
 
-    return host_filter, system_profile_filter, app_filter
+    return host_filter, query_filter
 
 
 class _StreamingExportBody:
@@ -120,8 +119,7 @@ def _non_empty_hosts_iter(
     identity: Identity,
     rbac_filter: dict | None,
     inventory_config: Config,
-    system_profile_filter: dict | None = None,
-    app_filter: dict | None = None,
+    query_filter: dict | None = None,
     host_filter: dict | None = None,
 ) -> Iterator[dict] | None:
     """Return a non-empty host iterator, or None if there are no hosts to export."""
@@ -129,8 +127,7 @@ def _non_empty_hosts_iter(
         identity,
         rbac_filter=rbac_filter,
         batch_size=inventory_config.export_svc_batch_size,
-        system_profile_filter=system_profile_filter,
-        app_filter=app_filter,
+        query_filter=query_filter,
         host_filter=host_filter,
     )
     first_host = next(host_iter, None)
@@ -190,8 +187,7 @@ def create_export(
     view_id = export_filters.get("view_id")
 
     host_filter: dict = {}
-    system_profile_filter: dict = {}
-    app_filter: dict = {}
+    query_filter: dict = {}
 
     if view_id:
         user_id = identity.user_id
@@ -212,7 +208,7 @@ def create_export(
             return export_created
 
         try:
-            host_filter, system_profile_filter, app_filter = _load_view_filters(view_id, identity.org_id, user_id)
+            host_filter, query_filter = _load_view_filters(view_id, identity.org_id, user_id)
             logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
         except ViewNotFoundError:
             request_url = _build_export_request_url(
@@ -250,8 +246,7 @@ def create_export(
             identity,
             rbac_filter,
             inventory_config,
-            system_profile_filter=system_profile_filter,
-            app_filter=app_filter,
+            query_filter=query_filter,
             host_filter=host_filter,
         )
 
