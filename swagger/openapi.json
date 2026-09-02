@@ -107,6 +107,9 @@
           },
           {
             "$ref": "#/components/parameters/fields_param"
+          },
+          {
+            "$ref": "#/components/parameters/getTotalParam"
           }
         ],
         "responses": {
@@ -2098,6 +2101,16 @@
           "default": 10
         },
         "description": "A number of items to return per page."
+      },
+      "getTotalParam": {
+        "in": "query",
+        "name": "get_total",
+        "schema": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": "When true, the response includes the total number of items.",
+        "required": false
       },
       "hostId": {
         "in": "path",
@@ -5890,6 +5903,7 @@
       },
       "Total": {
         "type": "integer",
+        "nullable": true,
         "description": "Total number of items"
       },
       "Count": {
