@@ -59,6 +59,11 @@ def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, d
         else:
             query_filter[key] = value
 
+    # Views store "workspace_name" but query_filters() expects "group_name".
+    workspace_name = host_filter.pop("workspace_name", None)
+    if workspace_name:
+        host_filter["group_name"] = [workspace_name] if isinstance(workspace_name, str) else workspace_name
+
     return host_filter, query_filter
 
 

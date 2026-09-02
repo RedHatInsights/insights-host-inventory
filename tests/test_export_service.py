@@ -457,6 +457,33 @@ class TestLoadViewFilters:
             assert host_filter == {}
             assert query_filter == {}
 
+    def test_workspace_name_normalized_to_group_name(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_name": ["my-group"]}},
+                },
+                created_by="51234567",
+            )
+            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
+
+            assert "workspace_name" not in host_filter
+            assert host_filter["group_name"] == ["my-group"]
+
+    def test_workspace_name_string_wrapped_in_list(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"workspace_name": "single-group"}},
+                },
+                created_by="51234567",
+            )
+            host_filter, _ = _load_view_filters(str(view.id), "test", "51234567")
+
+            assert host_filter["group_name"] == ["single-group"]
+
     def test_view_not_found_raises(self, flask_app):
         from lib.views_repository import ViewNotFoundError
 
