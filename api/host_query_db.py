@@ -48,6 +48,7 @@ from app.models.constants import WORKLOADS_FIELDS
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
+from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import SP_FIELD_SERIALIZERS
 from app.serialization import _sanitize_workloads_none_values
 from app.serialization import serialize_host_row_for_export
@@ -890,6 +891,7 @@ class _ExportHostRow(NamedTuple):
     display_name: str | None
     host_type: str | None
     modified_on: Any
+    created_on: Any
     groups: Any
     tags: Any
     fqdn: str | None
@@ -898,6 +900,7 @@ class _ExportHostRow(NamedTuple):
     last_check_in: Any
     bios_uuid: str | None
     ip_addresses: Any
+    per_reporter_staleness: Any
     os_release: str | None
     satellite_managed: bool | None
     cloud_provider: str | None
@@ -910,6 +913,8 @@ def get_hosts_to_export(
     batch_size: int = 0,
     query_filter: dict | None = None,
     host_filter: dict | None = None,
+    export_fields: list[str] | None = None,
+    app_data_fields: dict[str, list[str]] | None = None,
 ) -> Iterator[dict]:
     """Query hosts for export, optionally filtered by a saved view's configuration.
 
@@ -919,11 +924,17 @@ def get_hosts_to_export(
         batch_size: Number of rows per DB batch (yield_per).
         query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
         host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
+        export_fields: Ordered list of flat field names to include in the export.
+        app_data_fields: Map of app_name -> [field_names] for app-data columns to fetch.
     """
+    from app.queue.export_service import _fetch_app_data_batch
+
     if rbac_filter is None:
         rbac_filter = {}
     if host_filter is None:
         host_filter = {}
+    if app_data_fields is None:
+        app_data_fields = {}
 
     staleness = get_staleness_obj(identity.org_id)
 
@@ -942,6 +953,7 @@ def get_hosts_to_export(
         Host.display_name,
         Host.host_type,
         Host.modified_on,
+        Host.created_on,
         Host.groups,
         Host.tags,
         Host.fqdn,
@@ -950,6 +962,7 @@ def get_hosts_to_export(
         Host.last_check_in,
         Host.bios_uuid,
         Host.ip_addresses,
+        Host.per_reporter_staleness,
         HostStaticSystemProfile.os_release,
         HostStaticSystemProfile.satellite_managed,
         HostStaticSystemProfile.cloud_provider,
@@ -967,14 +980,45 @@ def get_hosts_to_export(
         )
         .filter(*q_filters)
     )
-    base_query = base_query.yield_per(batch_size)
+    if batch_size > 0:
+        base_query = base_query.yield_per(batch_size)
+
+    effective_batch_size = batch_size if batch_size > 0 else 500
+    resolved_export_fields = export_fields if export_fields is not None else _EXPORT_SERVICE_FIELDS
 
     try:
         exported = 0
-        for row in base_query:
-            host_row = _ExportHostRow(*row)
-            yield serialize_host_row_for_export(host_row, staleness=staleness)
-            exported += 1
+        if app_data_fields:
+            batch_hosts: list[tuple[Any, dict]] = []
+            for row in base_query:
+                host_row = _ExportHostRow(*row)
+                serialized = serialize_host_row_for_export(
+                    host_row, staleness=staleness, fields=resolved_export_fields
+                )
+                batch_hosts.append((host_row.id, serialized))
+
+                if len(batch_hosts) >= effective_batch_size:
+                    host_ids = [h[0] for h in batch_hosts]
+                    app_data = _fetch_app_data_batch(host_ids, identity.org_id, app_data_fields)
+                    for h_id, host_dict in batch_hosts:
+                        host_dict.update(app_data.get(str(h_id), {}))
+                        yield {field: host_dict.get(field) for field in resolved_export_fields}
+                        exported += 1
+                    batch_hosts = []
+
+            if batch_hosts:
+                host_ids = [h[0] for h in batch_hosts]
+                app_data = _fetch_app_data_batch(host_ids, identity.org_id, app_data_fields)
+                for h_id, host_dict in batch_hosts:
+                    host_dict.update(app_data.get(str(h_id), {}))
+                    yield {field: host_dict.get(field) for field in resolved_export_fields}
+                    exported += 1
+        else:
+            for row in base_query:
+                host_row = _ExportHostRow(*row)
+                yield serialize_host_row_for_export(host_row, staleness=staleness, fields=resolved_export_fields)
+                exported += 1
+
         logger.debug(f"Number of hosts exported: {exported}")
 
     except GeneratorExit:

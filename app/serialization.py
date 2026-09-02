@@ -60,6 +60,23 @@ _EXPORT_SERVICE_FIELDS = [
     "ip_addresses",
 ]
 
+VIEW_COLUMN_TO_EXPORT_FIELDS: dict[str, list[str]] = {
+    "display_name": ["display_name"],
+    "group_name": ["group_id", "group_name"],
+    "operating_system": ["os_release"],
+    "last_check_in": ["last_check_in"],
+    "updated": ["updated"],
+    "created": ["created"],
+    "status": ["state"],
+    "tags": ["tags"],
+    "infrastructure": ["cloud_provider"],
+    "vendor": ["satellite_managed"],
+    "workload": ["host_type"],
+    "per_reporter_staleness": ["per_reporter_staleness"],
+}
+
+ALWAYS_INCLUDED_EXPORT_FIELDS = ["host_id"]
+
 DEFAULT_FIELDS = (
     "id",
     "account",
@@ -283,7 +300,7 @@ def serialize_host(
     return serialized_host
 
 
-def serialize_host_row_for_export(row, *, staleness):
+def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = None):
     """Serialize a flat query row (no ORM relationship access) for the export service."""
     group_id = None
     group_name = None
@@ -303,6 +320,9 @@ def serialize_host_row_for_export(row, *, staleness):
         "group_name": group_name,
         "os_release": row.os_release,
         "updated": _serialize_datetime(row.modified_on),
+        "created": _serialize_datetime(row.created_on) if getattr(row, "created_on", None) else None,
+        "last_check_in": _serialize_datetime(row.last_check_in) if row.last_check_in else None,
+        "per_reporter_staleness": getattr(row, "per_reporter_staleness", None),
         "state": Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
@@ -315,7 +335,9 @@ def serialize_host_row_for_export(row, *, staleness):
         "is_marketplace": row.is_marketplace,
         "ip_addresses": row.ip_addresses,
     }
-    return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
+
+    export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
+    return {field: field_values.get(field) for field in export_fields if field in field_values}
 
 
 def serialize_group_without_host_count(group: Group) -> dict:

@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 from marshmallow.exceptions import ValidationError
+from requests import Response
 from sqlalchemy.orm.exc import ObjectDeletedError
 
 from api.host_query_db import get_hosts_to_export
@@ -17,10 +18,11 @@ from app.exceptions import InventoryException
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
-from app.queue.export_service import _load_view_filters
+from app.queue.export_service import _load_view_config
 from app.queue.export_service import _StreamingExportBody
 from app.queue.export_service import build_headers
 from app.queue.export_service import create_export
+from app.queue.export_service import resolve_export_columns
 from app.queue.export_service_mq import parse_export_service_message
 from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
@@ -487,7 +489,7 @@ def test_create_export_honors_ca_certificate(mock_post, db_create_host, flask_ap
         assert session_instance.verify == "/path/to/ca.crt"
 
 
-class TestLoadViewFilters:
+class TestLoadViewConfig:
     def test_splits_host_kwargs_from_query_filter(self, flask_app, db_create_view):
         with flask_app.app.app_context():
             view = db_create_view(
@@ -505,7 +507,7 @@ class TestLoadViewFilters:
                 },
                 created_by="51234567",
             )
-            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, query_filter, columns = _load_view_config(str(view.id), "test", "51234567")
 
             assert host_filter == {
                 "staleness": ["fresh"],
@@ -516,6 +518,7 @@ class TestLoadViewFilters:
                 "system_profile": {"host_type": {"eq": "conventional"}},
                 "vulnerability": {"critical_cves": {"gte": 1}},
             }
+            assert columns == [{"key": "display_name"}]
 
     def test_empty_filters(self, flask_app, db_create_view):
         with flask_app.app.app_context():
@@ -523,10 +526,11 @@ class TestLoadViewFilters:
                 configuration={"columns": [{"key": "display_name"}]},
                 created_by="51234567",
             )
-            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, query_filter, columns = _load_view_config(str(view.id), "test", "51234567")
 
             assert host_filter == {}
             assert query_filter == {}
+            assert columns == [{"key": "display_name"}]
 
     def test_workspace_name_normalized_to_group_name(self, flask_app, db_create_view):
         with flask_app.app.app_context():
@@ -537,10 +541,11 @@ class TestLoadViewFilters:
                 },
                 created_by="51234567",
             )
-            host_filter, query_filter = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, query_filter, columns = _load_view_config(str(view.id), "test", "51234567")
 
             assert "workspace_name" not in host_filter
             assert host_filter["group_name"] == ["my-group"]
+            assert columns == [{"key": "display_name"}]
 
     def test_workspace_name_string_wrapped_in_list(self, flask_app, db_create_view):
         with flask_app.app.app_context():
@@ -551,16 +556,17 @@ class TestLoadViewFilters:
                 },
                 created_by="51234567",
             )
-            host_filter, _ = _load_view_filters(str(view.id), "test", "51234567")
+            host_filter, _, columns = _load_view_config(str(view.id), "test", "51234567")
 
             assert host_filter["group_name"] == ["single-group"]
+            assert columns == [{"key": "display_name"}]
 
     def test_view_not_found_raises(self, flask_app):
         from lib.views_repository import ViewNotFoundError
 
         with flask_app.app.app_context():
             with pytest.raises(ViewNotFoundError):
-                _load_view_filters(str(uuid4()), "test", "51234567")
+                _load_view_config(str(uuid4()), "test", "51234567")
 
 
 class TestCreateExportWithView:
@@ -649,3 +655,310 @@ class TestCreateExportWithView:
 
             result = create_export(validated_msg, base64_id, inventory_config)
             assert result is True
+
+    @mock.patch("requests.Session.post", new=mocked_export_post)
+    def test_export_with_view_columns(self, flask_app, db_create_host, db_create_view, inventory_config):
+        """Export with a view_id uses the view's column configuration."""
+        with flask_app.app.app_context():
+            db_create_host()
+            view = db_create_view(
+                configuration={
+                    "columns": [
+                        {"key": "display_name"},
+                        {"key": "operating_system"},
+                        {"key": "tags"},
+                    ],
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+
+    def test_export_with_view_app_data_columns(
+        self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
+    ):
+        """Export with a view containing app-data columns populates app-data values and nulls."""
+        captured_data = []
+
+        def capture_post(_self, url, *, data, **_kwargs):
+            if hasattr(data, "decode"):
+                captured_data.append(data.decode("utf-8"))
+            else:
+                captured_data.append(b"".join(data).decode("utf-8"))
+            resp = Response()
+            resp.url = url
+            resp.status_code = HTTPStatus.ACCEPTED
+            resp._content = b"Export successful"
+            return resp
+
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            host1 = db_create_host(host=db_host(display_name="host-1"))
+            host2 = db_create_host(host=db_host(display_name="host-2"))
+            host1_id = str(host1.id)
+            host2_id = str(host2.id)
+            db_create_host_app_data(host1_id, "test", "advisor", recommendations=5)
+
+            view = db_create_view(
+                configuration={
+                    "columns": [
+                        {"key": "display_name"},
+                        {"key": "advisor:recommendations"},
+                    ],
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+            assert len(captured_data) == 1
+
+            parsed = json.loads(captured_data[0])
+            assert len(parsed) == 2
+            h1 = next(h for h in parsed if h["host_id"] == host1_id)
+            h2 = next(h for h in parsed if h["host_id"] == host2_id)
+
+            assert h1["display_name"] == "host-1"
+            assert h1["advisor:recommendations"] == 5
+            assert h2["display_name"] == "host-2"
+            assert h2["advisor:recommendations"] is None
+
+            # Keys must follow view column order starting with host_id
+            expected_keys = ["host_id", "display_name", "advisor:recommendations"]
+            assert list(h1.keys()) == expected_keys
+            assert list(h2.keys()) == expected_keys
+
+    def test_export_with_view_columns_csv_format(
+        self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
+    ):
+        """Export in CSV format with view columns generates matching header and rows."""
+        captured_data = []
+
+        def capture_post(_self, url, *, data, **_kwargs):
+            if hasattr(data, "decode"):
+                captured_data.append(data.decode("utf-8"))
+            else:
+                captured_data.append(b"".join(data).decode("utf-8"))
+            resp = Response()
+            resp.url = url
+            resp.status_code = HTTPStatus.ACCEPTED
+            resp._content = b"Export successful"
+            return resp
+
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            host1 = db_create_host(host=db_host(display_name="host-1"))
+            host1_id = str(host1.id)
+            db_create_host_app_data(host1_id, "test", "advisor", recommendations=12)
+
+            view = db_create_view(
+                configuration={
+                    "columns": [
+                        {"key": "display_name"},
+                        {"key": "advisor:recommendations"},
+                    ],
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                format="csv",
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+            assert len(captured_data) == 1
+
+            lines = captured_data[0].strip().splitlines()
+            assert len(lines) == 2
+            assert lines[0] == '"host_id","display_name","advisor:recommendations"'
+            assert f'"{host1_id}","host-1",12' in lines[1]
+
+
+class TestResolveExportColumns:
+    def test_empty_columns_returns_defaults(self, flask_app):
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns([])
+            assert fields == _EXPORT_SERVICE_FIELDS
+            assert app_data == {}
+
+    def test_core_columns_mapped(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "operating_system"},
+                {"key": "tags"},
+                {"key": "status"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert "host_id" in fields
+            assert "display_name" in fields
+            assert "os_release" in fields
+            assert "tags" in fields
+            assert "state" in fields
+            assert app_data == {}
+
+    def test_app_data_columns_parsed(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "advisor:recommendations"},
+                {"key": "vulnerability:critical_cves"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert "host_id" in fields
+            assert "display_name" in fields
+            assert "advisor:recommendations" in fields
+            assert "vulnerability:critical_cves" in fields
+            assert app_data == {
+                "advisor": ["recommendations"],
+                "vulnerability": ["critical_cves"],
+            }
+
+    def test_column_order_preserved(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "tags"},
+                {"key": "display_name"},
+                {"key": "operating_system"},
+            ]
+            fields, _ = resolve_export_columns(columns)
+
+            assert fields[0] == "host_id"
+            tags_idx = fields.index("tags")
+            display_idx = fields.index("display_name")
+            os_idx = fields.index("os_release")
+            assert tags_idx < display_idx < os_idx
+
+    def test_unknown_app_column_ignored(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "nonexistent_app:some_field"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert "nonexistent_app:some_field" not in fields
+            assert app_data == {}
+
+    def test_unknown_field_in_valid_app_ignored(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "advisor:nonexistent_field"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert "advisor:nonexistent_field" not in fields
+            assert "advisor" not in app_data
+
+    def test_duplicate_columns_deduplicated(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "display_name"},
+                {"key": "advisor:recommendations"},
+                {"key": "advisor:recommendations"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert fields == ["host_id", "display_name", "advisor:recommendations"]
+            assert app_data == {"advisor": ["recommendations"]}
+
+    def test_group_name_produces_two_fields(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [{"key": "group_name"}]
+            fields, _ = resolve_export_columns(columns)
+
+            assert "group_id" in fields
+            assert "group_name" in fields
+
+
+class TestStreamingExportBodyCustomFields:
+    def test_csv_uses_custom_fields(self):
+        custom_fields = ["host_id", "display_name", "os_release"]
+        hosts = [{"host_id": "1", "display_name": "host-a", "os_release": "8.10"}]
+        body = _StreamingExportBody(iter(hosts), "csv", export_fields=custom_fields)
+        csv_output = b"".join(body).decode("utf-8")
+
+        lines = csv_output.splitlines()
+        assert '"host_id","display_name","os_release"' in lines[0]
+        assert body.host_count == 1
+
+    def test_json_with_custom_fields(self):
+        custom_fields = ["host_id", "display_name"]
+        hosts = [{"host_id": "1", "display_name": "host-a", "extra": "ignored"}]
+        body = _StreamingExportBody(iter(hosts), "json", export_fields=custom_fields)
+        json_output = b"".join(body).decode("utf-8")
+
+        parsed = json.loads(json_output)
+        assert parsed == hosts
+
+
+class TestGetHostsToExportWithColumns:
+    def test_app_data_batching_and_order(self, flask_app, db_create_host, db_create_host_app_data):
+        with flask_app.app.app_context():
+            host = db_create_host(host=db_host(display_name="app-host"))
+            host_id = str(host.id)
+            db_create_host_app_data(host_id, "test", "advisor", recommendations=7)
+
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "advisor:recommendations", "display_name"]
+            app_data_fields = {"advisor": ["recommendations"]}
+
+            results = list(
+                get_hosts_to_export(
+                    identity,
+                    export_fields=export_fields,
+                    app_data_fields=app_data_fields,
+                )
+            )
+
+            assert len(results) == 1
+            assert results[0]["host_id"] == host_id
+            assert results[0]["advisor:recommendations"] == 7
+            assert results[0]["display_name"] == "app-host"
+            # Key order matches export_fields even with app-data column first
+            assert list(results[0].keys()) == export_fields
+
+    def test_missing_app_data_yields_none(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            host = db_create_host(host=db_host(display_name="plain-host"))
+            host_id = str(host.id)
+
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "display_name", "advisor:recommendations"]
+            app_data_fields = {"advisor": ["recommendations"]}
+
+            results = list(
+                get_hosts_to_export(
+                    identity,
+                    export_fields=export_fields,
+                    app_data_fields=app_data_fields,
+                )
+            )
+
+            assert len(results) == 1
+            assert results[0]["host_id"] == host_id
+            assert results[0]["display_name"] == "plain-host"
+            assert results[0]["advisor:recommendations"] is None
+            assert list(results[0].keys()) == export_fields
