@@ -154,10 +154,12 @@ services:
       image: grafana/tempo:2.7.1
       command: ["-config.file=/etc/tempo.yaml"]
       volumes:
-        - ./.otel/tempo.yaml:/etc/tempo.yaml
+        - ./.otel/tempo.yaml:/etc/tempo.yaml:Z
       ports:
         - "${HBI_TEMPO_OTLP_PORT:-4318}:4318"
         - "${HBI_TEMPO_INTERNAL_PORT:-3250}:3200"
+      security_opt:
+        - label=disable
 
     grafana:
       image: grafana/grafana:11.5.2
@@ -167,9 +169,11 @@ services:
         - GF_AUTH_ANONYMOUS_ENABLED=true
         - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       volumes:
-        - ./.otel/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+        - ./.otel/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:Z
       depends_on:
         - tempo
+      security_opt:
+        - label=disable
 
     hbi-web:
       build: .
@@ -253,5 +257,42 @@ services:
         - .:/opt/app-root/src
         - /opt/app-root/src/.venv
       command: python3 inv_mq_service.py
+      security_opt:
+        - label=disable
+
+    hbi-export:
+      build: .
+      environment:
+        - INVENTORY_LOG_LEVEL=${INVENTORY_LOG_LEVEL:-DEBUG}
+        - INVENTORY_DB_HOST=db
+        - INVENTORY_DB_NAME=${INVENTORY_DB_NAME:-insights}
+        - INVENTORY_DB_USER=${INVENTORY_DB_USER:-insights}
+        - INVENTORY_DB_PASS=${INVENTORY_DB_PASS:-insights}
+        - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+        - KAFKA_EVENT_TOPIC=platform.inventory.events
+        - KAFKA_EXPORT_SERVICE_TOPIC=${KAFKA_EXPORT_SERVICE_TOPIC:-platform.export.requests}
+        - EXPORT_SERVICE_ENDPOINT=http://export-service:10010
+        - EXPORT_SERVICE_TOKEN=testing-a-psk
+        - BYPASS_RBAC=${BYPASS_RBAC:-true}
+        - BYPASS_KESSEL=${BYPASS_KESSEL:-true}
+        - INVENTORY_API_CACHE_TYPE=${INVENTORY_API_CACHE_TYPE:-RedisCache}
+        - INVENTORY_API_CACHE_TIMEOUT_SECONDS=${INVENTORY_API_CACHE_TIMEOUT_SECONDS:-300}
+        - INVENTORY_API_STALENESS_CACHE_ENABLED=${INVENTORY_API_STALENESS_CACHE_ENABLED:-true}
+        - CACHE_HOST=redis
+        - CACHE_PORT=6379
+        - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
+        - PROMETHEUS_PUSHGATEWAY=prometheus-gateway:9091
+      depends_on:
+        db:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+      volumes:
+        - .:/opt/app-root/src
+        - /opt/app-root/src/.venv
+      command: python3 inv_export_service.py
       security_opt:
         - label=disable
