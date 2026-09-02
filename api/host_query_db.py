@@ -906,19 +906,43 @@ class _ExportHostRow(NamedTuple):
 
 def get_hosts_to_export(
     identity: Identity,
-    filters: dict | None = None,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
+    system_profile_filter: dict | None = None,
+    app_filter: dict | None = None,
+    host_filter: dict | None = None,
 ) -> Iterator[dict]:
-    if filters is None:
-        filters = {}
+    """Query hosts for export, optionally filtered by a saved view's configuration.
+
+    Args:
+        identity: The authenticated user identity.
+        rbac_filter: RBAC permission filter.
+        batch_size: Number of rows per DB batch (yield_per).
+        system_profile_filter: System profile filters from the view (os, host_type, etc.).
+        app_filter: App-data filters from the view keyed by app name (advisor, vulnerability, etc.).
+        host_filter: Host-level filter kwargs from the view (staleness, tags, date ranges, etc.).
+    """
     if rbac_filter is None:
         rbac_filter = {}
+    if system_profile_filter is None:
+        system_profile_filter = {}
+    if app_filter is None:
+        app_filter = {}
+    if host_filter is None:
+        host_filter = {}
 
     staleness = get_staleness_obj(identity.org_id)
 
+    staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
+
+    combined_filter = {**system_profile_filter, **app_filter}
+
     q_filters, _ = query_filters(
-        filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity
+        filter=combined_filter or None,
+        rbac_filter=rbac_filter,
+        staleness=staleness_states,
+        identity=identity,
+        **host_filter,
     )
 
     columns = [

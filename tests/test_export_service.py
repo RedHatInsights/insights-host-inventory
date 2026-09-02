@@ -17,6 +17,7 @@ from app.exceptions import InventoryException
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
+from app.queue.export_service import _load_view_filters
 from app.queue.export_service import _StreamingExportBody
 from app.queue.export_service import create_export
 from app.queue.export_service_mq import parse_export_service_message
@@ -413,3 +414,143 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
 
         result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
         assert result is True
+
+
+class TestLoadViewFilters:
+    def test_splits_host_and_app_filters(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {
+                        "host": {
+                            "staleness": ["fresh"],
+                            "tags": ["namespace/key=value"],
+                            "last_check_in_start": "2025-01-01T00:00:00Z",
+                        },
+                        "system_profile": {"host_type": {"eq": "conventional"}},
+                        "vulnerability": {"critical_cves": {"gte": 1}},
+                    },
+                },
+                created_by="51234567",
+            )
+            host_filter, sp_filter, app_filter = _load_view_filters(str(view.id), "test", "51234567")
+
+            assert host_filter == {
+                "staleness": ["fresh"],
+                "tags": ["namespace/key=value"],
+                "last_check_in_start": "2025-01-01T00:00:00Z",
+            }
+            assert sp_filter == {
+                "system_profile": {"host_type": {"eq": "conventional"}},
+            }
+            assert app_filter == {
+                "vulnerability": {"critical_cves": {"gte": 1}},
+            }
+
+    def test_empty_filters(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={"columns": [{"key": "display_name"}]},
+                created_by="51234567",
+            )
+            host_filter, sp_filter, app_filter = _load_view_filters(str(view.id), "test", "51234567")
+
+            assert host_filter == {}
+            assert sp_filter == {}
+            assert app_filter == {}
+
+    def test_view_not_found_raises(self, flask_app):
+        from lib.views_repository import ViewNotFoundError
+
+        with flask_app.app.app_context():
+            with pytest.raises(ViewNotFoundError):
+                _load_view_filters(str(uuid4()), "test", "51234567")
+
+
+class TestCreateExportWithView:
+    @mock.patch("requests.Session.post", new=mocked_export_post)
+    def test_export_with_view_filters(self, flask_app, db_create_host, db_create_view, inventory_config):
+        """Export with a view_id applies the view's saved filters."""
+        with flask_app.app.app_context():
+            db_create_host()
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": {"staleness": ["fresh"]}},
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+
+    @mock.patch("requests.Session.post", autospec=True)
+    def test_export_with_nonexistent_view_returns_error(self, mock_post, flask_app, db_create_host, inventory_config):
+        """Export with an invalid view_id reports a 404 error."""
+        with flask_app.app.app_context():
+            db_create_host()
+            mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+            mock_post.return_value.text = ""
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(uuid4())},
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is False
+
+            error_call = mock_post.call_args_list[-1]
+            posted_data = error_call.kwargs.get("data") or error_call[1].get("data")
+            error_body = json.loads(posted_data)
+            assert error_body["error"] == 404
+
+    @mock.patch("requests.Session.post", autospec=True)
+    def test_export_with_view_no_user_id_returns_error(
+        self, mock_post, flask_app, db_create_host, db_create_view, inventory_config
+    ):
+        """Export with view_id but identity lacking user_id reports a 403."""
+        with flask_app.app.app_context():
+            db_create_host()
+            view = db_create_view(
+                configuration={"columns": [{"key": "display_name"}]},
+                created_by="51234567",
+            )
+            mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+            mock_post.return_value.text = ""
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_NO_USER_ID,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is False
+
+            error_call = mock_post.call_args_list[-1]
+            posted_data = error_call.kwargs.get("data") or error_call[1].get("data")
+            error_body = json.loads(posted_data)
+            assert error_body["error"] == 403
+
+    @mock.patch("requests.Session.post", new=mocked_export_post)
+    def test_export_without_view_backward_compat(self, flask_app, db_create_host, inventory_config):
+        """Export without view_id still works (backward compatibility)."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            export_msg = es_utils.create_export_message_mock(filters={})
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
