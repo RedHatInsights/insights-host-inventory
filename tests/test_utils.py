@@ -13,6 +13,8 @@ from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
 from lib.feature_flags import get_flag_value
 from lib.feature_flags import get_flag_value_and_fallback
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -175,6 +177,15 @@ def test_make_system_cache_key_valid():
     owner_id = "1919388393"
     key = make_system_cache_key(insights_id, org_id, owner_id)
     assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"
+
+
+def test_make_system_cache_key_with_forwarded_identity():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = SYSTEM_IDENTITY["system"]["cn"]
+    forwarded_identity = generate_uuid()
+    key = make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=forwarded_identity)
+    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}_subman={forwarded_identity}")
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})

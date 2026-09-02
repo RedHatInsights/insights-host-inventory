@@ -114,7 +114,7 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
 
 def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None, spawn=False):
     if insights_id and org_id and owner_id:
-        delete_keys(f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}", wildcard=False, spawn=spawn)
+        delete_keys(f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}", wildcard=True, spawn=spawn)
     elif insights_id and org_id and not owner_id:
         delete_keys(f"insights_id={insights_id}_org={org_id}", wildcard=True, spawn=spawn)
     elif not insights_id and org_id:
