@@ -23,8 +23,6 @@ from app.queue.export_service import create_export
 from app.queue.export_service_mq import parse_export_service_message
 from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
-from app.serialization import serialize_host_for_export_svc
-from app.staleness_serialization import get_sys_default_staleness
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -115,21 +113,27 @@ def test_handle_create_export_empty_message(flask_app, export_service_consumer_m
             export_service_consumer_mock.handle_message(export_message)
 
 
-def test_host_serialization(flask_app, db_create_host):
+def test_host_serialization(flask_app, db_create_host, inventory_config):
     with flask_app.app.app_context():
         expected_fields = _EXPORT_SERVICE_FIELDS
-        host = db_create_host(host=db_host())
-        staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
+        db_create_host(host=db_host())
+        identity = Identity(USER_IDENTITY)
+        host_list = list(
+            get_hosts_to_export(identity, rbac_filter=None, batch_size=inventory_config.export_svc_batch_size)
+        )
 
-        assert expected_fields == list(serialized_host.keys())
+        assert len(host_list) == 1
+        assert expected_fields == list(host_list[0].keys())
 
 
-def test_handle_csv_format(flask_app, db_create_host, mocker):
+def test_handle_csv_format(flask_app, db_create_host, mocker, inventory_config):
     with flask_app.app.app_context():
-        host = db_create_host(host=db_host())
-        staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
+        db_create_host(host=db_host())
+        identity = Identity(USER_IDENTITY)
+        host_list = list(
+            get_hosts_to_export(identity, rbac_filter=None, batch_size=inventory_config.export_svc_batch_size)
+        )
+        serialized_host = host_list[0]
         export_host = _format_export_data([serialized_host], "csv")
 
         csv_file = io.StringIO(export_host)
@@ -140,11 +144,14 @@ def test_handle_csv_format(flask_app, db_create_host, mocker):
         assert mocked_csv == export_host
 
 
-def test_handle_json_format(flask_app, db_create_host, mocker):
+def test_handle_json_format(flask_app, db_create_host, mocker, inventory_config):
     with flask_app.app.app_context():
-        host = db_create_host(host=db_host())
-        staleness = get_sys_default_staleness()
-        serialized_host = serialize_host_for_export_svc(host, staleness=staleness)
+        db_create_host(host=db_host())
+        identity = Identity(USER_IDENTITY)
+        host_list = list(
+            get_hosts_to_export(identity, rbac_filter=None, batch_size=inventory_config.export_svc_batch_size)
+        )
+        serialized_host = host_list[0]
 
         export_host = json.loads(_format_export_data([serialized_host], "json"))
         mocked_json = es_utils.create_export_json_mock(mocker)
@@ -252,10 +259,18 @@ def test_export_one_host(flask_app, db_create_host, inventory_config):
         assert len(host_list) == 1
 
 
-@mock.patch("api.host_query_db.db.session.scalars", side_effect=ObjectDeletedError(None))
-def test_export_catches_db_error(flask_app, inventory_config, mocker):
+def test_export_catches_db_error(flask_app, inventory_config, mocker, db_create_host):
     with flask_app.app.app_context():
+        db_create_host()
         handle_export_error_mock = mocker.patch("app.queue.export_service._handle_export_error")
+
+        real_entities_query = mocker.patch("api.host_query_db._find_hosts_entities_query")
+        broken_query = mock.MagicMock()
+        broken_query.outerjoin.return_value = broken_query
+        broken_query.filter.return_value = broken_query
+        broken_query.yield_per.return_value = broken_query
+        broken_query.__iter__ = mock.Mock(side_effect=ObjectDeletedError(None))
+        real_entities_query.return_value = broken_query
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
         base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]

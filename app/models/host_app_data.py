@@ -128,6 +128,9 @@ class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     __tablename__ = "hosts_app_data_advisor"
     __app_name__ = "advisor"
     __sortable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
+    __computed_sortable_fields__ = {
+        "total_severity": "_total_severity_expr",
+    }
     __filterable_fields__ = ("recommendations", "incidents", "critical", "important", "moderate", "low")
     __v1_app__ = "advisor"
     __v1_read_permission__ = "advisor:recommendation-results:read"
@@ -139,6 +142,20 @@ class HostAppDataAdvisor(HostAppDataMixin, db.Model):
     important = db.Column(db.Integer, nullable=True)
     moderate = db.Column(db.Integer, nullable=True)
     low = db.Column(db.Integer, nullable=True)
+
+    @classmethod
+    def _total_severity_expr(cls) -> ColumnElement:
+        """Weighted severity score: critical*1000 + important*100 + moderate*10 + low."""
+        return case(
+            (
+                cls.host_id.isnot(None),
+                func.coalesce(cls.critical, 0) * 1000
+                + func.coalesce(cls.important, 0) * 100
+                + func.coalesce(cls.moderate, 0) * 10
+                + func.coalesce(cls.low, 0),
+            ),
+            else_=None,
+        )
 
 
 class HostAppDataVulnerability(HostAppDataMixin, db.Model):
