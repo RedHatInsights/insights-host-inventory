@@ -21,6 +21,7 @@ from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from lib import metrics
+from lib.kessel import get_kessel_oauth2_credentials
 from lib.middleware import resolve_permission
 from utils.json_to_csv import export_csv_header
 from utils.json_to_csv import export_host_to_csv_row
@@ -66,6 +67,13 @@ def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str,
     return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
 
 
+def _get_export_service_access_token(inventory_config: Config) -> str:
+    """Get an OAuth2 workload-identity access token for authenticated export-service calls."""
+    oauth_client = get_kessel_oauth2_credentials(inventory_config)
+    token_response = oauth_client.get_token()
+    return token_response.access_token
+
+
 def build_headers(
     x_rh_identity: str, exportUUID: UUID, inventory_config: Config, exportFormat: str
 ) -> tuple[dict, dict]:
@@ -74,11 +82,17 @@ def build_headers(
         REQUEST_ID_HEADER: str(exportUUID),
     }
 
-    # x-rh-exports-psk must be an env variable
     request_headers = {
-        "x-rh-exports-psk": inventory_config.export_service_token,
         "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
     }
+
+    if inventory_config.export_service_endpoint_authenticated:
+        # V2 endpoint requires workload identity -- attach an OAuth2 Bearer token from the Kessel SDK.
+        access_token = _get_export_service_access_token(inventory_config)
+        request_headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        # Unauthenticated (in-cluster) endpoint -- fall back to the shared export-service PSK.
+        request_headers["x-rh-exports-psk"] = inventory_config.export_service_token
 
     return rbac_request_headers, request_headers
 
@@ -128,6 +142,8 @@ def create_export(
 
     export_created = False
     session = Session()
+    # Honor the per-endpoint CA certificate from the V2 dependency endpoint; fall back to system trust.
+    session.verify = inventory_config.export_service_endpoint_ca_certificate or True
 
     if not allowed:
         request_url = _build_export_request_url(
