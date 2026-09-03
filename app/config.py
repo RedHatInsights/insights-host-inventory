@@ -61,7 +61,8 @@ class Config:
         # Only configure Kessel from DependencyEndpoints if the dependency exists
         try:
             kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
-            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+            kessel_inventory_port = os.environ.get("KESSEL_INVENTORY_API_PORT", "9000")
+            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:{kessel_inventory_port}"
         except KeyError:
             self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
 
