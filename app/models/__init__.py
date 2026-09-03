@@ -57,6 +57,7 @@ from app.models.utils import deleted_by_this_query
 from app.models.utils import get_staleness_obj
 from app.models.views import MAX_VIEW_NAME_LENGTH
 from app.models.views import InventoryView
+from app.models.views import UserViewPreference
 
 logger = get_logger(__name__)
 
@@ -115,6 +116,7 @@ __all__ = [
     "HostStaticSystemProfile",
     "MAX_VIEW_NAME_LENGTH",
     "InventoryView",
+    "UserViewPreference",
     "InputViewSchema",
     "PatchViewSchema",
     "ViewResponseSchema",
