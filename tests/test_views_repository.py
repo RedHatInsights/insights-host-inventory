@@ -4,8 +4,10 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.models import InventoryView
+from app.models import UserViewPreference
 from app.models import db
 from app.serialization import serialize_view
 from lib.views_repository import CLONE_NAME_PREFIX
@@ -366,3 +368,56 @@ class TestSerializeView:
         assert result["is_system_view"] is True
         assert result["org_id"] is None
         assert result["created_by"] is None
+
+
+class TestUserViewPreferenceModel:
+    def test_creates_preference(self, db_create_view, db_create_user_view_preference):
+        view = db_create_view(org_id=ORG_ID, created_by=USER_ID)
+
+        pref = db_create_user_view_preference(ORG_ID, USER_ID, view.id)
+
+        assert pref.org_id == ORG_ID
+        assert pref.user_id == USER_ID
+        assert pref.default_view_id == view.id
+        assert pref.updated_on is not None
+
+    def test_composite_pk_enforces_one_per_user(self, db_create_view, db_create_user_view_preference):
+        view1 = db_create_view(name="View 1", org_id=ORG_ID, created_by=USER_ID)
+        view2 = db_create_view(name="View 2", org_id=ORG_ID, created_by=USER_ID)
+
+        db_create_user_view_preference(ORG_ID, USER_ID, view1.id)
+
+        with pytest.raises(IntegrityError):
+            db_create_user_view_preference(ORG_ID, USER_ID, view2.id)
+        db.session.rollback()
+
+    def test_different_users_can_have_different_defaults(self, db_create_view, db_create_user_view_preference):
+        view1 = db_create_view(name="View 1", org_id=ORG_ID, created_by=USER_ID)
+        view2 = db_create_view(name="View 2", org_id=ORG_ID, created_by=OTHER_USER_ID, org_wide=True)
+
+        pref1 = db_create_user_view_preference(ORG_ID, USER_ID, view1.id)
+        pref2 = db_create_user_view_preference(ORG_ID, OTHER_USER_ID, view2.id)
+
+        assert pref1.default_view_id == view1.id
+        assert pref2.default_view_id == view2.id
+
+    def test_fk_rejects_nonexistent_view(self, flask_app):  # noqa: ARG002
+        with pytest.raises(IntegrityError):
+            pref = UserViewPreference(
+                org_id=ORG_ID,
+                user_id=USER_ID,
+                default_view_id=uuid.uuid4(),
+            )
+            db.session.add(pref)
+            db.session.commit()
+        db.session.rollback()
+
+    def test_cascade_deletes_preference_when_view_deleted(self, db_create_view, db_create_user_view_preference):
+        view = db_create_view(org_id=ORG_ID, created_by=USER_ID)
+        db_create_user_view_preference(ORG_ID, USER_ID, view.id)
+
+        db.session.delete(view)
+        db.session.commit()
+
+        pref = UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one_or_none()
+        assert pref is None
