@@ -185,7 +185,6 @@ def get_host_list(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
     if is_cached_insights_client_system_query and len(host_list) == 1:
-        forwarded_identity = get_satellite_forwarded_identity(current_identity)
         system_key = make_system_cache_key(
             insights_id, current_identity.org_id, owner_id, forwarded_identity=forwarded_identity
         )
