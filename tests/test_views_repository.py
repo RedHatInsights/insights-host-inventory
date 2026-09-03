@@ -1,4 +1,7 @@
 import uuid
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -83,6 +86,66 @@ class TestGetViewsList:
 
         assert views[0].id == v2.id
         assert views[1].id == v1.id
+
+    def test_system_views_appear_before_user_views(self, db_create_view, db_create_system_view):
+        """System views stay on top even when a user view was modified more recently."""
+        system = db_create_system_view(name="All systems")
+        user = db_create_view(name="My Custom View", org_id=ORG_ID, created_by=USER_ID)
+
+        now = datetime.now(UTC)
+        system.modified_on = now - timedelta(days=30)
+        user.modified_on = now
+        db.session.commit()
+
+        views, total = get_views_list(ORG_ID, USER_ID)
+
+        assert total == 2
+        assert views[0].id == system.id
+        assert views[0].is_system_view is True
+        assert views[1].id == user.id
+        assert views[1].is_system_view is False
+
+    def test_multiple_system_views_before_user_views(self, db_create_view, db_create_system_view):
+        """All preset/system views come before any user views; user section keeps modified_on order."""
+        system_a = db_create_system_view(name="All systems")
+        system_b = db_create_system_view(name="RHEL servers")
+        private = db_create_view(name="Private", org_id=ORG_ID, created_by=USER_ID)
+        shared = db_create_view(name="Shared", org_id=ORG_ID, created_by=OTHER_USER_ID, org_wide=True)
+
+        now = datetime.now(UTC)
+        system_a.modified_on = now - timedelta(days=10)
+        system_b.modified_on = now - timedelta(days=5)
+        private.modified_on = now
+        shared.modified_on = now - timedelta(hours=1)
+        db.session.commit()
+
+        views, total = get_views_list(ORG_ID, USER_ID)
+
+        assert total == 4
+        assert [v.is_system_view for v in views] == [True, True, False, False]
+        assert {views[0].id, views[1].id} == {system_a.id, system_b.id}
+        assert views[2].id == private.id
+        assert views[3].id == shared.id
+
+    def test_system_views_on_page_one_with_many_user_views(self, db_create_view, db_create_system_view):
+        """System views remain on page 1 even when many newer user views exist."""
+        system = db_create_system_view(name="All systems")
+        now = datetime.now(UTC)
+        system.modified_on = now - timedelta(days=365)
+        db.session.commit()
+
+        for i in range(5):
+            view = db_create_view(name=f"User View {i}", org_id=ORG_ID, created_by=USER_ID)
+            view.modified_on = now - timedelta(hours=i)
+            db.session.commit()
+
+        views, total = get_views_list(ORG_ID, USER_ID, page=1, per_page=3)
+
+        assert total == 6
+        assert len(views) == 3
+        assert views[0].id == system.id
+        assert views[0].is_system_view is True
+        assert all(not v.is_system_view for v in views[1:])
 
     def test_is_owner_via_serialization(self, db_create_view):
         db_create_view(name="Mine", org_id=ORG_ID, created_by=USER_ID, org_wide=True)
