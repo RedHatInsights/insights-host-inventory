@@ -404,7 +404,8 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
 class TestBuildHeaders:
     """Auth selection for export-service based on the V2 `authenticated` field."""
 
-    def test_unauthenticated_endpoint_uses_psk(self, inventory_config):
+    def test_unauthenticated_endpoint_uses_psk(self, mocker):
+        inventory_config = mocker.Mock()
         inventory_config.export_service_endpoint_authenticated = False
         inventory_config.export_service_token = "test-psk"
 
@@ -413,7 +414,8 @@ class TestBuildHeaders:
         assert request_headers["x-rh-exports-psk"] == "test-psk"
         assert "Authorization" not in request_headers
 
-    def test_authenticated_endpoint_uses_kessel_token(self, inventory_config, mocker):
+    def test_authenticated_endpoint_uses_kessel_token(self, mocker):
+        inventory_config = mocker.Mock()
         inventory_config.export_service_endpoint_authenticated = True
         mocker.patch(
             "app.queue.export_service._get_export_service_access_token",
@@ -424,6 +426,29 @@ class TestBuildHeaders:
 
         assert request_headers["Authorization"] == "Bearer kessel-token-xyz"
         assert "x-rh-exports-psk" not in request_headers
+
+
+@mock.patch("app.queue.export_service._handle_export_error")
+@mock.patch("app.queue.export_service.build_headers", side_effect=RuntimeError("token failed"))
+def test_create_export_header_build_failure_reports_error(mock_build_headers, mock_handle_error, mocker):
+    """OAuth/header construction failures must notify export-service via the error endpoint."""
+    inventory_config = mocker.Mock()
+    inventory_config.export_service_endpoint = "http://export.test"
+    inventory_config.export_service_endpoint_authenticated = False
+    inventory_config.export_service_token = "test-psk"
+    inventory_config.export_service_endpoint_ca_certificate = None
+
+    validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
+    base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+    result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+
+    assert result is False
+    mock_build_headers.assert_called_once()
+    mock_handle_error.assert_called_once()
+    assert mock_handle_error.call_args[0][1] == HTTPStatus.SERVICE_UNAVAILABLE
+    error_headers = mock_handle_error.call_args[0][4]
+    assert error_headers["x-rh-exports-psk"] == "test-psk"
 
 
 @mock.patch("requests.Session.post", autospec=True)
