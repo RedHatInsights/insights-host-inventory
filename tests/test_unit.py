@@ -29,6 +29,8 @@ from api.parsing import customURIParser
 from app import SPECIFICATION_FILE
 from app import V2_SPECIFICATION_FILE
 from app import create_app
+from app.auth.forwarded_identity import FORWARDED_IDENTITY_HEADER
+from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
@@ -41,6 +43,7 @@ from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.culling import Conditions
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
@@ -73,6 +76,7 @@ from lib import host_kafka
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -195,6 +199,36 @@ def test_invalid_format_auth_identity_from_auth_header():
 
     with pytest.raises(KeyError):
         from_auth_header(base64)
+
+
+MALFORMED_FORWARDED_IDENTITIES = ("not-a-uuid", "abcdef", "123", "0.0")
+FORWARDED_SUBMAN_ID = generate_uuid()
+
+
+def test_get_satellite_forwarded_identity_returns_none_for_non_satellite_identity() -> None:
+    identity = Identity(SYSTEM_IDENTITY)
+    assert get_satellite_forwarded_identity(identity) is None
+
+
+def test_get_satellite_forwarded_identity_returns_none_without_header(flask_app) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context():
+        assert get_satellite_forwarded_identity(identity) is None
+
+
+def test_get_satellite_forwarded_identity_returns_uuid(flask_app) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context(headers={FORWARDED_IDENTITY_HEADER: FORWARDED_SUBMAN_ID}):
+        assert get_satellite_forwarded_identity(identity) == FORWARDED_SUBMAN_ID
+
+
+@pytest.mark.parametrize("invalid_uuid", MALFORMED_FORWARDED_IDENTITIES)
+def test_get_satellite_forwarded_identity_rejects_malformed_header(flask_app, invalid_uuid: str) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context(headers={FORWARDED_IDENTITY_HEADER: invalid_uuid}):
+        with pytest.raises(InventoryException) as exc_info:
+            get_satellite_forwarded_identity(identity)
+        assert exc_info.value.status == 403
 
 
 def test_valid_auth_identity_validate():
