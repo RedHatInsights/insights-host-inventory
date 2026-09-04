@@ -5,6 +5,7 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.host_views_fixtures import add_app_data_to_host
 from iqe_host_inventory.modeling.host_view_api import APP_NAMES
+from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.rbac_utils import RBACInventoryPermission
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
@@ -32,7 +33,7 @@ SYSTEM_ROLE_NAMES = {
 
 
 @pytest.fixture(scope="module")
-def host_with_all_app_data(host_inventory: ApplicationHostInventory):
+def host_with_all_app_data(host_inventory: ApplicationHostInventory) -> HostWrapper:
     """Create one host with app_data for every known service."""
     host = host_inventory.kafka.create_host(cleanup_scope="module")
     for app_name in APP_NAMES:
@@ -71,10 +72,11 @@ def single_service_rbac_setup(
 class TestPerServiceAccess:
     """Each single-service user sees only their service's data; others are denied."""
 
+    @pytest.mark.ephemeral
     def test_single_service_user_sees_only_their_data(
         self,
         single_service_rbac_setup: str,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
@@ -100,9 +102,10 @@ class TestPerServiceAccess:
 class TestAllServicesAccess:
     """User with all service permissions sees all app_data."""
 
+    @pytest.mark.ephemeral
     def test_all_apps_user_sees_all_data(
         self,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
@@ -121,12 +124,14 @@ class TestAllServicesAccess:
             assert getattr(host.app_data, app) is not None
 
 
+@pytest.mark.ephemeral
+@pytest.mark.usefixtures("host_with_all_app_data")
 class TestNoServiceAccess:
     """User with only hosts:read and no service permissions sees no app_data."""
 
     def test_no_apps_user_sees_no_data(
         self,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
@@ -146,7 +151,6 @@ class TestNoServiceAccess:
 
     def test_sort_by_denied_service_returns_403(
         self,
-        host_with_all_app_data,
         host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
@@ -160,7 +164,6 @@ class TestNoServiceAccess:
 
     def test_filter_by_denied_service_returns_403(
         self,
-        host_with_all_app_data,
         host_inventory_rbac_hosts_viewer: ApplicationHostInventory,
     ):
         """
@@ -173,14 +176,13 @@ class TestNoServiceAccess:
             )
 
 
-@pytest.mark.usefixtures("rbac_hosts_read_advisor_read_user_setup_class")
+@pytest.mark.ephemeral
+@pytest.mark.usefixtures("rbac_hosts_read_advisor_read_user_setup_class", "host_with_all_app_data")
 class TestAllowedSortAndFilter:
     """User with a service permission can sort/filter by that service."""
 
     def test_sort_by_allowed_service_returns_200(
-        self,
-        host_with_all_app_data,
-        host_inventory_non_org_admin: ApplicationHostInventory,
+        self, host_inventory_non_org_admin: ApplicationHostInventory
     ):
         """
         metadata:
@@ -193,7 +195,6 @@ class TestAllowedSortAndFilter:
 
     def test_filter_by_allowed_service_returns_200(
         self,
-        host_with_all_app_data,
         host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
@@ -210,9 +211,10 @@ class TestAllowedSortAndFilter:
 class TestSparseFieldsWithDenial:
     """Sparse field requests interact correctly with per-service RBAC."""
 
+    @pytest.mark.ephemeral
     def test_denied_service_excluded_from_sparse_fields(
         self,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
@@ -229,9 +231,10 @@ class TestSparseFieldsWithDenial:
         host = response.results[0]
         assert host.app_data.vulnerability is None
 
+    @pytest.mark.ephemeral
     def test_allowed_service_sparse_fields_work(
         self,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory_non_org_admin: ApplicationHostInventory,
     ):
         """
@@ -252,9 +255,10 @@ class TestSparseFieldsWithDenial:
 class TestOrgAdminBypass:
     """Org admin bypasses per-service RBAC."""
 
+    @pytest.mark.ephemeral
     def test_org_admin_sees_all_data(
         self,
-        host_with_all_app_data,
+        host_with_all_app_data: HostWrapper,
         host_inventory: ApplicationHostInventory,
     ):
         """

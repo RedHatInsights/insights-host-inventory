@@ -189,7 +189,7 @@ class HBIKesselRelationsGRPC:
         workspace: GROUP_OR_ID,
         *,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 50,
         error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host changes are successfully synced to Kessel Relations
@@ -232,7 +232,7 @@ class HBIKesselRelationsGRPC:
         host: HOST_OR_ID,
         *,
         delay: float = 0.5,
-        retries: int = 30,
+        retries: int = 50,
         error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
         """Wait until the host is successfully deleted from Kessel Relations

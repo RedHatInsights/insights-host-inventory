@@ -57,7 +57,7 @@ def hbi_primary_groups_cleanup_function(
 def setup_empty_groups_primary(
     host_inventory: ApplicationHostInventory,
 ) -> list[GroupOutWithHostCount]:
-    return host_inventory.apis.groups.create_n_empty_groups(110, cleanup_scope="class")
+    return host_inventory.apis.groups.create_n_empty_groups(30, cleanup_scope="class")
 
 
 @pytest.fixture(scope="module")
