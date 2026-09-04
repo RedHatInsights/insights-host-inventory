@@ -810,8 +810,8 @@ class TestCombinedApps:
             host_inventory.apis.host_views.get_host_views_response(
                 filter=["[advisor][recommendations][bad_op]=5"]
             )
-            assert excinfo.value.status == 400
-            assert "Invalid operator" in excinfo.value.body
+        assert excinfo.value.status == 400
+        assert "Invalid operator" in excinfo.value.body
 
 
 # ---------------------------------------------------------------------------

@@ -25,6 +25,8 @@ print(SystemProfileImageBuilder.to_json())
 # convert the object into a dict
 system_profile_image_builder_dict = system_profile_image_builder_instance.to_dict()
 # create an instance of SystemProfileImageBuilder from a dict
-system_profile_image_builder_from_dict = SystemProfileImageBuilder.from_dict(system_profile_image_builder_dict)
+system_profile_image_builder_from_dict = SystemProfileImageBuilder.from_dict(
+    system_profile_image_builder_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
