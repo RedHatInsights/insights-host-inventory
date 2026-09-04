@@ -2533,6 +2533,7 @@
             "last_check_in",
             "advisor:recommendations",
             "advisor:incidents",
+            "advisor:total_severity",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
             "patch:advisories_rhsa_installable",
@@ -2842,7 +2843,7 @@
         "example": "22cd8e39-13bb-4d02-8316-84b850dc5136"
       },
       "IpAddresses": {
-        "description": "Host’s network IP addresses.  This field is considered to be a canonical fact.",
+        "description": "Host\u2019s network IP addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2854,13 +2855,13 @@
         ]
       },
       "Fqdn": {
-        "description": "A host’s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
+        "description": "A host\u2019s Fully Qualified Domain Name.  This field is considered to be a canonical fact.",
         "type": "string",
         "nullable": true,
         "example": "my.host.example.com"
       },
       "MacAddresses": {
-        "description": "Host’s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
+        "description": "Host\u2019s network interfaces MAC addresses.  This field is considered to be a canonical fact.",
         "type": "array",
         "nullable": true,
         "items": {
@@ -2871,7 +2872,7 @@
         ]
       },
       "ProviderId": {
-        "description": "Host’s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
+        "description": "Host\u2019s reference in the external source e.g. Alibaba, AWS EC2, Azure, GCP, IBM etc. This field is one of the canonical facts and does not work without provider_type.",
         "type": "string",
         "nullable": true,
         "example": "i-05d2313e6b9a42b16"
@@ -3066,7 +3067,7 @@
           {
             "properties": {
               "display_name": {
-                "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+                "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
                 "type": "string",
                 "example": "host1.mydomain.com",
                 "nullable": true
@@ -3161,6 +3162,85 @@
           }
         ]
       },
+      "HostFilters": {
+        "title": "Host Query Filters",
+        "description": "Host-level query filters that correspond to the /hosts endpoint query parameters. Stored with the view so the frontend can reconstruct the full query when loading hosts for this view.",
+        "type": "object",
+        "properties": {
+          "hostname_or_id": {
+            "description": "Display name or ID substring search.",
+            "type": "string"
+          },
+          "staleness": {
+            "description": "Culling states to include.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "fresh",
+                "stale",
+                "stale_warning",
+                "unknown"
+              ]
+            }
+          },
+          "registered_with": {
+            "description": "Filter by reporting source.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "description": "Tag filters in namespace/key=value format.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workspace_name": {
+            "description": "Filter by workspace name.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "last_check_in_start": {
+            "description": "Start of last check-in date range (ISO 8601).",
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_check_in_end": {
+            "description": "End of last check-in date range (ISO 8601).",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_start": {
+            "description": "Start of last-modified date range (ISO 8601).",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_end": {
+            "description": "End of last-modified date range (ISO 8601).",
+            "type": "string",
+            "format": "date-time"
+          },
+          "system_type": {
+            "description": "Filter by system type.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "conventional",
+                "bootc",
+                "edge",
+                "cluster"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "HostIdOut": {
         "title": "A Host ID query result",
         "description": "A single Host ID that belongs to a host.",
@@ -3221,7 +3301,10 @@
                 "items": {
                   "type": "string"
                 },
-                "example": ["vulnerability", "malware"]
+                "example": [
+                  "vulnerability",
+                  "malware"
+                ]
               }
             }
           }
@@ -3455,7 +3538,7 @@
       },
       "HostViewCombinedFilter": {
         "type": "object",
-        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field → operator → value` structure.",
+        "description": "Combined filter supporting both system_profile and application data filtering. The `system_profile` key accepts nested system profile filters (using the SystemProfileNestedObject structure), while all other keys (e.g., advisor, vulnerability, patch) are validated as application metric filters with `field \u2192 operator \u2192 value` structure.",
         "additionalProperties": {
           "$ref": "#/components/schemas/HostViewCombinedFilterValue"
         }
@@ -3549,10 +3632,11 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:total_severity` - Weighted severity score (critical\u00d71000 + important\u00d7100 + moderate\u00d710 + low)\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
+          "advisor:total_severity",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
           "patch:advisories_rhsa_installable",
@@ -3611,7 +3695,7 @@
             "example": "host1.mydomain.com"
           },
           "display_name": {
-            "description": "A host’s human-readable display name, e.g. in a form of a domain name.",
+            "description": "A host\u2019s human-readable display name, e.g. in a form of a domain name.",
             "type": "string",
             "example": "host1.mydomain.com"
           }
@@ -3713,7 +3797,7 @@
         }
       },
       "GroupName": {
-        "description": "A group’s human-readable name.",
+        "description": "A group\u2019s human-readable name.",
         "type": "string",
         "nullable": false,
         "example": "sre-group"
@@ -5498,12 +5582,12 @@
             "$ref": "#/components/schemas/ViewSortConfig"
           },
           "filters": {
-            "description": "Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
+            "description": "Active filter criteria for this view. Top-level keys are filter namespaces: app names (e.g. vulnerability, patch), system_profile, or host (for host-level query parameters). Each namespace value is a nested object. system_profile filters may be deeply nested (e.g. operating_system.RHEL.version). The reserved \"host\" key holds host-level query parameters (staleness, tags, etc.) that the frontend replays as /hosts query params. Validated server-side.",
             "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
+            "additionalProperties": true,
+            "properties": {
+              "host": {
+                "$ref": "#/components/schemas/HostFilters"
               }
             }
           }
@@ -5519,10 +5603,11 @@
         ],
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
@@ -5546,10 +5631,11 @@
         "type": "object",
         "properties": {
           "name": {
-            "description": "The display name for the view.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 255
+            "maxLength": 255,
+            "pattern": "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
           },
           "description": {
             "description": "An optional description of the view.",

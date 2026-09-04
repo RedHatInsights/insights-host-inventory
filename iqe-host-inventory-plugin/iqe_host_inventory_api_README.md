@@ -148,6 +148,7 @@ Class | Method | HTTP request | Description
  - [GroupOutWithHostCountAllOf](iqe_host_inventory_api/docs/GroupOutWithHostCountAllOf.md)
  - [GroupQueryOutput](iqe_host_inventory_api/docs/GroupQueryOutput.md)
  - [GroupQueryOutputAllOf](iqe_host_inventory_api/docs/GroupQueryOutputAllOf.md)
+ - [HostFilters](iqe_host_inventory_api/docs/HostFilters.md)
  - [HostIdOut](iqe_host_inventory_api/docs/HostIdOut.md)
  - [HostOut](iqe_host_inventory_api/docs/HostOut.md)
  - [HostOutAllOf](iqe_host_inventory_api/docs/HostOutAllOf.md)
