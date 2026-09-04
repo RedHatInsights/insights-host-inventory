@@ -320,6 +320,10 @@ def test_kessel_repl_delete_hosts_by_id(
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
 
+    if host_inventory.application.config.current_env.lower() != "clowder_smoke":
+        logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+        sleep(10)
+
     host_inventory.apis.hosts.delete_by_id(hosts[:host_count])
 
     for host in hosts[:host_count]:
@@ -358,6 +362,10 @@ def test_kessel_repl_delete_hosts_by_filter(
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
+
+    if host_inventory.application.config.current_env.lower() != "clowder_smoke":
+        logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+        sleep(10)
 
     host_inventory.apis.hosts.delete_filtered(display_name=hosts_data[0]["display_name"])
 
