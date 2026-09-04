@@ -7,7 +7,6 @@ from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
-from app_common_python import LoadedConfig
 from flask import abort
 from flask import current_app
 from flask import g
@@ -145,7 +144,15 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
 
     # We're using the same auth as we do for kessel
     # verify it's enabled before using
-    if config.kessel_auth_enabled:
+    # The endpoint's `authenticated` flag forces kessel-sdk auth. Otherwise the preexisting
+    # behavior is untouched: kessel when enabled, PSK fallback for dev/ephemeral environments.
+    #
+    # This attaches the bearer for `authenticated` itself (not only `kessel_auth_enabled`), even
+    # though the transport block in _execute_rbac_http_request would also do so, on purpose:
+    # keeping the condition here makes this builder correct standalone and guarantees the PSK is
+    # never emitted alongside a bearer. Narrowing this to just `kessel_auth_enabled` would let the
+    # `else` attach a PSK while the transport block adds a bearer, sending both credentials.
+    if config.rbac_endpoint_authenticated or config.kessel_auth_enabled:
         access_token = _get_rbac_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
     else:
@@ -186,10 +193,23 @@ def _execute_rbac_http_request(  # type: ignore[return]
     Returns:
         Parsed JSON response data from the RBAC endpoint
     """
+    config = inventory_config()
     request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    retry_config = Retry(total=config.rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
-    timeout = inventory_config().rbac_timeout
+
+    # Transport auth is enforced here, at the single choke point every RBAC request funnels through,
+    # rather than in the header builders. Most callers build headers with _build_rbac_request_headers()
+    # (user-identity forwarding), which does not attach an Authorization header, so this is the only
+    # place those requests get a bearer token when the endpoint requires one. Service-to-service calls
+    # that already set Authorization via _build_rbac_auth_request_headers() are skipped by the guard.
+    if config.rbac_endpoint_authenticated and "Authorization" not in request_headers:
+        try:
+            access_token = _get_rbac_access_token()
+            request_headers["Authorization"] = f"Bearer {access_token}"
+        except Exception:
+            logger.exception("Failed to get OAuth2 token for authenticated RBAC endpoint")
+            abort(503, "Failed to authenticate with RBAC endpoint")
 
     try:
         with outbound_http_response_time.labels("rbac").time():
@@ -197,8 +217,8 @@ def _execute_rbac_http_request(  # type: ignore[return]
             common_kwargs = {
                 "url": rbac_endpoint,
                 "headers": request_headers,
-                "timeout": timeout,
-                "verify": LoadedConfig.tlsCAPath,
+                "timeout": config.rbac_timeout,
+                "verify": config.rbac_endpoint_ca_certificate or True,
             }
 
             # Add method-specific parameters

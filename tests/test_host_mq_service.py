@@ -354,6 +354,8 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
             bypass_kessel=False,
             kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
         ),
     )
     mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
@@ -400,6 +402,8 @@ def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consume
             bypass_kessel=False,
             kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
         ),
     )
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")

@@ -6,6 +6,8 @@ import tempfile
 from datetime import timedelta
 
 from app_common_python import DependencyEndpoints
+from app_common_python import get_v2_dependency_endpoint
+from app_common_python import get_v2_private_dependency_endpoint
 
 from app.common import get_build_version
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
@@ -48,6 +50,28 @@ DEFAULT_INSIGHTS_ID = "00000000-0000-0000-0000-000000000000"
 MAX_GROUPS_FOR_HOST_COUNT_SORTING = int(os.environ.get("MAX_GROUPS_FOR_HOST_COUNT_SORTING", "3000"))
 
 
+def _v1_dependency_endpoint_uri(endpoints, app_name: str, tls_ca_path: str | None) -> str:
+    """Build a dependency URI from the legacy V1 Clowder endpoint list."""
+    protocol = "https" if tls_ca_path else "http"
+    for endpoint in endpoints:
+        if endpoint.app == app_name:
+            port = endpoint.tlsPort if tls_ca_path else endpoint.port
+            return f"{protocol}://{endpoint.hostname}:{port}"
+    return ""
+
+
+def resolve_dependency_endpoint_settings(
+    v2_endpoint,
+    *,
+    v1_uri: str,
+    v1_ca_certificate: str | None,
+) -> tuple[str, str | None, bool]:
+    """Prefer Clowder V2 dependency metadata, falling back to the V1 endpoint scan."""
+    if v2_endpoint is not None and v2_endpoint.uri:
+        return v2_endpoint.uri, v2_endpoint.ca_certificate, bool(v2_endpoint.authenticated)
+    return v1_uri, v1_ca_certificate, False
+
+
 class Config:
     SSL_VERIFY_FULL = "verify-full"
 
@@ -59,7 +83,8 @@ class Config:
         # Only configure Kessel from DependencyEndpoints if the dependency exists
         try:
             kessel_inventory_hostname = DependencyEndpoints["kessel-inventory"]["api"].hostname
-            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:9000"
+            kessel_inventory_port = os.environ.get("KESSEL_INVENTORY_API_PORT", "9000")
+            self.kessel_inventory_api_endpoint = f"{kessel_inventory_hostname}:{kessel_inventory_port}"
         except KeyError:
             self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
 
@@ -100,21 +125,41 @@ class Config:
             self._cache_host = cfg.inMemoryDb.hostname
             self._cache_port = cfg.inMemoryDb.port
 
-        self.rbac_endpoint = ""
-        for endpoint in cfg.endpoints:
-            if endpoint.app == "rbac":
-                protocol = "https" if cfg.tlsCAPath else "http"
-                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
-                self.rbac_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
+        v1_tls_ca = cfg.tlsCAPath or None
 
-        self.export_service_endpoint = ""
-        for endpoint in cfg.privateEndpoints:
-            if endpoint.app == "export-service":
-                protocol = "https" if cfg.tlsCAPath else "http"
-                port = endpoint.tlsPort if cfg.tlsCAPath else endpoint.port
-                self.export_service_endpoint = f"{protocol}://{endpoint.hostname}:{port}"
-                break
+        v2_rbac = get_v2_dependency_endpoint("rbac", "service")
+        rbac_v1_uri = _v1_dependency_endpoint_uri(cfg.endpoints, "rbac", v1_tls_ca)
+        (
+            self.rbac_endpoint,
+            self.rbac_endpoint_ca_certificate,
+            self.rbac_endpoint_authenticated,
+        ) = resolve_dependency_endpoint_settings(
+            v2_rbac,
+            v1_uri=rbac_v1_uri,
+            v1_ca_certificate=v1_tls_ca,
+        )
+        if not (v2_rbac and v2_rbac.uri):
+            if rbac_v1_uri:
+                self.logger.info("RBAC endpoint resolved from Clowder V1 dependencies (V2 unavailable)")
+            else:
+                self.logger.warning("RBAC endpoint not found in Clowder V2 or V1 dependencies")
+
+        v2_export = get_v2_private_dependency_endpoint("export-service", "service")
+        export_v1_uri = _v1_dependency_endpoint_uri(cfg.privateEndpoints, "export-service", v1_tls_ca)
+        (
+            self.export_service_endpoint,
+            self.export_service_endpoint_ca_certificate,
+            self.export_service_endpoint_authenticated,
+        ) = resolve_dependency_endpoint_settings(
+            v2_export,
+            v1_uri=export_v1_uri,
+            v1_ca_certificate=v1_tls_ca,
+        )
+        if not (v2_export and v2_export.uri):
+            if export_v1_uri:
+                self.logger.info("Export service endpoint resolved from Clowder V1 dependencies (V2 unavailable)")
+            else:
+                self.logger.warning("Export service endpoint not found in Clowder V2 or V1 dependencies")
 
         self.export_service_token = os.environ.get("EXPORT_SERVICE_TOKEN", "testing-a-psk")
 
@@ -179,8 +224,12 @@ class Config:
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
+        self.rbac_endpoint_ca_certificate = None
+        self.rbac_endpoint_authenticated = False
         self.kessel_inventory_api_endpoint = os.environ.get("KESSEL_INVENTORY_API_ENDPOINT", "localhost:9000")
         self.export_service_endpoint = os.environ.get("EXPORT_SERVICE_ENDPOINT", "http://localhost:10010")
+        self.export_service_endpoint_ca_certificate = None
+        self.export_service_endpoint_authenticated = False
         self.host_ingress_topic = os.environ.get("KAFKA_HOST_INGRESS_TOPIC", "platform.inventory.host-ingress")
         self.additional_validation_topic = os.environ.get(
             "KAFKA_ADDITIONAL_VALIDATION_TOPIC", "platform.inventory.host-ingress-p1"
@@ -509,6 +558,9 @@ class Config:
             self.logger.info("RBAC Endpoint: %s", self.rbac_endpoint)
             self.logger.info("RBAC Retry Times: %s", self.rbac_retries)
             self.logger.info("RBAC Timeout Seconds: %s", self.rbac_timeout)
+            self.logger.info("RBAC Endpoint Authenticated: %s", self.rbac_endpoint_authenticated)
+            if self.rbac_endpoint_ca_certificate:
+                self.logger.info("RBAC Endpoint CA Certificate: %s", self.rbac_endpoint_ca_certificate)
             self.logger.info("Admin hosts endpoint enabled: %s", self.admin_hosts_endpoint_enabled)
 
             self.logger.info("Kessel Bypassed: %s", self.bypass_kessel)
@@ -531,6 +583,13 @@ class Config:
                 self.logger.info("Kafka Export Service Topic: %s", self.export_service_topic)
                 self.logger.info("Kafka Host App Data Topic: %s", self.host_app_data_topic)
                 self.logger.info("Export Service Endpoint: %s", self.export_service_endpoint)
+                self.logger.info(
+                    "Export Service Endpoint Authenticated: %s", self.export_service_endpoint_authenticated
+                )
+                if self.export_service_endpoint_ca_certificate:
+                    self.logger.info(
+                        "Export Service Endpoint CA Certificate: %s", self.export_service_endpoint_ca_certificate
+                    )
 
             if self._runtime_environment.event_producer_enabled:
                 self.logger.info("Kafka Event Topic: %s", self.event_topic)

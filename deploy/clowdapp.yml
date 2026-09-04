@@ -360,6 +360,8 @@ objects:
             value: ${KESSEL_AUTH_ENABLED}
           - name: KESSEL_AUTH_OIDC_ISSUER
             value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         volumeMounts: *readReplicaVolumeMounts
@@ -507,6 +509,8 @@ objects:
             value: ${KESSEL_AUTH_ENABLED}
           - name: KESSEL_AUTH_OIDC_ISSUER
             value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
@@ -3146,6 +3150,9 @@ parameters:
 - description: OIDC issuer URL used for Kessel auth token requests
   name: KESSEL_AUTH_OIDC_ISSUER
   value: https://sso.redhat.com/auth/realms/redhat-external
+- description: Port for the Kessel inventory gRPC API endpoint
+  name: KESSEL_INVENTORY_API_PORT
+  value: '9000'
 - description: How long to wait for DB migrations to complete
   name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
   value: '300'

@@ -21,6 +21,7 @@ from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from lib import metrics
+from lib.kessel import get_kessel_oauth2_credentials
 from lib.middleware import resolve_permission
 from utils.json_to_csv import export_csv_header
 from utils.json_to_csv import export_host_to_csv_row
@@ -66,6 +67,17 @@ def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str,
     return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
 
 
+def _get_export_service_access_token(inventory_config: Config) -> str:
+    """Get an OAuth2 workload-identity access token for authenticated export-service calls."""
+    oauth_client = get_kessel_oauth2_credentials(inventory_config)
+    try:
+        token_response = oauth_client.get_token()
+        return token_response.access_token
+    except Exception:
+        logger.exception("Failed to get export-service access token")
+        raise
+
+
 def build_headers(
     x_rh_identity: str, exportUUID: UUID, inventory_config: Config, exportFormat: str
 ) -> tuple[dict, dict]:
@@ -74,11 +86,17 @@ def build_headers(
         REQUEST_ID_HEADER: str(exportUUID),
     }
 
-    # x-rh-exports-psk must be an env variable
     request_headers = {
-        "x-rh-exports-psk": inventory_config.export_service_token,
         "content-type": HEADER_CONTENT_TYPE[exportFormat.lower()],
     }
+
+    if inventory_config.export_service_endpoint_authenticated:
+        # V2 endpoint requires workload identity -- attach an OAuth2 Bearer token from the Kessel SDK.
+        access_token = _get_export_service_access_token(inventory_config)
+        request_headers["Authorization"] = f"Bearer {access_token}"
+    else:
+        # Unauthenticated (in-cluster) endpoint -- fall back to the shared export-service PSK.
+        request_headers["x-rh-exports-psk"] = inventory_config.export_service_token
 
     return rbac_request_headers, request_headers
 
@@ -118,16 +136,40 @@ def create_export(
 
     exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
 
-    rbac_request_headers, request_headers = build_headers(x_rh_identity, exportUUID, inventory_config, exportFormat)
-
-    allowed, rbac_filter = resolve_permission(
-        identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
-    )
-
     export_service_endpoint = inventory_config.export_service_endpoint
 
     export_created = False
     session = Session()
+    # Honor the per-endpoint CA certificate from the V2 dependency endpoint; fall back to system trust.
+    session.verify = inventory_config.export_service_endpoint_ca_certificate or True
+
+    try:
+        rbac_request_headers, request_headers = build_headers(
+            x_rh_identity, exportUUID, inventory_config, exportFormat
+        )
+    except Exception:
+        logger.exception("Failed to build export-service request headers for export %s", exportUUID)
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+        )
+        error_headers = {"content-type": HEADER_CONTENT_TYPE[exportFormat.lower()]}
+        if not inventory_config.export_service_endpoint_authenticated:
+            error_headers["x-rh-exports-psk"] = inventory_config.export_service_token
+        _handle_export_error(
+            "Failed to authenticate with export-service",
+            HTTPStatus.SERVICE_UNAVAILABLE,
+            request_url,
+            session,
+            error_headers,
+            exportUUID,
+            exportFormat,
+        )
+        session.close()
+        return export_created
+
+    allowed, rbac_filter = resolve_permission(
+        identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
+    )
 
     if not allowed:
         request_url = _build_export_request_url(
