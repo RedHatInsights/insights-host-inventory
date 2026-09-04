@@ -32,15 +32,10 @@ def _get_view_identity():
     if identity.identity_type not in (IdentityType.USER, IdentityType.SERVICE_ACCOUNT):
         abort(HTTPStatus.FORBIDDEN, "Identity type not supported. Use User or ServiceAccount identity.")
 
-    if identity.identity_type == IdentityType.USER:
-        user_id = getattr(identity, "user", {}).get("user_id")
-    else:
-        user_id = getattr(identity, "service_account", {}).get("user_id")
-
-    if not user_id:
+    if not identity.user_id:
         abort(HTTPStatus.FORBIDDEN, "user_id is required.")
 
-    return identity.org_id, user_id
+    return identity.org_id, identity.user_id
 
 
 @api_operation
