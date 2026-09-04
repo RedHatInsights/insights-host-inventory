@@ -6,12 +6,16 @@ from marshmallow import validate as marshmallow_validate
 
 from app.models.views import MAX_VIEW_NAME_LENGTH
 
-VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _-]+$"
-VIEW_NAME_VALIDATION_ERROR = "View name must contain only letters, numbers, spaces, hyphens, and underscores."
+VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _.'-]+$"
+VIEW_NAME_VALIDATION_ERROR = (
+    "View name must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes."
+)
+VIEW_NAME_ALPHANUMERIC_ERROR = "View name must contain at least one letter or number."
 
 _VIEW_NAME_VALIDATION = marshmallow_validate.And(
     marshmallow_validate.Length(min=1, max=MAX_VIEW_NAME_LENGTH),
     marshmallow_validate.Regexp(VIEW_NAME_PATTERN, error=VIEW_NAME_VALIDATION_ERROR),
+    marshmallow_validate.Regexp(r".*[a-zA-Z0-9].*", error=VIEW_NAME_ALPHANUMERIC_ERROR),
 )
 
 
