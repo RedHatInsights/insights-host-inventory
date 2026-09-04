@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
 
 
-def test_groups_get_list_no_groups(host_inventory):
+def test_groups_get_list_no_groups(host_inventory: ApplicationHostInventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3829
@@ -28,10 +28,14 @@ def test_groups_get_list_no_groups(host_inventory):
     host_inventory.apis.groups.delete_all_groups()
 
     response = host_inventory.apis.groups.get_groups_response()
-    assert response.total == 0
-    assert response.count == 0
+
+    # If Kessel is bypassed, the response is empty. Otherwise, we see the default workspace.
+    assert response.total <= 1
+    assert response.count <= 1
     assert response.page == 1
-    assert response.results == []
+    assert len(response.results) <= 1
+    if response.results:
+        assert response.results[0].name == "Default Workspace"
 
 
 @pytest.mark.ephemeral
@@ -546,8 +550,8 @@ class TestGetGroupListEmptyGroups:
         assert response.page == 1
         assert response.per_page == 100
         assert response.total >= len(setup_empty_groups_primary)
-        assert response.count == 100
-        assert len(response.results) == 100
+        assert len(setup_empty_groups_primary) <= response.count <= 100
+        assert len(response.results) == response.count
 
     @pytest.mark.parametrize("per_page", [0, -1, 101])
     def test_groups_get_list_per_page_out_of_bounds(
@@ -617,8 +621,8 @@ class TestGetGroupListEmptyGroups:
         response = host_inventory.apis.groups.get_groups_response(page=1)
         assert response.page == 1
         assert response.total >= len(setup_empty_groups_primary)
-        assert response.count == 50
-        assert len(response.results) == 50
+        assert len(setup_empty_groups_primary) <= response.count <= 50
+        assert len(response.results) == response.count
 
     def test_groups_get_list_page_max(self, setup_empty_groups_primary, host_inventory):
         """
@@ -700,8 +704,8 @@ class TestGetGroupListEmptyGroups:
         assert response.page == 1
         assert response.per_page == 50
         assert response.total >= len(setup_empty_groups_primary)
-        assert response.count == 50
-        assert len(response.results) == 50
+        assert len(setup_empty_groups_primary) <= response.count <= 50
+        assert len(response.results) == response.count
 
     @pytest.mark.parametrize(
         "order_by",

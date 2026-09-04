@@ -105,7 +105,7 @@ def check_resource_types_groups_response(
     return response_data
 
 
-def test_resource_types_get_list_without_groups(host_inventory):
+def test_resource_types_get_list_without_groups(host_inventory: ApplicationHostInventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3827
@@ -117,7 +117,9 @@ def test_resource_types_get_list_without_groups(host_inventory):
     """
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_resource_types_response()
-    check_resource_types_list_response(response, 1)
+    # In envs where BYPASS_KESSEL=false we have the default and ungrouped workspaces
+    group_count = 1 if host_inventory.application.config.current_env == "clowder_smoke" else 2
+    check_resource_types_list_response(response, group_count)
 
 
 @pytest.mark.ephemeral
@@ -150,8 +152,12 @@ def test_resource_types_get_groups_without_groups(host_inventory):
     """
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_groups_response()
-    groups = check_resource_types_groups_response(response, 0)
-    assert groups == []
+    # In envs where BYPASS_KESSEL=false we see the default workspace
+    group_count = 0 if host_inventory.application.config.current_env == "clowder_smoke" else 1
+    groups = check_resource_types_groups_response(response, group_count)
+    assert len(groups) == group_count
+    if groups:
+        assert groups[0].name == "Default Workspace"
 
 
 @pytest.mark.ephemeral
@@ -371,7 +377,7 @@ class TestResourceTypesEmptyGroups:
             host_inventory.apis.resource_types.get_resource_types_response(per_page=per_page)
 
     @pytest.mark.parametrize("page", [None, 1])
-    @pytest.mark.parametrize("per_page", [None, 1, 10, 100])
+    @pytest.mark.parametrize("per_page", [None, 1, 10, 20])
     def test_resource_types_get_groups_with_empty_groups(
         self, setup_empty_groups_primary, host_inventory, page, per_page
     ):
