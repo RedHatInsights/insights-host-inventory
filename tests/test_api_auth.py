@@ -11,6 +11,7 @@ from pytest_subtests import SubTests
 from starlette.testclient import TestClient
 
 from app import process_identity_header
+from app.auth.forwarded_identity import FORWARDED_IDENTITY_HEADER
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.models import Host
@@ -19,6 +20,7 @@ from tests.helpers.api_utils import HOST_URL
 from tests.helpers.api_utils import SYSTEM_PROFILE_URL
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import build_token_auth_header
+from tests.helpers.db_utils import db_host
 from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_PROD
 from tests.helpers.test_utils import RHSM_ERRATA_IDENTITY_STAGE
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
@@ -501,3 +503,33 @@ def test_get_host_with_implicit_owner_id_with_system_identity(
     assert response_status == 200
     assert len(response_data["results"]) == 1
     assert response_data["results"][0]["id"] == host.id
+
+
+def test_system_identity_ignores_forwarded_identity_header(
+    db_create_host: Callable[..., Host],
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    forwarded_subman_id = generate_uuid()
+    other_subman_id = generate_uuid()
+    system_owner_id = SYSTEM_IDENTITY["system"]["cn"]
+    host_one = db_create_host(
+        host=db_host(
+            subscription_manager_id=forwarded_subman_id,
+            system_profile_facts={"owner_id": system_owner_id},
+        ),
+    )
+    host_two = db_create_host(
+        host=db_host(
+            subscription_manager_id=other_subman_id,
+            system_profile_facts={"owner_id": system_owner_id},
+        ),
+    )
+    response_status, response_data = api_get(
+        build_hosts_url(),
+        SYSTEM_IDENTITY,
+        extra_headers={FORWARDED_IDENTITY_HEADER: forwarded_subman_id},
+    )
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {host["id"] for host in response_data["results"]}
+    assert result_ids == {str(host_one.id), str(host_two.id)}

@@ -8,11 +8,15 @@ from pytest import mark
 from pytest import raises
 from yaml import safe_load
 
+from api.cache import delete_cached_system_keys
 from api.cache_key import make_system_cache_key
+from api.system_cache_key import system_cache_key_base
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
 from lib.feature_flags import get_flag_value
 from lib.feature_flags import get_flag_value_and_fallback
+from tests.helpers.test_utils import SYSTEM_IDENTITY
+from tests.helpers.test_utils import generate_uuid
 from utils.deploy import main as deploy
 
 RESOURCE_TEMPLATES_INDEXES = {
@@ -175,6 +179,28 @@ def test_make_system_cache_key_valid():
     owner_id = "1919388393"
     key = make_system_cache_key(insights_id, org_id, owner_id)
     assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"
+
+
+def test_make_system_cache_key_with_forwarded_identity():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = SYSTEM_IDENTITY["system"]["cn"]
+    forwarded_identity = generate_uuid()
+    key = make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=forwarded_identity)
+    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}_subman={forwarded_identity}")
+
+
+@patch("api.cache.delete_keys")
+def test_delete_cached_system_keys_uses_delimiter_aware_patterns(delete_keys_mock):
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    base_key = system_cache_key_base(insights_id, org_id, owner_id)
+
+    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+
+    delete_keys_mock.assert_any_call(base_key, wildcard=False, spawn=False)
+    delete_keys_mock.assert_any_call(f"{base_key}_subman=", wildcard=True, spawn=False)
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})

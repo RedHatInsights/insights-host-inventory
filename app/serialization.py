@@ -283,42 +283,37 @@ def serialize_host(
     return serialized_host
 
 
-def serialize_host_for_export_svc(
-    host: Host | LimitedHost,
-    staleness: AttrDict,
-):
-    st_timestamps = get_staleness_timestamps(host, staleness)
-
+def serialize_host_row_for_export(row, *, staleness):
+    """Serialize a flat query row (no ORM relationship access) for the export service."""
     group_id = None
     group_name = None
-    if host.groups:
-        group_id = host.groups[0]["id"]
-        group_name = host.groups[0]["name"]
+    if row.groups:
+        group_id = row.groups[0]["id"]
+        group_name = row.groups[0]["name"]
 
-    static_profile = host.static_system_profile
-    os_release = static_profile.os_release if static_profile is not None else None
+    st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=row.last_check_in)
 
     field_values = {
-        "display_name": host.display_name,
-        "fqdn": host.fqdn,
-        "host_id": serialize_uuid(host.id),
-        "subscription_manager_id": host.subscription_manager_id,
-        "satellite_id": host.satellite_id,
+        "display_name": row.display_name,
+        "fqdn": row.fqdn,
+        "host_id": serialize_uuid(row.id),
+        "subscription_manager_id": row.subscription_manager_id,
+        "satellite_id": row.satellite_id,
         "group_id": group_id,
         "group_name": group_name,
-        "os_release": os_release,
-        "updated": _serialize_datetime(host.modified_on),
+        "os_release": row.os_release,
+        "updated": _serialize_datetime(row.modified_on),
         "state": Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
         ),
-        "tags": _serialize_tags(host.tags),
-        "host_type": host.host_type or "conventional",
-        "bios_uuid": host.bios_uuid,
-        "satellite_managed": static_profile.satellite_managed if static_profile is not None else None,
-        "cloud_provider": static_profile.cloud_provider if static_profile is not None else None,
-        "is_marketplace": static_profile.is_marketplace if static_profile is not None else None,
-        "ip_addresses": host.ip_addresses,
+        "tags": _serialize_tags(row.tags),
+        "host_type": row.host_type or "conventional",
+        "bios_uuid": row.bios_uuid,
+        "satellite_managed": row.satellite_managed,
+        "cloud_provider": row.cloud_provider,
+        "is_marketplace": row.is_marketplace,
+        "ip_addresses": row.ip_addresses,
     }
     return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
 
