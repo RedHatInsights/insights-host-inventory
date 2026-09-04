@@ -106,6 +106,12 @@ def mq_create_three_specific_hosts(mq_create_or_update_host):
 
 
 @pytest.fixture(scope="function")
+def _mq_create_three_specific_hosts(mq_create_three_specific_hosts):
+    """Side-effect only wrapper; creates three hosts but discards the return value."""
+    return mq_create_three_specific_hosts
+
+
+@pytest.fixture(scope="function")
 def mq_create_four_specific_hosts(mq_create_three_specific_hosts, mq_create_or_update_host):
     created_hosts = mq_create_three_specific_hosts
     host = minimal_host(insights_id=generate_uuid(), display_name=created_hosts[0].display_name)

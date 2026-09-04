@@ -99,6 +99,7 @@ def get_host_list(
     filter=None,
     fields=None,
     rbac_filter=None,
+    get_total=True,
 ):
     total = 0
     host_list = ()
@@ -176,6 +177,7 @@ def get_host_list(
             filter,
             fields,
             rbac_filter,
+            get_total=get_total,
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
