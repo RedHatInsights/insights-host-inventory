@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re  # ruff: ignore[unused-import]
+import re
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import StrictBool
+from pydantic import field_validator
 
 from iqe_host_inventory_api_v7.models.view_configuration import ViewConfiguration
 
@@ -33,7 +34,7 @@ class ViewIn(BaseModel):
     """
 
     name: Annotated[str, Field(min_length=1, strict=True, max_length=255)] = Field(
-        description="The display name for the view."
+        description="The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number."
     )
     description: Annotated[str, Field(strict=True, max_length=2048)] | None = Field(
         default=None, description="An optional description of the view."
@@ -45,6 +46,15 @@ class ViewIn(BaseModel):
     )
     additional_properties: dict[str, Any] = {}
     __properties: ClassVar[list[str]] = ["name", "description", "configuration", "org_wide"]
+
+    @field_validator("name")
+    def name_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if not re.match(r"^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.\'-]+$", value):
+            raise ValueError(
+                r"must validate the regular expression /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$/"
+            )
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

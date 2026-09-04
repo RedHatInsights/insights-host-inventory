@@ -30,6 +30,8 @@ print(HostViewFilterComparison.to_json())
 # convert the object into a dict
 host_view_filter_comparison_dict = host_view_filter_comparison_instance.to_dict()
 # create an instance of HostViewFilterComparison from a dict
-host_view_filter_comparison_from_dict = HostViewFilterComparison.from_dict(host_view_filter_comparison_dict)
+host_view_filter_comparison_from_dict = HostViewFilterComparison.from_dict(
+    host_view_filter_comparison_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
