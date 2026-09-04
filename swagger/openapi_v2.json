@@ -1633,22 +1633,7 @@
               "containers": {
                 "type": "array",
                 "items": {
-                  "description": "A container on the system",
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "maxLength": 255
-                    },
-                    "image": {
-                      "type": "string",
-                      "maxLength": 255
-                    },
-                    "state": {
-                      "type": "string",
-                      "maxLength": 30
-                    }
-                  }
+                  "$ref": "#/components/schemas/SystemProfileContainer"
                 }
               }
             }
@@ -1664,29 +1649,7 @@
               "running_instances": {
                 "type": "array",
                 "items": {
-                  "description": "The info for an InterSystems instance running on the system",
-                  "type": "object",
-                  "properties": {
-                    "instance_name": {
-                      "description": "The name of the instance",
-                      "type": "string",
-                      "example": "IRIS3, PROD",
-                      "maxLength": 255
-                    },
-                    "product": {
-                      "description": "The product of the instance",
-                      "type": "string",
-                      "example": "IRIS",
-                      "maxLength": 64
-                    },
-                    "version": {
-                      "description": "The version of the instance",
-                      "type": "string",
-                      "example": "2023.1, 2023.2",
-                      "maxLength": 7,
-                      "pattern": "^\\d+(\\.\\d+)+$"
-                    }
-                  }
+                  "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                 }
               }
             }
@@ -2019,7 +1982,7 @@
                   "containers": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                      "$ref": "#/components/schemas/SystemProfileContainer"
                     }
                   }
                 }
@@ -2069,7 +2032,7 @@
                   "running_instances": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/intersystems/properties/running_instances/items"
+                      "$ref": "#/components/schemas/SystemProfileInterSystemsRunningInstance"
                     }
                   }
                 }
@@ -2197,7 +2160,7 @@
                   "containers": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                      "$ref": "#/components/schemas/SystemProfileContainer"
                     }
                   }
                 }
@@ -2258,6 +2221,49 @@
               }
             }
           ]
+        }
+      },
+      "SystemProfileContainer": {
+        "description": "A container on the system",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 30
+          }
+        }
+      },
+      "SystemProfileInterSystemsRunningInstance": {
+        "description": "The info for an InterSystems instance running on the system",
+        "type": "object",
+        "properties": {
+          "instance_name": {
+            "description": "The name of the instance",
+            "type": "string",
+            "example": "IRIS3, PROD",
+            "maxLength": 255
+          },
+          "product": {
+            "description": "The product of the instance",
+            "type": "string",
+            "example": "IRIS",
+            "maxLength": 64
+          },
+          "version": {
+            "description": "The version of the instance",
+            "type": "string",
+            "example": "2023.1, 2023.2",
+            "maxLength": 7,
+            "pattern": "^\\d+(\\.\\d+)+$"
+          }
         }
       }
     },
