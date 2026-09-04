@@ -2522,6 +2522,27 @@ class TestInputViewSchema:
 
         assert "name" in exc_info.value.messages
 
+    def test_punctuation_only_name_raises_error(self):
+        with pytest.raises(MarshmallowValidationError) as exc_info:
+            InputViewSchema().load(
+                {
+                    "name": "...",
+                    "configuration": {"columns": [{"key": "id"}]},
+                }
+            )
+
+        assert "name" in exc_info.value.messages
+
+    def test_name_with_periods_and_apostrophes(self):
+        result = InputViewSchema().load(
+            {
+                "name": "Bob's RHEL 9.4",
+                "configuration": {"columns": [{"key": "display_name"}]},
+            }
+        )
+
+        assert result["name"] == "Bob's RHEL 9.4"
+
     def test_name_too_long_raises_error(self):
         with pytest.raises(MarshmallowValidationError) as exc_info:
             InputViewSchema().load(
