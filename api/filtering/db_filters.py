@@ -21,6 +21,7 @@ from api.filtering.db_app_data_filters import build_app_data_filters
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.filtering_common import escape_ilike_value
 from api.staleness_query import get_staleness_obj
+from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
@@ -483,7 +484,13 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
             if not _is_table_already_joined(query, HostStaticSystemProfile):
                 query = query.join(HostStaticSystemProfile, isouter=True)
 
-            return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
+            query = query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
+
+            forwarded_identity = get_satellite_forwarded_identity(identity)
+            if forwarded_identity is not None:
+                query = query.filter(Host.subscription_manager_id == forwarded_identity)
+
+            return query
     return query
 
 

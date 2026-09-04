@@ -69,7 +69,10 @@ def _get_visible_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
 
 
 def get_views_list(org_id: str, user_id: str, page: int = 1, per_page: int = 50) -> tuple[list[InventoryView], int]:
-    query = InventoryView.query.filter(_visibility_filter(org_id, user_id)).order_by(InventoryView.modified_on.desc())
+    query = InventoryView.query.filter(_visibility_filter(org_id, user_id)).order_by(
+        InventoryView.is_system_view.desc(),
+        InventoryView.modified_on.desc(),
+    )
 
     total = query.count()
     views = query.offset((page - 1) * per_page).limit(per_page).all()

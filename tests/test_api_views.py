@@ -1,9 +1,13 @@
 import uuid
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 from starlette.testclient import TestClient
 
+from app.models import db
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_views_url
 from tests.helpers.api_utils import do_request
@@ -101,6 +105,28 @@ class TestGetViewsList:
         assert response_data["count"] == 2
         assert response_data["page"] == 1
         assert response_data["per_page"] == 2
+
+    def test_system_views_appear_before_user_views(
+        self, flask_client: TestClient, db_create_view: Callable, db_create_system_view: Callable
+    ) -> None:
+        """API returns system views first even when a user view is newer."""
+        system = db_create_system_view(name="All systems")
+        user = db_create_view(name="My Custom View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        now = datetime.now(UTC)
+        system.modified_on = now - timedelta(days=30)
+        user.modified_on = now
+        db.session.commit()
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+        assert response_data["results"][0]["id"] == str(system.id)
+        assert response_data["results"][0]["is_system_view"] is True
+        assert response_data["results"][1]["id"] == str(user.id)
+        assert response_data["results"][1]["is_system_view"] is False
 
     def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
         url = build_views_url()

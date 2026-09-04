@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterator
 from itertools import islice
 from typing import Any
+from typing import NamedTuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import Integer
@@ -49,7 +50,7 @@ from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
 from app.serialization import SP_FIELD_SERIALIZERS
 from app.serialization import _sanitize_workloads_none_values
-from app.serialization import serialize_host_for_export_svc
+from app.serialization import serialize_host_row_for_export
 
 __all__ = (
     "get_all_hosts",
@@ -884,22 +885,58 @@ def get_host_ids_list(
     return host_list
 
 
+class _ExportHostRow(NamedTuple):
+    id: Any
+    display_name: str | None
+    host_type: str | None
+    modified_on: Any
+    groups: Any
+    tags: Any
+    fqdn: str | None
+    subscription_manager_id: str | None
+    satellite_id: str | None
+    last_check_in: Any
+    bios_uuid: str | None
+    ip_addresses: Any
+    os_release: str | None
+    satellite_managed: bool | None
+    cloud_provider: str | None
+    is_marketplace: bool | None
+
+
 def get_hosts_to_export(
     identity: Identity,
-    filters: dict | None = None,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
+    query_filter: dict | None = None,
+    host_filter: dict | None = None,
 ) -> Iterator[dict]:
-    if filters is None:
-        filters = {}
+    """Query hosts for export, optionally filtered by a saved view's configuration.
+
+    Args:
+        identity: The authenticated user identity.
+        rbac_filter: RBAC permission filter.
+        batch_size: Number of rows per DB batch (yield_per).
+        query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
+        host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
+    """
     if rbac_filter is None:
         rbac_filter = {}
+    if host_filter is None:
+        host_filter = {}
 
     staleness = get_staleness_obj(identity.org_id)
 
+    staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
+
     q_filters, _ = query_filters(
-        filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity
+        filter=query_filter or None,
+        rbac_filter=rbac_filter,
+        staleness=staleness_states,
+        identity=identity,
+        **host_filter,
     )
+
     columns = [
         Host.id,
         Host.display_name,
@@ -913,34 +950,37 @@ def get_hosts_to_export(
         Host.last_check_in,
         Host.bios_uuid,
         Host.ip_addresses,
+        HostStaticSystemProfile.os_release,
+        HostStaticSystemProfile.satellite_managed,
+        HostStaticSystemProfile.cloud_provider,
+        HostStaticSystemProfile.is_marketplace,
     ]
 
-    export_host_query = (
-        _find_hosts_model_query(identity=identity, columns=columns)
-        .options(
-            joinedload(Host.static_system_profile).load_only(
-                HostStaticSystemProfile.os_release,
-                HostStaticSystemProfile.satellite_managed,
-                HostStaticSystemProfile.cloud_provider,
-                HostStaticSystemProfile.is_marketplace,
+    base_query = (
+        _find_hosts_entities_query(identity=identity, columns=columns)
+        .outerjoin(
+            HostStaticSystemProfile,
+            and_(
+                Host.id == HostStaticSystemProfile.host_id,
+                Host.org_id == HostStaticSystemProfile.org_id,
             ),
-            noload(Host.dynamic_system_profile),
         )
         .filter(*q_filters)
     )
-    export_host_query = export_host_query.execution_options(yield_per=batch_size)
+    base_query = base_query.yield_per(batch_size)
 
     try:
         exported = 0
-        for host in db.session.scalars(export_host_query):
-            yield serialize_host_for_export_svc(host, staleness=staleness)
+        for row in base_query:
+            host_row = _ExportHostRow(*row)
+            yield serialize_host_row_for_export(host_row, staleness=staleness)
             exported += 1
         logger.debug(f"Number of hosts exported: {exported}")
 
     except GeneratorExit:
         return
 
-    except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
+    except SQLAlchemyError as e:
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
     db.session.close()

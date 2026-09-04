@@ -79,7 +79,20 @@ EXPORT_DATA = [
 ]
 
 
-def create_export_message_mock(format: str = "json") -> str:
+X_RH_IDENTITY_DEFAULT = (
+    "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhf"
+    "dHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjogInRlc3RAcmVkaGF0LmNv"
+    "bSIsICJmaXJzdF9uYW1lIjogInRlc3QiLCAidXNlcl9pZCI6ICI1MTIzNDU2NyJ9fX0="
+)
+
+X_RH_IDENTITY_NO_USER_ID = (
+    "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhf"
+    "dHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjogInRlc3RAcmVkaGF0LmNv"
+    "bSIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
+)
+
+
+def create_export_message_mock(format: str = "json", filters: dict | None = None, x_rh_identity: str | None = None):
     return json.dumps(
         {
             "id": "b4228e37-8ae8-4c67-81d5-d03f39bbe309",
@@ -95,7 +108,9 @@ def create_export_message_mock(format: str = "json") -> str:
                 "resource_request": {
                     "application": "urn:redhat:application:inventory",
                     "export_request_uuid": "9becbc61-49a4-49be-beb1-1f0a7cbc6e36",
-                    "filters": {
+                    "filters": filters
+                    if filters is not None
+                    else {
                         "endDate": "2024-03-01T00:00:00Z",
                         "productId": "RHEL",
                         "startDate": "2024-01-01T00:00:00Z",
@@ -103,12 +118,7 @@ def create_export_message_mock(format: str = "json") -> str:
                     "format": format,
                     "resource": "urn:redhat:application:inventory:export:systems",
                     "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
-                    "x-rh-identity": (
-                        "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiL"
-                        "CAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6IC"
-                        "JiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjo"
-                        "gInRlc3RAcmVkaGF0LmNvbSIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
-                    ),
+                    "x-rh-identity": x_rh_identity or X_RH_IDENTITY_DEFAULT,
                 }
             },
         }
