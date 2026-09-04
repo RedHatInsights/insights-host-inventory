@@ -10,14 +10,19 @@ from app.models import InventoryView
 from app.models import UserViewPreference
 from app.models import db
 from app.serialization import serialize_view
+from lib.views_repository import ALL_SYSTEMS_VIEW_NAME
 from lib.views_repository import CLONE_NAME_PREFIX
 from lib.views_repository import ViewNotFoundError
 from lib.views_repository import ViewPermissionError
+from lib.views_repository import _clear_system_default_view_cache
 from lib.views_repository import clone_view
 from lib.views_repository import create_view
+from lib.views_repository import delete_default_view
 from lib.views_repository import delete_view
+from lib.views_repository import get_default_view_id
 from lib.views_repository import get_view_by_id
 from lib.views_repository import get_views_list
+from lib.views_repository import set_default_view
 from lib.views_repository import update_view
 
 ORG_ID = "test-org-1"
@@ -421,3 +426,133 @@ class TestUserViewPreferenceModel:
 
         pref = UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one_or_none()
         assert pref is None
+
+
+class TestGetDefaultViewId:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        _clear_system_default_view_cache()
+        yield
+        _clear_system_default_view_cache()
+
+    def test_returns_system_default_when_no_preference(self, db_create_system_view):
+        system = db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+
+        result = get_default_view_id(ORG_ID, USER_ID)
+
+        assert result == str(system.id)
+
+    def test_returns_pinned_view_when_visible(
+        self, db_create_view, db_create_system_view, db_create_user_view_preference
+    ):
+        db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+        pinned = db_create_view(name="My Default", org_id=ORG_ID, created_by=USER_ID)
+        db_create_user_view_preference(ORG_ID, USER_ID, pinned.id)
+
+        result = get_default_view_id(ORG_ID, USER_ID)
+
+        assert result == str(pinned.id)
+
+    def test_falls_back_when_pinned_view_not_visible(
+        self, db_create_view, db_create_system_view, db_create_user_view_preference
+    ):
+        system = db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+        shared = db_create_view(name="Shared", org_id=ORG_ID, created_by=OTHER_USER_ID, org_wide=True)
+        db_create_user_view_preference(ORG_ID, USER_ID, shared.id)
+
+        shared.org_wide = False
+        db.session.commit()
+
+        result = get_default_view_id(ORG_ID, USER_ID)
+
+        assert result == str(system.id)
+
+    def test_falls_back_when_preference_row_deleted_by_cascade(
+        self, db_create_view, db_create_system_view, db_create_user_view_preference
+    ):
+        system = db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+        pinned = db_create_view(name="Temporary", org_id=ORG_ID, created_by=USER_ID)
+        db_create_user_view_preference(ORG_ID, USER_ID, pinned.id)
+
+        db.session.delete(pinned)
+        db.session.commit()
+
+        result = get_default_view_id(ORG_ID, USER_ID)
+
+        assert result == str(system.id)
+        assert UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one_or_none() is None
+
+    def test_system_default_is_cached(self, db_create_system_view):
+        system = db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+
+        first = get_default_view_id(ORG_ID, USER_ID)
+        assert first == str(system.id)
+
+        # Rename so a fresh DB lookup would fail; cached value must still win.
+        system.name = "Renamed systems"
+        db.session.commit()
+
+        second = get_default_view_id(ORG_ID, USER_ID)
+        assert second == str(system.id)
+
+
+class TestSetDefaultView:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        _clear_system_default_view_cache()
+        yield
+        _clear_system_default_view_cache()
+
+    def test_creates_new_preference(self, db_create_view):
+        view = db_create_view(name="Pin Me", org_id=ORG_ID, created_by=USER_ID)
+
+        result = set_default_view(ORG_ID, USER_ID, str(view.id))
+
+        assert result.id == view.id
+        pref = UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one()
+        assert pref.default_view_id == view.id
+
+    def test_updates_existing_preference(self, db_create_view, db_create_user_view_preference):
+        view1 = db_create_view(name="First", org_id=ORG_ID, created_by=USER_ID)
+        view2 = db_create_view(name="Second", org_id=ORG_ID, created_by=USER_ID)
+        db_create_user_view_preference(ORG_ID, USER_ID, view1.id)
+
+        set_default_view(ORG_ID, USER_ID, str(view2.id))
+
+        pref = UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one()
+        assert pref.default_view_id == view2.id
+        assert UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).count() == 1
+
+    def test_rejects_nonexistent_view(self, flask_app):  # noqa: ARG002
+        with pytest.raises(ViewNotFoundError):
+            set_default_view(ORG_ID, USER_ID, str(uuid.uuid4()))
+
+    def test_rejects_invisible_view(self, db_create_view):
+        other_private = db_create_view(name="Other Private", org_id=ORG_ID, created_by=OTHER_USER_ID, org_wide=False)
+
+        with pytest.raises(ViewNotFoundError):
+            set_default_view(ORG_ID, USER_ID, str(other_private.id))
+
+    def test_allows_pinning_system_view(self, db_create_system_view):
+        system = db_create_system_view(name=ALL_SYSTEMS_VIEW_NAME)
+
+        result = set_default_view(ORG_ID, USER_ID, str(system.id))
+
+        assert result.id == system.id
+        pref = UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one()
+        assert pref.default_view_id == system.id
+
+
+class TestDeleteDefaultView:
+    def test_deletes_existing_preference(self, db_create_view, db_create_user_view_preference):
+        view = db_create_view(org_id=ORG_ID, created_by=USER_ID)
+        db_create_user_view_preference(ORG_ID, USER_ID, view.id)
+
+        delete_default_view(ORG_ID, USER_ID)
+
+        assert UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one_or_none() is None
+
+    def test_idempotent_when_no_preference(self, flask_app):  # noqa: ARG002
+        delete_default_view(ORG_ID, USER_ID)
+
+        assert UserViewPreference.query.filter_by(org_id=ORG_ID, user_id=USER_ID).one_or_none() is None
