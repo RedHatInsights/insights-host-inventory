@@ -2896,6 +2896,8 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
     SystemProfileInterSystemsRunningInstance:
       $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
+    SystemProfileContainer:
+      $ref: 'system_profile.spec.yaml#/$defs/Container'
 
 
     # Inventory Views schemas
