@@ -11,6 +11,7 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 
 from api.host_query_db import get_hosts_to_export
+from api.views_validation import VALID_HOST_FILTER_KEYS
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
 from app.auth.identity import Identity
@@ -22,12 +23,48 @@ from app.logging import get_logger
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from lib import metrics
 from lib.middleware import resolve_permission
+from lib.views_repository import ViewNotFoundError
+from lib.views_repository import ViewPermissionError
+from lib.views_repository import get_view_by_id
 from utils.json_to_csv import export_csv_header
 from utils.json_to_csv import export_host_to_csv_row
 
 logger = get_logger(__name__)
 
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
+
+
+def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict]:
+    """Load a saved view and split its filters for query_filters().
+
+    The view stores all filters under ``configuration.filters``, but ``query_filters()``
+    accepts them in two different ways:
+    - ``"host"`` filters (staleness, tags, dates …) → unpacked as **kwargs
+    - everything else (system_profile, app-data) → passed as the ``filter=`` dict
+
+    Returns:
+        (host_filter, query_filter)
+    """
+    view = get_view_by_id(view_id, org_id, user_id)
+    config_filters = view.configuration.get("filters") or {}
+
+    host_filter: dict = {}
+    query_filter: dict = {}
+
+    for key, value in config_filters.items():
+        if key == "host":
+            for hk, hv in value.items():
+                if hk in VALID_HOST_FILTER_KEYS:
+                    host_filter[hk] = hv
+        else:
+            query_filter[key] = value
+
+    # Views store "workspace_name" but query_filters() expects "group_name".
+    workspace_name = host_filter.pop("workspace_name", None)
+    if workspace_name:
+        host_filter["group_name"] = [workspace_name] if isinstance(workspace_name, str) else workspace_name
+
+    return host_filter, query_filter
 
 
 class _StreamingExportBody:
@@ -84,13 +121,19 @@ def build_headers(
 
 
 def _non_empty_hosts_iter(
-    identity: Identity, rbac_filter: dict | None, inventory_config: Config
+    identity: Identity,
+    rbac_filter: dict | None,
+    inventory_config: Config,
+    query_filter: dict | None = None,
+    host_filter: dict | None = None,
 ) -> Iterator[dict] | None:
     """Return a non-empty host iterator, or None if there are no hosts to export."""
     host_iter = get_hosts_to_export(
         identity,
         rbac_filter=rbac_filter,
         batch_size=inventory_config.export_svc_batch_size,
+        query_filter=query_filter,
+        host_filter=host_filter,
     )
     first_host = next(host_iter, None)
     if first_host is None:
@@ -145,8 +188,72 @@ def create_export(
         session.close()
         return export_created
 
+    export_filters = export_svc_data["data"]["resource_request"].get("filters") or {}
+    view_id = export_filters.get("view_id")
+
+    host_filter: dict = {}
+    query_filter: dict = {}
+
+    if view_id:
+        user_id = identity.user_id
+        if not user_id:
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(
+                "Export with view_id requires a User or ServiceAccount identity with a user_id.",
+                403,
+                request_url,
+                session,
+                request_headers,
+                exportUUID,
+                exportFormat,
+            )
+            session.close()
+            return export_created
+
+        try:
+            host_filter, query_filter = _load_view_filters(view_id, identity.org_id, user_id)
+            logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
+        except ViewNotFoundError:
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(
+                f"View {view_id} not found or not accessible.",
+                404,
+                request_url,
+                session,
+                request_headers,
+                exportUUID,
+                exportFormat,
+            )
+            session.close()
+            return export_created
+        except ViewPermissionError as e:
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(
+                str(e.detail),
+                403,
+                request_url,
+                session,
+                request_headers,
+                exportUUID,
+                exportFormat,
+            )
+            session.close()
+            return export_created
+
     try:
-        hosts_iter = _non_empty_hosts_iter(identity, rbac_filter, inventory_config)
+        hosts_iter = _non_empty_hosts_iter(
+            identity,
+            rbac_filter,
+            inventory_config,
+            query_filter=query_filter,
+            host_filter=host_filter,
+        )
 
         request_url = _build_export_request_url(
             export_service_endpoint, exportUUID, applicationName, resourceUUID, "upload"

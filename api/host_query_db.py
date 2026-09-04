@@ -906,19 +906,35 @@ class _ExportHostRow(NamedTuple):
 
 def get_hosts_to_export(
     identity: Identity,
-    filters: dict | None = None,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
+    query_filter: dict | None = None,
+    host_filter: dict | None = None,
 ) -> Iterator[dict]:
-    if filters is None:
-        filters = {}
+    """Query hosts for export, optionally filtered by a saved view's configuration.
+
+    Args:
+        identity: The authenticated user identity.
+        rbac_filter: RBAC permission filter.
+        batch_size: Number of rows per DB batch (yield_per).
+        query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
+        host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
+    """
     if rbac_filter is None:
         rbac_filter = {}
+    if host_filter is None:
+        host_filter = {}
 
     staleness = get_staleness_obj(identity.org_id)
 
+    staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
+
     q_filters, _ = query_filters(
-        filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity
+        filter=query_filter or None,
+        rbac_filter=rbac_filter,
+        staleness=staleness_states,
+        identity=identity,
+        **host_filter,
     )
 
     columns = [
