@@ -8,8 +8,12 @@ from pytest import mark
 from pytest import raises
 from yaml import safe_load
 
+from api.cache import _delete_cached_system_keys_redis
 from api.cache import delete_cached_system_keys
+from api.cache import register_subman_cache_key
 from api.cache_key import make_system_cache_key
+from api.system_cache_key import subman_cache_index_key
+from api.system_cache_key import subman_cache_key
 from api.system_cache_key import system_cache_key_base
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
@@ -190,8 +194,8 @@ def test_make_system_cache_key_with_forwarded_identity():
     assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}_subman={forwarded_identity}")
 
 
-@patch("api.cache.delete_keys")
-def test_delete_cached_system_keys_uses_delimiter_aware_patterns(delete_keys_mock):
+@patch("api.cache._delete_cached_system_keys")
+def test_delete_cached_system_keys_deletes_base_and_subman_keys(delete_cached_system_keys_mock):
     insights_id = generate_uuid()
     org_id = "test"
     owner_id = "abc"
@@ -199,8 +203,48 @@ def test_delete_cached_system_keys_uses_delimiter_aware_patterns(delete_keys_moc
 
     delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
 
-    delete_keys_mock.assert_any_call(base_key, wildcard=False, spawn=False)
-    delete_keys_mock.assert_any_call(f"{base_key}_subman=", wildcard=True, spawn=False)
+    delete_cached_system_keys_mock.assert_called_once_with(base_key, spawn=False)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_register_subman_cache_key_tracks_forwarded_identity(redis_client_mock):
+    base_key = system_cache_key_base(generate_uuid(), "test", "owner")
+    forwarded_identity = generate_uuid()
+    timeout = 3600
+
+    register_subman_cache_key(base_key, forwarded_identity, timeout)
+
+    index_key = f"flask_cache_{subman_cache_index_key(base_key)}"
+    redis_client_mock.sadd.assert_called_once_with(index_key, forwarded_identity)
+    redis_client_mock.expire.assert_called_once_with(index_key, timeout)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_delete_cached_system_keys_redis_without_subman_index(redis_client_mock):
+    base_key = system_cache_key_base(generate_uuid(), "test", "owner")
+    redis_client_mock.smembers.return_value = []
+
+    _delete_cached_system_keys_redis(base_key)
+
+    index_key = f"flask_cache_{subman_cache_index_key(base_key)}"
+    redis_client_mock.smembers.assert_called_once_with(index_key)
+    redis_client_mock.delete.assert_called_once_with(f"flask_cache_{base_key}", index_key)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_delete_cached_system_keys_redis_with_subman_index(redis_client_mock):
+    base_key = system_cache_key_base(generate_uuid(), "test", "owner")
+    forwarded_identity = generate_uuid()
+    redis_client_mock.smembers.return_value = [forwarded_identity.encode()]
+
+    _delete_cached_system_keys_redis(base_key)
+
+    subman_key = f"flask_cache_{subman_cache_key(base_key, forwarded_identity)}"
+    index_key = f"flask_cache_{subman_cache_index_key(base_key)}"
+    redis_client_mock.delete.assert_called_once_with(f"flask_cache_{base_key}", subman_key, index_key)
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})

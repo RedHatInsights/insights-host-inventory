@@ -6,7 +6,8 @@ import connexion
 from flask_caching import Cache
 from redis import Redis
 
-from api.system_cache_key import SUBMAN_CACHE_KEY_DELIMITER
+from api.system_cache_key import subman_cache_index_key
+from api.system_cache_key import subman_cache_key
 from api.system_cache_key import system_cache_key_base
 from app.logging import get_logger
 
@@ -114,11 +115,69 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
             logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
 
 
+def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: int) -> None:
+    """Track a forwarded-identity cache key so invalidation can delete it without SCAN."""
+    if not (
+        CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key and forwarded_identity
+    ):
+        return
+    try:
+        client = _get_redis_client()
+        index_key = f"{CACHE_PREFIX}{subman_cache_index_key(base_key)}"
+        client.sadd(index_key, forwarded_identity)
+        client.expire(index_key, timeout)
+    except Exception as exec:
+        logger.exception("Failed to register subman cache key", exc_info=exec)
+
+
+def _redis_member_str(value) -> str:
+    return value.decode() if isinstance(value, bytes) else value
+
+
+def _delete_cached_system_keys_redis(base_key: str) -> None:
+    try:
+        client = _get_redis_client()
+        keys_to_delete = [f"{CACHE_PREFIX}{base_key}"]
+
+        index_key = f"{CACHE_PREFIX}{subman_cache_index_key(base_key)}"
+        forwarded_ids = client.smembers(index_key)
+        if forwarded_ids:
+            keys_to_delete.extend(
+                f"{CACHE_PREFIX}{subman_cache_key(base_key, _redis_member_str(forwarded_id))}"
+                for forwarded_id in forwarded_ids
+            )
+            logger.info(f"Deleted subman cache keys count: {len(forwarded_ids)}")
+        keys_to_delete.append(index_key)
+        client.delete(*keys_to_delete)
+        logger.info(f"Deleted single cache key: {keys_to_delete[0]}")
+    except Exception as exec:
+        logger.exception("Cache deletion failed", exc_info=exec)
+
+
+def _delete_cached_system_keys(base_key: str, spawn: bool = False) -> None:
+    global CACHE_EXECUTOR
+
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key):
+        if not CACHE_CONFIG:
+            logger.info("Not deleting cache: CACHE_CONFIG is falsy")
+        elif not base_key:
+            logger.info("Not deleting cache: base_key is falsy")
+        else:
+            cache_type = CACHE_CONFIG.get("CACHE_TYPE")
+            logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
+        return
+
+    if spawn and CACHE_EXECUTOR:
+        logger.info("Submitted cache-deletion callable to executor")
+        CACHE_EXECUTOR.submit(_delete_cached_system_keys_redis, base_key)
+    else:
+        _delete_cached_system_keys_redis(base_key)
+
+
 def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None, spawn=False):
     if insights_id and org_id and owner_id:
         base_key = system_cache_key_base(insights_id, org_id, owner_id)
-        delete_keys(base_key, wildcard=False, spawn=spawn)
-        delete_keys(f"{base_key}{SUBMAN_CACHE_KEY_DELIMITER}", wildcard=True, spawn=spawn)
+        _delete_cached_system_keys(base_key, spawn=spawn)
     elif insights_id and org_id and not owner_id:
         delete_keys(f"insights_id={insights_id}_org={org_id}", wildcard=True, spawn=spawn)
     elif not insights_id and org_id:
