@@ -114,6 +114,14 @@ class Identity:
             ident["x509"] = self.x509.copy()
             return ident
 
+    @property
+    def user_id(self) -> str | None:
+        if self.identity_type == IdentityType.USER:
+            return getattr(self, "user", {}).get("user_id")
+        if self.identity_type == IdentityType.SERVICE_ACCOUNT:
+            return getattr(self, "service_account", {}).get("user_id")
+        return None
+
     def __eq__(self, other):
         return self.org_id == other.org_id
 

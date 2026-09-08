@@ -4757,22 +4757,7 @@
               "containers": {
                 "type": "array",
                 "items": {
-                  "description": "A container on the system",
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "maxLength": 255
-                    },
-                    "image": {
-                      "type": "string",
-                      "maxLength": 255
-                    },
-                    "state": {
-                      "type": "string",
-                      "maxLength": 30
-                    }
-                  }
+                  "$ref": "#/components/schemas/SystemProfileContainer"
                 }
               }
             }
@@ -5121,7 +5106,7 @@
                   "containers": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                      "$ref": "#/components/schemas/SystemProfileContainer"
                     }
                   }
                 }
@@ -5299,7 +5284,7 @@
                   "containers": {
                     "type": "array",
                     "items": {
-                      "$ref": "#/components/schemas/SystemProfile/properties/ansible/properties/containers/items"
+                      "$ref": "#/components/schemas/SystemProfileContainer"
                     }
                   }
                 }
@@ -5566,6 +5551,24 @@
             "example": "2023.1, 2023.2",
             "maxLength": 7,
             "pattern": "^\\d+(\\.\\d+)+$"
+          }
+        }
+      },
+      "SystemProfileContainer": {
+        "description": "A container on the system",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 30
           }
         }
       },

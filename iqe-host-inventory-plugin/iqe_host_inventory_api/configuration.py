@@ -11,9 +11,10 @@ import copy
 import logging
 import multiprocessing
 import sys
-from http import client as httplib
 
+import six
 import urllib3
+from six.moves import http_client as httplib
 
 
 class Configuration:
@@ -240,7 +241,7 @@ class Configuration:
             # then add file handler and remove stream handler.
             self.logger_file_handler = logging.FileHandler(self.__logger_file)
             self.logger_file_handler.setFormatter(self.logger_formatter)
-            for _, logger in self.logger.items():
+            for _, logger in six.iteritems(self.logger):
                 logger.addHandler(self.logger_file_handler)
 
     @property
@@ -262,14 +263,14 @@ class Configuration:
         self.__debug = value
         if self.__debug:
             # if debug status is True, turn on debug logging
-            for _, logger in self.logger.items():
+            for _, logger in six.iteritems(self.logger):
                 logger.setLevel(logging.DEBUG)
             # turn on httplib debug
             httplib.HTTPConnection.debuglevel = 1
         else:
             # if debug status is False, turn off debug logging,
             # setting log level to default `logging.WARNING`
-            for _, logger in self.logger.items():
+            for _, logger in six.iteritems(self.logger):
                 logger.setLevel(logging.WARNING)
             # turn off httplib debug
             httplib.HTTPConnection.debuglevel = 0
