@@ -694,13 +694,22 @@ class TestCreateView:
         assert "name" in response_data["detail"]
 
     def test_400_for_punctuation_only_name(self, flask_client: TestClient) -> None:
-        data = {"name": "!!!", "configuration": VALID_CONFIG}
+        data = {"name": "...", "configuration": VALID_CONFIG}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_creates_view_with_periods_and_apostrophes(self, flask_client: TestClient) -> None:
+        data = {"name": "Bob's RHEL 9.4", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "Bob's RHEL 9.4"
 
     def test_creates_view_with_hyphens_and_underscores(self, flask_client: TestClient) -> None:
         data = {"name": "my-view_2024", "configuration": VALID_CONFIG}
@@ -887,10 +896,23 @@ class TestUpdateView:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "!!!"})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "..."})
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_updates_name_with_periods_and_apostrophes(
+        self, flask_client: TestClient, db_create_view: Callable
+    ) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"name": "Q1'26 patch view"}
+        )
+
+        assert_response_status(response_status, 200)
+        assert response_data["name"] == "Q1'26 patch view"
 
     def test_updates_name_with_hyphens_and_underscores(
         self, flask_client: TestClient, db_create_view: Callable
