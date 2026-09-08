@@ -1256,6 +1256,14 @@ objects:
           value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
         - name: OTEL_MQ_SLOW_MESSAGE_MS
           value: ${OTEL_MQ_SLOW_MESSAGE_MS}
+        - name: KESSEL_AUTH_CLIENT_ID
+          <<: *kesselClientId
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          <<: *kesselClientSecret
+        - name: KESSEL_AUTH_ENABLED
+          value: ${KESSEL_AUTH_ENABLED}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
         livenessProbe: *mqLivenessProbe
         readinessProbe: *mqReadinessProbe
         resources:
