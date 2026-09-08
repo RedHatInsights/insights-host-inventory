@@ -13,8 +13,8 @@ from api import metrics
 from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
+from api.cache import get_system_cache_generation
 from api.cache import register_subman_cache_key
-from api.cache import subman_cache_invalidation_in_progress
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import build_paginated_host_list_response
@@ -189,7 +189,8 @@ def get_host_list(
     )
     if is_cached_insights_client_system_query and len(host_list) == 1:
         base_key = system_cache_key_base(insights_id, current_identity.org_id, owner_id)
-        if not subman_cache_invalidation_in_progress(base_key):
+        cache_generation = get_system_cache_generation(base_key)
+        if get_system_cache_generation(base_key) == cache_generation:
             system_key = make_system_cache_key(
                 insights_id, current_identity.org_id, owner_id, forwarded_identity=forwarded_identity
             )
@@ -197,7 +198,7 @@ def get_host_list(
             timeout = inventory_config().cache_insights_client_system_timeout_sec
             CACHE.set(key=system_key, value=output_host, timeout=timeout)
             if forwarded_identity:
-                register_subman_cache_key(base_key, forwarded_identity, timeout)
+                register_subman_cache_key(base_key, forwarded_identity, timeout, cache_generation)
 
     return flask_json_response(json_data)
 

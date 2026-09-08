@@ -10,7 +10,7 @@ from api.system_cache_invalidation import INVALIDATE_SYSTEM_CACHE_KEYS_LUA
 from api.system_cache_invalidation import REGISTER_SUBMAN_CACHE_KEY_LUA
 from api.system_cache_invalidation import legacy_subman_scan_pattern
 from api.system_cache_invalidation import prefixed_base_cache_key
-from api.system_cache_invalidation import prefixed_invalidation_lock_key
+from api.system_cache_invalidation import prefixed_cache_generation_key
 from api.system_cache_invalidation import prefixed_subman_index_key
 from api.system_cache_invalidation import prefixed_subman_key_prefix
 from api.system_cache_key import system_cache_key_base
@@ -96,15 +96,16 @@ def _get_register_subman_cache_key_script(client):
     return _REGISTER_SUBMAN_CACHE_KEY_SCRIPT
 
 
-def subman_cache_invalidation_in_progress(base_key: str) -> bool:
+def get_system_cache_generation(base_key: str) -> int:
     if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key):
-        return False
+        return 0
     try:
         client = _get_redis_client()
-        return bool(client.exists(prefixed_invalidation_lock_key(base_key)))
+        value = client.get(prefixed_cache_generation_key(base_key))
+        return int(value) if value is not None else 0
     except Exception as exec:
-        logger.exception("Failed to check subman cache invalidation lock", exc_info=exec)
-        return False
+        logger.exception("Failed to read system cache generation", exc_info=exec)
+        return 0
 
 
 def _delete_keys_redis(cache_key, wildcard=True):
@@ -148,11 +149,11 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
             logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
 
 
-def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: int) -> bool:
+def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: int, cache_generation: int) -> bool:
     """Track a forwarded-identity cache key so invalidation can delete it without SCAN.
 
     Returns True when the forwarded identity was registered, False when registration was skipped
-    because invalidation is in progress for this base key.
+    because invalidation occurred after the caller observed the cache generation.
     """
     if not (
         CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key and forwarded_identity
@@ -161,8 +162,8 @@ def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: i
     try:
         client = _get_redis_client()
         registered = _get_register_subman_cache_key_script(client)(
-            keys=[prefixed_subman_index_key(base_key), prefixed_invalidation_lock_key(base_key)],
-            args=[forwarded_identity, timeout],
+            keys=[prefixed_subman_index_key(base_key), prefixed_cache_generation_key(base_key)],
+            args=[forwarded_identity, timeout, str(cache_generation)],
         )
         return bool(registered)
     except Exception as exec:
@@ -172,14 +173,17 @@ def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: i
 
 def _delete_cached_system_keys_redis(base_key: str) -> None:
     try:
+        from app.common import inventory_config
+
         client = _get_redis_client()
+        scan_legacy = "1" if inventory_config().cache_subman_legacy_scan_enabled else "0"
         deleted_count = _get_invalidate_system_cache_keys_script(client)(
             keys=[
                 prefixed_subman_index_key(base_key),
                 prefixed_base_cache_key(base_key),
-                prefixed_invalidation_lock_key(base_key),
+                prefixed_cache_generation_key(base_key),
             ],
-            args=[legacy_subman_scan_pattern(base_key), prefixed_subman_key_prefix(base_key)],
+            args=[legacy_subman_scan_pattern(base_key), prefixed_subman_key_prefix(base_key), scan_legacy],
         )
         logger.info(
             "Deleted system cache keys for base_key=%s count=%s",

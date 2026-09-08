@@ -284,6 +284,9 @@ class Config:
             os.getenv("INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC", "129600")
         )
         self.api_cache_max_thread_pool_workers = int(os.getenv("INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS", "5"))
+        self.cache_subman_legacy_scan_enabled = (
+            os.getenv("INVENTORY_CACHE_SUBMAN_LEGACY_SCAN_ENABLED", "false").lower() == "true"
+        )
         self.staleness_cache_timeout = int(os.getenv("STALENESS_CACHE_TIMEOUT_SECONDS", "3600"))
         self.redis_socket_timeout = float(os.getenv("REDIS_SOCKET_TIMEOUT_SECONDS", "3"))
         self.redis_socket_connect_timeout = float(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS", "3"))

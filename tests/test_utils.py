@@ -10,12 +10,12 @@ from yaml import safe_load
 
 from api.cache import _delete_cached_system_keys_redis
 from api.cache import delete_cached_system_keys
+from api.cache import get_system_cache_generation
 from api.cache import register_subman_cache_key
-from api.cache import subman_cache_invalidation_in_progress
 from api.cache_key import make_system_cache_key
 from api.system_cache_invalidation import legacy_subman_scan_pattern
 from api.system_cache_invalidation import prefixed_base_cache_key
-from api.system_cache_invalidation import prefixed_invalidation_lock_key
+from api.system_cache_invalidation import prefixed_cache_generation_key
 from api.system_cache_invalidation import prefixed_subman_index_key
 from api.system_cache_invalidation import prefixed_subman_key_prefix
 from api.system_cache_key import system_cache_key_base
@@ -220,35 +220,37 @@ def test_register_subman_cache_key_tracks_forwarded_identity(_redis_client_mock,
     register_script = MagicMock(return_value=1)
     register_script_getter_mock.return_value = register_script
 
-    registered = register_subman_cache_key(base_key, forwarded_identity, timeout)
+    registered = register_subman_cache_key(base_key, forwarded_identity, timeout, cache_generation=3)
 
     assert registered is True
     register_script.assert_called_once_with(
-        keys=[prefixed_subman_index_key(base_key), prefixed_invalidation_lock_key(base_key)],
-        args=[forwarded_identity, timeout],
+        keys=[prefixed_subman_index_key(base_key), prefixed_cache_generation_key(base_key)],
+        args=[forwarded_identity, timeout, "3"],
     )
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
 @patch("api.cache._get_register_subman_cache_key_script")
 @patch("api.cache.REDIS_CLIENT")
-def test_register_subman_cache_key_skips_during_invalidation(_redis_client_mock, register_script_getter_mock):
+def test_register_subman_cache_key_skips_when_generation_changed(_redis_client_mock, register_script_getter_mock):
     base_key = system_cache_key_base(generate_uuid(), "test", "owner")
     register_script = MagicMock(return_value=0)
     register_script_getter_mock.return_value = register_script
 
-    registered = register_subman_cache_key(base_key, generate_uuid(), 3600)
+    registered = register_subman_cache_key(base_key, generate_uuid(), 3600, cache_generation=3)
 
     assert registered is False
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("app.common.inventory_config")
 @patch("api.cache._get_invalidate_system_cache_keys_script")
 @patch("api.cache.REDIS_CLIENT")
 def test_delete_cached_system_keys_redis_uses_atomic_invalidation_script(
-    _redis_client_mock, invalidate_script_getter_mock
+    _redis_client_mock, invalidate_script_getter_mock, inventory_config_mock
 ):
     base_key = system_cache_key_base(generate_uuid(), "test", "owner")
+    inventory_config_mock.return_value.cache_subman_legacy_scan_enabled = False
     invalidate_script = MagicMock(return_value=2)
     invalidate_script_getter_mock.return_value = invalidate_script
 
@@ -258,20 +260,20 @@ def test_delete_cached_system_keys_redis_uses_atomic_invalidation_script(
         keys=[
             prefixed_subman_index_key(base_key),
             prefixed_base_cache_key(base_key),
-            prefixed_invalidation_lock_key(base_key),
+            prefixed_cache_generation_key(base_key),
         ],
-        args=[legacy_subman_scan_pattern(base_key), prefixed_subman_key_prefix(base_key)],
+        args=[legacy_subman_scan_pattern(base_key), prefixed_subman_key_prefix(base_key), "0"],
     )
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
 @patch("api.cache.REDIS_CLIENT")
-def test_subman_cache_invalidation_in_progress(redis_client_mock):
+def test_get_system_cache_generation(redis_client_mock):
     base_key = system_cache_key_base(generate_uuid(), "test", "owner")
-    redis_client_mock.exists.return_value = 1
+    redis_client_mock.get.return_value = b"7"
 
-    assert subman_cache_invalidation_in_progress(base_key) is True
-    redis_client_mock.exists.assert_called_once_with(prefixed_invalidation_lock_key(base_key))
+    assert get_system_cache_generation(base_key) == 7
+    redis_client_mock.get.assert_called_once_with(prefixed_cache_generation_key(base_key))
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})

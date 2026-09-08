@@ -1,5 +1,5 @@
 from api.system_cache_invalidation import legacy_subman_scan_pattern
-from api.system_cache_invalidation import prefixed_invalidation_lock_key
+from api.system_cache_invalidation import prefixed_cache_generation_key
 from api.system_cache_invalidation import prefixed_subman_index_key
 from api.system_cache_invalidation import prefixed_subman_key_prefix
 from api.system_cache_key import subman_cache_key
@@ -17,6 +17,6 @@ def test_legacy_subman_scan_pattern_matches_forwarded_identity_keys():
     assert subman_cache_key(base_key, forwarded_identity).endswith(forwarded_identity)
 
 
-def test_prefixed_invalidation_lock_key_uses_index_key():
+def test_prefixed_cache_generation_key_uses_index_key():
     base_key = system_cache_key_base(generate_uuid(), "test", "owner")
-    assert prefixed_invalidation_lock_key(base_key) == f"{prefixed_subman_index_key(base_key)}:invalidating"
+    assert prefixed_cache_generation_key(base_key) == f"{prefixed_subman_index_key(base_key)}:generation"
