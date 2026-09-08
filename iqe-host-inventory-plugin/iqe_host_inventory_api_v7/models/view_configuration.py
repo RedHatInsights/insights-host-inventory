@@ -21,9 +21,9 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import StrictStr
 
 from iqe_host_inventory_api_v7.models.view_column_config import ViewColumnConfig
+from iqe_host_inventory_api_v7.models.view_configuration_filters import ViewConfigurationFilters
 from iqe_host_inventory_api_v7.models.view_sort_config import ViewSortConfig
 
 
@@ -34,10 +34,7 @@ class ViewConfiguration(BaseModel):
 
     columns: list[ViewColumnConfig] = Field(description="Ordered list of column configurations.")
     sort: ViewSortConfig | None = None
-    filters: dict[str, list[StrictStr]] | None = Field(
-        default=None,
-        description="Active filter criteria. Keys are filter names, values are arrays of selected filter values.",
-    )
+    filters: ViewConfigurationFilters | None = None
     additional_properties: dict[str, Any] = {}
     __properties: ClassVar[list[str]] = ["columns", "sort", "filters"]
 
@@ -91,6 +88,9 @@ class ViewConfiguration(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of sort
         if self.sort:
             _dict["sort"] = self.sort.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of filters
+        if self.filters:
+            _dict["filters"] = self.filters.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -112,7 +112,9 @@ class ViewConfiguration(BaseModel):
             if obj.get("columns") is not None
             else None,
             "sort": ViewSortConfig.from_dict(obj["sort"]) if obj.get("sort") is not None else None,
-            "filters": obj.get("filters"),
+            "filters": ViewConfigurationFilters.from_dict(obj["filters"])
+            if obj.get("filters") is not None
+            else None,
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

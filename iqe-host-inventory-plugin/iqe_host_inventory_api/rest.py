@@ -12,13 +12,13 @@ import json
 import logging
 import re
 import ssl
-from urllib.parse import urlencode
 
 import certifi
 
 # python 2 and python 3 compatibility library
 import six
 import urllib3
+from six.moves.urllib.parse import urlencode
 
 from iqe_host_inventory_api.exceptions import ApiException
 from iqe_host_inventory_api.exceptions import ApiValueError
