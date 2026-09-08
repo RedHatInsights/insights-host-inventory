@@ -2261,7 +2261,7 @@ class GroupsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> HostQueryOutput:
-        """Read the list of hosts in a group
+        r"""Read the list of hosts in a group
 
         Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2415,7 +2415,7 @@ class GroupsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[HostQueryOutput]:
-        """Read the list of hosts in a group
+        r"""Read the list of hosts in a group
 
         Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2569,7 +2569,7 @@ class GroupsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Read the list of hosts in a group
+        r"""Read the list of hosts in a group
 
         Read the list of all hosts in a specific group. <br /><br /> Required permissions: inventory:hosts:read
 

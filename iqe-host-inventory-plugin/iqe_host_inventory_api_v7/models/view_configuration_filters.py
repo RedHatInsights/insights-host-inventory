@@ -13,52 +13,25 @@ from __future__ import annotations
 
 import json
 import pprint
-import re
-from typing import Annotated
+import re  # ruff: ignore[unused-import]
 from typing import Any
 from typing import ClassVar
 from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
-from pydantic import Field
-from pydantic import StrictBool
-from pydantic import field_validator
 
-from iqe_host_inventory_api_v7.models.view_configuration import ViewConfiguration
+from iqe_host_inventory_api_v7.models.host_filters import HostFilters
 
 
-class ViewPatch(BaseModel):
-    """
-    Data for updating an existing inventory view. All fields are optional.
+class ViewConfigurationFilters(BaseModel):
+    r"""
+    Active filter criteria for this view. Top-level keys are filter namespaces: app names (e.g. vulnerability, patch), system_profile, or host (for host-level query parameters). Each namespace value is a nested object. system_profile filters may be deeply nested (e.g. operating_system.RHEL.version). The reserved \"host\" key holds host-level query parameters (staleness, tags, etc.) that the frontend replays as /hosts query params. Validated server-side.
     """
 
-    name: Annotated[str, Field(min_length=1, strict=True, max_length=255)] | None = Field(
-        default=None,
-        description="The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number.",
-    )
-    description: Annotated[str, Field(strict=True, max_length=2048)] | None = Field(
-        default=None, description="An optional description of the view."
-    )
-    configuration: ViewConfiguration | None = None
-    org_wide: StrictBool | None = Field(
-        default=None,
-        description="If true, the view is visible to all users in the organization. If false, only the creator can see it.",
-    )
+    host: HostFilters | None = None
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["name", "description", "configuration", "org_wide"]
-
-    @field_validator("name")
-    def name_validate_regular_expression(cls, value):
-        """Validates the regular expression"""
-        if value is None:
-            return value
-
-        if not re.match(r"^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.\'-]+$", value):
-            raise ValueError(
-                r"must validate the regular expression /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$/"
-            )
-        return value
+    __properties: ClassVar[list[str]] = ["host"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -77,7 +50,7 @@ class ViewPatch(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Self | None:
-        """Create an instance of ViewPatch from a JSON string"""
+        """Create an instance of ViewConfigurationFilters from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> dict[str, Any]:
@@ -100,24 +73,19 @@ class ViewPatch(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of configuration
-        if self.configuration:
-            _dict["configuration"] = self.configuration.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of host
+        if self.host:
+            _dict["host"] = self.host.to_dict()
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
                 _dict[_key] = _value
 
-        # set to None if description (nullable) is None
-        # and model_fields_set contains the field
-        if self.description is None and "description" in self.model_fields_set:
-            _dict["description"] = None
-
         return _dict
 
     @classmethod
     def from_dict(cls, obj: dict[str, Any] | None) -> Self | None:
-        """Create an instance of ViewPatch from a dict"""
+        """Create an instance of ViewConfigurationFilters from a dict"""
         if obj is None:
             return None
 
@@ -125,12 +93,7 @@ class ViewPatch(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name"),
-            "description": obj.get("description"),
-            "configuration": ViewConfiguration.from_dict(obj["configuration"])
-            if obj.get("configuration") is not None
-            else None,
-            "org_wide": obj.get("org_wide"),
+            "host": HostFilters.from_dict(obj["host"]) if obj.get("host") is not None else None
         })
         # store additional fields in additional_properties
         for _key in obj.keys():

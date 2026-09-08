@@ -18,7 +18,7 @@ from typing import Self
 
 class AppSortableFields(str, Enum):
     """
-    Application data fields available for sorting in the /hosts-view endpoint. Use format `app_name:field_name` with the `order_by` parameter.  **Advisor** - `advisor:recommendations` - Number of Advisor recommendations - `advisor:incidents` - Number of Advisor incidents  **Vulnerability** - `vulnerability:total_cves` - Total CVE count - `vulnerability:critical_cves` - Critical severity CVEs  **Patch** - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories - `patch:packages_installable` - Number of installable packages  **Remediations** - `remediations:remediations_plans` - Active remediation plans count  **Compliance** - `compliance:last_scan` - Last compliance scan timestamp  **Malware** - `malware:last_matches` - Malware matches count - `malware:last_scan` - Last malware scan timestamp
+    Application data fields available for sorting in the /hosts-view endpoint. Use format `app_name:field_name` with the `order_by` parameter.  **Advisor** - `advisor:recommendations` - Number of Advisor recommendations - `advisor:incidents` - Number of Advisor incidents - `advisor:total_severity` - Weighted severity score (critical×1000 + important×100 + moderate×10 + low)  **Vulnerability** - `vulnerability:total_cves` - Total CVE count - `vulnerability:critical_cves` - Critical severity CVEs  **Patch** - `patch:advisories_rhsa_installable` - Number of RHSA installable advisories - `patch:packages_installable` - Number of installable packages  **Remediations** - `remediations:remediations_plans` - Active remediation plans count  **Compliance** - `compliance:last_scan` - Last compliance scan timestamp  **Malware** - `malware:last_matches` - Malware matches count - `malware:last_scan` - Last malware scan timestamp
     """
 
     """
@@ -26,6 +26,7 @@ class AppSortableFields(str, Enum):
     """
     ADVISOR_COLON_RECOMMENDATIONS = "advisor:recommendations"
     ADVISOR_COLON_INCIDENTS = "advisor:incidents"
+    ADVISOR_COLON_TOTAL_SEVERITY = "advisor:total_severity"
     VULNERABILITY_COLON_TOTAL_CVES = "vulnerability:total_cves"
     VULNERABILITY_COLON_CRITICAL_CVES = "vulnerability:critical_cves"
     PATCH_COLON_ADVISORIES_RHSA_INSTALLABLE = "patch:advisories_rhsa_installable"
