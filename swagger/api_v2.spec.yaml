@@ -617,6 +617,10 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/SystemProfile'
     SystemProfileNestedObject:
       $ref: 'system_profile.spec.yaml#/$defs/NestedObject'
+    SystemProfileContainer:
+      $ref: 'system_profile.spec.yaml#/$defs/Container'
+    SystemProfileInterSystemsRunningInstance:
+      $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
 
     # -- Phase 1 (Hosts & Host Views) — schemas to be added with Phase 1 endpoints:
     #    Status: pending

@@ -13,6 +13,7 @@ from api import metrics
 from api import pagination_params
 from api.cache import CACHE
 from api.cache import delete_cached_system_keys
+from api.cache import get_system_cache_generation
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
 from api.host_query import build_paginated_host_list_response
@@ -26,6 +27,7 @@ from api.host_query_db import get_sparse_system_profile
 from api.parsing import _normalize_workspace_filters
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
+from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import IdentityType
 from app.auth.identity import to_auth_header
 from app.auth.rbac import KesselResourceTypes
@@ -139,7 +141,15 @@ def get_host_list(
     )
     if is_cached_insights_client_system_query:
         owner_id = current_identity.system.get("cn")
-        system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
+        forwarded_identity = get_satellite_forwarded_identity(current_identity)
+        generation = get_system_cache_generation(insights_id, current_identity.org_id, owner_id)
+        system_key = make_system_cache_key(
+            insights_id,
+            current_identity.org_id,
+            owner_id,
+            forwarded_identity=forwarded_identity,
+            generation=generation,
+        )
         stored_system = CACHE.get(f"{system_key}")
         if stored_system:
             host_list = [stored_system]
@@ -183,7 +193,6 @@ def get_host_list(
         total, page, per_page, host_list, additional_fields, system_profile_fields
     )
     if is_cached_insights_client_system_query and len(host_list) == 1:
-        system_key = make_system_cache_key(insights_id, current_identity.org_id, owner_id)
         output_host = serialize_host_with_params(host_list[0])
         timeout = inventory_config().cache_insights_client_system_timeout_sec
         CACHE.set(key=system_key, value=output_host, timeout=timeout)

@@ -1,9 +1,13 @@
 import uuid
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 
 from starlette.testclient import TestClient
 
+from app.models import db
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_views_url
 from tests.helpers.api_utils import do_request
@@ -101,6 +105,28 @@ class TestGetViewsList:
         assert response_data["count"] == 2
         assert response_data["page"] == 1
         assert response_data["per_page"] == 2
+
+    def test_system_views_appear_before_user_views(
+        self, flask_client: TestClient, db_create_view: Callable, db_create_system_view: Callable
+    ) -> None:
+        """API returns system views first even when a user view is newer."""
+        system = db_create_system_view(name="All systems")
+        user = db_create_view(name="My Custom View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        now = datetime.now(UTC)
+        system.modified_on = now - timedelta(days=30)
+        user.modified_on = now
+        db.session.commit()
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2
+        assert response_data["results"][0]["id"] == str(system.id)
+        assert response_data["results"][0]["is_system_view"] is True
+        assert response_data["results"][1]["id"] == str(user.id)
+        assert response_data["results"][1]["is_system_view"] is False
 
     def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
         url = build_views_url()
@@ -668,13 +694,22 @@ class TestCreateView:
         assert "name" in response_data["detail"]
 
     def test_400_for_punctuation_only_name(self, flask_client: TestClient) -> None:
-        data = {"name": "!!!", "configuration": VALID_CONFIG}
+        data = {"name": "...", "configuration": VALID_CONFIG}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_creates_view_with_periods_and_apostrophes(self, flask_client: TestClient) -> None:
+        data = {"name": "Bob's RHEL 9.4", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "Bob's RHEL 9.4"
 
     def test_creates_view_with_hyphens_and_underscores(self, flask_client: TestClient) -> None:
         data = {"name": "my-view_2024", "configuration": VALID_CONFIG}
@@ -861,10 +896,23 @@ class TestUpdateView:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "!!!"})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "..."})
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_updates_name_with_periods_and_apostrophes(
+        self, flask_client: TestClient, db_create_view: Callable
+    ) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"name": "Q1'26 patch view"}
+        )
+
+        assert_response_status(response_status, 200)
+        assert response_data["name"] == "Q1'26 patch view"
 
     def test_updates_name_with_hyphens_and_underscores(
         self, flask_client: TestClient, db_create_view: Callable

@@ -2905,6 +2905,8 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
     SystemProfileInterSystemsRunningInstance:
       $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
+    SystemProfileContainer:
+      $ref: 'system_profile.spec.yaml#/$defs/Container'
 
 
     # Inventory Views schemas
@@ -3044,11 +3046,12 @@ components:
         name:
           description: >-
             The display name for the view.
-            Must contain only letters, numbers, spaces, hyphens, and underscores.
+            Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes,
+            and include at least one letter or number.
           type: string
           minLength: 1
           maxLength: 255
-          pattern: '^[a-zA-Z0-9 _-]+$'
+          pattern: "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
         description:
           description: An optional description of the view.
           type: string
@@ -3070,11 +3073,12 @@ components:
         name:
           description: >-
             The display name for the view.
-            Must contain only letters, numbers, spaces, hyphens, and underscores.
+            Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes,
+            and include at least one letter or number.
           type: string
           minLength: 1
           maxLength: 255
-          pattern: '^[a-zA-Z0-9 _-]+$'
+          pattern: "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
         description:
           description: An optional description of the view.
           type: string

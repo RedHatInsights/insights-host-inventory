@@ -20,6 +20,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import InventoryView
 from app.models import Staleness
+from app.models import UserViewPreference
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -395,3 +396,18 @@ def db_create_system_view(flask_app):  # noqa: ARG001
         return view
 
     return _db_create_system_view
+
+
+@pytest.fixture(scope="function")
+def db_create_user_view_preference(flask_app):  # noqa: ARG001
+    def _db_create_user_view_preference(org_id, user_id, default_view_id):
+        pref = UserViewPreference(
+            org_id=org_id,
+            user_id=user_id,
+            default_view_id=default_view_id,
+        )
+        db.session.add(pref)
+        db.session.commit()
+        return pref
+
+    return _db_create_user_view_preference
