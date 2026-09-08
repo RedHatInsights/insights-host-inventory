@@ -6,8 +6,13 @@ import connexion
 from flask_caching import Cache
 from redis import Redis
 
-from api.system_cache_key import subman_cache_index_key
-from api.system_cache_key import subman_cache_key
+from api.system_cache_invalidation import INVALIDATE_SYSTEM_CACHE_KEYS_LUA
+from api.system_cache_invalidation import REGISTER_SUBMAN_CACHE_KEY_LUA
+from api.system_cache_invalidation import legacy_subman_scan_pattern
+from api.system_cache_invalidation import prefixed_base_cache_key
+from api.system_cache_invalidation import prefixed_invalidation_lock_key
+from api.system_cache_invalidation import prefixed_subman_index_key
+from api.system_cache_invalidation import prefixed_subman_key_prefix
 from api.system_cache_key import system_cache_key_base
 from app.logging import get_logger
 
@@ -19,6 +24,9 @@ CACHE_EXECUTOR = None
 REDIS_CLIENT = None
 STALENESS_L2_CACHE_ENABLED = False
 logger = get_logger("cache")
+
+_INVALIDATE_SYSTEM_CACHE_KEYS_SCRIPT = None
+_REGISTER_SUBMAN_CACHE_KEY_SCRIPT = None
 
 
 def init_cache(app_config, flask_app):
@@ -74,6 +82,31 @@ def _get_redis_client():
     return REDIS_CLIENT
 
 
+def _get_invalidate_system_cache_keys_script(client):
+    global _INVALIDATE_SYSTEM_CACHE_KEYS_SCRIPT
+    if _INVALIDATE_SYSTEM_CACHE_KEYS_SCRIPT is None:
+        _INVALIDATE_SYSTEM_CACHE_KEYS_SCRIPT = client.register_script(INVALIDATE_SYSTEM_CACHE_KEYS_LUA)
+    return _INVALIDATE_SYSTEM_CACHE_KEYS_SCRIPT
+
+
+def _get_register_subman_cache_key_script(client):
+    global _REGISTER_SUBMAN_CACHE_KEY_SCRIPT
+    if _REGISTER_SUBMAN_CACHE_KEY_SCRIPT is None:
+        _REGISTER_SUBMAN_CACHE_KEY_SCRIPT = client.register_script(REGISTER_SUBMAN_CACHE_KEY_LUA)
+    return _REGISTER_SUBMAN_CACHE_KEY_SCRIPT
+
+
+def subman_cache_invalidation_in_progress(base_key: str) -> bool:
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key):
+        return False
+    try:
+        client = _get_redis_client()
+        return bool(client.exists(prefixed_invalidation_lock_key(base_key)))
+    except Exception as exec:
+        logger.exception("Failed to check subman cache invalidation lock", exc_info=exec)
+        return False
+
+
 def _delete_keys_redis(cache_key, wildcard=True):
     global CACHE_CONFIG
     try:
@@ -115,41 +148,44 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
             logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
 
 
-def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: int) -> None:
-    """Track a forwarded-identity cache key so invalidation can delete it without SCAN."""
+def register_subman_cache_key(base_key: str, forwarded_identity: str, timeout: int) -> bool:
+    """Track a forwarded-identity cache key so invalidation can delete it without SCAN.
+
+    Returns True when the forwarded identity was registered, False when registration was skipped
+    because invalidation is in progress for this base key.
+    """
     if not (
         CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and base_key and forwarded_identity
     ):
-        return
+        return False
     try:
         client = _get_redis_client()
-        index_key = f"{CACHE_PREFIX}{subman_cache_index_key(base_key)}"
-        client.sadd(index_key, forwarded_identity)
-        client.expire(index_key, timeout)
+        registered = _get_register_subman_cache_key_script(client)(
+            keys=[prefixed_subman_index_key(base_key), prefixed_invalidation_lock_key(base_key)],
+            args=[forwarded_identity, timeout],
+        )
+        return bool(registered)
     except Exception as exec:
         logger.exception("Failed to register subman cache key", exc_info=exec)
-
-
-def _redis_member_str(value) -> str:
-    return value.decode() if isinstance(value, bytes) else value
+        return False
 
 
 def _delete_cached_system_keys_redis(base_key: str) -> None:
     try:
         client = _get_redis_client()
-        keys_to_delete = [f"{CACHE_PREFIX}{base_key}"]
-
-        index_key = f"{CACHE_PREFIX}{subman_cache_index_key(base_key)}"
-        forwarded_ids = client.smembers(index_key)
-        if forwarded_ids:
-            keys_to_delete.extend(
-                f"{CACHE_PREFIX}{subman_cache_key(base_key, _redis_member_str(forwarded_id))}"
-                for forwarded_id in forwarded_ids
-            )
-            logger.info(f"Deleted subman cache keys count: {len(forwarded_ids)}")
-        keys_to_delete.append(index_key)
-        client.delete(*keys_to_delete)
-        logger.info(f"Deleted single cache key: {keys_to_delete[0]}")
+        deleted_count = _get_invalidate_system_cache_keys_script(client)(
+            keys=[
+                prefixed_subman_index_key(base_key),
+                prefixed_base_cache_key(base_key),
+                prefixed_invalidation_lock_key(base_key),
+            ],
+            args=[legacy_subman_scan_pattern(base_key), prefixed_subman_key_prefix(base_key)],
+        )
+        logger.info(
+            "Deleted system cache keys for base_key=%s count=%s",
+            base_key,
+            deleted_count,
+        )
     except Exception as exec:
         logger.exception("Cache deletion failed", exc_info=exec)
 
