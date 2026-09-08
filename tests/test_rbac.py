@@ -334,6 +334,17 @@ class TestExecuteRbacHttpRequestTransportAuth:
         assert "Authorization" not in session.get.call_args.kwargs["headers"]
         token_mock.assert_not_called()
 
+    def test_authenticated_token_failure_closes_session(self, mocker):
+        _mock_rbac_transport_config(mocker, authenticated=True)
+        mocker.patch("lib.middleware._get_rbac_access_token", side_effect=RuntimeError("no token"))
+        session = _mock_rbac_session(mocker)
+        mocker.patch("lib.middleware.abort", side_effect=Exception("abort"))
+
+        with pytest.raises(Exception, match="abort"):
+            lib.middleware._execute_rbac_http_request("GET", "http://rbac.test/x", {"x-rh-identity": "abc"})
+
+        session.close.assert_called_once()
+
 
 class TestExecuteRbacHttpRequestTls:
     """Per-endpoint TLS verification honors the V2 ca_certificate."""
