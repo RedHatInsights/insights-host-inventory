@@ -27,6 +27,8 @@ print(SystemProfileByHostOut.to_json())
 # convert the object into a dict
 system_profile_by_host_out_dict = system_profile_by_host_out_instance.to_dict()
 # create an instance of SystemProfileByHostOut from a dict
-system_profile_by_host_out_from_dict = SystemProfileByHostOut.from_dict(system_profile_by_host_out_dict)
+system_profile_by_host_out_from_dict = SystemProfileByHostOut.from_dict(
+    system_profile_by_host_out_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

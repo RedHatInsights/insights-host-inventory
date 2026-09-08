@@ -265,6 +265,8 @@ def mock_rbac_v2_middleware(mocker):
     mock_mw_config = mocker.MagicMock()
     mock_mw_config.bypass_rbac = False
     mock_mw_config.rbac_endpoint = "http://rbac.test"
+    mock_mw_config.rbac_endpoint_ca_certificate = None
+    mock_mw_config.rbac_endpoint_authenticated = False
     mocker.patch("lib.middleware.inventory_config", return_value=mock_mw_config)
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_access_token")
 

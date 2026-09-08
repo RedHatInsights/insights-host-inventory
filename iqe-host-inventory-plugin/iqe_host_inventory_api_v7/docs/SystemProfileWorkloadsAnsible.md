@@ -19,7 +19,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_workloads_ansible import SystemProfileWorkloadsAnsible
+from iqe_host_inventory_api_v7.models.system_profile_workloads_ansible import (
+    SystemProfileWorkloadsAnsible,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -31,6 +33,8 @@ print(SystemProfileWorkloadsAnsible.to_json())
 # convert the object into a dict
 system_profile_workloads_ansible_dict = system_profile_workloads_ansible_instance.to_dict()
 # create an instance of SystemProfileWorkloadsAnsible from a dict
-system_profile_workloads_ansible_from_dict = SystemProfileWorkloadsAnsible.from_dict(system_profile_workloads_ansible_dict)
+system_profile_workloads_ansible_from_dict = SystemProfileWorkloadsAnsible.from_dict(
+    system_profile_workloads_ansible_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

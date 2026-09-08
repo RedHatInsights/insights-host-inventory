@@ -86,7 +86,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> SystemProfileOperatingSystemOut:
-        """get all operating system versions and counts on the account
+        r"""get all operating system versions and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -190,7 +190,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[SystemProfileOperatingSystemOut]:
-        """get all operating system versions and counts on the account
+        r"""get all operating system versions and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -294,7 +294,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """get all operating system versions and counts on the account
+        r"""get all operating system versions and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -474,7 +474,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> SystemProfileSapSystemOut:
-        """get all sap sids values and counts on the account
+        r"""get all sap sids values and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -587,7 +587,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[SystemProfileSapSystemOut]:
-        """get all sap sids values and counts on the account
+        r"""get all sap sids values and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -700,7 +700,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """get all sap sids values and counts on the account
+        r"""get all sap sids values and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -881,7 +881,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> SystemProfileSapSystemOut:
-        """get all sap system values and counts on the account
+        r"""get all sap system values and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -985,7 +985,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[SystemProfileSapSystemOut]:
-        """get all sap system values and counts on the account
+        r"""get all sap system values and counts on the account
 
         Required permissions: inventory:hosts:read
 
@@ -1089,7 +1089,7 @@ class SystemProfileApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """get all sap system values and counts on the account
+        r"""get all sap system values and counts on the account
 
         Required permissions: inventory:hosts:read
 
