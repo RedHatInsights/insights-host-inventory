@@ -9,6 +9,7 @@ from pytest import raises
 from yaml import safe_load
 
 from api.cache import delete_cached_system_keys
+from api.cache import get_system_cache_generation
 from api.cache_key import make_system_cache_key
 from api.system_cache_key import system_cache_key_base
 from lib.feature_flags import FLAG_FALLBACK_VALUES
@@ -178,7 +179,7 @@ def test_make_system_cache_key_valid():
     org_id = "101010191"
     owner_id = "1919388393"
     key = make_system_cache_key(insights_id, org_id, owner_id)
-    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}"
+    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g0"
 
 
 def test_make_system_cache_key_with_forwarded_identity():
@@ -187,20 +188,97 @@ def test_make_system_cache_key_with_forwarded_identity():
     owner_id = SYSTEM_IDENTITY["system"]["cn"]
     forwarded_identity = generate_uuid()
     key = make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=forwarded_identity)
-    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}_subman={forwarded_identity}")
+    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g0_subman={forwarded_identity}")
 
 
-@patch("api.cache.delete_keys")
-def test_delete_cached_system_keys_uses_delimiter_aware_patterns(delete_keys_mock):
+def test_make_system_cache_key_with_generation():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    key = make_system_cache_key(insights_id, org_id, owner_id, generation=5)
+    assert key == f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g5"
+
+
+def test_make_system_cache_key_with_generation_and_forwarded_identity():
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    forwarded_identity = generate_uuid()
+    key = make_system_cache_key(insights_id, org_id, owner_id, forwarded_identity=forwarded_identity, generation=3)
+    assert key == (f"insights_id={insights_id}_org={org_id}_user=SYSTEM-{owner_id}:g3_subman={forwarded_identity}")
+
+
+@patch("api.cache._invalidate_system_cache")
+def test_delete_cached_system_keys_increments_generation(invalidate_mock):
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+
+    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+
+    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=False)
+
+
+@patch("api.cache._invalidate_system_cache")
+def test_delete_cached_system_keys_with_spawn(invalidate_mock):
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+
+    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id, spawn=True)
+
+    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=True)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_system_cache_generation_returns_stored_value(redis_client_mock):
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    redis_client_mock.get.return_value = b"7"
+
+    assert get_system_cache_generation(insights_id, org_id, owner_id) == 7
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+def test_get_system_cache_generation_returns_zero_when_key_missing(redis_client_mock):
+    redis_client_mock.get.return_value = None
+
+    assert get_system_cache_generation(generate_uuid(), "test", "abc") == 0
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "NullCache"})
+def test_get_system_cache_generation_returns_zero_when_redis_disabled():
+    assert get_system_cache_generation(generate_uuid(), "test", "abc") == 0
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("app.common.inventory_config")
+@patch("api.cache.REDIS_CLIENT")
+def test_invalidate_system_cache_redis_increments_generation(redis_client_mock, inventory_config_mock):
+    from api.cache import CACHE_PREFIX
+    from api.cache import GENERATION_KEY_SUFFIX
+    from api.cache import _invalidate_system_cache_redis
+
     insights_id = generate_uuid()
     org_id = "test"
     owner_id = "abc"
     base_key = system_cache_key_base(insights_id, org_id, owner_id)
+    expected_gen_key = f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
 
-    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+    cache_ttl = 129600
+    inventory_config_mock.return_value.cache_insights_client_system_timeout_sec = cache_ttl
 
-    delete_keys_mock.assert_any_call(base_key, wildcard=False, spawn=False)
-    delete_keys_mock.assert_any_call(f"{base_key}_subman=", wildcard=True, spawn=False)
+    pipe_mock = MagicMock()
+    pipe_mock.execute.return_value = [1, True]
+    redis_client_mock.pipeline.return_value = pipe_mock
+
+    _invalidate_system_cache_redis(insights_id, org_id, owner_id)
+
+    pipe_mock.incr.assert_called_once_with(expected_gen_key)
+    pipe_mock.expire.assert_called_once_with(expected_gen_key, cache_ttl)
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})

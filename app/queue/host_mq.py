@@ -39,6 +39,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
 from api.cache import delete_cached_system_keys
+from api.cache import get_system_cache_generation
 from api.cache import set_cached_system
 from api.cache_key import make_system_cache_key
 from api.staleness_query import get_staleness_obj
@@ -1391,7 +1392,8 @@ def write_add_update_event_message(
         try:
             owner_id = output_host.get("system_profile", {}).get("owner_id")
             if owner_id and insights_id and org_id:
-                system_key = make_system_cache_key(insights_id, org_id, owner_id)
+                generation = get_system_cache_generation(insights_id, org_id, owner_id)
+                system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=generation)
                 if "tags" in output_host:
                     del output_host["tags"]
                 if "system_profile" in output_host:
