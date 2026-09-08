@@ -334,7 +334,7 @@ def test_db_schema_hosts_groups_foreign_keys(inventory_db_session, id_key):
     host_id = association.host_id
     group_id = association.group_id
 
-    with pytest.raises(IntegrityError) as exc:
+    with pytest.raises(IntegrityError) as exc:  # ruff: ignore[pytest-raises-with-multiple-statements]
         inventory_db_session.add(association)
         inventory_db_session.commit()
 

@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **columns** | [**List[ViewColumnConfig]**](ViewColumnConfig.md) | Ordered list of column configurations. |
 **sort** | [**ViewSortConfig**](ViewSortConfig.md) |  | [optional]
-**filters** | **Dict[str, List[str]]** | Active filter criteria. Keys are filter names, values are arrays of selected filter values. | [optional]
+**filters** | [**ViewConfigurationFilters**](ViewConfigurationFilters.md) |  | [optional]
 
 ## Example
 

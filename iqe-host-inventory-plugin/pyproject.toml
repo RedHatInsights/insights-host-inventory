@@ -79,6 +79,7 @@ lint.per-file-ignores."iqe_host_inventory_api*/*.py" = [
   "B904",
   "BLE001",
   "C901",
+  "D301",
   "E501",
   "E721",
   "FURB103",
