@@ -63,7 +63,7 @@ _EXPORT_SERVICE_FIELDS = [
 CORE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
     "display_name": ["display_name"],
     "group_name": ["group_name"],
-    "operating_system": ["operating_system"],
+    "operating_system": ["os_release"],
     "last_check_in": ["last_check_in"],
     "updated": ["updated"],
     "created": ["created"],
@@ -300,51 +300,66 @@ def serialize_host(
     return serialized_host
 
 
+def _extract_root_keys(value: Any) -> str | None:
+    if not value:
+        return None
+    if isinstance(value, dict):
+        return ", ".join(value.keys())
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, str):
+        return value
+    return None
+
+
 def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = None):
     """Serialize a flat query row (no ORM relationship access) for the export service."""
-    group_id = None
-    group_name = None
-    if row.groups:
-        group_id = row.groups[0]["id"]
-        group_name = row.groups[0]["name"]
+    groups = getattr(row, "groups", None)
+    group_id = groups[0]["id"] if groups else None
+    group_name = groups[0]["name"] if groups else None
 
-    st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=row.last_check_in)
+    last_check_in = getattr(row, "last_check_in", None)
+    if last_check_in:
+        st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=last_check_in)
+        state = Conditions.find_host_state(
+            stale_timestamp=st_timestamps["stale_timestamp"],
+            stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
+        )
+    else:
+        state = None
+
+    modified_on = getattr(row, "modified_on", None)
+    created_on = getattr(row, "created_on", None)
+    reporters = getattr(row, "reporters", None)
 
     export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
 
-    prs = None
-    if "per_reporter_staleness" in export_fields and getattr(row, "per_reporter_staleness", None) is not None:
-        prs = _serialize_per_reporter_staleness(row, staleness)
-
     field_values = {
-        "display_name": row.display_name,
-        "fqdn": row.fqdn,
-        "host_id": serialize_uuid(row.id),
-        "subscription_manager_id": row.subscription_manager_id,
-        "satellite_id": row.satellite_id,
+        "display_name": getattr(row, "display_name", None),
+        "fqdn": getattr(row, "fqdn", None),
+        "host_id": serialize_uuid(getattr(row, "id", None)),
+        "subscription_manager_id": getattr(row, "subscription_manager_id", None),
+        "satellite_id": getattr(row, "satellite_id", None),
         "group_id": group_id,
         "group_name": group_name,
         "os_release": getattr(row, "os_release", None),
-        "updated": _serialize_datetime(row.modified_on),
-        "created": _serialize_datetime(row.created_on) if getattr(row, "created_on", None) else None,
-        "last_check_in": _serialize_datetime(row.last_check_in) if row.last_check_in else None,
-        "data_collector": list(row.reporters) if getattr(row, "reporters", None) else None,
-        "per_reporter_staleness": prs,
-        "state": Conditions.find_host_state(
-            stale_timestamp=st_timestamps["stale_timestamp"],
-            stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
-        ),
-        "tags": _serialize_tags(row.tags),
-        "host_type": row.host_type or "conventional",
-        "bios_uuid": row.bios_uuid,
+        "updated": _serialize_datetime(modified_on) if modified_on else None,
+        "created": _serialize_datetime(created_on) if created_on else None,
+        "last_check_in": _serialize_datetime(last_check_in) if last_check_in else None,
+        "data_collector": list(reporters) if reporters else None,
+        "per_reporter_staleness": _extract_root_keys(getattr(row, "per_reporter_staleness", None) or reporters),
+        "state": state,
+        "tags": _serialize_tags(getattr(row, "tags", None)),
+        "host_type": getattr(row, "host_type", None) or "conventional",
+        "bios_uuid": getattr(row, "bios_uuid", None),
         "satellite_managed": getattr(row, "satellite_managed", None),
         "cloud_provider": getattr(row, "cloud_provider", None),
         "is_marketplace": getattr(row, "is_marketplace", None),
-        "ip_addresses": row.ip_addresses,
+        "ip_addresses": getattr(row, "ip_addresses", None),
         "operating_system": getattr(row, "operating_system", None),
         "infrastructure_type": getattr(row, "infrastructure_type", None),
         "infrastructure_vendor": getattr(row, "infrastructure_vendor", None),
-        "workloads": getattr(row, "workloads", None),
+        "workloads": _extract_root_keys(getattr(row, "workloads", None)),
     }
 
     return {field: field_values.get(field) for field in export_fields if field in field_values}

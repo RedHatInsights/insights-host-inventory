@@ -20,6 +20,7 @@ from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.models import db
+from app.queue.export_service import _format_compliance_policies
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
@@ -1000,12 +1001,7 @@ class TestCreateExportWithView:
             parsed = json.loads(captured_data[0])
             assert len(parsed) == 1
             assert parsed[0]["display_name"] == "prs-host"
-            prs = parsed[0]["per_reporter_staleness"]
-            assert "puptoo" in prs
-            assert prs["puptoo"]["last_check_in"] == "2026-09-01T12:00:00+00:00"
-            assert "stale_timestamp" in prs["puptoo"]
-            assert "stale_warning_timestamp" in prs["puptoo"]
-            assert "culled_timestamp" in prs["puptoo"]
+            assert parsed[0]["per_reporter_staleness"] == "puptoo"
 
 
 class TestResolveExportColumns:
@@ -1027,7 +1023,7 @@ class TestResolveExportColumns:
 
             assert "host_id" in fields
             assert "display_name" in fields
-            assert "operating_system" in fields
+            assert "os_release" in fields
             assert "tags" in fields
             assert "state" in fields
             assert app_data == {}
@@ -1046,7 +1042,7 @@ class TestResolveExportColumns:
 
             assert fields == [
                 "host_id",
-                "operating_system",
+                "os_release",
                 "infrastructure_type",
                 "infrastructure_vendor",
                 "workloads",
@@ -1135,7 +1131,7 @@ class TestResolveExportColumns:
             assert fields[0] == "host_id"
             tags_idx = fields.index("tags")
             display_idx = fields.index("display_name")
-            os_idx = fields.index("operating_system")
+            os_idx = fields.index("os_release")
             assert tags_idx < display_idx < os_idx
 
     def test_unknown_app_column_ignored(self, flask_app):
@@ -1394,12 +1390,70 @@ class TestGetHostsToExportWithColumns:
 
             assert len(results) == 1
             assert results[0]["display_name"] == "prs-host"
-            prs = results[0]["per_reporter_staleness"]
-            assert "puptoo" in prs
-            assert prs["puptoo"]["last_check_in"] == "2026-09-01T12:00:00+00:00"
-            assert "stale_timestamp" in prs["puptoo"]
-            assert "stale_warning_timestamp" in prs["puptoo"]
-            assert "culled_timestamp" in prs["puptoo"]
+            assert results[0]["per_reporter_staleness"] == "puptoo"
+
+    def test_workloads_column_extracts_root_keys(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            db_create_host(
+                extra_data={
+                    "system_profile_facts": {
+                        "workloads": {
+                            "ansible": {"controller_version": "2.4"},
+                            "satellite": {"version": "6.15"},
+                        }
+                    }
+                }
+            )
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "workloads"]
+            results = list(get_hosts_to_export(identity, export_fields=export_fields))
+
+            assert len(results) == 1
+            assert results[0]["workloads"] == "ansible, satellite"
+
+    def test_compliance_policies_column_extracts_names(self, flask_app, db_create_host, db_create_host_app_data):
+        with flask_app.app.app_context():
+            host = db_create_host(host=db_host(display_name="compliance-host"))
+            policies = [
+                {"id": "d4722d4e-d290-4822-b8d2-8046b0cf2340", "name": "Policy 1"},
+                {"id": "e728dc3b-da2d-48a2-9ea7-222fc6f27871", "name": "Policy 2"},
+            ]
+            db_create_host_app_data(str(host.id), "test", "compliance", policies=policies)
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "compliance:policies"]
+            app_data_fields = {"compliance": ["policies"]}
+            results = list(
+                get_hosts_to_export(
+                    identity,
+                    export_fields=export_fields,
+                    app_data_fields=app_data_fields,
+                )
+            )
+
+            assert len(results) == 1
+            assert results[0]["compliance:policies"] == "Policy 1, Policy 2"
+
+
+class TestFormatCompliancePolicies:
+    def test_extracts_policy_names_from_list_of_dicts(self):
+        policies = [
+            {"id": "d4722d4e-d290-4822-b8d2-8046b0cf2340", "name": "Policy 1"},
+            {"id": "e728dc3b-da2d-48a2-9ea7-222fc6f27871", "name": "Policy 2"},
+            {"id": "75da8181-1bdc-4589-884a-b990d5f07a5d", "name": "Policy 3"},
+            {"id": "e26d6ef5-9cdc-4c87-976e-5775691c6677", "name": "Policy 4"},
+        ]
+        assert _format_compliance_policies(policies) == "Policy 1, Policy 2, Policy 3, Policy 4"
+
+    def test_empty_or_none_returns_none(self):
+        assert _format_compliance_policies([]) is None
+        assert _format_compliance_policies(None) is None
+
+    def test_fallback_to_id_if_name_missing(self):
+        policies = [{"id": "d4722d4e-d290-4822-b8d2-8046b0cf2340"}]
+        assert _format_compliance_policies(policies) == "d4722d4e-d290-4822-b8d2-8046b0cf2340"
+
+    def test_string_policies_preserved(self):
+        assert _format_compliance_policies("Policy 1, Policy 2") == "Policy 1, Policy 2"
 
 
 class TestExportProfileJoins:
@@ -1410,7 +1464,7 @@ class TestExportProfileJoins:
         assert _export_needs_profile_joins(["host_id", "display_name", "group_name"], None) == (False, False)
 
     def test_os_column_needs_static_join(self):
-        assert _export_needs_profile_joins(["host_id", "operating_system"], None) == (True, False)
+        assert _export_needs_profile_joins(["host_id", "os_release"], None) == (True, False)
 
     def test_workload_column_needs_dynamic_join(self):
         assert _export_needs_profile_joins(["host_id", "workloads"], None) == (False, True)
