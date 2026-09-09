@@ -72,7 +72,7 @@ CORE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
     "infrastructure": ["infrastructure_type"],
     "vendor": ["infrastructure_vendor"],
     "workload": ["workloads"],
-    "per_reporter_staleness": ["data_collector"],
+    "per_reporter_staleness": ["per_reporter_staleness"],
 }
 
 ALWAYS_INCLUDED_EXPORT_FIELDS = ["host_id"]
@@ -310,6 +310,12 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
 
     st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=row.last_check_in)
 
+    export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
+
+    prs = None
+    if "per_reporter_staleness" in export_fields and getattr(row, "per_reporter_staleness", None) is not None:
+        prs = _serialize_per_reporter_staleness(row, staleness)
+
     field_values = {
         "display_name": row.display_name,
         "fqdn": row.fqdn,
@@ -323,6 +329,7 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "created": _serialize_datetime(row.created_on) if getattr(row, "created_on", None) else None,
         "last_check_in": _serialize_datetime(row.last_check_in) if row.last_check_in else None,
         "data_collector": list(row.reporters) if getattr(row, "reporters", None) else None,
+        "per_reporter_staleness": prs,
         "state": Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
@@ -340,7 +347,6 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "workloads": getattr(row, "workloads", None),
     }
 
-    export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
     return {field: field_values.get(field) for field in export_fields if field in field_values}
 
 
@@ -686,6 +692,8 @@ def _full_per_reporter_staleness_dict(
     staleness: Any,
     stored_value: str,
 ) -> dict[str, Any]:
+    if isinstance(stored_value, dict):
+        return stored_value
     last_check_in_dt = _deserialize_datetime(stored_value)
     ts = get_staleness_timestamps(host, staleness, last_check_in=last_check_in_dt)
     return {

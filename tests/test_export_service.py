@@ -865,6 +865,148 @@ class TestCreateExportWithView:
             assert lines[0] == '"host_id","display_name","advisor:recommendations"'
             assert f'"{host1_id}","host-1",12' in lines[1]
 
+    def test_export_with_view_omits_unauthorized_app_columns(
+        self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
+    ):
+        """App-data columns for unauthorized applications are omitted from the export."""
+        captured_data = []
+
+        def capture_post(_self, url, *, data, **_kwargs):
+            if hasattr(data, "decode"):
+                captured_data.append(data.decode("utf-8"))
+            else:
+                captured_data.append(b"".join(data).decode("utf-8"))
+            resp = Response()
+            resp.url = url
+            resp.status_code = HTTPStatus.ACCEPTED
+            resp._content = b"Export successful"
+            return resp
+
+        with (
+            flask_app.app.app_context(),
+            mock.patch("requests.Session.post", new=capture_post),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value={"advisor"}),
+        ):
+            host1 = db_create_host(host=db_host(display_name="host-1"))
+            host1_id = str(host1.id)
+            db_create_host_app_data(host1_id, "test", "advisor", recommendations=5)
+            db_create_host_app_data(host1_id, "test", "vulnerability", total_cves=10)
+
+            view = db_create_view(
+                configuration={
+                    "columns": [
+                        {"key": "display_name"},
+                        {"key": "advisor:recommendations"},
+                        {"key": "vulnerability:total_cves"},
+                    ],
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+            assert len(captured_data) == 1
+
+            parsed = json.loads(captured_data[0])
+            assert len(parsed) == 1
+            # advisor:recommendations included, vulnerability:total_cves omitted
+            assert list(parsed[0].keys()) == ["host_id", "display_name", "advisor:recommendations"]
+            assert parsed[0]["advisor:recommendations"] == 5
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_export_with_view_rejects_unauthorized_app_filter(
+        self, mock_handle_error, flask_app, db_create_view, inventory_config
+    ):
+        """Views with query filters for unauthorized apps fail with 403."""
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value={"advisor"}),
+        ):
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"vulnerability": {"total_cves": {"gte": 1}}},
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is False
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions" in mock_handle_error.call_args[0][0]
+
+    def test_export_with_view_per_reporter_staleness(
+        self, flask_app, db_create_host, db_create_view, inventory_config
+    ):
+        """Export with per_reporter_staleness column serializes per-reporter staleness."""
+        captured_data = []
+
+        def capture_post(_self, url, *, data, **_kwargs):
+            if hasattr(data, "decode"):
+                captured_data.append(data.decode("utf-8"))
+            else:
+                captured_data.append(b"".join(data).decode("utf-8"))
+            resp = Response()
+            resp.url = url
+            resp.status_code = HTTPStatus.ACCEPTED
+            resp._content = b"Export successful"
+            return resp
+
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            db_create_host(
+                host=db_host(
+                    display_name="prs-host",
+                    reporter="puptoo",
+                    per_reporter_staleness={"puptoo": "2026-09-01T12:00:00+00:00"},
+                )
+            )
+
+            view = db_create_view(
+                configuration={
+                    "columns": [
+                        {"key": "display_name"},
+                        {"key": "per_reporter_staleness"},
+                    ],
+                },
+                created_by="51234567",
+            )
+
+            export_msg = es_utils.create_export_message_mock(
+                filters={"view_id": str(view.id)},
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+            assert len(captured_data) == 1
+
+            parsed = json.loads(captured_data[0])
+            assert len(parsed) == 1
+            assert parsed[0]["display_name"] == "prs-host"
+            prs = parsed[0]["per_reporter_staleness"]
+            assert "puptoo" in prs
+            assert prs["puptoo"]["last_check_in"] == "2026-09-01T12:00:00+00:00"
+            assert "stale_timestamp" in prs["puptoo"]
+            assert "stale_warning_timestamp" in prs["puptoo"]
+            assert "culled_timestamp" in prs["puptoo"]
+
 
 class TestResolveExportColumns:
     def test_empty_columns_returns_defaults(self, flask_app):
@@ -909,7 +1051,7 @@ class TestResolveExportColumns:
                 "infrastructure_vendor",
                 "workloads",
                 "state",
-                "data_collector",
+                "per_reporter_staleness",
             ]
             assert app_data == {}
 
@@ -1037,6 +1179,30 @@ class TestResolveExportColumns:
             fields, _ = resolve_export_columns(columns)
 
             assert fields == ["host_id", "group_name"]
+
+    def test_resolve_export_columns_omits_unauthorized_apps(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "advisor:recommendations"},
+                {"key": "vulnerability:total_cves"},
+            ]
+            fields, app_data = resolve_export_columns(columns, allowed_apps={"advisor"})
+
+            assert fields == ["host_id", "display_name", "advisor:recommendations"]
+            assert app_data == {"advisor": ["recommendations"]}
+
+    def test_resolve_export_columns_allowed_apps_none_allows_all(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "display_name"},
+                {"key": "advisor:recommendations"},
+                {"key": "vulnerability:total_cves"},
+            ]
+            fields, app_data = resolve_export_columns(columns, allowed_apps=None)
+
+            assert fields == ["host_id", "display_name", "advisor:recommendations", "vulnerability:total_cves"]
+            assert app_data == {"advisor": ["recommendations"], "vulnerability": ["total_cves"]}
 
 
 class TestStreamingExportBodyCustomFields:
@@ -1212,6 +1378,28 @@ class TestGetHostsToExportWithColumns:
             assert "hosts_app_data_vulnerability" not in joined[0]
             assert "hosts_app_data_patch" not in joined[0]
             assert not any("hosts_app_data_vulnerability" in q for q in queries)
+
+    def test_per_reporter_staleness_column_serialized(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            db_create_host(
+                host=db_host(
+                    display_name="prs-host",
+                    reporter="puptoo",
+                    per_reporter_staleness={"puptoo": "2026-09-01T12:00:00+00:00"},
+                )
+            )
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "display_name", "per_reporter_staleness"]
+            results = list(get_hosts_to_export(identity, export_fields=export_fields))
+
+            assert len(results) == 1
+            assert results[0]["display_name"] == "prs-host"
+            prs = results[0]["per_reporter_staleness"]
+            assert "puptoo" in prs
+            assert prs["puptoo"]["last_check_in"] == "2026-09-01T12:00:00+00:00"
+            assert "stale_timestamp" in prs["puptoo"]
+            assert "stale_warning_timestamp" in prs["puptoo"]
+            assert "culled_timestamp" in prs["puptoo"]
 
 
 class TestExportProfileJoins:
