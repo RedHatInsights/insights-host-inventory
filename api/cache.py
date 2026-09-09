@@ -80,16 +80,31 @@ def _generation_key(base_key: str) -> str:
 def get_system_cache_generation(insights_id, org_id, owner_id):
     """Read the current cache generation counter for a system cache entry.
 
-    Returns 0 when Redis is unavailable or the generation key does not exist,
-    which naturally makes readers construct a :g0 key (the initial generation).
+    Returns 0 when Redis is unavailable or the generation key does not exist.
+    When the key is absent, it is lazily initialised to 0 with the standard
+    cache TTL so that subsequent lookups are Redis cache-hits.
     """
     if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
         return 0
     try:
+        from app.common import inventory_config
+
         client = _get_redis_client()
         base_key = system_cache_key_base(insights_id, org_id, owner_id)
-        value = client.get(_generation_key(base_key))
-        return int(value) if value is not None else 0
+        gen_key = _generation_key(base_key)
+        value = client.get(gen_key)
+        if value is not None:
+            return int(value)
+        # Key does not exist — lazily initialise to 0 so future GETs are
+        # cache hits instead of misses.  NX prevents overwriting a counter
+        # that was just incremented by a concurrent invalidation.
+        gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
+        if client.set(gen_key, 0, ex=gen_ttl, nx=True):
+            return 0
+        # SET NX failed — another process created the key (e.g. INCR from
+        # a concurrent invalidation).  Re-read to get the actual generation.
+        current_value = client.get(gen_key)
+        return int(current_value) if current_value is not None else 0
     except Exception as exc:
         logger.exception("Failed to read system cache generation", exc_info=exc)
         return 0
