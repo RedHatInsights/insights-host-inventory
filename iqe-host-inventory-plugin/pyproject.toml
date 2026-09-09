@@ -130,6 +130,7 @@ lint.isort.force-single-line = true
 dev = [
   "crc-bonfire",
   "iqe-goatee-plugin",
+  "pytest-repeat>=0.9.4",
 ]
 
 [tool.uv]
