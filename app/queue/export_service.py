@@ -4,6 +4,7 @@ import itertools
 import json
 from collections.abc import Iterator
 from http import HTTPStatus
+from typing import Any
 from uuid import UUID
 
 from requests import Response
@@ -125,6 +126,25 @@ def resolve_export_columns(
     return export_fields, app_data_fields
 
 
+def _format_compliance_policies(policies: Any) -> str | None:
+    """Extract policy names from compliance policies JSON array for export."""
+    if not policies:
+        return None
+    if isinstance(policies, list):
+        names = []
+        for p in policies:
+            if isinstance(p, dict):
+                name = p.get("name") or p.get("id")
+                if name:
+                    names.append(str(name))
+            elif isinstance(p, str):
+                names.append(p)
+        return ", ".join(names) if names else None
+    if isinstance(policies, str):
+        return policies
+    return None
+
+
 def _fetch_app_data_batch(
     host_ids: list,
     org_id: str,
@@ -159,7 +179,10 @@ def _fetch_app_data_batch(
             host_app = result.setdefault(host_key, {})
             for field_name in field_names:
                 if field_name in serialized:
-                    host_app[f"{app_name}:{field_name}"] = serialized[field_name]
+                    val = serialized[field_name]
+                    if app_name == "compliance" and field_name == "policies":
+                        val = _format_compliance_policies(val)
+                    host_app[f"{app_name}:{field_name}"] = val
 
     return result
 
