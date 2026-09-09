@@ -13,7 +13,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_operating_system import SystemProfileOperatingSystem
+from iqe_host_inventory_api_v7.models.system_profile_operating_system import (
+    SystemProfileOperatingSystem,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -25,6 +27,8 @@ print(SystemProfileOperatingSystem.to_json())
 # convert the object into a dict
 system_profile_operating_system_dict = system_profile_operating_system_instance.to_dict()
 # create an instance of SystemProfileOperatingSystem from a dict
-system_profile_operating_system_from_dict = SystemProfileOperatingSystem.from_dict(system_profile_operating_system_dict)
+system_profile_operating_system_from_dict = SystemProfileOperatingSystem.from_dict(
+    system_profile_operating_system_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

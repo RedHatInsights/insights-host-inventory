@@ -28,16 +28,13 @@ In your own code, to use this library to connect and interact with iqe-host-inve
 you can run the following:
 
 ```python
-
 import iqe_host_inventory_api_v7
 from iqe_host_inventory_api_v7.rest import ApiException
 from pprint import pprint
 
 # Defining the host is optional and defaults to /api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api_v7.Configuration(
-    host = "/api/inventory/v1"
-)
+configuration = iqe_host_inventory_api_v7.Configuration(host="/api/inventory/v1")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -45,22 +42,22 @@ configuration = iqe_host_inventory_api_v7.Configuration(
 # satisfies your auth use case.
 
 # Configure API key authorization: ApiKeyAuth
-configuration.api_key['ApiKeyAuth'] = os.environ["API_KEY"]
+configuration.api_key["ApiKeyAuth"] = os.environ["API_KEY"]
 
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['ApiKeyAuth'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api_v7.Configuration(
-    access_token = os.environ["BEARER_TOKEN"]
-)
+configuration = iqe_host_inventory_api_v7.Configuration(access_token=os.environ["BEARER_TOKEN"])
 
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api_v7.AccountsStalenessApi(api_client)
-    staleness_in = iqe_host_inventory_api_v7.StalenessIn() # StalenessIn | Data required to create a record for a account staleness.
+    staleness_in = (
+        iqe_host_inventory_api_v7.StalenessIn()
+    )  # StalenessIn | Data required to create a record for a account staleness.
 
     try:
         # Create account staleness record
@@ -68,8 +65,9 @@ with iqe_host_inventory_api_v7.ApiClient(configuration) as api_client:
         print("The response of AccountsStalenessApi->api_staleness_create_staleness:\n")
         pprint(api_response)
     except ApiException as e:
-        print("Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e)
-
+        print(
+            "Exception when calling AccountsStalenessApi->api_staleness_create_staleness: %s\n" % e
+        )
 ```
 
 ## Documentation for API Endpoints
@@ -142,6 +140,7 @@ Class | Method | HTTP request | Description
  - [GroupOut](iqe_host_inventory_api_v7/docs/GroupOut.md)
  - [GroupOutWithHostCount](iqe_host_inventory_api_v7/docs/GroupOutWithHostCount.md)
  - [GroupQueryOutput](iqe_host_inventory_api_v7/docs/GroupQueryOutput.md)
+ - [HostFilters](iqe_host_inventory_api_v7/docs/HostFilters.md)
  - [HostIdOut](iqe_host_inventory_api_v7/docs/HostIdOut.md)
  - [HostOut](iqe_host_inventory_api_v7/docs/HostOut.md)
  - [HostQueryOutput](iqe_host_inventory_api_v7/docs/HostQueryOutput.md)
@@ -211,6 +210,7 @@ Class | Method | HTTP request | Description
  - [TagsOut](iqe_host_inventory_api_v7/docs/TagsOut.md)
  - [ViewColumnConfig](iqe_host_inventory_api_v7/docs/ViewColumnConfig.md)
  - [ViewConfiguration](iqe_host_inventory_api_v7/docs/ViewConfiguration.md)
+ - [ViewConfigurationFilters](iqe_host_inventory_api_v7/docs/ViewConfigurationFilters.md)
  - [ViewIn](iqe_host_inventory_api_v7/docs/ViewIn.md)
  - [ViewOut](iqe_host_inventory_api_v7/docs/ViewOut.md)
  - [ViewPatch](iqe_host_inventory_api_v7/docs/ViewPatch.md)

@@ -1,3 +1,5 @@
+# coding: utf-8
+
 # flake8: noqa
 
 """
@@ -61,6 +63,7 @@ from iqe_host_inventory_api_v7.models.group_in import GroupIn
 from iqe_host_inventory_api_v7.models.group_out import GroupOut
 from iqe_host_inventory_api_v7.models.group_out_with_host_count import GroupOutWithHostCount
 from iqe_host_inventory_api_v7.models.group_query_output import GroupQueryOutput
+from iqe_host_inventory_api_v7.models.host_filters import HostFilters
 from iqe_host_inventory_api_v7.models.host_id_out import HostIdOut
 from iqe_host_inventory_api_v7.models.host_out import HostOut
 from iqe_host_inventory_api_v7.models.host_query_output import HostQueryOutput
@@ -184,6 +187,7 @@ from iqe_host_inventory_api_v7.models.tag_count_out import TagCountOut
 from iqe_host_inventory_api_v7.models.tags_out import TagsOut
 from iqe_host_inventory_api_v7.models.view_column_config import ViewColumnConfig
 from iqe_host_inventory_api_v7.models.view_configuration import ViewConfiguration
+from iqe_host_inventory_api_v7.models.view_configuration_filters import ViewConfigurationFilters
 from iqe_host_inventory_api_v7.models.view_in import ViewIn
 from iqe_host_inventory_api_v7.models.view_out import ViewOut
 from iqe_host_inventory_api_v7.models.view_patch import ViewPatch

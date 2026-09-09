@@ -28,6 +28,8 @@ print(ConsumerApplicationsData.to_json())
 # convert the object into a dict
 consumer_applications_data_dict = consumer_applications_data_instance.to_dict()
 # create an instance of ConsumerApplicationsData from a dict
-consumer_applications_data_from_dict = ConsumerApplicationsData.from_dict(consumer_applications_data_dict)
+consumer_applications_data_from_dict = ConsumerApplicationsData.from_dict(
+    consumer_applications_data_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
