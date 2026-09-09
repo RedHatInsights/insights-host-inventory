@@ -4,7 +4,8 @@ from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_hosts_url
 
 
-def test_get_total_default(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_default(api_get):
     """
     By default, get_total is true, so total should be returned as the actual count.
     """
@@ -14,7 +15,8 @@ def test_get_total_default(_mq_create_three_specific_hosts, api_get):
     assert response_data["total"] == 3
 
 
-def test_get_total_explicit_true(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_explicit_true(api_get):
     """
     When get_total=true, total should be returned as the actual count.
     """
@@ -24,7 +26,8 @@ def test_get_total_explicit_true(_mq_create_three_specific_hosts, api_get):
     assert response_data["total"] == 3
 
 
-def test_get_total_explicit_false(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_explicit_false(api_get):
     """
     When get_total=false, total should be returned as None (null).
     """
@@ -43,7 +46,8 @@ def test_get_total_invalid_value(api_get):
     assert_response_status(response_status, expected_status=400)
 
 
-def test_get_total_false_still_returns_hosts(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_false_still_returns_hosts(api_get):
     """
     When get_total=false, hosts should still be returned even though total is null.
     """
@@ -55,7 +59,8 @@ def test_get_total_false_still_returns_hosts(_mq_create_three_specific_hosts, ap
     assert len(response_data["results"]) == 3
 
 
-def test_get_total_false_with_pagination(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_false_with_pagination(api_get):
     """
     When get_total=false with pagination, total is null but pagination still works.
     """
@@ -69,7 +74,8 @@ def test_get_total_false_with_pagination(_mq_create_three_specific_hosts, api_ge
     assert response_data["page"] == 1
 
 
-def test_get_total_true_with_pagination(_mq_create_three_specific_hosts, api_get):
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
+def test_get_total_true_with_pagination(api_get):
     """
     When get_total=true with pagination, total reflects the actual count.
     """
@@ -126,8 +132,8 @@ def test_get_total_false_with_display_name_filter(mq_create_three_specific_hosts
         ("False", type(None)),
     ],
 )
+@pytest.mark.usefixtures("mq_create_three_specific_hosts")
 def test_get_total_case_insensitive(
-    _mq_create_three_specific_hosts,
     api_get,
     get_total_value,
     expected_total_type,
