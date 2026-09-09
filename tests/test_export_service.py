@@ -1,5 +1,6 @@
 import io
 import json
+from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -10,11 +11,15 @@ from uuid import uuid4
 import pytest
 from marshmallow.exceptions import ValidationError
 from requests import Response
+from sqlalchemy import event
 from sqlalchemy.orm.exc import ObjectDeletedError
 
+from api.host_query_db import _app_models_needed_for_filter
+from api.host_query_db import _export_needs_profile_joins
 from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
+from app.models import db
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
 from app.queue.export_service import _handle_export_response
@@ -26,6 +31,7 @@ from app.queue.export_service import resolve_export_columns
 from app.queue.export_service_mq import parse_export_service_message
 from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
+from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -33,6 +39,38 @@ from tests.helpers.api_utils import create_mock_rbac_response
 from tests.helpers.api_utils import mocked_export_post
 from tests.helpers.db_utils import db_host
 from tests.helpers.test_utils import USER_IDENTITY
+
+_LEGACY_STATIC_PROFILE = {
+    "os_release": "Red Hat Enterprise Linux 9.1",
+    "satellite_managed": True,
+    "cloud_provider": "aws",
+    "is_marketplace": False,
+    "operating_system": {"name": "RHEL", "major": 9, "minor": 1},
+}
+
+_APP_DATA_TABLES = (
+    "hosts_app_data_advisor",
+    "hosts_app_data_vulnerability",
+    "hosts_app_data_patch",
+    "hosts_app_data_remediations",
+    "hosts_app_data_compliance",
+    "hosts_app_data_malware",
+)
+
+
+@contextmanager
+def _capture_sql():
+    queries: list[str] = []
+
+    def _record(conn, cursor, statement, parameters, context, executemany):  # noqa: ARG001
+        queries.append(statement)
+
+    engine = db.session.get_bind()
+    event.listen(engine, "before_cursor_execute", _record)
+    try:
+        yield queries
+    finally:
+        event.remove(engine, "before_cursor_execute", _record)
 
 
 @mock.patch("requests.Session.post", autospec=True)
@@ -656,6 +694,42 @@ class TestCreateExportWithView:
             result = create_export(validated_msg, base64_id, inventory_config)
             assert result is True
 
+    def test_export_without_view_includes_legacy_system_profile_fields(
+        self, flask_app, db_create_host, inventory_config
+    ):
+        """Hosts-table export (no view_id) still includes static system-profile fields."""
+        captured_data = []
+
+        def capture_post(_self, url, *, data, **_kwargs):
+            if hasattr(data, "decode"):
+                captured_data.append(data.decode("utf-8"))
+            else:
+                captured_data.append(b"".join(data).decode("utf-8"))
+            resp = Response()
+            resp.url = url
+            resp.status_code = HTTPStatus.ACCEPTED
+            resp._content = b"Export successful"
+            return resp
+
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+
+            export_msg = es_utils.create_export_message_mock(filters={})
+            validated_msg = parse_export_service_message(export_msg)
+            base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
+
+            result = create_export(validated_msg, base64_id, inventory_config)
+            assert result is True
+            assert len(captured_data) == 1
+
+            parsed = json.loads(captured_data[0])
+            assert len(parsed) == 1
+            assert list(parsed[0].keys()) == _EXPORT_SERVICE_FIELDS
+            assert parsed[0]["os_release"] == "Red Hat Enterprise Linux 9.1"
+            assert parsed[0]["satellite_managed"] is True
+            assert parsed[0]["cloud_provider"] == "aws"
+            assert parsed[0]["is_marketplace"] is False
+
     @mock.patch("requests.Session.post", new=mocked_export_post)
     def test_export_with_view_columns(self, flask_app, db_create_host, db_create_view, inventory_config):
         """Export with a view_id uses the view's column configuration."""
@@ -811,10 +885,83 @@ class TestResolveExportColumns:
 
             assert "host_id" in fields
             assert "display_name" in fields
-            assert "os_release" in fields
+            assert "operating_system" in fields
             assert "tags" in fields
             assert "state" in fields
             assert app_data == {}
+
+    def test_ui_core_columns_mapped_to_system_profile_fields(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "operating_system"},
+                {"key": "infrastructure"},
+                {"key": "vendor"},
+                {"key": "workload"},
+                {"key": "status"},
+                {"key": "per_reporter_staleness"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert fields == [
+                "host_id",
+                "operating_system",
+                "infrastructure_type",
+                "infrastructure_vendor",
+                "workloads",
+                "state",
+                "data_collector",
+            ]
+            assert app_data == {}
+
+    def test_all_systems_view_picker_columns_are_exported(self, flask_app):
+        """Every column in the Systems View picker must resolve to at least one export field."""
+        picker_keys = (
+            # Inventory
+            "display_name",
+            "group_name",
+            "tags",
+            "operating_system",
+            "last_check_in",
+            "status",
+            "infrastructure",
+            "vendor",
+            "workload",
+            "created",
+            "per_reporter_staleness",
+            # Content
+            "patch:advisories_rhsa_installable",
+            "patch:template_name",
+            # Advisor
+            "advisor:recommendations",
+            "advisor:incidents",
+            # Vulnerability
+            "vulnerability:total_cves",
+            "vulnerability:critical_cves",
+            "vulnerability:important_cves",
+            "vulnerability:cves_with_security_rules",
+            "vulnerability:cves_with_known_exploits",
+            # Malware
+            "malware:last_status",
+            "malware:total_matches",
+            "malware:last_scan",
+            # Compliance
+            "compliance:policies_count",
+            "compliance:last_scan",
+        )
+
+        with flask_app.app.app_context():
+            fields, _ = resolve_export_columns([{"key": key} for key in picker_keys])
+
+            dropped = []
+            for key in picker_keys:
+                mapped = CORE_VIEW_FIELDS_TO_EXPORT_FIELDS.get(key)
+                if mapped:
+                    if any(field not in fields for field in mapped):
+                        dropped.append(key)
+                elif key not in fields:
+                    dropped.append(key)
+
+            assert dropped == [], f"View columns dropped from export: {dropped}"
 
     def test_app_data_columns_parsed(self, flask_app):
         with flask_app.app.app_context():
@@ -846,7 +993,7 @@ class TestResolveExportColumns:
             assert fields[0] == "host_id"
             tags_idx = fields.index("tags")
             display_idx = fields.index("display_name")
-            os_idx = fields.index("os_release")
+            os_idx = fields.index("operating_system")
             assert tags_idx < display_idx < os_idx
 
     def test_unknown_app_column_ignored(self, flask_app):
@@ -884,13 +1031,12 @@ class TestResolveExportColumns:
             assert fields == ["host_id", "display_name", "advisor:recommendations"]
             assert app_data == {"advisor": ["recommendations"]}
 
-    def test_group_name_produces_two_fields(self, flask_app):
+    def test_group_name_exports_workspace_name_only(self, flask_app):
         with flask_app.app.app_context():
             columns = [{"key": "group_name"}]
             fields, _ = resolve_export_columns(columns)
 
-            assert "group_id" in fields
-            assert "group_name" in fields
+            assert fields == ["host_id", "group_name"]
 
 
 class TestStreamingExportBodyCustomFields:
@@ -911,7 +1057,7 @@ class TestStreamingExportBodyCustomFields:
         json_output = b"".join(body).decode("utf-8")
 
         parsed = json.loads(json_output)
-        assert parsed == hosts
+        assert parsed == [{"host_id": "1", "display_name": "host-a"}]
 
 
 class TestGetHostsToExportWithColumns:
@@ -962,3 +1108,137 @@ class TestGetHostsToExportWithColumns:
             assert results[0]["display_name"] == "plain-host"
             assert results[0]["advisor:recommendations"] is None
             assert list(results[0].keys()) == export_fields
+
+    def test_default_export_includes_legacy_system_profile_fields(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+            identity = Identity(USER_IDENTITY)
+            results = list(get_hosts_to_export(identity))
+
+            assert len(results) == 1
+            assert list(results[0].keys()) == _EXPORT_SERVICE_FIELDS
+            assert results[0]["os_release"] == "Red Hat Enterprise Linux 9.1"
+            assert results[0]["satellite_managed"] is True
+            assert results[0]["cloud_provider"] == "aws"
+            assert results[0]["is_marketplace"] is False
+
+    def test_default_export_left_joins_static_profile_once(self, flask_app, db_create_host):
+        """RHINENG-29090: legacy export fetches static profile via one LEFT JOIN, not N+1."""
+        with flask_app.app.app_context():
+            for _ in range(5):
+                db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+            identity = Identity(USER_IDENTITY)
+
+            with _capture_sql() as queries:
+                results = list(get_hosts_to_export(identity))
+
+            assert len(results) == 5
+            static_queries = [q for q in queries if "system_profiles_static" in q]
+            assert len(static_queries) == 1
+            assert "LEFT OUTER JOIN" in static_queries[0].upper()
+            assert not any("system_profiles_dynamic" in q for q in queries)
+            assert not any(table in q for q in queries for table in _APP_DATA_TABLES)
+
+    def test_inventory_only_view_omits_system_profile_fields(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "display_name", "group_name"]
+
+            with _capture_sql() as queries:
+                results = list(get_hosts_to_export(identity, export_fields=export_fields))
+
+            assert len(results) == 1
+            assert list(results[0].keys()) == export_fields
+            assert "os_release" not in results[0]
+            assert "workloads" not in results[0]
+            assert not any("system_profiles_static" in q for q in queries)
+            assert not any("system_profiles_dynamic" in q for q in queries)
+
+    def test_os_column_uses_static_profile(self, flask_app, db_create_host):
+        with flask_app.app.app_context():
+            db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+            identity = Identity(USER_IDENTITY)
+            export_fields = ["host_id", "operating_system"]
+            results = list(get_hosts_to_export(identity, export_fields=export_fields))
+
+            assert len(results) == 1
+            assert results[0]["operating_system"]["name"] == "RHEL"
+            assert results[0]["operating_system"]["major"] == 9
+            assert "os_release" not in results[0]
+
+    def test_app_data_columns_are_not_joined_on_hosts_scan(self, flask_app, db_create_host, db_create_host_app_data):
+        with flask_app.app.app_context():
+            host = db_create_host(host=db_host(display_name="app-host"))
+            db_create_host_app_data(str(host.id), "test", "advisor", recommendations=7)
+            identity = Identity(USER_IDENTITY)
+
+            with _capture_sql() as queries:
+                results = list(
+                    get_hosts_to_export(
+                        identity,
+                        export_fields=["host_id", "advisor:recommendations"],
+                        app_data_fields={"advisor": ["recommendations"]},
+                    )
+                )
+
+            assert results[0]["advisor:recommendations"] == 7
+            joined_app = [q for q in queries if "JOIN" in q.upper() and any(table in q for table in _APP_DATA_TABLES)]
+            assert joined_app == []
+            advisor_lookups = [q for q in queries if "hosts_app_data_advisor" in q]
+            assert len(advisor_lookups) == 1
+            assert not any("hosts_app_data_vulnerability" in q for q in queries)
+
+    def test_app_data_filter_joins_only_filtered_app(self, flask_app, db_create_host, db_create_host_app_data):
+        with flask_app.app.app_context():
+            match = db_create_host(host=db_host(display_name="match"))
+            db_create_host(host=db_host(display_name="skip"))
+            db_create_host_app_data(str(match.id), "test", "advisor", recommendations=9)
+            identity = Identity(USER_IDENTITY)
+            query_filter = {"advisor": {"recommendations": {"gte": 1}}}
+
+            with _capture_sql() as queries:
+                results = list(
+                    get_hosts_to_export(
+                        identity,
+                        export_fields=["host_id", "display_name"],
+                        query_filter=query_filter,
+                    )
+                )
+
+            assert [r["display_name"] for r in results] == ["match"]
+            joined = [q for q in queries if "LEFT OUTER JOIN" in q.upper() and "hosts_app_data_advisor" in q]
+            assert len(joined) == 1
+            assert "hosts_app_data_vulnerability" not in joined[0]
+            assert "hosts_app_data_patch" not in joined[0]
+            assert not any("hosts_app_data_vulnerability" in q for q in queries)
+
+
+class TestExportProfileJoins:
+    def test_legacy_fields_need_static_join(self):
+        assert _export_needs_profile_joins(_EXPORT_SERVICE_FIELDS, None) == (True, False)
+
+    def test_inventory_only_fields_skip_joins(self):
+        assert _export_needs_profile_joins(["host_id", "display_name", "group_name"], None) == (False, False)
+
+    def test_os_column_needs_static_join(self):
+        assert _export_needs_profile_joins(["host_id", "operating_system"], None) == (True, False)
+
+    def test_workload_column_needs_dynamic_join(self):
+        assert _export_needs_profile_joins(["host_id", "workloads"], None) == (False, True)
+
+    def test_sp_filter_joins_even_without_sp_columns(self):
+        query_filter = {"system_profile": {"os_release": {"eq": "8.10"}}}
+        need_static, need_dynamic = _export_needs_profile_joins(["host_id", "display_name"], query_filter)
+        assert need_static is True
+        assert need_dynamic is False
+
+    def test_no_app_models_without_filter(self):
+        assert _app_models_needed_for_filter(None) == []
+        assert _app_models_needed_for_filter({}) == []
+        assert _app_models_needed_for_filter({"system_profile": {"os_release": {"eq": "8.10"}}}) == []
+
+    def test_filter_joins_only_referenced_apps(self, flask_app):
+        with flask_app.app.app_context():
+            models = _app_models_needed_for_filter({"advisor": {"recommendations": {"gte": 1}}})
+            assert [m.__tablename__ for m in models] == ["hosts_app_data_advisor"]

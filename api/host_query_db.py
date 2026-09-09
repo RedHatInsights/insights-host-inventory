@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from itertools import islice
+from types import SimpleNamespace
 from typing import Any
-from typing import NamedTuple
 
 from sqlalchemy import Boolean
 from sqlalchemy import Integer
@@ -27,6 +27,7 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.app_data_sorting import resolve_app_sort
 from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
 from api.filtering.db_filters import _is_table_already_joined
+from api.filtering.db_filters import _needs_system_profile_joins
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
@@ -45,6 +46,7 @@ from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
+from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
@@ -886,25 +888,68 @@ def get_host_ids_list(
     return host_list
 
 
-class _ExportHostRow(NamedTuple):
-    id: Any
-    display_name: str | None
-    host_type: str | None
-    modified_on: Any
-    created_on: Any
-    groups: Any
-    tags: Any
-    fqdn: str | None
-    subscription_manager_id: str | None
-    satellite_id: str | None
-    last_check_in: Any
-    bios_uuid: str | None
-    ip_addresses: Any
-    per_reporter_staleness: Any
-    os_release: str | None
-    satellite_managed: bool | None
-    cloud_provider: str | None
-    is_marketplace: bool | None
+_HOST_EXPORT_COLUMNS: list[ColumnElement] = [
+    Host.id,
+    Host.display_name,
+    Host.host_type,
+    Host.modified_on,
+    Host.created_on,
+    Host.groups,
+    Host.tags,
+    Host.fqdn,
+    Host.subscription_manager_id,
+    Host.satellite_id,
+    Host.last_check_in,
+    Host.bios_uuid,
+    Host.ip_addresses,
+    Host.reporters,
+]
+
+_STATIC_SP_EXPORT_COLUMNS: list[ColumnElement] = [
+    HostStaticSystemProfile.os_release,
+    HostStaticSystemProfile.satellite_managed,
+    HostStaticSystemProfile.cloud_provider,
+    HostStaticSystemProfile.is_marketplace,
+    HostStaticSystemProfile.operating_system,
+    HostStaticSystemProfile.infrastructure_type,
+    HostStaticSystemProfile.infrastructure_vendor,
+]
+
+_DYNAMIC_SP_EXPORT_COLUMNS: list[ColumnElement] = [
+    HostDynamicSystemProfile.workloads,
+]
+
+_SP_ROW_ATTRS = tuple(col.key for col in _STATIC_SP_EXPORT_COLUMNS + _DYNAMIC_SP_EXPORT_COLUMNS)
+_STATIC_SP_EXPORT_FIELDS = frozenset(col.key for col in _STATIC_SP_EXPORT_COLUMNS)
+_DYNAMIC_SP_EXPORT_FIELDS = frozenset(col.key for col in _DYNAMIC_SP_EXPORT_COLUMNS)
+
+
+def _export_needs_profile_joins(export_fields: list[str], query_filter: dict | None) -> tuple[bool, bool]:
+    """Return (need_static, need_dynamic) joins for the requested export fields and filters."""
+    field_set = set(export_fields)
+    need_static = bool(field_set & _STATIC_SP_EXPORT_FIELDS)
+    need_dynamic = bool(field_set & _DYNAMIC_SP_EXPORT_FIELDS)
+    filter_static, filter_dynamic = _needs_system_profile_joins(query_filter, None)
+    return need_static or filter_static, need_dynamic or filter_dynamic
+
+
+def _app_models_needed_for_filter(query_filter: dict | None) -> list:
+    """App-data tables that must be LEFT JOINed so filter expressions can resolve.
+
+    Export *columns* are fetched with ``_fetch_app_data_batch`` (one IN-list query
+    per requested app). Do not join every hosts_app_data_* table onto the scan.
+    """
+    if not query_filter:
+        return []
+    models = get_app_data_models()
+    return [models[name] for name, spec in query_filter.items() if name in models and spec]
+
+
+def _row_to_export_host(row, labels: list[str]) -> SimpleNamespace:
+    host = SimpleNamespace(**dict.fromkeys(_SP_ROW_ATTRS, None))
+    for name, value in zip(labels, row, strict=True):
+        setattr(host, name, value)
+    return host
 
 
 def get_hosts_to_export(
@@ -925,7 +970,15 @@ def get_hosts_to_export(
         query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
         host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
         export_fields: Ordered list of flat field names to include in the export.
+            When omitted, uses the legacy hosts-table field set (includes static
+            system-profile fields such as os_release and cloud_provider).
         app_data_fields: Map of app_name -> [field_names] for app-data columns to fetch.
+
+    Profile columns are selected with an explicit LEFT JOIN on the hosts scan and
+    serialized from the flat row.
+
+    App-data columns are not joined onto that scan. They are loaded afterward in
+    batches. An app table is LEFT JOINed only when a view filter references it.
     """
     from app.queue.export_service import _fetch_app_data_batch
 
@@ -948,50 +1001,55 @@ def get_hosts_to_export(
         **host_filter,
     )
 
-    columns = [
-        Host.id,
-        Host.display_name,
-        Host.host_type,
-        Host.modified_on,
-        Host.created_on,
-        Host.groups,
-        Host.tags,
-        Host.fqdn,
-        Host.subscription_manager_id,
-        Host.satellite_id,
-        Host.last_check_in,
-        Host.bios_uuid,
-        Host.ip_addresses,
-        Host.per_reporter_staleness,
-        HostStaticSystemProfile.os_release,
-        HostStaticSystemProfile.satellite_managed,
-        HostStaticSystemProfile.cloud_provider,
-        HostStaticSystemProfile.is_marketplace,
-    ]
+    resolved_export_fields = export_fields if export_fields is not None else _EXPORT_SERVICE_FIELDS
+    field_set = set(resolved_export_fields)
+    need_static, need_dynamic = _export_needs_profile_joins(resolved_export_fields, query_filter)
 
-    base_query = (
-        _find_hosts_entities_query(identity=identity, columns=columns)
-        .outerjoin(
+    selected_columns: list[ColumnElement] = list(_HOST_EXPORT_COLUMNS)
+    if need_static:
+        selected_columns.extend(col for col in _STATIC_SP_EXPORT_COLUMNS if col.key in field_set)
+    if need_dynamic:
+        selected_columns.extend(col for col in _DYNAMIC_SP_EXPORT_COLUMNS if col.key in field_set)
+
+    labels = [col.key for col in selected_columns if col.key is not None]
+
+    # Entities query + LEFT JOIN (not joinedload / scalars) so profile data is
+    # fetched in the same SELECT as the hosts scan.
+    base_query = _find_hosts_entities_query(identity=identity, columns=selected_columns)
+    if need_static:
+        base_query = base_query.outerjoin(
             HostStaticSystemProfile,
             and_(
                 Host.id == HostStaticSystemProfile.host_id,
                 Host.org_id == HostStaticSystemProfile.org_id,
             ),
         )
-        .filter(*q_filters)
-    )
+    if need_dynamic:
+        base_query = base_query.outerjoin(
+            HostDynamicSystemProfile,
+            and_(
+                Host.id == HostDynamicSystemProfile.host_id,
+                Host.org_id == HostDynamicSystemProfile.org_id,
+            ),
+        )
+    for model_class in _app_models_needed_for_filter(query_filter):
+        if not _is_table_already_joined(base_query, model_class):
+            base_query = base_query.outerjoin(
+                model_class,
+                and_(Host.id == model_class.host_id, Host.org_id == model_class.org_id),
+            )
+    base_query = base_query.filter(*q_filters)
     if batch_size > 0:
         base_query = base_query.yield_per(batch_size)
 
     effective_batch_size = batch_size if batch_size > 0 else 500
-    resolved_export_fields = export_fields if export_fields is not None else _EXPORT_SERVICE_FIELDS
 
     try:
         exported = 0
         if app_data_fields:
             batch_hosts: list[tuple[Any, dict]] = []
             for row in base_query:
-                host_row = _ExportHostRow(*row)
+                host_row = _row_to_export_host(row, labels)
                 serialized = serialize_host_row_for_export(
                     host_row, staleness=staleness, fields=resolved_export_fields
                 )
@@ -1015,7 +1073,7 @@ def get_hosts_to_export(
                     exported += 1
         else:
             for row in base_query:
-                host_row = _ExportHostRow(*row)
+                host_row = _row_to_export_host(row, labels)
                 yield serialize_host_row_for_export(host_row, staleness=staleness, fields=resolved_export_fields)
                 exported += 1
 

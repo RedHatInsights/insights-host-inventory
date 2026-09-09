@@ -592,8 +592,11 @@ def query_filters(
     if needs_dynamic_join:
         query_base = query_base.outerjoin(HostDynamicSystemProfile)
 
-    # Add app data joins for filtering
+    # Add app data joins for filtering (only the apps referenced by the filter)
     for model_class in app_data_models_to_join:
-        query_base = query_base.outerjoin(model_class)
+        if not _is_table_already_joined(query_base, model_class):
+            query_base = query_base.outerjoin(
+                model_class, and_(Host.org_id == model_class.org_id, Host.id == model_class.host_id)
+            )
 
     return filters, query_base

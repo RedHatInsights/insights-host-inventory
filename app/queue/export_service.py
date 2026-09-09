@@ -23,7 +23,7 @@ from app.logging import get_logger
 from app.models.host_app_data import get_app_data_models
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import ALWAYS_INCLUDED_EXPORT_FIELDS
-from app.serialization import VIEW_COLUMN_TO_EXPORT_FIELDS
+from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from lib import metrics
 from lib.kessel import get_kessel_oauth2_credentials
 from lib.middleware import resolve_permission
@@ -89,6 +89,8 @@ def resolve_export_columns(
     of a Flask request context. The export already requires host:view permission.
     """
     if not view_columns:
+        # Legacy hosts-table export button: no View columns, keep the original
+        # field set including static system-profile columns (os_release, etc.).
         return _EXPORT_SERVICE_FIELDS, {}
 
     all_models = get_app_data_models()
@@ -99,8 +101,8 @@ def resolve_export_columns(
     for col in view_columns:
         key = col.get("key") or ""
 
-        if key in VIEW_COLUMN_TO_EXPORT_FIELDS:
-            for field in VIEW_COLUMN_TO_EXPORT_FIELDS[key]:
+        if key in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS:
+            for field in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS[key]:
                 if field not in export_fields:
                     export_fields.append(field)
         elif ":" in key:
@@ -122,7 +124,12 @@ def _fetch_app_data_batch(
     org_id: str,
     app_data_fields: dict[str, list[str]],
 ) -> dict[str, dict]:
-    """Fetch app-data for a batch of hosts, returning {host_id_str: {app:field: value}}."""
+    """Fetch app-data for a batch of hosts, returning {host_id_str: {app:field: value}}.
+
+    Queries only the requested app tables (org_id equality + host_id IN (...)).
+    This is used instead of LEFT JOINing every hosts_app_data_* table onto the
+    hosts scan.
+    """
     if not host_ids or not app_data_fields:
         return {}
 
@@ -156,6 +163,7 @@ class _StreamingExportBody:
         self._host_iter = host_iter
         self._export_format = export_format.lower()
         self._export_fields = export_fields or _EXPORT_SERVICE_FIELDS
+        self._custom_fields = export_fields is not None
         self.host_count = 0
 
     def __iter__(self):
@@ -167,7 +175,10 @@ class _StreamingExportBody:
                 if not first:
                     yield b","
                 first = False
-                yield json.dumps(host).encode("utf-8")
+                if self._custom_fields:
+                    yield json.dumps({field: host.get(field) for field in self._export_fields}).encode("utf-8")
+                else:
+                    yield json.dumps(host).encode("utf-8")
             yield b"]"
         elif self._export_format == "csv":
             yield export_csv_header(self._export_fields).encode("utf-8")

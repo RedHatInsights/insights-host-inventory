@@ -60,19 +60,19 @@ _EXPORT_SERVICE_FIELDS = [
     "ip_addresses",
 ]
 
-VIEW_COLUMN_TO_EXPORT_FIELDS: dict[str, list[str]] = {
+CORE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
     "display_name": ["display_name"],
-    "group_name": ["group_id", "group_name"],
-    "operating_system": ["os_release"],
+    "group_name": ["group_name"],
+    "operating_system": ["operating_system"],
     "last_check_in": ["last_check_in"],
     "updated": ["updated"],
     "created": ["created"],
     "status": ["state"],
     "tags": ["tags"],
-    "infrastructure": ["cloud_provider"],
-    "vendor": ["satellite_managed"],
-    "workload": ["host_type"],
-    "per_reporter_staleness": ["per_reporter_staleness"],
+    "infrastructure": ["infrastructure_type"],
+    "vendor": ["infrastructure_vendor"],
+    "workload": ["workloads"],
+    "per_reporter_staleness": ["data_collector"],
 }
 
 ALWAYS_INCLUDED_EXPORT_FIELDS = ["host_id"]
@@ -318,11 +318,11 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "satellite_id": row.satellite_id,
         "group_id": group_id,
         "group_name": group_name,
-        "os_release": row.os_release,
+        "os_release": getattr(row, "os_release", None),
         "updated": _serialize_datetime(row.modified_on),
         "created": _serialize_datetime(row.created_on) if getattr(row, "created_on", None) else None,
         "last_check_in": _serialize_datetime(row.last_check_in) if row.last_check_in else None,
-        "per_reporter_staleness": getattr(row, "per_reporter_staleness", None),
+        "data_collector": list(row.reporters) if getattr(row, "reporters", None) else None,
         "state": Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
@@ -330,10 +330,14 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "tags": _serialize_tags(row.tags),
         "host_type": row.host_type or "conventional",
         "bios_uuid": row.bios_uuid,
-        "satellite_managed": row.satellite_managed,
-        "cloud_provider": row.cloud_provider,
-        "is_marketplace": row.is_marketplace,
+        "satellite_managed": getattr(row, "satellite_managed", None),
+        "cloud_provider": getattr(row, "cloud_provider", None),
+        "is_marketplace": getattr(row, "is_marketplace", None),
         "ip_addresses": row.ip_addresses,
+        "operating_system": getattr(row, "operating_system", None),
+        "infrastructure_type": getattr(row, "infrastructure_type", None),
+        "infrastructure_vendor": getattr(row, "infrastructure_vendor", None),
+        "workloads": getattr(row, "workloads", None),
     }
 
     export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
