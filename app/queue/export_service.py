@@ -26,6 +26,7 @@ from app.serialization import ALWAYS_INCLUDED_EXPORT_FIELDS
 from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from lib import metrics
 from lib.kessel import get_kessel_oauth2_credentials
+from lib.middleware import get_allowed_app_services
 from lib.middleware import resolve_permission
 from lib.views_repository import ViewNotFoundError
 from lib.views_repository import ViewPermissionError
@@ -77,16 +78,19 @@ def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, di
 
 def resolve_export_columns(
     view_columns: list[dict],
+    allowed_apps: set[str] | None = None,
 ) -> tuple[list[str], dict[str, list[str]]]:
     """Convert view column configs into an ordered export field list and app-data requirements.
+
+    Args:
+        view_columns: Ordered list of column configurations from the view.
+        allowed_apps: Optional set of permitted app names. When provided, columns
+            belonging to unauthorized applications are omitted from the export.
 
     Returns:
         (export_fields, app_data_fields) where export_fields is the ordered list of flat
         field names for the export, and app_data_fields maps app_name -> [field_names]
         for app-data columns that need to be fetched separately.
-
-    Note: Per-app RBAC is not applied here because the export consumer runs outside
-    of a Flask request context. The export already requires host:view permission.
     """
     if not view_columns:
         # Legacy hosts-table export button: no View columns, keep the original
@@ -107,6 +111,8 @@ def resolve_export_columns(
                     export_fields.append(field)
         elif ":" in key:
             app_name, field_name = key.split(":", 1)
+            if allowed_apps is not None and app_name not in allowed_apps:
+                continue
             model_class = all_models.get(app_name)
             if model_class and field_name in model_class._get_serializable_fields():
                 fields_for_app = app_data_fields.setdefault(app_name, [])
@@ -335,6 +341,7 @@ def create_export(
     host_filter: dict = {}
     query_filter: dict = {}
     view_columns: list[dict] = []
+    allowed_apps: set[str] | None = None
 
     if view_id:
         user_id = identity.user_id
@@ -388,7 +395,27 @@ def create_export(
             session.close()
             return export_created
 
-    export_fields, app_data_fields = resolve_export_columns(view_columns)
+        allowed_apps = get_allowed_app_services(identity, rbac_request_headers=rbac_request_headers)
+        if allowed_apps is not None and query_filter:
+            known_apps = set(get_app_data_models().keys())
+            denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
+            if denied_filters:
+                request_url = _build_export_request_url(
+                    export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+                )
+                _handle_export_error(
+                    f"Insufficient permissions to filter by {denied_filters}",
+                    403,
+                    request_url,
+                    session,
+                    request_headers,
+                    exportUUID,
+                    exportFormat,
+                )
+                session.close()
+                return export_created
+
+    export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
 
     try:
         hosts_iter = _non_empty_hosts_iter(

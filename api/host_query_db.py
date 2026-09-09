@@ -903,6 +903,7 @@ _HOST_EXPORT_COLUMNS: list[ColumnElement] = [
     Host.bios_uuid,
     Host.ip_addresses,
     Host.reporters,
+    Host.per_reporter_staleness,
 ]
 
 _STATIC_SP_EXPORT_COLUMNS: list[ColumnElement] = [
