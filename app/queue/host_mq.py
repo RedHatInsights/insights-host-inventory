@@ -1333,7 +1333,7 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     insights_id = serialize_uuid(result.row.insights_id)
     owner_id = serialize_uuid(result.row.static_system_profile.owner_id) if result.row.static_system_profile else None
     if insights_id and owner_id:
-        delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id, spawn=True)
+        delete_cached_system_keys(insights_id=insights_id, org_id=result.row.org_id, owner_id=owner_id)
     result.success_logger()
 
 

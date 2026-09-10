@@ -44,6 +44,7 @@ from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
+from app.queue.host_mq import write_delete_event_message
 from app.utils import Tag
 from inv_mq_service import build_topic_to_consumer_map
 from lib.host_repository import AddHostResult
@@ -3325,3 +3326,83 @@ def test_rhsm_with_containers_updates_normally(reporter, mq_create_or_update_hos
     workloads = returned_host.dynamic_system_profile.workloads
     assert workloads["ansible"]["controller_version"] == "2.0"
     assert workloads["ansible"]["containers"] == new_containers
+
+
+def test_write_delete_event_message_invalidates_cache_synchronously(mocker):
+    from uuid import UUID
+
+    mock_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.build_event", return_value="event")
+    mocker.patch(
+        "app.queue.host_mq.extract_system_profile_fields_for_headers",
+        return_value=(None, None, "False"),
+    )
+    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+
+    insights_id = generate_uuid()
+    owner_id = generate_uuid()
+    org_id = "test-org"
+
+    static_sp = mocker.Mock()
+    static_sp.owner_id = UUID(owner_id)
+
+    host_row = mocker.NonCallableMock()
+    host_row.id = UUID(generate_uuid())
+    host_row.insights_id = UUID(insights_id)
+    host_row.org_id = org_id
+    host_row.reporter = "puptoo"
+    host_row.static_system_profile = static_sp
+
+    result = OperationResult(
+        row=host_row,
+        pm=None,
+        so=None,
+        et=EventType.delete,
+        sl=mock_success_logger,
+    )
+
+    write_delete_event_message(mock_event_producer, result, initiated_by_frontend=False)
+
+    mock_event_producer.write_event.assert_called_once()
+    mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+    mock_success_logger.assert_called_once()
+
+
+def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mocker):
+    from uuid import UUID
+
+    mock_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.build_event", return_value="event")
+    mocker.patch(
+        "app.queue.host_mq.extract_system_profile_fields_for_headers",
+        return_value=(None, None, "False"),
+    )
+    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+
+    insights_id = generate_uuid()
+    org_id = "test-org"
+
+    host_row = mocker.NonCallableMock(spec=["id", "insights_id", "org_id", "reporter", "static_system_profile"])
+    host_row.id = UUID(generate_uuid())
+    host_row.insights_id = UUID(insights_id)
+    host_row.org_id = org_id
+    host_row.reporter = "puptoo"
+    host_row.static_system_profile = None
+
+    result = OperationResult(
+        row=host_row,
+        pm=None,
+        so=None,
+        et=EventType.delete,
+        sl=mock_success_logger,
+    )
+
+    write_delete_event_message(mock_event_producer, result, initiated_by_frontend=False)
+
+    mock_event_producer.write_event.assert_called_once()
+    mock_delete_cache.assert_not_called()
+    mock_success_logger.assert_called_once()
