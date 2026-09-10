@@ -153,7 +153,8 @@ def get_host_list(
         stored_system = CACHE.get(f"{system_key}")
         if stored_system:
             host_list = [stored_system]
-            json_data = build_paginated_host_list_response(1, page, per_page, host_list, serialize_hosts=False)
+            total = 1 if get_total else None
+            json_data = build_paginated_host_list_response(total, page, per_page, host_list, serialize_hosts=False)
             metrics.api_cached_systems_hit.inc()
             return flask_json_response(json_data)
 
