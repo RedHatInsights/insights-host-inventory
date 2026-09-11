@@ -734,6 +734,28 @@ def test_only_key_tag_from_string():
     assert Tag.from_string("key") == Tag(None, "key", None)
 
 
+def test_empty_namespace_key_with_slash_tag_from_string():
+    assert Tag.from_string("/my/key=myvalue") == Tag(None, "my/key", "myvalue")
+
+
+def test_empty_namespace_with_value_tag_from_string():
+    assert Tag.from_string("/key=value") == Tag(None, "key", "value")
+
+
+def test_empty_namespace_no_value_tag_from_string():
+    assert Tag.from_string("/key") == Tag(None, "key", None)
+
+
+def test_empty_namespace_multiple_slashes_in_key_tag_from_string():
+    assert Tag.from_string("/my/nested/path/key=myvalue") == Tag(None, "my/nested/path/key", "myvalue")
+    assert Tag.from_string("/my/nested/path/key") == Tag(None, "my/nested/path/key", None)
+
+
+def test_null_namespace_with_slash_in_key_tag_from_string():
+    assert Tag.from_string("null/my/key=myvalue") == Tag(None, "my/key", "myvalue")
+    assert Tag.from_string("null/my/key") == Tag(None, "my/key", None)
+
+
 def test_special_characters_decode_tag_from_string():
     assert Tag.from_string("Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal") == Tag(
         "Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al"
