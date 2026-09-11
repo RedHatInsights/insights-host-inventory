@@ -50,7 +50,7 @@ The IQE dependencies mostly live in a Red Hat private Nexus repository.
 To update them, run the following commands and push the changes to the lockfile as a PR.
 
 ```bash
-uv --project iqe-host-inventory-plugin lock
+uv --project iqe-host-inventory-plugin lock --refresh
 uv --project iqe-host-inventory-plugin sync
 ```
 
