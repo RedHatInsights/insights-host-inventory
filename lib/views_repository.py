@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from functools import cache
 
 from sqlalchemy import and_
 from sqlalchemy import or_
+from sqlalchemy.dialects.postgresql import insert
 
 from app.exceptions import InventoryException
 from app.logging import get_logger
 from app.models import InventoryView
+from app.models import UserViewPreference
 from app.models import db
+from app.models.utils import _time_now
 from app.models.views import MAX_VIEW_NAME_LENGTH
 from lib.db import session_guard
 
@@ -21,9 +25,33 @@ __all__ = (
     "update_view",
     "delete_view",
     "clone_view",
+    "get_default_view_id",
+    "set_default_view",
+    "delete_default_view",
 )
 
 CLONE_NAME_PREFIX = "Copy of "
+ALL_SYSTEMS_VIEW_NAME = "All systems"
+
+
+@cache
+def _get_system_default_view_id() -> str:
+    """Return the UUID of the seeded 'All systems' system view (cached after first lookup)."""
+    view_id = (
+        db.session.query(InventoryView.id)
+        .filter(
+            InventoryView.org_id.is_(None),
+            InventoryView.name == ALL_SYSTEMS_VIEW_NAME,
+        )
+        .scalar()
+    )
+    if view_id is None:
+        raise InventoryException(
+            status=500,
+            title="Internal Server Error",
+            detail=f"System default view '{ALL_SYSTEMS_VIEW_NAME}' not found.",
+        )
+    return str(view_id)
 
 
 class ViewNotFoundError(InventoryException):
@@ -154,3 +182,61 @@ def clone_view(view_id: str, org_id: str, user_id: str) -> InventoryView:
     db.session.refresh(cloned)
     logger.info("Cloned view %s -> %s by %s", view_id, cloned.id, user_id)
     return cloned
+
+
+def get_default_view_id(org_id: str, user_id: str) -> str:
+    """Return the user's pinned default view ID, or fall back to 'All systems'.
+
+    If a preference exists but the pinned view is no longer visible to the user,
+    falls back to the system default.
+    """
+    view_id = (
+        db.session.query(UserViewPreference.default_view_id)
+        .join(
+            InventoryView,
+            InventoryView.id == UserViewPreference.default_view_id,
+        )
+        .filter(
+            UserViewPreference.org_id == org_id,
+            UserViewPreference.user_id == user_id,
+            _visibility_filter(org_id, user_id),
+        )
+        .scalar()
+    )
+    if view_id is not None:
+        return str(view_id)
+    return _get_system_default_view_id()
+
+
+def set_default_view(org_id: str, user_id: str, view_id: str) -> InventoryView:
+    """Pin a visible view as the user's default. Upserts the preference row."""
+    view = _get_visible_view(view_id, org_id, user_id)
+
+    stmt = insert(UserViewPreference).values(
+        org_id=org_id,
+        user_id=user_id,
+        default_view_id=view.id,
+        updated_on=_time_now(),
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["org_id", "user_id"],
+        set_={
+            "default_view_id": stmt.excluded.default_view_id,
+            "updated_on": stmt.excluded.updated_on,
+        },
+    )
+
+    with session_guard(db.session, close=False):
+        db.session.execute(stmt)
+
+    logger.info("Set default view %s for org %s user %s", view_id, org_id, user_id)
+    return view
+
+
+def delete_default_view(org_id: str, user_id: str) -> None:
+    """Unpin the user's default view. Idempotent if no preference exists."""
+    with session_guard(db.session):
+        deleted = UserViewPreference.query.filter_by(org_id=org_id, user_id=user_id).delete()
+
+    if deleted:
+        logger.info("Deleted default view preference for org %s user %s", org_id, user_id)
