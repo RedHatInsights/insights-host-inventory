@@ -8,6 +8,9 @@ from pytest import mark
 from pytest import raises
 from yaml import safe_load
 
+from api.cache import CACHE_PREFIX
+from api.cache import GENERATION_KEY_SUFFIX
+from api.cache import _invalidate_system_cache_redis
 from api.cache import delete_cached_system_keys
 from api.cache import get_system_cache_generation
 from api.cache_key import make_system_cache_key
@@ -216,18 +219,7 @@ def test_delete_cached_system_keys_increments_generation(invalidate_mock):
 
     delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
 
-    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=False)
-
-
-@patch("api.cache._invalidate_system_cache")
-def test_delete_cached_system_keys_with_spawn(invalidate_mock):
-    insights_id = generate_uuid()
-    org_id = "test"
-    owner_id = "abc"
-
-    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id, spawn=True)
-
-    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=True)
+    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id)
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
@@ -239,14 +231,44 @@ def test_get_system_cache_generation_returns_stored_value(redis_client_mock):
     redis_client_mock.get.return_value = b"7"
 
     assert get_system_cache_generation(insights_id, org_id, owner_id) == 7
+    # Should NOT call set when key already exists
+    redis_client_mock.set.assert_not_called()
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
 @patch("api.cache.REDIS_CLIENT")
-def test_get_system_cache_generation_returns_zero_when_key_missing(redis_client_mock):
+@patch("app.common.inventory_config")
+def test_get_system_cache_generation_inits_counter_when_key_missing(inventory_config_mock, redis_client_mock):
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
     redis_client_mock.get.return_value = None
+    redis_client_mock.set.return_value = True
+    cache_ttl = 129600
+    inventory_config_mock.return_value.cache_insights_client_system_timeout_sec = cache_ttl
 
-    assert get_system_cache_generation(generate_uuid(), "test", "abc") == 0
+    assert get_system_cache_generation(insights_id, org_id, owner_id) == 0
+
+    base_key = system_cache_key_base(insights_id, org_id, owner_id)
+    expected_gen_key = f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
+    redis_client_mock.set.assert_called_once_with(expected_gen_key, 0, ex=cache_ttl, nx=True)
+
+
+@patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})
+@patch("api.cache.REDIS_CLIENT")
+@patch("app.common.inventory_config")
+def test_get_system_cache_generation_rereads_on_concurrent_invalidation(inventory_config_mock, redis_client_mock):
+    """When SET NX fails because a concurrent INCR created the key, re-read the actual generation."""
+    insights_id = generate_uuid()
+    org_id = "test"
+    owner_id = "abc"
+    # First GET returns None (key missing), second GET returns the value set by concurrent INCR
+    redis_client_mock.get.side_effect = [None, b"1"]
+    redis_client_mock.set.return_value = False  # NX failed — key was just created by INCR
+    cache_ttl = 129600
+    inventory_config_mock.return_value.cache_insights_client_system_timeout_sec = cache_ttl
+
+    assert get_system_cache_generation(insights_id, org_id, owner_id) == 1
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "NullCache"})
@@ -258,10 +280,6 @@ def test_get_system_cache_generation_returns_zero_when_redis_disabled():
 @patch("app.common.inventory_config")
 @patch("api.cache.REDIS_CLIENT")
 def test_invalidate_system_cache_redis_increments_generation(redis_client_mock, inventory_config_mock):
-    from api.cache import CACHE_PREFIX
-    from api.cache import GENERATION_KEY_SUFFIX
-    from api.cache import _invalidate_system_cache_redis
-
     insights_id = generate_uuid()
     org_id = "test"
     owner_id = "abc"
