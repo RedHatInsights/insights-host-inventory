@@ -1466,7 +1466,7 @@ components:
         type: array
         items:
           type: string
-          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=/]+)?$'
+          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=]+)?$'
     tagsOrderByParam:
       in: query
       name: order_by
