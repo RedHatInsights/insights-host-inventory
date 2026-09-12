@@ -50,11 +50,11 @@ class SQLDump:
         sqlevent.remove(db.engine, "before_execute", self.dump_method)
 
     def dump_sql(self, conn, clauseelement, multiparams, params, execution_options):  # noqa: ARG002
-        self.write_method("**** QUERY:\n")
-        self.write_method(sql_formatter(str(clauseelement.compile()), reindent=True, keyword_case="upper"))
-        self.write_method("\n**** PARAMETERS:\n")
-        self.write_method(json.dumps(clauseelement.compile().params, sort_keys=True, indent=4, default=str))
-        self.write_method("\n****************\n")
+        compiled = clauseelement.compile()
+        formatted_sql = sql_formatter(str(compiled), reindent=True, keyword_case="upper")
+        json_params = json.dumps(compiled.params, sort_keys=True, indent=4, default=str)
+        output = f"**** QUERY:\n{formatted_sql}\n**** PARAMETERS:\n{json_params}\n****************\n"
+        self.write_method(output)
 
 
 def dumps_sql(_func=None, *, dump_method=None, write_method=print):
