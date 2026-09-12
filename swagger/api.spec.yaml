@@ -50,6 +50,7 @@ paths:
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
         - $ref: '#/components/parameters/fields_param'
+        - $ref: '#/components/parameters/getTotalParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -1242,6 +1243,14 @@ components:
       $ref: 'pagination.yaml#/components/parameters/perPageParam'
     resourceTypesPerPageParam:
       $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
+    getTotalParam:
+      in: query
+      name: get_total
+      schema:
+        type: boolean
+        default: true
+      description: When true, the response includes the total number of items.
+      required: false
     hostId:
       in: path
       name: host_id
