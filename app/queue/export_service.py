@@ -4,6 +4,7 @@ import itertools
 import json
 from collections.abc import Iterator
 from http import HTTPStatus
+from typing import Any
 from uuid import UUID
 
 from requests import Response
@@ -20,9 +21,13 @@ from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.models.host_app_data import get_app_data_models
 from app.serialization import _EXPORT_SERVICE_FIELDS
+from app.serialization import ALWAYS_INCLUDED_EXPORT_FIELDS
+from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from lib import metrics
 from lib.kessel import get_kessel_oauth2_credentials
+from lib.middleware import get_allowed_app_services
 from lib.middleware import resolve_permission
 from lib.views_repository import ViewNotFoundError
 from lib.views_repository import ViewPermissionError
@@ -35,8 +40,8 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
 
 
-def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict]:
-    """Load a saved view and split its filters for query_filters().
+def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict, list[dict]]:
+    """Load a saved view and extract its filters and columns.
 
     The view stores all filters under ``configuration.filters``, but ``query_filters()``
     accepts them in two different ways:
@@ -44,10 +49,14 @@ def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, d
     - everything else (system_profile, app-data) → passed as the ``filter=`` dict
 
     Returns:
-        (host_filter, query_filter)
+        (host_filter, query_filter, columns):
+        - host_filter: query_filters() kwargs (staleness, tags, date ranges, etc.)
+        - query_filter: filter dict for query_filters() (system_profile, app-data, etc.)
+        - columns: ordered list of column config dicts from the view
     """
     view = get_view_by_id(view_id, org_id, user_id)
     config_filters = view.configuration.get("filters") or {}
+    columns = view.configuration.get("columns") or []
 
     host_filter: dict = {}
     query_filter: dict = {}
@@ -65,13 +74,125 @@ def _load_view_filters(view_id: str, org_id: str, user_id: str) -> tuple[dict, d
     if workspace_name:
         host_filter["group_name"] = [workspace_name] if isinstance(workspace_name, str) else workspace_name
 
-    return host_filter, query_filter
+    return host_filter, query_filter, columns
+
+
+def resolve_export_columns(
+    view_columns: list[dict],
+    allowed_apps: set[str] | None = None,
+) -> tuple[list[str], dict[str, list[str]]]:
+    """Convert view column configs into an ordered export field list and app-data requirements.
+
+    Args:
+        view_columns: Ordered list of column configurations from the view.
+        allowed_apps: Optional set of permitted app names. When provided, columns
+            belonging to unauthorized applications are omitted from the export.
+
+    Returns:
+        (export_fields, app_data_fields) where export_fields is the ordered list of flat
+        field names for the export, and app_data_fields maps app_name -> [field_names]
+        for app-data columns that need to be fetched separately.
+    """
+    if not view_columns:
+        # Legacy hosts-table export button: no View columns, keep the original
+        # field set including static system-profile columns (os_release, etc.).
+        return _EXPORT_SERVICE_FIELDS, {}
+
+    all_models = get_app_data_models()
+
+    export_fields: list[str] = list(ALWAYS_INCLUDED_EXPORT_FIELDS)
+    app_data_fields: dict[str, list[str]] = {}
+
+    for col in view_columns:
+        key = col.get("key") or ""
+
+        if key in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS:
+            for field in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS[key]:
+                if field not in export_fields:
+                    export_fields.append(field)
+        elif ":" in key:
+            app_name, field_name = key.split(":", 1)
+            if allowed_apps is not None and app_name not in allowed_apps:
+                continue
+            model_class = all_models.get(app_name)
+            if model_class and field_name in model_class._get_serializable_fields():
+                fields_for_app = app_data_fields.setdefault(app_name, [])
+                if field_name not in fields_for_app:
+                    fields_for_app.append(field_name)
+                flat_key = f"{app_name}:{field_name}"
+                if flat_key not in export_fields:
+                    export_fields.append(flat_key)
+
+    return export_fields, app_data_fields
+
+
+def _format_compliance_policies(policies: Any) -> str | None:
+    """Extract policy names from compliance policies JSON array for export."""
+    if not policies:
+        return None
+    if isinstance(policies, list):
+        names = []
+        for p in policies:
+            if isinstance(p, dict):
+                name = p.get("name") or p.get("id")
+                if name:
+                    names.append(str(name))
+            elif isinstance(p, str):
+                names.append(p)
+        return ", ".join(names) if names else None
+    if isinstance(policies, str):
+        return policies
+    return None
+
+
+def _fetch_app_data_batch(
+    host_ids: list,
+    org_id: str,
+    app_data_fields: dict[str, list[str]],
+) -> dict[str, dict]:
+    """Fetch app-data for a batch of hosts, returning {host_id_str: {app:field: value}}.
+
+    Queries only the requested app tables (org_id equality + host_id IN (...)).
+    This is used instead of LEFT JOINing every hosts_app_data_* table onto the
+    hosts scan.
+    """
+    if not host_ids or not app_data_fields:
+        return {}
+
+    from app.models.database import db
+
+    all_models = get_app_data_models()
+    result: dict[str, dict] = {
+        str(hid): {
+            f"{app_name}:{field_name}": None for app_name, fnames in app_data_fields.items() for field_name in fnames
+        }
+        for hid in host_ids
+    }
+
+    for app_name, field_names in app_data_fields.items():
+        model = all_models[app_name]
+        rows = db.session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
+
+        for row in rows:
+            host_key = str(row.host_id)
+            serialized = row.serialize()
+            host_app = result.setdefault(host_key, {})
+            for field_name in field_names:
+                if field_name in serialized:
+                    val = serialized[field_name]
+                    if app_name == "compliance" and field_name == "policies":
+                        val = _format_compliance_policies(val)
+                    host_app[f"{app_name}:{field_name}"] = val
+
+    return result
 
 
 class _StreamingExportBody:
-    def __init__(self, host_iter: Iterator[dict], export_format: str):
+    def __init__(self, host_iter: Iterator[dict], export_format: str, export_fields: list[str] | None = None):
         self._host_iter = host_iter
         self._export_format = export_format.lower()
+        self._export_fields = export_fields or _EXPORT_SERVICE_FIELDS
+        self._custom_fields = export_fields is not None
         self.host_count = 0
 
     def __iter__(self):
@@ -83,13 +204,16 @@ class _StreamingExportBody:
                 if not first:
                     yield b","
                 first = False
-                yield json.dumps(host).encode("utf-8")
+                if self._custom_fields:
+                    yield json.dumps({field: host.get(field) for field in self._export_fields}).encode("utf-8")
+                else:
+                    yield json.dumps(host).encode("utf-8")
             yield b"]"
         elif self._export_format == "csv":
-            yield export_csv_header(_EXPORT_SERVICE_FIELDS).encode("utf-8")
+            yield export_csv_header(self._export_fields).encode("utf-8")
             for host in self._host_iter:
                 self.host_count += 1
-                yield export_host_to_csv_row(host, _EXPORT_SERVICE_FIELDS).encode("utf-8")
+                yield export_host_to_csv_row(host, self._export_fields).encode("utf-8")
         else:
             raise ValueError(f"Unsupported export format: {self._export_format}")
 
@@ -144,6 +268,8 @@ def _non_empty_hosts_iter(
     inventory_config: Config,
     query_filter: dict | None = None,
     host_filter: dict | None = None,
+    export_fields: list[str] | None = None,
+    app_data_fields: dict[str, list[str]] | None = None,
 ) -> Iterator[dict] | None:
     """Return a non-empty host iterator, or None if there are no hosts to export."""
     host_iter = get_hosts_to_export(
@@ -152,6 +278,8 @@ def _non_empty_hosts_iter(
         batch_size=inventory_config.export_svc_batch_size,
         query_filter=query_filter,
         host_filter=host_filter,
+        export_fields=export_fields,
+        app_data_fields=app_data_fields,
     )
     first_host = next(host_iter, None)
     if first_host is None:
@@ -235,6 +363,8 @@ def create_export(
 
     host_filter: dict = {}
     query_filter: dict = {}
+    view_columns: list[dict] = []
+    allowed_apps: set[str] | None = None
 
     if view_id:
         user_id = identity.user_id
@@ -255,7 +385,7 @@ def create_export(
             return export_created
 
         try:
-            host_filter, query_filter = _load_view_filters(view_id, identity.org_id, user_id)
+            host_filter, query_filter, view_columns = _load_view_config(view_id, identity.org_id, user_id)
             logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
         except ViewNotFoundError:
             request_url = _build_export_request_url(
@@ -288,6 +418,28 @@ def create_export(
             session.close()
             return export_created
 
+        allowed_apps = get_allowed_app_services(identity, rbac_request_headers=rbac_request_headers)
+        if allowed_apps is not None and query_filter:
+            known_apps = set(get_app_data_models().keys())
+            denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
+            if denied_filters:
+                request_url = _build_export_request_url(
+                    export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+                )
+                _handle_export_error(
+                    f"Insufficient permissions to filter by {denied_filters}",
+                    403,
+                    request_url,
+                    session,
+                    request_headers,
+                    exportUUID,
+                    exportFormat,
+                )
+                session.close()
+                return export_created
+
+    export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
+
     try:
         hosts_iter = _non_empty_hosts_iter(
             identity,
@@ -295,6 +447,8 @@ def create_export(
             inventory_config,
             query_filter=query_filter,
             host_filter=host_filter,
+            export_fields=export_fields,
+            app_data_fields=app_data_fields,
         )
 
         request_url = _build_export_request_url(
@@ -307,7 +461,7 @@ def create_export(
 
         if hosts_iter is not None:
             logger.debug(f"Trying to upload data using URL:{request_url}")
-            export_body = _StreamingExportBody(hosts_iter, exportFormat)
+            export_body = _StreamingExportBody(hosts_iter, exportFormat, export_fields=export_fields)
             response = session.post(
                 url=request_url,
                 headers=request_headers,
@@ -379,7 +533,7 @@ def _handle_export_response(response: Response, exportUUID: UUID, exportFormat: 
         raise InventoryException(detail=response.text)
 
 
-def _format_export_data(data: list[dict], exportFormat: str) -> str:
+def _format_export_data(data: list[dict], exportFormat: str, export_fields: list[str] | None = None) -> str:
     """Materialize export payload for tests and small fixtures."""
-    body = _StreamingExportBody(iter(data), exportFormat)
+    body = _StreamingExportBody(iter(data), exportFormat, export_fields=export_fields)
     return b"".join(body).decode("utf-8")
