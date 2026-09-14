@@ -219,18 +219,7 @@ def test_delete_cached_system_keys_increments_generation(invalidate_mock):
 
     delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
 
-    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=False)
-
-
-@patch("api.cache._invalidate_system_cache")
-def test_delete_cached_system_keys_with_spawn(invalidate_mock):
-    insights_id = generate_uuid()
-    org_id = "test"
-    owner_id = "abc"
-
-    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id, spawn=True)
-
-    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id, spawn=True)
+    invalidate_mock.assert_called_once_with(insights_id, org_id, owner_id)
 
 
 @patch("api.cache.CACHE_CONFIG", {"CACHE_TYPE": "RedisCache"})

@@ -522,7 +522,6 @@ def test_kafka_producer_defaults(subtests):
         "return_value.mgmt_url_path_prefix": "/",
         "return_value.api_url_path_prefix": ADMIN_HOSTS_URL_PATH.removesuffix(ADMIN_HOSTS_ROUTE),
         "return_value.unleash_token": "",
-        "return_value.api_cache_max_thread_pool_workers": 5,
     },
 )
 def test_config_is_assigned_create_app_config(config):

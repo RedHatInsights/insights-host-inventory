@@ -108,6 +108,7 @@ def _get_host_list_using_filters(
     param_order_how: str | None,
     fields: dict | None,
     allow_app_fields: bool = False,
+    include_count: bool = True,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Internal function to get filtered, ordered, and paginated host list.
@@ -121,6 +122,7 @@ def _get_host_list_using_filters(
         param_order_how: Order direction ("ASC" or "DESC")
         fields: Requested fields dict (for system_profile handling)
         allow_app_fields: If True, supports app:field sorting (e.g., "vulnerability:critical_cves")
+        include_count: If True, query and return total count. Otherwise, skip counting and return 0.
 
     Returns:
         Tuple of (items, count, additional_fields, system_profile_fields)
@@ -156,11 +158,14 @@ def _get_host_list_using_filters(
 
     filtered_query = base_query.filter(*all_filters)
 
-    # Count distinct host IDs to avoid overcountiung when JOINs are involved
-    count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
+    if include_count:
+        # Count distinct host IDs to avoid overcountiung when JOINs are involved
+        count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
 
-    if count_total == 0:
-        return [], 0, additional_fields, system_profile_fields
+        if count_total == 0:
+            return [], 0, additional_fields, system_profile_fields
+    else:
+        count_total = 0
 
     ordered_query = filtered_query.order_by(
         *params_to_order_by(param_order_by, param_order_how, allow_app_fields=allow_app_fields)
@@ -195,7 +200,8 @@ def get_host_list(
     filter: dict | None,
     fields: dict | None,
     rbac_filter: dict | None,
-) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
+    get_total: bool = True,
+) -> tuple[list[Host], int | None, tuple[str, ...], list[str]]:
     all_filters, query_base = query_filters(
         fqdn,
         display_name,
@@ -220,9 +226,18 @@ def get_host_list(
         get_current_identity(),
     )
 
-    return _get_host_list_using_filters(
-        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields
+    items, count, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        query_base,
+        all_filters,
+        page,
+        per_page,
+        param_order_by,
+        param_order_how,
+        fields,
+        include_count=get_total,
     )
+
+    return items, count if get_total else None, additional_fields, system_profile_fields
 
 
 def get_host_list_by_id_list(
