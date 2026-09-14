@@ -1012,6 +1012,31 @@ class TestGetHostsToExportWithColumns:
             assert len(advisor_lookups) == 1
             assert not any("hosts_app_data_vulnerability" in q for q in queries)
 
+    def test_app_data_batch_with_yield_per(self, flask_app, db_create_host, db_create_host_app_data):
+        """App-data lookups must work while yield_per still holds a server-side cursor."""
+        with flask_app.app.app_context():
+            expected = {}
+            for i in range(3):
+                host = db_create_host(host=db_host(display_name=f"batch-host-{i}"))
+                host_id = str(host.id)
+                db_create_host_app_data(host_id, "test", "advisor", recommendations=i + 1)
+                expected[host_id] = i + 1
+
+            identity = Identity(USER_IDENTITY)
+            with _capture_sql() as queries:
+                results = list(
+                    get_hosts_to_export(
+                        identity,
+                        batch_size=1,
+                        export_fields=["host_id", "advisor:recommendations"],
+                        app_data_fields={"advisor": ["recommendations"]},
+                    )
+                )
+
+            assert {row["host_id"]: row["advisor:recommendations"] for row in results} == expected
+            advisor_lookups = [q for q in queries if "hosts_app_data_advisor" in q]
+            assert len(advisor_lookups) == 3
+
     def test_app_data_filter_joins_only_filtered_app(self, flask_app, db_create_host, db_create_host_app_data):
         with flask_app.app.app_context():
             match = db_create_host(host=db_host(display_name="match"))

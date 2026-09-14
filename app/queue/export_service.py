@@ -155,9 +155,14 @@ def _fetch_app_data_batch(
     Queries only the requested app tables (org_id equality + host_id IN (...)).
     This is used instead of LEFT JOINing every hosts_app_data_* table onto the
     hosts scan.
+
+    Uses a separate Session so these lookups can run while ``get_hosts_to_export``
+    still holds a ``yield_per`` server-side cursor on ``db.session``.
     """
     if not host_ids or not app_data_fields:
         return {}
+
+    from sqlalchemy.orm import Session as OrmSession
 
     from app.models.database import db
 
@@ -169,20 +174,21 @@ def _fetch_app_data_batch(
         for hid in host_ids
     }
 
-    for app_name, field_names in app_data_fields.items():
-        model = all_models[app_name]
-        rows = db.session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
+    with OrmSession(bind=db.engine) as app_session:
+        for app_name, field_names in app_data_fields.items():
+            model = all_models[app_name]
+            rows = app_session.query(model).filter(model.org_id == org_id, model.host_id.in_(host_ids)).all()
 
-        for row in rows:
-            host_key = str(row.host_id)
-            serialized = row.serialize()
-            host_app = result.setdefault(host_key, {})
-            for field_name in field_names:
-                if field_name in serialized:
-                    val = serialized[field_name]
-                    if app_name == "compliance" and field_name == "policies":
-                        val = _format_compliance_policies(val)
-                    host_app[f"{app_name}:{field_name}"] = val
+            for row in rows:
+                host_key = str(row.host_id)
+                serialized = row.serialize()
+                host_app = result.setdefault(host_key, {})
+                for field_name in field_names:
+                    if field_name in serialized:
+                        val = serialized[field_name]
+                        if app_name == "compliance" and field_name == "policies":
+                            val = _format_compliance_policies(val)
+                        host_app[f"{app_name}:{field_name}"] = val
 
     return result
 
