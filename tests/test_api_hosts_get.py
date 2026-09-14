@@ -607,8 +607,8 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
 
 def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     """
-    Get only the host with all three tags on it, and not the other hosts,
-    which both have some (but not all) of the tags we query for.
+    Get only the host that has all requested tags (AND semantics across different identities),
+    and not the other hosts which only have some of the tags we query for.
     """
     tags_data_list = [
         {"tags": {"ns1": {"key1": ["val1"]}}},
@@ -620,11 +620,11 @@ def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
     url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key2=val2")
 
-    api_pagination_test(api_get, subtests, url, expected_total=3)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
     _, response_data = api_get(url)
 
-    for result in response_data["results"]:
-        assert result["id"] in host_ids[:3]
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[1]
 
 
 def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, subtests):
@@ -634,14 +634,55 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
     created_host_ids = [str(host.id) for host in mq_create_three_specific_hosts]
     url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS3/key3=val3")
 
-    api_pagination_test(api_get, subtests, url, expected_total=len(created_host_ids))
+    api_pagination_test(api_get, subtests, url, expected_total=1)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(created_host_ids) == len(response_data["results"])
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == created_host_ids[1]
 
-    for result in response_data["results"]:
-        assert result["id"] in created_host_ids
+
+def test_get_host_by_same_identity_tags_uses_or(db_create_host, api_get, subtests):
+    """
+    Verify OR logic for tags sharing the same identity (same namespace and key).
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val2"]}}},
+        {"tags": {"ns1": {"key1": ["val3"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key1=val2")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_different_identity_tags_uses_and(db_create_host, api_get, subtests):
+    """
+    Verify AND logic for tags with different identities (different namespace or key).
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns2": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"]}, "ns2": {"key1": ["val1"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns2/key1=val1")
+
+    api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[2]
 
 
 def test_get_no_host_with_different_tags_same_namespace(api_get):
@@ -3294,3 +3335,101 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_get_host_by_mixed_identity_tags_and_or(db_create_host, api_get, subtests):
+    """
+    Verify mixed tag query: OR semantics for same identity, AND semantics across different identities.
+    Query: (ns1/env=prod OR ns1/env=stage) AND (ns2/app=web)
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"env": ["prod"]}, "ns2": {"app": ["web"]}}},  # matches (prod, web)
+        {"tags": {"ns1": {"env": ["stage"]}, "ns2": {"app": ["web"]}}},  # matches (stage, web)
+        {"tags": {"ns1": {"env": ["dev"]}, "ns2": {"app": ["web"]}}},  # no match (wrong env)
+        {"tags": {"ns1": {"env": ["prod"]}, "ns2": {"app": ["db"]}}},  # no match (wrong app)
+        {"tags": {"ns1": {"env": ["prod"]}}},  # no match (missing app)
+        {"tags": {"ns2": {"app": ["web"]}}},  # no match (missing env)
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/env=prod&tags=ns1/env=stage&tags=ns2/app=web")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_null_namespace_tags_uses_or(db_create_host, api_get, subtests):
+    """
+    Verify OR logic for tags with null/empty namespace sharing the same key.
+    Query: (key1=val1 OR key1=val2)
+    """
+    tags_data_list = [
+        {"tags": {None: {"key1": ["val1"]}}},
+        {"tags": {None: {"key1": ["val2"]}}},
+        {"tags": {None: {"key1": ["val3"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=key1=val1&tags=key1=val2")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_null_and_named_namespace_same_key_uses_and(db_create_host, api_get, subtests):
+    """
+    Verify AND logic for tags with null namespace vs named namespace with the same key.
+    Empty/null namespace must be treated as distinct from named namespaces when grouping by identity.
+    Query: key1=val1 AND ns1/key1=val1
+    """
+    tags_data_list = [
+        {"tags": {None: {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {None: {"key1": ["val1"]}, "ns1": {"key1": ["val1"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=key1=val1&tags=ns1/key1=val1")
+
+    api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[2]
+
+
+def test_get_host_by_same_namespace_different_keys_multiple_values(db_create_host, api_get, subtests):
+    """
+    Verify tags in the same namespace but different keys are AND'd together,
+    with OR logic applied within each key identity.
+    Query: (ns1/key1=val1 OR ns1/key1=val2) AND (ns1/key2=valA OR ns1/key2=valB)
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["valA"]}}},  # matches (val1, valA)
+        {"tags": {"ns1": {"key1": ["val2"], "key2": ["valB"]}}},  # matches (val2, valB)
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["valC"]}}},  # no match (valC)
+        {"tags": {"ns1": {"key1": ["val3"], "key2": ["valA"]}}},  # no match (val3)
+        {"tags": {"ns1": {"key1": ["val1"]}}},  # no match (missing key2)
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key1=val2&tags=ns1/key2=valA&tags=ns1/key2=valB")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
