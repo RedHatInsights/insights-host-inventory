@@ -673,7 +673,9 @@ class TestCreateExportWithView:
         with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
             host1 = db_create_host(host=db_host(display_name="host-1"))
             host2 = db_create_host(host=db_host(display_name="host-2"))
-            db_create_host_app_data(str(host1.id), "test", "advisor", recommendations=5)
+            host1_id = str(host1.id)
+            host2_id = str(host2.id)
+            db_create_host_app_data(host1_id, "test", "advisor", recommendations=5)
             view = db_create_view(
                 configuration={"columns": [{"key": "display_name"}, {"key": "advisor:recommendations"}]},
                 created_by="51234567",
@@ -687,9 +689,9 @@ class TestCreateExportWithView:
 
             by_id = {row["host_id"]: row for row in json.loads(captured[0])}
             expected_keys = ["host_id", "display_name", "advisor:recommendations"]
-            assert list(by_id[str(host1.id)].keys()) == expected_keys
-            assert by_id[str(host1.id)]["advisor:recommendations"] == 5
-            assert by_id[str(host2.id)]["advisor:recommendations"] is None
+            assert list(by_id[host1_id].keys()) == expected_keys
+            assert by_id[host1_id]["advisor:recommendations"] == 5
+            assert by_id[host2_id]["advisor:recommendations"] is None
 
     def test_export_with_view_columns_csv_format(
         self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
@@ -697,7 +699,8 @@ class TestCreateExportWithView:
         captured, capture_post = _capture_posted_body()
         with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
             host1 = db_create_host(host=db_host(display_name="host-1"))
-            db_create_host_app_data(str(host1.id), "test", "advisor", recommendations=12)
+            host1_id = str(host1.id)
+            db_create_host_app_data(host1_id, "test", "advisor", recommendations=12)
             view = db_create_view(
                 configuration={"columns": [{"key": "display_name"}, {"key": "advisor:recommendations"}]},
                 created_by="51234567",
@@ -712,7 +715,7 @@ class TestCreateExportWithView:
 
             lines = captured[0].strip().splitlines()
             assert lines[0] == '"host_id","display_name","advisor:recommendations"'
-            assert f'"{host1.id}","host-1",12' in lines[1]
+            assert f'"{host1_id}","host-1",12' in lines[1]
 
     def test_export_with_view_omits_unauthorized_app_columns(
         self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
