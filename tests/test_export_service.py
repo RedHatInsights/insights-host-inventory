@@ -802,7 +802,7 @@ class TestResolveExportColumns:
                 "infrastructure_vendor",
                 "workloads",
                 "state",
-                "per_reporter_staleness",
+                "data_collector",
             ]
             assert app_data == {}
 
@@ -905,24 +905,49 @@ class TestResolveExportColumns:
             assert app_data == {"advisor": ["recommendations"], "vulnerability": ["total_cves"]}
 
 
+def _export_row(**overrides):
+    values = dict(
+        id=uuid4(),
+        groups=None,
+        last_check_in=None,
+        modified_on=None,
+        created_on=None,
+        reporters=None,
+        per_reporter_staleness=None,
+    )
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 class TestSerializeHostRowForExport:
-    def test_per_reporter_staleness_exports_reporter_names(self):
-        row = SimpleNamespace(
-            id=uuid4(),
-            groups=None,
-            last_check_in=None,
-            modified_on=None,
-            created_on=None,
-            reporters=["puptoo", "yupana"],
-            per_reporter_staleness={
-                "puptoo": "2026-09-01T12:00:00+00:00",
-                "yupana": "2026-09-02T12:00:00+00:00",
-            },
+    @pytest.mark.parametrize(
+        "per_reporter_staleness, expected",
+        [
+            ({"puptoo": "t"}, "insights-client"),
+            ({"rhsm-conduit": "t"}, "subscription-manager"),
+            ({"rhsm-system-profile-bridge": "t"}, "subscription-manager"),
+            ({"satellite": "t"}, "Satellite"),
+            ({"discovery": "t"}, "Discovery"),
+            ({"yupana": "t"}, "yupana"),
+            (
+                {"puptoo": "t", "yupana": "t"},
+                "insights-client, yupana",
+            ),
+            (
+                {"puptoo": "t", "rhsm-conduit": "t", "rhsm-system-profile-bridge": "t"},
+                "insights-client, subscription-manager",
+            ),
+            ({}, None),
+        ],
+    )
+    def test_data_collector_uses_frontend_labels(self, per_reporter_staleness, expected):
+        result = serialize_host_row_for_export(
+            _export_row(per_reporter_staleness=per_reporter_staleness),
+            staleness={},
+            fields=["host_id", "data_collector"],
         )
 
-        result = serialize_host_row_for_export(row, staleness={}, fields=["host_id", "per_reporter_staleness"])
-
-        assert result["per_reporter_staleness"] == "puptoo, yupana"
+        assert result["data_collector"] == expected
 
 
 class TestGetHostsToExportWithColumns:

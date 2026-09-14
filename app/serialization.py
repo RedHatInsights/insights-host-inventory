@@ -72,7 +72,7 @@ CORE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
     "infrastructure": ["infrastructure_type"],
     "vendor": ["infrastructure_vendor"],
     "workload": ["workloads"],
-    "per_reporter_staleness": ["per_reporter_staleness"],
+    "per_reporter_staleness": ["data_collector"],
 }
 
 ALWAYS_INCLUDED_EXPORT_FIELDS = ["host_id"]
@@ -300,16 +300,42 @@ def serialize_host(
     return serialized_host
 
 
-def _extract_root_keys(value: Any) -> str | None:
+# Matches insights-inventory-frontend
+DATA_COLLECTOR_LABELS = {
+    "puptoo": "insights-client",
+    "rhsm-conduit": "subscription-manager",
+    "rhsm-system-profile-bridge": "subscription-manager",
+    "satellite": "Satellite",
+    "discovery": "Discovery",
+}
+
+
+def _root_keys(value: Any) -> list[str]:
     if not value:
-        return None
+        return []
     if isinstance(value, dict):
-        return ", ".join(value.keys())
+        return [str(key) for key in value.keys()]
     if isinstance(value, (list, tuple, set)):
-        return ", ".join(str(item) for item in value)
+        return [str(item) for item in value]
     if isinstance(value, str):
-        return value
-    return None
+        return [value]
+    return []
+
+
+def _extract_root_keys(value: Any) -> str | None:
+    keys = _root_keys(value)
+    return ", ".join(keys) if keys else None
+
+
+def _format_data_collectors(value: Any) -> str | None:
+    labels: list[str] = []
+    seen: set[str] = set()
+    for reporter in _root_keys(value):
+        label = DATA_COLLECTOR_LABELS.get(reporter, reporter)
+        if label not in seen:
+            seen.add(label)
+            labels.append(label)
+    return ", ".join(labels) if labels else None
 
 
 def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = None):
@@ -346,9 +372,7 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "updated": _serialize_datetime(modified_on) if modified_on else None,
         "created": _serialize_datetime(created_on) if created_on else None,
         "last_check_in": _serialize_datetime(last_check_in) if last_check_in else None,
-        "data_collector": list(reporters) if reporters else None,
-        # View "Data collector" column (key: per_reporter_staleness) renders reporter names only.
-        "per_reporter_staleness": _extract_root_keys(getattr(row, "per_reporter_staleness", None) or reporters),
+        "data_collector": _format_data_collectors(getattr(row, "per_reporter_staleness", None) or reporters),
         "state": state,
         "tags": _serialize_tags(getattr(row, "tags", None)),
         "host_type": getattr(row, "host_type", None) or "conventional",
