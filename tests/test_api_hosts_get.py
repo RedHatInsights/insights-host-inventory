@@ -3369,9 +3369,9 @@ def test_get_host_by_null_namespace_tags_uses_or(db_create_host, api_get, subtes
     Query: (key1=val1 OR key1=val2)
     """
     tags_data_list = [
-        {"tags": {None: {"key1": ["val1"]}}},
-        {"tags": {None: {"key1": ["val2"]}}},
-        {"tags": {None: {"key1": ["val3"]}}},
+        {"tags": {"null": {"key1": ["val1"]}}},
+        {"tags": {"null": {"key1": ["val2"]}}},
+        {"tags": {"null": {"key1": ["val3"]}}},
     ]
 
     host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
@@ -3393,9 +3393,9 @@ def test_get_host_by_null_and_named_namespace_same_key_uses_and(db_create_host, 
     Query: key1=val1 AND ns1/key1=val1
     """
     tags_data_list = [
-        {"tags": {None: {"key1": ["val1"]}}},
+        {"tags": {"null": {"key1": ["val1"]}}},
         {"tags": {"ns1": {"key1": ["val1"]}}},
-        {"tags": {None: {"key1": ["val1"]}, "ns1": {"key1": ["val1"]}}},
+        {"tags": {"null": {"key1": ["val1"]}, "ns1": {"key1": ["val1"]}}},
     ]
 
     host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
