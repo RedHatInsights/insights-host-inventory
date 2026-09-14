@@ -347,6 +347,7 @@ def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = 
         "created": _serialize_datetime(created_on) if created_on else None,
         "last_check_in": _serialize_datetime(last_check_in) if last_check_in else None,
         "data_collector": list(reporters) if reporters else None,
+        # View "Data collector" column (key: per_reporter_staleness) renders reporter names only.
         "per_reporter_staleness": _extract_root_keys(getattr(row, "per_reporter_staleness", None) or reporters),
         "state": state,
         "tags": _serialize_tags(getattr(row, "tags", None)),
