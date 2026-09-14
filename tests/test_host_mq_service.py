@@ -389,6 +389,54 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_handle_message_kessel_rbac_v2_uses_db_group_without_request_context(
+    identity, mocker, ingress_message_consumer_mock, db_create_group
+):
+    """MQ ingest has no Flask request. After the ungrouped workspace is created via S2S RBAC
+    and the workspace event lands in the DB, host association must use that local Group row
+    even when hbi.rbac-v2 is enabled — not get_rbac_workspace_by_id(), which reads request headers.
+    """
+    from uuid import UUID
+
+    mock_access_token = "mock_sa_token_12345"
+    workspace_uuid = generate_uuid()
+    get_rbac_mock = mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            bypass_kessel=False,
+            kessel_auth_enabled=True,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
+        ),
+    )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=True)
+    rbac_http = mocker.patch("lib.middleware._execute_rbac_http_request")
+
+    def wait_and_create(workspace_id_str, *args, **kwargs):
+        db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True, group_id=UUID(workspace_id_str))
+
+    mocker.patch("lib.group_repository.wait_for_workspace_event", side_effect=wait_and_create)
+
+    host = minimal_host(org_id=identity["org_id"])
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(workspace_uuid)
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert "/_private/_s2s/workspaces/ungrouped/" in get_rbac_mock.call_args_list[0][0][0]
+    rbac_http.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_kessel")
 def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consumer_mock, caplog):
     """TimeoutError from wait_for_workspace_event is logged with context and re-raised with a clear metric label."""
     import logging
