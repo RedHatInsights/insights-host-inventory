@@ -3294,3 +3294,44 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_get_host_with_slash_in_tag_value(api_get):
+    """
+    Attempt to find host with a "/" in the tag value.
+    Expects 200 response (RHINENG-17554).
+    """
+    url = build_hosts_url(query="?tags=namespace/key=my/value")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+def test_get_host_with_slash_in_tag_value_no_namespace(api_get):
+    """
+    Attempt to find host with a "/" in the tag value without a namespace.
+    Expects 200 response (RHINENG-17554).
+    """
+    url = build_hosts_url(query="?tags=key=my/value")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+def test_get_host_by_tag_with_slash_in_value(mq_create_or_update_host, api_get):
+    """
+    Verify filtering by a tag containing a "/" in its value correctly matches the host.
+    """
+    tags = [
+        {"namespace": "NS1", "key": "key1", "value": "my/value"},
+        {"namespace": "NS1", "key": "key2", "value": "other_value"},
+    ]
+    host = minimal_host(tags=tags)
+    created_host = mq_create_or_update_host(host)
+
+    url = build_hosts_url(query="?tags=NS1/key1=my/value")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == created_host.id

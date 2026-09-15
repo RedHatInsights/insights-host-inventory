@@ -169,7 +169,7 @@ components:
         type: array
         items:
           type: string
-          pattern: '^([^=/]+/)?[^=/]+(=[^=/]+)?$'
+          pattern: '^([^=/]+/)?[^=/]+(=[^=]+)?$'
       description: >-
         Filter by host tags. Tags are in namespace/key=value format.
         Namespace and value are optional (e.g. "insights-client/os=rhel",
