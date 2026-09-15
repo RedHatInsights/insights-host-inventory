@@ -597,7 +597,11 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
 
             # Resource-types endpoints are not supported for v2 orgs.
             # In v2, resource-types are managed via RBAC v2 Role Bindings.
-            if resource_type == RbacResourceType.ALL and rbac_workspaces_enabled:
+            if (
+                resource_type == RbacResourceType.ALL
+                and rbac_workspaces_enabled
+                and not inventory_config().bypass_kessel
+            ):
                 abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
