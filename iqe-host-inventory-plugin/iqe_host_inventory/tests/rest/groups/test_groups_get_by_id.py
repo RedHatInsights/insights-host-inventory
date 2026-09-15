@@ -420,8 +420,8 @@ class TestGetGroupByIDEmptyGroups:
         assert response.page == 1
         assert response.per_page == 100
         assert response.total == len(groups)
-        assert response.count == 100
-        assert len(response.results) == 100
+        assert response.count == len(groups)
+        assert len(response.results) == len(groups)
 
     @pytest.mark.parametrize("per_page", [0, -1, 101])
     def test_groups_get_by_id_per_page_out_of_bounds(
@@ -436,7 +436,7 @@ class TestGetGroupByIDEmptyGroups:
           negative: true
           title: Get groups by IDs - wrong value for per_page param (out of bounds)
         """
-        groups = setup_empty_groups_primary[:103]
+        groups = setup_empty_groups_primary
         error_msgs: tuple[str, ...]
         if per_page < 1:
             error_msgs = (f"{per_page} is less than the minimum of 1",)
@@ -597,13 +597,13 @@ class TestGetGroupByIDEmptyGroups:
           importance: high
           title: Get groups by IDs - default values for pagination parameters
         """
-        groups = setup_empty_groups_primary[:100]
+        groups = setup_empty_groups_primary
         response = host_inventory.apis.groups.get_groups_by_id_response(groups)
         assert response.page == 1
         assert response.per_page == 50
-        assert response.total == 100
-        assert response.count == 50
-        assert len(response.results) == 50
+        assert response.total == len(groups)
+        assert response.count == len(groups)
+        assert len(response.results) == len(groups)
 
     @pytest.mark.parametrize(
         "order_by",

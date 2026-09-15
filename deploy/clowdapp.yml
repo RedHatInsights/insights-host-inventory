@@ -334,8 +334,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -360,6 +358,8 @@ objects:
             value: ${KESSEL_AUTH_ENABLED}
           - name: KESSEL_AUTH_OIDC_ISSUER
             value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         volumeMounts: *readReplicaVolumeMounts
@@ -481,8 +481,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: UNLEASH_URL
             value: ${UNLEASH_URL}
           - <<: *unleashToken
@@ -507,6 +505,8 @@ objects:
             value: ${KESSEL_AUTH_ENABLED}
           - name: KESSEL_AUTH_OIDC_ISSUER
             value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
         livenessProbe:
@@ -577,8 +577,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
@@ -746,8 +744,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
@@ -837,8 +833,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
@@ -994,8 +988,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
@@ -1126,8 +1118,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: KAFKA_CONSUMER_SESSION_TIMEOUT_MS
             value: "${KAFKA_CONSUMER_SESSION_TIMEOUT_MS}"
           - name: KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS
@@ -1252,6 +1242,14 @@ objects:
           value: ${OTEL_MQ_MESSAGE_SPANS_ENABLED}
         - name: OTEL_MQ_SLOW_MESSAGE_MS
           value: ${OTEL_MQ_SLOW_MESSAGE_MS}
+        - name: KESSEL_AUTH_CLIENT_ID
+          <<: *kesselClientId
+        - name: KESSEL_AUTH_CLIENT_SECRET
+          <<: *kesselClientSecret
+        - name: KESSEL_AUTH_ENABLED
+          value: ${KESSEL_AUTH_ENABLED}
+        - name: KESSEL_AUTH_OIDC_ISSUER
+          value: ${KESSEL_AUTH_OIDC_ISSUER}
         livenessProbe: *mqLivenessProbe
         readinessProbe: *mqReadinessProbe
         resources:
@@ -1433,8 +1431,6 @@ objects:
             value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
           - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
             value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-            value: "${INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS}"
           - name: HOST_DELETE_CHUNK_SIZE
             value: ${HOST_DELETE_CHUNK_SIZE}
           - <<: *rbacPsks
@@ -3146,6 +3142,9 @@ parameters:
 - description: OIDC issuer URL used for Kessel auth token requests
   name: KESSEL_AUTH_OIDC_ISSUER
   value: https://sso.redhat.com/auth/realms/redhat-external
+- description: Port for the Kessel inventory gRPC API endpoint
+  name: KESSEL_INVENTORY_API_PORT
+  value: '9000'
 - description: How long to wait for DB migrations to complete
   name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
   value: '300'
@@ -3195,8 +3194,6 @@ parameters:
   value: '0'
 - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
   value: '129600'
-- name: INVENTORY_CACHE_THREAD_POOL_MAX_WORKERS
-  value: '5'
 
 # -- Read Replicas --
 - name: INVENTORY_API_USE_READREPLICA

@@ -1,12 +1,10 @@
 import json
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import connexion
 from flask_caching import Cache
 from redis import Redis
 
-from api.system_cache_key import SUBMAN_CACHE_KEY_DELIMITER
 from api.system_cache_key import system_cache_key_base
 from app.logging import get_logger
 
@@ -14,23 +12,20 @@ CACHE_CONFIG = {"CACHE_TYPE": "NullCache"}
 CACHE = Cache(config=CACHE_CONFIG)
 CACHE_PREFIX = "flask_cache_"
 CACHE_TYPE_REDIS_CACHE = "RedisCache"
-CACHE_EXECUTOR = None
 REDIS_CLIENT = None
 STALENESS_L2_CACHE_ENABLED = False
+GENERATION_KEY_SUFFIX = ":gen"
 logger = get_logger("cache")
 
 
 def init_cache(app_config, flask_app):
     global CACHE
     global CACHE_CONFIG
-    global CACHE_EXECUTOR
     global REDIS_CLIENT
     global STALENESS_L2_CACHE_ENABLED
     cache_type = "NullCache"
     logger.info("Initializing Cache")
 
-    if not CACHE_EXECUTOR:
-        CACHE_EXECUTOR = ThreadPoolExecutor(app_config.api_cache_max_thread_pool_workers)
     CACHE_CONFIG = {"CACHE_TYPE": cache_type, "CACHE_DEFAULT_TIMEOUT": app_config.api_cache_timeout}
     if app_config.api_cache_type == CACHE_TYPE_REDIS_CACHE and app_config._cache_host and app_config._cache_port:
         CACHE_CONFIG["CACHE_TYPE"] = app_config.api_cache_type
@@ -73,6 +68,78 @@ def _get_redis_client():
     return REDIS_CLIENT
 
 
+def _generation_key(base_key: str) -> str:
+    return f"{CACHE_PREFIX}{base_key}{GENERATION_KEY_SUFFIX}"
+
+
+def get_system_cache_generation(insights_id, org_id, owner_id):
+    """Read the current cache generation counter for a system cache entry.
+
+    Returns 0 when Redis is unavailable or the generation key does not exist.
+    When the key is absent, it is lazily initialised to 0 with the standard
+    cache TTL so that subsequent lookups are Redis cache-hits.
+    """
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        return 0
+    try:
+        from app.common import inventory_config
+
+        client = _get_redis_client()
+        base_key = system_cache_key_base(insights_id, org_id, owner_id)
+        gen_key = _generation_key(base_key)
+        value = client.get(gen_key)
+        if value is not None:
+            return int(value)
+        # Key does not exist — lazily initialise to 0 so future GETs are
+        # cache hits instead of misses.  NX prevents overwriting a counter
+        # that was just incremented by a concurrent invalidation.
+        gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
+        if client.set(gen_key, 0, ex=gen_ttl, nx=True):
+            return 0
+        # SET NX failed — another process created the key (e.g. INCR from
+        # a concurrent invalidation).  Re-read to get the actual generation.
+        current_value = client.get(gen_key)
+        return int(current_value) if current_value is not None else 0
+    except Exception as exc:
+        logger.exception("Failed to read system cache generation", exc_info=exc)
+        return 0
+
+
+def _invalidate_system_cache_redis(insights_id, org_id, owner_id):
+    """Increment the generation counter, making all current cache entries unreachable.
+
+    Sets a TTL on the generation counter equal to the cache TTL so counters
+    for hosts that are no longer accessed are automatically cleaned up.
+    """
+    try:
+        from app.common import inventory_config
+
+        client = _get_redis_client()
+        base_key = system_cache_key_base(insights_id, org_id, owner_id)
+        gen_key = _generation_key(base_key)
+        gen_ttl = inventory_config().cache_insights_client_system_timeout_sec
+        pipe = client.pipeline(transaction=False)
+        pipe.incr(gen_key)
+        pipe.expire(gen_key, gen_ttl)
+        results = pipe.execute()
+        new_gen = results[0]
+        logger.info("Invalidated system cache for base_key=%s new_generation=%s", base_key, new_gen)
+    except Exception as exc:
+        logger.exception("System cache invalidation failed", exc_info=exc)
+
+
+def _invalidate_system_cache(insights_id, org_id, owner_id):
+    if not (CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE):
+        if not CACHE_CONFIG:
+            logger.info("Not invalidating cache: CACHE_CONFIG is falsy")
+        else:
+            cache_type = CACHE_CONFIG.get("CACHE_TYPE")
+            logger.info(f"Not invalidating cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
+        return
+
+    _invalidate_system_cache_redis(insights_id, org_id, owner_id)
+
+
 def _delete_keys_redis(cache_key, wildcard=True):
     global CACHE_CONFIG
     try:
@@ -94,16 +161,11 @@ def _delete_keys_redis(cache_key, wildcard=True):
         logger.exception("Cache deletion failed", exc_info=exec)
 
 
-def delete_keys(cache_key, wildcard=True, spawn=False):
+def delete_keys(cache_key, wildcard=True):
     global CACHE_CONFIG
-    global CACHE_EXECUTOR
 
     if CACHE_CONFIG and CACHE_CONFIG.get("CACHE_TYPE") == CACHE_TYPE_REDIS_CACHE and cache_key:
-        if spawn and CACHE_EXECUTOR:
-            logger.info("Submitted cache-deletion callable to executor")
-            CACHE_EXECUTOR.submit(_delete_keys_redis, cache_key, wildcard)
-        else:
-            _delete_keys_redis(cache_key=cache_key, wildcard=wildcard)
+        _delete_keys_redis(cache_key=cache_key, wildcard=wildcard)
     else:
         if not CACHE_CONFIG:
             logger.info("Not deleting cache: CACHE_CONFIG is falsy")
@@ -114,15 +176,13 @@ def delete_keys(cache_key, wildcard=True, spawn=False):
             logger.info(f"Not deleting cache: CACHE_TYPE '{cache_type}' != '{CACHE_TYPE_REDIS_CACHE}'")
 
 
-def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None, spawn=False):
+def delete_cached_system_keys(insights_id=None, org_id=None, owner_id=None):
     if insights_id and org_id and owner_id:
-        base_key = system_cache_key_base(insights_id, org_id, owner_id)
-        delete_keys(base_key, wildcard=False, spawn=spawn)
-        delete_keys(f"{base_key}{SUBMAN_CACHE_KEY_DELIMITER}", wildcard=True, spawn=spawn)
+        _invalidate_system_cache(insights_id, org_id, owner_id)
     elif insights_id and org_id and not owner_id:
-        delete_keys(f"insights_id={insights_id}_org={org_id}", wildcard=True, spawn=spawn)
+        delete_keys(f"insights_id={insights_id}_org={org_id}", wildcard=True)
     elif not insights_id and org_id:
-        delete_keys(f"insights_id=*_org={org_id}", wildcard=True, spawn=spawn)
+        delete_keys(f"insights_id=*_org={org_id}", wildcard=True)
 
 
 def set_cached_system(system_key, host, config):

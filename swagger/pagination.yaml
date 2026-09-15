@@ -68,6 +68,7 @@ components:
           $ref: '#/components/schemas/Links'
     Total:
       type: integer
+      nullable: true
       description: Total number of items
     Count:
       type: integer
