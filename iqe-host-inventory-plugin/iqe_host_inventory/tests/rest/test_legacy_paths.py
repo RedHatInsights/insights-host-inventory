@@ -324,6 +324,12 @@ def test_legacy_paths(
         importance: high
         title: Inventory: Test that "legacy paths" are operating correctly in Stage and Prod
     """
+    if (
+        host_inventory.application.config.current_env.lower() == "stage_proxy"
+        and "cert" in legacy_hostname
+    ):
+        pytest.skip("Cert auth doesn't work on legacy paths in Stage")
+
     session = test_app.http_client
     base_url = f"https://{legacy_hostname}{LEGACY_API_PATH}"
 

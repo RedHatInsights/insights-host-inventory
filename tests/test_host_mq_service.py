@@ -44,6 +44,7 @@ from app.queue.host_mq import SystemProfileMessageConsumer
 from app.queue.host_mq import WorkspaceMessageConsumer
 from app.queue.host_mq import _sanitize_json_object_for_postgres
 from app.queue.host_mq import write_add_update_event_message
+from app.queue.host_mq import write_delete_event_message
 from app.utils import Tag
 from inv_mq_service import build_topic_to_consumer_map
 from lib.host_repository import AddHostResult
@@ -354,6 +355,8 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
             bypass_kessel=False,
             kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
         ),
     )
     mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
@@ -386,6 +389,54 @@ def test_handle_message_kessel_private_endpoint(identity, mocker, ingress_messag
 
 @pytest.mark.usefixtures("flask_app")
 @pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.parametrize("identity", (SYSTEM_IDENTITY, SATELLITE_IDENTITY, USER_IDENTITY))
+def test_handle_message_kessel_rbac_v2_uses_db_group_without_request_context(
+    identity, mocker, ingress_message_consumer_mock, db_create_group
+):
+    """MQ ingest has no Flask request. After the ungrouped workspace is created via S2S RBAC
+    and the workspace event lands in the DB, host association must use that local Group row
+    even when hbi.rbac-v2 is enabled — not get_rbac_workspace_by_id(), which reads request headers.
+    """
+    from uuid import UUID
+
+    mock_access_token = "mock_sa_token_12345"
+    workspace_uuid = generate_uuid()
+    get_rbac_mock = mocker.patch(
+        "lib.middleware.rbac_get_request_using_endpoint_and_headers", return_value={"id": str(workspace_uuid)}
+    )
+    mocker.patch(
+        "lib.middleware.inventory_config",
+        return_value=SimpleNamespace(
+            bypass_kessel=False,
+            kessel_auth_enabled=True,
+            rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
+        ),
+    )
+    mocker.patch("lib.middleware._get_rbac_access_token", return_value=mock_access_token)
+    mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=True)
+    rbac_http = mocker.patch("lib.middleware._execute_rbac_http_request")
+
+    def wait_and_create(workspace_id_str, *args, **kwargs):
+        db_create_group("Ungrouped Hosts", identity=identity, ungrouped=True, group_id=UUID(workspace_id_str))
+
+    mocker.patch("lib.group_repository.wait_for_workspace_event", side_effect=wait_and_create)
+
+    host = minimal_host(org_id=identity["org_id"])
+    message = wrap_message(host.data(), "add_host", get_platform_metadata(identity))
+    result = ingress_message_consumer_mock.handle_message(json.dumps(message))
+
+    assert result.event_type == EventType.created
+    assert result.row.groups[0]["ungrouped"] is True
+    assert result.row.groups[0]["id"] == str(workspace_uuid)
+    assert result.row.groups[0]["name"] == "Ungrouped Hosts"
+    assert "/_private/_s2s/workspaces/ungrouped/" in get_rbac_mock.call_args_list[0][0][0]
+    rbac_http.assert_not_called()
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.usefixtures("enable_kessel")
 def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consumer_mock, caplog):
     """TimeoutError from wait_for_workspace_event is logged with context and re-raised with a clear metric label."""
     import logging
@@ -400,6 +451,8 @@ def test_handle_message_kessel_workspace_timeout(mocker, ingress_message_consume
             bypass_kessel=False,
             kessel_auth_enabled=True,
             rbac_endpoint="fake-rbac-endpoint:8080",
+            rbac_endpoint_ca_certificate=None,
+            rbac_endpoint_authenticated=False,
         ),
     )
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="mock_token")
@@ -3321,3 +3374,83 @@ def test_rhsm_with_containers_updates_normally(reporter, mq_create_or_update_hos
     workloads = returned_host.dynamic_system_profile.workloads
     assert workloads["ansible"]["controller_version"] == "2.0"
     assert workloads["ansible"]["containers"] == new_containers
+
+
+def test_write_delete_event_message_invalidates_cache_synchronously(mocker):
+    from uuid import UUID
+
+    mock_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.build_event", return_value="event")
+    mocker.patch(
+        "app.queue.host_mq.extract_system_profile_fields_for_headers",
+        return_value=(None, None, "False"),
+    )
+    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+
+    insights_id = generate_uuid()
+    owner_id = generate_uuid()
+    org_id = "test-org"
+
+    static_sp = mocker.Mock()
+    static_sp.owner_id = UUID(owner_id)
+
+    host_row = mocker.NonCallableMock()
+    host_row.id = UUID(generate_uuid())
+    host_row.insights_id = UUID(insights_id)
+    host_row.org_id = org_id
+    host_row.reporter = "puptoo"
+    host_row.static_system_profile = static_sp
+
+    result = OperationResult(
+        row=host_row,
+        pm=None,
+        so=None,
+        et=EventType.delete,
+        sl=mock_success_logger,
+    )
+
+    write_delete_event_message(mock_event_producer, result, initiated_by_frontend=False)
+
+    mock_event_producer.write_event.assert_called_once()
+    mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+    mock_success_logger.assert_called_once()
+
+
+def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mocker):
+    from uuid import UUID
+
+    mock_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mocker.patch("app.queue.host_mq.build_event", return_value="event")
+    mocker.patch(
+        "app.queue.host_mq.extract_system_profile_fields_for_headers",
+        return_value=(None, None, "False"),
+    )
+    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+
+    insights_id = generate_uuid()
+    org_id = "test-org"
+
+    host_row = mocker.NonCallableMock(spec=["id", "insights_id", "org_id", "reporter", "static_system_profile"])
+    host_row.id = UUID(generate_uuid())
+    host_row.insights_id = UUID(insights_id)
+    host_row.org_id = org_id
+    host_row.reporter = "puptoo"
+    host_row.static_system_profile = None
+
+    result = OperationResult(
+        row=host_row,
+        pm=None,
+        so=None,
+        et=EventType.delete,
+        sl=mock_success_logger,
+    )
+
+    write_delete_event_message(mock_event_producer, result, initiated_by_frontend=False)
+
+    mock_event_producer.write_event.assert_called_once()
+    mock_delete_cache.assert_not_called()
+    mock_success_logger.assert_called_once()

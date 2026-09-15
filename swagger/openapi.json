@@ -107,6 +107,9 @@
           },
           {
             "$ref": "#/components/parameters/fields_param"
+          },
+          {
+            "$ref": "#/components/parameters/getTotalParam"
           }
         ],
         "responses": {
@@ -2098,6 +2101,16 @@
           "default": 10
         },
         "description": "A number of items to return per page."
+      },
+      "getTotalParam": {
+        "in": "query",
+        "name": "get_total",
+        "schema": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": "When true, the response includes the total number of items.",
+        "required": false
       },
       "hostId": {
         "in": "path",
@@ -5728,11 +5741,11 @@
         ],
         "properties": {
           "name": {
-            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number.",
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
-            "pattern": "^[a-zA-Z0-9 _-]+$"
+            "pattern": "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
@@ -5756,11 +5769,11 @@
         "type": "object",
         "properties": {
           "name": {
-            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, and underscores.",
+            "description": "The display name for the view. Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes, and include at least one letter or number.",
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
-            "pattern": "^[a-zA-Z0-9 _-]+$"
+            "pattern": "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
           },
           "description": {
             "description": "An optional description of the view.",
@@ -5893,6 +5906,7 @@
       },
       "Total": {
         "type": "integer",
+        "nullable": true,
         "description": "Total number of items"
       },
       "Count": {
