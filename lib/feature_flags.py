@@ -10,7 +10,8 @@ UNLEASH = Unleash()
 logger = get_logger(__name__)
 
 FLAG_INVENTORY_API_READ_ONLY = "hbi.api.read-only"
-FLAG_RBAC_WORKSPACES = "hbi.rbac-v2"
+FLAG_RBAC_WORKSPACES = "platform.rbac.workspaces"
+FLAG_RBAC_V2 = "hbi.rbac-v2"
 FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES = "hbi.use_new_system_profile_tables"
 FLAG_INVENTORY_REJECT_RHSM_PAYLOADS = "hbi.api.reject-rhsm-payloads"
 FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK = "hbi.api.kessel-force-single-checks-for-bulk"
@@ -20,6 +21,7 @@ FLAG_HBI_INVENTORY_VIEWS_RBAC = "hbi.inventory-views-rbac"
 FLAG_FALLBACK_VALUES = {
     FLAG_INVENTORY_API_READ_ONLY: False,
     FLAG_RBAC_WORKSPACES: False,
+    FLAG_RBAC_V2: False,
     FLAG_INVENTORY_USE_NEW_SYSTEM_PROFILE_TABLES: False,
     FLAG_INVENTORY_REJECT_RHSM_PAYLOADS: False,
     FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK: False,
