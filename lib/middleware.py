@@ -38,6 +38,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_HBI_INVENTORY_VIEWS_RBAC
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_RBAC_V2
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
@@ -589,13 +590,14 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
             is_v2 = is_rbac_v2_enabled(current_identity.org_id)
+            rbac_workspaces_enabled = get_flag_value(FLAG_RBAC_WORKSPACES, current_identity.org_id)
 
             if resource_type == RbacResourceType.GROUPS and is_v2:
                 return func(*args, **kwargs)
 
             # Resource-types endpoints are not supported for v2 orgs.
             # In v2, resource-types are managed via RBAC v2 Role Bindings.
-            if resource_type == RbacResourceType.ALL and is_v2:
+            if resource_type == RbacResourceType.ALL and rbac_workspaces_enabled:
                 abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -862,7 +864,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     Returns:
         True if RBAC v2 should be used, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_WORKSPACES, org_id)
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_V2, org_id)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
