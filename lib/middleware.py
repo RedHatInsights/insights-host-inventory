@@ -779,7 +779,7 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     return allowed
 
 
-def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
+def _get_allowed_app_services_v1(app_models: dict, rbac_request_headers: dict | None = None) -> set[str]:
     """RBAC v1 path: single multi-app call to the RBAC service."""
     v1_apps: set[str] = set()
     for model in app_models.values():
@@ -790,7 +790,8 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     if not v1_apps:
         return set()
 
-    rbac_request_headers = _build_rbac_request_headers()
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
     rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
 
     user_permissions = [p["permission"] for p in rbac_data]
@@ -806,17 +807,21 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     return allowed
 
 
-def _should_bypass_app_service_rbac() -> bool:
+def _should_bypass_app_service_rbac(identity: Identity | None = None) -> bool:
     if inventory_config().bypass_rbac:
         return True
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
     if identity.identity_type not in CHECKED_TYPES:
         return True
     return not get_flag_value(FLAG_HBI_INVENTORY_VIEWS_RBAC, identity.org_id)
 
 
-def get_allowed_app_services() -> set[str] | None:
-    """Determine which app_data services the current user can access.
+def get_allowed_app_services(
+    identity: Identity | None = None,
+    rbac_request_headers: dict | None = None,
+) -> set[str] | None:
+    """Determine which app_data services the current or given user can access.
 
     Reads permission requirements from each app_data model's __v1_read_permission__
     and __kessel_relation__ attributes. Models without these attributes are
@@ -827,17 +832,18 @@ def get_allowed_app_services() -> set[str] | None:
     """
     from app.models.host_app_data import get_app_data_models
 
-    if _should_bypass_app_service_rbac():
+    if _should_bypass_app_service_rbac(identity):
         return None
 
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
 
     app_models = get_app_data_models()
 
     if is_rbac_v2_enabled(identity.org_id):
         return _get_allowed_app_services_v2(identity, app_models)
 
-    return _get_allowed_app_services_v1(app_models)
+    return _get_allowed_app_services_v1(app_models, rbac_request_headers=rbac_request_headers)
 
 
 def is_rbac_v2_enabled(org_id: str) -> bool:
