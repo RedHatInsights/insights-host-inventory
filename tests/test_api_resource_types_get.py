@@ -119,6 +119,7 @@ def test_get_resource_types_RBAC_denied(mocker, api_get, url_builder, subtests):
 
 
 @pytest.mark.usefixtures("enable_rbac")
+@pytest.mark.usefixtures("enable_kessel")
 @pytest.mark.parametrize(
     "url_builder",
     [build_resource_types_url, build_resource_types_groups_url],
