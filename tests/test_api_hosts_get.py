@@ -3294,3 +3294,81 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_get_host_by_tag_empty_namespace_key_with_slash(mq_create_or_update_host, api_get):
+    """
+    Find host with a tag having an empty namespace and a '/' in the key.
+    Verifies that RHINENG-17558 is fixed and the host is found.
+    """
+    target_tag = {"namespace": None, "key": "my/key", "value": "myvalue"}
+    other_tag = {"namespace": None, "key": "other/key", "value": "myvalue"}
+    ns_tag = {"namespace": "myns", "key": "my/key", "value": "myvalue"}
+
+    target_host = mq_create_or_update_host(minimal_host(tags=[target_tag]))
+    mq_create_or_update_host(minimal_host(tags=[other_tag]))
+    ns_host = mq_create_or_update_host(minimal_host(tags=[ns_tag]))
+
+    # Test filtering with key and value: ?tags=/my/key=myvalue
+    url = build_hosts_url(query="?tags=/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with key only (no value): ?tags=/my/key
+    url = build_hosts_url(query="?tags=/my/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with explicit null namespace: ?tags=null/my/key=myvalue
+    url = build_hosts_url(query="?tags=null/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with explicit null namespace, key only: ?tags=null/my/key
+    url = build_hosts_url(query="?tags=null/my/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with non-empty namespace: ?tags=myns/my/key=myvalue
+    url = build_hosts_url(query="?tags=myns/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == ns_host.id
+
+
+def test_get_host_by_tag_empty_namespace_multiple_slashes_in_key(mq_create_or_update_host, api_get):
+    """
+    Find host with a tag having an empty namespace and multiple '/' in the key.
+    """
+    multi_slash_tag = {"namespace": None, "key": "nested/path/to/key", "value": "deep_val"}
+    target_host = mq_create_or_update_host(minimal_host(tags=[multi_slash_tag]))
+
+    # Test filtering with key and value: ?tags=/nested/path/to/key=deep_val
+    url = build_hosts_url(query="?tags=/nested/path/to/key=deep_val")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with key only: ?tags=/nested/path/to/key
+    url = build_hosts_url(query="?tags=/nested/path/to/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
