@@ -60,6 +60,23 @@ _EXPORT_SERVICE_FIELDS = [
     "ip_addresses",
 ]
 
+CORE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
+    "display_name": ["display_name"],
+    "group_name": ["group_name"],
+    "operating_system": ["os_release"],
+    "last_check_in": ["last_check_in"],
+    "updated": ["updated"],
+    "created": ["created"],
+    "status": ["state"],
+    "tags": ["tags"],
+    "infrastructure": ["infrastructure_type"],
+    "vendor": ["infrastructure_vendor"],
+    "workload": ["workloads"],
+    "per_reporter_staleness": ["data_collector"],
+}
+
+ALWAYS_INCLUDED_EXPORT_FIELDS = ["host_id"]
+
 DEFAULT_FIELDS = (
     "id",
     "account",
@@ -283,39 +300,94 @@ def serialize_host(
     return serialized_host
 
 
-def serialize_host_row_for_export(row, *, staleness):
+# Matches insights-inventory-frontend
+DATA_COLLECTOR_LABELS = {
+    "puptoo": "insights-client",
+    "rhsm-conduit": "subscription-manager",
+    "rhsm-system-profile-bridge": "subscription-manager",
+    "satellite": "Satellite",
+    "discovery": "Discovery",
+}
+
+
+def _root_keys(value: Any) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return [str(key) for key in value.keys()]
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        return [value]
+    return []
+
+
+def _extract_root_keys(value: Any) -> str | None:
+    keys = _root_keys(value)
+    return ", ".join(keys) if keys else None
+
+
+def _format_data_collectors(value: Any) -> str | None:
+    labels: list[str] = []
+    seen: set[str] = set()
+    for reporter in _root_keys(value):
+        label = DATA_COLLECTOR_LABELS.get(reporter, reporter)
+        if label not in seen:
+            seen.add(label)
+            labels.append(label)
+    return ", ".join(labels) if labels else None
+
+
+def serialize_host_row_for_export(row, *, staleness, fields: list[str] | None = None):
     """Serialize a flat query row (no ORM relationship access) for the export service."""
-    group_id = None
-    group_name = None
-    if row.groups:
-        group_id = row.groups[0]["id"]
-        group_name = row.groups[0]["name"]
+    groups = getattr(row, "groups", None)
+    group_id = groups[0]["id"] if groups else None
+    group_name = groups[0]["name"] if groups else None
 
-    st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=row.last_check_in)
-
-    field_values = {
-        "display_name": row.display_name,
-        "fqdn": row.fqdn,
-        "host_id": serialize_uuid(row.id),
-        "subscription_manager_id": row.subscription_manager_id,
-        "satellite_id": row.satellite_id,
-        "group_id": group_id,
-        "group_name": group_name,
-        "os_release": row.os_release,
-        "updated": _serialize_datetime(row.modified_on),
-        "state": Conditions.find_host_state(
+    last_check_in = getattr(row, "last_check_in", None)
+    if last_check_in:
+        st_timestamps = get_staleness_timestamps(row, staleness, last_check_in=last_check_in)
+        state = Conditions.find_host_state(
             stale_timestamp=st_timestamps["stale_timestamp"],
             stale_warning_timestamp=st_timestamps["stale_warning_timestamp"],
-        ),
-        "tags": _serialize_tags(row.tags),
-        "host_type": row.host_type or "conventional",
-        "bios_uuid": row.bios_uuid,
-        "satellite_managed": row.satellite_managed,
-        "cloud_provider": row.cloud_provider,
-        "is_marketplace": row.is_marketplace,
-        "ip_addresses": row.ip_addresses,
+        )
+    else:
+        state = None
+
+    modified_on = getattr(row, "modified_on", None)
+    created_on = getattr(row, "created_on", None)
+    reporters = getattr(row, "reporters", None)
+
+    export_fields = fields if fields is not None else _EXPORT_SERVICE_FIELDS
+
+    field_values = {
+        "display_name": getattr(row, "display_name", None),
+        "fqdn": getattr(row, "fqdn", None),
+        "host_id": serialize_uuid(getattr(row, "id", None)),
+        "subscription_manager_id": getattr(row, "subscription_manager_id", None),
+        "satellite_id": getattr(row, "satellite_id", None),
+        "group_id": group_id,
+        "group_name": group_name,
+        "os_release": getattr(row, "os_release", None),
+        "updated": _serialize_datetime(modified_on) if modified_on else None,
+        "created": _serialize_datetime(created_on) if created_on else None,
+        "last_check_in": _serialize_datetime(last_check_in) if last_check_in else None,
+        "data_collector": _format_data_collectors(getattr(row, "per_reporter_staleness", None) or reporters),
+        "state": state,
+        "tags": _serialize_tags(getattr(row, "tags", None)),
+        "host_type": getattr(row, "host_type", None) or "conventional",
+        "bios_uuid": getattr(row, "bios_uuid", None),
+        "satellite_managed": getattr(row, "satellite_managed", None),
+        "cloud_provider": getattr(row, "cloud_provider", None),
+        "is_marketplace": getattr(row, "is_marketplace", None),
+        "ip_addresses": getattr(row, "ip_addresses", None),
+        "operating_system": getattr(row, "operating_system", None),
+        "infrastructure_type": getattr(row, "infrastructure_type", None),
+        "infrastructure_vendor": getattr(row, "infrastructure_vendor", None),
+        "workloads": _extract_root_keys(getattr(row, "workloads", None)),
     }
-    return {field: field_values[field] for field in _EXPORT_SERVICE_FIELDS}
+
+    return {field: field_values.get(field) for field in export_fields if field in field_values}
 
 
 def serialize_group_without_host_count(group: Group) -> dict:
@@ -660,6 +732,8 @@ def _full_per_reporter_staleness_dict(
     staleness: Any,
     stored_value: str,
 ) -> dict[str, Any]:
+    if isinstance(stored_value, dict):
+        return stored_value
     last_check_in_dt = _deserialize_datetime(stored_value)
     ts = get_staleness_timestamps(host, staleness, last_check_in=last_check_in_dt)
     return {

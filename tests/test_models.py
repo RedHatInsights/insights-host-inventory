@@ -2404,7 +2404,11 @@ def test_ungrouped_group_cache_deduplicates_group_creation(flask_app, mocker):  
 
 
 def test_ungrouped_group_cache_deduplicates_group_creation_rbac_v2(flask_app, mocker):  # noqa: ARG001
-    """When RBAC v2 is enabled and ungrouped group must be created, the workspace dict is fetched from RBAC."""
+    """When RBAC v2 is enabled, the ungrouped group is still loaded from the DB after the workspace event.
+
+    Callers (including MQ ingest) need a Group ORM object with .id. Fetching the workspace from the
+    RBAC HTTP API would require a Flask request context that MQ does not have.
+    """
     from lib.group_repository import UngroupedGroupCache
     from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
 
@@ -2413,25 +2417,27 @@ def test_ungrouped_group_cache_deduplicates_group_creation_rbac_v2(flask_app, mo
     mock_identity.account_number = "test_account"
 
     workspace_id = generate_uuid()
-    mock_rbac_workspace = {"id": str(workspace_id), "name": "Ungrouped Hosts"}
+    mock_created_group = mocker.Mock(name="created_ungrouped_group")
     mock_config = mocker.patch("lib.group_repository.inventory_config")
     mock_config.return_value.bypass_kessel = False
     get_ungrouped = mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
     mock_rbac = mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=workspace_id)
     mock_wait = mocker.patch("lib.group_repository.wait_for_workspace_event")
     mocker.patch("lib.group_repository.is_rbac_v2_enabled", return_value=True)
-    mock_get_rbac_ws = mocker.patch("lib.group_repository.get_rbac_workspace_by_id", return_value=mock_rbac_workspace)
+    mock_get_by_id = mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=mock_created_group)
+    mock_get_rbac_ws = mocker.patch("lib.middleware.get_rbac_workspace_by_id")
 
     with UngroupedGroupCache():
         first = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
         second = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
 
-    assert first is mock_rbac_workspace
-    assert second is mock_rbac_workspace
+    assert first is mock_created_group
+    assert second is mock_created_group
     get_ungrouped.assert_called_once_with(mock_identity)
     mock_rbac.assert_called_once_with(mock_identity)
     mock_wait.assert_called_once()
-    mock_get_rbac_ws.assert_called_once_with(str(workspace_id))
+    mock_get_by_id.assert_called_once_with(str(workspace_id), "test_org")
+    mock_get_rbac_ws.assert_not_called()
 
 
 class TestInventoryViewPatch:
