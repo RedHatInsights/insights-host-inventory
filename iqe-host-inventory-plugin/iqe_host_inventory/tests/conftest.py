@@ -21,6 +21,7 @@ from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
 from iqe_host_inventory.fixtures.feature_flag_fixtures import _ensure_ungrouped_group_exists
 from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.modeling.wrappers import HostWrapper
+from iqe_host_inventory.tests import _rbac_state
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
 from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
@@ -928,12 +929,20 @@ def hbi_setup_ephemeral_accounts(
         username = get_username(user_data)
         suffix = username.removeprefix(f"{default_username}-")
         logger.info(f"Setting up RBAC for user {username} (suffix: {suffix})")
-        host_inventory.apis.rbac.setup_ephemeral_rbac_user(
-            username, user_data.get("rbac", []), suffix=suffix
-        )
+        try:
+            host_inventory.apis.rbac.setup_ephemeral_rbac_user(
+                username, user_data.get("rbac", []), suffix=suffix
+            )
+        except Exception as exc:  # ruff: ignore[blind-except]  — intentionally broad; RBAC failures must not crash the session
+            _rbac_state.rbac_setup_failed = str(exc)
+            logger.error(f"RBAC setup failed, non-RBAC tests will continue: {exc}")
+            break
 
-    wait_for_kessel_sync(host_inventory)
-    logger.info("Ephemeral RBAC setup complete")
+    if _rbac_state.rbac_setup_failed is None:
+        wait_for_kessel_sync(host_inventory)
+        logger.info("Ephemeral RBAC setup complete")
+    else:
+        logger.warning("Skipping Kessel sync due to RBAC setup failure")
 
 
 def create_data_on_secondary_account(
