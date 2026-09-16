@@ -2460,6 +2460,7 @@ objects:
             "created_on" AS "created_at",
             "modified_on" AS "updated_at",
             "ansible_host" AS "ansible_host",
+            "h"."per_reporter_staleness" AS "reporter_check_in",
             CONCAT_WS('.',"sps"."operating_system"->>'name',"sps"."operating_system"->'major',"sps"."operating_system"->'minor') AS "os_version",
             "sps"."host_type" AS "host_type",
             "spd"."workloads"->'ansible'->'controller_version' AS "ansible_controller_version",
@@ -2473,7 +2474,8 @@ objects:
             "spd"."workloads"->'ansible' AS "ansible_workload",
             "spd"."workloads"->'mssql' AS "mssql_workload",
             "spd"."workloads"->'sap' AS "sap_workload",
-            "sps"."rhc_client_id"::text AS "rhc_client_id"
+            "sps"."rhc_client_id"::text AS "rhc_client_id",
+            "sps"."virtual_host_uuid"::text AS "hypervisor_id"
           FROM "hbi"."hosts" AS "h"
           LEFT JOIN "hbi"."system_profiles_static" AS "sps"
             ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
