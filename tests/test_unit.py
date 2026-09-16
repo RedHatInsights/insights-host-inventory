@@ -718,14 +718,14 @@ def test_order_by_only_how_raises_error_host_params_to_order_by():
         params_to_order_by(Mock(), order_how="ASC")
 
 
+def test_all_parts_tag_from_string():
+    assert Tag.from_string("NS/key=value") == Tag("NS", "key", "value")
+
+
 @pytest.mark.parametrize(
     "string_tag,expected",
     [
-        ("NS/key=value", Tag("NS", "key", "value")),
         ("NS/key=my/value", Tag("NS", "key", "my/value")),
-        ("key=value", Tag(None, "key", "value")),
-        ("NS/key", Tag("NS", "key", None)),
-        ("key", Tag(None, "key", None)),
         ("key=my/value", Tag(None, "key", "my/value")),
         ("NS/key=my/nested/value", Tag("NS", "key", "my/nested/value")),
         ("/key=my/value", Tag(None, "key", "my/value")),
@@ -733,8 +733,20 @@ def test_order_by_only_how_raises_error_host_params_to_order_by():
         ("NS/key=my/value/", Tag("NS", "key", "my/value/")),
     ],
 )
-def test_tag_from_string(string_tag, expected):
+def test_slash_in_value_tag_from_string(string_tag, expected):
     assert Tag.from_string(string_tag) == expected
+
+
+def test_no_namespace_tag_from_string():
+    assert Tag.from_string("key=value") == Tag(None, "key", "value")
+
+
+def test_no_value_tag_from_string():
+    assert Tag.from_string("NS/key") == Tag("NS", "key", None)
+
+
+def test_only_key_tag_from_string():
+    assert Tag.from_string("key") == Tag(None, "key", None)
 
 
 @pytest.mark.parametrize(
