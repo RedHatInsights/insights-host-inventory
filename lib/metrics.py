@@ -71,3 +71,9 @@ stale_host_notification_fail_count = Counter(
 
 outbox_save_success = Counter("inventory_outbox_save_successes", "Total number of outbox events successfully written")
 outbox_save_failure = Counter("inventory_outbox_save_failures", "Total number of outbox events failed to write")
+
+# Views
+system_default_view_missing = Counter(
+    "inventory_system_default_view_missing",
+    "Times the seeded 'All systems' system view was not found (indicates broken seed data)",
+)
