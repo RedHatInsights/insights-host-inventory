@@ -285,7 +285,7 @@ class Tag:
 
     @staticmethod
     def from_string(string_tag):
-        match = re.match(r"^((?P<namespace>[^=/]+)/)?(?P<key>(?!.*/=)[^=]+)(=(?P<value>[^=/]+))?$", string_tag)
+        match = re.match(r"^((?P<namespace>[^=/]*)/)?(?P<key>(?!.*/=)[^=]+)(=(?P<value>[^=/]+))?$", string_tag)
         encoded_tag_data = match.groupdict()
         decoded_tag_data = {}
         for k, v in encoded_tag_data.items():
@@ -295,6 +295,7 @@ class Tag:
                 decoded_tag_data[k] = urllib.parse.unquote(v)
                 if len(decoded_tag_data[k]) > 255:
                     raise ValidationException(f"{k} is longer than 255 characters")
+        decoded_tag_data["namespace"] = Tag.serialize_namespace(decoded_tag_data["namespace"])
         return Tag(**decoded_tag_data)
 
     @staticmethod
