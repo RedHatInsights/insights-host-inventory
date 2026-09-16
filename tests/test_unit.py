@@ -738,6 +738,22 @@ def test_only_key_tag_from_string():
     assert Tag.from_string("key") == Tag(None, "key", None)
 
 
+@pytest.mark.parametrize(
+    "string_tag,expected",
+    [
+        ("/my/key=myvalue", Tag(None, "my/key", "myvalue")),
+        ("/key=value", Tag(None, "key", "value")),
+        ("/key", Tag(None, "key", None)),
+        ("/my/nested/path/key=myvalue", Tag(None, "my/nested/path/key", "myvalue")),
+        ("/my/nested/path/key", Tag(None, "my/nested/path/key", None)),
+        ("null/my/key=myvalue", Tag(None, "my/key", "myvalue")),
+        ("null/my/key", Tag(None, "my/key", None)),
+    ],
+)
+def test_empty_or_null_namespace_tag_from_string(string_tag, expected):
+    assert Tag.from_string(string_tag) == expected
+
+
 def test_special_characters_decode_tag_from_string():
     assert Tag.from_string("Ns%21%40%23%24%25%5E%26%28%29/k%2Fe%3Dy%5C=v%3A%7C%5C%7B%5C%7D%27%27-%2Bal") == Tag(
         "Ns!@#$%^&()", "k/e=y\\", r"v:|\{\}''-+al"
@@ -3203,7 +3219,7 @@ def test_multiple_slashes_in_value_tag_from_string():
 
 
 def test_slash_in_value_empty_namespace_tag_from_string():
-    assert Tag.from_string("/key=my/value") == Tag(None, "/key", "my/value")
+    assert Tag.from_string("/key=my/value") == Tag(None, "key", "my/value")
 
 
 def test_slash_in_both_key_and_value_tag_from_string():
