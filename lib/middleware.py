@@ -38,6 +38,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_HBI_INVENTORY_VIEWS_RBAC
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_RBAC_V2
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
@@ -589,13 +590,18 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
             is_v2 = is_rbac_v2_enabled(current_identity.org_id)
+            rbac_workspaces_enabled = get_flag_value(FLAG_RBAC_WORKSPACES, current_identity.org_id)
 
             if resource_type == RbacResourceType.GROUPS and is_v2:
                 return func(*args, **kwargs)
 
             # Resource-types endpoints are not supported for v2 orgs.
             # In v2, resource-types are managed via RBAC v2 Role Bindings.
-            if resource_type == RbacResourceType.ALL and is_v2:
+            if (
+                resource_type == RbacResourceType.ALL
+                and rbac_workspaces_enabled
+                and not inventory_config().bypass_kessel
+            ):
                 abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -779,7 +785,7 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     return allowed
 
 
-def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
+def _get_allowed_app_services_v1(app_models: dict, rbac_request_headers: dict | None = None) -> set[str]:
     """RBAC v1 path: single multi-app call to the RBAC service."""
     v1_apps: set[str] = set()
     for model in app_models.values():
@@ -790,7 +796,8 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     if not v1_apps:
         return set()
 
-    rbac_request_headers = _build_rbac_request_headers()
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
     rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
 
     user_permissions = [p["permission"] for p in rbac_data]
@@ -806,17 +813,21 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     return allowed
 
 
-def _should_bypass_app_service_rbac() -> bool:
+def _should_bypass_app_service_rbac(identity: Identity | None = None) -> bool:
     if inventory_config().bypass_rbac:
         return True
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
     if identity.identity_type not in CHECKED_TYPES:
         return True
     return not get_flag_value(FLAG_HBI_INVENTORY_VIEWS_RBAC, identity.org_id)
 
 
-def get_allowed_app_services() -> set[str] | None:
-    """Determine which app_data services the current user can access.
+def get_allowed_app_services(
+    identity: Identity | None = None,
+    rbac_request_headers: dict | None = None,
+) -> set[str] | None:
+    """Determine which app_data services the current or given user can access.
 
     Reads permission requirements from each app_data model's __v1_read_permission__
     and __kessel_relation__ attributes. Models without these attributes are
@@ -827,17 +838,18 @@ def get_allowed_app_services() -> set[str] | None:
     """
     from app.models.host_app_data import get_app_data_models
 
-    if _should_bypass_app_service_rbac():
+    if _should_bypass_app_service_rbac(identity):
         return None
 
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
 
     app_models = get_app_data_models()
 
     if is_rbac_v2_enabled(identity.org_id):
         return _get_allowed_app_services_v2(identity, app_models)
 
-    return _get_allowed_app_services_v1(app_models)
+    return _get_allowed_app_services_v1(app_models, rbac_request_headers=rbac_request_headers)
 
 
 def is_rbac_v2_enabled(org_id: str) -> bool:
@@ -856,7 +868,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     Returns:
         True if RBAC v2 should be used, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_WORKSPACES, org_id)
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_V2, org_id)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:

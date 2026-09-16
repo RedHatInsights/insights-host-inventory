@@ -68,3 +68,57 @@ def test_decorator_generator_function_listener_active_across_yields(mock_sqleven
     assert mock_sqlevent.remove.call_count == 1
     # listen was active during all iterations
     assert all(count == 1 for count in listen_call_count_during_iteration)
+
+
+def test_sql_dump_single_write():
+    mock_write = MagicMock()
+    sql_dump = SQLDump(write_method=mock_write)
+
+    # Mock clauseelement
+    mock_compiled = MagicMock()
+    mock_compiled.__str__.return_value = "SELECT * FROM hosts"
+    mock_compiled.params = {"id": 123}
+
+    mock_clauseelement = MagicMock()
+    mock_clauseelement.compile.return_value = mock_compiled
+
+    # Invoke dump_sql
+    sql_dump.dump_sql(None, mock_clauseelement, None, None, None)
+
+    # Assert write_method called exactly once
+    mock_write.assert_called_once()
+
+    # Assert the single argument contains the query, parameters, and delimiters
+    called_arg = mock_write.call_args[0][0]
+    assert "**** QUERY:\n" in called_arg
+    assert "SELECT * FROM hosts" in called_arg
+    assert "**** PARAMETERS:\n" in called_arg
+    assert "123" in called_arg
+    assert "****************\n" in called_arg
+
+
+def test_dumps_sql_decorator_single_write(mock_sqlevent):
+    mock_write = MagicMock()
+
+    @dumps_sql(write_method=mock_write)
+    def dummy_test_func():
+        # Retrieve the registered listener from mock_sqlevent.listen call
+        assert mock_sqlevent.listen.call_count == 1
+        listener = mock_sqlevent.listen.call_args[0][2]
+
+        # Mock clauseelement
+        mock_compiled = MagicMock()
+        mock_compiled.__str__.return_value = "SELECT 1"
+        mock_compiled.params = {}
+        mock_clauseelement = MagicMock()
+        mock_clauseelement.compile.return_value = mock_compiled
+
+        # Call the listener
+        listener(None, mock_clauseelement, None, None, None)
+
+    dummy_test_func()
+
+    # Assert write_method called exactly once
+    mock_write.assert_called_once()
+    called_arg = mock_write.call_args[0][0]
+    assert "SELECT 1" in called_arg
