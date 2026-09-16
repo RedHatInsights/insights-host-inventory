@@ -718,24 +718,23 @@ def test_order_by_only_how_raises_error_host_params_to_order_by():
         params_to_order_by(Mock(), order_how="ASC")
 
 
-def test_all_parts_tag_from_string():
-    assert Tag.from_string("NS/key=value") == Tag("NS", "key", "value")
-
-
-def test_slash_in_value_tag_from_string():
-    assert Tag.from_string("NS/key=my/value") == Tag("NS", "key", "my/value")
-
-
-def test_no_namespace_tag_from_string():
-    assert Tag.from_string("key=value") == Tag(None, "key", "value")
-
-
-def test_no_value_tag_from_string():
-    assert Tag.from_string("NS/key") == Tag("NS", "key", None)
-
-
-def test_only_key_tag_from_string():
-    assert Tag.from_string("key") == Tag(None, "key", None)
+@pytest.mark.parametrize(
+    "string_tag,expected",
+    [
+        ("NS/key=value", Tag("NS", "key", "value")),
+        ("NS/key=my/value", Tag("NS", "key", "my/value")),
+        ("key=value", Tag(None, "key", "value")),
+        ("NS/key", Tag("NS", "key", None)),
+        ("key", Tag(None, "key", None)),
+        ("key=my/value", Tag(None, "key", "my/value")),
+        ("NS/key=my/nested/value", Tag("NS", "key", "my/nested/value")),
+        ("/key=my/value", Tag(None, "key", "my/value")),
+        ("NS/my/key=my/nested/value", Tag("NS", "my/key", "my/nested/value")),
+        ("NS/key=my/value/", Tag("NS", "key", "my/value/")),
+    ],
+)
+def test_tag_from_string(string_tag, expected):
+    assert Tag.from_string(string_tag) == expected
 
 
 @pytest.mark.parametrize(
@@ -3208,23 +3207,3 @@ def test_workloads_mixed_positive_and_nil_produces_exists_and_not_exists(flask_a
         sql = _compile_filters_to_sql(filters)
         assert "EXISTS" in sql
         assert "NOT (EXISTS" in sql
-
-
-def test_slash_in_value_no_namespace_tag_from_string():
-    assert Tag.from_string("key=my/value") == Tag(None, "key", "my/value")
-
-
-def test_multiple_slashes_in_value_tag_from_string():
-    assert Tag.from_string("NS/key=my/nested/value") == Tag("NS", "key", "my/nested/value")
-
-
-def test_slash_in_value_empty_namespace_tag_from_string():
-    assert Tag.from_string("/key=my/value") == Tag(None, "key", "my/value")
-
-
-def test_slash_in_both_key_and_value_tag_from_string():
-    assert Tag.from_string("NS/my/key=my/nested/value") == Tag("NS", "my/key", "my/nested/value")
-
-
-def test_trailing_slash_in_value_tag_from_string():
-    assert Tag.from_string("NS/key=my/value/") == Tag("NS", "key", "my/value/")
