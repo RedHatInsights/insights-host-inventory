@@ -20,6 +20,7 @@ from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.models import db
+from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
@@ -525,6 +526,28 @@ class TestBuildHeaders:
 
         assert request_headers["Authorization"] == "Bearer kessel-token-xyz"
         assert "x-rh-exports-psk" not in request_headers
+
+
+class TestBuildExportRequestUrl:
+    """Pins the URL contract with the export service's internal API.
+
+    The rest of the suite mocks `requests.Session.post` without inspecting the
+    URL, so a malformed path would otherwise go unnoticed.
+    """
+
+    @pytest.mark.parametrize("request_type", ("upload", "error"))
+    def test_uses_standardized_internal_basepath(self, request_type):
+        export_uuid = uuid4()
+        resource_uuid = str(uuid4())
+
+        url = _build_export_request_url(
+            "https://export-service.svc:10010", export_uuid, "inventory", resource_uuid, request_type
+        )
+
+        assert url == (
+            f"https://export-service.svc:10010/internal/export/v1/"
+            f"{export_uuid}/inventory/{resource_uuid}/{request_type}"
+        )
 
 
 @mock.patch("app.queue.export_service._handle_export_error")
