@@ -18,6 +18,7 @@ from sqlalchemy.orm.exc import ObjectDeletedError
 from api.host_query_db import _export_needs_profile_joins
 from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
+from app.auth.rbac import KesselResourceTypes
 from app.exceptions import InventoryException
 from app.models import db
 from app.queue.export_service import _build_export_request_url
@@ -35,6 +36,7 @@ from app.queue.host_mq import OperationResult
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from app.serialization import serialize_host_row_for_export
+from lib.middleware import get_kessel_filter
 from tests.helpers import export_service_utils as es_utils
 from tests.helpers.api_utils import HOST_READ_ALLOWED_RBAC_RESPONSE_FILES
 from tests.helpers.api_utils import HOST_READ_PROHIBITED_RBAC_RESPONSE_FILES
@@ -298,6 +300,110 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is None
         mock_resolve.assert_called_once()
+
+
+def test_get_kessel_filter_read_with_mixed_ids_denies(flask_app, mocker):
+    """API reads with a host ID list are all-or-nothing: one unauthorized ID denies the request."""
+    with flask_app.app.app_context():
+        mock_kessel = mocker.Mock()
+        mock_kessel.check.return_value = (False, ["host-2"])
+        mock_kessel.ListAllowedWorkspaces.return_value = ["workspace-allowed"]
+        mocker.patch("lib.middleware.get_kessel_client", return_value=mock_kessel)
+
+        allowed, rbac_filter = get_kessel_filter(
+            Identity(USER_IDENTITY),
+            KesselResourceTypes.HOST.view,
+            ["host-1", "host-2"],
+        )
+
+        assert allowed is False
+        assert rbac_filter == {"unauthorized_ids": ["host-2"]}
+        mock_kessel.check.assert_called_once()
+        mock_kessel.ListAllowedWorkspaces.assert_not_called()
+
+
+def test_get_kessel_filter_write_with_mixed_ids_still_denies(flask_app, mocker):
+    """Write operations with mixed IDs must still fail closed (all-or-nothing)."""
+    with flask_app.app.app_context():
+        mock_kessel = mocker.Mock()
+        mock_kessel.check_for_update.return_value = (False, ["host-2"])
+        mocker.patch("lib.middleware.get_kessel_client", return_value=mock_kessel)
+
+        allowed, rbac_filter = get_kessel_filter(
+            Identity(USER_IDENTITY),
+            KesselResourceTypes.HOST.delete,
+            ["host-1", "host-2"],
+        )
+
+        assert allowed is False
+        assert rbac_filter == {"unauthorized_ids": ["host-2"]}
+        mock_kessel.ListAllowedWorkspaces.assert_not_called()
+
+
+@pytest.mark.usefixtures("enable_rbac", "enable_kessel")
+@mock.patch("requests.Session.post", autospec=True)
+def test_create_export_rbac_v2_exports_only_accessible_hosts(
+    mock_post,
+    flask_app,
+    db_create_group_with_hosts,
+    db_get_hosts_for_group,
+    inventory_config,
+    mocker,
+):
+    """With hbi.rbac-v2, export must include only hosts in allowed workspaces, not 403."""
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    with flask_app.app.app_context():
+        allowed_group = db_create_group_with_hosts("allowed", 2)
+        denied_group = db_create_group_with_hosts("denied", 2)
+        allowed_ids = {str(host.id) for host in db_get_hosts_for_group(allowed_group.id)}
+        denied_ids = {str(host.id) for host in db_get_hosts_for_group(denied_group.id)}
+
+        mock_kessel = mocker.Mock()
+        mock_kessel.ListAllowedWorkspaces.return_value = [str(allowed_group.id)]
+        # If export collected every host ID and ran an all-or-nothing check(), this
+        # would deny the request even though some hosts are accessible.
+        mock_kessel.check.return_value = (False, list(denied_ids))
+        mocker.patch("lib.middleware.get_kessel_client", return_value=mock_kessel)
+
+        captured, capture_post = _capture_posted_body()
+        mock_post.side_effect = capture_post
+
+        result = _create_export(inventory_config)
+
+        assert result is True
+        mock_kessel.check.assert_not_called()
+        mock_kessel.ListAllowedWorkspaces.assert_called()
+
+        exported = json.loads(captured[-1])
+        exported_ids = {host["host_id"] for host in exported}
+        assert exported_ids == allowed_ids
+        assert exported_ids.isdisjoint(denied_ids)
+
+
+@pytest.mark.usefixtures("enable_rbac", "enable_kessel")
+@mock.patch("requests.Session.post", autospec=True)
+def test_create_export_rbac_v2_denied_when_no_workspaces(
+    mock_post, flask_app, db_create_host, inventory_config, mocker
+):
+    """With hbi.rbac-v2, a user with no allowed workspaces is still denied."""
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    with flask_app.app.app_context():
+        db_create_host()
+
+        mock_kessel = mocker.Mock()
+        mock_kessel.ListAllowedWorkspaces.return_value = []
+        mocker.patch("lib.middleware.get_kessel_client", return_value=mock_kessel)
+
+        mock_post.return_value.status_code = HTTPStatus.ACCEPTED
+        mock_post.return_value.text = ""
+
+        result = _create_export(inventory_config)
+
+        assert result is False
+        assert _error_body(mock_post)["error"] == 403
+        assert _error_body(mock_post)["message"] == "You don't have the permission to access the requested resource."
 
 
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):

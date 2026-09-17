@@ -478,7 +478,7 @@ def get_kessel_filter(
 
     if len(ids) > 0:
         if permission.write_operation:
-            # Write specific object(s) by id(s)
+            # Write specific object(s) by id(s) — all must be authorized
             logger.debug("get_kessel_filter: checking write permission for specific IDs via check_for_update")
             result, unauthorized_ids = kessel_client.check_for_update(current_identity, permission, ids)
             logger.debug(
@@ -491,7 +491,8 @@ def get_kessel_filter(
                 # Return unauthorized IDs so the caller can include them in the error response
                 return False, {"unauthorized_ids": unauthorized_ids}
         else:
-            # Read specific object(s) by id(s)
+            # Read specific object(s) by id(s) — all must be authorized (API GET-by-ID).
+            # Collection reads and export omit ids so they authorize via allowed workspaces.
             logger.debug("get_kessel_filter: checking read permission for specific IDs via check")
             result, unauthorized_ids = kessel_client.check(current_identity, permission, ids)
             logger.debug(
@@ -501,12 +502,9 @@ def get_kessel_filter(
             if result:
                 return True, None  # No need to apply a filter - the objects are authorized
             else:
-                # Return unauthorized IDs so the caller can include them in the error response
-                # Note: this is a potential departure from current behavior where an attempt to
-                # request multiple objects by id will return all accessible objects, ignoring inaccessible ones.
                 return False, {"unauthorized_ids": unauthorized_ids}
 
-    # No ids passed, operate on many objects not by ids
+    # No ids passed, operate on many objects not by ids (host list, export, etc.)
     relation = permission.workspace_permission
     logger.debug(
         "get_kessel_filter: no specific IDs, calling ListAllowedWorkspaces",

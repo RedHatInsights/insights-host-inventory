@@ -178,6 +178,31 @@ def test_access_decorator_returns_403_for_existing_host_with_permission_denied(m
     assert_response_status(response_status, 403)
 
 
+@pytest.mark.usefixtures("enable_rbac", "enable_kessel")
+def test_get_hosts_by_id_rbac_v2_mixed_access_returns_403(
+    mocker, api_get, db_create_group_with_hosts, db_get_hosts_for_group
+):
+    """GET /hosts/{id1},{id2} must 403 when any requested host is unauthorized under rbac-v2."""
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+
+    allowed_group = db_create_group_with_hosts("allowed", 1)
+    denied_group = db_create_group_with_hosts("denied", 1)
+    allowed_id = str(db_get_hosts_for_group(allowed_group.id)[0].id)
+    denied_id = str(db_get_hosts_for_group(denied_group.id)[0].id)
+
+    mock_kessel = mocker.Mock()
+    mock_kessel.check.return_value = (False, [denied_id])
+    mock_kessel.ListAllowedWorkspaces.return_value = [str(allowed_group.id)]
+    mocker.patch("lib.middleware.get_kessel_client", return_value=mock_kessel)
+
+    url = build_hosts_url(host_list_or_id=[allowed_id, denied_id])
+    response_status, _ = api_get(url)
+
+    assert_response_status(response_status, 403)
+    mock_kessel.check.assert_called_once()
+    mock_kessel.ListAllowedWorkspaces.assert_not_called()
+
+
 @pytest.mark.usefixtures("enable_rbac")
 def test_access_decorator_delete_nonexistent_host_with_permission_denied(mocker, api_delete_host):
     """

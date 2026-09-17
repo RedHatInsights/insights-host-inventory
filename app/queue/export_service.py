@@ -344,8 +344,10 @@ def create_export(
         session.close()
         return export_created
 
+    # Do not pass host IDs here. GET-by-ID is all-or-nothing; export must list allowed
+    # workspaces and query only hosts the user can access.
     allowed, rbac_filter = resolve_permission(
-        identity, KesselResourceTypes.HOST.view, rbac_request_headers=rbac_request_headers
+        identity, KesselResourceTypes.HOST.view, ids=[], rbac_request_headers=rbac_request_headers
     )
 
     if not allowed:
