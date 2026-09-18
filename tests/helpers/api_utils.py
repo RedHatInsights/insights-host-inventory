@@ -586,7 +586,9 @@ def build_groups_url(group_id=None, query=None):
     return _build_url(base_url=GROUP_URL, id_list=group_id, query=query)
 
 
-def build_views_url(view_id=None, query=None, clone=False):
+def build_views_url(view_id=None, query=None, clone=False, default=False):
+    if default:
+        return f"{BASE_URL}/beta/views/default"
     url = _build_url(base_url=VIEWS_URL, id_list=view_id, query=query)
     if clone and view_id:
         url = f"{VIEWS_URL}/{view_id}/clone"
