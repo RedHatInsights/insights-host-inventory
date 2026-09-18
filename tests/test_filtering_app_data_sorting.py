@@ -43,15 +43,14 @@ class TestResolveAppSort:
         assert model is HostAppDataPatch
         assert column.key == "advisories_rhsa_installable"
 
-    def test_advisor_total_severity(self):
-        """advisor:total_severity should resolve to correct model and a computed expression."""
-        from sqlalchemy.sql.expression import Case
-
-        result = resolve_app_sort("advisor:total_severity")
+    def test_advisor_severity_priority(self):
+        """advisor:severity_priority should resolve to correct model and a list of coalesced columns."""
+        result = resolve_app_sort("advisor:severity_priority")
         assert result is not None
-        model, expr = result
+        model, columns = result
         assert model is HostAppDataAdvisor
-        assert isinstance(expr, Case), "Expected a CASE expression for computed sort field"
+        assert isinstance(columns, list), "Expected a list of columns for multi-column priority sort"
+        assert len(columns) == 4
 
     def test_patch_advisories_total_installable(self):
         """patch:advisories_total_installable should resolve to correct model and a computed expression."""
@@ -259,7 +258,7 @@ class TestAppSortFieldMap:
             "advisor:important",
             "advisor:moderate",
             "advisor:low",
-            "advisor:total_severity",
+            "advisor:severity_priority",
         }
 
     def test_exact_vulnerability_fields(self):

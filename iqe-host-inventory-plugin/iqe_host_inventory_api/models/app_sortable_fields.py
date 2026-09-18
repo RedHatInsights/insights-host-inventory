@@ -27,7 +27,7 @@ class AppSortableFields:
     """
     ADVISOR_RECOMMENDATIONS = "advisor:recommendations"
     ADVISOR_INCIDENTS = "advisor:incidents"
-    ADVISOR_TOTAL_SEVERITY = "advisor:total_severity"
+    ADVISOR_SEVERITY_PRIORITY = "advisor:severity_priority"
     VULNERABILITY_TOTAL_CVES = "vulnerability:total_cves"
     VULNERABILITY_CRITICAL_CVES = "vulnerability:critical_cves"
     PATCH_ADVISORIES_RHSA_INSTALLABLE = "patch:advisories_rhsa_installable"
@@ -40,7 +40,7 @@ class AppSortableFields:
     allowable_values = [
         ADVISOR_RECOMMENDATIONS,
         ADVISOR_INCIDENTS,
-        ADVISOR_TOTAL_SEVERITY,
+        ADVISOR_SEVERITY_PRIORITY,
         VULNERABILITY_TOTAL_CVES,
         VULNERABILITY_CRITICAL_CVES,
         PATCH_ADVISORIES_RHSA_INSTALLABLE,

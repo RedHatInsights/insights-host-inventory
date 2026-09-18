@@ -1683,7 +1683,7 @@ components:
           - advisor:important
           - advisor:moderate
           - advisor:low
-          - advisor:total_severity
+          - advisor:severity_priority
           - vulnerability:total_cves
           - vulnerability:critical_cves
           - vulnerability:important_cves
@@ -2500,7 +2500,7 @@ components:
         - `advisor:important` - Important severity recommendations
         - `advisor:moderate` - Moderate severity recommendations
         - `advisor:low` - Low severity recommendations
-        - `advisor:total_severity` - Weighted severity score (critical×1000 + important×100 + moderate×10 + low)
+        - `advisor:severity_priority` - Priority sort by severity (critical > important > moderate > low)
 
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
@@ -2544,7 +2544,7 @@ components:
         - advisor:important
         - advisor:moderate
         - advisor:low
-        - advisor:total_severity
+        - advisor:severity_priority
         - vulnerability:total_cves
         - vulnerability:critical_cves
         - vulnerability:important_cves
