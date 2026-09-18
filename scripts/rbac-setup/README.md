@@ -121,6 +121,8 @@ setup before it can be used in automated tests:
    so automated tests can retrieve them at runtime. Open the vault entry
    for the org admin and add <username>-refresh_token fields.
 
+**Steps 3 and 4 can be automated via `scripts/token-refresh/refresh_tokens.py`.**
+
 Repeat for each user. Since all confirmation and password-reset
 emails are `+` aliases, they all arrive in the org admin's inbox (or the
 corresponding Google Group).
