@@ -1894,6 +1894,71 @@
         }
       }
     },
+    "/beta/views/default": {
+      "put": {
+        "operationId": "api.views.set_default_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Set the default view",
+        "description": "Pins a visible view as the requesting user's default. The default view is the one loaded automatically when the user opens the inventory page. If a preference already exists it is replaced (upsert). <br /><br /> Required permissions: inventory:views:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "description": "The view to pin as default.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefaultViewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully set the default view.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing user_id."
+          },
+          "404": {
+            "description": "View not found or not visible to the requesting user."
+          }
+        }
+      },
+      "delete": {
+        "operationId": "api.views.delete_default_view",
+        "tags": [
+          "views"
+        ],
+        "summary": "Unpin the default view",
+        "description": "Removes the requesting user's default view preference. After deletion the default falls back to the \"All systems\" system view. Idempotent — returns 204 even if no preference exists. <br /><br /> Required permissions: inventory:views:write",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successfully removed the default view preference."
+          },
+          "403": {
+            "description": "Forbidden - identity type not supported or missing user_id."
+          }
+        }
+      }
+    },
     "/beta/views/{view_id}": {
       "get": {
         "operationId": "api.views.get_view_by_id",
@@ -5856,6 +5921,21 @@
           "updated_at"
         ]
       },
+      "DefaultViewIn": {
+        "title": "Default View Payload",
+        "description": "Data for setting the user's default view.",
+        "type": "object",
+        "required": [
+          "view_id"
+        ],
+        "properties": {
+          "view_id": {
+            "description": "The UUID of the view to pin as the user's default.",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ViewsListOut": {
         "title": "Views List Response",
         "description": "A paginated list of inventory views.",
@@ -5867,9 +5947,15 @@
           {
             "type": "object",
             "required": [
-              "results"
+              "results",
+              "default_view_id"
             ],
             "properties": {
+              "default_view_id": {
+                "description": "The UUID of the user's current default view. This is the view that should be loaded automatically on page open. Falls back to the \"All systems\" system view if no preference is set.",
+                "type": "string",
+                "format": "uuid"
+              },
               "results": {
                 "description": "List of inventory views.",
                 "type": "array",
