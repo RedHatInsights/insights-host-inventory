@@ -1,9 +1,12 @@
+from copy import deepcopy
+
 from flask import Blueprint
 from flask import current_app
 from flask import jsonify
 from flask import request
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 
 from app.auth.identity import from_auth_header
 from app.models import Host
@@ -54,8 +57,10 @@ def combine_tags(input_list, existing_dict=None):
 
 def update_host_tags(session, host, tags):
     try:
-        current_tags = host.tags
-        combine_tags(tags, current_tags)
+        original_tags = deepcopy(host.tags)
+        current_tags = combine_tags(tags, host.tags)
+        if current_tags == original_tags:
+            return True
         host._update_tags(current_tags)
         session.add(host)
         return True
@@ -65,7 +70,12 @@ def update_host_tags(session, host, tags):
 
 
 def process_host_batch(session, identity, batch_ids, tags):
-    hosts = session.query(Host).filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids))).all()
+    hosts = (
+        session.query(Host)
+        .options(load_only(Host.id, Host.tags, Host.tags_alt))
+        .filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids)))
+        .all()
+    )
     found_host_ids = {str(host.id) for host in hosts}
     not_found = [hid for hid in batch_ids if str(hid) not in found_host_ids]
 
