@@ -299,17 +299,20 @@ def params_to_order_by(
     if allow_app_fields:
         resolved = resolve_app_sort(order_by)
         if resolved:
-            _, column = resolved
+            _, column_or_columns = resolved
 
             # Validate order_how consistently with standard fields
             if order_how is not None and order_how not in ("ASC", "DESC"):
                 raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
-            # Apply ordering with NULLS LAST (default to ASC if not specified)
-            order_expr = column.desc().nullslast() if order_how == "DESC" else column.asc().nullslast()
+            # Multi-column priority sort (e.g. critical > important > moderate > low)
+            columns = column_or_columns if isinstance(column_or_columns, list) else [column_or_columns]
+            order_exprs = tuple(
+                col.desc().nullslast() if order_how == "DESC" else col.asc().nullslast() for col in columns
+            )
 
             # Always add secondary sort for pagination stability
-            return (order_expr,) + modified_on_ordering + (Host.id.desc(),)
+            return order_exprs + modified_on_ordering + (Host.id.desc(),)
 
     if order_by == "updated":
         if order_how:
