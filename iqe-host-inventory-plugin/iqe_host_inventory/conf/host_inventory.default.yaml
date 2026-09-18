@@ -624,17 +624,17 @@ itl_int:
       auth:
         jwt_grant_type: authorization_code
         username:
-          vault_path: secrets/qe/int/users/insights-qa
+          vault_path: secrets/qe/int/users/insights_qa
           vault_key: username
         password:
-          vault_path: secrets/qe/int/users/insights-qa
+          vault_path: secrets/qe/int/users/insights_qa
           vault_key: password
       identity:
         account_number:
-          vault_path: secrets/qe/int/users/insights-qa
+          vault_path: secrets/qe/int/users/insights_qa
           vault_key: account_number
         org_id:
-          vault_path: secrets/qe/int/users/insights-qa
+          vault_path: secrets/qe/int/users/insights_qa
           vault_key: org_id
     insights_inventory_qe_2:
       auth:
