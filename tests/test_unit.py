@@ -722,6 +722,21 @@ def test_all_parts_tag_from_string():
     assert Tag.from_string("NS/key=value") == Tag("NS", "key", "value")
 
 
+@pytest.mark.parametrize(
+    "string_tag,expected",
+    [
+        ("NS/key=my/value", Tag("NS", "key", "my/value")),
+        ("key=my/value", Tag(None, "key", "my/value")),
+        ("NS/key=my/nested/value", Tag("NS", "key", "my/nested/value")),
+        ("/key=my/value", Tag(None, "key", "my/value")),
+        ("NS/my/key=my/nested/value", Tag("NS", "my/key", "my/nested/value")),
+        ("NS/key=my/value/", Tag("NS", "key", "my/value/")),
+    ],
+)
+def test_slash_in_value_tag_from_string(string_tag, expected):
+    assert Tag.from_string(string_tag) == expected
+
+
 def test_no_namespace_tag_from_string():
     assert Tag.from_string("key=value") == Tag(None, "key", "value")
 
