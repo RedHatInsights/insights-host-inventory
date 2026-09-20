@@ -99,6 +99,8 @@ class TestHostViewWithAppData:
             total_cves=10,
             critical_cves=2,
             important_cves=3,
+            moderate_cves=4,
+            low_cves=1,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -111,6 +113,9 @@ class TestHostViewWithAppData:
         assert "vulnerability" in result["app_data"]
         assert result["app_data"]["vulnerability"]["total_cves"] == 10
         assert result["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert result["app_data"]["vulnerability"]["important_cves"] == 3
+        assert result["app_data"]["vulnerability"]["moderate_cves"] == 4
+        assert result["app_data"]["vulnerability"]["low_cves"] == 1
 
     def test_host_with_patch_data(self, api_get, db_create_host):
         """Host with patch data should return patch in app_data."""
@@ -980,6 +985,8 @@ _APP_FILTER_CASES = [
     pytest.param("patch", "advisories_rhsa_installable", 5, 10, id="patch-advisories_rhsa_installable"),
     pytest.param("advisor", "recommendations", 3, 8, id="advisor-recommendations"),
     pytest.param("vulnerability", "total_cves", 10, 20, id="vulnerability-total_cves"),
+    pytest.param("vulnerability", "moderate_cves", 4, 9, id="vulnerability-moderate_cves"),
+    pytest.param("vulnerability", "low_cves", 2, 6, id="vulnerability-low_cves"),
     pytest.param("remediations", "remediations_plans", 3, 7, id="remediations-remediations_plans"),
     pytest.param("malware", "last_matches", 0, 5, id="malware-last_matches"),
     pytest.param(
@@ -1256,6 +1263,33 @@ class TestHostViewAppDataSorting:
         results = response_data["results"]
         assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 2
         assert results[1]["app_data"]["vulnerability"]["critical_cves"] == 10
+
+    @pytest.mark.parametrize("field_name", ["moderate_cves", "low_cves"])
+    def test_sort_by_vulnerability_moderate_and_low_cves(
+        self, api_get, db_create_host, db_create_host_app_data, field_name
+    ):
+        """Sort by vulnerability:moderate_cves / vulnerability:low_cves should order hosts by that count."""
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+
+        db_create_host_app_data(host_low.id, host_low.org_id, "vulnerability", **{field_name: 4})
+        db_create_host_app_data(host_high.id, host_high.org_id, "vulnerability", **{field_name: 12})
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:{field_name}&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"][field_name] == 12
+        assert results[1]["app_data"]["vulnerability"][field_name] == 4
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:{field_name}&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"][field_name] == 4
+        assert results[1]["app_data"]["vulnerability"][field_name] == 12
 
     def test_sort_by_advisor_recommendations_desc(self, api_get, db_create_host, db_create_host_app_data):
         """Sort by advisor:recommendations DESC should order hosts by recommendation count descending."""
