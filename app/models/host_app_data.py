@@ -171,6 +171,8 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
         "total_cves",
         "critical_cves",
         "important_cves",
+        "moderate_cves",
+        "low_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
@@ -178,6 +180,8 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
         "total_cves",
         "critical_cves",
         "important_cves",
+        "moderate_cves",
+        "low_cves",
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
@@ -188,6 +192,8 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     total_cves = db.Column(db.Integer, nullable=True)
     critical_cves = db.Column(db.Integer, nullable=True)
     important_cves = db.Column(db.Integer, nullable=True)
+    moderate_cves = db.Column(db.Integer, nullable=True)
+    low_cves = db.Column(db.Integer, nullable=True)
     cves_with_security_rules = db.Column(db.Integer, nullable=True)
     cves_with_known_exploits = db.Column(db.Integer, nullable=True)
 
