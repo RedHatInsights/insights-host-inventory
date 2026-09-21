@@ -21,7 +21,6 @@ from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.logging import ContextualFilter
-from app.logging import threadctx
 from app.models import db
 from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
@@ -299,34 +298,34 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is None
         mock_resolve.assert_called_once()
-        assert threadctx.request_id == "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
 
 
-def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock):
-    """Export Kafka handling must populate threadctx.request_id for ContextualFilter."""
-    mocker.patch("app.queue.export_service_mq.create_export", return_value=True)
-    if hasattr(threadctx, "request_id"):
-        delattr(threadctx, "request_id")
+def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock, caplog):
+    """Export handling must attach request_id to logs emitted during the message (not after cleanup)."""
+    mocker.patch("app.queue.export_service.resolve_permission", return_value=(False, None))
+    mock_post = mocker.patch("requests.Session.post", autospec=True)
+    mock_post.return_value.status_code = 202
 
     expected_request_id = "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
-    export_message = es_utils.create_export_message_mock()
+    export_logger = logging.getLogger("inventory.app.queue.export_service")
+    contextual_filter = ContextualFilter()
+    export_logger.addFilter(contextual_filter)
+    try:
+        with (
+            flask_app.app.app_context(),
+            caplog.at_level(logging.ERROR, logger="inventory.app.queue.export_service"),
+        ):
+            export_service_consumer_mock.handle_message(es_utils.create_export_message_mock())
+    finally:
+        export_logger.removeFilter(contextual_filter)
 
-    with flask_app.app.app_context():
-        export_service_consumer_mock.handle_message(export_message)
-
-    assert threadctx.request_id == expected_request_id
-
-    record = logging.LogRecord(
-        name="inventory.app.queue.export_service",
-        level=logging.ERROR,
-        pathname=__file__,
-        lineno=1,
-        msg="You don't have the permission to access the requested resource.",
-        args=(),
-        exc_info=None,
-    )
-    ContextualFilter().filter(record)
-    assert record.request_id == expected_request_id
+    error_records = [
+        record
+        for record in caplog.records
+        if record.getMessage() == "You don't have the permission to access the requested resource."
+    ]
+    assert error_records
+    assert error_records[0].request_id == expected_request_id
 
 
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):
