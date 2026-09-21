@@ -230,9 +230,9 @@ def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str,
     exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
-    x_rh_identity = export_svc_data["data"]["resource_request"]["x_rh_identity"]
+    identityHeader = export_svc_data["data"]["resource_request"]["x_rh_identity"]
 
-    return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
+    return exportFormat, exportUUID, applicationName, resourceUUID, identityHeader
 
 
 def _get_export_service_access_token(inventory_config: Config) -> str:
@@ -306,11 +306,11 @@ def create_export(
     if rbac_filter is None:
         rbac_filter = {}
 
-    exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
+    exportFormat, exportUUID, applicationName, resourceUUID, identityHeader = extract_export_svc_data(export_svc_data)
     # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
     threadctx.request_id = str(exportUUID)
 
-    identity = from_auth_header(x_rh_identity)
+    identity = from_auth_header(identityHeader)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
@@ -324,7 +324,7 @@ def create_export(
 
     try:
         rbac_request_headers, request_headers = build_headers(
-            x_rh_identity, exportUUID, inventory_config, exportFormat
+            identityHeader, exportUUID, inventory_config, exportFormat
         )
     except Exception:
         logger.exception("Failed to build export-service request headers for export %s", exportUUID)

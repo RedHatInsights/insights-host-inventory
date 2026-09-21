@@ -60,7 +60,10 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
         try:
             # HTTP requests set this in Flask before_request. The export consumer is Kafka-based,
             # so populate threadctx here so ContextualFilter attaches request_id to all logs.
-            initialize_thread_local_storage(str(validated_msg["data"]["resource_request"]["export_request_uuid"]))
+            initialize_thread_local_storage(
+                str(validated_msg["data"]["resource_request"]["export_request_uuid"]),
+                org_id=validated_msg.get("redhatorgid"),
+            )
             if (
                 validated_msg["source"] == EXPORT_EVENT_SOURCE
                 and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
