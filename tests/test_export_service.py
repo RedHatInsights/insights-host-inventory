@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
@@ -19,6 +20,8 @@ from api.host_query_db import _export_needs_profile_joins
 from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
+from app.logging import ContextualFilter
+from app.logging import threadctx
 from app.models import db
 from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
@@ -298,6 +301,34 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         resp = export_service_consumer_mock.handle_message(export_message)
         assert resp is None
         mock_resolve.assert_called_once()
+        assert threadctx.request_id == "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
+
+
+def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock):
+    """Export Kafka handling must populate threadctx.request_id for ContextualFilter."""
+    mocker.patch("app.queue.export_service_mq.create_export", return_value=True)
+    if hasattr(threadctx, "request_id"):
+        delattr(threadctx, "request_id")
+
+    expected_request_id = "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
+    export_message = es_utils.create_export_message_mock()
+
+    with flask_app.app.app_context():
+        export_service_consumer_mock.handle_message(export_message)
+
+    assert threadctx.request_id == expected_request_id
+
+    record = logging.LogRecord(
+        name="inventory.app.queue.export_service",
+        level=logging.ERROR,
+        pathname=__file__,
+        lineno=1,
+        msg="You don't have the permission to access the requested resource.",
+        args=(),
+        exc_info=None,
+    )
+    ContextualFilter().filter(record)
+    assert record.request_id == expected_request_id
 
 
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):

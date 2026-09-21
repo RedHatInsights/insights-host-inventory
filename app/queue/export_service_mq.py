@@ -11,6 +11,7 @@ from app.queue import metrics
 from app.queue.export_service import create_export
 from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import OperationResult
+from app.queue.host_mq import initialize_thread_local_storage
 from app.queue.mq_common import common_message_parser
 
 logger = get_logger(__name__)
@@ -57,6 +58,9 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
     ) -> OperationResult | None:
         validated_msg = parse_export_service_message(message)
         try:
+            # HTTP requests set this in Flask before_request. The export consumer is Kafka-based,
+            # so populate threadctx here so ContextualFilter attaches request_id to all logs.
+            initialize_thread_local_storage(str(validated_msg["data"]["resource_request"]["export_request_uuid"]))
             if (
                 validated_msg["source"] == EXPORT_EVENT_SOURCE
                 and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION

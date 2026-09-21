@@ -21,6 +21,7 @@ from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.logging import threadctx
 from app.models.host_app_data import get_app_data_models
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import ALWAYS_INCLUDED_EXPORT_FIELDS
@@ -306,12 +307,14 @@ def create_export(
     if rbac_filter is None:
         rbac_filter = {}
 
+    exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
+    # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
+    threadctx.request_id = str(exportUUID)
+
     identity = from_auth_header(base64_x_rh_identity)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
-
-    exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
 
     export_service_endpoint = inventory_config.export_service_endpoint
 
