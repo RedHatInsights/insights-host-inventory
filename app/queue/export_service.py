@@ -297,7 +297,6 @@ def _non_empty_hosts_iter(
 @metrics.create_export_processing_time.time()
 def create_export(
     export_svc_data: dict,
-    base64_x_rh_identity: str,
     inventory_config: Config,
     operation_args: dict | None = None,
     rbac_filter: dict | None = None,
@@ -311,7 +310,7 @@ def create_export(
     # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
     threadctx.request_id = str(exportUUID)
 
-    identity = from_auth_header(base64_x_rh_identity)
+    identity = from_auth_header(x_rh_identity)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")

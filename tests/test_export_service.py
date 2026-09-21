@@ -99,8 +99,7 @@ def _capture_posted_body():
 def _create_export(inventory_config, **message_kwargs):
     export_msg = es_utils.create_export_message_mock(**message_kwargs)
     validated_msg = parse_export_service_message(export_msg)
-    base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
-    return create_export(validated_msg, base64_id, inventory_config)
+    return create_export(validated_msg, inventory_config)
 
 
 def _error_body(mock_post):
@@ -127,9 +126,8 @@ def test_handle_create_export_unicode(db_create_host, flask_app, inventory_confi
         db_create_host(host=host_to_create)
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock(format=format))
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        assert create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        assert create_export(validated_msg, inventory_config)
 
 
 @mock.patch("requests.Session.post", autospec=True)
@@ -377,9 +375,8 @@ def test_export_catches_db_error(flask_app, inventory_config, mocker, db_create_
         real_entities_query.return_value = broken_query
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
         handle_export_error_mock.assert_called_once()
 
 
@@ -505,9 +502,8 @@ def test_create_export_posts_streaming_body(mock_post, db_create_host, flask_app
         mock_post.return_value.text = ""
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
 
         upload_call = mock_post.call_args_list[-1]
         data_arg = upload_call.kwargs.get("data") or upload_call[1].get("data")
@@ -526,9 +522,8 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
         )
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        result = create_export(validated_msg, inventory_config)
         assert result is True
 
 
@@ -592,9 +587,8 @@ def test_create_export_header_build_failure_reports_error(mock_build_headers, mo
     inventory_config.export_service_endpoint_ca_certificate = None
 
     validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-    base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-    result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+    result = create_export(validated_msg, inventory_config)
 
     assert result is False
     mock_build_headers.assert_called_once()
@@ -615,9 +609,8 @@ def test_create_export_honors_ca_certificate(mock_post, db_create_host, flask_ap
         mock_post.return_value.text = ""
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
 
         # The Session instance is the first positional arg (autospec=True) of the post call.
         session_instance = mock_post.call_args_list[-1][0][0]
