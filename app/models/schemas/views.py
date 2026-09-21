@@ -89,6 +89,10 @@ class PatchViewSchema(MarshmallowSchema):
         return in_data
 
 
+class DefaultViewSchema(MarshmallowSchema):
+    view_id = fields.UUID(required=True)
+
+
 class ViewResponseSchema(MarshmallowSchema):
     id = fields.UUID(dump_only=True)
     org_id = fields.Str(dump_only=True)

@@ -43,15 +43,14 @@ class TestResolveAppSort:
         assert model is HostAppDataPatch
         assert column.key == "advisories_rhsa_installable"
 
-    def test_advisor_total_severity(self):
-        """advisor:total_severity should resolve to correct model and a computed expression."""
-        from sqlalchemy.sql.expression import Case
-
-        result = resolve_app_sort("advisor:total_severity")
+    def test_advisor_severity_priority(self):
+        """advisor:severity_priority should resolve to correct model and a list of coalesced columns."""
+        result = resolve_app_sort("advisor:severity_priority")
         assert result is not None
-        model, expr = result
+        model, columns = result
         assert model is HostAppDataAdvisor
-        assert isinstance(expr, Case), "Expected a CASE expression for computed sort field"
+        assert isinstance(columns, list), "Expected a list of columns for multi-column priority sort"
+        assert len(columns) == 4
 
     def test_patch_advisories_total_installable(self):
         """patch:advisories_total_installable should resolve to correct model and a computed expression."""
@@ -128,6 +127,22 @@ class TestResolveAppSort:
         model, column = result
         assert model is HostAppDataVulnerability
         assert column.key == "important_cves"
+
+    def test_vulnerability_moderate_cves(self):
+        """vulnerability:moderate_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:moderate_cves")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "moderate_cves"
+
+    def test_vulnerability_low_cves(self):
+        """vulnerability:low_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:low_cves")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "low_cves"
 
     def test_vulnerability_cves_with_security_rules(self):
         """vulnerability:cves_with_security_rules should resolve to correct model and column."""
@@ -259,7 +274,7 @@ class TestAppSortFieldMap:
             "advisor:important",
             "advisor:moderate",
             "advisor:low",
-            "advisor:total_severity",
+            "advisor:severity_priority",
         }
 
     def test_exact_vulnerability_fields(self):
@@ -270,6 +285,8 @@ class TestAppSortFieldMap:
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
             "vulnerability:important_cves",
+            "vulnerability:moderate_cves",
+            "vulnerability:low_cves",
             "vulnerability:cves_with_security_rules",
             "vulnerability:cves_with_known_exploits",
         }

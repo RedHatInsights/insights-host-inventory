@@ -99,6 +99,8 @@ class TestHostViewWithAppData:
             total_cves=10,
             critical_cves=2,
             important_cves=3,
+            moderate_cves=4,
+            low_cves=1,
             cves_with_security_rules=1,
             cves_with_known_exploits=1,
         )
@@ -111,6 +113,9 @@ class TestHostViewWithAppData:
         assert "vulnerability" in result["app_data"]
         assert result["app_data"]["vulnerability"]["total_cves"] == 10
         assert result["app_data"]["vulnerability"]["critical_cves"] == 2
+        assert result["app_data"]["vulnerability"]["important_cves"] == 3
+        assert result["app_data"]["vulnerability"]["moderate_cves"] == 4
+        assert result["app_data"]["vulnerability"]["low_cves"] == 1
 
     def test_host_with_patch_data(self, api_get, db_create_host):
         """Host with patch data should return patch in app_data."""
@@ -980,6 +985,8 @@ _APP_FILTER_CASES = [
     pytest.param("patch", "advisories_rhsa_installable", 5, 10, id="patch-advisories_rhsa_installable"),
     pytest.param("advisor", "recommendations", 3, 8, id="advisor-recommendations"),
     pytest.param("vulnerability", "total_cves", 10, 20, id="vulnerability-total_cves"),
+    pytest.param("vulnerability", "moderate_cves", 4, 9, id="vulnerability-moderate_cves"),
+    pytest.param("vulnerability", "low_cves", 2, 6, id="vulnerability-low_cves"),
     pytest.param("remediations", "remediations_plans", 3, 7, id="remediations-remediations_plans"),
     pytest.param("malware", "last_matches", 0, 5, id="malware-last_matches"),
     pytest.param(
@@ -1257,6 +1264,33 @@ class TestHostViewAppDataSorting:
         assert results[0]["app_data"]["vulnerability"]["critical_cves"] == 2
         assert results[1]["app_data"]["vulnerability"]["critical_cves"] == 10
 
+    @pytest.mark.parametrize("field_name", ["moderate_cves", "low_cves"])
+    def test_sort_by_vulnerability_moderate_and_low_cves(
+        self, api_get, db_create_host, db_create_host_app_data, field_name
+    ):
+        """Sort by vulnerability:moderate_cves / vulnerability:low_cves should order hosts by that count."""
+        host_low = db_create_host(extra_data={"display_name": "host-low.example.com"})
+        host_high = db_create_host(extra_data={"display_name": "host-high.example.com"})
+
+        db_create_host_app_data(host_low.id, host_low.org_id, "vulnerability", **{field_name: 4})
+        db_create_host_app_data(host_high.id, host_high.org_id, "vulnerability", **{field_name: 12})
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:{field_name}&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"][field_name] == 12
+        assert results[1]["app_data"]["vulnerability"][field_name] == 4
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:{field_name}&order_how=ASC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["app_data"]["vulnerability"][field_name] == 4
+        assert results[1]["app_data"]["vulnerability"][field_name] == 12
+
     def test_sort_by_advisor_recommendations_desc(self, api_get, db_create_host, db_create_host_app_data):
         """Sort by advisor:recommendations DESC should order hosts by recommendation count descending."""
         host_few = db_create_host(extra_data={"display_name": "host-few.example.com"})
@@ -1482,16 +1516,50 @@ class TestHostViewAppDataSorting:
         assert results[0]["display_name"] == "host-with-data.example.com"
         assert results[1]["display_name"] == "host-no-data.example.com"
 
-    @pytest.mark.parametrize("order_how,expected_order", [("ASC", [0, 3, 210, 2310]), ("DESC", [2310, 210, 3, 0])])
-    def test_sort_by_advisor_total_severity(
-        self, api_get, db_create_host, db_create_host_app_data, order_how, expected_order
-    ):
-        """Sort by advisor:total_severity should sort by weighted severity score."""
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+    def test_sort_by_advisor_severity_priority(self, api_get, db_create_host, db_create_host_app_data, order_how):
+        """Sort by advisor:severity_priority uses multi-column priority: critical > important > moderate > low."""
         hosts_data = [
-            {"name": "host-0.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 0},
-            {"name": "host-3.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 3},
-            {"name": "host-210.example.com", "critical": 0, "important": 2, "moderate": 1, "low": 0},
-            {"name": "host-2310.example.com", "critical": 2, "important": 3, "moderate": 1, "low": 0},
+            {"name": "host-zero.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 0},
+            {"name": "host-low-only.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 3},
+            {"name": "host-imp.example.com", "critical": 0, "important": 2, "moderate": 1, "low": 0},
+            {"name": "host-crit.example.com", "critical": 2, "important": 3, "moderate": 1, "low": 0},
+        ]
+        expected_asc = [
+            "host-zero.example.com",
+            "host-low-only.example.com",
+            "host-imp.example.com",
+            "host-crit.example.com",
+        ]
+        expected_desc = list(reversed(expected_asc))
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "advisor",
+                critical=hd["critical"],
+                important=hd["important"],
+                moderate=hd["moderate"],
+                low=hd["low"],
+                recommendations=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query=f"?order_by=advisor:severity_priority&order_how={order_how}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_names = [r["display_name"] for r in response_data["results"]]
+        assert result_names == (expected_asc if order_how == "ASC" else expected_desc)
+
+    def test_sort_by_advisor_severity_priority_critical_beats_any_lower(
+        self, api_get, db_create_host, db_create_host_app_data
+    ):
+        """One critical recommendation must sort above any number of important/moderate/low."""
+        hosts_data = [
+            {"name": "host-many-imp.example.com", "critical": 0, "important": 999, "moderate": 999, "low": 999},
+            {"name": "host-one-crit.example.com", "critical": 1, "important": 0, "moderate": 0, "low": 0},
         ]
 
         for hd in hosts_data:
@@ -1507,17 +1575,52 @@ class TestHostViewAppDataSorting:
                 recommendations=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
             )
 
-        url = build_host_view_url(query=f"?order_by=advisor:total_severity&order_how={order_how}")
+        url = build_host_view_url(query="?order_by=advisor:severity_priority&order_how=DESC")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)
         results = response_data["results"]
-        result_names = [r["display_name"] for r in results]
-        expected_names = [f"host-{t}.example.com" for t in expected_order]
-        assert result_names == expected_names
+        assert results[0]["display_name"] == "host-one-crit.example.com"
+        assert results[1]["display_name"] == "host-many-imp.example.com"
+
+    def test_sort_by_advisor_severity_priority_tiebreak_on_next_level(
+        self, api_get, db_create_host, db_create_host_app_data
+    ):
+        """When critical counts are equal, important breaks the tie, then moderate, then low."""
+        hosts_data = [
+            {"name": "host-a.example.com", "critical": 1, "important": 0, "moderate": 5, "low": 0},
+            {"name": "host-b.example.com", "critical": 1, "important": 3, "moderate": 0, "low": 0},
+            {"name": "host-c.example.com", "critical": 1, "important": 3, "moderate": 2, "low": 0},
+            {"name": "host-d.example.com", "critical": 1, "important": 3, "moderate": 2, "low": 7},
+        ]
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "advisor",
+                critical=hd["critical"],
+                important=hd["important"],
+                moderate=hd["moderate"],
+                low=hd["low"],
+                recommendations=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query="?order_by=advisor:severity_priority&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_names = [r["display_name"] for r in response_data["results"]]
+        assert result_names == [
+            "host-d.example.com",  # 1 crit, 3 imp, 2 mod, 7 low
+            "host-c.example.com",  # 1 crit, 3 imp, 2 mod, 0 low
+            "host-b.example.com",  # 1 crit, 3 imp, 0 mod, 0 low
+            "host-a.example.com",  # 1 crit, 0 imp, 5 mod, 0 low
+        ]
 
     @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
-    def test_sort_by_advisor_total_severity_nulls_last(
+    def test_sort_by_advisor_severity_priority_nulls_last(
         self, api_get, db_create_host, db_create_host_app_data, order_how
     ):
         """Hosts without advisor data should appear last regardless of sort direction."""
@@ -1535,7 +1638,7 @@ class TestHostViewAppDataSorting:
             recommendations=0,
         )
 
-        url = build_host_view_url(query=f"?order_by=advisor:total_severity&order_how={order_how}")
+        url = build_host_view_url(query=f"?order_by=advisor:severity_priority&order_how={order_how}")
         response_status, response_data = api_get(url)
 
         assert_response_status(response_status, 200)

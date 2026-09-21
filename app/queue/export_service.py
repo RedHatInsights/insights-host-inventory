@@ -505,7 +505,7 @@ def create_export(
 def _build_export_request_url(
     export_service_endpoint: str, exportUUID: UUID, applicationName: str, resourceUUID: str, request_type: str
 ) -> str:
-    return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
+    return f"{export_service_endpoint}/internal/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
 
 
 def _handle_export_error(
