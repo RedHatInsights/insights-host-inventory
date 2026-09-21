@@ -300,6 +300,31 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         mock_resolve.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "parsed_message",
+    [
+        {"source": "other", "redhatorgid": "org-1"},
+        {"source": "other", "redhatorgid": "org-1", "data": {}},
+        {"source": "other", "redhatorgid": "org-1", "data": {"resource_request": {}}},
+    ],
+)
+def test_handle_message_missing_export_request_uuid_logs_warning(
+    parsed_message, flask_app, mocker, export_service_consumer_mock, caplog
+):
+    mocker.patch("app.queue.export_service_mq.parse_export_service_message", return_value=parsed_message)
+    init_tls = mocker.patch("app.queue.export_service_mq.initialize_thread_local_storage")
+
+    with flask_app.app.app_context(), caplog.at_level(logging.WARNING):
+        resp = export_service_consumer_mock.handle_message("{}")
+
+    assert resp is None
+    assert any(
+        "Export message missing export_request_uuid; logging without request_id" in record.getMessage()
+        for record in caplog.records
+    )
+    assert init_tls.call_args_list[0] == mocker.call(None, org_id="org-1")
+
+
 def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock, caplog):
     """Export handling must attach request_id to logs emitted during the message (not after cleanup)."""
     mocker.patch("app.queue.export_service.resolve_permission", return_value=(False, None))
