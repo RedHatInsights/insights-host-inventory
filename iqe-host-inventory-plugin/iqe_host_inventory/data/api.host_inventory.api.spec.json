@@ -3404,6 +3404,16 @@
             "minimum": 0,
             "nullable": true
           },
+          "moderate_cves": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
+          "low_cves": {
+            "type": "integer",
+            "minimum": 0,
+            "nullable": true
+          },
           "cves_with_security_rules": {
             "type": "integer",
             "minimum": 0,

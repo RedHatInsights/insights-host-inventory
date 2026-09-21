@@ -1737,6 +1737,8 @@ components:
           - vulnerability:total_cves
           - vulnerability:critical_cves
           - vulnerability:important_cves
+          - vulnerability:moderate_cves
+          - vulnerability:low_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
           - patch:advisories_total_installable
@@ -2349,6 +2351,14 @@ components:
           type: integer
           minimum: 0
           nullable: true
+        moderate_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        low_cves:
+          type: integer
+          minimum: 0
+          nullable: true
         cves_with_security_rules:
           type: integer
           minimum: 0
@@ -2556,6 +2566,8 @@ components:
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
         - `vulnerability:important_cves` - Important severity CVEs
+        - `vulnerability:moderate_cves` - Moderate severity CVEs
+        - `vulnerability:low_cves` - Low severity CVEs
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
@@ -2598,6 +2610,8 @@ components:
         - vulnerability:total_cves
         - vulnerability:critical_cves
         - vulnerability:important_cves
+        - vulnerability:moderate_cves
+        - vulnerability:low_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
         - patch:advisories_total_installable

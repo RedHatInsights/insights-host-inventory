@@ -128,6 +128,22 @@ class TestResolveAppSort:
         assert model is HostAppDataVulnerability
         assert column.key == "important_cves"
 
+    def test_vulnerability_moderate_cves(self):
+        """vulnerability:moderate_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:moderate_cves")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "moderate_cves"
+
+    def test_vulnerability_low_cves(self):
+        """vulnerability:low_cves should resolve to correct model and column."""
+        result = resolve_app_sort("vulnerability:low_cves")
+        assert result is not None
+        model, column = result
+        assert model is HostAppDataVulnerability
+        assert column.key == "low_cves"
+
     def test_vulnerability_cves_with_security_rules(self):
         """vulnerability:cves_with_security_rules should resolve to correct model and column."""
         result = resolve_app_sort("vulnerability:cves_with_security_rules")
@@ -269,6 +285,8 @@ class TestAppSortFieldMap:
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
             "vulnerability:important_cves",
+            "vulnerability:moderate_cves",
+            "vulnerability:low_cves",
             "vulnerability:cves_with_security_rules",
             "vulnerability:cves_with_known_exploits",
         }
