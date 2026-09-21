@@ -80,6 +80,12 @@ $defs:
       important_cves:
         type: integer
         description: Number of important severity CVEs
+      moderate_cves:
+        type: integer
+        description: Number of moderate severity CVEs
+      low_cves:
+        type: integer
+        description: Number of low severity CVEs
       cves_with_security_rules:
         type: integer
         description: Number of CVEs with security rules
