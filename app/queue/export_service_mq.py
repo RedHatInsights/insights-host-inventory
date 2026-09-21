@@ -83,6 +83,9 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
             logger.error(e)
             metrics.export_service_message_handler_failure.inc()
             return None
+        finally:
+            # Always clear so a later parse failure cannot inherit this export's request_id.
+            initialize_thread_local_storage(None)
 
 
 @metrics.export_service_message_parsing_time.time()
