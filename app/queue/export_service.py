@@ -21,6 +21,7 @@ from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.exceptions import InventoryException
 from app.logging import get_logger
+from app.logging import threadctx
 from app.models.host_app_data import get_app_data_models
 from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import ALWAYS_INCLUDED_EXPORT_FIELDS
@@ -229,9 +230,9 @@ def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str,
     exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
     applicationName = export_svc_data["data"]["resource_request"]["application"]
     resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
-    x_rh_identity = export_svc_data["data"]["resource_request"]["x_rh_identity"]
+    identityHeader = export_svc_data["data"]["resource_request"]["x_rh_identity"]
 
-    return exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity
+    return exportFormat, exportUUID, applicationName, resourceUUID, identityHeader
 
 
 def _get_export_service_access_token(inventory_config: Config) -> str:
@@ -296,7 +297,6 @@ def _non_empty_hosts_iter(
 @metrics.create_export_processing_time.time()
 def create_export(
     export_svc_data: dict,
-    base64_x_rh_identity: str,
     inventory_config: Config,
     operation_args: dict | None = None,
     rbac_filter: dict | None = None,
@@ -306,12 +306,14 @@ def create_export(
     if rbac_filter is None:
         rbac_filter = {}
 
-    identity = from_auth_header(base64_x_rh_identity)
+    exportFormat, exportUUID, applicationName, resourceUUID, identityHeader = extract_export_svc_data(export_svc_data)
+    # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
+    threadctx.request_id = str(exportUUID)
+
+    identity = from_auth_header(identityHeader)
 
     metrics.create_export_count.inc()
     logger.info("Creating export for HBI")
-
-    exportFormat, exportUUID, applicationName, resourceUUID, x_rh_identity = extract_export_svc_data(export_svc_data)
 
     export_service_endpoint = inventory_config.export_service_endpoint
 
@@ -322,7 +324,7 @@ def create_export(
 
     try:
         rbac_request_headers, request_headers = build_headers(
-            x_rh_identity, exportUUID, inventory_config, exportFormat
+            identityHeader, exportUUID, inventory_config, exportFormat
         )
     except Exception:
         logger.exception("Failed to build export-service request headers for export %s", exportUUID)
@@ -505,7 +507,7 @@ def create_export(
 def _build_export_request_url(
     export_service_endpoint: str, exportUUID: UUID, applicationName: str, resourceUUID: str, request_type: str
 ) -> str:
-    return f"{export_service_endpoint}/app/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
+    return f"{export_service_endpoint}/internal/export/v1/{exportUUID}/{applicationName}/{resourceUUID}/{request_type}"
 
 
 def _handle_export_error(

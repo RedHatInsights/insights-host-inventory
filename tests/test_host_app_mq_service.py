@@ -458,6 +458,8 @@ class TestHostAppDataValidation:
             "total_cves": 50,
             "critical_cves": 5,
             "important_cves": 10,
+            "moderate_cves": 20,
+            "low_cves": 15,
             "cves_with_security_rules": 8,
             "cves_with_known_exploits": 3,
         }
@@ -470,6 +472,8 @@ class TestHostAppDataValidation:
         assert app_data is not None
         assert app_data.total_cves == 50
         assert app_data.critical_cves == 5
+        assert app_data.moderate_cves == 20
+        assert app_data.low_cves == 15
 
     def test_patch_data_maxlength_validation(self, host_app_consumer, db_create_host):
         """Test that Patch data exceeding maxLength is rejected."""

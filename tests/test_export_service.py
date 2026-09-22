@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
@@ -19,7 +20,9 @@ from api.host_query_db import _export_needs_profile_joins
 from api.host_query_db import get_hosts_to_export
 from app.auth.identity import Identity
 from app.exceptions import InventoryException
+from app.logging import ContextualFilter
 from app.models import db
+from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
 from app.queue.export_service import _format_export_data
 from app.queue.export_service import _handle_export_error
@@ -95,8 +98,7 @@ def _capture_posted_body():
 def _create_export(inventory_config, **message_kwargs):
     export_msg = es_utils.create_export_message_mock(**message_kwargs)
     validated_msg = parse_export_service_message(export_msg)
-    base64_id = validated_msg["data"]["resource_request"]["x_rh_identity"]
-    return create_export(validated_msg, base64_id, inventory_config)
+    return create_export(validated_msg, inventory_config)
 
 
 def _error_body(mock_post):
@@ -123,9 +125,8 @@ def test_handle_create_export_unicode(db_create_host, flask_app, inventory_confi
         db_create_host(host=host_to_create)
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock(format=format))
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        assert create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        assert create_export(validated_msg, inventory_config)
 
 
 @mock.patch("requests.Session.post", autospec=True)
@@ -299,6 +300,59 @@ def test_handle_kessel_prohibited(mock_resolve, mock_post, flask_app, db_create_
         mock_resolve.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    "parsed_message",
+    [
+        {"source": "other", "redhatorgid": "org-1"},
+        {"source": "other", "redhatorgid": "org-1", "data": {}},
+        {"source": "other", "redhatorgid": "org-1", "data": {"resource_request": {}}},
+    ],
+)
+def test_handle_message_missing_export_request_uuid_logs_warning(
+    parsed_message, flask_app, mocker, export_service_consumer_mock, caplog
+):
+    mocker.patch("app.queue.export_service_mq.parse_export_service_message", return_value=parsed_message)
+    init_tls = mocker.patch("app.queue.export_service_mq.initialize_thread_local_storage")
+
+    with flask_app.app.app_context(), caplog.at_level(logging.WARNING):
+        resp = export_service_consumer_mock.handle_message("{}")
+
+    assert resp is None
+    assert any(
+        "Export message missing export_request_uuid; logging without request_id" in record.getMessage()
+        for record in caplog.records
+    )
+    assert init_tls.call_args_list[0] == mocker.call(None, org_id="org-1")
+
+
+def test_export_handle_message_sets_request_id_for_logs(flask_app, mocker, export_service_consumer_mock, caplog):
+    """Export handling must attach request_id to logs emitted during the message (not after cleanup)."""
+    mocker.patch("app.queue.export_service.resolve_permission", return_value=(False, None))
+    mock_post = mocker.patch("requests.Session.post", autospec=True)
+    mock_post.return_value.status_code = 202
+
+    expected_request_id = "9becbc61-49a4-49be-beb1-1f0a7cbc6e36"
+    export_logger = logging.getLogger("inventory.app.queue.export_service")
+    contextual_filter = ContextualFilter()
+    export_logger.addFilter(contextual_filter)
+    try:
+        with (
+            flask_app.app.app_context(),
+            caplog.at_level(logging.ERROR, logger="inventory.app.queue.export_service"),
+        ):
+            export_service_consumer_mock.handle_message(es_utils.create_export_message_mock())
+    finally:
+        export_logger.removeFilter(contextual_filter)
+
+    error_records = [
+        record
+        for record in caplog.records
+        if record.getMessage() == "You don't have the permission to access the requested resource."
+    ]
+    assert error_records
+    assert error_records[0].request_id == expected_request_id
+
+
 def test_do_not_export_culled_hosts(flask_app, db_create_host, db_create_staleness_culling, inventory_config):
     with flask_app.app.app_context():
         CUSTOM_STALENESS_DELETE = {
@@ -345,9 +399,8 @@ def test_export_catches_db_error(flask_app, inventory_config, mocker, db_create_
         real_entities_query.return_value = broken_query
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
         handle_export_error_mock.assert_called_once()
 
 
@@ -473,9 +526,8 @@ def test_create_export_posts_streaming_body(mock_post, db_create_host, flask_app
         mock_post.return_value.text = ""
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
 
         upload_call = mock_post.call_args_list[-1]
         data_arg = upload_call.kwargs.get("data") or upload_call[1].get("data")
@@ -494,9 +546,8 @@ def test_create_export_already_processed_returns_true(mock_post, db_create_host,
         )
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        result = create_export(validated_msg, inventory_config)
         assert result is True
 
 
@@ -527,6 +578,28 @@ class TestBuildHeaders:
         assert "x-rh-exports-psk" not in request_headers
 
 
+class TestBuildExportRequestUrl:
+    """Pins the URL contract with the export service's internal API.
+
+    The rest of the suite mocks `requests.Session.post` without inspecting the
+    URL, so a malformed path would otherwise go unnoticed.
+    """
+
+    @pytest.mark.parametrize("request_type", ("upload", "error"))
+    def test_uses_standardized_internal_basepath(self, request_type):
+        export_uuid = uuid4()
+        resource_uuid = str(uuid4())
+
+        url = _build_export_request_url(
+            "https://export-service.svc:10010", export_uuid, "inventory", resource_uuid, request_type
+        )
+
+        assert url == (
+            f"https://export-service.svc:10010/internal/export/v1/"
+            f"{export_uuid}/inventory/{resource_uuid}/{request_type}"
+        )
+
+
 @mock.patch("app.queue.export_service._handle_export_error")
 @mock.patch("app.queue.export_service.build_headers", side_effect=RuntimeError("token failed"))
 def test_create_export_header_build_failure_reports_error(mock_build_headers, mock_handle_error, mocker):
@@ -538,9 +611,8 @@ def test_create_export_header_build_failure_reports_error(mock_build_headers, mo
     inventory_config.export_service_endpoint_ca_certificate = None
 
     validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-    base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-    result = create_export(validated_msg, base64_x_rh_identity, inventory_config)
+    result = create_export(validated_msg, inventory_config)
 
     assert result is False
     mock_build_headers.assert_called_once()
@@ -561,9 +633,8 @@ def test_create_export_honors_ca_certificate(mock_post, db_create_host, flask_ap
         mock_post.return_value.text = ""
 
         validated_msg = parse_export_service_message(es_utils.create_export_message_mock())
-        base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-        create_export(validated_msg, base64_x_rh_identity, inventory_config)
+        create_export(validated_msg, inventory_config)
 
         # The Session instance is the first positional arg (autospec=True) of the post call.
         session_instance = mock_post.call_args_list[-1][0][0]

@@ -1111,6 +1111,56 @@ paths:
           description: Invalid request.
         '403':
           description: Forbidden - identity type not supported or missing user_id.
+  /beta/views/default:
+    put:
+      operationId: api.views.set_default_view
+      tags:
+        - views
+      summary: Set the default view
+      description: >-
+        Pins a visible view as the requesting user's default. The default view
+        is the one loaded automatically when the user opens the inventory page.
+        If a preference already exists it is replaced (upsert).
+        <br /><br />
+        Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        description: The view to pin as default.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefaultViewIn'
+      responses:
+        '200':
+          description: Successfully set the default view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '403':
+          description: Forbidden - identity type not supported or missing user_id.
+        '404':
+          description: View not found or not visible to the requesting user.
+    delete:
+      operationId: api.views.delete_default_view
+      tags:
+        - views
+      summary: Unpin the default view
+      description: >-
+        Removes the requesting user's default view preference. After deletion
+        the default falls back to the "All systems" system view.
+        Idempotent — returns 204 even if no preference exists.
+        <br /><br />
+        Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '204':
+          description: Successfully removed the default view preference.
+        '403':
+          description: Forbidden - identity type not supported or missing user_id.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id
@@ -1469,13 +1519,13 @@ components:
     tagsParam:
       name: tags
       in: query
-      description: 'Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).'
+      description: "Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). Tags with the same namespace and key (their identity) are OR'd (match any value); tags with different identities are AND'd (must match all)."
       required: false
       schema:
         type: array
         items:
           type: string
-          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=/]+)?$'
+          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=]+)?$'
     tagsOrderByParam:
       in: query
       name: order_by
@@ -1683,10 +1733,12 @@ components:
           - advisor:important
           - advisor:moderate
           - advisor:low
-          - advisor:total_severity
+          - advisor:severity_priority
           - vulnerability:total_cves
           - vulnerability:critical_cves
           - vulnerability:important_cves
+          - vulnerability:moderate_cves
+          - vulnerability:low_cves
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
           - patch:advisories_total_installable
@@ -2299,6 +2351,14 @@ components:
           type: integer
           minimum: 0
           nullable: true
+        moderate_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        low_cves:
+          type: integer
+          minimum: 0
+          nullable: true
         cves_with_security_rules:
           type: integer
           minimum: 0
@@ -2500,12 +2560,14 @@ components:
         - `advisor:important` - Important severity recommendations
         - `advisor:moderate` - Moderate severity recommendations
         - `advisor:low` - Low severity recommendations
-        - `advisor:total_severity` - Weighted severity score (critical×1000 + important×100 + moderate×10 + low)
+        - `advisor:severity_priority` - Priority sort by severity (critical > important > moderate > low)
 
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
         - `vulnerability:important_cves` - Important severity CVEs
+        - `vulnerability:moderate_cves` - Moderate severity CVEs
+        - `vulnerability:low_cves` - Low severity CVEs
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
@@ -2544,10 +2606,12 @@ components:
         - advisor:important
         - advisor:moderate
         - advisor:low
-        - advisor:total_severity
+        - advisor:severity_priority
         - vulnerability:total_cves
         - vulnerability:critical_cves
         - vulnerability:important_cves
+        - vulnerability:moderate_cves
+        - vulnerability:low_cves
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
         - patch:advisories_total_installable
@@ -3148,6 +3212,17 @@ components:
         - is_owner
         - created_at
         - updated_at
+    DefaultViewIn:
+      title: Default View Payload
+      description: Data for setting the user's default view.
+      type: object
+      required:
+        - view_id
+      properties:
+        view_id:
+          description: The UUID of the view to pin as the user's default.
+          type: string
+          format: uuid
     ViewsListOut:
       title: Views List Response
       description: A paginated list of inventory views.
@@ -3157,7 +3232,15 @@ components:
       - type: object
         required:
           - results
+          - default_view_id
         properties:
+          default_view_id:
+            description: >-
+              The UUID of the user's current default view. This is the view
+              that should be loaded automatically on page open. Falls back to
+              the "All systems" system view if no preference is set.
+            type: string
+            format: uuid
           results:
             description: List of inventory views.
             type: array
