@@ -2536,6 +2536,7 @@
             "advisor:severity_priority",
             "vulnerability:total_cves",
             "vulnerability:critical_cves",
+            "vulnerability:severity_priority",
             "patch:advisories_rhsa_installable",
             "patch:packages_installable",
             "remediations:remediations_plans",
@@ -3642,13 +3643,14 @@
       },
       "AppSortableFields": {
         "type": "string",
-        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:severity_priority` - Priority sort by severity (critical > important > moderate > low)\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
+        "description": "Application data fields available for sorting in the /hosts-view endpoint.\nUse format `app_name:field_name` with the `order_by` parameter.\n\n**Advisor**\n- `advisor:recommendations` - Number of Advisor recommendations\n- `advisor:incidents` - Number of Advisor incidents\n- `advisor:severity_priority` - Priority sort by severity (critical > important > moderate > low)\n\n**Vulnerability**\n- `vulnerability:total_cves` - Total CVE count\n- `vulnerability:critical_cves` - Critical severity CVEs\n- `vulnerability:severity_priority` - Priority sort by severity (critical > important > moderate > low)\n\n**Patch**\n- `patch:advisories_rhsa_installable` - Number of RHSA installable advisories\n- `patch:packages_installable` - Number of installable packages\n\n**Remediations**\n- `remediations:remediations_plans` - Active remediation plans count\n\n**Compliance**\n- `compliance:last_scan` - Last compliance scan timestamp\n\n**Malware**\n- `malware:last_matches` - Malware matches count\n- `malware:last_scan` - Last malware scan timestamp\n",
         "enum": [
           "advisor:recommendations",
           "advisor:incidents",
           "advisor:severity_priority",
           "vulnerability:total_cves",
           "vulnerability:critical_cves",
+          "vulnerability:severity_priority",
           "patch:advisories_rhsa_installable",
           "patch:packages_installable",
           "remediations:remediations_plans",

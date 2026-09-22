@@ -52,6 +52,15 @@ class TestResolveAppSort:
         assert isinstance(columns, list), "Expected a list of columns for multi-column priority sort"
         assert len(columns) == 4
 
+    def test_vulnerability_severity_priority(self):
+        """vulnerability:severity_priority should resolve to correct model and a list of coalesced columns."""
+        result = resolve_app_sort("vulnerability:severity_priority")
+        assert result is not None
+        model, columns = result
+        assert model is HostAppDataVulnerability
+        assert isinstance(columns, list), "Expected a list of columns for multi-column priority sort"
+        assert len(columns) == 4
+
     def test_patch_advisories_total_installable(self):
         """patch:advisories_total_installable should resolve to correct model and a computed expression."""
         from sqlalchemy.sql.expression import Case
@@ -287,6 +296,7 @@ class TestAppSortFieldMap:
             "vulnerability:important_cves",
             "vulnerability:moderate_cves",
             "vulnerability:low_cves",
+            "vulnerability:severity_priority",
             "vulnerability:cves_with_security_rules",
             "vulnerability:cves_with_known_exploits",
         }

@@ -30,6 +30,7 @@ class AppSortableFields:
     ADVISOR_SEVERITY_PRIORITY = "advisor:severity_priority"
     VULNERABILITY_TOTAL_CVES = "vulnerability:total_cves"
     VULNERABILITY_CRITICAL_CVES = "vulnerability:critical_cves"
+    VULNERABILITY_SEVERITY_PRIORITY = "vulnerability:severity_priority"
     PATCH_ADVISORIES_RHSA_INSTALLABLE = "patch:advisories_rhsa_installable"
     PATCH_PACKAGES_INSTALLABLE = "patch:packages_installable"
     REMEDIATIONS_REMEDIATIONS_PLANS = "remediations:remediations_plans"
@@ -43,6 +44,7 @@ class AppSortableFields:
         ADVISOR_SEVERITY_PRIORITY,
         VULNERABILITY_TOTAL_CVES,
         VULNERABILITY_CRITICAL_CVES,
+        VULNERABILITY_SEVERITY_PRIORITY,
         PATCH_ADVISORIES_RHSA_INSTALLABLE,
         PATCH_PACKAGES_INSTALLABLE,
         REMEDIATIONS_REMEDIATIONS_PLANS,

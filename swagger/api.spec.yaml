@@ -1739,6 +1739,7 @@ components:
           - vulnerability:important_cves
           - vulnerability:moderate_cves
           - vulnerability:low_cves
+          - vulnerability:severity_priority
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
           - patch:advisories_total_installable
@@ -2568,6 +2569,7 @@ components:
         - `vulnerability:important_cves` - Important severity CVEs
         - `vulnerability:moderate_cves` - Moderate severity CVEs
         - `vulnerability:low_cves` - Low severity CVEs
+        - `vulnerability:severity_priority` - Priority sort by severity (critical > important > moderate > low)
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
@@ -2612,6 +2614,7 @@ components:
         - vulnerability:important_cves
         - vulnerability:moderate_cves
         - vulnerability:low_cves
+        - vulnerability:severity_priority
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
         - patch:advisories_total_installable

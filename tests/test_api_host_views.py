@@ -1646,6 +1646,170 @@ class TestHostViewAppDataSorting:
         assert results[0]["display_name"] == "host-with-data.example.com"
         assert results[1]["display_name"] == "host-no-data.example.com"
 
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+    def test_sort_by_vulnerability_severity_priority(
+        self, api_get, db_create_host, db_create_host_app_data, order_how
+    ):
+        """Sort by vulnerability:severity_priority: critical > important > moderate > low."""
+        hosts_data = [
+            {"name": "host-zero.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 0},
+            {"name": "host-low-only.example.com", "critical": 0, "important": 0, "moderate": 0, "low": 3},
+            {"name": "host-imp.example.com", "critical": 0, "important": 2, "moderate": 1, "low": 0},
+            {"name": "host-crit.example.com", "critical": 2, "important": 3, "moderate": 1, "low": 0},
+        ]
+        expected_asc = [
+            "host-zero.example.com",
+            "host-low-only.example.com",
+            "host-imp.example.com",
+            "host-crit.example.com",
+        ]
+        expected_desc = list(reversed(expected_asc))
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "vulnerability",
+                critical_cves=hd["critical"],
+                important_cves=hd["important"],
+                moderate_cves=hd["moderate"],
+                low_cves=hd["low"],
+                total_cves=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:severity_priority&order_how={order_how}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_names = [r["display_name"] for r in response_data["results"]]
+        assert result_names == (expected_asc if order_how == "ASC" else expected_desc)
+
+    def test_sort_by_vulnerability_severity_priority_critical_beats_any_lower(
+        self, api_get, db_create_host, db_create_host_app_data
+    ):
+        """One critical CVE must sort above any number of important/moderate/low."""
+        hosts_data = [
+            {"name": "host-many-imp.example.com", "critical": 0, "important": 999, "moderate": 999, "low": 999},
+            {"name": "host-one-crit.example.com", "critical": 1, "important": 0, "moderate": 0, "low": 0},
+        ]
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "vulnerability",
+                critical_cves=hd["critical"],
+                important_cves=hd["important"],
+                moderate_cves=hd["moderate"],
+                low_cves=hd["low"],
+                total_cves=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query="?order_by=vulnerability:severity_priority&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-one-crit.example.com"
+        assert results[1]["display_name"] == "host-many-imp.example.com"
+
+    def test_sort_by_vulnerability_severity_priority_tiebreak_on_next_level(
+        self, api_get, db_create_host, db_create_host_app_data
+    ):
+        """When critical counts are equal, important breaks the tie, then moderate, then low."""
+        hosts_data = [
+            {"name": "host-a.example.com", "critical": 1, "important": 0, "moderate": 5, "low": 0},
+            {"name": "host-b.example.com", "critical": 1, "important": 3, "moderate": 0, "low": 0},
+            {"name": "host-c.example.com", "critical": 1, "important": 3, "moderate": 2, "low": 0},
+            {"name": "host-d.example.com", "critical": 1, "important": 3, "moderate": 2, "low": 7},
+        ]
+
+        for hd in hosts_data:
+            host = db_create_host(extra_data={"display_name": hd["name"]})
+            db_create_host_app_data(
+                host.id,
+                host.org_id,
+                "vulnerability",
+                critical_cves=hd["critical"],
+                important_cves=hd["important"],
+                moderate_cves=hd["moderate"],
+                low_cves=hd["low"],
+                total_cves=hd["critical"] + hd["important"] + hd["moderate"] + hd["low"],
+            )
+
+        url = build_host_view_url(query="?order_by=vulnerability:severity_priority&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_names = [r["display_name"] for r in response_data["results"]]
+        assert result_names == [
+            "host-d.example.com",  # 1 crit, 3 imp, 2 mod, 7 low
+            "host-c.example.com",  # 1 crit, 3 imp, 2 mod, 0 low
+            "host-b.example.com",  # 1 crit, 3 imp, 0 mod, 0 low
+            "host-a.example.com",  # 1 crit, 0 imp, 5 mod, 0 low
+        ]
+
+    @pytest.mark.parametrize("order_how", ["ASC", "DESC"])
+    def test_sort_by_vulnerability_severity_priority_nulls_last(
+        self, api_get, db_create_host, db_create_host_app_data, order_how
+    ):
+        """Hosts without vulnerability data should appear last regardless of sort direction."""
+        host_with_data = db_create_host(extra_data={"display_name": "host-with-data.example.com"})
+        db_create_host(extra_data={"display_name": "host-no-data.example.com"})
+
+        db_create_host_app_data(
+            host_with_data.id,
+            host_with_data.org_id,
+            "vulnerability",
+            critical_cves=0,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=0,
+            total_cves=0,
+        )
+
+        url = build_host_view_url(query=f"?order_by=vulnerability:severity_priority&order_how={order_how}")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        results = response_data["results"]
+        assert results[0]["display_name"] == "host-with-data.example.com"
+        assert results[1]["display_name"] == "host-no-data.example.com"
+
+    def test_sort_by_vulnerability_severity_priority_incomplete_row_coalesces(
+        self, api_get, db_create_host, db_create_host_app_data
+    ):
+        """Existing vulnerability rows with NULL severity columns coalesce to 0; missing rows stay last."""
+        host_partial = db_create_host(extra_data={"display_name": "host-partial.example.com"})
+        host_imp = db_create_host(extra_data={"display_name": "host-imp.example.com"})
+        db_create_host(extra_data={"display_name": "host-no-row.example.com"})
+
+        # Row exists but severity columns left NULL — should sort like all zeros
+        db_create_host_app_data(host_partial.id, host_partial.org_id, "vulnerability")
+        db_create_host_app_data(
+            host_imp.id,
+            host_imp.org_id,
+            "vulnerability",
+            critical_cves=0,
+            important_cves=2,
+            moderate_cves=0,
+            low_cves=0,
+            total_cves=2,
+        )
+
+        url = build_host_view_url(query="?order_by=vulnerability:severity_priority&order_how=DESC")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_names = [r["display_name"] for r in response_data["results"]]
+        assert result_names == [
+            "host-imp.example.com",
+            "host-partial.example.com",
+            "host-no-row.example.com",
+        ]
+
     def test_sort_by_remediations_plans(self, api_get, db_create_host, db_create_host_app_data):
         """Sort by remediations:remediations_plans should work correctly."""
         host1 = db_create_host(extra_data={"display_name": "host1.example.com"})
