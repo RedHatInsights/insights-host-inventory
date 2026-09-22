@@ -11,6 +11,7 @@ from app.queue import metrics
 from app.queue.export_service import create_export
 from app.queue.host_mq import HBIMessageConsumerBase
 from app.queue.host_mq import OperationResult
+from app.queue.host_mq import initialize_thread_local_storage
 from app.queue.mq_common import common_message_parser
 
 logger = get_logger(__name__)
@@ -57,15 +58,24 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
     ) -> OperationResult | None:
         validated_msg = parse_export_service_message(message)
         try:
+            # HTTP requests set this in Flask before_request. The export consumer is Kafka-based,
+            # so populate threadctx here so ContextualFilter attaches request_id to all logs.
+            resource_request = validated_msg.get("data", {}).get("resource_request", {})
+            export_request_uuid = resource_request.get("export_request_uuid")
+            if export_request_uuid is None:
+                logger.warning("Export message missing export_request_uuid; logging without request_id")
+            initialize_thread_local_storage(
+                str(export_request_uuid) if export_request_uuid is not None else None,
+                org_id=validated_msg.get("redhatorgid"),
+            )
             if (
                 validated_msg["source"] == EXPORT_EVENT_SOURCE
                 and validated_msg["data"]["resource_request"]["application"] == EXPORT_SERVICE_APPLICATION
             ):
                 logger.info("Found host-inventory application export message")
                 logger.debug("parsed_message: %s", validated_msg)
-                base64_x_rh_identity = validated_msg["data"]["resource_request"]["x_rh_identity"]
 
-                if create_export(validated_msg, base64_x_rh_identity, inventory_config()):
+                if create_export(validated_msg, inventory_config()):
                     metrics.export_service_message_handler_success.inc()
                     return OperationResult(
                         None, None, None, None, partial(logger.info, "Export message processed successfully")
@@ -80,6 +90,9 @@ class ExportServiceConsumer(HBIMessageConsumerBase):
             logger.error(e)
             metrics.export_service_message_handler_failure.inc()
             return None
+        finally:
+            # Always clear so a later parse failure cannot inherit this export's request_id.
+            initialize_thread_local_storage(None, None, None)
 
 
 @metrics.export_service_message_parsing_time.time()

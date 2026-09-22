@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import UTC
@@ -154,12 +155,16 @@ def _display_name_filter(display_name: str) -> list:
 
 
 def _tags_filter(string_tags: list[str]) -> list:
-    tags = []
+    tags_by_identity = defaultdict(list)
 
     for string_tag in string_tags:
-        tags.append(Tag.create_nested_from_tags([Tag.from_string(string_tag)]))
+        tag = Tag.from_string(string_tag)
+        tags_by_identity[(tag.namespace, tag.key)].append(tag)
 
-    return [or_(Host.tags.contains(tag) for tag in tags)]
+    return [
+        or_(*(Host.tags.contains(Tag.create_nested_from_tags([tag])) for tag in tags))
+        for tags in tags_by_identity.values()
+    ]
 
 
 def _group_names_filter(group_name_list: list) -> list:
