@@ -176,6 +176,9 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
         "cves_with_security_rules",
         "cves_with_known_exploits",
     )
+    __computed_sortable_fields__ = {
+        "severity_priority": "_severity_priority_expr",
+    }
     __filterable_fields__ = (
         "total_cves",
         "critical_cves",
@@ -196,6 +199,26 @@ class HostAppDataVulnerability(HostAppDataMixin, db.Model):
     low_cves = db.Column(db.Integer, nullable=True)
     cves_with_security_rules = db.Column(db.Integer, nullable=True)
     cves_with_known_exploits = db.Column(db.Integer, nullable=True)
+
+    @classmethod
+    def _severity_priority_expr(cls) -> list[ColumnElement]:
+        """Multi-column severity sort: critical > important > moderate > low.
+
+        Returns a list of CASE expressions so that each severity level is
+        used only to break ties in the preceding one.  A host with 1 critical
+        always sorts above a host with any number of important/moderate/low.
+
+        When a vulnerability row exists (host_id IS NOT NULL after the outer join),
+        NULL severity values are coalesced to 0 so incomplete rows sort by
+        their actual counts.  Hosts with no vulnerability row at all keep NULL so
+        NULLS LAST pushes them to the end regardless of sort direction.
+        """
+        return [
+            case((cls.host_id.isnot(None), func.coalesce(cls.critical_cves, 0)), else_=None),
+            case((cls.host_id.isnot(None), func.coalesce(cls.important_cves, 0)), else_=None),
+            case((cls.host_id.isnot(None), func.coalesce(cls.moderate_cves, 0)), else_=None),
+            case((cls.host_id.isnot(None), func.coalesce(cls.low_cves, 0)), else_=None),
+        ]
 
 
 class HostAppDataPatch(HostAppDataMixin, db.Model):
