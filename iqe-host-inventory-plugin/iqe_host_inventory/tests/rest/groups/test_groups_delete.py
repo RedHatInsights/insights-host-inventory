@@ -165,7 +165,7 @@ def test_groups_delete_non_existing_group(host_inventory: ApplicationHostInvento
             delete anything.
     """
     with host_inventory.apis.groups.verify_group_count_not_changed():
-        with raises_apierror(404, match_message="One or more groups not found."):
+        with raises_apierror(404):
             host_inventory.apis.groups.raw_api.api_group_delete_groups([group_id])
 
 

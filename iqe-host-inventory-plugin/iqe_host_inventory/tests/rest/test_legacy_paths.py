@@ -325,7 +325,7 @@ def test_legacy_paths(
         title: Inventory: Test that "legacy paths" are operating correctly in Stage and Prod
     """
     if (
-        host_inventory.application.config.current_env.lower() == "stage_proxy"
+        "stage" in host_inventory.application.config.current_env.lower()
         and "cert" in legacy_hostname
     ):
         pytest.skip("Cert auth doesn't work on legacy paths in Stage")
@@ -334,6 +334,10 @@ def test_legacy_paths(
     base_url = f"https://{legacy_hostname}{LEGACY_API_PATH}"
 
     host = host_inventory_cert_auth.upload.create_host()
+    # Cert auth bypasses Kessel, so we need to do additional waiting to make sure the host is
+    # replicated to Kessel
+    host_inventory.apis.hosts.wait_for_created(host)
+
     check_legacy_endpoints(host_inventory, session, base_url, host)
     if "cert" not in legacy_hostname:  # These endpoints are forbidden with cert auth (HTTP 403)
         host_inventory.apis.groups.create_n_empty_groups(1)

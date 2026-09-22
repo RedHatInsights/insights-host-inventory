@@ -97,7 +97,9 @@ def test_kessel_filter_ungrouped_hosts(
 
 
 def test_kessel_get_hosts_ordering_with_ungrouped(
-    host_inventory: ApplicationHostInventory, prepare_hosts: list[HostOut]
+    host_inventory: ApplicationHostInventory,
+    prepare_hosts: list[HostOut],
+    request: pytest.FixtureRequest,
 ):
     """
     metadata:
@@ -111,6 +113,13 @@ def test_kessel_get_hosts_ordering_with_ungrouped(
     # would come before and after "ungrouped" alphabetically.
     host_inventory.apis.groups.create_group(name="a_group", hosts=hosts[0])
     host_inventory.apis.groups.create_group(name="z_group", hosts=hosts[1])
+
+    @request.addfinalizer
+    def cleanup() -> None:
+        # The function cleanup deletes the group first, then the host is immediately deleted.
+        # However, there is a small window when the host doesn't belong to any group in Kessel,
+        # so the host deletion fails. Removing the host first here.
+        host_inventory.apis.hosts.delete_by_id(hosts)
 
     # We're not validating all ordering here (should be done in the groups tests),
     # but rather that ungrouped hosts come first.  Takes into account that there
