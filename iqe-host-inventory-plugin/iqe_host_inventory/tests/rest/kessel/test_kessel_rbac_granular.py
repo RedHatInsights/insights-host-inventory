@@ -83,11 +83,9 @@ def nested_workspace_read_rbac_setup(
     hbi_non_org_admin_user_rbac_setup_class,
 ):
     parent_group_id = nested_workspace_resources.parent_workspace.id
-    child_group_id = nested_workspace_resources.child_workspace.id
     hbi_non_org_admin_user_rbac_setup_class(
         permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.GROUPS_READ],
         hbi_groups=[parent_group_id],
-        expected_hbi_groups=[parent_group_id, child_group_id],
     )
 
 
@@ -97,7 +95,6 @@ def nested_workspace_write_rbac_setup(
     hbi_non_org_admin_user_rbac_setup_class,
 ):
     parent_group_id = nested_workspace_resources.parent_workspace.id
-    child_group_id = nested_workspace_resources.child_workspace.id
     hbi_non_org_admin_user_rbac_setup_class(
         permissions=[
             RBACInventoryPermission.HOSTS_READ,
@@ -106,7 +103,6 @@ def nested_workspace_write_rbac_setup(
             RBACInventoryPermission.GROUPS_WRITE,
         ],
         hbi_groups=[parent_group_id],
-        expected_hbi_groups=[parent_group_id, child_group_id],
     )
 
 

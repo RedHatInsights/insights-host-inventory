@@ -93,8 +93,13 @@ def test_kessel_get_groups_by_type(host_inventory: ApplicationHostInventory):
     assert standard_groups[0].ungrouped is False
 
     groups = host_inventory.apis.groups.get_groups(group_type="all")
-    assert len(groups) == 2
-    assert {groups[0].id, groups[1].id} == {ungrouped_groups[0].id, standard_groups[0].id}
+    assert len(groups) == 3  # Ungrouped, Standard, Default
+    default_workspace = host_inventory.apis.workspaces.default_workspace
+    assert {group.id for group in groups} == {
+        ungrouped_groups[0].id,
+        standard_groups[0].id,
+        default_workspace.id,
+    }
 
     # default is "standard"
     groups = host_inventory.apis.groups.get_groups()
@@ -201,9 +206,10 @@ def test_kessel_add_hosts_to_group(
     group = host_inventory.apis.groups.add_hosts_to_group(group, hosts[:2])
     assert group.host_count == 2
 
-    # https://issues.redhat.com/browse/RHCLOUD-45765
-    logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
-    sleep(10)
+    if host_inventory.application.config.current_env.lower() != "clowder_smoke":
+        # https://issues.redhat.com/browse/RHCLOUD-45765
+        logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+        sleep(10)
 
     response_hosts = host_inventory.apis.hosts.get_hosts(group_name=[group_name])
     assert len(response_hosts) == 2

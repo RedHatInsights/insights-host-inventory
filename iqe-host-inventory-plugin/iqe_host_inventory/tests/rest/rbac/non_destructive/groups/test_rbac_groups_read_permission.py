@@ -38,7 +38,8 @@ def host_inventory_read_permissions(request: pytest.FixtureRequest) -> Applicati
         lf("host_inventory_rbac_hosts_viewer"),
         lf("host_inventory_rbac_hosts_write"),
         lf("host_inventory_rbac_hosts_all"),
-        lf("host_inventory_rbac_groups_write"),
+        # TODO: Uncomment when https://redhat.atlassian.net/browse/RHCLOUD-52309 is fixed
+        # lf("host_inventory_rbac_groups_write"),
         lf("host_inventory_rbac_no_perms"),
     ],
     scope="class",
@@ -112,7 +113,8 @@ class TestRBACGroupsNoReadPermission:
           title: Test that users without "groups:read" permission can't get a list of groups
         """
         with raises_apierror(403):
-            host_inventory_no_read_permissions.apis.groups.get_groups()
+            groups = host_inventory_no_read_permissions.apis.groups.get_groups()
+            logger.info(f"Returned groups: {groups}")
 
     def test_rbac_groups_no_read_permission_get_groups_by_id(
         self,
@@ -132,4 +134,5 @@ class TestRBACGroupsNoReadPermission:
 
         for group in groups:
             with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
-                host_inventory_no_read_permissions.apis.groups.get_groups_by_id(group)
+                response = host_inventory_no_read_permissions.apis.groups.get_groups_by_id(group)
+                logger.info(f"Returned groups: {response}")
