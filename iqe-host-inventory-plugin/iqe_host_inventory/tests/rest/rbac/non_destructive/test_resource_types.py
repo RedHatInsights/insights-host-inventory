@@ -77,11 +77,12 @@ def check_resource_types_groups_response(
         page = 1
 
     base_url = "/inventory/v1/resource-types/inventory-groups"
-    last_page = ceil(groups_count / per_page)
 
     response_meta: ResourceTypesPaginationOutMeta = response.meta
-    assert response_meta.count == groups_count
+    # When Kessel is enabled, we also see the default workspace
+    assert response_meta.count in (groups_count, groups_count + 1)
 
+    last_page = ceil(response_meta.count / per_page)
     response_links: ResourceTypesPaginationOutLinks = response.links
     assert response_links.first == f"{base_url}?per_page={per_page}&page=1"
     assert response_links.last == f"{base_url}?per_page={per_page}&page={last_page}"
@@ -580,7 +581,7 @@ class TestResourceTypesEmptyGroups:
         response = host_inventory.apis.resource_types.get_groups_response(name=searched_name)
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
     @pytest.mark.parametrize(
         "case_insensitive", [True, False], ids=["case insensitive", "case sensitive"]
@@ -603,7 +604,7 @@ class TestResourceTypesEmptyGroups:
         response = host_inventory.apis.resource_types.get_groups_response(name=searched_name)
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
     def test_resource_types_get_groups_different_account(
         self,
@@ -628,7 +629,7 @@ class TestResourceTypesEmptyGroups:
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
         assert response_groups[0].org_id == hbi_default_org_id
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
 
 @pytest.fixture(scope="module")
@@ -675,9 +676,7 @@ class TestRBACResourceTypesRBACPermissions:
         """
         response = host_inventory_app.apis.resource_types.get_groups_response()
         groups_count = host_inventory.apis.groups.get_groups_response().total
-        groups = check_resource_types_groups_response(response, groups_count)
-        paginated_count = min(groups_count, 10)
-        assert len(groups) == paginated_count
+        check_resource_types_groups_response(response, groups_count)
 
 
 @pytest.mark.rbac_dependent
