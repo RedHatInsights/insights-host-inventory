@@ -23,13 +23,17 @@
   },
   "packageRules": [
     {
-      "matchPackagePatterns": ["^openapi-"],
-      "groupName": "openapi"
+      "groupName": "openapi",
+      "matchPackageNames": [
+        "/^openapi-/"
+      ]
     },
     {
-      "matchPackagePatterns": ["^opentelemetry-"],
       "groupName": "opentelemetry",
-      "ignoreUnstable": false
+      "ignoreUnstable": false,
+      "matchPackageNames": [
+        "/^opentelemetry-/"
+      ]
     }
   ]
 }
