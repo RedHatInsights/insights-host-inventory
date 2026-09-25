@@ -649,6 +649,18 @@ objects:
             name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_PMIN}
@@ -778,6 +790,18 @@ objects:
             value: ${HOSTS_TABLE_NUM_PARTITIONS}
           - <<: *rbacPsks
             name: RBAC_PSKS
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_P1}
@@ -899,6 +923,18 @@ objects:
             value: ${KAFKA_HOST_INGRESS_TOPIC}
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
         resources:
           limits:
             cpu: ${CPU_LIMIT_MQ_SP}
@@ -1018,6 +1054,18 @@ objects:
             name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
         livenessProbe:
           <<: *mqLivenessProbe
           initialDelaySeconds: 20
@@ -1148,6 +1196,18 @@ objects:
             name: RBAC_PSKS
           - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
             value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
+          - name: KESSEL_AUTH_CLIENT_ID
+            <<: *kesselClientId
+          - name: KESSEL_AUTH_CLIENT_SECRET
+            <<: *kesselClientSecret
+          - name: KESSEL_INSECURE
+            value: ${KESSEL_INSECURE}
+          - name: KESSEL_AUTH_ENABLED
+            value: ${KESSEL_AUTH_ENABLED}
+          - name: KESSEL_AUTH_OIDC_ISSUER
+            value: ${KESSEL_AUTH_OIDC_ISSUER}
+          - name: KESSEL_INVENTORY_API_PORT
+            value: ${KESSEL_INVENTORY_API_PORT}
         livenessProbe:
           <<: *mqLivenessProbe
           initialDelaySeconds: 20
