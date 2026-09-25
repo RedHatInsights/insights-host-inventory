@@ -1250,6 +1250,12 @@ objects:
           value: ${KESSEL_AUTH_ENABLED}
         - name: KESSEL_AUTH_OIDC_ISSUER
           value: ${KESSEL_AUTH_OIDC_ISSUER}
+        - name: BYPASS_KESSEL
+          value: ${BYPASS_KESSEL}
+        - name: KESSEL_INSECURE
+          value: ${KESSEL_INSECURE}
+        - name: KESSEL_INVENTORY_API_PORT
+          value: ${KESSEL_INVENTORY_API_PORT}
         livenessProbe: *mqLivenessProbe
         readinessProbe: *mqReadinessProbe
         resources:
