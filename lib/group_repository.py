@@ -49,6 +49,7 @@ from lib.metrics import delete_group_count
 from lib.metrics import delete_group_processing_time
 from lib.metrics import delete_host_group_count
 from lib.metrics import delete_host_group_processing_time
+from lib.metrics import ungrouped_hosts_group_creation_failure
 from lib.middleware import is_rbac_v2_enabled
 from lib.middleware import rbac_create_ungrouped_hosts_workspace
 
@@ -596,21 +597,27 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
             ungrouped=True,
         )
     else:
-        # Wait for the MQ flow to create the workspace to avoid a race condition
-        # where we try to create the group before the MQ event arrives.
-        workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
+        try:
+            # Wait for the MQ flow to create the workspace to avoid a race condition
+            # where we try to create the group before the MQ event arrives.
+            workspace_id = rbac_create_ungrouped_hosts_workspace(identity)
 
-        wait_for_workspace_event(
-            str(workspace_id),
-            EventType.created,
-            org_id=identity.org_id,
-            timeout=inventory_config().rbac_timeout,
-        )
+            wait_for_workspace_event(
+                str(workspace_id),
+                EventType.created,
+                org_id=identity.org_id,
+                timeout=inventory_config().rbac_timeout,
+            )
 
-        # The workspace event writes the Group row locally. Always load it from the DB —
-        # callers need a Group ORM object (.id), and get_rbac_workspace_by_id() reads
-        # Flask request headers that do not exist in the MQ ingest path.
-        group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+            # The workspace event writes the Group row locally. Always load it from the DB —
+            # callers need a Group ORM object (.id), and get_rbac_workspace_by_id() reads
+            # Flask request headers that do not exist in the MQ ingest path.
+            group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
+            if group is None:
+                raise ValueError(f"Ungrouped hosts group '{workspace_id}' not found in DB for org '{identity.org_id}'")
+        except Exception:
+            ungrouped_hosts_group_creation_failure.inc()
+            raise
 
     UngroupedGroupCache.put(identity.org_id, group)
     return group
