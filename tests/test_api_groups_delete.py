@@ -609,12 +609,47 @@ def test_delete_group_not_deleted_from_hbi_when_rbac_returns_404(
     assert db_get_group_by_id(group_id) is not None
 
 
+@pytest.mark.usefixtures("event_producer")
+@pytest.mark.usefixtures("enable_kessel")
+@pytest.mark.usefixtures("enable_rbac")
+def test_delete_group_when_rbac_workspace_404_and_rbac_v2_disabled(
+    api_delete_groups_kessel, db_create_group, db_get_group_by_id, mocker
+):
+    """When RBAC v2 is disabled and the workspace returns 404, still delete the HBI group.
+
+    Under RBAC v1 a 404 means the workspace is already gone, so the orphaned HBI
+    group should be cleaned up. (Under RBAC v2, 404 can also mean lack of permission.)
+    """
+    db_create_group("ungrouped_hosts", ungrouped=True)
+    group_id = db_create_group("test group").id
+
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=False)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=False)
+
+    get_rbac_permissions_mock = mocker.patch("lib.middleware.get_rbac_permissions")
+    mock_rbac_response = create_mock_rbac_response(
+        "tests/helpers/rbac-mock-data/inv-groups-write-resource-defs-template.json"
+    )
+    get_rbac_permissions_mock.return_value = mock_rbac_response
+
+    mocker.patch(
+        "api.group.delete_rbac_workspace",
+        side_effect=ResourceNotFoundException("Workspace not found"),
+    )
+
+    response_status, _ = api_delete_groups_kessel([group_id])
+
+    assert_response_status(response_status, expected_status=204)
+    assert db_get_group_by_id(group_id) is None
+
+
 @pytest.mark.usefixtures("event_producer", "enable_kessel")
 def test_delete_groups_kessel_partial_when_rbac_workspace_missing(
     api_delete_groups_kessel, db_create_group, db_get_group_by_id, mocker
 ):
     """
-    Groups whose workspace delete failed are skipped; others are still removed from HBI.
+    Under RBAC v2, groups whose workspace delete returned 404 are skipped;
+    others are still removed from HBI.
     """
     db_create_group("ungrouped_hosts", ungrouped=True)
 
@@ -622,6 +657,9 @@ def test_delete_groups_kessel_partial_when_rbac_workspace_missing(
     group_removed = db_create_group("removed")
     kept_id = str(group_kept.id)
     removed_id = str(group_removed.id)
+
+    mocker.patch("lib.middleware.is_rbac_v2_enabled", return_value=True)
+    mocker.patch("api.group.is_rbac_v2_enabled", return_value=True)
 
     def delete_workspace(workspace_id):
         if workspace_id == kept_id:
