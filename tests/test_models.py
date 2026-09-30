@@ -2480,6 +2480,34 @@ def test_ungrouped_group_creation_failure_increments_metric(
     mock_metric.inc.assert_called_once()
 
 
+@pytest.mark.parametrize("bypass_kessel", [True, False])
+def test_ungrouped_group_creation_success_does_not_increment_metric(flask_app, mocker, bypass_kessel):  # noqa: ARG001
+    """When ungrouped hosts group creation succeeds, the failure metric is not incremented."""
+    from lib.group_repository import UngroupedGroupCache
+    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
+
+    mock_identity = mocker.Mock()
+    mock_identity.org_id = "test_org"
+    mock_identity.account_number = "test_account"
+
+    mock_created_group = mocker.Mock(name="created_ungrouped_group")
+    mock_config = mocker.patch("lib.group_repository.inventory_config")
+    mock_config.return_value.bypass_kessel = bypass_kessel
+    mock_config.return_value.rbac_timeout = 10
+    mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
+    mocker.patch("lib.group_repository.add_group", return_value=mock_created_group)
+    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
+    mocker.patch("lib.group_repository.wait_for_workspace_event")
+    mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=mock_created_group)
+    mock_metric = mocker.patch("lib.group_repository.ungrouped_hosts_group_creation_failure")
+
+    with UngroupedGroupCache():
+        group = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
+
+    assert group is mock_created_group
+    mock_metric.inc.assert_not_called()
+
+
 class TestInventoryViewPatch:
     def test_patch_updates_name(self, flask_app):  # noqa: ARG002
         view = InventoryView(name="Old Name", org_id="123", configuration={"filters": {}}, org_wide=False)
@@ -2732,31 +2760,3 @@ class TestViewResponseSchema:
         assert result["org_id"] is None
         assert result["is_system_view"] is True
         assert result["created_by"] is None
-
-
-@pytest.mark.parametrize("bypass_kessel", [True, False])
-def test_ungrouped_group_creation_success_does_not_increment_metric(flask_app, mocker, bypass_kessel):  # noqa: ARG001
-    """When ungrouped hosts group creation succeeds, the failure metric is not incremented."""
-    from lib.group_repository import UngroupedGroupCache
-    from lib.group_repository import get_or_create_ungrouped_hosts_group_for_identity
-
-    mock_identity = mocker.Mock()
-    mock_identity.org_id = "test_org"
-    mock_identity.account_number = "test_account"
-
-    mock_created_group = mocker.Mock(name="created_ungrouped_group")
-    mock_config = mocker.patch("lib.group_repository.inventory_config")
-    mock_config.return_value.bypass_kessel = bypass_kessel
-    mock_config.return_value.rbac_timeout = 10
-    mocker.patch("lib.group_repository.get_ungrouped_group", return_value=None)
-    mocker.patch("lib.group_repository.add_group", return_value=mock_created_group)
-    mocker.patch("lib.group_repository.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid())
-    mocker.patch("lib.group_repository.wait_for_workspace_event")
-    mocker.patch("lib.group_repository.get_group_by_id_from_db", return_value=mock_created_group)
-    mock_metric = mocker.patch("lib.group_repository.ungrouped_hosts_group_creation_failure")
-
-    with UngroupedGroupCache():
-        group = get_or_create_ungrouped_hosts_group_for_identity(mock_identity)
-
-    assert group is mock_created_group
-    mock_metric.inc.assert_not_called()
