@@ -476,7 +476,10 @@ def delete_groups(group_id_list, rbac_filter=None):
                 delete_rbac_workspace(group_id)
                 groups_to_delete.append(group_id)
             except ResourceNotFoundException:
-                continue
+                # RBAC v2 can also return 404 to mean the user lacks permission, so skip deletion if
+                # we're using RBAC v2. When using RBAC v1, we already checked the user's permissions.
+                if not is_rbac_v2_enabled(identity.org_id):
+                    groups_to_delete.append(group_id)
     else:
         groups_to_delete = group_id_list
 
