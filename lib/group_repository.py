@@ -613,8 +613,6 @@ def get_or_create_ungrouped_hosts_group_for_identity(identity: Identity) -> Grou
             # callers need a Group ORM object (.id), and get_rbac_workspace_by_id() reads
             # Flask request headers that do not exist in the MQ ingest path.
             group = get_group_by_id_from_db(str(workspace_id), identity.org_id)
-            if group is None:
-                raise ValueError(f"Ungrouped hosts group '{workspace_id}' not found in DB for org '{identity.org_id}'")
         except Exception:
             ungrouped_hosts_group_creation_failure.inc()
             raise
