@@ -3501,7 +3501,7 @@ parameters:
   description: Enable Flask inbound HTTP request tracing
   value: 'true'
 - name: OTEL_HTTP_OUTBOUND_ENABLED
-  description: Enable outbound HTTP request tracing (requests library)
+  description: Enable outbound HTTP and Kessel gRPC tracing
   value: 'true'
 - name: OTEL_SAMPLING_RATE
   description: Trace sampling ratio (0.0-1.0) for API and non-host-ingress deployments. 1.0 = all traces
