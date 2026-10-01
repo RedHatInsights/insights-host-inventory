@@ -210,6 +210,7 @@ services:
         - CACHE_HOST=redis
         - CACHE_PORT=6379
         - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_HTTP_OUTBOUND_ENABLED=${OTEL_HTTP_OUTBOUND_ENABLED:-true}
         - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
       depends_on:
         db:
@@ -244,6 +245,7 @@ services:
         - CACHE_HOST=redis
         - CACHE_PORT=6379
         - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_HTTP_OUTBOUND_ENABLED=${OTEL_HTTP_OUTBOUND_ENABLED:-true}
         - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
         - MQ_DB_BATCH_MAX_MESSAGES=${MQ_DB_BATCH_MAX_MESSAGES:-10}
       depends_on:
@@ -281,6 +283,7 @@ services:
         - CACHE_HOST=redis
         - CACHE_PORT=6379
         - OTEL_ENABLED=${OTEL_ENABLED:-true}
+        - OTEL_HTTP_OUTBOUND_ENABLED=${OTEL_HTTP_OUTBOUND_ENABLED:-true}
         - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318
         - PROMETHEUS_PUSHGATEWAY=prometheus-gateway:9091
       depends_on:

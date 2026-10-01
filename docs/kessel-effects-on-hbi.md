@@ -179,6 +179,64 @@ Outbox entries are created automatically in the following scenarios:
 
 This ensures that Kessel Inventory maintains an accurate, real-time view of the host resources and their relationships, which is essential for proper authorization and resource management.
 
+## Tracing Authorization Calls
+
+Kessel authorization calls create OpenTelemetry client spans when `OTEL_ENABLED=true`
+and `OTEL_HTTP_OUTBOUND_ENABLED=true`. The existing outbound setting controls both HTTP
+and Kessel gRPC tracing and defaults to `true`; the master setting defaults to `false`.
+Both settings are available in the deployment template and local Compose configuration.
+
+The `opentelemetry-instrumentation-grpc` client interceptor wraps the SDK-created
+channel, preserving SDK authentication. It manages span lifetimes, RPC status,
+and downstream trace context propagation. Kessel hooks add only safe authorization
+attributes; a tracer adapter excludes raw error descriptions and exception events.
+A streaming context interceptor supplies workspace attributes because the library's
+server-streaming path does not invoke its request and response hooks.
+
+`Check`, `CheckBulk`, and `CheckForUpdate` spans are children of the active HBI request
+span. `ListAllowedWorkspaces` uses the SDK's `StreamedListObjects` RPC; each page creates
+a span that covers consuming its workspace stream, including errors during iteration.
+Single checks used for bulk fallback and update operations each create their own span.
+
+Spans include the RPC service and method, server address and port, gRPC status code,
+and duration. `kessel.grpc.status_name` gives the readable status, such as `INTERNAL`,
+`UNAVAILABLE`, or `DEADLINE_EXCEEDED`. RPC failures mark the span as an error, with
+`error.type` and the span status description set to that status name. These are the
+gRPC diagnostics to use when investigating service failures, similar to HTTP 5xx
+responses; gRPC calls do not have HTTP response status attributes.
+
+`kessel.relation` and `kessel.resource_type` describe the permission being checked,
+and `kessel.resource_count` records the number of checked resources or workspaces
+received by that RPC. Response attributes summarize what Kessel returned:
+
+| Attribute | Meaning |
+| --- | --- |
+| `kessel.allowed` | Whether all requested checks succeeded; false also includes HBI's fail-closed handling. |
+| `kessel.response.allowed` | Exact single-check decision: `ALLOWED_TRUE`, `ALLOWED_FALSE`, `ALLOWED_UNSPECIFIED`, or `ALLOWED_UNRECOGNIZED`. |
+| `kessel.response.complete` | Whether a single response arrived, a bulk response contained the expected number of pairs, or a workspace stream finished successfully. |
+| `kessel.response.count` | Number of bulk pairs or streamed workspace responses received, including partial streams. |
+| `kessel.response.allowed_count`, `kessel.response.denied_count` | Number of bulk decisions explicitly returned as allowed or denied. |
+| `kessel.response.indeterminate_count` | Number of bulk decisions missing an explicit allowed/denied outcome. |
+| `kessel.response.error_count` | Number of bulk pairs containing a `google.rpc.Status` error. |
+| `kessel.response.error_codes`, `kessel.response.error_status_names` | Distinct bulk item error codes and their readable names. |
+| `kessel.denied_count` | Number of bulk resources HBI rejects, including errors and incomplete responses. |
+
+A denied decision returned by a successful RPC has gRPC status `OK`,
+`kessel.allowed=false`, and a span status of `UNSET`. In contrast, bulk item errors,
+incomplete bulk responses, and indeterminate decisions mark the span as an error,
+with `error.type` set to `KesselBulkItemError`, `KesselIncompleteResponse`, or
+`KesselIndeterminateDecision`. For example, a bulk RPC can have gRPC status `OK`
+while `kessel.response.error_codes=[13]` and
+`kessel.response.error_status_names=["INTERNAL"]` identify a Kessel item failure.
+
+The instrumentation does not attach request or response payloads, subject references,
+resource IDs, credentials, raw error messages, error detail payloads, or consistency
+and pagination tokens to spans. Use the trace ID to correlate with existing Kessel
+debug and error logs when full response details are needed. Automated span verification
+is covered by `tests/test_kessel_telemetry.py` using a local gRPC server and an
+in-memory exporter, including trace propagation, response diagnostics, and streaming
+pagination.
+
 ## Related Resources
 
 - [Kessel Project Documentation](https://project-kessel.github.io/)
