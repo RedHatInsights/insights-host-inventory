@@ -38,6 +38,7 @@ OTEL_ENABLED = os.getenv("OTEL_ENABLED", "false").lower() == "true"
 OTEL_SQL_ENABLED = os.getenv("OTEL_SQL_ENABLED", "true").lower() == "true"
 OTEL_SQL_COMMENTER_ENABLED = os.getenv("OTEL_SQL_COMMENTER_ENABLED", "false").lower() == "true"
 OTEL_HTTP_INBOUND_ENABLED = os.getenv("OTEL_HTTP_INBOUND_ENABLED", "true").lower() == "true"
+# Shared toggle for outbound HTTP and Kessel gRPC tracing.
 OTEL_HTTP_OUTBOUND_ENABLED = os.getenv("OTEL_HTTP_OUTBOUND_ENABLED", "true").lower() == "true"
 OTEL_MQ_ENABLED = os.getenv("OTEL_MQ_ENABLED", "true").lower() == "true"
 OTEL_BOTOCORE_ENABLED = os.getenv("OTEL_BOTOCORE_ENABLED", "true").lower() == "true"
@@ -341,6 +342,16 @@ def instrument_outbound_http():
 
     RequestsInstrumentor().instrument(request_hook=_outbound_request_hook)
     logger.info("Outbound HTTP (requests library) instrumented with OpenTelemetry")
+
+
+def instrument_kessel_grpc_channel(channel, target: str):
+    """Trace Kessel gRPC using the shared OTEL_HTTP_OUTBOUND_ENABLED setting."""
+    if not OTEL_ENABLED or not OTEL_HTTP_OUTBOUND_ENABLED:
+        return channel
+
+    from lib.kessel_telemetry import instrument_channel
+
+    return instrument_channel(channel, target)
 
 
 def instrument_botocore():
