@@ -40,6 +40,10 @@ delete_host_group_count = Counter("inventory_delete_host_group_count", "The tota
 delete_host_group_processing_time = Summary(
     "inventory_delete_host_group_commit_seconds", "Time spent deleting host-groups from the database"
 )
+ungrouped_hosts_group_creation_failure = Counter(
+    "inventory_ungrouped_hosts_group_creation_failure_count",
+    "The total amount of failed 'Ungrouped Hosts' workspace/group creations",
+)
 
 # synchronization counter
 synchronize_host_count = Counter("inventory_synchronize_host_count", "The total amount of hosts synchronized")
