@@ -327,10 +327,15 @@ class Config:
         self.kafka_ssl_configs = {
             "security.protocol": self.kafka_security_protocol,
             "ssl.ca.location": self.kafka_ssl_cafile,
-            "sasl.mechanism": self.kafka_sasl_mechanism,
-            "sasl.username": self.kafka_sasl_username,
-            "sasl.password": self.kafka_sasl_password,
         }
+        if self.kafka_security_protocol and self.kafka_security_protocol.startswith("SASL_"):
+            self.kafka_ssl_configs.update(
+                {
+                    "sasl.mechanism": self.kafka_sasl_mechanism,
+                    "sasl.username": self.kafka_sasl_username,
+                    "sasl.password": self.kafka_sasl_password,
+                }
+            )
 
         self.base_consumer_config = {
             **self.kafka_ssl_configs,
