@@ -518,7 +518,7 @@ class Config:
         query_string = "&".join(query_parts) if query_parts else ""
 
         # Construct the URI
-        db_uri = f"postgresql://{db_user}:{db_password}@{netloc}{path}"
+        db_uri = f"postgresql+psycopg2://{db_user}:{db_password}@{netloc}{path}"
         if query_string:
             db_uri += f"?{query_string}"
 

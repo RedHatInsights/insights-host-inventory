@@ -45,7 +45,6 @@ pytest==8.4.1
 pytest-cov==6.2.1
 pytest-mock==3.14.1
 pytest-subtests==0.14.2
-sqlalchemy-utils==0.41.2
 types-cffi==1.17.0.20250523
 types-pyopenssl==24.1.0.20240722
 types-python-dateutil==2.9.0.20250708
