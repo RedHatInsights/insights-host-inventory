@@ -4518,6 +4518,16 @@
             },
             "x-dynamic": true
           },
+          "java_purls": {
+            "type": "array",
+            "items": {
+              "description": "A Maven package URL (purl) for a single detected Java library",
+              "example": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+              "type": "string",
+              "maxLength": 512
+            },
+            "x-dynamic": true
+          },
           "installed_packages_delta": {
             "type": "array",
             "items": {

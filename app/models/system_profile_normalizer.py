@@ -46,6 +46,27 @@ def _nested_array_ref_name_to_class_map() -> dict[str, Any]:
     return _nested_array_ref_name_to_class
 
 
+class _TruncatingList(marshmallow_fields.List):
+    """List field that truncates to a maximum number of items on load.
+
+    Marshmallow has no native support for the OpenAPI ``maxItems`` keyword, so
+    an unbounded array (e.g. ``java_purls``) can push a host event past the
+    ~1MB Kafka message ceiling, where oversized events are silently DROPPED on
+    egress. Truncating server-side keeps the event valid and deliverable rather
+    than rejecting the whole host.
+    """
+
+    def __init__(self, cls_or_instance, *, max_items, **kwargs):
+        self.max_items = max_items
+        super().__init__(cls_or_instance, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        result = super()._deserialize(value, attr, data, **kwargs)
+        if result is not None and self.max_items is not None and len(result) > self.max_items:
+            return result[: self.max_items]
+        return result
+
+
 class SystemProfileNormalizer:
     class Schema(namedtuple("Schema", ("type", "properties", "items"))):
         Types = Enum("Types", ("array", "object"))
@@ -364,6 +385,11 @@ class SystemProfileNormalizer:
 
             # Default to generic field
             item_field = self._create_marshmallow_field(field_def["items"])
+            # Enforce OpenAPI maxItems by truncating oversized arrays so the host
+            # event stays under the Kafka message-size ceiling (see _TruncatingList).
+            max_items = field_def.get("maxItems")
+            if max_items is not None:
+                return _TruncatingList(item_field, max_items=max_items, **field_kwargs)
             return fields.List(item_field, **field_kwargs)
         else:
             return fields.List(fields.Str(), **field_kwargs)

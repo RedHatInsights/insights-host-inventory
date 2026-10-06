@@ -498,6 +498,17 @@ $defs:
           type: string
           maxLength: 512
         x-dynamic: true
+      java_purls:
+        type: array  # third-party Java libraries detected on the host, as package URLs (purls)
+        # Cap the array so a single host_profile stays well under the ~1MB Kafka
+        # message ceiling; oversized events are silently dropped on egress.
+        maxItems: 2048
+        items:
+          description: A Maven package URL (purl) for a single detected Java library
+          example: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+          type: string
+          maxLength: 512
+        x-dynamic: true
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
         items:
