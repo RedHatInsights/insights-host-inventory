@@ -428,7 +428,7 @@ def test_configuration_with_env_vars():
     with set_environment(new_env):
         conf = _config()
 
-    assert conf.db_uri == "postgresql://fredflintstone:bedrock1234@localhost:5432/SlateRockAndGravel"
+    assert conf.db_uri == "postgresql+psycopg2://fredflintstone:bedrock1234@localhost:5432/SlateRockAndGravel"
     assert conf.db_pool_timeout == 3
     assert conf.db_pool_size == 8
     assert conf.api_url_path_prefix == expected_api_path
@@ -445,7 +445,7 @@ def test_config_default_settings():
     with set_environment(None):
         conf = _config()
 
-    assert conf.db_uri == "postgresql://insights:insights@localhost:5432/insights"
+    assert conf.db_uri == "postgresql+psycopg2://insights:insights@localhost:5432/insights"
     assert conf.api_url_path_prefix == expected_api_path
     assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
     assert conf.db_pool_timeout == 5

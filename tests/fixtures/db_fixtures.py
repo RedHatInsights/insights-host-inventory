@@ -9,9 +9,6 @@ from uuid import UUID
 import pytest
 from connexion import FlaskApp
 from sqlalchemy.orm import Query
-from sqlalchemy_utils import create_database
-from sqlalchemy_utils import database_exists
-from sqlalchemy_utils import drop_database
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -30,6 +27,9 @@ from tests.helpers.db_utils import db_create_host_app_data as _db_create_host_ap
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.postgres_lifecycle import create_database
+from tests.helpers.postgres_lifecycle import database_exists
+from tests.helpers.postgres_lifecycle import drop_database
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
