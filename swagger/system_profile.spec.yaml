@@ -500,14 +500,20 @@ $defs:
         x-dynamic: true
       java_purls:
         type: array  # third-party Java libraries detected on the host, as package URLs (purls)
-        # Cap the array so a single host_profile stays well under the ~1MB Kafka
-        # message ceiling; oversized events are silently dropped on egress.
-        maxItems: 2048
+        # Budget worst-case (maxItems * maxLength) to a safe SLICE of the ~1MB Kafka ceiling; the rest of
+        # the system_profile + host envelope share it, and an oversized inventory event is SILENTLY DROPPED
+        # on egress (host commits to HBI but consumers never see the check-in). The normalizer's
+        # _TruncatingList reads maxItems from THIS file (not the generated openapi.json) and truncates on
+        # ingest before the event is built, so these numbers are load-bearing. Sized from measured data:
+        # real maven purls are ~100-110 chars (maxLength 256 = ample), and a real enterprise app server
+        # (WildFly/JBoss EAP) ships ~753 distinct library jars (so maxItems 1024 covers enterprise Java
+        # hosts; 512 would truncate them). Worst case ~259KB, realistic ~75KB.
+        maxItems: 1024
         items:
           description: A Maven package URL (purl) for a single detected Java library
           example: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
           type: string
-          maxLength: 512
+          maxLength: 256
         x-dynamic: true
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
