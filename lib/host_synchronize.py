@@ -89,7 +89,7 @@ def _synchronize_hosts_for_org(org_hosts_query, custom_staleness_dict, event_pro
                 logger.info("Synchronized host: %s", host_id)
 
                 num_synchronized += 1
-            except (ProduceError, KafkaException):
+            except ProduceError, KafkaException:
                 logger.error(f"Failed to synchronize host: {host_id} because of {ProduceError.code}")
                 continue
 

@@ -194,7 +194,7 @@ def write_event_to_outbox(
 
 
 def write_events_to_outbox_batch(
-    ops: list[tuple[EventType, str, "Host | None"]],
+    ops: list[tuple[EventType, str, Host | None]],
     session: Session,
 ) -> int:
     """
