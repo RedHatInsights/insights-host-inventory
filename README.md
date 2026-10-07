@@ -59,7 +59,7 @@ please see the
 Before starting, ensure you have the following installed on your system:
 
 - **Podman**: For running containers and services.
-- **Python 3.12.x**: The recommended version for this project.
+- **Python 3.14.x**: The recommended version for this project. `uv sync` prefers a uv-managed CPython 3.14 so extension modules (such as `psycopg2`) can build even when the system interpreter lacks matching `-devel` headers.
 - **[uv](https://docs.astral.sh/uv/)**: For managing Python dependencies (`uv sync`, `uv run`, …). Install with your package manager or the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/).
 
 ### Environment setup
@@ -72,13 +72,13 @@ To install this, use the command appropriate for your system:
 ##### Fedora/Centos
 
 ```bash
-sudo dnf install libpq-devel postgresql python3.12-devel
+sudo dnf install libpq-devel postgresql python3-devel
 ```
 
 ##### Debian/Ubuntu
 
 ```bash
-sudo apt-get install libpq-dev postgresql python3.12-dev
+sudo apt-get install libpq-dev postgresql python3.14-dev
 ```
 
 ##### MacOS (using Homebrew)

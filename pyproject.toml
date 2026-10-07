@@ -48,7 +48,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 line-length = 119
 lint.select = [
   # flake8-unused-arguments
@@ -88,7 +88,6 @@ dev = [
     "pytest-subtests~=0.15.0",
     "coverage",
     "pre-commit~=4.6.0",
-    "sqlalchemy-utils==0.42.1",
     "pgxnclient",
     "ruff",
     "mypy",
@@ -106,7 +105,7 @@ dev = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 # Start off with these
 warn_unused_configs = true
 warn_redundant_casts = true
@@ -172,6 +171,9 @@ ignore_errors = true
 package = false
 default-groups = "all"
 required-version = ">=0.11.8"
+# Prefer uv-managed CPython so extension builds (e.g. psycopg2) get headers even when
+# the system interpreter lacks a matching -devel package.
+python-preference = "managed"
 
 [[tool.uv.index]]
 name = "pypi"
