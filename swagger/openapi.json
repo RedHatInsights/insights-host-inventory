@@ -1411,6 +1411,216 @@
         }
       }
     },
+    "/host-clusters": {
+      "get": {
+        "operationId": "api.host_clusters.get_host_clusters",
+        "tags": [
+          "host_clusters"
+        ],
+        "summary": "Cluster the account's hosts into fleet profiles",
+        "description": "Groups hosts into profiles by their installed package-name set, partitioned by RHEL major version. Computed on demand. <br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "description": "Similarity threshold for cluster membership (0-1). Reserved for fuzzy matching.",
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          {
+            "name": "min_cluster_size",
+            "in": "query",
+            "required": false,
+            "description": "Minimum number of hosts for a group to count as a profile.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fleet profiles, meta, and outlier host ids.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/host-clusters/outliers": {
+      "get": {
+        "operationId": "api.host_clusters.get_host_cluster_outliers",
+        "tags": [
+          "host_clusters"
+        ],
+        "summary": "Hosts that don't fit any fleet profile",
+        "description": "Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Outlier hosts with their nearest-profile match.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/host-clusters/{cluster_id}/hosts": {
+      "get": {
+        "operationId": "api.host_clusters.get_host_cluster_hosts",
+        "tags": [
+          "host_clusters"
+        ],
+        "summary": "Member hosts of a profile with per-host drift from baseline",
+        "description": "Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cluster_id",
+            "in": "path",
+            "required": true,
+            "description": "Cluster id from GET /host-clusters.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member hosts and how each differs from the profile baseline.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cluster not found."
+          }
+        }
+      }
+    },
+    "/image-profiles": {
+      "get": {
+        "operationId": "api.image_profiles.get_image_profiles",
+        "tags": [
+          "image_profiles"
+        ],
+        "summary": "Group hosts by the golden image / blueprint they were built from",
+        "description": "Groups hosts by Image Builder blueprint or bootc image provenance. For each image, reports the hosts built from it and candidate hosts that could be rebuilt from it to standardize. Computed on demand. <br /><br /> Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "description": "Similarity threshold (0-1) for best-fit candidate matching.",
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image profiles with built-from and candidate counts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          }
+        }
+      }
+    },
+    "/image-profiles/{image_id}/hosts": {
+      "get": {
+        "operationId": "api.image_profiles.get_image_profile_hosts",
+        "tags": [
+          "image_profiles"
+        ],
+        "summary": "Built-from (with drift) and best-fit candidate hosts for an image",
+        "description": "Required permissions: inventory:hosts:read",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "description": "Image profile id from GET /image-profiles.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Built-from hosts (with drift) and best-fit candidate hosts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Image profile not found."
+          }
+        }
+      }
+    },
     "/system_profile/sap_system": {
       "get": {
         "tags": [

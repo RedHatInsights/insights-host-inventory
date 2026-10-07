@@ -42,3 +42,4 @@ iqe-host-inventory-plugin/**/host_inventory.local.yaml
 
 # worktrees
 worktrees/
+insights-host-inventory/
