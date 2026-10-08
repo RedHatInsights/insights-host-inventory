@@ -1,0 +1,5 @@
+FROM quay.io/mclinton/insights-host-inventory:lw-e2e
+# python_purls: typed column on the HostDynamicSystemProfile model + its migration (the spec yaml alone
+# is not enough -- the ORM model rejects unknown kwargs on ingest).
+COPY app/models/system_profile_dynamic.py /opt/app-root/src/app/models/system_profile_dynamic.py
+COPY migrations/versions/b2c3d4e5f6a7_add_python_purls_to_system_profiles_dynamic.py /opt/app-root/src/migrations/versions/b2c3d4e5f6a7_add_python_purls_to_system_profiles_dynamic.py

@@ -34,6 +34,7 @@ class HostDynamicSystemProfile(db.Model):
     last_boot_time = sa.Column(sa.DateTime(timezone=True), nullable=True)
     installed_packages = sa.Column(ARRAY(sa.String), nullable=True)
     java_purls = sa.Column(ARRAY(sa.String), nullable=True)
+    python_purls = sa.Column(ARRAY(sa.String), nullable=True)
     network_interfaces = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
     installed_products = sa.Column(JSONB(astext_type=sa.Text()), nullable=True)
     cpu_flags = sa.Column(ARRAY(sa.String), nullable=True)
