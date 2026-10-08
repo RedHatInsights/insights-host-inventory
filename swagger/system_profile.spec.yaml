@@ -515,6 +515,19 @@ $defs:
           type: string
           maxLength: 256
         x-dynamic: true
+      python_purls:
+        type: array  # third-party Python packages detected on the host, as package URLs (purls)
+        # Same egress-ceiling budgeting as java_purls above; the _TruncatingList normalizer reads maxItems
+        # from THIS file and truncates on ingest, so these are load-bearing. Sized from measured data: real
+        # pypi purls are short (~40-60 chars, maxLength 256 = ample); maxItems 1024 covers a heavy
+        # virtualenv / site-packages (a few hundred distributions) with headroom. Worst case ~259KB.
+        maxItems: 1024
+        items:
+          description: A PyPI package URL (purl) for a single detected Python package
+          example: "pkg:pypi/requests@2.28.1"
+          type: string
+          maxLength: 256
+        x-dynamic: true
       installed_packages_delta:
         type: array  # packages not in installed_packages, ordered by RPM sorting algorithm
         items:
