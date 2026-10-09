@@ -348,7 +348,7 @@ def _remove_all_hosts_from_group(group: Group, identity: Identity):
                 _remove_hosts_from_group(group.id, existing_host_ids, identity.org_id)
                 _add_hosts_to_group(ungrouped_id, existing_host_ids, identity.org_id)
             break  # Success
-        except (IntegrityError, InventoryException):
+        except IntegrityError, InventoryException:
             if attempt == max_retries - 1:
                 raise  # Re-raise on final attempt
             logger.warning(

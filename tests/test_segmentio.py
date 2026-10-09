@@ -148,7 +148,9 @@ def test_segmentio_rate_limit(mocker, api_get):
     #
     # Test calls that do exceed the limit.
     #
-    mock_track.call_count = 0
+    # Python 3.14+: assigning call_count = 0 no longer clears the mock's internal
+    # counter, so subsequent calls continue from the previous total.
+    mock_track.reset_mock()
     for _ in range(max_calls * 2):
         response_status, response_data = api_get(
             build_resource_types_url(), extra_headers={"User-Agent": "test-user-agent"}
