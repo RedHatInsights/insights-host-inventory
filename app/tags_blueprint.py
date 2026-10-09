@@ -4,6 +4,7 @@ from flask import jsonify
 from flask import request
 from sqlalchemy import and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 
 from app.auth.identity import from_auth_header
 from app.models import Host
@@ -15,17 +16,19 @@ tags_bp = Blueprint("tags", __name__)
 
 def combine_tags(input_list, existing_dict=None):
     """
-    Reformats a list of dictionaries into a nested dictionary structure and updates an existing dictionary additively.
+    Reformats a list of dictionaries into a nested dictionary structure, additively merged
+    on top of existing_dict. Always returns a new dict; never mutates or aliases existing_dict.
 
     Args:
         input_list: List of dictionaries with 'namespace', 'key', and 'value' fields
-        existing_dict: Optional existing dictionary to update (default: None)
+        existing_dict: Optional existing dictionary to merge on top of (default: None)
 
     Returns:
-        Updated dictionary in the format {namespace: {key: [value, ...]}}
+        A new dict in the format {namespace: {key: [value, ...]}}. Any touched namespace/key
+        gets a fresh container; every untouched namespace/key is shared by reference with
+        existing_dict.
     """
-    # Initialize result dictionary if none provided
-    result = existing_dict if existing_dict is not None else {}
+    result = dict(existing_dict) if existing_dict is not None else {}
 
     # Process each item in the input list
     for item in input_list:
@@ -37,25 +40,24 @@ def combine_tags(input_list, existing_dict=None):
         if not all([namespace, key, value]):
             continue
 
-        # Initialize namespace if not exists
-        if namespace not in result:
-            result[namespace] = {}
+        # Check membership against the existing list before copying anything -
+        # a true no-op (the common case) makes zero namespace-level copies.
+        existing_values = result.get(namespace, {}).get(key, [])
+        if value in existing_values:
+            continue
 
-        # Initialize key list if not exists
-        if key not in result[namespace]:
-            result[namespace][key] = []
-
-        # Add value if not already present
-        if value not in result[namespace][key]:
-            result[namespace][key].append(value)
+        ns_tags = dict(result.get(namespace, {}))
+        ns_tags[key] = [*existing_values, value]
+        result[namespace] = ns_tags
 
     return result
 
 
 def update_host_tags(session, host, tags):
     try:
-        current_tags = host.tags
-        combine_tags(tags, current_tags)
+        current_tags = combine_tags(tags, host.tags)
+        if current_tags == host.tags:
+            return True
         host._update_tags(current_tags)
         session.add(host)
         return True
@@ -65,7 +67,12 @@ def update_host_tags(session, host, tags):
 
 
 def process_host_batch(session, identity, batch_ids, tags):
-    hosts = session.query(Host).filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids))).all()
+    hosts = (
+        session.query(Host)
+        .options(load_only(Host.id, Host.tags, Host.tags_alt))
+        .filter(and_(Host.org_id == identity.org_id, Host.id.in_(batch_ids)))
+        .all()
+    )
     found_host_ids = {str(host.id) for host in hosts}
     not_found = [hid for hid in batch_ids if str(hid) not in found_host_ids]
 
