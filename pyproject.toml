@@ -42,7 +42,7 @@ dependencies = [
     "opentelemetry-instrumentation-grpc==0.66b0",
     "opentelemetry-instrumentation-botocore==0.66b0",
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
-    "unleashclient==6.8.0",
+    "unleashclient==6.9.0",
     "rpds-py==2026.9.1",
     "starlette~=1.7.0",
 ]
