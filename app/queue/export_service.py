@@ -11,8 +11,10 @@ from requests import Response
 from requests import Session
 from requests.adapters import HTTPAdapter
 
+from api.filtering.app_data_sorting import get_app_name_from_sort
 from api.host_query_db import get_hosts_to_export
 from api.views_validation import VALID_HOST_FILTER_KEYS
+from api.views_validation import validate_view_configuration
 from app import IDENTITY_HEADER
 from app import REQUEST_ID_HEADER
 from app.auth.identity import Identity
@@ -20,6 +22,7 @@ from app.auth.identity import from_auth_header
 from app.auth.rbac import KesselResourceTypes
 from app.config import Config
 from app.exceptions import InventoryException
+from app.exceptions import ValidationException
 from app.logging import get_logger
 from app.logging import threadctx
 from app.models.host_app_data import get_app_data_models
@@ -41,24 +44,19 @@ logger = get_logger(__name__)
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
 
 
-def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict, list[dict]]:
-    """Load a saved view and extract its filters and columns.
+def _config_filters_to_query_filters(config_filters: dict) -> tuple[dict, dict]:
+    """Split a view configuration's ``filters`` into query_filters() inputs.
 
-    The view stores all filters under ``configuration.filters``, but ``query_filters()``
-    accepts them in two different ways:
+    The configuration stores all filters under a single ``filters`` object, but
+    ``query_filters()`` accepts them in two different ways:
     - ``"host"`` filters (staleness, tags, dates …) → unpacked as **kwargs
     - everything else (system_profile, app-data) → passed as the ``filter=`` dict
 
     Returns:
-        (host_filter, query_filter, columns):
+        (host_filter, query_filter):
         - host_filter: query_filters() kwargs (staleness, tags, date ranges, etc.)
         - query_filter: filter dict for query_filters() (system_profile, app-data, etc.)
-        - columns: ordered list of column config dicts from the view
     """
-    view = get_view_by_id(view_id, org_id, user_id)
-    config_filters = view.configuration.get("filters") or {}
-    columns = view.configuration.get("columns") or []
-
     host_filter: dict = {}
     query_filter: dict = {}
 
@@ -70,12 +68,89 @@ def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, di
         else:
             query_filter[key] = value
 
-    # Views store "workspace_name" but query_filters() expects "group_name".
+    # Configurations store "workspace_name" but query_filters() expects "group_name".
     workspace_name = host_filter.pop("workspace_name", None)
     if workspace_name:
         host_filter["group_name"] = [workspace_name] if isinstance(workspace_name, str) else workspace_name
 
-    return host_filter, query_filter, columns
+    return host_filter, query_filter
+
+
+def _config_to_export_inputs(configuration: dict) -> tuple[dict, dict, list[dict], str | None, str | None]:
+    """Derive export query inputs from a view configuration dict.
+
+    Shared by the saved-view (``view_id``) path and the inline-configuration path so
+    both produce identical filters, columns, and sort.
+
+    Returns:
+        (host_filter, query_filter, columns, order_by, order_how)
+    """
+    config_filters = configuration.get("filters") or {}
+    columns = configuration.get("columns") or []
+
+    host_filter, query_filter = _config_filters_to_query_filters(config_filters)
+
+    sort = configuration.get("sort") or {}
+    order_by = sort.get("key") or None
+    direction = sort.get("direction")
+    order_how = direction.upper() if isinstance(direction, str) else None
+
+    return host_filter, query_filter, columns, order_by, order_how
+
+
+def _load_view_config(
+    view_id: str, org_id: str, user_id: str
+) -> tuple[dict, dict, list[dict], str | None, str | None]:
+    """Load a saved view and extract its filters, columns, and sort.
+
+    Returns:
+        (host_filter, query_filter, columns, order_by, order_how)
+    """
+    view = get_view_by_id(view_id, org_id, user_id)
+    return _config_to_export_inputs(view.configuration)
+
+
+# Composite UI columns render several underlying app-data fields as a single
+# table cell (e.g. the "Vulnerabilities" column shows one severity count per
+# icon).  They only exist in the frontend, so exports replace them with their
+# individual app-data fields to ship the raw counts instead of the combined
+# display value.
+COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS: dict[str, list[str]] = {
+    "advisor:recommendations": [
+        "advisor:critical",
+        "advisor:important",
+        "advisor:moderate",
+        "advisor:low",
+    ],
+    "vulnerability:total_cves": [
+        "vulnerability:critical_cves",
+        "vulnerability:important_cves",
+        "vulnerability:moderate_cves",
+        "vulnerability:low_cves",
+    ],
+    "patch:advisories_rhsa_installable": [
+        "patch:advisories_rhsa_installable",
+        "patch:advisories_rhba_installable",
+        "patch:advisories_rhea_installable",
+        "patch:advisories_other_installable",
+    ],
+}
+
+
+def _expand_view_columns(view_columns: list[dict]) -> list[dict]:
+    """Expand composite UI columns into their individual app-data columns.
+
+    Each expanded column flows through the same app-authorization, field
+    validation, and deduplication rules as a directly selected column.
+    """
+    expanded: list[dict] = []
+    for col in view_columns:
+        key = col.get("key") or ""
+        if key in COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS:
+            expanded.extend({"key": field} for field in COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS[key])
+        else:
+            expanded.append(col)
+    return expanded
 
 
 def resolve_export_columns(
@@ -86,6 +161,8 @@ def resolve_export_columns(
 
     Args:
         view_columns: Ordered list of column configurations from the view.
+            Composite UI columns (e.g. ``vulnerability:total_cves``) are
+            expanded into their individual app-data fields.
         allowed_apps: Optional set of permitted app names. When provided, columns
             belonging to unauthorized applications are omitted from the export.
 
@@ -104,7 +181,7 @@ def resolve_export_columns(
     export_fields: list[str] = list(ALWAYS_INCLUDED_EXPORT_FIELDS)
     app_data_fields: dict[str, list[str]] = {}
 
-    for col in view_columns:
+    for col in _expand_view_columns(view_columns):
         key = col.get("key") or ""
 
         if key in CORE_VIEW_FIELDS_TO_EXPORT_FIELDS:
@@ -225,14 +302,27 @@ class _StreamingExportBody:
             raise ValueError(f"Unsupported export format: {self._export_format}")
 
 
-def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str, str]:
-    exportFormat = export_svc_data["data"]["resource_request"]["format"]
-    exportUUID = export_svc_data["data"]["resource_request"]["export_request_uuid"]
-    applicationName = export_svc_data["data"]["resource_request"]["application"]
-    resourceUUID = export_svc_data["data"]["resource_request"]["uuid"]
-    identityHeader = export_svc_data["data"]["resource_request"]["x_rh_identity"]
+def extract_export_svc_data(export_svc_data: dict) -> tuple[str, UUID, str, str, str, str | None, dict | None]:
+    """Extract the export-service request fields and the inventory view filters.
 
-    return exportFormat, exportUUID, applicationName, resourceUUID, identityHeader
+    The ``filters`` field carries the inventory-specific export options: either a
+    saved ``view_id`` or an inline ``configuration`` mirroring the ViewConfiguration
+    schema from swagger/api.spec.yaml (the same shape the saved-views API accepts).
+    """
+    resource_request = export_svc_data["data"]["resource_request"]
+    exportFormat = resource_request["format"]
+    exportUUID = resource_request["export_request_uuid"]
+    applicationName = resource_request["application"]
+    resourceUUID = resource_request["uuid"]
+    identityHeader = resource_request["x_rh_identity"]
+
+    export_filters = resource_request.get("filters") or {}
+    view_id = export_filters.get("view_id")
+    # Inline configuration carries the table's live (possibly unsaved) filters,
+    # columns, and sort for a WYSIWYG export.
+    configuration = export_filters.get("configuration")
+
+    return exportFormat, exportUUID, applicationName, resourceUUID, identityHeader, view_id, configuration
 
 
 def _get_export_service_access_token(inventory_config: Config) -> str:
@@ -277,6 +367,8 @@ def _non_empty_hosts_iter(
     host_filter: dict | None = None,
     export_fields: list[str] | None = None,
     app_data_fields: dict[str, list[str]] | None = None,
+    order_by: str | None = None,
+    order_how: str | None = None,
 ) -> Iterator[dict] | None:
     """Return a non-empty host iterator, or None if there are no hosts to export."""
     host_iter = get_hosts_to_export(
@@ -287,6 +379,8 @@ def _non_empty_hosts_iter(
         host_filter=host_filter,
         export_fields=export_fields,
         app_data_fields=app_data_fields,
+        order_by=order_by,
+        order_how=order_how,
     )
     first_host = next(host_iter, None)
     if first_host is None:
@@ -306,7 +400,15 @@ def create_export(
     if rbac_filter is None:
         rbac_filter = {}
 
-    exportFormat, exportUUID, applicationName, resourceUUID, identityHeader = extract_export_svc_data(export_svc_data)
+    (
+        exportFormat,
+        exportUUID,
+        applicationName,
+        resourceUUID,
+        identityHeader,
+        view_id,
+        configuration,
+    ) = extract_export_svc_data(export_svc_data)
     # Kafka path has no Flask before_request; this is the same ID we send as x-rh-insights-request-id.
     threadctx.request_id = str(exportUUID)
 
@@ -366,84 +468,64 @@ def create_export(
         session.close()
         return export_created
 
-    export_filters = export_svc_data["data"]["resource_request"].get("filters") or {}
-    view_id = export_filters.get("view_id")
-
     host_filter: dict = {}
     query_filter: dict = {}
     view_columns: list[dict] = []
+    order_by: str | None = None
+    order_how: str | None = None
     allowed_apps: set[str] | None = None
+
+    def _fail(message: str, status_code: int) -> None:
+        request_url = _build_export_request_url(
+            export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+        )
+        _handle_export_error(message, status_code, request_url, session, request_headers, exportUUID, exportFormat)
+        session.close()
 
     if view_id:
         user_id = identity.user_id
         if not user_id:
-            request_url = _build_export_request_url(
-                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-            )
-            _handle_export_error(
-                "Export with view_id requires a User or ServiceAccount identity with a user_id.",
-                403,
-                request_url,
-                session,
-                request_headers,
-                exportUUID,
-                exportFormat,
-            )
-            session.close()
+            _fail("Export with view_id requires a User or ServiceAccount identity with a user_id.", 403)
             return export_created
 
         try:
-            host_filter, query_filter, view_columns = _load_view_config(view_id, identity.org_id, user_id)
+            host_filter, query_filter, view_columns, order_by, order_how = _load_view_config(
+                view_id, identity.org_id, user_id
+            )
             logger.info("Loaded view %s for export (org_id: %s)", view_id, identity.org_id)
         except ViewNotFoundError:
-            request_url = _build_export_request_url(
-                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-            )
-            _handle_export_error(
-                f"View {view_id} not found or not accessible.",
-                404,
-                request_url,
-                session,
-                request_headers,
-                exportUUID,
-                exportFormat,
-            )
-            session.close()
+            _fail(f"View {view_id} not found or not accessible.", 404)
             return export_created
         except ViewPermissionError as e:
-            request_url = _build_export_request_url(
-                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-            )
-            _handle_export_error(
-                str(e.detail),
-                403,
-                request_url,
-                session,
-                request_headers,
-                exportUUID,
-                exportFormat,
-            )
-            session.close()
+            _fail(str(e.detail), 403)
             return export_created
+    elif configuration is not None:
+        if not isinstance(configuration, dict) or not configuration.get("columns"):
+            # A supplied configuration must name the columns to export. Falling through
+            # with no columns would silently export the broad legacy field set instead
+            # of the requested (WYSIWYG) view.
+            _fail("Invalid export configuration: 'columns' is required.", 400)
+            return export_created
+        try:
+            validate_view_configuration(configuration)
+        except ValidationException as e:
+            _fail(f"Invalid export configuration: {e.detail}", 400)
+            return export_created
+        host_filter, query_filter, view_columns, order_by, order_how = _config_to_export_inputs(configuration)
+        logger.info("Using inline export configuration (org_id: %s)", identity.org_id)
 
+    if view_id or configuration is not None:
         allowed_apps = get_allowed_app_services(identity, rbac_request_headers=rbac_request_headers)
-        if allowed_apps is not None and query_filter:
+        if allowed_apps is not None:
             known_apps = set(get_app_data_models().keys())
-            denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
-            if denied_filters:
-                request_url = _build_export_request_url(
-                    export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
-                )
-                _handle_export_error(
-                    f"Insufficient permissions to filter by {denied_filters}",
-                    403,
-                    request_url,
-                    session,
-                    request_headers,
-                    exportUUID,
-                    exportFormat,
-                )
-                session.close()
+            if query_filter:
+                denied_filters = [k for k in query_filter if k in known_apps and k not in allowed_apps]
+                if denied_filters:
+                    _fail(f"Insufficient permissions to filter by {denied_filters}", 403)
+                    return export_created
+            sort_app = get_app_name_from_sort(order_by)
+            if sort_app is not None and sort_app not in allowed_apps:
+                _fail(f"Insufficient permissions to sort by '{order_by}'", 403)
                 return export_created
 
     export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
@@ -457,6 +539,8 @@ def create_export(
             host_filter=host_filter,
             export_fields=export_fields,
             app_data_fields=app_data_fields,
+            order_by=order_by,
+            order_how=order_how,
         )
 
         request_url = _build_export_request_url(

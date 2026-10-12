@@ -1,6 +1,7 @@
 from functools import partial
 from typing import override
 
+from marshmallow import INCLUDE
 from marshmallow import Schema
 from marshmallow import ValidationError
 from marshmallow import fields
@@ -21,10 +22,30 @@ EXPORT_EVENT_SOURCE = "urn:redhat:source:console:app:export-service"
 EXPORT_SERVICE_APPLICATION = "urn:redhat:application:inventory"
 
 
+class ExportFilters(Schema):
+    """Filters the inventory application accepts in an export request.
+
+    Carries either a saved view reference (``view_id``) or an inline
+    ``configuration`` mirroring the ViewConfiguration schema from
+    swagger/api.spec.yaml — the same shape the saved-views API accepts.
+    The configuration's contents are validated server-side by
+    api.views_validation.validate_view_configuration().
+    """
+
+    view_id = fields.UUID()
+    configuration = fields.Dict()
+
+    class Meta:
+        # Messages for *other* applications flow through this schema before the
+        # consumer checks the application name, and their filters are app-specific.
+        # Pass unknown keys through instead of rejecting the whole message.
+        unknown = INCLUDE
+
+
 class ExportResourceRequest(Schema):
     application = fields.Str(required=True)
     export_request_uuid = fields.UUID(required=True)
-    filters = fields.Dict()
+    filters = fields.Nested(ExportFilters)
     format = fields.Str(required=True)
     resource = fields.Str(required=True)
     uuid = fields.Str(required=True)

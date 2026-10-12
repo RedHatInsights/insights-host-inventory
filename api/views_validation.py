@@ -14,7 +14,20 @@ VALID_HOST_FILTER_KEYS = frozenset(HostFiltersSchema._declared_fields.keys())
 
 VALID_CORE_VIEW_FIELDS = frozenset(CORE_VIEW_FIELDS_TO_EXPORT_FIELDS)
 
-CORE_SORTABLE_FIELDS = VALID_CORE_VIEW_FIELDS
+# Core (non-app) sort keys that params_to_order_by() (api/host_query_db.py) actually
+# implements. Any other core key would fall through to the "Unsupported ordering
+# column" ValueError, so this is the authoritative set views/exports may offer as
+# sortable core fields.
+IMPLEMENTED_CORE_SORT_FIELDS = frozenset(
+    {"updated", "display_name", "group_name", "operating_system", "last_check_in"}
+)
+
+# Only the core keys params_to_order_by() actually implements are sortable. The broader
+# VALID_CORE_VIEW_FIELDS set is valid for *columns* but includes keys with no ORDER BY
+# support (e.g. "tags", "status"), which would raise ValueError during export.
+CORE_SORTABLE_FIELDS = VALID_CORE_VIEW_FIELDS & IMPLEMENTED_CORE_SORT_FIELDS
+
+VALID_SORT_DIRECTIONS = frozenset({"asc", "desc"})
 
 
 @cache
@@ -61,6 +74,14 @@ def validate_view_configuration(configuration: dict) -> None:
         if sort_key not in valid_sort_keys:
             raise ValidationException(
                 f"Invalid sort key '{sort_key}'. Valid keys: {', '.join(sorted(valid_sort_keys))}"
+            )
+
+        direction = sort.get("direction")
+        if direction is not None and (
+            not isinstance(direction, str) or direction.lower() not in VALID_SORT_DIRECTIONS
+        ):
+            raise ValidationException(
+                f"Invalid sort direction '{direction}'. Valid directions: {', '.join(sorted(VALID_SORT_DIRECTIONS))}"
             )
 
     filters = configuration.get("filters")
