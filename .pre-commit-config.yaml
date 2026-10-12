@@ -8,6 +8,11 @@ repos:
   - id: end-of-file-fixer
     exclude: swagger/openapi(_v2)?\.json
   - id: check-yaml
+    exclude: ^integration_tests/config(?:\.local)?\.yaml$
+  - id: check-yaml
+    name: check integration config YAML syntax
+    args: [--unsafe]
+    files: ^integration_tests/config(?:\.local)?\.yaml$
   - id: check-json
   - id: debug-statements
   - id: check-shebang-scripts-are-executable

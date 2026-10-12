@@ -1,0 +1,28 @@
+default:
+  hbi_api_base_path: /api/inventory/v1
+  ingress_api_base_path: /api/ingress/v1
+  http:
+    default_auth_type: jwt
+    headers:
+      Content-Type: application/json
+
+stage:
+  default_user: insights_inventory_qe
+  users:
+    insights_inventory_qe:
+      auth:
+        basic:
+          username: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: username}
+          password: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: password}
+        jwt:
+          refresh_token: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: refresh_token}
+          grant_type: refresh_token
+
+prod:
+  default_user: insights_inventory_qe
+  users:
+    insights_inventory_qe:
+      auth:
+        basic:
+          username: !from_vault {path: secrets/qe/prod/users/insights_inventory_qe, key: username}
+          password: !from_vault {path: secrets/qe/prod/users/insights_inventory_qe, key: password}
