@@ -29,3 +29,44 @@ prod:
         basic:
           username: !from_vault {path: secrets/qe/prod/users/insights_inventory_qe, key: username}
           password: !from_vault {path: secrets/qe/prod/users/insights_inventory_qe, key: password}
+
+ephemeral:
+  default_user: insights_inventory_qe
+  http:
+    default_auth_type: jwt
+  users:
+    insights_inventory_qe:
+      auth:
+        basic:
+          username: &primary-user-username insights_inventory_qe
+          password: &primary-user-password some_password
+        jwt:
+          grant_type: password
+          username: *primary-user-username
+          password: *primary-user-password
+          scope: openid
+      attributes:
+        type: User
+        account_number: &primary-user-account "012345"
+        org_id: &primary-user-org "12345"
+        user_id: "123451"
+        email: insights_inventory_qe@example.com
+        first_name: Insights
+        last_name: Inventory
+        is_active: true
+        is_org_admin: true
+        is_internal: false
+        locale: en_US
+      entitlements:
+        hybrid_cloud:
+          is_entitled: true
+        insights:
+          is_entitled: true
+        openshift:
+          is_entitled: true
+        smart_management:
+          is_entitled: true
+        cost_management:
+          is_entitled: true
+        settings:
+          is_entitled: true

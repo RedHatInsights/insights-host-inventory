@@ -27,6 +27,14 @@ def config() -> Settings:
     return load_config(config_path)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ephemeral_users(config: Settings) -> None:
+    if config.current_env.lower() == "ephemeral":
+        from iqe_library.users import provision_users_from_config
+
+        provision_users_from_config(config)
+
+
 @pytest.fixture(scope="session")
 def test_app(config: Settings) -> Iterator[TestApp]:
     with create_test_app(config) as app:
