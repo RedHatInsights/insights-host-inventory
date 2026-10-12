@@ -11,6 +11,7 @@ from iqe_library.http import create_session_from_config
 from requests import Session
 
 if TYPE_CHECKING:
+    from integration_tests.utils.archive import ArchiveUploader
     from integration_tests.utils.rest_api import InventoryAPI
 
 
@@ -20,11 +21,14 @@ class TestApp:
     config: Settings
     api_session: Session
     base_url: str
+    uploader: ArchiveUploader = field(init=False)
     hbi_api: InventoryAPI = field(init=False)
 
     def __post_init__(self) -> None:
+        from integration_tests.utils.archive import ArchiveUploader
         from integration_tests.utils.rest_api import InventoryAPI
 
+        self.uploader = ArchiveUploader(test_app=self)
         self.hbi_api = InventoryAPI(test_app=self)
 
 
