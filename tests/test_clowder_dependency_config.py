@@ -2,6 +2,8 @@ import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from app.config import Config
 from app.config import _v1_dependency_endpoint_uri
 from app.config import resolve_dependency_endpoint_settings
@@ -62,51 +64,37 @@ class TestV1DependencyEndpointUri:
         assert _v1_dependency_endpoint_uri([endpoint], "rbac", None) == ""
 
 
-class TestKafkaSslConfigs:
-    def test_kafka_ssl_configs_plaintext(self):
-        with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "KAFKA_SECURITY_PROTOCOL": "PLAINTEXT"}):
-            config = Config(RuntimeEnvironment.TEST)
-            assert "sasl.mechanism" not in config.kafka_ssl_configs
-            assert "sasl.username" not in config.kafka_ssl_configs
-            assert "sasl.password" not in config.kafka_ssl_configs
-            assert config.kafka_ssl_configs["security.protocol"] == "PLAINTEXT"
+@pytest.mark.parametrize(
+    "env_protocol,expected_protocol",
+    [
+        ("PLAINTEXT", "PLAINTEXT"),
+        ("SSL", "SSL"),
+        (None, "PLAINTEXT"),  # default when KAFKA_SECURITY_PROTOCOL is unset
+    ],
+)
+def test_kafka_ssl_configs_omits_sasl(env_protocol, expected_protocol):
+    env = {"CLOWDER_ENABLED": "false"}
+    if env_protocol is not None:
+        env["KAFKA_SECURITY_PROTOCOL"] = env_protocol
 
-    def test_kafka_ssl_configs_sasl_ssl(self):
-        with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "KAFKA_SECURITY_PROTOCOL": "SASL_SSL"}):
-            config = Config(RuntimeEnvironment.TEST)
-            assert "sasl.mechanism" in config.kafka_ssl_configs
-            assert "sasl.username" in config.kafka_ssl_configs
-            assert "sasl.password" in config.kafka_ssl_configs
-            assert config.kafka_ssl_configs["security.protocol"] == "SASL_SSL"
-
-
-def test_kafka_ssl_configs_ssl_omits_sasl():
-    with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "KAFKA_SECURITY_PROTOCOL": "SSL"}):
+    env_base = {k: v for k, v in os.environ.items() if k != "KAFKA_SECURITY_PROTOCOL"}
+    env_base.update(env)
+    with patch.dict(os.environ, env_base, clear=True):
         config = Config(RuntimeEnvironment.TEST)
-        assert config.kafka_ssl_configs["security.protocol"] == "SSL"
+        assert config.kafka_ssl_configs["security.protocol"] == expected_protocol
         assert "sasl.mechanism" not in config.kafka_ssl_configs
         assert "sasl.username" not in config.kafka_ssl_configs
         assert "sasl.password" not in config.kafka_ssl_configs
 
 
-def test_kafka_ssl_configs_sasl_plaintext_includes_sasl():
-    with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "KAFKA_SECURITY_PROTOCOL": "SASL_PLAINTEXT"}):
+@pytest.mark.parametrize("protocol", ["SASL_SSL", "SASL_PLAINTEXT"])
+def test_kafka_ssl_configs_includes_sasl(protocol):
+    with patch.dict(os.environ, {"CLOWDER_ENABLED": "false", "KAFKA_SECURITY_PROTOCOL": protocol}):
         config = Config(RuntimeEnvironment.TEST)
-        assert config.kafka_ssl_configs["security.protocol"] == "SASL_PLAINTEXT"
+        assert config.kafka_ssl_configs["security.protocol"] == protocol
         assert "sasl.mechanism" in config.kafka_ssl_configs
         assert "sasl.username" in config.kafka_ssl_configs
         assert "sasl.password" in config.kafka_ssl_configs
-
-
-def test_kafka_ssl_configs_default_protocol_omits_sasl():
-    env_clean = {k: v for k, v in os.environ.items() if k != "KAFKA_SECURITY_PROTOCOL"}
-    env_clean["CLOWDER_ENABLED"] = "false"
-    with patch.dict(os.environ, env_clean, clear=True):
-        config = Config(RuntimeEnvironment.TEST)
-        assert config.kafka_ssl_configs["security.protocol"] == "PLAINTEXT"
-        assert "sasl.mechanism" not in config.kafka_ssl_configs
-        assert "sasl.username" not in config.kafka_ssl_configs
-        assert "sasl.password" not in config.kafka_ssl_configs
 
 
 def test_kafka_ssl_configs_sasl_custom_credentials():
