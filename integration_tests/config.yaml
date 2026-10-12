@@ -17,6 +17,9 @@ stage:
         jwt:
           refresh_token: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: refresh_token}
           grant_type: refresh_token
+        cert:
+          cert: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: cert}
+          key: !from_vault {path: secrets/qe/stage/users/insights_inventory_qe, key: key}
 
 prod:
   default_user: insights_inventory_qe
