@@ -1,3 +1,0 @@
-FROM quay.io/mclinton/insights-host-inventory:lightwell-clean
-# Add python_purls to the system_profile spec so the normalizer accepts + truncates it (read at runtime).
-COPY swagger/system_profile.spec.yaml /opt/app-root/src/swagger/system_profile.spec.yaml

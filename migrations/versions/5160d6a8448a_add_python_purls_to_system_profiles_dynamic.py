@@ -11,8 +11,8 @@ from a real database and host ingestion fails with
 Nullable with a NULL default -> metadata-only ADD COLUMN (no table rewrite);
 adding it to the partitioned parent propagates to every child partition.
 
-Revision ID: b2c3d4e5f6a7
-Revises: f1a2b3c4d5e6
+Revision ID: 5160d6a8448a
+Revises: a879660ecf36
 Create Date: 2026-10-07 23:00:00.000000
 
 """
@@ -25,8 +25,8 @@ from app.models.constants import INVENTORY_SCHEMA
 SP_DYNAMIC_TABLE_NAME = "system_profiles_dynamic"
 
 # revision identifiers, used by Alembic.
-revision = "lwpythonpurls01"
-down_revision = "f1a2b3c4d5e6"
+revision = "5160d6a8448a"
+down_revision = "a879660ecf36"
 branch_labels = None
 depends_on = None
 

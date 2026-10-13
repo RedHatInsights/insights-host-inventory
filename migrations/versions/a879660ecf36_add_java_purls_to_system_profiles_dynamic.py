@@ -12,8 +12,8 @@ partitioned table, adding the column to the parent automatically propagates it
 to every child partition, mirroring the reporters column added to the likewise
 partitioned hosts table.
 
-Revision ID: f1a2b3c4d5e6
-Revises: 4e2e1fe2f34d
+Revision ID: a879660ecf36
+Revises: 77837836a5b3
 Create Date: 2026-09-13 12:00:00.000000
 
 """
@@ -26,7 +26,7 @@ from app.models.constants import INVENTORY_SCHEMA
 SP_DYNAMIC_TABLE_NAME = "system_profiles_dynamic"
 
 # revision identifiers, used by Alembic.
-revision = "f1a2b3c4d5e6"
+revision = "a879660ecf36"
 down_revision = "77837836a5b3"
 branch_labels = None
 depends_on = None
