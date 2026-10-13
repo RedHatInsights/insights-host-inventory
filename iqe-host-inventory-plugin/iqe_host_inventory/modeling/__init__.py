@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import attr
 from iqe.base.modeling import BaseEntity
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -282,7 +283,7 @@ class HBIDatabase(BaseEntity):
             raise AttributeError("url not known")
         db_host = os.getenv("DB_HOST", db.get("hostname"))
         return URL.create(
-            drivername="postgresql",
+            drivername="postgresql+psycopg2",
             host=db_host,
             port=db.port,
             database=db.database,
@@ -299,7 +300,7 @@ class HBIDatabase(BaseEntity):
         """WARNING: This session should be used only for READ operations, it doesn't do rollback"""
         session = Session(bind=self.engine)
         set_schemas = "SET SEARCH_PATH TO public,hbi"
-        session.execute(set_schemas)
+        session.execute(text(set_schemas))
         return session
 
     def make_engine(self, echo: bool = True) -> Engine:
