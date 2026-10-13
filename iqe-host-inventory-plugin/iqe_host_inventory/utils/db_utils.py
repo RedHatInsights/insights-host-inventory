@@ -7,6 +7,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 from typing import Literal
+from typing import ParamSpec
 from typing import TypeVar
 from typing import overload
 
@@ -20,7 +21,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
-from typing_extensions import ParamSpec
 
 from iqe_host_inventory.schemas import PER_REPORTER_STALENESS
 from iqe_host_inventory.schemas import per_reporter_staleness_from_db

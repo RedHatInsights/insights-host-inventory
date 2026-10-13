@@ -71,7 +71,7 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def enable_http_debug_logging(request: FixtureRequest) -> Generator[None, None, None]:
+def enable_http_debug_logging(request: FixtureRequest) -> Generator[None]:
     """Enable verbose HTTP logging for debugging connection issues like RemoteDisconnected.
 
     Usage: pytest --http-debug -s
@@ -125,7 +125,7 @@ def enable_http_debug_logging(request: FixtureRequest) -> Generator[None, None, 
 
 
 @pytest.fixture(scope="session", autouse=True)
-def configure_robust_http_retries() -> Generator[None, None, None]:
+def configure_robust_http_retries() -> Generator[None]:
     """Configure urllib3 with robust retry settings for connection errors.
 
     This helps mitigate RemoteDisconnected and SSLEOFError issues that occur
@@ -166,7 +166,7 @@ def configure_robust_http_retries() -> Generator[None, None, None]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None, None, None]:
+def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None]:
     "temporary hack - dishka based cleans up itself"
 
     yield
@@ -1054,7 +1054,7 @@ def hbi_create_data_on_secondary_account(
 def hbi_recreate_data_on_secondary_account_after_delete(
     application: Application,
     hbi_maybe_application_secondary: Application | None,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """
     This fixture should be used in all the tests where we delete all hosts or groups
     from the secondary account. This includes all usages of `hosts.confirm_delete_all`,

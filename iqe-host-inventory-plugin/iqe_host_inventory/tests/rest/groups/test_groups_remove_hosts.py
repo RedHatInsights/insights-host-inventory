@@ -213,7 +213,7 @@ def test_groups_remove_hosts_with_invalid_id(
     err_msgs: tuple[str, ...]
     try:
         UUID(invalid_host_id)
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         if "á" in invalid_host_id:
             err_msgs = (invalid_host_id.replace("á", "\\u00e1"), " does not match ")
         else:
@@ -250,7 +250,7 @@ def test_groups_remove_host_from_group_with_invalid_id(
     err_msgs: tuple[str, ...]
     try:
         UUID(invalid_group_id)
-    except (ValueError, AttributeError):
+    except ValueError, AttributeError:
         if "á" in invalid_group_id:
             err_msgs = (invalid_group_id.replace("á", "\\u00e1"), " does not match ")
         else:

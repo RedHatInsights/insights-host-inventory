@@ -15,7 +15,7 @@ from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
 @pytest.fixture(scope="session")
 def hbi_turnpike_http_client(
     application: Application,
-) -> Generator[RobustSession | None, None, None]:
+) -> Generator[RobustSession | None]:
     if application.config.current_env.lower() in EPHEMERAL_ENVS:
         yield None
         return

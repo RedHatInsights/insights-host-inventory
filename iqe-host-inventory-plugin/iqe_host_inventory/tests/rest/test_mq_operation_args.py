@@ -29,7 +29,7 @@ def _normalize_datetime_fields(data: dict) -> None:
                 value = datetime.fromisoformat(value)
             if isinstance(value, datetime):
                 data[key] = normalize_datetime_to_utc(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
 
 
