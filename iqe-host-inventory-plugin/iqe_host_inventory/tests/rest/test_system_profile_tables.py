@@ -23,7 +23,7 @@ def _is_datetime_value(value: Any) -> bool:
     if isinstance(value, str):
         try:
             datetime.fromisoformat(value)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return False
         else:
             return True

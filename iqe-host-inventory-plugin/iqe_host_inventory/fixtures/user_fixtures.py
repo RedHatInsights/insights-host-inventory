@@ -140,7 +140,7 @@ def hbi_maybe_service_account_2_data(application: Application) -> DynaBox | None
 @pytest.fixture(scope="session")
 def hbi_application_cert_auth(
     application: Application, hbi_default_user_data: DynaBox
-) -> Generator[Application]:
+) -> Generator[Application, None, None]:
     env_for_dynaconf = application.config.current_env.lower()
     with application.copy_using(
         auth_type=AuthType.CERT_AUTH, user=hbi_default_user_data
@@ -153,7 +153,7 @@ def hbi_application_cert_auth(
 @pytest.fixture(scope="session")
 def hbi_maybe_application_non_org_admin(
     application: Application, hbi_maybe_non_org_admin_user_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_non_org_admin_user_data is None:
         yield None
         return
@@ -165,7 +165,7 @@ def hbi_maybe_application_non_org_admin(
 @pytest.fixture(scope="session")
 def hbi_maybe_application_non_org_admin_cert_auth(
     application: Application, hbi_maybe_non_org_admin_user_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_non_org_admin_user_data is None:
         yield None
         return
@@ -182,7 +182,7 @@ def hbi_maybe_application_non_org_admin_cert_auth(
 @pytest.fixture(scope="session")
 def hbi_maybe_application_secondary(
     application: Application, hbi_maybe_secondary_user_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_secondary_user_data is None:
         yield None
         return
@@ -201,7 +201,7 @@ def hbi_application_secondary(hbi_maybe_application_secondary: Application | Non
 @pytest.fixture(scope="session")
 def hbi_maybe_application_frontend(
     application: Application, hbi_maybe_frontend_user_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_frontend_user_data is None:
         yield None
         return
@@ -213,7 +213,7 @@ def hbi_maybe_application_frontend(
 @pytest.fixture(scope="session")
 def hbi_maybe_application_service_account_1(
     application: Application, hbi_maybe_service_account_1_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_service_account_1_data is None:
         yield None
         return
@@ -227,7 +227,7 @@ def hbi_maybe_application_service_account_1(
 @pytest.fixture(scope="session")
 def hbi_maybe_application_service_account_2(
     application: Application, hbi_maybe_service_account_2_data: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_service_account_2_data is None:
         yield None
         return
@@ -244,7 +244,7 @@ def hbi_maybe_application_service_account_2(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_hosts_all(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_hosts_all")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -253,7 +253,7 @@ def host_inventory_rbac_hosts_all(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_inv_admin(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_inv_admin")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -262,7 +262,7 @@ def host_inventory_rbac_inv_admin(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_hosts_admin(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_hosts_admin")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -271,7 +271,7 @@ def host_inventory_rbac_hosts_admin(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_hosts_viewer(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_hosts_viewer")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -280,7 +280,7 @@ def host_inventory_rbac_hosts_viewer(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_groups_admin(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_groups_admin")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -289,7 +289,7 @@ def host_inventory_rbac_groups_admin(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_groups_viewer(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_groups_viewer")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -298,7 +298,7 @@ def host_inventory_rbac_groups_viewer(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_hosts_write(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_hosts_write")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -307,7 +307,7 @@ def host_inventory_rbac_hosts_write(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_groups_write(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_groups_write")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -316,7 +316,7 @@ def host_inventory_rbac_groups_write(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_groups_all(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_groups_all")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -325,7 +325,7 @@ def host_inventory_rbac_groups_all(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_all_read(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_all_read")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -334,7 +334,7 @@ def host_inventory_rbac_all_read(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_staleness_admin(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_staleness_admin")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -343,7 +343,7 @@ def host_inventory_rbac_staleness_admin(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_staleness_viewer(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_staleness_viewer")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -352,7 +352,7 @@ def host_inventory_rbac_staleness_viewer(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_staleness_write(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_staleness_write")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -361,7 +361,7 @@ def host_inventory_rbac_staleness_write(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_staleness_all(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_staleness_all")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -370,7 +370,7 @@ def host_inventory_rbac_staleness_all(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_stl_adm_hst_adm(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_stl_adm_hst_adm")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -379,7 +379,7 @@ def host_inventory_rbac_stl_adm_hst_adm(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_stl_adm_hst_vwr(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_stl_adm_hst_vwr")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -388,7 +388,7 @@ def host_inventory_rbac_stl_adm_hst_vwr(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_stl_vwr_hst_adm(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_stl_vwr_hst_adm")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -397,7 +397,7 @@ def host_inventory_rbac_stl_vwr_hst_adm(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_stl_vwr_hst_vwr(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_stl_vwr_hst_vwr")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -406,7 +406,7 @@ def host_inventory_rbac_stl_vwr_hst_vwr(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_stl_wrt_hst_wrt(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_stl_wrt_hst_wrt")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory
@@ -415,7 +415,7 @@ def host_inventory_rbac_stl_wrt_hst_wrt(
 @pytest.fixture(scope="session")
 def host_inventory_rbac_no_perms(
     application: Application, hbi_default_user: str
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user_data = require_user(application, f"{hbi_default_user}_no_perms")
     with application.copy_using(user=user_data, verify_ssl=False) as app:
         yield app.host_inventory

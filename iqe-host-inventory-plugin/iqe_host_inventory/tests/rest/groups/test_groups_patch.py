@@ -635,7 +635,7 @@ def test_groups_patch_validate_group_id_wrong(
     err_msgs: tuple[str, ...]
     try:
         UUID(group_id)
-    except ValueError, AttributeError:
+    except (ValueError, AttributeError):
         if "á" in group_id:
             err_msgs = (group_id.replace("á", "\\u00e1"), " does not match ")
         else:

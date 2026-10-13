@@ -13,7 +13,7 @@ def inventory_db_engine(host_inventory: ApplicationHostInventory) -> Engine:
 
 
 @pytest.fixture
-def inventory_db_session(inventory_db_engine: Engine) -> Generator[Session]:
+def inventory_db_session(inventory_db_engine: Engine) -> Generator[Session, None, None]:
     """Returns an sqlalchemy session, and after the test tears down everything properly."""
     connection = inventory_db_engine.connect()
     transaction = connection.begin()

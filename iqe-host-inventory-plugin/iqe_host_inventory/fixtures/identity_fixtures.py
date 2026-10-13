@@ -125,7 +125,7 @@ def hbi_identity_auth_user(application: Application) -> DynaBox:
 @pytest.fixture(scope="session")
 def hbi_maybe_application_identity_auth_user(
     application: Application, hbi_maybe_identity_auth_user: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_identity_auth_user is None:
         yield None
         return
@@ -149,7 +149,7 @@ def hbi_identity_auth_system(application: Application) -> DynaBox:
 @pytest.fixture(scope="session")
 def hbi_maybe_application_identity_auth_system(
     application: Application, hbi_maybe_identity_auth_system: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_identity_auth_system is None:
         yield None
         return
@@ -173,7 +173,7 @@ def hbi_identity_auth_service_account(application: Application) -> DynaBox:
 @pytest.fixture(scope="session")
 def hbi_maybe_application_identity_auth_service_account(
     application: Application, hbi_maybe_identity_auth_service_account: DynaBox | None
-) -> Generator[Application | None]:
+) -> Generator[Application | None, None, None]:
     if hbi_maybe_identity_auth_service_account is None:
         yield None
         return
@@ -197,7 +197,7 @@ def inventory_cert_system_owner_id(hbi_identity_auth_system: DynaBox) -> str:
 @pytest.fixture(params=["system", "satellite", "sam", "rhui", "hypervisor"])
 def host_inventory_system_correct(
     request, application: Application, hbi_identity_auth_system: DynaBox
-) -> Generator[ApplicationHostInventory]:
+) -> Generator[ApplicationHostInventory, None, None]:
     user = deepcopy(hbi_identity_auth_system)
     user.identity.system.cert_type = request.param
     with application.copy_using(auth_type=AuthType.IDENTITY, user=user, verify_ssl=False) as app:
