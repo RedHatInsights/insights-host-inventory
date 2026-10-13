@@ -77,7 +77,7 @@ class Group(Base):
 class HostGroupAssoc(Base):
     __tablename__ = "hosts_groups"
 
-    org_id = Column(UUID(as_uuid=True), primary_key=True)
+    org_id = Column(String(36), primary_key=True)
     host_id = Column(UUID(as_uuid=True), primary_key=True)
     group_id = Column(UUID(as_uuid=True), primary_key=True)
 
