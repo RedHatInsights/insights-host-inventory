@@ -1,6 +1,7 @@
 from collections.abc import Generator
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ def inventory_db_session(inventory_db_engine: Engine) -> Generator[Session, None
     transaction = connection.begin()
     session = Session(bind=connection)
     set_schemas = "SET SEARCH_PATH TO public,hbi"
-    session.execute(set_schemas)
+    session.execute(text(set_schemas))
 
     yield session
 
