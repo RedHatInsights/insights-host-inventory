@@ -2823,6 +2823,62 @@ def test_custom_fields_parser_query_parameter_parsing():
         assert is_deep_object is True
 
 
+def test_sparse_fields_validator_resolves_bracket_query_before_lookup():
+    """Bracket-style fields[system_profile] must be validated, not skipped.
+
+    ParameterValidator.validate() builds a ConnexionRequest whose query_params
+    property runs the URI parser. The sparse-field check then looks up "fields".
+    If that resolution did not happen first, the raw key fields[system_profile]
+    would miss the lookup and an unknown field would be accepted.
+    """
+    from connexion.lifecycle import ConnexionRequest
+
+    from app.custom_validator import CustomParameterValidator
+
+    parameters = [
+        {
+            "name": "fields",
+            "in": "query",
+            "style": "deepObject",
+            "explode": True,
+            "x-validator": "sparseFields",
+            "schema": {"type": "object"},
+        }
+    ]
+    parser = customURIParser(parameters, {})
+    validator = CustomParameterValidator(
+        parameters,
+        uri_parser=parser,
+        strict_validation=True,
+        system_profile_spec={"arch": {}},
+    )
+
+    def scope_for(query_string: str) -> dict:
+        return {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/hosts",
+            "raw_path": b"/hosts",
+            "query_string": query_string.encode(),
+            "headers": [],
+            "client": ("127.0.0.1", 123),
+            "server": ("testserver", 80),
+        }
+
+    unknown_scope = scope_for("fields[system_profile]=not_a_real_field")
+    request = ConnexionRequest(unknown_scope, uri_parser=parser)
+    assert list(request.query_params) == ["fields"]
+    assert request.query_params["fields"] == {"system_profile": {"not_a_real_field": True}}
+
+    with pytest.raises(BadRequestProblem, match="not_a_real_field"):
+        validator.validate(unknown_scope)
+
+    validator.validate(scope_for("fields[system_profile]=arch"))
+
+
 def test_valid_deep_object_list_query_parameter_parsing():
     for key, value in (("asdf[foo]", ["bar"]), ("system_profile[field1][field2]", ["value1"])):
         _, _, is_deep_object = customURIParser._make_deep_object(key, value)

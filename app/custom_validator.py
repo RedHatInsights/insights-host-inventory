@@ -78,7 +78,9 @@ class CustomParameterValidator(ParameterValidator):
             self._validate_system_profile_field_names(fields)
 
     def validate_query_parameter_list(self, request, security_params=None):
-        # query_params is already resolved, including deep-object filter and fields params.
+        # ConnexionRequest.query_params resolves the raw query string through this
+        # operation's URI parser on access. Bracket keys such as fields[system_profile]
+        # are already collapsed to "fields" before the lookup below.
         query_params = request.query_params
 
         for param in self.parameters.get("query", []):
