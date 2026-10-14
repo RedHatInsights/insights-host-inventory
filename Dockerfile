@@ -77,7 +77,7 @@ COPY LICENSE /licenses
 
 USER 1001
 
-ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
+ENTRYPOINT [ "dumb-init", "--single-child", "./run_command.sh" ]
 
 # Define labels for the iop-core-host-inventory
 LABEL url="https://www.redhat.com"
