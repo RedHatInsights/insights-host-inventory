@@ -131,12 +131,7 @@ end of the `deploy-iqe-cji` command:
 POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)
 ```
 
-4. Install setuptools in the pod:
-```bash
-oc rsh -n $NAMESPACE $POD pip install -i https://pypi.python.org/simple setuptools_scm
-```
-
-5. Copy your local changes to the pod:
+4. Copy your local changes to the pod:
 
 You have two options for copying files: `oc cp` (one-time copy) or `oc rsync` (continuous sync).
 
@@ -165,7 +160,7 @@ a. In your current terminal, make sure you're in the `iqe-host-inventory-plugin`
 
 b. Set up continuous sync using `watch` (updates every second):
 ```bash
-watch -n 1 "oc rsync -n $NAMESPACE --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' --exclude='.pytest_cache' --exclude='venv' . $POD:iqe-host-inventory-plugin"
+watch -n 1 "oc rsync -q -n $NAMESPACE --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' --exclude='.pytest_cache' --exclude='.venv' . $POD:iqe-host-inventory-plugin"
 ```
 
 **What this does:**
@@ -175,18 +170,20 @@ watch -n 1 "oc rsync -n $NAMESPACE --exclude='.git' --exclude='*.pyc' --exclude=
 
 **Tip:** Keep this terminal open while developing. You'll see output each time files are synced to the pod.
 
+5. Install the local plugin in the pod from your local terminal:
+```bash
+oc rsh -n $NAMESPACE $POD uv pip install -e iqe-host-inventory-plugin/ --default-index https://pypi.org/simple
+```
+
+This installs the plugin in editable mode into the pod's existing virtual environment.
+No separate installation of pip or setuptools is needed.
+
 6. Initiate shell session in the pod:
 ```bash
 oc rsh -n $NAMESPACE $POD
 ```
 
-7. Change directory to the `iqe-host-inventory` plugin and install it:
-```bash
-cd iqe-host-inventory-plugin/
-pip install -i https://pypi.python.org/simple -e .
-```
-
-8. Run the tests:
+7. Run the tests:
 
 Now you can run the tests the same way you would do it locally. For example:
 ```

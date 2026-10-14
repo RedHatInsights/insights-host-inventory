@@ -27,7 +27,7 @@ dependencies = [
   "google-api-python-client",
   "google-auth",
   "iqe-bindings>=26.06.30.0",
-  "iqe-core>=26.06.22.0",
+  "iqe-core[imposed-constraints]>=26.10.07.0",
   "iqe-kessel-sync-plugin",
   "iqe-turnpike-plugin",
   "lxml",
@@ -138,6 +138,7 @@ package = true
 default-groups = "all"
 required-version = ">=0.11.8"
 system-certs = true
+no-build-package = ["gssapi", "netifaces", "python-qpid-proton"]
 
 [[tool.uv.index]]
 name = "rhnexus"
