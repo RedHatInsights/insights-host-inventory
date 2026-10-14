@@ -446,6 +446,27 @@ def create_export(
                 session.close()
                 return export_created
 
+        # Dedicated Advisor host filters live in host_filter, not query_filter.
+        if (
+            allowed_apps is not None
+            and "advisor" not in allowed_apps
+            and (host_filter.get("recommendation_severity") or host_filter.get("incident_status"))
+        ):
+            request_url = _build_export_request_url(
+                export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
+            )
+            _handle_export_error(
+                "Insufficient permissions to filter by advisor",
+                403,
+                request_url,
+                session,
+                request_headers,
+                exportUUID,
+                exportFormat,
+            )
+            session.close()
+            return export_created
+
     export_fields, app_data_fields = resolve_export_columns(view_columns, allowed_apps=allowed_apps)
 
     try:
