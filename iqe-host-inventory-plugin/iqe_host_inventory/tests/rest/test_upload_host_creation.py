@@ -246,7 +246,6 @@ def test_create_new_sap_host(host_inventory: ApplicationHostInventory) -> None:
     assert fetched_host.results[0].system_profile.workloads.sap.sap_system
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
 def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) -> None:
     """
     Test creation of new host with Satellite Server workload via archive upload (Ingress/Puptoo)
@@ -279,7 +278,6 @@ def test_create_satellite_server_host(host_inventory: ApplicationHostInventory) 
     assert satellite.version.startswith("6.")
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-28301", category=iqe_blocker.PRODUCT_RFE))
 def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory) -> None:
     """
     Test creation of new host with Satellite Capsule workload via archive upload (Ingress/Puptoo)
@@ -312,7 +310,6 @@ def test_create_satellite_capsule_host(host_inventory: ApplicationHostInventory)
     assert satellite.version.startswith("6.")
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
 def test_create_containerized_satellite_host(host_inventory: ApplicationHostInventory) -> None:
     """Verify containerized Satellite host creation with correct system profile."""
     display_name = generate_display_name()
@@ -380,7 +377,6 @@ def test_create_image_mode_host(
     assert image_host.id not in response_ids
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-28024", category=iqe_blocker.PRODUCT_RFE))
 def test_create_ansible_execution_node_host(
     host_inventory: ApplicationHostInventory, hbi_upload_prepare_host_module: HostOut
 ) -> None:
@@ -425,7 +421,7 @@ def test_create_ansible_execution_node_host(
     assert conventional_host.id not in response_ids
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+@iqe_blocker(iqe_blocker.jira("RHINENG-30469", category=iqe_blocker.PRODUCT_RFE))
 def test_create_containerized_aap_host(host_inventory: ApplicationHostInventory) -> None:
     """Verify containerized AAP host creation with correct system profile."""
     display_name = generate_display_name()
@@ -455,7 +451,7 @@ def test_create_containerized_aap_host(host_inventory: ApplicationHostInventory)
     assert host.id in response_ids
 
 
-@iqe_blocker(iqe_blocker.jira("RHINENG-29755", category=iqe_blocker.PRODUCT_RFE))
+@iqe_blocker(iqe_blocker.jira("RHINENG-30469", category=iqe_blocker.PRODUCT_RFE))
 def test_create_containerized_aap_execution_node_host(
     host_inventory: ApplicationHostInventory,
 ) -> None:
