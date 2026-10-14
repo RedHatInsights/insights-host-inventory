@@ -23,7 +23,7 @@ repos:
 #     - iqe-core
 #     - --index-url=https://nexus.corp.redhat.com/repository/cqt-pypi/simple
 - repo: https://github.com/asottile/pyupgrade
-  rev: v3.21.2
+  rev: v3.22.0
   hooks:
   - id: pyupgrade
 - repo: https://github.com/astral-sh/ruff-pre-commit
