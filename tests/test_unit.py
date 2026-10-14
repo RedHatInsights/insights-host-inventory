@@ -608,7 +608,7 @@ def test_v2_api_registration(translating_parser, _init_app, app, v2_enabled):
         assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
         assert v2_call.kwargs["arguments"] == {"title": "HBI V2 API"}
         assert v2_call.kwargs["validate_responses"] is True
-        assert v2_call.kwargs["strict_validation"] is False
+        assert v2_call.kwargs["strict_validation"] is True
         assert v2_call.kwargs["validator_map"] is not None
     else:
         assert not v2_add_api_calls, "No V2 API should be registered when HBI_V2_API_ENABLED is not true"

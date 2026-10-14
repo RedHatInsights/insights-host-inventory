@@ -381,14 +381,19 @@ def test_get_hosts_invalid_deep_object_params(query_params, api_get):
     assert_response_status(response_code, 400)
 
 
+def test_sparse_fields_rejects_unknown_system_profile_field(api_get):
+    response_status, response_data = api_get(build_hosts_url(query="?fields[system_profile]=not_a_real_field"))
+
+    assert response_status == 400
+    assert "not_a_real_field" in response_data["detail"]
+
+
 def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
     for query in (
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
         "?fields[system_profile]=os_kernel_version&order_by=modified",
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
-        # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
-        # or until we make a workaround and re-enable strict_validation.
-        # "?fields[foo]=bar",
+        "?fields[foo]=bar",
     ):
         with subtests.test(query=query):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
