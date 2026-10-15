@@ -345,6 +345,27 @@ pytest tests/test_api_auth.py::test_validate_valid_identity
 
 - Note: Ensure DB-related environment variables are set before running tests.
 
+#### Shared-session Integration Tests
+
+The standalone `integration_tests/` consumer uses
+`iqe-library[config,vault,http,kerberos,ephemeral,users]`.
+Its default `test_app` fixture owns one session shared by `api_session`, the
+Inventory API client, and the archive uploader, and closes it at teardown.
+For independent users/auth modes, use the ordinary `create_test_app(config,
+user="...", auth_type="...")` context manager rather than modifying shared config.
+Canonical auth names are `basic`, `jwt`, `cert`, `identity`, and `none`.
+
+Inventory defaults to JWT; ephemeral uses a password grant for provisioned users.
+Stage uses the configured Vault offline-token reference and the refresh-token grant. Prod has
+no JWT credential configured: supply one explicitly or select Basic; there is
+no fallback or stage credential reuse. `default_user` stays at the root,
+credentials are under `users.<name>.auth.<type>`, and HTTP settings/headers are
+under `http`. Override selection with `DYNACONF_DEFAULT_USER` and
+`DYNACONF_HTTP__DEFAULT_AUTH_TYPE`; `HBI_TEST_AUTH_TYPE` is no longer used.
+
+See [Integration Tests](integration_tests/README.md) for installation, development,
+configuration, and running tests.
+
 #### IQE Integration Tests
 
 The repository now includes the IQE (Insights QE) test suite in the `iqe-host-inventory-plugin/` directory. These are comprehensive integration tests that cover:
