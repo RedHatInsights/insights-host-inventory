@@ -174,7 +174,7 @@ class customURIParser(OpenAPIURIParser):
                         return parsed
                     # Parsed successfully but not a dict (shouldn't happen for '{' prefix)
                     raise BadRequestProblem(f"Filter param '{param_name or 'filter'}' must be a JSON object.")
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError, ValueError:
                     # Not valid JSON - treat as regular string value
                     # (e.g., os_release values like "{major}.{minor}" are not JSON)
                     pass
@@ -187,7 +187,7 @@ class customURIParser(OpenAPIURIParser):
                         raise BadRequestProblem(
                             f"Filter param '{param_name or 'filter'}' must be a JSON object, not an array."
                         )
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError, ValueError:
                     # Not valid JSON - treat as regular string value
                     pass
         return None
