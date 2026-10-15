@@ -372,9 +372,11 @@ def get_host_list_for_views(
     staleness: list[str] | None,
     registered_with: list[str] | None,
     system_type: list[str] | None,
-    filter: dict | None,
-    fields: dict | None,
-    rbac_filter: dict | None,
+    recommendation_severity: list[str] | None = None,
+    incident_status: str | None = None,
+    filter: dict | None = None,
+    fields: dict | None = None,
+    rbac_filter: dict | None = None,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Get host list for views endpoint with unified sorting support.
@@ -408,6 +410,8 @@ def get_host_list_for_views(
         rbac_filter,
         param_order_by,
         get_current_identity(),
+        recommendation_severity=recommendation_severity,
+        incident_status=incident_status,
     )
 
     # Automatically add LEFT JOIN for app data table if sorting by app field

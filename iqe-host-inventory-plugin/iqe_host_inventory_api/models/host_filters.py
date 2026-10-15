@@ -40,6 +40,8 @@ class HostFilters:
         "updated_start": "datetime",
         "updated_end": "datetime",
         "system_type": "list[str]",
+        "recommendation_severity": "list[str]",
+        "incident_status": "str",
     }
 
     attribute_map = {
@@ -53,6 +55,8 @@ class HostFilters:
         "updated_start": "updated_start",
         "updated_end": "updated_end",
         "system_type": "system_type",
+        "recommendation_severity": "recommendation_severity",
+        "incident_status": "incident_status",
     }
 
     def __init__(
@@ -67,6 +71,8 @@ class HostFilters:
         updated_start=None,
         updated_end=None,
         system_type=None,
+        recommendation_severity=None,
+        incident_status=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -84,6 +90,8 @@ class HostFilters:
         self._updated_start = None
         self._updated_end = None
         self._system_type = None
+        self._recommendation_severity = None
+        self._incident_status = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -106,6 +114,10 @@ class HostFilters:
             self.updated_end = updated_end
         if system_type is not None:
             self.system_type = system_type
+        if recommendation_severity is not None:
+            self.recommendation_severity = recommendation_severity
+        if incident_status is not None:
+            self.incident_status = incident_status
 
     @property
     def hostname_or_id(self):
@@ -356,6 +368,69 @@ class HostFilters:
             )
 
         self._system_type = system_type
+
+    @property
+    def recommendation_severity(self):
+        """Gets the recommendation_severity of this HostFilters.  # noqa: E501
+
+        Filter by Advisor recommendation severity (OR logic).  # noqa: E501
+
+        :return: The recommendation_severity of this HostFilters.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._recommendation_severity
+
+    @recommendation_severity.setter
+    def recommendation_severity(self, recommendation_severity):
+        """Sets the recommendation_severity of this HostFilters.
+
+        Filter by Advisor recommendation severity (OR logic).  # noqa: E501
+
+        :param recommendation_severity: The recommendation_severity of this HostFilters.  # noqa: E501
+        :type: list[str]
+        """
+        allowed_values = ["critical", "important", "moderate", "low"]
+        if self.local_vars_configuration.client_side_validation and not set(recommendation_severity).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `recommendation_severity` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(recommendation_severity) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._recommendation_severity = recommendation_severity
+
+    @property
+    def incident_status(self):
+        """Gets the incident_status of this HostFilters.  # noqa: E501
+
+        Filter by Advisor incident status.  # noqa: E501
+
+        :return: The incident_status of this HostFilters.  # noqa: E501
+        :rtype: str
+        """
+        return self._incident_status
+
+    @incident_status.setter
+    def incident_status(self, incident_status):
+        """Sets the incident_status of this HostFilters.
+
+        Filter by Advisor incident status.  # noqa: E501
+
+        :param incident_status: The incident_status of this HostFilters.  # noqa: E501
+        :type: str
+        """
+        allowed_values = ["incident", "no_incident"]
+        if self.local_vars_configuration.client_side_validation and incident_status not in allowed_values:
+            raise ValueError(
+                "Invalid value for `incident_status` ({}), must be one of {}".format(
+                    incident_status, allowed_values
+                )
+            )
+
+        self._incident_status = incident_status
 
     def to_dict(self):
         """Returns the model properties as a dict"""
