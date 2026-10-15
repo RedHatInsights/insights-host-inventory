@@ -288,6 +288,7 @@ jobs:
 
           # --- BASELINE: compute once, store forever ---
           HAS_BASELINE=$(echo "$EXISTING" | jq 'has("baseline") and .baseline != null')
+          BASELINE_PATCH=null
 
           if [ "$HAS_BASELINE" = "false" ]; then
             echo "Computing frozen baseline (${BASELINE_DAYS} days before each deploy date)..."
@@ -361,6 +362,7 @@ jobs:
                 },
                 quarters: (.quarters // {})
               }')
+            BASELINE_PATCH=$(echo "$EXISTING" | jq -c '.baseline')
 
             echo "Baseline computed and stored."
           else
@@ -432,6 +434,15 @@ jobs:
           echo "$EXISTING" | jq . > "$DATA_FILE"
           cp "$DATA_FILE" /tmp/metrics_data.json
 
+          # Persist this run's changes so the push step can re-apply them on
+          # top of the latest gh-pages data.json (concurrent-run safety)
+          jq -n \
+            --arg q "$QUARTER" \
+            --argjson entry "$QUARTER_ENTRY" \
+            --argjson baseline "$BASELINE_PATCH" \
+            '{quarter: $q, entry: $entry} + (if $baseline != null then {baseline: $baseline} else {} end)' \
+            > /tmp/metrics_patch.json
+
       - name: Generate token
         id: app-token
         uses: actions/create-github-app-token@v3
@@ -461,11 +472,19 @@ jobs:
 
           DATA_JSON=$(base64 -w0 /tmp/metrics_data.json)
 
-          # Build file additions via jq for correct JSON structure
-          ADDITIONS=$(jq -n --arg data "$DATA_JSON" '[{path: "data.json", contents: $data}]')
-          if [ -n "$INDEX_HTML" ]; then
-            ADDITIONS=$(echo "$ADDITIONS" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
-          fi
+          # Build file additions via jq for correct JSON structure.
+          # FileAddition.contents must be base64: the GraphQL schema types it
+          # as Base64String and GitHub decodes it when creating the blob.
+          build_additions() {
+            local additions
+            additions=$(jq -n --arg data "$1" '[{path: "data.json", contents: $data}]')
+            if [ -n "$INDEX_HTML" ]; then
+              additions=$(echo "$additions" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
+            fi
+            echo "$additions"
+          }
+
+          ADDITIONS=$(build_additions "$DATA_JSON")
 
           # Use createCommitOnBranch to produce a verified commit (with retry for races)
           for attempt in 1 2 3; do
@@ -477,6 +496,30 @@ jobs:
                 | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
               jq -n --arg sha "$BRANCH_SHA" '{ref: "refs/heads/gh-pages", sha: $sha}' \
                 | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null
+            fi
+
+            # Re-apply this run's metrics onto the latest gh-pages data.json so
+            # a concurrent run's newer numbers are not overwritten by this run's
+            # earlier snapshot. Fetched after BRANCH_SHA on purpose: a commit
+            # landing in between fails the expectedHeadOid check and is retried
+            # with fresh state, so the merge can never race ahead of the SHA it
+            # is validated against.
+            if gh api "repos/$REPO/contents/data.json?ref=gh-pages" \
+                --jq '.content | gsub("\\n"; "")' 2>/dev/null \
+                | base64 -d > /tmp/ghpages_data.json 2>/dev/null; then
+              if MERGED=$(jq -n \
+                  --rawfile fresh /tmp/ghpages_data.json \
+                  --rawfile patch /tmp/metrics_patch.json \
+                  --arg year "$(date -u +%Y)" \
+                  '($fresh | fromjson) as $f | ($patch | fromjson) as $p
+                   | $f
+                   | (if .year != $year then .year = $year | .quarters = {} else . end)
+                   | (if ($p.baseline != null) and (.baseline == null) then .baseline = $p.baseline else . end)
+                   | .quarters[$p.quarter] = $p.entry' 2>/dev/null) && [ -n "$MERGED" ]; then
+                ADDITIONS=$(build_additions "$(printf '%s' "$MERGED" | base64 -w0)")
+              else
+                echo "Warning: could not merge with latest gh-pages data; pushing run snapshot."
+              fi
             fi
 
             VARIABLES=$(jq -n \
