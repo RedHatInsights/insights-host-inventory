@@ -506,6 +506,32 @@ def _system_type_filter(filters: list[str]) -> list:
     return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
+def _advisor_filter(
+    recommendation_severity: list[str] | None,
+    incident_status: str | None,
+) -> tuple[list, type]:
+    """Build filters for recommendation_severity and incident_status params.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataAdvisor model class)
+    """
+    from app.models.host_app_data import HostAppDataAdvisor
+
+    filters = []
+
+    if recommendation_severity:
+        severity_conditions = [getattr(HostAppDataAdvisor, sev) > 0 for sev in recommendation_severity]
+        filters.append(or_(*severity_conditions))
+
+    if incident_status:
+        if incident_status == "incident":
+            filters.append(HostAppDataAdvisor.incidents > 0)
+        else:
+            filters.append(HostAppDataAdvisor.incidents == 0)
+
+    return filters, HostAppDataAdvisor
+
+
 def query_filters(
     fqdn: str | None = None,
     display_name: str | None = None,
@@ -530,6 +556,8 @@ def query_filters(
     identity=None,
     join_static_profile: bool = False,
     join_dynamic_profile: bool = False,
+    recommendation_severity: list[str] | None = None,
+    incident_status: str | None = None,
 ) -> tuple[list, Query]:
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -576,6 +604,11 @@ def query_filters(
         filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
+
+    if recommendation_severity or incident_status:
+        severity_incident_filters, advisor_model = _advisor_filter(recommendation_severity, incident_status)
+        filters += severity_incident_filters
+        app_data_models_to_join.add(advisor_model)
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
