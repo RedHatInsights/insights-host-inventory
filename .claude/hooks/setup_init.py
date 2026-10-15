@@ -97,7 +97,7 @@ def check_prerequisites():
         if not ok:
             all_ok = False
 
-    # Check Python version >= 3.12
+    # Check Python version >= 3.14
     if results["python3"]["ok"]:
         rc, stdout, _ = run_cmd(
             ["python3", "-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
@@ -105,8 +105,8 @@ def check_prerequisites():
         )
         if rc == 0:
             major, minor = stdout.split(".")
-            if int(major) < 3 or (int(major) == 3 and int(minor) < 12):
-                log.warning("  Python 3.12+ required, found %s", stdout)
+            if int(major) < 3 or (int(major) == 3 and int(minor) < 14):
+                log.warning("  Python 3.14+ required, found %s", stdout)
                 results["python3"]["ok"] = False
                 all_ok = False
 

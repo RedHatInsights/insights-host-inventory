@@ -47,7 +47,7 @@ class SimpleFileWatcher:
             if self._should_watch_file(file_path):
                 try:
                     self.file_times[str(file_path)] = file_path.stat().st_mtime
-                except (OSError, PermissionError):
+                except OSError, PermissionError:
                     skipped_files.append(str(file_path))
         if skipped_files:
             print(
