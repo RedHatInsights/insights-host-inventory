@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1787532302 AS kafka_build
+FROM registry.access.redhat.com/ubi9/s2i-base:9.8-1791975709 AS kafka_build
 
 USER 0
 ADD librdkafka .
@@ -77,7 +77,7 @@ COPY LICENSE /licenses
 
 USER 1001
 
-ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
+ENTRYPOINT [ "dumb-init", "--single-child", "./run_command.sh" ]
 
 # Define labels for the iop-core-host-inventory
 LABEL url="https://www.redhat.com"

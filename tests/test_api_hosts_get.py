@@ -607,8 +607,8 @@ def test_get_multiple_hosts_by_tag(mq_create_three_specific_hosts, api_get, subt
 
 def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     """
-    Get only the host with all three tags on it, and not the other hosts,
-    which both have some (but not all) of the tags we query for.
+    Get only the host that has all requested tags (AND semantics across different identities),
+    and not the other hosts which only have some of the tags we query for.
     """
     tags_data_list = [
         {"tags": {"ns1": {"key1": ["val1"]}}},
@@ -620,11 +620,11 @@ def test_get_host_by_multiple_tags(db_create_host, api_get, subtests):
     host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
     url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key2=val2")
 
-    api_pagination_test(api_get, subtests, url, expected_total=3)
+    api_pagination_test(api_get, subtests, url, expected_total=1)
     _, response_data = api_get(url)
 
-    for result in response_data["results"]:
-        assert result["id"] in host_ids[:3]
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[1]
 
 
 def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, subtests):
@@ -634,14 +634,55 @@ def test_get_host_by_subset_of_tags(mq_create_three_specific_hosts, api_get, sub
     created_host_ids = [str(host.id) for host in mq_create_three_specific_hosts]
     url = build_hosts_url(query="?tags=NS1/key1=val1&tags=NS3/key3=val3")
 
-    api_pagination_test(api_get, subtests, url, expected_total=len(created_host_ids))
+    api_pagination_test(api_get, subtests, url, expected_total=1)
     response_status, response_data = api_get(url)
 
     assert response_status == 200
-    assert len(created_host_ids) == len(response_data["results"])
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == created_host_ids[1]
 
-    for result in response_data["results"]:
-        assert result["id"] in created_host_ids
+
+def test_get_host_by_same_identity_tags_uses_or(db_create_host, api_get, subtests):
+    """
+    Verify OR logic for tags sharing the same identity (same namespace and key).
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val2"]}}},
+        {"tags": {"ns1": {"key1": ["val3"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key1=val2")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_different_identity_tags_uses_and(db_create_host, api_get, subtests):
+    """
+    Verify AND logic for tags with different identities (different namespace or key).
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"ns2": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"]}, "ns2": {"key1": ["val1"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns2/key1=val1")
+
+    api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[2]
 
 
 def test_get_no_host_with_different_tags_same_namespace(api_get):
@@ -1532,6 +1573,10 @@ def test_get_hosts_filter_by_reporter_and_staleness(
         "[workloads][satellite][version]=6.17.6.1",
         "[workloads][satellite][version][]=6.17.6.1",
         "[workloads][satellite][version][]=not_nil",
+        "[workloads][satellite][foremanctl_version]=3.0.0",
+        "[workloads][satellite][foremanctl_version][]=3.0.0",
+        "[workloads][satellite][foremanctl_version][]=not_nil",
+        "[workloads][satellite][foremanctl_version]=3.*",
         # JSON object notation (value is a JSON string instead of square bracket path)
         '={"arch": "x86_64"}',
         '={"arch": {"eq": "x86_64"}}',
@@ -1556,6 +1601,9 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                     "runner_version": "2.4.1",
                     "eda_controller_version": "1.1.0",
                     "gateway_version": "2.5.3",
+                    "containers": [
+                        {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                    ],
                 },
                 "rhel_ai": {
                     "rhel_ai_version_id": "v1.1.2",
@@ -1564,7 +1612,14 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
                         {"name": "AMD Device 0c31", "vendor": "AMD"},
                     ],
                 },
-                "satellite": {"type": "server", "version": "6.17.6.1"},
+                "satellite": {
+                    "type": "server",
+                    "version": "6.17.6.1",
+                    "foremanctl_version": "3.0.0",
+                    "containers": [
+                        {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                    ],
+                },
             },
             "is_marketplace": False,
             "systemd": {"failed_services": ["foo", "bar"]},
@@ -1604,6 +1659,108 @@ def test_query_all_sp_filters_basic(db_create_host, api_get, sp_filter_param):
     assert response_status == 200
 
     # Assert that only the matching host is returned
+    response_ids = [result["id"] for result in response_data["results"]]
+    assert match_host_id in response_ids
+    assert nomatch_host_id not in response_ids
+
+
+@pytest.mark.parametrize(
+    "workload_sp_data,sp_filter_param",
+    (
+        # Satellite: only containers (containerized-only, no RPM fields)
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ]
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: only foremanctl_version
+        (
+            {"workloads": {"satellite": {"foremanctl_version": "3.0.0"}}},
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: containers + foremanctl_version
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "foremanctl_version": "3.0.0",
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Satellite: all fields (hybrid RPM + containerized)
+        (
+            {
+                "workloads": {
+                    "satellite": {
+                        "type": "server",
+                        "version": "6.17.6.1",
+                        "foremanctl_version": "3.0.0",
+                        "containers": [
+                            {"name": "foreman", "image": "quay.io/foreman/foreman:nightly", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][satellite][is]=not_nil",
+        ),
+        # Ansible: only containers (containerized-only)
+        (
+            {
+                "workloads": {
+                    "ansible": {
+                        "containers": [
+                            {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                        ]
+                    }
+                }
+            },
+            "[workloads][ansible][is]=not_nil",
+        ),
+        # Ansible: containers + traditional version fields (hybrid)
+        (
+            {
+                "workloads": {
+                    "ansible": {
+                        "controller_version": "1.0",
+                        "containers": [
+                            {"name": "receptor", "image": "quay.io/ansible/receptor:latest", "state": "running"}
+                        ],
+                    }
+                }
+            },
+            "[workloads][ansible][is]=not_nil",
+        ),
+        # Ansible: only traditional version fields (RPM-based, regression check)
+        (
+            {"workloads": {"ansible": {"controller_version": "1.0", "receptor_version": "1.5.2"}}},
+            "[workloads][ansible][is]=not_nil",
+        ),
+    ),
+)
+def test_workload_not_nil_filter_combinations(db_create_host, api_get, workload_sp_data, sp_filter_param):
+    match_sp_data = {"system_profile_facts": workload_sp_data}
+    match_host_id = str(db_create_host(extra_data=match_sp_data).id)
+
+    nomatch_sp_data = {"system_profile_facts": {"arch": "x86_64"}}
+    nomatch_host_id = str(db_create_host(extra_data=nomatch_sp_data).id)
+
+    url = build_hosts_url(query=f"?filter[system_profile]{sp_filter_param}")
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
     response_ids = [result["id"] for result in response_data["results"]]
     assert match_host_id in response_ids
     assert nomatch_host_id not in response_ids
@@ -3178,3 +3335,220 @@ def test_system_profile_nil_not_nil_not_escaped(
     ids = [r["id"] for r in response["results"]]
     assert str(host_with_val.id) in ids
     assert str(host_without_val.id) not in ids
+
+
+def test_get_host_by_tag_empty_namespace_key_with_slash(mq_create_or_update_host, api_get):
+    """
+    Find host with a tag having an empty namespace and a '/' in the key.
+    Verifies that RHINENG-17558 is fixed and the host is found.
+    """
+    target_tag = {"namespace": None, "key": "my/key", "value": "myvalue"}
+    other_tag = {"namespace": None, "key": "other/key", "value": "myvalue"}
+    ns_tag = {"namespace": "myns", "key": "my/key", "value": "myvalue"}
+
+    target_host = mq_create_or_update_host(minimal_host(tags=[target_tag]))
+    mq_create_or_update_host(minimal_host(tags=[other_tag]))
+    ns_host = mq_create_or_update_host(minimal_host(tags=[ns_tag]))
+
+    # Test filtering with key and value: ?tags=/my/key=myvalue
+    url = build_hosts_url(query="?tags=/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with key only (no value): ?tags=/my/key
+    url = build_hosts_url(query="?tags=/my/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with explicit null namespace: ?tags=null/my/key=myvalue
+    url = build_hosts_url(query="?tags=null/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with explicit null namespace, key only: ?tags=null/my/key
+    url = build_hosts_url(query="?tags=null/my/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with non-empty namespace: ?tags=myns/my/key=myvalue
+    url = build_hosts_url(query="?tags=myns/my/key=myvalue")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == ns_host.id
+
+
+def test_get_host_by_tag_empty_namespace_multiple_slashes_in_key(mq_create_or_update_host, api_get):
+    """
+    Find host with a tag having an empty namespace and multiple '/' in the key.
+    """
+    multi_slash_tag = {"namespace": None, "key": "nested/path/to/key", "value": "deep_val"}
+    target_host = mq_create_or_update_host(minimal_host(tags=[multi_slash_tag]))
+
+    # Test filtering with key and value: ?tags=/nested/path/to/key=deep_val
+    url = build_hosts_url(query="?tags=/nested/path/to/key=deep_val")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+    # Test filtering with key only: ?tags=/nested/path/to/key
+    url = build_hosts_url(query="?tags=/nested/path/to/key")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == target_host.id
+
+
+def test_get_host_with_slash_in_tag_value(api_get):
+    """
+    Attempt to find host with a "/" in the tag value.
+    Expects 200 response (RHINENG-17554).
+    """
+    url = build_hosts_url(query="?tags=namespace/key=my/value")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+def test_get_host_with_slash_in_tag_value_no_namespace(api_get):
+    """
+    Attempt to find host with a "/" in the tag value without a namespace.
+    Expects 200 response (RHINENG-17554).
+    """
+    url = build_hosts_url(query="?tags=key=my/value")
+    response_status, _ = api_get(url)
+
+    assert response_status == 200
+
+
+def test_get_host_by_tag_with_slash_in_value(mq_create_or_update_host, api_get):
+    """
+    Verify filtering by a tag containing a "/" in its value correctly matches the host.
+    """
+    tags = [
+        {"namespace": "NS1", "key": "key1", "value": "my/value"},
+        {"namespace": "NS1", "key": "key2", "value": "other_value"},
+    ]
+    host = minimal_host(tags=tags)
+    created_host = mq_create_or_update_host(host)
+
+    url = build_hosts_url(query="?tags=NS1/key1=my/value")
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == created_host.id
+
+
+def test_get_host_by_mixed_identity_tags_and_or(db_create_host, api_get, subtests):
+    """
+    Verify mixed tag query: OR semantics for same identity, AND semantics across different identities.
+    Query: (ns1/env=prod OR ns1/env=stage) AND (ns2/app=web)
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"env": ["prod"]}, "ns2": {"app": ["web"]}}},  # matches (prod, web)
+        {"tags": {"ns1": {"env": ["stage"]}, "ns2": {"app": ["web"]}}},  # matches (stage, web)
+        {"tags": {"ns1": {"env": ["dev"]}, "ns2": {"app": ["web"]}}},  # no match (wrong env)
+        {"tags": {"ns1": {"env": ["prod"]}, "ns2": {"app": ["db"]}}},  # no match (wrong app)
+        {"tags": {"ns1": {"env": ["prod"]}}},  # no match (missing app)
+        {"tags": {"ns2": {"app": ["web"]}}},  # no match (missing env)
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/env=prod&tags=ns1/env=stage&tags=ns2/app=web")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_null_namespace_tags_uses_or(db_create_host, api_get, subtests):
+    """
+    Verify OR logic for tags with null/empty namespace sharing the same key.
+    Query: (key1=val1 OR key1=val2)
+    """
+    tags_data_list = [
+        {"tags": {"null": {"key1": ["val1"]}}},
+        {"tags": {"null": {"key1": ["val2"]}}},
+        {"tags": {"null": {"key1": ["val3"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=key1=val1&tags=key1=val2")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}
+
+
+def test_get_host_by_null_and_named_namespace_same_key_uses_and(db_create_host, api_get, subtests):
+    """
+    Verify AND logic for tags with null namespace vs named namespace with the same key.
+    Empty/null namespace must be treated as distinct from named namespaces when grouping by identity.
+    Query: key1=val1 AND ns1/key1=val1
+    """
+    tags_data_list = [
+        {"tags": {"null": {"key1": ["val1"]}}},
+        {"tags": {"ns1": {"key1": ["val1"]}}},
+        {"tags": {"null": {"key1": ["val1"]}, "ns1": {"key1": ["val1"]}}},
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=key1=val1&tags=ns1/key1=val1")
+
+    api_pagination_test(api_get, subtests, url, expected_total=1)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["id"] == host_ids[2]
+
+
+def test_get_host_by_same_namespace_different_keys_multiple_values(db_create_host, api_get, subtests):
+    """
+    Verify tags in the same namespace but different keys are AND'd together,
+    with OR logic applied within each key identity.
+    Query: (ns1/key1=val1 OR ns1/key1=val2) AND (ns1/key2=valA OR ns1/key2=valB)
+    """
+    tags_data_list = [
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["valA"]}}},  # matches (val1, valA)
+        {"tags": {"ns1": {"key1": ["val2"], "key2": ["valB"]}}},  # matches (val2, valB)
+        {"tags": {"ns1": {"key1": ["val1"], "key2": ["valC"]}}},  # no match (valC)
+        {"tags": {"ns1": {"key1": ["val3"], "key2": ["valA"]}}},  # no match (val3)
+        {"tags": {"ns1": {"key1": ["val1"]}}},  # no match (missing key2)
+    ]
+
+    host_ids = [str(db_create_host(extra_data=tags_data).id) for tags_data in tags_data_list]
+    url = build_hosts_url(query="?tags=ns1/key1=val1&tags=ns1/key1=val2&tags=ns1/key2=valA&tags=ns1/key2=valB")
+
+    api_pagination_test(api_get, subtests, url, expected_total=2)
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert len(response_data["results"]) == 2
+    result_ids = {result["id"] for result in response_data["results"]}
+    assert result_ids == {host_ids[0], host_ids[1]}

@@ -68,7 +68,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> None:
-        """Delete all hosts on the account
+        r"""Delete all hosts on the account
 
         Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write
 
@@ -129,7 +129,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[None]:
-        """Delete all hosts on the account
+        r"""Delete all hosts on the account
 
         Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write
 
@@ -190,7 +190,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Delete all hosts on the account
+        r"""Delete all hosts on the account
 
         Delete all hosts on the account.  The request must include \"confirm_delete_all=true\". <br /><br /> Required permissions: inventory:hosts:write
 
@@ -617,7 +617,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> None:
-        """Delete the entire list of hosts filtered by the given parameters
+        r"""Delete the entire list of hosts filtered by the given parameters
 
         Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write
 
@@ -806,7 +806,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[None]:
-        """Delete the entire list of hosts filtered by the given parameters
+        r"""Delete the entire list of hosts filtered by the given parameters
 
         Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write
 
@@ -995,7 +995,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Delete the entire list of hosts filtered by the given parameters
+        r"""Delete the entire list of hosts filtered by the given parameters
 
         Delete the entire list of hosts filtered by the given parameters. <br /><br /> Required permissions: inventory:hosts:write
 
@@ -1288,7 +1288,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> HostQueryOutput:
-        """Find hosts by their IDs
+        r"""Find hosts by their IDs
 
         Find one or more hosts by their ID. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -1391,7 +1391,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[HostQueryOutput]:
-        """Find hosts by their IDs
+        r"""Find hosts by their IDs
 
         Find one or more hosts by their ID. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -1494,7 +1494,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Find hosts by their IDs
+        r"""Find hosts by their IDs
 
         Find one or more hosts by their ID. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -1976,7 +1976,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> HostQueryOutput:
-        """Read the entire list of hosts
+        r"""Read the entire list of hosts
 
         Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2207,7 +2207,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[HostQueryOutput]:
-        """Read the entire list of hosts
+        r"""Read the entire list of hosts
 
         Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2438,7 +2438,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Read the entire list of hosts
+        r"""Read the entire list of hosts
 
         Read the entire list of all hosts available to the account. <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2775,7 +2775,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> SystemProfileByHostOut:
-        """Return one or more hosts system profile
+        r"""Return one or more hosts system profile
 
         Find one or more hosts by their ID and return the id and system profile <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2878,7 +2878,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[SystemProfileByHostOut]:
-        """Return one or more hosts system profile
+        r"""Return one or more hosts system profile
 
         Find one or more hosts by their ID and return the id and system profile <br /><br /> Required permissions: inventory:hosts:read
 
@@ -2981,7 +2981,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Return one or more hosts system profile
+        r"""Return one or more hosts system profile
 
         Find one or more hosts by their ID and return the id and system profile <br /><br /> Required permissions: inventory:hosts:read
 
@@ -5037,7 +5037,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> HostViewQueryOutput:
-        """Read aggregated host and application data
+        r"""Read aggregated host and application data
 
         Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
 
@@ -5261,7 +5261,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[HostViewQueryOutput]:
-        """Read aggregated host and application data
+        r"""Read aggregated host and application data
 
         Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
 
@@ -5485,7 +5485,7 @@ class HostsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Read aggregated host and application data
+        r"""Read aggregated host and application data
 
         Read a combined view of hosts with optional application data such as Advisor, Vulnerability, Compliance, Patch, and others. Application joins are opt-in and controlled through the fields parameter.<br /><br /> Required permissions: inventory:hosts:read
 

@@ -50,6 +50,7 @@ paths:
         - $ref: '#/components/parameters/systemTypeParam'
         - $ref: '#/components/parameters/filter_param'
         - $ref: '#/components/parameters/fields_param'
+        - $ref: '#/components/parameters/getTotalParam'
       responses:
         '200':
           description: Successfully read the hosts list.
@@ -132,6 +133,8 @@ paths:
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
+        - $ref: '#/components/parameters/recommendationSeverityParam'
+        - $ref: '#/components/parameters/incidentStatusParam'
         - $ref: '#/components/parameters/hostViewCombinedFilterParam'
         - $ref: '#/components/parameters/hostViewCombinedFieldsParam'
       responses:
@@ -1110,6 +1113,56 @@ paths:
           description: Invalid request.
         '403':
           description: Forbidden - identity type not supported or missing user_id.
+  /beta/views/default:
+    put:
+      operationId: api.views.set_default_view
+      tags:
+        - views
+      summary: Set the default view
+      description: >-
+        Pins a visible view as the requesting user's default. The default view
+        is the one loaded automatically when the user opens the inventory page.
+        If a preference already exists it is replaced (upsert).
+        <br /><br />
+        Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        description: The view to pin as default.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefaultViewIn'
+      responses:
+        '200':
+          description: Successfully set the default view.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViewOut'
+        '403':
+          description: Forbidden - identity type not supported or missing user_id.
+        '404':
+          description: View not found or not visible to the requesting user.
+    delete:
+      operationId: api.views.delete_default_view
+      tags:
+        - views
+      summary: Unpin the default view
+      description: >-
+        Removes the requesting user's default view preference. After deletion
+        the default falls back to the "All systems" system view.
+        Idempotent — returns 204 even if no preference exists.
+        <br /><br />
+        Required permissions: inventory:views:write
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '204':
+          description: Successfully removed the default view preference.
+        '403':
+          description: Forbidden - identity type not supported or missing user_id.
   '/beta/views/{view_id}':
     get:
       operationId: api.views.get_view_by_id
@@ -1242,6 +1295,14 @@ components:
       $ref: 'pagination.yaml#/components/parameters/perPageParam'
     resourceTypesPerPageParam:
       $ref: 'pagination.yaml#/components/parameters/resourceTypesPerPageParam'
+    getTotalParam:
+      in: query
+      name: get_total
+      schema:
+        type: boolean
+        default: true
+      description: When true, the response includes the total number of items.
+      required: false
     hostId:
       in: path
       name: host_id
@@ -1460,13 +1521,13 @@ components:
     tagsParam:
       name: tags
       in: query
-      description: 'Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod).'
+      description: "Filters systems by tag(s). Specify multiple tags as a comma-separated list (e.g. insights-client/security=strict,env/type=prod). Tags with the same namespace and key (their identity) are OR'd (match any value); tags with different identities are AND'd (must match all)."
       required: false
       schema:
         type: array
         items:
           type: string
-          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=/]+)?$'
+          pattern: '^([^=/]+/)?(?!.*/=)[^=]+(=[^=]+)?$'
     tagsOrderByParam:
       in: query
       name: order_by
@@ -1588,6 +1649,37 @@ components:
       example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
+    recommendationSeverityParam:
+      in: query
+      name: recommendation_severity
+      required: false
+      description: >-
+        Filters hosts by Advisor recommendation severity. Only hosts with at least
+        one recommendation of the specified severity are returned. Multiple values
+        use OR logic (e.g. critical + low returns hosts with either).
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - critical
+            - important
+            - moderate
+            - low
+    incidentStatusParam:
+      in: query
+      name: incident_status
+      required: false
+      description: >-
+        Filters hosts by Advisor incident status. Mutually exclusive: only one
+        value may be provided. "incident" returns hosts with incidents > 0.
+        "no_incident" returns hosts with incidents = 0 (excludes hosts with no
+        Advisor data).
+      schema:
+        type: string
+        enum:
+          - incident
+          - no_incident
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -1674,9 +1766,13 @@ components:
           - advisor:important
           - advisor:moderate
           - advisor:low
+          - advisor:severity_priority
           - vulnerability:total_cves
           - vulnerability:critical_cves
           - vulnerability:important_cves
+          - vulnerability:moderate_cves
+          - vulnerability:low_cves
+          - vulnerability:severity_priority
           - vulnerability:cves_with_security_rules
           - vulnerability:cves_with_known_exploits
           - patch:advisories_total_installable
@@ -2289,6 +2385,14 @@ components:
           type: integer
           minimum: 0
           nullable: true
+        moderate_cves:
+          type: integer
+          minimum: 0
+          nullable: true
+        low_cves:
+          type: integer
+          minimum: 0
+          nullable: true
         cves_with_security_rules:
           type: integer
           minimum: 0
@@ -2490,11 +2594,15 @@ components:
         - `advisor:important` - Important severity recommendations
         - `advisor:moderate` - Moderate severity recommendations
         - `advisor:low` - Low severity recommendations
+        - `advisor:severity_priority` - Priority sort by severity (critical > important > moderate > low)
 
         **Vulnerability**
         - `vulnerability:total_cves` - Total CVE count
         - `vulnerability:critical_cves` - Critical severity CVEs
         - `vulnerability:important_cves` - Important severity CVEs
+        - `vulnerability:moderate_cves` - Moderate severity CVEs
+        - `vulnerability:low_cves` - Low severity CVEs
+        - `vulnerability:severity_priority` - Priority sort by severity (critical > important > moderate > low)
         - `vulnerability:cves_with_security_rules` - CVEs with security rules
         - `vulnerability:cves_with_known_exploits` - CVEs with known exploits
 
@@ -2533,9 +2641,13 @@ components:
         - advisor:important
         - advisor:moderate
         - advisor:low
+        - advisor:severity_priority
         - vulnerability:total_cves
         - vulnerability:critical_cves
         - vulnerability:important_cves
+        - vulnerability:moderate_cves
+        - vulnerability:low_cves
+        - vulnerability:severity_priority
         - vulnerability:cves_with_security_rules
         - vulnerability:cves_with_known_exploits
         - patch:advisories_total_installable
@@ -2893,6 +3005,8 @@ components:
       $ref: 'system_profile.spec.yaml#/$defs/NetworkInterface'
     SystemProfileInterSystemsRunningInstance:
       $ref: 'system_profile.spec.yaml#/$defs/InterSystemsRunningInstance'
+    SystemProfileContainer:
+      $ref: 'system_profile.spec.yaml#/$defs/Container'
 
 
     # Inventory Views schemas
@@ -3020,6 +3134,22 @@ components:
               - bootc
               - edge
               - cluster
+        recommendation_severity:
+          description: Filter by Advisor recommendation severity (OR logic).
+          type: array
+          items:
+            type: string
+            enum:
+              - critical
+              - important
+              - moderate
+              - low
+        incident_status:
+          description: Filter by Advisor incident status.
+          type: string
+          enum:
+            - incident
+            - no_incident
       additionalProperties: false
     ViewIn:
       title: View Create Payload
@@ -3032,11 +3162,12 @@ components:
         name:
           description: >-
             The display name for the view.
-            Must contain only letters, numbers, spaces, hyphens, and underscores.
+            Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes,
+            and include at least one letter or number.
           type: string
           minLength: 1
           maxLength: 255
-          pattern: '^[a-zA-Z0-9 _-]+$'
+          pattern: "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
         description:
           description: An optional description of the view.
           type: string
@@ -3058,11 +3189,12 @@ components:
         name:
           description: >-
             The display name for the view.
-            Must contain only letters, numbers, spaces, hyphens, and underscores.
+            Must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes,
+            and include at least one letter or number.
           type: string
           minLength: 1
           maxLength: 255
-          pattern: '^[a-zA-Z0-9 _-]+$'
+          pattern: "^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 _.'-]+$"
         description:
           description: An optional description of the view.
           type: string
@@ -3132,6 +3264,17 @@ components:
         - is_owner
         - created_at
         - updated_at
+    DefaultViewIn:
+      title: Default View Payload
+      description: Data for setting the user's default view.
+      type: object
+      required:
+        - view_id
+      properties:
+        view_id:
+          description: The UUID of the view to pin as the user's default.
+          type: string
+          format: uuid
     ViewsListOut:
       title: Views List Response
       description: A paginated list of inventory views.
@@ -3141,7 +3284,15 @@ components:
       - type: object
         required:
           - results
+          - default_view_id
         properties:
+          default_view_id:
+            description: >-
+              The UUID of the user's current default view. This is the view
+              that should be loaded automatically on page open. Falls back to
+              the "All systems" system view if no preference is set.
+            type: string
+            format: uuid
           results:
             description: List of inventory views.
             type: array

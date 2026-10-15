@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from http import HTTPStatus
 from uuid import UUID
 
 import pytest
 
+from app.auth.forwarded_identity import FORWARDED_IDENTITY_HEADER
 from app.models import Host
 from app.models.group import Group
 from tests.helpers.api_utils import assert_response_status
@@ -23,10 +25,14 @@ from tests.helpers.api_utils import build_system_profile_url
 from tests.helpers.api_utils import build_tags_count_url
 from tests.helpers.api_utils import build_tags_url
 from tests.helpers.db_utils import db_host
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 
 OWNER_ID = SYSTEM_IDENTITY["system"]["cn"]
+SATELLITE_OWNER_ID = SATELLITE_IDENTITY["system"]["cn"]
+FORWARDED_SUBMAN_ID = generate_uuid()
+OTHER_SUBMAN_ID = generate_uuid()
 WRONG_OWNER_ID = generate_uuid()
 OTHER_ORG_ID = "other-org"
 
@@ -423,3 +429,107 @@ def test_cert_auth_delete_all_hosts(
     assert db_get_host(hosts.no_owner.id) is not None
     assert db_get_host(hosts.wrong_owner.id) is not None
     assert db_get_host(hosts.other_org.id, org_id=OTHER_ORG_ID) is not None
+
+
+# --- Satellite X-Forwarded-Identity scoping ---
+
+
+@dataclass
+class SatelliteHostRef:
+    id: UUID
+    subscription_manager_id: str
+
+
+@dataclass
+class SatelliteForwardedIdentityHosts:
+    accessible: SatelliteHostRef
+    same_owner_other_subman: SatelliteHostRef
+
+
+def _snapshot_satellite_host(host: Host) -> SatelliteHostRef:
+    return SatelliteHostRef(id=host.id, subscription_manager_id=host.subscription_manager_id)
+
+
+def _forwarded_identity_header(subman_id: str) -> dict[str, str]:
+    return {FORWARDED_IDENTITY_HEADER: subman_id}
+
+
+@pytest.fixture
+def setup_satellite_forwarded_identity_hosts(db_create_host: Callable[..., Host]) -> SatelliteForwardedIdentityHosts:
+    return SatelliteForwardedIdentityHosts(
+        accessible=_snapshot_satellite_host(
+            db_create_host(
+                host=db_host(
+                    subscription_manager_id=FORWARDED_SUBMAN_ID,
+                    system_profile_facts={"owner_id": SATELLITE_OWNER_ID},
+                ),
+            )
+        ),
+        same_owner_other_subman=_snapshot_satellite_host(
+            db_create_host(
+                host=db_host(
+                    subscription_manager_id=OTHER_SUBMAN_ID,
+                    system_profile_facts={"owner_id": SATELLITE_OWNER_ID},
+                ),
+            )
+        ),
+    )
+
+
+def test_satellite_forwarded_identity_scopes_host_list(
+    setup_satellite_forwarded_identity_hosts: SatelliteForwardedIdentityHosts,
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    hosts = setup_satellite_forwarded_identity_hosts
+    response_status, response_data = api_get(
+        build_hosts_url(),
+        SATELLITE_IDENTITY,
+        extra_headers=_forwarded_identity_header(FORWARDED_SUBMAN_ID),
+    )
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 1
+    assert response_data["results"][0]["id"] == str(hosts.accessible.id)
+
+
+def test_satellite_without_forwarded_identity_uses_owner_id_scoping(
+    setup_satellite_forwarded_identity_hosts: SatelliteForwardedIdentityHosts,
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    hosts = setup_satellite_forwarded_identity_hosts
+    response_status, response_data = api_get(build_hosts_url(), SATELLITE_IDENTITY)
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 2
+    result_ids = {host["id"] for host in response_data["results"]}
+    assert result_ids == {str(hosts.accessible.id), str(hosts.same_owner_other_subman.id)}
+
+
+def test_satellite_forwarded_identity_get_host_by_id(
+    setup_satellite_forwarded_identity_hosts: SatelliteForwardedIdentityHosts,
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    hosts = setup_satellite_forwarded_identity_hosts
+    response_status, response_data = api_get(
+        build_hosts_url(host_list_or_id=hosts.accessible.id),
+        SATELLITE_IDENTITY,
+        extra_headers=_forwarded_identity_header(FORWARDED_SUBMAN_ID),
+    )
+    assert_response_status(response_status, 200)
+    assert response_data["count"] == 1
+
+    response_status, _ = api_get(
+        build_hosts_url(host_list_or_id=hosts.same_owner_other_subman.id),
+        SATELLITE_IDENTITY,
+        extra_headers=_forwarded_identity_header(FORWARDED_SUBMAN_ID),
+    )
+    assert_response_status(response_status, 404)
+
+
+def test_satellite_malformed_forwarded_identity_returns_403(
+    api_get: Callable[..., tuple[int, dict]],
+) -> None:
+    response_status, _ = api_get(
+        build_hosts_url(),
+        SATELLITE_IDENTITY,
+        extra_headers=_forwarded_identity_header("not-a-uuid"),
+    )
+    assert_response_status(response_status, HTTPStatus.FORBIDDEN)

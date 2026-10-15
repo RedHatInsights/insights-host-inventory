@@ -40,6 +40,10 @@ delete_host_group_count = Counter("inventory_delete_host_group_count", "The tota
 delete_host_group_processing_time = Summary(
     "inventory_delete_host_group_commit_seconds", "Time spent deleting host-groups from the database"
 )
+ungrouped_hosts_group_creation_failure = Counter(
+    "inventory_ungrouped_hosts_group_creation_failure_count",
+    "The total amount of failed 'Ungrouped Hosts' workspace/group creations",
+)
 
 # synchronization counter
 synchronize_host_count = Counter("inventory_synchronize_host_count", "The total amount of hosts synchronized")
@@ -71,3 +75,9 @@ stale_host_notification_fail_count = Counter(
 
 outbox_save_success = Counter("inventory_outbox_save_successes", "Total number of outbox events successfully written")
 outbox_save_failure = Counter("inventory_outbox_save_failures", "Total number of outbox events failed to write")
+
+# Views
+system_default_view_missing = Counter(
+    "inventory_system_default_view_missing",
+    "Times the seeded 'All systems' system view was not found (indicates broken seed data)",
+)

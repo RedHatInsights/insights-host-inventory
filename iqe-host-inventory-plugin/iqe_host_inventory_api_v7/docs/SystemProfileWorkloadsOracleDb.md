@@ -11,7 +11,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_workloads_oracle_db import SystemProfileWorkloadsOracleDb
+from iqe_host_inventory_api_v7.models.system_profile_workloads_oracle_db import (
+    SystemProfileWorkloadsOracleDb,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -23,6 +25,8 @@ print(SystemProfileWorkloadsOracleDb.to_json())
 # convert the object into a dict
 system_profile_workloads_oracle_db_dict = system_profile_workloads_oracle_db_instance.to_dict()
 # create an instance of SystemProfileWorkloadsOracleDb from a dict
-system_profile_workloads_oracle_db_from_dict = SystemProfileWorkloadsOracleDb.from_dict(system_profile_workloads_oracle_db_dict)
+system_profile_workloads_oracle_db_from_dict = SystemProfileWorkloadsOracleDb.from_dict(
+    system_profile_workloads_oracle_db_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

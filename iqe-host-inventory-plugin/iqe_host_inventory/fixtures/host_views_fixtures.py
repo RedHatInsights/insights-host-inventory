@@ -54,7 +54,7 @@ def add_app_data_to_host(
     host: HostWrapper,
     app_name: str,
     data_overrides: dict[str, Any] | None = None,
-):
+) -> None:
     """Add app data to an existing host via Kafka and wait for it to appear."""
     app_data = generate_host_app_data(app_name)
     if data_overrides:

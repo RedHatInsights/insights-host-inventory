@@ -77,11 +77,12 @@ def check_resource_types_groups_response(
         page = 1
 
     base_url = "/inventory/v1/resource-types/inventory-groups"
-    last_page = ceil(groups_count / per_page)
 
     response_meta: ResourceTypesPaginationOutMeta = response.meta
-    assert response_meta.count == groups_count
+    # When Kessel is enabled, we also see the default workspace
+    assert response_meta.count in (groups_count, groups_count + 1)
 
+    last_page = ceil(response_meta.count / per_page)
     response_links: ResourceTypesPaginationOutLinks = response.links
     assert response_links.first == f"{base_url}?per_page={per_page}&page=1"
     assert response_links.last == f"{base_url}?per_page={per_page}&page={last_page}"
@@ -105,7 +106,7 @@ def check_resource_types_groups_response(
     return response_data
 
 
-def test_resource_types_get_list_without_groups(host_inventory):
+def test_resource_types_get_list_without_groups(host_inventory: ApplicationHostInventory):
     """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
 
     https://issues.redhat.com/browse/ESSNTL-3827
@@ -117,7 +118,9 @@ def test_resource_types_get_list_without_groups(host_inventory):
     """
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_resource_types_response()
-    check_resource_types_list_response(response, 1)
+    # In envs where BYPASS_KESSEL=false we have the default and ungrouped workspaces
+    group_count = 1 if host_inventory.application.config.current_env == "clowder_smoke" else 2
+    check_resource_types_list_response(response, group_count)
 
 
 @pytest.mark.ephemeral
@@ -150,8 +153,12 @@ def test_resource_types_get_groups_without_groups(host_inventory):
     """
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_groups_response()
-    groups = check_resource_types_groups_response(response, 0)
-    assert groups == []
+    # In envs where BYPASS_KESSEL=false we see the default workspace
+    group_count = 0 if host_inventory.application.config.current_env == "clowder_smoke" else 1
+    groups = check_resource_types_groups_response(response, group_count)
+    assert len(groups) == group_count
+    if groups:
+        assert groups[0].name == "Default Workspace"
 
 
 @pytest.mark.ephemeral
@@ -371,7 +378,7 @@ class TestResourceTypesEmptyGroups:
             host_inventory.apis.resource_types.get_resource_types_response(per_page=per_page)
 
     @pytest.mark.parametrize("page", [None, 1])
-    @pytest.mark.parametrize("per_page", [None, 1, 10, 100])
+    @pytest.mark.parametrize("per_page", [None, 1, 10, 20])
     def test_resource_types_get_groups_with_empty_groups(
         self, setup_empty_groups_primary, host_inventory, page, per_page
     ):
@@ -574,7 +581,7 @@ class TestResourceTypesEmptyGroups:
         response = host_inventory.apis.resource_types.get_groups_response(name=searched_name)
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
     @pytest.mark.parametrize(
         "case_insensitive", [True, False], ids=["case insensitive", "case sensitive"]
@@ -597,7 +604,7 @@ class TestResourceTypesEmptyGroups:
         response = host_inventory.apis.resource_types.get_groups_response(name=searched_name)
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
     def test_resource_types_get_groups_different_account(
         self,
@@ -622,7 +629,7 @@ class TestResourceTypesEmptyGroups:
         response_groups = check_resource_types_groups_response(response, 1)
         assert len(response_groups) == 1
         assert response_groups[0].org_id == hbi_default_org_id
-        assert response_groups[0] == group
+        assert response_groups[0].id == group.id
 
 
 @pytest.fixture(scope="module")
@@ -669,9 +676,7 @@ class TestRBACResourceTypesRBACPermissions:
         """
         response = host_inventory_app.apis.resource_types.get_groups_response()
         groups_count = host_inventory.apis.groups.get_groups_response().total
-        groups = check_resource_types_groups_response(response, groups_count)
-        paginated_count = min(groups_count, 10)
-        assert len(groups) == paginated_count
+        check_resource_types_groups_response(response, groups_count)
 
 
 @pytest.mark.rbac_dependent

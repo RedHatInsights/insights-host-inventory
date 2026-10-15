@@ -23,6 +23,8 @@ print(SystemProfileConversions.to_json())
 # convert the object into a dict
 system_profile_conversions_dict = system_profile_conversions_instance.to_dict()
 # create an instance of SystemProfileConversions from a dict
-system_profile_conversions_from_dict = SystemProfileConversions.from_dict(system_profile_conversions_dict)
+system_profile_conversions_from_dict = SystemProfileConversions.from_dict(
+    system_profile_conversions_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

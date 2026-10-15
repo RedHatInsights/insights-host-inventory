@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 from iqe.utils.blockers import iqe_blocker
 from sqlalchemy import inspect
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.base import NO_VALUE
 
@@ -103,7 +104,7 @@ def test_db_rhsm_schema_changes(inventory_db_session):
         "2592000))"
     )
 
-    inventory_db_session.execute(query)
+    inventory_db_session.execute(text(query))
 
 
 def get_db_object_attrs(obj: Host | Group | HostGroupAssoc) -> dict[str, Any]:
@@ -334,7 +335,7 @@ def test_db_schema_hosts_groups_foreign_keys(inventory_db_session, id_key):
     host_id = association.host_id
     group_id = association.group_id
 
-    with pytest.raises(IntegrityError) as exc:
+    with pytest.raises(IntegrityError) as exc:  # ruff: ignore[pytest-raises-with-multiple-statements]
         inventory_db_session.add(association)
         inventory_db_session.commit()
 

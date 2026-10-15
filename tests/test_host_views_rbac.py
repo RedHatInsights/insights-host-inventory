@@ -196,6 +196,24 @@ class TestGetAllowedAppServices:
             result = get_allowed_app_services()
             assert result == expected
 
+    def test_explicit_identity_and_headers(self):
+        """get_allowed_app_services accepts explicit identity and rbac_request_headers."""
+        from app.auth.identity import Identity
+        from lib.middleware import get_allowed_app_services
+
+        with _rbac_v1_mocks("tests/helpers/rbac-mock-data/inv-hosts-read-advisor-only.json"):
+            identity = Identity(
+                {
+                    "org_id": "explicit_org",
+                    "type": "User",
+                    "auth_type": "basic-auth",
+                    "user": {"is_org_admin": False},
+                }
+            )
+            headers = {"x-rh-identity": "explicit_hdr", "x-rh-insights-request-id": "req-123"}
+            result = get_allowed_app_services(identity=identity, rbac_request_headers=headers)
+            assert result == {"advisor"}
+
 
 class TestGetAllowedAppServicesKessel:
     """Tests for get_allowed_app_services() Kessel v2 path (ListAllowedWorkspaces)."""

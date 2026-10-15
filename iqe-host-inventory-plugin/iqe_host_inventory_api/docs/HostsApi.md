@@ -36,11 +36,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
+
 # Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1"
-)
+configuration = iqe_host_inventory_api.Configuration(host="http://localhost/api/inventory/v1")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -49,10 +48,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1",
-    api_key = {
-        'x-rh-identity': 'YOUR_API_KEY'
-    }
+    host="http://localhost/api/inventory/v1", api_key={"x-rh-identity": "YOUR_API_KEY"}
 )
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['x-rh-identity'] = 'Bearer'
@@ -61,7 +57,7 @@ configuration = iqe_host_inventory_api.Configuration(
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.HostsApi(api_client)
-    confirm_delete_all = True # bool | Confirmation to delete all hosts on the account (optional)
+    confirm_delete_all = True  # bool | Confirmation to delete all hosts on the account (optional)
 
     try:
         # Delete all hosts on the account
@@ -400,11 +396,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
+
 # Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1"
-)
+configuration = iqe_host_inventory_api.Configuration(host="http://localhost/api/inventory/v1")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -413,10 +408,7 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1",
-    api_key = {
-        'x-rh-identity': 'YOUR_API_KEY'
-    }
+    host="http://localhost/api/inventory/v1", api_key={"x-rh-identity": "YOUR_API_KEY"}
 )
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['x-rh-identity'] = 'Bearer'
@@ -425,7 +417,7 @@ configuration = iqe_host_inventory_api.Configuration(
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.HostsApi(api_client)
-    insights_id = 'insights_id_example' # str | Filter by insights_id (optional)
+    insights_id = "insights_id_example"  # str | Filter by insights_id (optional)
 
     try:
         # Find one host by insights_id, if it exists
@@ -872,11 +864,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
+
 # Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1"
-)
+configuration = iqe_host_inventory_api.Configuration(host="http://localhost/api/inventory/v1")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -885,24 +876,21 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1",
-    api_key = {
-        'x-rh-identity': 'YOUR_API_KEY'
-    }
+    host="http://localhost/api/inventory/v1", api_key={"x-rh-identity": "YOUR_API_KEY"}
 )
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['x-rh-identity'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api.Configuration(
-    access_token = 'YOUR_BEARER_TOKEN'
-)
+configuration = iqe_host_inventory_api.Configuration(access_token="YOUR_BEARER_TOKEN")
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.HostsApi(api_client)
-    create_check_in = iqe_host_inventory_api.CreateCheckIn() # CreateCheckIn | Data required to create a check-in record for a host.
+    create_check_in = (
+        iqe_host_inventory_api.CreateCheckIn()
+    )  # CreateCheckIn | Data required to create a check-in record for a host.
 
     try:
         # Update staleness timestamps for a host matching the provided facts
@@ -919,11 +907,10 @@ import time
 import iqe_host_inventory_api
 from iqe_host_inventory_api.rest import ApiException
 from pprint import pprint
+
 # Defining the host is optional and defaults to http://localhost/api/inventory/v1
 # See configuration.py for a list of all supported configuration parameters.
-configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1"
-)
+configuration = iqe_host_inventory_api.Configuration(host="http://localhost/api/inventory/v1")
 
 # The client must configure the authentication and authorization parameters
 # in accordance with the API server security policy.
@@ -932,24 +919,21 @@ configuration = iqe_host_inventory_api.Configuration(
 
 # Configure API key authorization: ApiKeyAuth
 configuration = iqe_host_inventory_api.Configuration(
-    host = "http://localhost/api/inventory/v1",
-    api_key = {
-        'x-rh-identity': 'YOUR_API_KEY'
-    }
+    host="http://localhost/api/inventory/v1", api_key={"x-rh-identity": "YOUR_API_KEY"}
 )
 # Uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 # configuration.api_key_prefix['x-rh-identity'] = 'Bearer'
 
 # Configure Bearer authorization: BearerAuth
-configuration = iqe_host_inventory_api.Configuration(
-    access_token = 'YOUR_BEARER_TOKEN'
-)
+configuration = iqe_host_inventory_api.Configuration(access_token="YOUR_BEARER_TOKEN")
 
 # Enter a context with an instance of the API client
 with iqe_host_inventory_api.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = iqe_host_inventory_api.HostsApi(api_client)
-    create_check_in = iqe_host_inventory_api.CreateCheckIn() # CreateCheckIn | Data required to create a check-in record for a host.
+    create_check_in = (
+        iqe_host_inventory_api.CreateCheckIn()
+    )  # CreateCheckIn | Data required to create a check-in record for a host.
 
     try:
         # Update staleness timestamps for a host matching the provided facts

@@ -6,7 +6,7 @@ Object containing information about system workloads
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**ansible** | [**SystemProfileAnsible**](SystemProfileAnsible.md) |  | [optional]
+**ansible** | [**SystemProfileWorkloadsAnsible**](SystemProfileWorkloadsAnsible.md) |  | [optional]
 **crowdstrike** | [**SystemProfileThirdPartyServicesCrowdstrike**](SystemProfileThirdPartyServicesCrowdstrike.md) |  | [optional]
 **ibm_db2** | [**SystemProfileWorkloadsIbmDb2**](SystemProfileWorkloadsIbmDb2.md) |  | [optional]
 **intersystems** | [**SystemProfileIntersystems**](SystemProfileIntersystems.md) |  | [optional]
@@ -31,6 +31,8 @@ print(SystemProfileWorkloads.to_json())
 # convert the object into a dict
 system_profile_workloads_dict = system_profile_workloads_instance.to_dict()
 # create an instance of SystemProfileWorkloads from a dict
-system_profile_workloads_from_dict = SystemProfileWorkloads.from_dict(system_profile_workloads_dict)
+system_profile_workloads_from_dict = SystemProfileWorkloads.from_dict(
+    system_profile_workloads_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -44,6 +44,24 @@ DISPLAY_NAME_PRIORITY_REPORTERS = {"puptoo", "API"}
 
 # Fields that should be merged (shallow) instead of replaced when updating system profiles.
 SYSTEM_PROFILE_MERGE_FIELDS = {"rhsm", "workloads"}
+RHSM_PRESERVED_WORKLOAD_FIELDS = {("ansible", "containers"), ("satellite", "containers")}
+
+
+def _preserve_rhsm_workload_fields(merged: dict, incoming: dict, existing: dict) -> None:
+    """Restore workload fields that RHSM reporters cannot populate.
+
+    RHSM doesn't collect data about containers on a machine, so when RHSM reporters
+    update a workload they will omit container fields.  A shallow merge would
+    silently drop the existing data.  This function re-injects preserved fields
+    from *existing* into *merged* when the RHSM reporter did not send them.
+    """
+    for workload_key, preserved_field in RHSM_PRESERVED_WORKLOAD_FIELDS:
+        if workload_key not in merged:
+            continue
+        incoming_workload: dict = incoming.get(workload_key, {})
+        existing_workload: dict = existing.get(workload_key, {})
+        if preserved_field not in incoming_workload and preserved_field in existing_workload:
+            merged[workload_key][preserved_field] = existing_workload[preserved_field]
 
 
 class LimitedHost(db.Model, HostTypeDeriver):
@@ -174,9 +192,13 @@ class LimitedHost(db.Model, HostTypeDeriver):
             orm.attributes.flag_modified(self, "host_type")
 
     @staticmethod
-    def _update_profile_attributes(profile, data: dict, skip_keys: set | None = None):
-        """
-        Update a system profile object's attributes from a dictionary.
+    def _update_profile_attributes(
+        profile: "HostStaticSystemProfile | HostDynamicSystemProfile",
+        data: dict,
+        skip_keys: set[str] | None = None,
+        reporter: str | None = None,
+    ) -> None:
+        """Update a system profile object's attributes from a dictionary.
 
         For fields in SYSTEM_PROFILE_MERGE_FIELDS, performs a shallow merge with existing data.
         For all other fields, replaces the value entirely.
@@ -189,8 +211,10 @@ class LimitedHost(db.Model, HostTypeDeriver):
                 continue
 
             if key in SYSTEM_PROFILE_MERGE_FIELDS and value:
-                existing = getattr(profile, key, None) or {}
+                existing: dict = getattr(profile, key, None) or {}
                 merged = {**existing, **value}
+                if key == "workloads" and reporter in RHSM_REPORTERS:
+                    _preserve_rhsm_workload_fields(merged, value, existing)
                 if merged != existing:
                     setattr(profile, key, merged)
             else:
@@ -214,14 +238,18 @@ class LimitedHost(db.Model, HostTypeDeriver):
         # Update or create static system profile
         if static_data:
             if self.static_system_profile:
-                self._update_profile_attributes(self.static_system_profile, static_data, skip_keys)
+                self._update_profile_attributes(
+                    self.static_system_profile, static_data, skip_keys, reporter=self.reporter
+                )
             else:
                 self.static_system_profile = HostStaticSystemProfile(**static_data)
 
         # Update or create dynamic system profile
         if dynamic_data:
             if self.dynamic_system_profile:
-                self._update_profile_attributes(self.dynamic_system_profile, dynamic_data, skip_keys)
+                self._update_profile_attributes(
+                    self.dynamic_system_profile, dynamic_data, skip_keys, reporter=self.reporter
+                )
             else:
                 self.dynamic_system_profile = HostDynamicSystemProfile(**dynamic_data)
 

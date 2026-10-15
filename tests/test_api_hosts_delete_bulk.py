@@ -415,32 +415,35 @@ def test_delete_bulk_by_tags_multiple(
     db_get_host: Callable[..., Host | None],
     api_delete_filtered_hosts: Callable[..., tuple[int, dict[str, Any]]],
 ) -> None:
-    # Multiple tags use OR logic - any host with at least one of the tags matches
+    # Multiple tags across different identities use AND logic - only hosts with all target tags match
     tag1 = {"ns1": {"key1": ["val1"]}}
     tag2 = {"ns2": {"key2": ["val2"]}}
     both_tags = {"ns1": {"key1": ["val1"]}, "ns2": {"key2": ["val2"]}}
     other_tag = {"ns3": {"key3": ["val3"]}}
 
-    # All these have at least one of the target tags
+    # Only hosts with both target tags should match
     match_ids = [
         str(db_create_host(extra_data={"tags": both_tags}).id),
-        str(db_create_host(extra_data={"tags": tag1}).id),
-        str(db_create_host(extra_data={"tags": tag2}).id),
         str(db_create_host(extra_data={"tags": {**both_tags, "ns3": {"k": ["v"]}}}).id),
     ]
-    # This one has neither tag
-    nomatch_id = str(db_create_host(extra_data={"tags": other_tag}).id)
+    # Hosts with only one tag or neither tag should not match
+    nomatch_ids = [
+        str(db_create_host(extra_data={"tags": tag1}).id),
+        str(db_create_host(extra_data={"tags": tag2}).id),
+        str(db_create_host(extra_data={"tags": other_tag}).id),
+    ]
 
     response_status, response_data = api_delete_filtered_hosts(
         query_parameters={"tags": ["ns1/key1=val1", "ns2/key2=val2"]}
     )
     assert response_status == 202
-    assert response_data["hosts_found"] == 4
-    assert response_data["hosts_deleted"] == 4
+    assert response_data["hosts_found"] == 2
+    assert response_data["hosts_deleted"] == 2
 
     for host_id in match_ids:
         assert not db_get_host(host_id)
-    assert db_get_host(nomatch_id)
+    for host_id in nomatch_ids:
+        assert db_get_host(host_id)
 
 
 @pytest.mark.usefixtures("notification_event_producer_mock", "event_producer_mock")

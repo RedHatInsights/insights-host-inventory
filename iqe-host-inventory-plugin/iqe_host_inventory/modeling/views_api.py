@@ -216,3 +216,24 @@ class ViewsAPIWrapper(BaseEntity):
             self._host_inventory.cleanup.add_views(cloned_view["id"], scope=cleanup_scope)
 
         return cloned_view
+
+    def set_default_view(self, view_id: str) -> dict[str, Any]:
+        """Pin a visible view as the user's default.
+
+        :param str view_id: View UUID to pin
+        :return dict: The pinned view data
+        """
+        with self._host_inventory.apis.measure_time("PUT /views/default"):
+            response = self._base_wrapper.put("/beta/views/default", json={"view_id": view_id})
+        response.raise_for_status()
+        return response.json()
+
+    def delete_default_view(self) -> requests.Response:
+        """Unpin the user's default view preference (idempotent).
+
+        :return requests.Response: Raw HTTP response (204)
+        """
+        with self._host_inventory.apis.measure_time("DELETE /views/default"):
+            response = self._base_wrapper.delete("/beta/views/default")
+        response.raise_for_status()
+        return response

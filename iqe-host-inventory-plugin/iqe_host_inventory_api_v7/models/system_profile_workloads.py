@@ -21,12 +21,14 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
-from iqe_host_inventory_api_v7.models.system_profile_ansible import SystemProfileAnsible
 from iqe_host_inventory_api_v7.models.system_profile_intersystems import SystemProfileIntersystems
 from iqe_host_inventory_api_v7.models.system_profile_mssql import SystemProfileMssql
 from iqe_host_inventory_api_v7.models.system_profile_sap import SystemProfileSap
 from iqe_host_inventory_api_v7.models.system_profile_third_party_services_crowdstrike import (
     SystemProfileThirdPartyServicesCrowdstrike,
+)
+from iqe_host_inventory_api_v7.models.system_profile_workloads_ansible import (
+    SystemProfileWorkloadsAnsible,
 )
 from iqe_host_inventory_api_v7.models.system_profile_workloads_ibm_db2 import (
     SystemProfileWorkloadsIbmDb2,
@@ -47,7 +49,7 @@ class SystemProfileWorkloads(BaseModel):
     Object containing information about system workloads
     """
 
-    ansible: SystemProfileAnsible | None = None
+    ansible: SystemProfileWorkloadsAnsible | None = None
     crowdstrike: SystemProfileThirdPartyServicesCrowdstrike | None = None
     ibm_db2: SystemProfileWorkloadsIbmDb2 | None = None
     intersystems: SystemProfileIntersystems | None = None
@@ -153,7 +155,7 @@ class SystemProfileWorkloads(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "ansible": SystemProfileAnsible.from_dict(obj["ansible"])
+            "ansible": SystemProfileWorkloadsAnsible.from_dict(obj["ansible"])
             if obj.get("ansible") is not None
             else None,
             "crowdstrike": SystemProfileThirdPartyServicesCrowdstrike.from_dict(obj["crowdstrike"])

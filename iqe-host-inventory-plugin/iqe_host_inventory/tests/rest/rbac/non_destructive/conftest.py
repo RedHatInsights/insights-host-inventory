@@ -31,6 +31,9 @@ def rbac_setup_resources(
         hosts = host_inventory_non_org_admin_cert_auth.upload.create_hosts(
             5, cleanup_scope="package"
         )
+        # Cert auth bypasses Kessel, so we need to do additional waiting to make sure the host is
+        # replicated to Kessel
+        host_inventory.apis.hosts.wait_for_created(hosts)
     else:
         # We can't use cert-auth in ephemeral
         hosts = host_inventory.upload.create_hosts(5, cleanup_scope="package")

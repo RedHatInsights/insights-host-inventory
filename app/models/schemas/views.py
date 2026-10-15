@@ -6,12 +6,16 @@ from marshmallow import validate as marshmallow_validate
 
 from app.models.views import MAX_VIEW_NAME_LENGTH
 
-VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _-]+$"
-VIEW_NAME_VALIDATION_ERROR = "View name must contain only letters, numbers, spaces, hyphens, and underscores."
-
+VIEW_NAME_PATTERN = r"^[a-zA-Z0-9 _.'-]+$"
+VIEW_NAME_VALIDATION_ERROR = (
+    "View name must contain only letters, numbers, spaces, hyphens, underscores, periods, and apostrophes."
+)
+VIEW_NAME_ALPHANUMERIC_PATTERN = r".*[a-zA-Z0-9].*"
+VIEW_NAME_ALPHANUMERIC_ERROR = "View name must contain at least one letter or number."
 _VIEW_NAME_VALIDATION = marshmallow_validate.And(
     marshmallow_validate.Length(min=1, max=MAX_VIEW_NAME_LENGTH),
     marshmallow_validate.Regexp(VIEW_NAME_PATTERN, error=VIEW_NAME_VALIDATION_ERROR),
+    marshmallow_validate.Regexp(VIEW_NAME_ALPHANUMERIC_PATTERN, error=VIEW_NAME_ALPHANUMERIC_ERROR),
 )
 
 
@@ -25,6 +29,8 @@ class SortSchema(MarshmallowSchema):
 
 
 VALID_STALENESS_VALUES = ("fresh", "stale", "stale_warning", "unknown")
+VALID_RECOMMENDATION_SEVERITIES = ("critical", "important", "moderate", "low")
+VALID_INCIDENT_STATUSES = ("incident", "no_incident")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -42,6 +48,14 @@ class HostFiltersSchema(MarshmallowSchema):
     updated_end = fields.Str(required=False)
     system_type = fields.List(
         fields.Str(validate=marshmallow_validate.OneOf(["conventional", "bootc", "edge", "cluster"])),
+        required=False,
+    )
+    recommendation_severity = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_RECOMMENDATION_SEVERITIES)),
+        required=False,
+    )
+    incident_status = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_INCIDENT_STATUSES),
         required=False,
     )
 
@@ -83,6 +97,10 @@ class PatchViewSchema(MarshmallowSchema):
         if "name" in in_data and isinstance(in_data["name"], str):
             in_data["name"] = in_data["name"].strip()
         return in_data
+
+
+class DefaultViewSchema(MarshmallowSchema):
+    view_id = fields.UUID(required=True)
 
 
 class ViewResponseSchema(MarshmallowSchema):

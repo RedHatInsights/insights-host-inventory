@@ -24,6 +24,8 @@ print(SystemProfileIntersystems.to_json())
 # convert the object into a dict
 system_profile_intersystems_dict = system_profile_intersystems_instance.to_dict()
 # create an instance of SystemProfileIntersystems from a dict
-system_profile_intersystems_from_dict = SystemProfileIntersystems.from_dict(system_profile_intersystems_dict)
+system_profile_intersystems_from_dict = SystemProfileIntersystems.from_dict(
+    system_profile_intersystems_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

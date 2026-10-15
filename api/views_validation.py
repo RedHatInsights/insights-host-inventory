@@ -7,16 +7,12 @@ from api.filtering.app_data_sorting import get_app_sort_field_map
 from api.filtering.db_filters import validate_filter_structure
 from app.exceptions import ValidationException
 from app.models.host_app_data import get_app_data_models
+from app.models.schemas.views import HostFiltersSchema
+from app.serialization import CORE_VIEW_FIELDS_TO_EXPORT_FIELDS
 
-VALID_CORE_VIEW_FIELDS = frozenset(
-    {
-        "updated",
-        "display_name",
-        "group_name",
-        "operating_system",
-        "last_check_in",
-    }
-)
+VALID_HOST_FILTER_KEYS = frozenset(HostFiltersSchema._declared_fields.keys())
+
+VALID_CORE_VIEW_FIELDS = frozenset(CORE_VIEW_FIELDS_TO_EXPORT_FIELDS)
 
 CORE_SORTABLE_FIELDS = VALID_CORE_VIEW_FIELDS
 

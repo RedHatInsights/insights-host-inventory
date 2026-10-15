@@ -147,7 +147,7 @@ class TagsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ActiveTags:
-        """Get the active host tags for a given account
+        r"""Get the active host tags for a given account
 
         Required permissions: inventory:hosts:read
 
@@ -370,7 +370,7 @@ class TagsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[ActiveTags]:
-        """Get the active host tags for a given account
+        r"""Get the active host tags for a given account
 
         Required permissions: inventory:hosts:read
 
@@ -593,7 +593,7 @@ class TagsApi:
         _headers: dict[StrictStr, Any] | None = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Get the active host tags for a given account
+        r"""Get the active host tags for a given account
 
         Required permissions: inventory:hosts:read
 

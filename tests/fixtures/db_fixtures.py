@@ -9,9 +9,6 @@ from uuid import UUID
 import pytest
 from connexion import FlaskApp
 from sqlalchemy.orm import Query
-from sqlalchemy_utils import create_database
-from sqlalchemy_utils import database_exists
-from sqlalchemy_utils import drop_database
 
 from app.config import Config
 from app.environment import RuntimeEnvironment
@@ -20,6 +17,7 @@ from app.models import Host
 from app.models import HostGroupAssoc
 from app.models import InventoryView
 from app.models import Staleness
+from app.models import UserViewPreference
 from app.models import db
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -29,6 +27,9 @@ from tests.helpers.db_utils import db_create_host_app_data as _db_create_host_ap
 from tests.helpers.db_utils import db_group
 from tests.helpers.db_utils import db_staleness_culling
 from tests.helpers.db_utils import minimal_db_host
+from tests.helpers.postgres_lifecycle import create_database
+from tests.helpers.postgres_lifecycle import database_exists
+from tests.helpers.postgres_lifecycle import drop_database
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import now
 from tests.helpers.test_utils import set_environment
@@ -395,3 +396,18 @@ def db_create_system_view(flask_app):  # noqa: ARG001
         return view
 
     return _db_create_system_view
+
+
+@pytest.fixture(scope="function")
+def db_create_user_view_preference(flask_app):  # noqa: ARG001
+    def _db_create_user_view_preference(org_id, user_id, default_view_id):
+        pref = UserViewPreference(
+            org_id=org_id,
+            user_id=user_id,
+            default_view_id=default_view_id,
+        )
+        db.session.add(pref)
+        db.session.commit()
+        return pref
+
+    return _db_create_user_view_preference

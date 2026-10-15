@@ -61,18 +61,22 @@ def get_app_name_from_sort(order_by: str | None) -> str | None:
     return None
 
 
-def resolve_app_sort(order_by: str | None) -> tuple[type[HostAppDataMixin], ColumnElement] | None:
+def resolve_app_sort(
+    order_by: str | None,
+) -> tuple[type[HostAppDataMixin], ColumnElement | list[ColumnElement]] | None:
     """
-    Resolve an order_by value into (model_class, column) for app sort fields.
+    Resolve an order_by value into (model_class, column_or_columns) for app sort fields.
 
-    Handles both plain column fields (from __sortable_fields__) and computed
-    expressions (from __computed_sortable_fields__).
+    Handles plain column fields (from __sortable_fields__) and computed
+    expressions (from __computed_sortable_fields__).  Computed methods may
+    return either a single ColumnElement or a list of ColumnElements for
+    multi-column priority sorting (e.g. critical > important > moderate > low).
 
     Args:
         order_by: The order_by parameter value (e.g., "vulnerability:critical_cves")
 
     Returns:
-        (model_class, column_or_expression) for valid app sort fields.
+        (model_class, column_or_expression_or_list) for valid app sort fields.
         None if order_by is None or not an app sort field.
 
     Raises:

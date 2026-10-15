@@ -1,9 +1,13 @@
 import uuid
 from collections.abc import Callable
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
 
+import pytest
 from starlette.testclient import TestClient
 
+from app.models import db
 from tests.helpers.api_utils import assert_response_status
 from tests.helpers.api_utils import build_views_url
 from tests.helpers.api_utils import do_request
@@ -20,13 +24,23 @@ VALID_CONFIG = {"columns": [{"key": "display_name"}]}
 
 
 class TestGetViewsList:
-    def test_returns_empty_list(self, flask_client: TestClient) -> None:
+    @pytest.fixture(autouse=True)
+    def _seed_system_default(self, db_create_system_view: Callable) -> None:
+        """Every list test needs the 'All systems' view for the embedded default_view_id."""
+        from lib.views_repository import _get_system_default_view_id
+
+        _get_system_default_view_id.cache_clear()
+        db_create_system_view(name="All systems")
+
+    def test_returns_only_system_view_when_no_user_views(self, flask_client: TestClient) -> None:
         url = build_views_url()
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 0
-        assert response_data["results"] == []
+        assert response_data["total"] == 1
+        assert response_data["results"][0]["name"] == "All systems"
+        assert response_data["results"][0]["is_system_view"] is True
+        assert "default_view_id" in response_data
 
     def test_returns_own_private_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
         db_create_view(name="My View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
@@ -35,9 +49,9 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
-        assert response_data["results"][0]["name"] == "My View"
-        assert response_data["results"][0]["is_owner"] is True
+        assert response_data["total"] == 2  # system view + user view
+        names = {r["name"] for r in response_data["results"]}
+        assert "My View" in names
 
     def test_returns_org_wide_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
         db_create_view(
@@ -51,9 +65,9 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
-        assert response_data["results"][0]["name"] == "Shared View"
-        assert response_data["results"][0]["is_owner"] is False
+        assert response_data["total"] == 2  # system view + shared view
+        names = {r["name"] for r in response_data["results"]}
+        assert "Shared View" in names
 
     def test_returns_system_view(self, flask_client: TestClient, db_create_system_view: Callable) -> None:
         db_create_system_view(name="Red Hat Default")
@@ -62,9 +76,10 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
-        assert response_data["results"][0]["name"] == "Red Hat Default"
-        assert response_data["results"][0]["is_system_view"] is True
+        assert response_data["total"] == 2  # "All systems" + "Red Hat Default"
+        names = {r["name"] for r in response_data["results"]}
+        assert "Red Hat Default" in names
+        assert all(r["is_system_view"] for r in response_data["results"])
 
     def test_excludes_other_users_private_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
         db_create_view(
@@ -78,7 +93,8 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 0
+        assert response_data["total"] == 1  # only the system view
+        assert response_data["results"][0]["is_system_view"] is True
 
     def test_excludes_other_org_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
         db_create_view(name="Other Org", org_id="other-org", created_by="other-user-id", org_wide=True)
@@ -87,7 +103,7 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 0
+        assert response_data["total"] == 1  # only the system view
 
     def test_pagination(self, flask_client: TestClient, db_create_view: Callable) -> None:
         for i in range(5):
@@ -97,10 +113,27 @@ class TestGetViewsList:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 5
+        assert response_data["total"] == 6  # 5 user views + 1 system view
         assert response_data["count"] == 2
         assert response_data["page"] == 1
         assert response_data["per_page"] == 2
+
+    def test_system_views_appear_before_user_views(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        """API returns system views first even when a user view is newer."""
+        user = db_create_view(name="My Custom View", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        now = datetime.now(UTC)
+        user.modified_on = now
+        db.session.commit()
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["total"] == 2  # "All systems" (from autouse) + user view
+        assert response_data["results"][0]["is_system_view"] is True
+        assert response_data["results"][1]["id"] == str(user.id)
+        assert response_data["results"][1]["is_system_view"] is False
 
     def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
         url = build_views_url()
@@ -228,6 +261,31 @@ class TestCreateView:
 
         assert_response_status(response_status, 201)
         assert len(response_data["configuration"]["columns"]) == 4
+
+    def test_creates_view_with_all_core_columns(self, flask_client: TestClient) -> None:
+        config = {
+            "columns": [
+                {"key": "display_name"},
+                {"key": "group_name"},
+                {"key": "operating_system"},
+                {"key": "updated"},
+                {"key": "last_check_in"},
+                {"key": "per_reporter_staleness"},
+                {"key": "tags"},
+                {"key": "status"},
+                {"key": "infrastructure"},
+                {"key": "vendor"},
+                {"key": "workload"},
+                {"key": "created"},
+            ]
+        }
+        data = {"name": "All Core Columns View", "configuration": config}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert len(response_data["configuration"]["columns"]) == 12
 
     def test_creates_view_with_sort(self, flask_client: TestClient) -> None:
         config = {
@@ -459,7 +517,12 @@ class TestCreateView:
         assert_response_status(response_status, 400)
         assert "last_check_in_start" in response_data["detail"]
 
-    def test_created_view_appears_in_list(self, flask_client: TestClient) -> None:
+    def test_created_view_appears_in_list(self, flask_client: TestClient, db_create_system_view: Callable) -> None:
+        from lib.views_repository import _get_system_default_view_id
+
+        _get_system_default_view_id.cache_clear()
+        db_create_system_view(name="All systems")
+
         data = {"name": "Listed View", "configuration": VALID_CONFIG}
 
         url = build_views_url()
@@ -468,8 +531,8 @@ class TestCreateView:
         response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
 
         assert_response_status(response_status, 200)
-        assert response_data["total"] == 1
-        assert response_data["results"][0]["name"] == "Listed View"
+        names = {r["name"] for r in response_data["results"]}
+        assert "Listed View" in names
 
     def test_400_for_missing_name(self, flask_client: TestClient) -> None:
         data = {"configuration": VALID_CONFIG}
@@ -643,13 +706,22 @@ class TestCreateView:
         assert "name" in response_data["detail"]
 
     def test_400_for_punctuation_only_name(self, flask_client: TestClient) -> None:
-        data = {"name": "!!!", "configuration": VALID_CONFIG}
+        data = {"name": "...", "configuration": VALID_CONFIG}
 
         url = build_views_url()
         response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_creates_view_with_periods_and_apostrophes(self, flask_client: TestClient) -> None:
+        data = {"name": "Bob's RHEL 9.4", "configuration": VALID_CONFIG}
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.post, url, USER_IDENTITY, data)
+
+        assert_response_status(response_status, 201)
+        assert response_data["name"] == "Bob's RHEL 9.4"
 
     def test_creates_view_with_hyphens_and_underscores(self, flask_client: TestClient) -> None:
         data = {"name": "my-view_2024", "configuration": VALID_CONFIG}
@@ -836,10 +908,23 @@ class TestUpdateView:
         view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
 
         url = build_views_url(view_id=str(view.id))
-        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "!!!"})
+        response_status, response_data = do_request(flask_client.patch, url, USER_IDENTITY, {"name": "..."})
 
         assert_response_status(response_status, 400)
         assert "name" in response_data["detail"]
+
+    def test_updates_name_with_periods_and_apostrophes(
+        self, flask_client: TestClient, db_create_view: Callable
+    ) -> None:
+        view = db_create_view(org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(view_id=str(view.id))
+        response_status, response_data = do_request(
+            flask_client.patch, url, USER_IDENTITY, {"name": "Q1'26 patch view"}
+        )
+
+        assert_response_status(response_status, 200)
+        assert response_data["name"] == "Q1'26 patch view"
 
     def test_updates_name_with_hyphens_and_underscores(
         self, flask_client: TestClient, db_create_view: Callable
@@ -1022,5 +1107,176 @@ class TestCloneView:
 
         url = build_views_url(view_id=str(view.id), clone=True)
         response_status, _ = do_request(flask_client.post, url, SYSTEM_TYPE_IDENTITY)
+
+        assert_response_status(response_status, 403)
+
+
+class TestDefaultViewInList:
+    """Tests that GET /views always embeds default_view_id."""
+
+    @staticmethod
+    def _clear_default_view_cache():
+        from lib.views_repository import _get_system_default_view_id
+
+        _get_system_default_view_id.cache_clear()
+
+    def test_list_includes_system_default_when_no_preference(
+        self, flask_client: TestClient, db_create_system_view: Callable
+    ) -> None:
+        system = db_create_system_view(name="All systems")
+        self._clear_default_view_cache()
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["default_view_id"] == str(system.id)
+
+    def test_list_includes_pinned_default(
+        self,
+        flask_client: TestClient,
+        db_create_view: Callable,
+        db_create_system_view: Callable,
+        db_create_user_view_preference: Callable,
+    ) -> None:
+        db_create_system_view(name="All systems")
+        self._clear_default_view_cache()
+        pinned = db_create_view(name="My Default", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+        db_create_user_view_preference(USER_IDENTITY["org_id"], USER_ID, pinned.id)
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["default_view_id"] == str(pinned.id)
+
+    def test_list_falls_back_when_pinned_view_deleted(
+        self,
+        flask_client: TestClient,
+        db_create_view: Callable,
+        db_create_system_view: Callable,
+        db_create_user_view_preference: Callable,
+    ) -> None:
+        system = db_create_system_view(name="All systems")
+        self._clear_default_view_cache()
+        pinned = db_create_view(name="Temporary", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+        db_create_user_view_preference(USER_IDENTITY["org_id"], USER_ID, pinned.id)
+
+        db.session.delete(pinned)
+        db.session.commit()
+
+        url = build_views_url()
+        response_status, response_data = do_request(flask_client.get, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 200)
+        assert response_data["default_view_id"] == str(system.id)
+
+
+class TestSetDefaultView:
+    """Tests for PUT /views/default."""
+
+    @staticmethod
+    def _clear_default_view_cache():
+        from lib.views_repository import _get_system_default_view_id
+
+        _get_system_default_view_id.cache_clear()
+
+    def test_pins_a_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        view = db_create_view(name="Pin Me", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+
+        url = build_views_url(default=True)
+        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"view_id": str(view.id)})
+
+        assert_response_status(response_status, 200)
+        assert response_data["id"] == str(view.id)
+        assert response_data["name"] == "Pin Me"
+
+    def test_updates_existing_preference(
+        self,
+        flask_client: TestClient,
+        db_create_view: Callable,
+        db_create_user_view_preference: Callable,
+    ) -> None:
+        view1 = db_create_view(name="First", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+        view2 = db_create_view(name="Second", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+        db_create_user_view_preference(USER_IDENTITY["org_id"], USER_ID, view1.id)
+
+        url = build_views_url(default=True)
+        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"view_id": str(view2.id)})
+
+        assert_response_status(response_status, 200)
+        assert response_data["id"] == str(view2.id)
+
+    def test_pins_system_view(self, flask_client: TestClient, db_create_system_view: Callable) -> None:
+        system = db_create_system_view(name="All systems")
+        self._clear_default_view_cache()
+
+        url = build_views_url(default=True)
+        response_status, response_data = do_request(flask_client.put, url, USER_IDENTITY, {"view_id": str(system.id)})
+
+        assert_response_status(response_status, 200)
+        assert response_data["id"] == str(system.id)
+
+    def test_404_for_nonexistent_view(self, flask_client: TestClient) -> None:
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {"view_id": str(uuid.uuid4())})
+
+        assert_response_status(response_status, 404)
+
+    def test_404_for_invisible_view(self, flask_client: TestClient, db_create_view: Callable) -> None:
+        other_private = db_create_view(
+            name="Other Private", org_id=USER_IDENTITY["org_id"], created_by="98765432", org_wide=False
+        )
+
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {"view_id": str(other_private.id)})
+
+        assert_response_status(response_status, 404)
+
+    def test_400_for_missing_view_id(self, flask_client: TestClient) -> None:
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.put, url, USER_IDENTITY, {})
+
+        assert_response_status(response_status, 400)
+
+    def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.put, url, SYSTEM_TYPE_IDENTITY, {"view_id": str(uuid.uuid4())})
+
+        assert_response_status(response_status, 403)
+
+
+class TestDeleteDefaultView:
+    """Tests for DELETE /views/default."""
+
+    def test_removes_preference(
+        self,
+        flask_client: TestClient,
+        db_create_view: Callable,
+        db_create_user_view_preference: Callable,
+    ) -> None:
+        pinned = db_create_view(name="Pinned", org_id=USER_IDENTITY["org_id"], created_by=USER_ID)
+        db_create_user_view_preference(USER_IDENTITY["org_id"], USER_ID, pinned.id)
+
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.delete, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 204)
+
+        # Verify the preference row was deleted
+        from app.models import UserViewPreference
+
+        pref = UserViewPreference.query.filter_by(org_id=USER_IDENTITY["org_id"], user_id=USER_ID).one_or_none()
+        assert pref is None
+
+    def test_idempotent_when_no_preference(self, flask_client: TestClient) -> None:
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.delete, url, USER_IDENTITY)
+
+        assert_response_status(response_status, 204)
+
+    def test_403_for_unsupported_identity_type(self, flask_client: TestClient) -> None:
+        url = build_views_url(default=True)
+        response_status, _ = do_request(flask_client.delete, url, SYSTEM_TYPE_IDENTITY)
 
         assert_response_status(response_status, 403)

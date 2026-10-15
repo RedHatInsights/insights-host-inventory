@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import UTC
@@ -21,6 +22,7 @@ from api.filtering.db_app_data_filters import build_app_data_filters
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.filtering_common import escape_ilike_value
 from api.staleness_query import get_staleness_obj
+from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.config import ALL_STALENESS_STATES
@@ -153,12 +155,16 @@ def _display_name_filter(display_name: str) -> list:
 
 
 def _tags_filter(string_tags: list[str]) -> list:
-    tags = []
+    tags_by_identity = defaultdict(list)
 
     for string_tag in string_tags:
-        tags.append(Tag.create_nested_from_tags([Tag.from_string(string_tag)]))
+        tag = Tag.from_string(string_tag)
+        tags_by_identity[(tag.namespace, tag.key)].append(tag)
 
-    return [or_(Host.tags.contains(tag) for tag in tags)]
+    return [
+        or_(*(Host.tags.contains(Tag.create_nested_from_tags([tag])) for tag in tags))
+        for tags in tags_by_identity.values()
+    ]
 
 
 def _group_names_filter(group_name_list: list) -> list:
@@ -483,7 +489,13 @@ def update_query_for_owner_id(identity: Identity, query: Query) -> Query:
             if not _is_table_already_joined(query, HostStaticSystemProfile):
                 query = query.join(HostStaticSystemProfile, isouter=True)
 
-            return query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
+            query = query.filter(HostStaticSystemProfile.owner_id == identity.system["cn"])
+
+            forwarded_identity = get_satellite_forwarded_identity(identity)
+            if forwarded_identity is not None:
+                query = query.filter(Host.subscription_manager_id == forwarded_identity)
+
+            return query
     return query
 
 
@@ -492,6 +504,32 @@ def _system_type_filter(filters: list[str]) -> list:
     if invalid:
         raise ValidationException(f"Invalid system_type: {invalid.pop()}")
     return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
+
+
+def _advisor_filter(
+    recommendation_severity: list[str] | None,
+    incident_status: str | None,
+) -> tuple[list, type]:
+    """Build filters for recommendation_severity and incident_status params.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataAdvisor model class)
+    """
+    from app.models.host_app_data import HostAppDataAdvisor
+
+    filters = []
+
+    if recommendation_severity:
+        severity_conditions = [getattr(HostAppDataAdvisor, sev) > 0 for sev in recommendation_severity]
+        filters.append(or_(*severity_conditions))
+
+    if incident_status:
+        if incident_status == "incident":
+            filters.append(HostAppDataAdvisor.incidents > 0)
+        else:
+            filters.append(HostAppDataAdvisor.incidents == 0)
+
+    return filters, HostAppDataAdvisor
 
 
 def query_filters(
@@ -518,6 +556,8 @@ def query_filters(
     identity=None,
     join_static_profile: bool = False,
     join_dynamic_profile: bool = False,
+    recommendation_severity: list[str] | None = None,
+    incident_status: str | None = None,
 ) -> tuple[list, Query]:
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -565,6 +605,11 @@ def query_filters(
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
 
+    if recommendation_severity or incident_status:
+        severity_incident_filters, advisor_model = _advisor_filter(recommendation_severity, incident_status)
+        filters += severity_incident_filters
+        app_data_models_to_join.add(advisor_model)
+
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 
     # Dynamically determine if we need system profile joins based on filtering and ordering
@@ -585,8 +630,11 @@ def query_filters(
     if needs_dynamic_join:
         query_base = query_base.outerjoin(HostDynamicSystemProfile)
 
-    # Add app data joins for filtering
+    # Add app data joins for filtering (only the apps referenced by the filter)
     for model_class in app_data_models_to_join:
-        query_base = query_base.outerjoin(model_class)
+        if not _is_table_already_joined(query_base, model_class):
+            query_base = query_base.outerjoin(
+                model_class, and_(Host.org_id == model_class.org_id, Host.id == model_class.host_id)
+            )
 
     return filters, query_base

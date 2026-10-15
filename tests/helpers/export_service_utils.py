@@ -22,6 +22,11 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:41.159435+00:00",
+        "bios_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "satellite_managed": False,
+        "cloud_provider": "aws",
+        "is_marketplace": False,
+        "ip_addresses": ["10.0.0.1"],
     },
     {
         "display_name": "063406.foo.redhat.com",
@@ -41,6 +46,11 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:40.562889+00:00",
+        "bios_uuid": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        "satellite_managed": True,
+        "cloud_provider": "azure",
+        "is_marketplace": True,
+        "ip_addresses": ["10.0.0.2", "192.168.1.1"],
     },
     {
         "display_name": "43794f.foo.redhat.com",
@@ -60,11 +70,29 @@ EXPORT_DATA = [
             {"key": "key", "namespace": "SPECIAL", "value": "val"},
         ],
         "updated": "2024-07-23T16:24:41.167465+00:00",
+        "bios_uuid": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "satellite_managed": False,
+        "cloud_provider": None,
+        "is_marketplace": False,
+        "ip_addresses": None,
     },
 ]
 
 
-def create_export_message_mock(format: str = "json") -> str:
+X_RH_IDENTITY_DEFAULT = (
+    "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhf"
+    "dHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjogInRlc3RAcmVkaGF0LmNv"
+    "bSIsICJmaXJzdF9uYW1lIjogInRlc3QiLCAidXNlcl9pZCI6ICI1MTIzNDU2NyJ9fX0="
+)
+
+X_RH_IDENTITY_NO_USER_ID = (
+    "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiLCAidHlwZSI6ICJVc2VyIiwgImF1dGhf"
+    "dHlwZSI6ICJiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjogInRlc3RAcmVkaGF0LmNv"
+    "bSIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
+)
+
+
+def create_export_message_mock(format: str = "json", filters: dict | None = None, x_rh_identity: str | None = None):
     return json.dumps(
         {
             "id": "b4228e37-8ae8-4c67-81d5-d03f39bbe309",
@@ -80,7 +108,9 @@ def create_export_message_mock(format: str = "json") -> str:
                 "resource_request": {
                     "application": "urn:redhat:application:inventory",
                     "export_request_uuid": "9becbc61-49a4-49be-beb1-1f0a7cbc6e36",
-                    "filters": {
+                    "filters": filters
+                    if filters is not None
+                    else {
                         "endDate": "2024-03-01T00:00:00Z",
                         "productId": "RHEL",
                         "startDate": "2024-01-01T00:00:00Z",
@@ -88,12 +118,7 @@ def create_export_message_mock(format: str = "json") -> str:
                     "format": format,
                     "resource": "urn:redhat:application:inventory:export:systems",
                     "uuid": "2844f3a1-e047-45b1-b0ce-fb9812ad6a6f",
-                    "x-rh-identity": (
-                        "eyJpZGVudGl0eSI6IHsib3JnX2lkIjogInRlc3QiL"
-                        "CAidHlwZSI6ICJVc2VyIiwgImF1dGhfdHlwZSI6IC"
-                        "JiYXNpYy1hdXRoIiwgInVzZXIiOiB7ImVtYWlsIjo"
-                        "gInRlc3RAcmVkaGF0LmNvbSIsICJmaXJzdF9uYW1lIjogInRlc3QifX19"
-                    ),
+                    "x-rh-identity": x_rh_identity or X_RH_IDENTITY_DEFAULT,
                 }
             },
         }
@@ -154,19 +179,4 @@ def create_export_csv_mock(mocker):
 
 
 def create_export_json_mock(mocker):
-    return [
-        {
-            "display_name": mocker.ANY,
-            "fqdn": mocker.ANY,
-            "host_id": mocker.ANY,
-            "subscription_manager_id": mocker.ANY,
-            "satellite_id": mocker.ANY,
-            "group_id": mocker.ANY,
-            "group_name": mocker.ANY,
-            "os_release": mocker.ANY,
-            "updated": mocker.ANY,
-            "state": mocker.ANY,
-            "tags": mocker.ANY,
-            "host_type": mocker.ANY,
-        }
-    ]
+    return [{field: mocker.ANY for field in _EXPORT_SERVICE_FIELDS}]

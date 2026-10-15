@@ -543,13 +543,15 @@ def test_filter_hosts_by_tags(host_inventory: ApplicationHostInventory):
 def test_filter_hosts_by_shared_tags(host_inventory: ApplicationHostInventory):
     """
     Create multiple hosts: two with 1 tag, two with 2 tags. Make sure
-    filtering by multiple tags works as expected.
+    filtering by multiple tags with different identities (different
+    namespace/key) uses AND semantics per ADR-0007.
 
     1. Create a host with 1 tag, e.g. "tag_1" via MQ
     2. Create a host with 2 tags, one of each from the previous step, e.g. "tag_1", "tag_2" via MQ
     3. Create a host with 1 tag, e.g. "tag_3" via MQ
-    5. Create a host with 2 tag, one of each from the previous step,  e.g. "tag_2", "tag_3" via MQ
-    5. Filter hosts by "tag_1" and "tag_2" via REST API, make sure only 3 hosts found
+    4. Create a host with 2 tags, one of each from the previous step, e.g. "tag_2", "tag_3" via MQ
+    5. Filter hosts by "tag_1" and "tag_2" via REST API, make sure only 1 host found
+       (the one that has both tags), because different tag identities are AND'd.
 
     metadata:
         assignee: zabikeno
@@ -567,9 +569,9 @@ def test_filter_hosts_by_shared_tags(host_inventory: ApplicationHostInventory):
         host_inventory.datagen.create_host_data(tags=[tag_2, tag_3]),
     ]
 
-    host_1, host_2, _, host_3 = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
+    _, host_2, _, _ = host_inventory.kafka.create_hosts(hosts_data=hosts_data)
 
-    expected_ids = {host_1.id, host_2.id, host_3.id}
+    expected_ids = {host_2.id}
 
     str_tag_1 = convert_tag_to_string(tag_1)
     str_tag_2 = convert_tag_to_string(tag_2)
@@ -577,8 +579,8 @@ def test_filter_hosts_by_shared_tags(host_inventory: ApplicationHostInventory):
     response_hosts = host_inventory.apis.hosts.get_hosts(tags=[str_tag_1, str_tag_2])
     response_ids = {host.id for host in response_hosts}
 
-    assert len(response_hosts) == 3
-    assert response_ids & expected_ids == expected_ids
+    assert len(response_hosts) == 1
+    assert response_ids == expected_ids
 
 
 @pytest.mark.parametrize(

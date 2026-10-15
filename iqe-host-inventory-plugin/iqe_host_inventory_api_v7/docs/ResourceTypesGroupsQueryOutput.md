@@ -13,7 +13,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.resource_types_groups_query_output import ResourceTypesGroupsQueryOutput
+from iqe_host_inventory_api_v7.models.resource_types_groups_query_output import (
+    ResourceTypesGroupsQueryOutput,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -25,6 +27,8 @@ print(ResourceTypesGroupsQueryOutput.to_json())
 # convert the object into a dict
 resource_types_groups_query_output_dict = resource_types_groups_query_output_instance.to_dict()
 # create an instance of ResourceTypesGroupsQueryOutput from a dict
-resource_types_groups_query_output_from_dict = ResourceTypesGroupsQueryOutput.from_dict(resource_types_groups_query_output_dict)
+resource_types_groups_query_output_from_dict = ResourceTypesGroupsQueryOutput.from_dict(
+    resource_types_groups_query_output_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from itertools import islice
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import Boolean
@@ -26,6 +27,7 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.app_data_sorting import resolve_app_sort
 from api.filtering.db_filters import ORDER_BY_STATIC_PROFILE_FIELDS
 from api.filtering.db_filters import _is_table_already_joined
+from api.filtering.db_filters import _needs_system_profile_joins
 from api.filtering.db_filters import host_id_list_filter
 from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
@@ -44,12 +46,14 @@ from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
+from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
 from app.models.system_profile_transformer import STATIC_FIELDS
+from app.serialization import _EXPORT_SERVICE_FIELDS
 from app.serialization import SP_FIELD_SERIALIZERS
 from app.serialization import _sanitize_workloads_none_values
-from app.serialization import serialize_host_for_export_svc
+from app.serialization import serialize_host_row_for_export
 
 __all__ = (
     "get_all_hosts",
@@ -107,6 +111,7 @@ def _get_host_list_using_filters(
     param_order_how: str | None,
     fields: dict | None,
     allow_app_fields: bool = False,
+    include_count: bool = True,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Internal function to get filtered, ordered, and paginated host list.
@@ -120,6 +125,7 @@ def _get_host_list_using_filters(
         param_order_how: Order direction ("ASC" or "DESC")
         fields: Requested fields dict (for system_profile handling)
         allow_app_fields: If True, supports app:field sorting (e.g., "vulnerability:critical_cves")
+        include_count: If True, query and return total count. Otherwise, skip counting and return 0.
 
     Returns:
         Tuple of (items, count, additional_fields, system_profile_fields)
@@ -155,11 +161,14 @@ def _get_host_list_using_filters(
 
     filtered_query = base_query.filter(*all_filters)
 
-    # Count distinct host IDs to avoid overcountiung when JOINs are involved
-    count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
+    if include_count:
+        # Count distinct host IDs to avoid overcountiung when JOINs are involved
+        count_total = filtered_query.with_entities(func.count(Host.id.distinct())).scalar()
 
-    if count_total == 0:
-        return [], 0, additional_fields, system_profile_fields
+        if count_total == 0:
+            return [], 0, additional_fields, system_profile_fields
+    else:
+        count_total = 0
 
     ordered_query = filtered_query.order_by(
         *params_to_order_by(param_order_by, param_order_how, allow_app_fields=allow_app_fields)
@@ -194,7 +203,8 @@ def get_host_list(
     filter: dict | None,
     fields: dict | None,
     rbac_filter: dict | None,
-) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
+    get_total: bool = True,
+) -> tuple[list[Host], int | None, tuple[str, ...], list[str]]:
     all_filters, query_base = query_filters(
         fqdn,
         display_name,
@@ -219,9 +229,18 @@ def get_host_list(
         get_current_identity(),
     )
 
-    return _get_host_list_using_filters(
-        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields
+    items, count, additional_fields, system_profile_fields = _get_host_list_using_filters(
+        query_base,
+        all_filters,
+        page,
+        per_page,
+        param_order_by,
+        param_order_how,
+        fields,
+        include_count=get_total,
     )
+
+    return items, count if get_total else None, additional_fields, system_profile_fields
 
 
 def get_host_list_by_id_list(
@@ -280,17 +299,20 @@ def params_to_order_by(
     if allow_app_fields:
         resolved = resolve_app_sort(order_by)
         if resolved:
-            _, column = resolved
+            _, column_or_columns = resolved
 
             # Validate order_how consistently with standard fields
             if order_how is not None and order_how not in ("ASC", "DESC"):
                 raise ValueError('Unsupported ordering direction, use "ASC" or "DESC".')
 
-            # Apply ordering with NULLS LAST (default to ASC if not specified)
-            order_expr = column.desc().nullslast() if order_how == "DESC" else column.asc().nullslast()
+            # Multi-column priority sort (e.g. critical > important > moderate > low)
+            columns = column_or_columns if isinstance(column_or_columns, list) else [column_or_columns]
+            order_exprs = tuple(
+                col.desc().nullslast() if order_how == "DESC" else col.asc().nullslast() for col in columns
+            )
 
             # Always add secondary sort for pagination stability
-            return (order_expr,) + modified_on_ordering + (Host.id.desc(),)
+            return order_exprs + modified_on_ordering + (Host.id.desc(),)
 
     if order_by == "updated":
         if order_how:
@@ -350,9 +372,11 @@ def get_host_list_for_views(
     staleness: list[str] | None,
     registered_with: list[str] | None,
     system_type: list[str] | None,
-    filter: dict | None,
-    fields: dict | None,
-    rbac_filter: dict | None,
+    recommendation_severity: list[str] | None = None,
+    incident_status: str | None = None,
+    filter: dict | None = None,
+    fields: dict | None = None,
+    rbac_filter: dict | None = None,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Get host list for views endpoint with unified sorting support.
@@ -386,6 +410,8 @@ def get_host_list_for_views(
         rbac_filter,
         param_order_by,
         get_current_identity(),
+        recommendation_severity=recommendation_severity,
+        incident_status=incident_status,
     )
 
     # Automatically add LEFT JOIN for app data table if sorting by app field
@@ -884,56 +910,202 @@ def get_host_ids_list(
     return host_list
 
 
+_HOST_EXPORT_COLUMNS: list[ColumnElement] = [
+    Host.id,
+    Host.display_name,
+    Host.host_type,
+    Host.modified_on,
+    Host.created_on,
+    Host.groups,
+    Host.tags,
+    Host.fqdn,
+    Host.subscription_manager_id,
+    Host.satellite_id,
+    Host.last_check_in,
+    Host.bios_uuid,
+    Host.ip_addresses,
+    Host.reporters,
+    Host.per_reporter_staleness,
+]
+
+_STATIC_SP_EXPORT_COLUMNS: list[ColumnElement] = [
+    HostStaticSystemProfile.os_release,
+    HostStaticSystemProfile.satellite_managed,
+    HostStaticSystemProfile.cloud_provider,
+    HostStaticSystemProfile.is_marketplace,
+    HostStaticSystemProfile.operating_system,
+    HostStaticSystemProfile.infrastructure_type,
+    HostStaticSystemProfile.infrastructure_vendor,
+]
+
+_DYNAMIC_SP_EXPORT_COLUMNS: list[ColumnElement] = [
+    HostDynamicSystemProfile.workloads,
+]
+
+_SP_ROW_ATTRS = tuple(col.key for col in _STATIC_SP_EXPORT_COLUMNS + _DYNAMIC_SP_EXPORT_COLUMNS)
+_STATIC_SP_EXPORT_FIELDS = frozenset(col.key for col in _STATIC_SP_EXPORT_COLUMNS)
+_DYNAMIC_SP_EXPORT_FIELDS = frozenset(col.key for col in _DYNAMIC_SP_EXPORT_COLUMNS)
+
+
+def _export_needs_profile_joins(export_fields: list[str], query_filter: dict | None) -> tuple[bool, bool]:
+    """Return (need_static, need_dynamic) joins for the requested export fields and filters."""
+    field_set = set(export_fields)
+    need_static = bool(field_set & _STATIC_SP_EXPORT_FIELDS)
+    need_dynamic = bool(field_set & _DYNAMIC_SP_EXPORT_FIELDS)
+    filter_static, filter_dynamic = _needs_system_profile_joins(query_filter, None)
+    return need_static or filter_static, need_dynamic or filter_dynamic
+
+
+def _app_models_needed_for_filter(query_filter: dict | None) -> list:
+    """App-data tables that must be LEFT JOINed so filter expressions can resolve.
+
+    Export *columns* are fetched with ``_fetch_app_data_batch`` (one IN-list query
+    per requested app). Do not join every hosts_app_data_* table onto the scan.
+    """
+    if not query_filter:
+        return []
+    models = get_app_data_models()
+    return [models[name] for name, spec in query_filter.items() if name in models and spec]
+
+
+def _row_to_export_host(row, labels: list[str]) -> SimpleNamespace:
+    host = SimpleNamespace(**dict.fromkeys(_SP_ROW_ATTRS, None))
+    for name, value in zip(labels, row, strict=True):
+        setattr(host, name, value)
+    return host
+
+
 def get_hosts_to_export(
     identity: Identity,
-    filters: dict | None = None,
     rbac_filter: dict | None = None,
     batch_size: int = 0,
+    query_filter: dict | None = None,
+    host_filter: dict | None = None,
+    export_fields: list[str] | None = None,
+    app_data_fields: dict[str, list[str]] | None = None,
 ) -> Iterator[dict]:
-    if filters is None:
-        filters = {}
+    """Query hosts for export, optionally filtered by a saved view's configuration.
+
+    Args:
+        identity: The authenticated user identity.
+        rbac_filter: RBAC permission filter.
+        batch_size: Number of rows per DB batch (yield_per).
+        query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
+        host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
+        export_fields: Ordered list of flat field names to include in the export.
+            When omitted, uses the legacy hosts-table field set (includes static
+            system-profile fields such as os_release and cloud_provider).
+        app_data_fields: Map of app_name -> [field_names] for app-data columns to fetch.
+
+    Profile columns are selected with an explicit LEFT JOIN on the hosts scan and
+    serialized from the flat row.
+
+    App-data columns are not joined onto that scan. They are loaded afterward in
+    batches. An app table is LEFT JOINed only when a view filter references it.
+    """
+    from app.queue.export_service import _fetch_app_data_batch
+
     if rbac_filter is None:
         rbac_filter = {}
+    if host_filter is None:
+        host_filter = {}
+    if app_data_fields is None:
+        app_data_fields = {}
 
     staleness = get_staleness_obj(identity.org_id)
 
-    q_filters, _ = query_filters(
-        filter=filters, rbac_filter=rbac_filter, staleness=ALL_STALENESS_STATES, identity=identity
-    )
-    columns = [
-        Host.id,
-        Host.display_name,
-        Host.host_type,
-        Host.modified_on,
-        Host.groups,
-        Host.tags,
-        Host.fqdn,
-        Host.subscription_manager_id,
-        Host.satellite_id,
-        Host.last_check_in,
-    ]
+    staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
 
-    export_host_query = (
-        _find_hosts_model_query(identity=identity, columns=columns)
-        .options(
-            joinedload(Host.static_system_profile).load_only(HostStaticSystemProfile.os_release),
-            noload(Host.dynamic_system_profile),
-        )
-        .filter(*q_filters)
+    q_filters, _ = query_filters(
+        filter=query_filter or None,
+        rbac_filter=rbac_filter,
+        staleness=staleness_states,
+        identity=identity,
+        **host_filter,
     )
-    export_host_query = export_host_query.execution_options(yield_per=batch_size)
+
+    resolved_export_fields = export_fields if export_fields is not None else _EXPORT_SERVICE_FIELDS
+    field_set = set(resolved_export_fields)
+    need_static, need_dynamic = _export_needs_profile_joins(resolved_export_fields, query_filter)
+
+    selected_columns: list[ColumnElement] = list(_HOST_EXPORT_COLUMNS)
+    if need_static:
+        selected_columns.extend(col for col in _STATIC_SP_EXPORT_COLUMNS if col.key in field_set)
+    if need_dynamic:
+        selected_columns.extend(col for col in _DYNAMIC_SP_EXPORT_COLUMNS if col.key in field_set)
+
+    labels = [col.key for col in selected_columns if col.key is not None]
+
+    # Entities query + LEFT JOIN (not joinedload / scalars) so profile data is
+    # fetched in the same SELECT as the hosts scan.
+    base_query = _find_hosts_entities_query(identity=identity, columns=selected_columns)
+    if need_static:
+        base_query = base_query.outerjoin(
+            HostStaticSystemProfile,
+            and_(
+                Host.id == HostStaticSystemProfile.host_id,
+                Host.org_id == HostStaticSystemProfile.org_id,
+            ),
+        )
+    if need_dynamic:
+        base_query = base_query.outerjoin(
+            HostDynamicSystemProfile,
+            and_(
+                Host.id == HostDynamicSystemProfile.host_id,
+                Host.org_id == HostDynamicSystemProfile.org_id,
+            ),
+        )
+    for model_class in _app_models_needed_for_filter(query_filter):
+        if not _is_table_already_joined(base_query, model_class):
+            base_query = base_query.outerjoin(
+                model_class,
+                and_(Host.id == model_class.host_id, Host.org_id == model_class.org_id),
+            )
+    base_query = base_query.filter(*q_filters)
+    if batch_size > 0:
+        base_query = base_query.yield_per(batch_size)
+
+    effective_batch_size = batch_size if batch_size > 0 else 500
 
     try:
         exported = 0
-        for host in db.session.scalars(export_host_query):
-            yield serialize_host_for_export_svc(host, staleness=staleness)
-            exported += 1
+        if app_data_fields:
+            batch_hosts: list[tuple[Any, dict]] = []
+            for row in base_query:
+                host_row = _row_to_export_host(row, labels)
+                serialized = serialize_host_row_for_export(
+                    host_row, staleness=staleness, fields=resolved_export_fields
+                )
+                batch_hosts.append((host_row.id, serialized))
+
+                if len(batch_hosts) >= effective_batch_size:
+                    host_ids = [h[0] for h in batch_hosts]
+                    app_data = _fetch_app_data_batch(host_ids, identity.org_id, app_data_fields)
+                    for h_id, host_dict in batch_hosts:
+                        host_dict.update(app_data.get(str(h_id), {}))
+                        yield {field: host_dict.get(field) for field in resolved_export_fields}
+                        exported += 1
+                    batch_hosts = []
+
+            if batch_hosts:
+                host_ids = [h[0] for h in batch_hosts]
+                app_data = _fetch_app_data_batch(host_ids, identity.org_id, app_data_fields)
+                for h_id, host_dict in batch_hosts:
+                    host_dict.update(app_data.get(str(h_id), {}))
+                    yield {field: host_dict.get(field) for field in resolved_export_fields}
+                    exported += 1
+        else:
+            for row in base_query:
+                host_row = _row_to_export_host(row, labels)
+                yield serialize_host_row_for_export(host_row, staleness=staleness, fields=resolved_export_fields)
+                exported += 1
+
         logger.debug(f"Number of hosts exported: {exported}")
 
     except GeneratorExit:
         return
 
-    except SQLAlchemyError as e:  # Most likely ObjectDeletedError, but catching all DB errors
+    except SQLAlchemyError as e:
         raise InventoryException(title="DB Error", detail=str(e)) from e
 
     db.session.close()

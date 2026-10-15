@@ -12,7 +12,9 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import SystemProfileSapSystemOut
+from iqe_host_inventory_api_v7.models.system_profile_sap_system_out import (
+    SystemProfileSapSystemOut,
+)
 
 # TODO update the JSON string below
 json = "{}"
@@ -24,6 +26,8 @@ print(SystemProfileSapSystemOut.to_json())
 # convert the object into a dict
 system_profile_sap_system_out_dict = system_profile_sap_system_out_instance.to_dict()
 # create an instance of SystemProfileSapSystemOut from a dict
-system_profile_sap_system_out_from_dict = SystemProfileSapSystemOut.from_dict(system_profile_sap_system_out_dict)
+system_profile_sap_system_out_from_dict = SystemProfileSapSystemOut.from_dict(
+    system_profile_sap_system_out_dict
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

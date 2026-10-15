@@ -356,6 +356,10 @@ class TestRBACHostsCertAuth:
         """
         group = rbac_setup_resources.groups[0]
         host1, host2 = host_inventory_non_org_admin_cert_auth.upload.create_hosts(2)
+        # Cert auth bypasses Kessel, so we need to do additional waiting to make sure the host is
+        # replicated to Kessel
+        host_inventory.apis.hosts.wait_for_created([host1, host2])
+
         host_inventory.apis.groups.add_hosts_to_group(group, host1)
 
         host_inventory_non_org_admin_cert_auth.apis.hosts.delete_by_id_raw([
@@ -384,6 +388,10 @@ class TestRBACHostsCertAuth:
         host1, host2 = host_inventory_non_org_admin_cert_auth.upload.create_hosts(
             hosts_data=hosts_data
         )
+        # Cert auth bypasses Kessel, so we need to do additional waiting to make sure the host is
+        # replicated to Kessel
+        host_inventory.apis.hosts.wait_for_created([host1, host2])
+
         host_inventory.apis.groups.add_hosts_to_group(group, host1)
 
         host_inventory_non_org_admin_cert_auth.apis.hosts.delete_filtered(display_name=prefix)
@@ -416,6 +424,10 @@ class TestRBACHostsCertAuth:
         """
         group = rbac_setup_resources.groups[0]
         host1, host2 = host_inventory_non_org_admin_cert_auth.upload.create_hosts(2)
+        # Cert auth bypasses Kessel, so we need to do additional waiting to make sure the host is
+        # replicated to Kessel
+        host_inventory.apis.hosts.wait_for_created([host1, host2])
+
         host_inventory.apis.groups.add_hosts_to_group(group, host1)
 
         new_display_name = generate_display_name()

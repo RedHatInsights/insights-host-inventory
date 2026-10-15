@@ -7,6 +7,7 @@ from kessel.inventory.v1beta2 import ClientBuilder
 from kessel.inventory.v1beta2 import allowed_pb2
 from kessel.inventory.v1beta2 import check_bulk_request_pb2
 from kessel.inventory.v1beta2 import check_request_pb2
+from kessel.inventory.v1beta2 import inventory_service_pb2_grpc
 from kessel.inventory.v1beta2 import reporter_reference_pb2
 from kessel.inventory.v1beta2 import resource_reference_pb2
 from kessel.inventory.v1beta2 import subject_reference_pb2
@@ -19,6 +20,7 @@ from app.auth.identity import Identity
 from app.auth.rbac import KesselPermission
 from app.config import Config
 from app.logging import get_logger
+from app.telemetry import instrument_kessel_grpc_channel
 from lib.feature_flags import FLAG_INVENTORY_KESSEL_FORCE_SINGLE_CHECKS_FOR_BULK
 from lib.feature_flags import get_flag_value
 
@@ -59,6 +61,9 @@ class Kessel:
             client_builder = client_builder.insecure()
 
         self.inventory_svc, self.channel = client_builder.build()
+        traced_channel = instrument_kessel_grpc_channel(self.channel, config.kessel_inventory_api_endpoint)
+        if traced_channel is not self.channel:
+            self.inventory_svc = inventory_service_pb2_grpc.KesselInventoryServiceStub(traced_channel)
         self.timeout = getattr(config, "kessel_timeout", 10.0)  # Default 10 second timeout
 
     def _handle_grpc_error(self, e: grpc.RpcError, operation: str) -> bool:

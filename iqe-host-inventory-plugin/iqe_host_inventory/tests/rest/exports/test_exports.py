@@ -11,6 +11,7 @@ from iqe_host_inventory.utils.api_utils import raises_apierror
 from iqe_host_inventory.utils.datagen_utils import generate_display_name
 from iqe_host_inventory.utils.staleness_utils import create_hosts_fresh_stale_stalewarning_culled
 from iqe_host_inventory.utils.upload_utils import get_archive_and_collect_method
+from iqe_host_inventory_api import HostOut
 
 pytestmark = [pytest.mark.backend]
 logger = logging.getLogger(__name__)
@@ -182,42 +183,57 @@ def test_export_hosts_mixed_states(host_inventory: ApplicationHostInventory) -> 
     assert all(host_id not in processed_report for host_id in culled_hosts_ids)
 
 
-@pytest.mark.parametrize("operating_system", ["RHEL", "CentOS Linux"])
-@pytest.mark.parametrize("export_format", ["json", "csv"])
-def test_export_uploaded_hosts(
-    host_inventory: ApplicationHostInventory, operating_system: str, export_format: str
-) -> None:
-    """
-    Almost all export tests will run in the ephemeral environment.  This test
-    is an exception so that we have some basic coverage in Stage and Prod
-    environments.
-
-    IMPORTANT: This test deletes all hosts in the account and shouldn't be run
-    locally when one of the pipelines is running or it will impact the pipeline
-    results.  It could also lead to unexpected results locally if a pipeline
-    test creates hosts in-between the delete_all and the export.
-
-    metadata:
-      assignee: msager
-      importance: high
-      title: Upload hosts and export them via POST /exports request
-    """
+@pytest.fixture(scope="class")
+def upload_export_resources(host_inventory: ApplicationHostInventory) -> list[HostOut]:
     host_inventory.apis.hosts.confirm_delete_all()
 
-    group = host_inventory.apis.groups.create_group(generate_display_name())
-
-    base_archive, core_collect = get_archive_and_collect_method(operating_system)
+    base_archive, core_collect = get_archive_and_collect_method("RHEL")
     hosts_data = [HostData(base_archive=base_archive, core_collect=core_collect) for _ in range(3)]
-    hosts = host_inventory.upload.create_hosts(hosts_data=hosts_data)
-    host_inventory.apis.groups.add_hosts_to_group(group=group, hosts=hosts)
+
+    base_archive, core_collect = get_archive_and_collect_method("CentOS Linux")
+    hosts_data += [
+        HostData(base_archive=base_archive, core_collect=core_collect) for _ in range(3)
+    ]
+
+    hosts = host_inventory.upload.create_hosts(hosts_data=hosts_data, cleanup_scope="class")
+    host_inventory.apis.groups.create_group(
+        generate_display_name(), hosts=hosts, cleanup_scope="class"
+    )
 
     # Need to retrieve the hosts again since host.updated will change after
     # hosts are added to a group:
     #     https://issues.redhat.com/browse/RHINENG-11171
     hosts = host_inventory.apis.hosts.get_hosts_by_id(hosts)
 
-    report = host_inventory.apis.exports.export_hosts(format=export_format)
-    host_inventory.apis.exports.validate_export_report(hosts, report, format=export_format)
+    return hosts
+
+
+class TestExportUploadedHosts:
+    @pytest.mark.parametrize("export_format", ["json", "csv"])
+    def test_export_uploaded_hosts(
+        self,
+        host_inventory: ApplicationHostInventory,
+        upload_export_resources: list[HostOut],
+        export_format: str,
+    ) -> None:
+        """
+        Almost all export tests will run in the ephemeral environment.  This test
+        is an exception so that we have some basic coverage in Stage and Prod
+        environments.
+
+        IMPORTANT: This test deletes all hosts in the account and shouldn't be run
+        locally when one of the pipelines is running or it will impact the pipeline
+        results.  It could also lead to unexpected results locally if a pipeline
+        test creates hosts in-between the delete_all and the export.
+
+        metadata:
+          assignee: msager
+          importance: high
+          title: Upload hosts and export them via POST /exports request
+        """
+        hosts = upload_export_resources
+        report = host_inventory.apis.exports.export_hosts(format=export_format)
+        host_inventory.apis.exports.validate_export_report(hosts, report, format=export_format)
 
 
 @pytest.mark.parametrize("export_format", ["json", "csv"])

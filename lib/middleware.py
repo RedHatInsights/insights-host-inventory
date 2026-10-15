@@ -7,7 +7,6 @@ from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
-from app_common_python import LoadedConfig
 from flask import abort
 from flask import current_app
 from flask import g
@@ -16,6 +15,7 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 from urllib3.util.retry import Retry
+from werkzeug.exceptions import HTTPException
 
 from api.metrics import outbound_http_response_time
 from app import IDENTITY_HEADER
@@ -38,6 +38,7 @@ from app.logging import get_logger
 from app.logging import threadctx
 from lib.feature_flags import FLAG_HBI_INVENTORY_VIEWS_RBAC
 from lib.feature_flags import FLAG_INVENTORY_API_READ_ONLY
+from lib.feature_flags import FLAG_RBAC_V2
 from lib.feature_flags import FLAG_RBAC_WORKSPACES
 from lib.feature_flags import get_flag_value
 from lib.kessel import get_kessel_client
@@ -50,7 +51,7 @@ RBAC_V2_ROUTE = "/api/rbac/v2/"
 RBAC_PRIVATE_UNGROUPED_ROUTE = "/_private/_s2s/workspaces/ungrouped/"
 CHECKED_TYPES = [IdentityType.USER, IdentityType.SERVICE_ACCOUNT]
 RETRY_STATUSES = [500, 502, 503, 504]
-HIDE_WORKSPACE_TYPES = ["root", "default"]
+VISIBLE_WORKSPACE_TYPES = "ungrouped-hosts,standard,default"
 RESOURCE_TYPES_V2_ERROR_MESSAGE = (
     "The resource_types endpoints are only used for RBAC v1, and are not allowed for RBAC v2."
 )
@@ -145,7 +146,15 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
 
     # We're using the same auth as we do for kessel
     # verify it's enabled before using
-    if config.kessel_auth_enabled:
+    # The endpoint's `authenticated` flag forces kessel-sdk auth. Otherwise the preexisting
+    # behavior is untouched: kessel when enabled, PSK fallback for dev/ephemeral environments.
+    #
+    # This attaches the bearer for `authenticated` itself (not only `kessel_auth_enabled`), even
+    # though the transport block in _execute_rbac_http_request would also do so, on purpose:
+    # keeping the condition here makes this builder correct standalone and guarantees the PSK is
+    # never emitted alongside a bearer. Narrowing this to just `kessel_auth_enabled` would let the
+    # `else` attach a PSK while the transport block adds a bearer, sending both credentials.
+    if config.rbac_endpoint_authenticated or config.kessel_auth_enabled:
         access_token = _get_rbac_access_token()
         headers["Authorization"] = f"Bearer {access_token}"
     else:
@@ -186,19 +195,32 @@ def _execute_rbac_http_request(  # type: ignore[return]
     Returns:
         Parsed JSON response data from the RBAC endpoint
     """
+    config = inventory_config()
     request_session = Session()
-    retry_config = Retry(total=inventory_config().rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
+    retry_config = Retry(total=config.rbac_retries, backoff_factor=1, status_forcelist=RETRY_STATUSES)
     request_session.mount(rbac_endpoint, HTTPAdapter(max_retries=retry_config))
-    timeout = inventory_config().rbac_timeout
 
     try:
+        # Transport auth is enforced here, at the single choke point every RBAC request funnels through,
+        # rather than in the header builders. Most callers build headers with _build_rbac_request_headers()
+        # (user-identity forwarding), which does not attach an Authorization header, so this is the only
+        # place those requests get a bearer token when the endpoint requires one. Service-to-service calls
+        # that already set Authorization via _build_rbac_auth_request_headers() are skipped by the guard.
+        if config.rbac_endpoint_authenticated and "Authorization" not in request_headers:
+            try:
+                access_token = _get_rbac_access_token()
+                request_headers["Authorization"] = f"Bearer {access_token}"
+            except Exception:
+                logger.exception("Failed to get OAuth2 token for authenticated RBAC endpoint")
+                abort(503, "Failed to authenticate with RBAC endpoint")
+
         with outbound_http_response_time.labels("rbac").time():
             # Build common parameters shared by all HTTP methods
             common_kwargs = {
                 "url": rbac_endpoint,
                 "headers": request_headers,
-                "timeout": timeout,
-                "verify": LoadedConfig.tlsCAPath,
+                "timeout": config.rbac_timeout,
+                "verify": config.rbac_endpoint_ca_certificate or True,
             }
 
             # Add method-specific parameters
@@ -216,6 +238,8 @@ def _execute_rbac_http_request(  # type: ignore[return]
 
             rbac_response.raise_for_status()
             return rbac_response.json() if rbac_response.text else None
+    except HTTPException:
+        raise
     except HTTPError as e:
         status_code = e.response.status_code
         if status_code == 404 and skip_not_found:
@@ -566,13 +590,18 @@ def rbac(resource_type: RbacResourceType, required_permission: RbacPermission, p
             # In RBAC v2, authorization is handled by workspace API calls within the endpoint
             # (but identity type check above still applies - cert auth is always denied for groups)
             is_v2 = is_rbac_v2_enabled(current_identity.org_id)
+            rbac_workspaces_enabled = get_flag_value(FLAG_RBAC_WORKSPACES, current_identity.org_id)
 
             if resource_type == RbacResourceType.GROUPS and is_v2:
                 return func(*args, **kwargs)
 
             # Resource-types endpoints are not supported for v2 orgs.
             # In v2, resource-types are managed via RBAC v2 Role Bindings.
-            if resource_type == RbacResourceType.ALL and is_v2:
+            if (
+                resource_type == RbacResourceType.ALL
+                and rbac_workspaces_enabled
+                and not inventory_config().bypass_kessel
+            ):
                 abort(HTTPStatus.BAD_REQUEST, RESOURCE_TYPES_V2_ERROR_MESSAGE)
 
             # RBAC v1 path: Check permissions via RBAC v1 API
@@ -756,7 +785,7 @@ def _get_allowed_app_services_v2(identity, app_models: dict) -> set[str]:
     return allowed
 
 
-def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
+def _get_allowed_app_services_v1(app_models: dict, rbac_request_headers: dict | None = None) -> set[str]:
     """RBAC v1 path: single multi-app call to the RBAC service."""
     v1_apps: set[str] = set()
     for model in app_models.values():
@@ -767,7 +796,8 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     if not v1_apps:
         return set()
 
-    rbac_request_headers = _build_rbac_request_headers()
+    if rbac_request_headers is None:
+        rbac_request_headers = _build_rbac_request_headers()
     rbac_data = get_rbac_permissions(",".join(sorted(v1_apps)), rbac_request_headers)
 
     user_permissions = [p["permission"] for p in rbac_data]
@@ -783,17 +813,21 @@ def _get_allowed_app_services_v1(app_models: dict) -> set[str]:
     return allowed
 
 
-def _should_bypass_app_service_rbac() -> bool:
+def _should_bypass_app_service_rbac(identity: Identity | None = None) -> bool:
     if inventory_config().bypass_rbac:
         return True
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
     if identity.identity_type not in CHECKED_TYPES:
         return True
     return not get_flag_value(FLAG_HBI_INVENTORY_VIEWS_RBAC, identity.org_id)
 
 
-def get_allowed_app_services() -> set[str] | None:
-    """Determine which app_data services the current user can access.
+def get_allowed_app_services(
+    identity: Identity | None = None,
+    rbac_request_headers: dict | None = None,
+) -> set[str] | None:
+    """Determine which app_data services the current or given user can access.
 
     Reads permission requirements from each app_data model's __v1_read_permission__
     and __kessel_relation__ attributes. Models without these attributes are
@@ -804,17 +838,18 @@ def get_allowed_app_services() -> set[str] | None:
     """
     from app.models.host_app_data import get_app_data_models
 
-    if _should_bypass_app_service_rbac():
+    if _should_bypass_app_service_rbac(identity):
         return None
 
-    identity = get_current_identity()
+    if identity is None:
+        identity = get_current_identity()
 
     app_models = get_app_data_models()
 
     if is_rbac_v2_enabled(identity.org_id):
         return _get_allowed_app_services_v2(identity, app_models)
 
-    return _get_allowed_app_services_v1(app_models)
+    return _get_allowed_app_services_v1(app_models, rbac_request_headers=rbac_request_headers)
 
 
 def is_rbac_v2_enabled(org_id: str) -> bool:
@@ -833,7 +868,7 @@ def is_rbac_v2_enabled(org_id: str) -> bool:
     Returns:
         True if RBAC v2 should be used, False if RBAC v1 should be used
     """
-    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_WORKSPACES, org_id)
+    return (not inventory_config().bypass_kessel) and get_flag_value(FLAG_RBAC_V2, org_id)
 
 
 def rbac_group_id_check(rbac_filter: dict, requested_ids: set) -> None:
@@ -967,10 +1002,10 @@ def get_rbac_workspaces(
         name: Filter by workspace name (partial match)
         page: int,
         per_page: Items per page
-        group_type: Filter by workspace type
-            - standard: User-created groups (default)
+        group_type: Filter by workspace type (API spec defaults to "standard")
+            - standard: User-created groups
             - ungrouped-hosts: Ungrouped hosts workspace
-            - all: All workspace types (includes standard, ungrouped-hosts, root, default)
+            - all: All visible workspace types (standard, ungrouped-hosts, default)
         order_by: Sort field - supported values: 'id', 'name', 'created', 'modified', 'type'
         order_how: Sort direction ('ASC' or 'DESC')
 
@@ -987,6 +1022,12 @@ def get_rbac_workspaces(
         RBAC v2 filtering: This function queries the RBAC v2 workspace API using the
         user's identity header. The RBAC v2 service automatically filters results based
         on the user's permissions, so no additional client-side filtering is needed.
+
+        Type filtering: When group_type is "all", we request VISIBLE_WORKSPACE_TYPES from
+        RBAC (ungrouped-hosts, standard, default) rather than requesting all types and
+        post-filtering. This avoids pagination issues and simplifies the logic.
+        VISIBLE_WORKSPACE_TYPES is a fixed set; update it if RBAC introduces new
+        workspace types that should be user-visible.
     """
     if inventory_config().bypass_rbac:
         # When RBAC is bypassed (e.g., in test environments), return empty results
@@ -999,14 +1040,12 @@ def get_rbac_workspaces(
     if name:
         query_params["name"] = name
     if group_type:
-        query_params["type"] = group_type
+        query_params["type"] = VISIBLE_WORKSPACE_TYPES if group_type == "all" else group_type
     if page and per_page:
         # Convert page to offset (page is 1-based, offset is 0-based)
         offset = (page - 1) * per_page
         query_params["offset"] = str(offset)
-        # Add to the limit if group_type is "all", in case we need to strip out root and default workspaces
-        limit = per_page + len(HIDE_WORKSPACE_TYPES) if group_type == "all" else per_page
-        query_params["limit"] = str(limit)
+        query_params["limit"] = str(per_page)
 
     if order_by and order_by != "host_count":
         # Map API field names to RBAC v2 workspace API field names
@@ -1048,11 +1087,6 @@ def get_rbac_workspaces(
         abort(HTTPStatus.SERVICE_UNAVAILABLE, error_msg)
 
     count = response.get("meta", {}).get("count", 0)
-
-    # If group_type is "all", account for root and default workspaces
-    if group_type == "all":
-        data = [ws for ws in data if ws["type"] not in HIDE_WORKSPACE_TYPES]
-        count -= len(HIDE_WORKSPACE_TYPES)
 
     data = data[:per_page]
 

@@ -58,6 +58,7 @@ _COLLECTION_PARAMS = (
     "tags",
     "registered_with",
     "system_type",
+    "recommendation_severity",
 )
 
 

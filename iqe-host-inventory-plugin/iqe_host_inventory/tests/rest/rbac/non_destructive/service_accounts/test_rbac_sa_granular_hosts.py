@@ -1,6 +1,7 @@
 # mypy: disallow-untyped-defs
 
 import logging
+from time import sleep
 
 import pytest
 
@@ -86,6 +87,9 @@ class TestRBACSAGranularHosts:
         correct_group = rbac_setup_resources.groups[0]
         host = host_inventory.upload.create_host()
         host_inventory.apis.groups.add_hosts_to_group(correct_group, host)
+
+        # Wait for HBI -> Kessel sync (host reassignment)
+        sleep(3)
 
         host_inventory_sa_2.apis.hosts.delete_by_id_raw(host)
         host_inventory.apis.hosts.wait_for_deleted(host)

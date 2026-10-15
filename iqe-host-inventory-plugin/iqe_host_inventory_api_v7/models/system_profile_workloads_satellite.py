@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import pprint
-import re  # ruff: ignore[unused-import]
+import re
 from typing import Annotated
 from typing import Any
 from typing import ClassVar
@@ -25,6 +25,8 @@ from pydantic import Field
 from pydantic import StrictStr
 from pydantic import field_validator
 
+from iqe_host_inventory_api_v7.models.container import Container
+
 
 class SystemProfileWorkloadsSatellite(BaseModel):
     """
@@ -35,10 +37,14 @@ class SystemProfileWorkloadsSatellite(BaseModel):
         default=None, description="Whether this system is a Satellite Server or Capsule"
     )
     version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
-        default=None, description="The Satellite or Capsule version"
+        default=None, description="The installed satellite or satellite-capsule RPM version"
     )
+    foremanctl_version: Annotated[str, Field(strict=True, max_length=30)] | None = Field(
+        default=None, description="The installed foremanctl RPM version"
+    )
+    containers: list[Container] | None = None
     additional_properties: dict[str, Any] = {}
-    __properties: ClassVar[list[str]] = ["type", "version"]
+    __properties: ClassVar[list[str]] = ["type", "version", "foremanctl_version", "containers"]
 
     @field_validator("type")
     def type_validate_enum(cls, value):
@@ -48,6 +54,16 @@ class SystemProfileWorkloadsSatellite(BaseModel):
 
         if value not in {"server", "capsule"}:
             raise ValueError("must be one of enum values ('server', 'capsule')")
+        return value
+
+    @field_validator("foremanctl_version")
+    def foremanctl_version_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+
+        if not re.match(r"^\d+(\.\d+)+$", value):
+            raise ValueError(r"must validate the regular expression /^\d+(\.\d+)+$/")
         return value
 
     model_config = ConfigDict(
@@ -90,6 +106,13 @@ class SystemProfileWorkloadsSatellite(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in containers (list)
+        _items = []
+        if self.containers:
+            for _item in self.containers:
+                if _item:
+                    _items.append(_item.to_dict())
+            _dict["containers"] = _items
         # puts key-value pairs in additional_properties in the top level
         if self.additional_properties is not None:
             for _key, _value in self.additional_properties.items():
@@ -106,7 +129,14 @@ class SystemProfileWorkloadsSatellite(BaseModel):
         if not isinstance(obj, dict):
             return cls.model_validate(obj)
 
-        _obj = cls.model_validate({"type": obj.get("type"), "version": obj.get("version")})
+        _obj = cls.model_validate({
+            "type": obj.get("type"),
+            "version": obj.get("version"),
+            "foremanctl_version": obj.get("foremanctl_version"),
+            "containers": [Container.from_dict(_item) for _item in obj["containers"]]
+            if obj.get("containers") is not None
+            else None,
+        })
         # store additional fields in additional_properties
         for _key in obj.keys():
             if _key not in cls.__properties:

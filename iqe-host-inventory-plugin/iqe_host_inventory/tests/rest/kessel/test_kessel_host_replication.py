@@ -9,6 +9,7 @@ import pytest
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.kessel_relations import EPHEMERAL_ENVS
 from iqe_host_inventory.modeling.kessel_relations import HBIKesselRelationsGRPC
+from iqe_host_inventory.modeling.uploads import HostData
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.modeling.wrappers import KesselOutboxWrapper
 from iqe_host_inventory.tests.db.test_host_reaper import execute_reaper
@@ -320,6 +321,10 @@ def test_kessel_repl_delete_hosts_by_id(
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
 
+    if host_inventory.application.config.current_env.lower() != "clowder_smoke":
+        logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+        sleep(10)
+
     host_inventory.apis.hosts.delete_by_id(hosts[:host_count])
 
     for host in hosts[:host_count]:
@@ -331,7 +336,6 @@ def test_kessel_repl_delete_hosts_by_id(
         )
 
 
-@pytest.mark.ephemeral
 @pytest.mark.parametrize("host_count", [1, 3])
 def test_kessel_repl_delete_hosts_by_filter(
     host_inventory: ApplicationHostInventory,
@@ -346,20 +350,22 @@ def test_kessel_repl_delete_hosts_by_filter(
       importance: high
       title: Verify that deleted hosts by filter are reflected in Kessel
     """
-    hosts_data = host_inventory.datagen.create_n_hosts_data(3)
+    hosts_data = [HostData(display_name=generate_display_name()) for _ in range(3)]
     if host_count > 1:
         for host_data in hosts_data[1:]:
-            host_data["display_name"] = hosts_data[0]["display_name"]
-    hosts = host_inventory.kafka.create_hosts(
-        hosts_data=hosts_data, field_to_match=HostWrapper.subscription_manager_id
-    )
+            host_data.display_name = hosts_data[0].display_name
+    hosts = host_inventory.upload.create_hosts(hosts_data=hosts_data)
 
     ungrouped_group = host_inventory.apis.groups.get_groups(group_type="ungrouped-hosts")[0]
 
     for host in hosts:
         hbi_kessel_relations_grpc.verify_created_or_updated(host, ungrouped_group)
 
-    host_inventory.apis.hosts.delete_filtered(display_name=hosts_data[0]["display_name"])
+    if host_inventory.application.config.current_env.lower() != "clowder_smoke":
+        logger.info("Waiting 10 seconds to work around hosts availability flapping issue")
+        sleep(10)
+
+    host_inventory.apis.hosts.delete_filtered(display_name=hosts_data[0].display_name)
 
     for host in hosts[:host_count]:
         hbi_kessel_relations_grpc.verify_deleted(host)

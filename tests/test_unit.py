@@ -29,6 +29,8 @@ from api.parsing import customURIParser
 from app import SPECIFICATION_FILE
 from app import V2_SPECIFICATION_FILE
 from app import create_app
+from app.auth.forwarded_identity import FORWARDED_IDENTITY_HEADER
+from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import SHARED_SECRET_ENV_VAR
 from app.auth.identity import Identity
 from app.auth.identity import from_auth_header
@@ -41,6 +43,7 @@ from app.culling import CONVENTIONAL_TIME_TO_STALE_WARNING_SECONDS
 from app.culling import Conditions
 from app.environment import RuntimeEnvironment
 from app.exceptions import InputFormatException
+from app.exceptions import InventoryException
 from app.exceptions import ValidationException
 from app.logging import threadctx
 from app.models import Host
@@ -73,6 +76,7 @@ from lib import host_kafka
 from tests.helpers.system_profile_utils import INVALID_SYSTEM_PROFILES
 from tests.helpers.system_profile_utils import mock_system_profile_specification
 from tests.helpers.system_profile_utils import system_profile_specification
+from tests.helpers.test_utils import SATELLITE_IDENTITY
 from tests.helpers.test_utils import SERVICE_ACCOUNT_IDENTITY
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import USER_IDENTITY
@@ -195,6 +199,36 @@ def test_invalid_format_auth_identity_from_auth_header():
 
     with pytest.raises(KeyError):
         from_auth_header(base64)
+
+
+MALFORMED_FORWARDED_IDENTITIES = ("not-a-uuid", "abcdef", "123", "0.0")
+FORWARDED_SUBMAN_ID = generate_uuid()
+
+
+def test_get_satellite_forwarded_identity_returns_none_for_non_satellite_identity() -> None:
+    identity = Identity(SYSTEM_IDENTITY)
+    assert get_satellite_forwarded_identity(identity) is None
+
+
+def test_get_satellite_forwarded_identity_returns_none_without_header(flask_app) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context():
+        assert get_satellite_forwarded_identity(identity) is None
+
+
+def test_get_satellite_forwarded_identity_returns_uuid(flask_app) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context(headers={FORWARDED_IDENTITY_HEADER: FORWARDED_SUBMAN_ID}):
+        assert get_satellite_forwarded_identity(identity) == FORWARDED_SUBMAN_ID
+
+
+@pytest.mark.parametrize("invalid_uuid", MALFORMED_FORWARDED_IDENTITIES)
+def test_get_satellite_forwarded_identity_rejects_malformed_header(flask_app, invalid_uuid: str) -> None:
+    identity = Identity(SATELLITE_IDENTITY)
+    with flask_app.app.test_request_context(headers={FORWARDED_IDENTITY_HEADER: invalid_uuid}):
+        with pytest.raises(InventoryException) as exc_info:
+            get_satellite_forwarded_identity(identity)
+        assert exc_info.value.status == 403
 
 
 def test_valid_auth_identity_validate():
@@ -394,7 +428,7 @@ def test_configuration_with_env_vars():
     with set_environment(new_env):
         conf = _config()
 
-    assert conf.db_uri == "postgresql://fredflintstone:bedrock1234@localhost:5432/SlateRockAndGravel"
+    assert conf.db_uri == "postgresql+psycopg2://fredflintstone:bedrock1234@localhost:5432/SlateRockAndGravel"
     assert conf.db_pool_timeout == 3
     assert conf.db_pool_size == 8
     assert conf.api_url_path_prefix == expected_api_path
@@ -411,7 +445,7 @@ def test_config_default_settings():
     with set_environment(None):
         conf = _config()
 
-    assert conf.db_uri == "postgresql://insights:insights@localhost:5432/insights"
+    assert conf.db_uri == "postgresql+psycopg2://insights:insights@localhost:5432/insights"
     assert conf.api_url_path_prefix == expected_api_path
     assert conf.mgmt_url_path_prefix == expected_mgmt_url_path_prefix
     assert conf.db_pool_timeout == 5
@@ -488,7 +522,6 @@ def test_kafka_producer_defaults(subtests):
         "return_value.mgmt_url_path_prefix": "/",
         "return_value.api_url_path_prefix": ADMIN_HOSTS_URL_PATH.removesuffix(ADMIN_HOSTS_ROUTE),
         "return_value.unleash_token": "",
-        "return_value.api_cache_max_thread_pool_workers": 5,
     },
 )
 def test_config_is_assigned_create_app_config(config):
@@ -689,6 +722,21 @@ def test_all_parts_tag_from_string():
     assert Tag.from_string("NS/key=value") == Tag("NS", "key", "value")
 
 
+@pytest.mark.parametrize(
+    "string_tag,expected",
+    [
+        ("NS/key=my/value", Tag("NS", "key", "my/value")),
+        ("key=my/value", Tag(None, "key", "my/value")),
+        ("NS/key=my/nested/value", Tag("NS", "key", "my/nested/value")),
+        ("/key=my/value", Tag(None, "key", "my/value")),
+        ("NS/my/key=my/nested/value", Tag("NS", "my/key", "my/nested/value")),
+        ("NS/key=my/value/", Tag("NS", "key", "my/value/")),
+    ],
+)
+def test_slash_in_value_tag_from_string(string_tag, expected):
+    assert Tag.from_string(string_tag) == expected
+
+
 def test_no_namespace_tag_from_string():
     assert Tag.from_string("key=value") == Tag(None, "key", "value")
 
@@ -699,6 +747,22 @@ def test_no_value_tag_from_string():
 
 def test_only_key_tag_from_string():
     assert Tag.from_string("key") == Tag(None, "key", None)
+
+
+@pytest.mark.parametrize(
+    "string_tag,expected",
+    [
+        ("/my/key=myvalue", Tag(None, "my/key", "myvalue")),
+        ("/key=value", Tag(None, "key", "value")),
+        ("/key", Tag(None, "key", None)),
+        ("/my/nested/path/key=myvalue", Tag(None, "my/nested/path/key", "myvalue")),
+        ("/my/nested/path/key", Tag(None, "my/nested/path/key", None)),
+        ("null/my/key=myvalue", Tag(None, "my/key", "myvalue")),
+        ("null/my/key", Tag(None, "my/key", None)),
+    ],
+)
+def test_empty_or_null_namespace_tag_from_string(string_tag, expected):
+    assert Tag.from_string(string_tag) == expected
 
 
 def test_special_characters_decode_tag_from_string():

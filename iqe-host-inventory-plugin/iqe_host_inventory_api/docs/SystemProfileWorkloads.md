@@ -4,7 +4,7 @@ Object containing information about system workloads
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**ansible** | [**SystemProfileAnsible**](SystemProfileAnsible.md) |  | [optional]
+**ansible** | [**SystemProfileWorkloadsAnsible**](SystemProfileWorkloadsAnsible.md) |  | [optional]
 **crowdstrike** | [**SystemProfileThirdPartyServicesCrowdstrike**](SystemProfileThirdPartyServicesCrowdstrike.md) |  | [optional]
 **ibm_db2** | [**SystemProfileWorkloadsIbmDb2**](SystemProfileWorkloadsIbmDb2.md) |  | [optional]
 **intersystems** | [**SystemProfileIntersystems**](SystemProfileIntersystems.md) |  | [optional]

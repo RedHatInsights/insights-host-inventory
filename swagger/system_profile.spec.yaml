@@ -217,6 +217,19 @@ $defs:
         example:  "2023.1, 2023.2"
         maxLength: 7
         pattern: '^\d+(\.\d+)+$'
+  Container:
+    description: A container on the system
+    type: object
+    properties:
+      name:
+        type: string
+        maxLength: 255
+      image:
+        type: string
+        maxLength: 255
+      state:
+        type: string
+        maxLength: 30
   SystemProfile:
     title: SystemProfile
     description: Representation of the system profile fields
@@ -645,61 +658,65 @@ $defs:
         type: object
         properties:
           controller_version:
-            description: The ansible-tower or automation-controller version on the host
+            description: The installed ansible-tower or automation-controller RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           hub_version:
-            description: The automation-hub version on the host
+            description: The installed automation-hub RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           catalog_worker_version:
-            description: The catalog-worker version on the host
+            description: The installed catalog-worker RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           sso_version:
-            description: The SSO version on the host
+            description: The installed SSO RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           receptor_version:
-            description: The receptor version on the host
+            description: The installed receptor RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           runner_version:
-            description: The ansible-runner version on the host
+            description: The installed ansible-runner RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           eda_controller_version:
-            description: The EDA controller version on the host
+            description: The installed automation-eda-controller RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
           gateway_version:
-            description: The automation gateway version on the host
+            description: The installed automation-gateway RPM version
             type: string
             example:  '1.2.3, 4.5.6, 7.8.9'
             maxLength: 30
             pattern: '^\d+(\.\d+)+$'
             x-wildcard: true
+          containers:
+            type: array
+            items:
+              $ref: '#/$defs/Container'
       intersystems:
         description: Object containing data specific to InterSystems workload
         type: object
@@ -919,61 +936,65 @@ $defs:
             type: object
             properties:
               controller_version:
-                description: The ansible-tower or automation-controller version on the host
+                description: The installed ansible-tower or automation-controller RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               hub_version:
-                description: The automation-hub version on the host
+                description: The installed automation-hub RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               catalog_worker_version:
-                description: The catalog-worker version on the host
+                description: The installed catalog-worker RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               sso_version:
-                description: The SSO version on the host
+                description: The installed SSO RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               receptor_version:
-                description: The receptor version on the host
+                description: The installed receptor RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               runner_version:
-                description: The ansible-runner version on the host
+                description: The installed ansible-runner RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               eda_controller_version:
-                description: The EDA controller version on the host
+                description: The installed automation-eda-controller RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
               gateway_version:
-                description: The automation gateway version on the host
+                description: The installed automation-gateway RPM version
                 type: string
                 example:  '1.2.3, 4.5.6, 7.8.9'
                 maxLength: 30
                 pattern: '^\d+(\.\d+)+$'
                 x-wildcard: true
+              containers:
+                type: array
+                items:
+                  $ref: '#/$defs/Container'
           crowdstrike:
             description: Object containing information about CrowdStrike system facts
             type: object
@@ -1096,11 +1117,21 @@ $defs:
                   - capsule
                 example: "server"
               version:
-                description: The Satellite or Capsule version
+                description: The installed satellite or satellite-capsule RPM version
                 type: string
                 example: "6.19.0"
                 maxLength: 30
                 x-wildcard: true
+              foremanctl_version:
+                description: The installed foremanctl RPM version
+                type: string
+                maxLength: 30
+                pattern: '^\d+(\.\d+)+$'
+                x-wildcard: true
+              containers:
+                type: array
+                items:
+                  $ref: '#/$defs/Container'
           sap:
             description: Object containing data specific to the SAP workload
             type: object

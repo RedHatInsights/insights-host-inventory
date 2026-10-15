@@ -210,7 +210,7 @@ class TestRBACGroupsWritePermission:
 
         @request.addfinalizer
         def cleanup() -> None:
-            # The class cleanup deletes the group first, then the host is immediately deleted.
+            # The function cleanup deletes the group first, then the host is immediately deleted.
             # However, there is a small window when the host doesn't belong to any group in Kessel,
             # so the host deletion fails. If we remove the host from group, it will be part of the
             # ungrouped_hosts group and it will work fine.

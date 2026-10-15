@@ -14,18 +14,28 @@ Name | Type | Description | Notes
 ## Example
 
 ```python
-from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai_gpu_models_inner import SystemProfileWorkloadsRhelAiGpuModelsInner
+from iqe_host_inventory_api_v7.models.system_profile_workloads_rhel_ai_gpu_models_inner import (
+    SystemProfileWorkloadsRhelAiGpuModelsInner,
+)
 
 # TODO update the JSON string below
 json = "{}"
 # create an instance of SystemProfileWorkloadsRhelAiGpuModelsInner from a JSON string
-system_profile_workloads_rhel_ai_gpu_models_inner_instance = SystemProfileWorkloadsRhelAiGpuModelsInner.from_json(json)
+system_profile_workloads_rhel_ai_gpu_models_inner_instance = (
+    SystemProfileWorkloadsRhelAiGpuModelsInner.from_json(json)
+)
 # print the JSON string representation of the object
 print(SystemProfileWorkloadsRhelAiGpuModelsInner.to_json())
 
 # convert the object into a dict
-system_profile_workloads_rhel_ai_gpu_models_inner_dict = system_profile_workloads_rhel_ai_gpu_models_inner_instance.to_dict()
+system_profile_workloads_rhel_ai_gpu_models_inner_dict = (
+    system_profile_workloads_rhel_ai_gpu_models_inner_instance.to_dict()
+)
 # create an instance of SystemProfileWorkloadsRhelAiGpuModelsInner from a dict
-system_profile_workloads_rhel_ai_gpu_models_inner_from_dict = SystemProfileWorkloadsRhelAiGpuModelsInner.from_dict(system_profile_workloads_rhel_ai_gpu_models_inner_dict)
+system_profile_workloads_rhel_ai_gpu_models_inner_from_dict = (
+    SystemProfileWorkloadsRhelAiGpuModelsInner.from_dict(
+        system_profile_workloads_rhel_ai_gpu_models_inner_dict
+    )
+)
 ```
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
