@@ -48,6 +48,14 @@ def _validate_filter_authorization(filter_, allowed_apps, known_apps):
         flask.abort(HTTPStatus.FORBIDDEN, f"Insufficient permissions to filter by {denied_filters}")
 
 
+def _validate_advisor_filter_authorization(recommendation_severity, incident_status, allowed_apps):
+    """Reject advisor host filters when the user lacks advisor read permission."""
+    if allowed_apps is None:
+        return
+    if (recommendation_severity or incident_status) and "advisor" not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by advisor")
+
+
 def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
     """
     Parse sparse fields parameter into {app_name: [fields] or None for all}.
@@ -189,6 +197,8 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     tags=None,
     registered_with=None,
     system_type=None,
+    recommendation_severity=None,
+    incident_status=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -225,6 +235,7 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     known_apps = set(get_app_data_models().keys())
     _validate_sort_authorization(order_by, allowed_apps)
     _validate_filter_authorization(filter, allowed_apps, known_apps)
+    _validate_advisor_filter_authorization(recommendation_severity, incident_status, allowed_apps)
 
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
@@ -252,6 +263,8 @@ def get_host_views(  # noqa: PLR0913, PLR0917
             staleness=staleness,
             registered_with=registered_with,
             system_type=system_type,
+            recommendation_severity=recommendation_severity,
+            incident_status=incident_status,
             filter=filter,
             fields=sp_fields,
             rbac_filter=rbac_filter,
