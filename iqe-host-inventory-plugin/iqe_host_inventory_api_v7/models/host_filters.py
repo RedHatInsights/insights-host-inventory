@@ -59,6 +59,12 @@ class HostFilters(BaseModel):
         default=None, description="End of last-modified date range (ISO 8601)."
     )
     system_type: list[StrictStr] | None = Field(default=None, description="Filter by system type.")
+    recommendation_severity: list[StrictStr] | None = Field(
+        default=None, description="Filter by Advisor recommendation severity (OR logic)."
+    )
+    incident_status: StrictStr | None = Field(
+        default=None, description="Filter by Advisor incident status."
+    )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
         "staleness",
@@ -70,6 +76,8 @@ class HostFilters(BaseModel):
         "updated_start",
         "updated_end",
         "system_type",
+        "recommendation_severity",
+        "incident_status",
     ]
 
     @field_validator("staleness")
@@ -96,6 +104,29 @@ class HostFilters(BaseModel):
                 raise ValueError(
                     "each list item must be one of ('conventional', 'bootc', 'edge', 'cluster')"
                 )
+        return value
+
+    @field_validator("recommendation_severity")
+    def recommendation_severity_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        for i in value:
+            if i not in {"critical", "important", "moderate", "low"}:
+                raise ValueError(
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                )
+        return value
+
+    @field_validator("incident_status")
+    def incident_status_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in {"incident", "no_incident"}:
+            raise ValueError("must be one of ('incident', 'no_incident')")
         return value
 
     model_config = ConfigDict(
