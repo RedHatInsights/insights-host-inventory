@@ -41,6 +41,7 @@ from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_states import CANONICAL_STATES
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
 
@@ -304,10 +305,13 @@ def _staleness_filter(staleness: list[str], org_id: str) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters(staleness_obj)
     if staleness == ["unknown"]:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
-        filters = [not_(host_staleness_states_filters.culled())]
-    else:
-        filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
-    return [or_(*filters)]
+        return [not_(host_staleness_states_filters.culled())]
+
+    recognized_states = [state for state in staleness if state != "unknown"]
+    if staleness and not recognized_states:
+        return [not_(host_staleness_states_filters.culled())]
+
+    return [host_staleness_states_filters.combined_filter(recognized_states)]
 
 
 def staleness_to_conditions(
@@ -316,8 +320,28 @@ def staleness_to_conditions(
     timestamp_filter_func: Callable[..., Any],
 ):
     condition = Conditions(staleness)
-    filtered_states = (state for state in staleness_states if state != "unknown")
-    return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
+    filtered_states = [state for state in staleness_states if state != "unknown"]
+
+    present_standard = [s for s in CANONICAL_STATES if s in filtered_states]
+    other_states = [s for s in dict.fromkeys(filtered_states) if s not in CANONICAL_STATES]
+
+    indices = [CANONICAL_STATES.index(s) for s in present_standard]
+    runs: list[list[int]] = []
+    for idx in indices:
+        if not runs or idx != runs[-1][-1] + 1:
+            runs.append([idx])
+        else:
+            runs[-1].append(idx)
+
+    for run in runs:
+        newest_state = CANONICAL_STATES[run[0]]
+        oldest_state = CANONICAL_STATES[run[-1]]
+        gt = getattr(condition, oldest_state)()[0]
+        lte = getattr(condition, newest_state)()[1]
+        yield timestamp_filter_func(gt, lte)
+
+    for state in other_states:
+        yield timestamp_filter_func(*getattr(condition, state)())
 
 
 def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
@@ -506,32 +530,6 @@ def _system_type_filter(filters: list[str]) -> list:
     return [or_(*(SYSTEM_TYPE_FILTERS[f] for f in filters))]
 
 
-def _advisor_filter(
-    recommendation_severity: list[str] | None,
-    incident_status: str | None,
-) -> tuple[list, type]:
-    """Build filters for recommendation_severity and incident_status params.
-
-    Returns:
-        (list of SQLAlchemy filter expressions, HostAppDataAdvisor model class)
-    """
-    from app.models.host_app_data import HostAppDataAdvisor
-
-    filters = []
-
-    if recommendation_severity:
-        severity_conditions = [getattr(HostAppDataAdvisor, sev) > 0 for sev in recommendation_severity]
-        filters.append(or_(*severity_conditions))
-
-    if incident_status:
-        if incident_status == "incident":
-            filters.append(HostAppDataAdvisor.incidents > 0)
-        else:
-            filters.append(HostAppDataAdvisor.incidents == 0)
-
-    return filters, HostAppDataAdvisor
-
-
 def query_filters(
     fqdn: str | None = None,
     display_name: str | None = None,
@@ -556,8 +554,6 @@ def query_filters(
     identity=None,
     join_static_profile: bool = False,
     join_dynamic_profile: bool = False,
-    recommendation_severity: list[str] | None = None,
-    incident_status: str | None = None,
 ) -> tuple[list, Query]:
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -604,11 +600,6 @@ def query_filters(
         filters += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
         filters += rbac_permissions_filter(rbac_filter)
-
-    if recommendation_severity or incident_status:
-        severity_incident_filters, advisor_model = _advisor_filter(recommendation_severity, incident_status)
-        filters += severity_incident_filters
-        app_data_models_to_join.add(advisor_model)
 
     filters = [and_(Host.org_id == identity.org_id, *filters)]
 

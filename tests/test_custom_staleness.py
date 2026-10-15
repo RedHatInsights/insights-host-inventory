@@ -12,6 +12,8 @@ import pytest
 from sqlalchemy.orm import Query
 
 from api.filtering.db_filters import _staleness_filter
+from api.filtering.db_filters import per_reporter_staleness_filter
+from api.filtering.db_filters import staleness_to_conditions
 from app.common import inventory_config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -23,6 +25,7 @@ from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
+from app.staleness_states import HostStalenessStatesDbFilters
 from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_host_with_reporter
@@ -505,3 +508,418 @@ def test_find_non_culled_excludes_compute_on_read_culled(db_create_host):
 
     base = Host.query.filter(Host.id == host.id)
     assert find_non_culled_hosts(base, host.org_id).count() == 0
+
+
+@pytest.fixture
+def staleness_test_hosts(db_create_host):
+    now_dt = datetime.now(tz=UTC)
+    fresh_host = db_create_host()
+    fresh_host.last_check_in = now_dt
+
+    stale_host = db_create_host()
+    stale_host.last_check_in = now_dt - timedelta(days=3)
+
+    warn_host = db_create_host()
+    warn_host.last_check_in = now_dt - timedelta(days=10)
+
+    culled_host = db_create_host()
+    culled_host.last_check_in = now_dt - timedelta(days=40)
+
+    null_host = db_create_host()
+    null_host.last_check_in = None
+
+    db.session.commit()
+
+    return {
+        "fresh": fresh_host,
+        "stale": stale_host,
+        "warn": warn_host,
+        "culled": culled_host,
+        "null": null_host,
+        "org_id": fresh_host.org_id,
+        "all_ids": [fresh_host.id, stale_host.id, warn_host.id, culled_host.id, null_host.id],
+    }
+
+
+def test_staleness_db_filter_consecutive_fresh_stale(staleness_test_hosts):
+    """(1) Consecutive pair [fresh, stale] matches fresh and stale but not stale_warning or culled."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "stale"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["fresh"].id, staleness_test_hosts["stale"].id}
+
+
+def test_staleness_db_filter_consecutive_stale_warning(staleness_test_hosts):
+    """(2) Consecutive pair [stale, stale_warning] matches those windows but not fresh or culled."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["stale", "stale_warning"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["stale"].id, staleness_test_hosts["warn"].id}
+
+
+def test_staleness_db_filter_all_three_non_culled(staleness_test_hosts):
+    """(3) All three non-culled states [fresh, stale, stale_warning] matches any non-culled host."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "stale", "stale_warning"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {
+        staleness_test_hosts["fresh"].id,
+        staleness_test_hosts["stale"].id,
+        staleness_test_hosts["warn"].id,
+    }
+
+
+def test_staleness_db_filter_non_consecutive_fresh_stale_warning(staleness_test_hosts):
+    """(4) Non-consecutive [fresh, stale_warning] matches fresh and stale_warning but not stale or culled."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "stale_warning"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["fresh"].id, staleness_test_hosts["warn"].id}
+
+
+def test_staleness_db_filter_all_four_states_excludes_null(staleness_test_hosts):
+    """(5) All four states match hosts with non-NULL check-in, excluding NULL check-in hosts."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "stale", "stale_warning", "culled"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {
+        staleness_test_hosts["fresh"].id,
+        staleness_test_hosts["stale"].id,
+        staleness_test_hosts["warn"].id,
+        staleness_test_hosts["culled"].id,
+    }
+    assert staleness_test_hosts["null"].id not in matched_ids
+
+
+def test_staleness_db_filter_mixed_unknown_and_recognized(staleness_test_hosts):
+    """(6) Mixed inputs containing unknown alongside recognized states handle unknown
+    separately and do not pass to combined_filter.
+    """
+    org_id = staleness_test_hosts["org_id"]
+    with patch.object(
+        HostStalenessStatesDbFilters,
+        "combined_filter",
+        autospec=True,
+        side_effect=HostStalenessStatesDbFilters.combined_filter,
+    ) as mock_combined:
+        expr = _staleness_filter(["fresh", "unknown"], org_id)
+        assert mock_combined.call_count == 1
+        assert mock_combined.call_args[0][1] == ["fresh"]
+
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["fresh"].id}
+
+
+def test_staleness_db_filter_singleton_unknown(staleness_test_hosts):
+    """(7) The singleton ["unknown"] case continues to work as before (returns non-culled hosts)."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["unknown"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {
+        staleness_test_hosts["fresh"].id,
+        staleness_test_hosts["stale"].id,
+        staleness_test_hosts["warn"].id,
+    }
+    assert staleness_test_hosts["culled"].id not in matched_ids
+    assert staleness_test_hosts["null"].id not in matched_ids
+
+
+def test_staleness_db_filter_empty_list(staleness_test_hosts):
+    """Empty staleness list produces no matches."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter([], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == set()
+
+
+def test_staleness_to_conditions_merges_consecutive_states():
+    """Verify staleness_to_conditions merges consecutive states into a single range condition."""
+    staleness = get_sys_default_staleness()
+
+    # Consecutive pair [fresh, stale] -> 1 condition: (warn_boundary, None)
+    captured = []
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["fresh", "stale"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is not None
+    assert captured[0][1] is None
+
+    # Consecutive pair [stale, stale_warning] -> 1 condition: (culled_boundary, stale_boundary)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["stale", "stale_warning"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is not None
+    assert captured[0][1] is not None
+
+    # Consecutive three [fresh, stale, stale_warning] -> 1 condition: (culled_boundary, None)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["fresh", "stale", "stale_warning"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is not None
+    assert captured[0][1] is None
+
+    # All four states [fresh, stale, stale_warning, culled] -> 1 condition: (None, None)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["fresh", "stale", "stale_warning", "culled"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is None
+    assert captured[0][1] is None
+
+    # Non-consecutive states [fresh, stale_warning] -> 2 conditions
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["fresh", "stale_warning"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 2
+
+    # Other states like not_culled -> 1 condition
+    captured.clear()
+    list(staleness_to_conditions(staleness, ["not_culled"], lambda gt, lte: captured.append((gt, lte))))
+    assert len(captured) == 1
+    assert captured[0][0] is not None
+    assert captured[0][1] is None
+
+
+@pytest.fixture
+def reporter_test_hosts(db_create_host):
+    now_dt = datetime.now(tz=UTC)
+    reporter = "puptoo"
+
+    fresh_host = db_create_host(
+        extra_data={"reporter": reporter, "per_reporter_staleness": {reporter: now_dt.isoformat()}}
+    )
+    fresh_host.last_check_in = now_dt
+
+    stale_host = db_create_host(
+        extra_data={
+            "reporter": reporter,
+            "per_reporter_staleness": {reporter: (now_dt - timedelta(days=3)).isoformat()},
+        }
+    )
+    stale_host.last_check_in = now_dt - timedelta(days=3)
+
+    warn_host = db_create_host(
+        extra_data={
+            "reporter": reporter,
+            "per_reporter_staleness": {reporter: (now_dt - timedelta(days=10)).isoformat()},
+        }
+    )
+    warn_host.last_check_in = now_dt - timedelta(days=10)
+
+    culled_host = db_create_host(
+        extra_data={
+            "reporter": reporter,
+            "per_reporter_staleness": {reporter: (now_dt - timedelta(days=40)).isoformat()},
+        }
+    )
+    culled_host.last_check_in = now_dt - timedelta(days=40)
+
+    db.session.commit()
+
+    return {
+        "fresh": fresh_host,
+        "stale": stale_host,
+        "warn": warn_host,
+        "culled": culled_host,
+        "org_id": fresh_host.org_id,
+        "reporter": reporter,
+        "all_ids": [fresh_host.id, stale_host.id, warn_host.id, culled_host.id],
+    }
+
+
+def test_per_reporter_staleness_filter_consecutive_states(reporter_test_hosts):
+    """Verify per_reporter_staleness_filter with consecutive states merges conditions
+    and returns correct hosts.
+    """
+    org_id = reporter_test_hosts["org_id"]
+    reporter = reporter_test_hosts["reporter"]
+    all_ids = reporter_test_hosts["all_ids"]
+
+    # [fresh, stale] matches fresh and stale hosts
+    expr = per_reporter_staleness_filter(["fresh", "stale"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["fresh"].id, reporter_test_hosts["stale"].id}
+
+    # [stale, stale_warning] matches stale and stale_warning hosts
+    expr = per_reporter_staleness_filter(["stale", "stale_warning"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["stale"].id, reporter_test_hosts["warn"].id}
+
+    # [fresh, stale, stale_warning] matches non-culled reporter hosts
+    expr = per_reporter_staleness_filter(["fresh", "stale", "stale_warning"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {
+        reporter_test_hosts["fresh"].id,
+        reporter_test_hosts["stale"].id,
+        reporter_test_hosts["warn"].id,
+    }
+
+    # Non-consecutive [fresh, stale_warning] matches fresh and warn hosts
+    expr = per_reporter_staleness_filter(["fresh", "stale_warning"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["fresh"].id, reporter_test_hosts["warn"].id}
+
+
+def test_staleness_db_filter_consecutive_stale_warning_culled(staleness_test_hosts):
+    """Consecutive pair [stale_warning, culled] matches stale_warning and culled hosts."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["stale_warning", "culled"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["warn"].id, staleness_test_hosts["culled"].id}
+
+
+def test_staleness_db_filter_consecutive_stale_to_culled(staleness_test_hosts):
+    """Consecutive run [stale, stale_warning, culled] matches stale, stale_warning, and culled."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["stale", "stale_warning", "culled"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {
+        staleness_test_hosts["stale"].id,
+        staleness_test_hosts["warn"].id,
+        staleness_test_hosts["culled"].id,
+    }
+
+
+def test_staleness_db_filter_disjoint_runs_fresh_and_culled(staleness_test_hosts):
+    """Non-consecutive states [fresh, culled] create disjoint conditions and match only those hosts."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "culled"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["fresh"].id, staleness_test_hosts["culled"].id}
+
+
+def test_staleness_db_filter_merged_run_plus_disjoint_state(staleness_test_hosts):
+    """Run [fresh, stale] combined with disjoint [culled] matches fresh, stale, and culled."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(["fresh", "stale", "culled"], org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {
+        staleness_test_hosts["fresh"].id,
+        staleness_test_hosts["stale"].id,
+        staleness_test_hosts["culled"].id,
+    }
+
+
+def test_staleness_db_filter_order_invariance_and_duplicates(staleness_test_hosts):
+    """Filter handles out-of-order and duplicated states identically to canonical ordered list."""
+    org_id = staleness_test_hosts["org_id"]
+    expr_shuffled = _staleness_filter(["stale", "fresh", "stale"], org_id)
+    matched_shuffled = {
+        h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr_shuffled).all()
+    }
+    assert matched_shuffled == {staleness_test_hosts["fresh"].id, staleness_test_hosts["stale"].id}
+
+
+def test_staleness_to_conditions_additional_combinations():
+    """Verify staleness_to_conditions for remaining runs, ordering invariance, and duplicates."""
+    staleness = get_sys_default_staleness()
+
+    # Consecutive pair [stale_warning, culled] -> 1 condition: (None, warn_boundary)
+    captured = []
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["stale_warning", "culled"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is None
+    assert captured[0][1] is not None
+
+    # Consecutive run [stale, stale_warning, culled] -> 1 condition: (None, stale_boundary)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["stale", "stale_warning", "culled"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is None
+    assert captured[0][1] is not None
+
+    # Disjoint run [fresh, stale, culled] -> 2 conditions: (warn_boundary, None) and (None, culled_boundary)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["fresh", "stale", "culled"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 2
+    assert captured[0][0] is not None and captured[0][1] is None
+    assert captured[1][0] is None and captured[1][1] is not None
+
+    # Order invariance and duplicates [stale, fresh, stale] -> 1 merged condition: (warn_boundary, None)
+    captured.clear()
+    list(
+        staleness_to_conditions(
+            staleness,
+            ["stale", "fresh", "stale"],
+            lambda gt, lte: captured.append((gt, lte)),
+        )
+    )
+    assert len(captured) == 1
+    assert captured[0][0] is not None
+    assert captured[0][1] is None
+
+
+def test_per_reporter_staleness_filter_additional_runs(reporter_test_hosts):
+    """Verify per_reporter_staleness_filter with runs involving culled, disjoint runs, and ordering."""
+    org_id = reporter_test_hosts["org_id"]
+    reporter = reporter_test_hosts["reporter"]
+    all_ids = reporter_test_hosts["all_ids"]
+
+    # [stale_warning, culled] matches warn host (culled host is excluded by positive reporter filter)
+    expr = per_reporter_staleness_filter(["stale_warning", "culled"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["warn"].id}
+
+    # [stale, stale_warning, culled] matches stale and warn hosts
+    expr = per_reporter_staleness_filter(["stale", "stale_warning", "culled"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["stale"].id, reporter_test_hosts["warn"].id}
+
+    # Out-of-order and duplicated [stale, fresh, stale] matches fresh and stale hosts
+    expr = per_reporter_staleness_filter(["stale", "fresh", "stale"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts["fresh"].id, reporter_test_hosts["stale"].id}
+
+    # Reverse-order [stale_warning, stale, fresh] matches all non-culled reporter hosts
+    expr = per_reporter_staleness_filter(["stale_warning", "stale", "fresh"], reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {
+        reporter_test_hosts["fresh"].id,
+        reporter_test_hosts["stale"].id,
+        reporter_test_hosts["warn"].id,
+    }
