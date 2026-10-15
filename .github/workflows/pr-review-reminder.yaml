@@ -491,9 +491,14 @@ jobs:
                   expectedHeadOid: $oid
                 }}')
 
-            if output=$(gh api graphql \
-                -f query='mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
-                -f "variables=$VARIABLES" 2>&1); then
+            # gh api graphql treats each -f field as an individual GraphQL
+            # variable, so the payload must be sent as a full request body
+            # via --input (variables as a JSON string is silently ignored).
+            if output=$(jq -n \
+                --arg query 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
+                --argjson variables "$VARIABLES" \
+                '{query: $query, variables: $variables}' \
+                | gh api graphql --input - 2>&1); then
               echo "Pushed verified commit to gh-pages"
               break
             fi
