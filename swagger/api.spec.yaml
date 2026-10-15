@@ -133,6 +133,8 @@ paths:
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
+        - $ref: '#/components/parameters/recommendationSeverityParam'
+        - $ref: '#/components/parameters/incidentStatusParam'
         - $ref: '#/components/parameters/hostViewCombinedFilterParam'
         - $ref: '#/components/parameters/hostViewCombinedFieldsParam'
       responses:
@@ -1647,6 +1649,37 @@ components:
       example: {}
       schema:
         $ref:  '#/components/schemas/SystemProfileNestedObject'
+    recommendationSeverityParam:
+      in: query
+      name: recommendation_severity
+      required: false
+      description: >-
+        Filters hosts by Advisor recommendation severity. Only hosts with at least
+        one recommendation of the specified severity are returned. Multiple values
+        use OR logic (e.g. critical + low returns hosts with either).
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - critical
+            - important
+            - moderate
+            - low
+    incidentStatusParam:
+      in: query
+      name: incident_status
+      required: false
+      description: >-
+        Filters hosts by Advisor incident status. Mutually exclusive: only one
+        value may be provided. "incident" returns hosts with incidents > 0.
+        "no_incident" returns hosts with incidents = 0 (excludes hosts with no
+        Advisor data).
+      schema:
+        type: string
+        enum:
+          - incident
+          - no_incident
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -3101,6 +3134,22 @@ components:
               - bootc
               - edge
               - cluster
+        recommendation_severity:
+          description: Filter by Advisor recommendation severity (OR logic).
+          type: array
+          items:
+            type: string
+            enum:
+              - critical
+              - important
+              - moderate
+              - low
+        incident_status:
+          description: Filter by Advisor incident status.
+          type: string
+          enum:
+            - incident
+            - no_incident
       additionalProperties: false
     ViewIn:
       title: View Create Payload
