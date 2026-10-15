@@ -66,4 +66,4 @@ RUN microdnf remove  -y  libpq-devel python3.12-devel gcc cargo rust rust-std-st
 
 USER 1001
 
-ENTRYPOINT [ "dumb-init", "./run_command.sh" ]
+ENTRYPOINT [ "dumb-init", "--single-child", "./run_command.sh" ]
