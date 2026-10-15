@@ -50,7 +50,7 @@ def _owner_id_for_identity(identity: dict[str, Any]) -> str:
     try:
         cn = identity["system"]["cn"]
         return cn if cn else generate_uuid()
-    except (KeyError, TypeError):
+    except KeyError, TypeError:
         return generate_uuid()
 
 
