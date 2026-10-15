@@ -13,6 +13,8 @@ from jsonschema import Draft4Validator
 from jsonschema import ValidationError
 from jsonschema import draft4_format_checker
 
+from app.models.constants import WORKLOADS_FIELDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,8 +60,11 @@ class CustomParameterValidator(ParameterValidator):
         if not isinstance(system_profile_fields, dict):
             raise BadRequestProblem(detail="fields[system_profile] must be an object.")
 
+        # Legacy workload names such as crowdstrike are no longer top-level schema
+        # properties. Sparse requests for them still return 200 with the field omitted.
+        allowed_fields = set(self.sp_spec) | WORKLOADS_FIELDS
         for field in system_profile_fields:
-            if field not in self.sp_spec:
+            if field not in allowed_fields:
                 raise BadRequestProblem(
                     detail=f"Requested field '{field}' is not present in the system_profile schema."
                 )

@@ -2879,6 +2879,54 @@ def test_sparse_fields_validator_resolves_bracket_query_before_lookup():
     validator.validate(scope_for("fields[system_profile]=arch"))
 
 
+@pytest.mark.parametrize("legacy_field", ("crowdstrike", "ibm_db2", "oracle_db"))
+@pytest.mark.parametrize(
+    "query_string",
+    (
+        "fields[system_profile]={field}",
+        'fields[system_profile]=["{field}"]',
+    ),
+    ids=("comma-separated", "json-array"),
+)
+def test_sparse_fields_validator_allows_legacy_workload_root_fields_absent_from_schema(legacy_field, query_string):
+    from app.custom_validator import CustomParameterValidator
+
+    parameters = [
+        {
+            "name": "fields",
+            "in": "query",
+            "style": "deepObject",
+            "explode": True,
+            "x-validator": "sparseFields",
+            "schema": {"type": "object"},
+        }
+    ]
+    parser = customURIParser(parameters, {})
+    validator = CustomParameterValidator(
+        parameters,
+        uri_parser=parser,
+        strict_validation=True,
+        system_profile_spec={"arch": {}},
+    )
+
+    def scope_for(query: str) -> dict:
+        return {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/hosts",
+            "raw_path": b"/hosts",
+            "query_string": query.encode(),
+            "headers": [],
+            "client": ("127.0.0.1", 123),
+            "server": ("testserver", 80),
+        }
+
+    validator.validate(scope_for(query_string.format(field=legacy_field)))
+
+
 def test_valid_deep_object_list_query_parameter_parsing():
     for key, value in (("asdf[foo]", ["bar"]), ("system_profile[field1][field2]", ["value1"])):
         _, _, is_deep_object = customURIParser._make_deep_object(key, value)
