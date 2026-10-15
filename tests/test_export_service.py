@@ -849,6 +849,42 @@ class TestCreateExportWithView:
             assert mock_handle_error.call_args[0][1] == 403
             assert "Insufficient permissions" in mock_handle_error.call_args[0][0]
 
+    @pytest.mark.parametrize(
+        "host_filters",
+        [
+            {"recommendation_severity": ["critical"]},
+            {"incident_status": "incident"},
+            {"recommendation_severity": ["critical"], "incident_status": "no_incident"},
+        ],
+    )
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_export_with_view_rejects_unauthorized_advisor_host_filters(
+        self, mock_handle_error, flask_app, db_create_view, inventory_config, host_filters
+    ):
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value=set()),
+        ):
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "filters": {"host": host_filters},
+                },
+                created_by="51234567",
+            )
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"view_id": str(view.id)},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions to filter by advisor" in mock_handle_error.call_args[0][0]
+
 
 class TestResolveExportColumns:
     def test_empty_columns_returns_defaults(self, flask_app):

@@ -29,6 +29,8 @@ class SortSchema(MarshmallowSchema):
 
 
 VALID_STALENESS_VALUES = ("fresh", "stale", "stale_warning", "unknown")
+VALID_RECOMMENDATION_SEVERITIES = ("critical", "important", "moderate", "low")
+VALID_INCIDENT_STATUSES = ("incident", "no_incident")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -46,6 +48,14 @@ class HostFiltersSchema(MarshmallowSchema):
     updated_end = fields.Str(required=False)
     system_type = fields.List(
         fields.Str(validate=marshmallow_validate.OneOf(["conventional", "bootc", "edge", "cluster"])),
+        required=False,
+    )
+    recommendation_severity = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_RECOMMENDATION_SEVERITIES)),
+        required=False,
+    )
+    incident_status = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_INCIDENT_STATUSES),
         required=False,
     )
 
