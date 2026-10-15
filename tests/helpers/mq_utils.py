@@ -158,7 +158,7 @@ def _system_profile_values_match(actual_value, expected_value) -> bool:
     if isinstance(actual_value, str) and isinstance(expected_value, str):
         try:
             return isoparse(actual_value) == isoparse(expected_value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
     return False
