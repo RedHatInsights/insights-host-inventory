@@ -87,7 +87,7 @@ dev = [
     "pytest-mock~=3.16.0",
     "pytest-subtests~=0.15.0",
     "coverage",
-    "pre-commit~=4.6.0",
+    "pre-commit~=4.7.0",
     "pgxnclient",
     "ruff",
     "mypy",
