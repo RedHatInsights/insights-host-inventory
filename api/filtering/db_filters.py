@@ -311,7 +311,18 @@ def _staleness_filter(staleness: list[str], org_id: str) -> list:
     if staleness and not recognized_states:
         return [not_(host_staleness_states_filters.culled())]
 
-    return [host_staleness_states_filters.combined_filter(recognized_states)]
+    # Expand "not_culled" into its constituent canonical states so that
+    # combined_filter can merge them with any other requested states.
+    expanded: list[str] = []
+    for s in recognized_states:
+        if s == "not_culled":
+            expanded.extend(["fresh", "stale", "stale_warning"])
+        else:
+            expanded.append(s)
+    # Deduplicate while preserving order
+    expanded = list(dict.fromkeys(expanded))
+
+    return [host_staleness_states_filters.combined_filter(expanded)]
 
 
 def staleness_to_conditions(
