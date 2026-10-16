@@ -403,8 +403,12 @@ jobs:
             echo "Bot-closed PRs in $QUARTER: $BOT_CLOSED_COUNT"
           fi
 
-          # Compute quarterly metrics
-          QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" '{ quarter: $q, updated: $date }')
+          # Compute quarterly metrics. collected_at carries second resolution
+          # (updated is date-only, so it cannot order two same-day snapshots).
+          COLLECTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" \
+            --arg collected "$COLLECTED_AT" \
+            '{ quarter: $q, updated: $date, collected_at: $collected }')
 
           if [ "$SKIP_STALE" = "false" ]; then
             STALE_Q=$(compute_metrics "/tmp/q_prs.json" "$STALE_Q_START" "$STALE_Q_END")
@@ -545,8 +549,12 @@ jobs:
                 # - a patch from an older year is obsolete (the year-end rollover
                 #   already dropped its quarters) and is discarded entirely;
                 # - within the same year, a quarter entry is only replaced when
-                #   the patch's entry is at least as recent (by `updated` date),
-                #   so a delayed older run cannot revert a newer one.
+                #   the patch's entry is at least as recent: by `collected_at`
+                #   (second resolution), falling back to the date-only
+                #   `updated` for entries written before collected_at existed.
+                #   A date-only value sorts before any same-day timestamp, so
+                #   a same-day rerun still refreshes a legacy entry, while an
+                #   older same-day snapshot cannot replace a newer one.
                 if MERGED=$(jq -n \
                     --rawfile fresh /tmp/ghpages_data.json \
                     --rawfile patch /tmp/metrics_patch.json \
@@ -556,7 +564,9 @@ jobs:
                      | (if (($p.year // "0" | tonumber) > (.year // "0" | tonumber)) then
                          .year = $p.year | .quarters = {} | .quarters[$p.quarter] = $p.entry
                        elif .year == $p.year and
-                            ((.quarters[$p.quarter] == null) or ((.quarters[$p.quarter].updated // "") <= ($p.entry.updated // ""))) then
+                            ((.quarters[$p.quarter] == null) or
+                             ((.quarters[$p.quarter].collected_at // .quarters[$p.quarter].updated // "") <=
+                              ($p.entry.collected_at // $p.entry.updated // ""))) then
                          .quarters[$p.quarter] = $p.entry
                        else . end)' 2>/dev/null) && [ -n "$MERGED" ]; then
                   ADDITIONS=$(build_additions "$(printf '%s' "$MERGED" | base64 -w0)")
@@ -606,12 +616,23 @@ jobs:
             # gh api graphql treats each -f field as an individual GraphQL
             # variable, so the payload must be sent as a full request body
             # via --input (variables as a JSON string is silently ignored).
+            # A failed mutation can also come back as a GraphQL "errors"
+            # body with HTTP 200; gh happens to exit 1 on those today, but
+            # that is not a documented contract — so success is decided by
+            # the returned commit oid, not by the exit code. Anything else
+            # fails this attempt and retries with fresh branch state.
+            COMMIT_OID=""
             if output=$(jq -n \
                 --arg query 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
                 --argjson variables "$VARIABLES" \
                 '{query: $query, variables: $variables}' \
                 | gh api graphql --input - 2>&1); then
-              echo "Pushed verified commit to gh-pages"
+              COMMIT_OID=$(printf '%s' "$output" \
+                | jq -r '.data.createCommitOnBranch.commit.oid // empty' 2>/dev/null || true)
+            fi
+
+            if [ -n "$COMMIT_OID" ]; then
+              echo "Pushed verified commit $COMMIT_OID to gh-pages"
               break
             fi
 
