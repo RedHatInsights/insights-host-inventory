@@ -199,6 +199,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HostOut'
+              example:
+                id: 3f01b554-5767-4041-b75e-41829bcee1dc
+                insights_id: 3f01b554-5767-4041-b75e-41829bcee1dc
+                subscription_manager_id: 22cd8e39-13bb-4d02-8316-84b850dc5136
+                satellite_id: 22cd8e39-13bb-4d02-8316-84b850dc5136
+                bios_uuid: 22cd8e39-13bb-4d02-8316-84b850dc5136
+                ip_addresses:
+                - 10.10.0.1
+                - 10.0.0.2
+                fqdn: my.host.example.com
+                mac_addresses:
+                - c2:00:d0:c8:61:01
+                provider_id: i-05d2313e6b9a42b16
+                provider_type: aws
+                display_name: my.host.example.com
+                ansible_host: my.host.example.com
+                account: null
+                org_id: '000102'
+                created: '2023-03-01T16:04:02.588Z'
+                updated: '2023-03-01T16:04:02.588Z'
+                last_check_in: '2023-03-01T16:04:02.588Z'
+                facts:
+                - namespace: insights-client
+                  facts:
+                    fact1: value1
+                    fact2: value2
+                reporter: puptoo
+                stale_timestamp: '2023-03-02T21:04:02.588Z'
+                stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
+                culled_timestamp: '2023-03-31T16:04:02.588Z'
+                per_reporter_staleness:
+                  puptoo:
+                    last_check_in: '2023-03-01T16:04:02.588Z'
+                    stale_timestamp: '2023-03-02T21:04:02.588Z'
+                    stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
+                    culled_timestamp: '2023-03-31T16:04:02.588Z'
+                    check_in_succeeded: true
+                groups: []
+                workspace: null
+                openshift_cluster_id: null
+                tags: []
+                system_profile:
+                  arch: x86_64
+                  operating_system:
+                    name: RHEL
+                    major: 9
+                    minor: 5
+                  os_release: '9.5'
+                  number_of_cpus: 4
+                  system_memory_bytes: 17179869184
+                  cloud_provider: aws
         '404':
           description: Not Found.
   '/hosts/{host_id_list}':
@@ -832,6 +883,14 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/SystemProfileSapSystemOut'
+                example:
+                  total: 1
+                  count: 1
+                  page: 1
+                  per_page: 50
+                  results:
+                  - value: true
+                    count: 1
         '400':
             description: Invalid request.
         '404':
@@ -862,6 +921,14 @@ paths:
               application/json:
                 schema:
                   $ref: '#/components/schemas/SystemProfileSapSystemOut'
+                example:
+                  total: 1
+                  count: 1
+                  page: 1
+                  per_page: 50
+                  results:
+                  - value: H2O
+                    count: 1
         '400':
             description: Invalid request.
         '404':
@@ -1054,6 +1121,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StalenessOutput'
+              example:
+                conventional_time_to_stale: 104400
+                conventional_time_to_stale_warning: 604800
+                conventional_time_to_delete: 2592000
+                immutable_time_to_stale: 104400
+                immutable_time_to_stale_warning: 604800
+                immutable_time_to_delete: 2592000
+                id: system_default
+                org_id: '000102'
+                created: null
+                updated: null
         '400':
           description: "Invalid request."
 
@@ -1875,11 +1953,26 @@ components:
 
   schemas:
     SystemProfileOperatingSystemOut:
+      example:
+        total: 1
+        count: 1
+        page: 1
+        per_page: 50
+        results:
+        - value:
+            name: RHEL
+            major: 9
+            minor: 5
+          count: 1
       properties:
         total:
           $ref: '#/components/schemas/Total'
         count:
           $ref: '#/components/schemas/Count'
+        page:
+          $ref: '#/components/schemas/Page'
+        per_page:
+          $ref: '#/components/schemas/PerPage'
         results:
           description: The list of operating_system values on the account
           type: array
@@ -1907,6 +2000,10 @@ components:
           $ref: '#/components/schemas/Total'
         count:
           $ref: '#/components/schemas/Count'
+        page:
+          $ref: '#/components/schemas/Page'
+        per_page:
+          $ref: '#/components/schemas/PerPage'
         results:
           description: The list of sap_system values on the account
           type: array
@@ -1921,6 +2018,16 @@ components:
                 type: integer
 
     TagsOut:
+      example:
+        count: 1
+        page: 1
+        per_page: 50
+        total: 1
+        results:
+          3f01b554-5767-4041-b75e-41829bcee1dc:
+          - namespace: insights-client
+            key: env
+            value: production
       allOf:
       - $ref: '#/components/schemas/PaginationOut'
       - type: object
@@ -1944,6 +2051,13 @@ components:
           type: string
           nullable: true
     TagCountOut:
+      example:
+        count: 1
+        page: 1
+        per_page: 50
+        total: 1
+        results:
+          3f01b554-5767-4041-b75e-41829bcee1dc: 1
       allOf:
       - $ref: '#/components/schemas/PaginationOut'
       - type: object
@@ -2160,6 +2274,46 @@ components:
       description: >-
         Data of a single host belonging to an account. Represents the hosts
         without its Inventory metadata.
+      example: &host_example
+        id: 3f01b554-5767-4041-b75e-41829bcee1dc
+        insights_id: 3f01b554-5767-4041-b75e-41829bcee1dc
+        subscription_manager_id: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        satellite_id: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        bios_uuid: 22cd8e39-13bb-4d02-8316-84b850dc5136
+        ip_addresses:
+        - 10.10.0.1
+        - 10.0.0.2
+        fqdn: my.host.example.com
+        mac_addresses:
+        - c2:00:d0:c8:61:01
+        provider_id: i-05d2313e6b9a42b16
+        provider_type: aws
+        display_name: my.host.example.com
+        ansible_host: my.host.example.com
+        account: null
+        org_id: '000102'
+        created: '2023-03-01T16:04:02.588Z'
+        updated: '2023-03-01T16:04:02.588Z'
+        last_check_in: '2023-03-01T16:04:02.588Z'
+        facts:
+        - namespace: insights-client
+          facts:
+            fact1: value1
+            fact2: value2
+        reporter: puptoo
+        stale_timestamp: '2023-03-02T21:04:02.588Z'
+        stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
+        culled_timestamp: '2023-03-31T16:04:02.588Z'
+        per_reporter_staleness:
+          puptoo:
+            last_check_in: '2023-03-01T16:04:02.588Z'
+            stale_timestamp: '2023-03-02T21:04:02.588Z'
+            stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
+            culled_timestamp: '2023-03-31T16:04:02.588Z'
+            check_in_succeeded: true
+        groups: []
+        workspace: null
+        openshift_cluster_id: null
       type: object
       allOf:
         - $ref: '#/components/schemas/CanonicalFactsOut'
@@ -2261,6 +2415,11 @@ components:
                   format: date-time
             system_profile:
               $ref: '#/components/schemas/SystemProfile'
+            tags:
+              description: Tags associated with the host.
+              type: array
+              items:
+                $ref: '#/components/schemas/StructuredTag'
             last_check_in:
               type: string
               format: date-time
@@ -2284,6 +2443,13 @@ components:
       description: >-
         A paginated host search query result with host entries and their
         Inventory metadata.
+      example:
+        count: 1
+        page: 1
+        per_page: 50
+        total: 1
+        results:
+          - *host_example
       allOf:
       - $ref: '#/components/schemas/PaginationOut'
       - type: object
@@ -2317,12 +2483,21 @@ components:
             type: array
             items:
               type: string
-            example: ["vulnerability", "malware"]
+            example: []
     HostViewHost:
       title: Host with application data
       allOf:
       - $ref: '#/components/schemas/HostOut'
       - type: object
+        example:
+          app_data:
+            advisor:
+              recommendations: 3
+              incidents: 1
+              critical: 1
+              important: 2
+              moderate: 0
+              low: 0
         properties:
           app_data:
             $ref: '#/components/schemas/ConsumerApplicationsData'
@@ -2688,6 +2863,18 @@ components:
     HostSystemProfileOut:
       title: Structure of an individual host system profile output
       description: Individual host record that contains only the host id and system profile
+      example:
+        id: 3f01b554-5767-4041-b75e-41829bcee1dc
+        system_profile:
+          arch: x86_64
+          operating_system:
+            name: RHEL
+            major: 9
+            minor: 5
+          os_release: '9.5'
+          number_of_cpus: 4
+          system_memory_bytes: 17179869184
+          cloud_provider: aws
       type: object
       properties:
         id:
@@ -2774,7 +2961,7 @@ components:
               namespace: insights-client
               key: web
               value: null
-            count: -1
+            count: 1
     GroupName:
       description: >-
         A group’s human-readable name.
@@ -2784,9 +2971,9 @@ components:
       example: sre-group
     NonStrictUUID:
       type: string
-      pattern: ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$
+      pattern: ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$|^[0-9a-fA-F]{8}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{4}[0-9a-fA-F]{12}$
       format: uuid
-      example: bA6deCFc19564430AB814bf8F70E8cEf
+      example: ba6decfc-1956-4430-ab81-4bf8f70e8cef
     SystemDefaultId:
       type: string
       enum:
@@ -2832,6 +3019,15 @@ components:
       title: Group properties with host count
       description: >-
         Data of a single group belonging to an account.
+      example: &group_example
+        id: ba6decfc-1956-4430-ab81-4bf8f70e8cef
+        name: sre-group
+        account: null
+        org_id: '000102'
+        ungrouped: false
+        created: '2023-03-01T16:04:02.588Z'
+        updated: '2023-03-01T16:04:02.588Z'
+        host_count: 3
       type: object
       allOf:
       - $ref: "#/components/schemas/GroupOut"
@@ -2898,6 +3094,18 @@ components:
       title: A resource-types query result
       description: >-
         A paginated list of resource-types RBAC objects.
+      example:
+        meta:
+          count: 1
+        links:
+          first: /inventory/v1/resource-types?per_page=10&page=1
+          previous: null
+          next: null
+          last: /inventory/v1/resource-types?per_page=10&page=1
+        data:
+        - value: inventory-groups
+          path: /inventory/v1/resource-types/inventory-groups
+          count: 1
       type: object
       allOf:
       - $ref: '#/components/schemas/ResourceTypesPaginationOut'
@@ -2915,6 +3123,16 @@ components:
       description: >-
         A paginated group search query result with group entries and their
         Inventory metadata in paginated resource-types response format.
+      example:
+        meta:
+          count: 1
+        links:
+          first: /inventory/v1/resource-types/inventory-groups?per_page=100&page=1
+          previous: null
+          next: null
+          last: /inventory/v1/resource-types/inventory-groups?per_page=100&page=1
+        data:
+          - *group_example
       type: object
       allOf:
       - $ref: '#/components/schemas/ResourceTypesPaginationOut'
@@ -2953,6 +3171,17 @@ components:
       title: Account Staleness Out
       description: >-
         Data of a account staleness.
+      example:
+        conventional_time_to_stale: 172800
+        conventional_time_to_stale_warning: 1209600
+        conventional_time_to_delete: 5184000
+        immutable_time_to_stale: 172800
+        immutable_time_to_stale_warning: 1209600
+        immutable_time_to_delete: 5184000
+        id: ba6decfc-1956-4430-ab81-4bf8f70e8cef
+        org_id: '000102'
+        created: '2023-03-01T16:04:02.588Z'
+        updated: '2023-03-01T16:04:02.588Z'
       type: object
       allOf:
       - $ref: "#/components/schemas/StalenessIn"
@@ -3210,6 +3439,30 @@ components:
     ViewOut:
       title: View Response
       description: Full representation of an inventory view returned by the API.
+      example:
+        id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        org_id: '000102'
+        name: Production systems
+        description: Fresh production systems, sorted by last check-in.
+        configuration:
+          columns:
+          - key: display_name
+          - key: last_check_in
+          sort:
+            key: last_check_in
+            direction: desc
+          filters:
+            host:
+              staleness:
+              - fresh
+              tags:
+              - insights-client/env=production
+        org_wide: false
+        is_system_view: false
+        is_owner: true
+        created_by: example-user
+        created_at: '2023-03-01T16:04:02.588Z'
+        updated_at: '2023-03-01T16:04:02.588Z'
       type: object
       properties:
         id:
