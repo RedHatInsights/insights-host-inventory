@@ -288,6 +288,7 @@ jobs:
 
           # --- BASELINE: compute once, store forever ---
           HAS_BASELINE=$(echo "$EXISTING" | jq 'has("baseline") and .baseline != null')
+          BASELINE_PATCH=null
 
           if [ "$HAS_BASELINE" = "false" ]; then
             echo "Computing frozen baseline (${BASELINE_DAYS} days before each deploy date)..."
@@ -361,6 +362,7 @@ jobs:
                 },
                 quarters: (.quarters // {})
               }')
+            BASELINE_PATCH=$(echo "$EXISTING" | jq -c '.baseline')
 
             echo "Baseline computed and stored."
           else
@@ -401,8 +403,12 @@ jobs:
             echo "Bot-closed PRs in $QUARTER: $BOT_CLOSED_COUNT"
           fi
 
-          # Compute quarterly metrics
-          QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" '{ quarter: $q, updated: $date }')
+          # Compute quarterly metrics. collected_at carries second resolution
+          # (updated is date-only, so it cannot order two same-day snapshots).
+          COLLECTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          QUARTER_ENTRY=$(jq -n --arg q "$QUARTER" --arg date "$TODAY" \
+            --arg collected "$COLLECTED_AT" \
+            '{ quarter: $q, updated: $date, collected_at: $collected }')
 
           if [ "$SKIP_STALE" = "false" ]; then
             STALE_Q=$(compute_metrics "/tmp/q_prs.json" "$STALE_Q_START" "$STALE_Q_END")
@@ -431,6 +437,19 @@ jobs:
 
           echo "$EXISTING" | jq . > "$DATA_FILE"
           cp "$DATA_FILE" /tmp/metrics_data.json
+
+          # Persist this run's changes so the push step can re-apply them on
+          # top of the latest gh-pages data.json (concurrent-run safety). The
+          # year is captured at collection time: a run that straddles UTC
+          # midnight on New Year's Eve must still file its quarter under the
+          # year it was collected for, not whatever year it is at push time.
+          jq -n \
+            --arg y "$YEAR" \
+            --arg q "$QUARTER" \
+            --argjson entry "$QUARTER_ENTRY" \
+            --argjson baseline "$BASELINE_PATCH" \
+            '{year: $y, quarter: $q, entry: $entry} + (if $baseline != null then {baseline: $baseline} else {} end)' \
+            > /tmp/metrics_patch.json
 
       - name: Generate token
         id: app-token
@@ -461,23 +480,126 @@ jobs:
 
           DATA_JSON=$(base64 -w0 /tmp/metrics_data.json)
 
-          # Build file additions via jq for correct JSON structure
-          ADDITIONS=$(jq -n --arg data "$DATA_JSON" '[{path: "data.json", contents: $data}]')
-          if [ -n "$INDEX_HTML" ]; then
-            ADDITIONS=$(echo "$ADDITIONS" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
-          fi
+          # Build file additions via jq for correct JSON structure.
+          # FileAddition.contents must be base64: the GraphQL schema types it
+          # as Base64String and GitHub decodes it when creating the blob.
+          build_additions() {
+            local additions
+            additions=$(jq -n --arg data "$1" '[{path: "data.json", contents: $data}]')
+            if [ -n "$INDEX_HTML" ]; then
+              additions=$(echo "$additions" | jq --arg html "$INDEX_HTML" '. + [{path: "index.html", contents: $html}]')
+            fi
+            echo "$additions"
+          }
 
-          # Use createCommitOnBranch to produce a verified commit (with retry for races)
+          ADDITIONS=$(build_additions "$DATA_JSON")
+
+          # Best-effort bootstrap of gh-pages for repos that do not have the
+          # branch yet. NOTE: this REST-created root commit is unsigned, so on
+          # repos with a required-signatures ruleset (like this org's) the ref
+          # creation is rejected — there is no API that creates a signed commit
+          # on a branch that does not exist yet. In that case the branch must
+          # be created once by hand (any verified commit), after which this
+          # workflow maintains it.
+          bootstrap_ghpages() {
+            local tree_sha init_sha
+            tree_sha=$(jq -n '{tree: [{path: ".gitkeep", mode: "100644", type: "blob", content: ""}]}' \
+              | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha') || return 1
+            init_sha=$(jq -n --arg tree "$tree_sha" '{message: "init gh-pages", tree: $tree}' \
+              | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha') || return 1
+            jq -n --arg sha "$init_sha" '{ref: "refs/heads/gh-pages", sha: $sha}' \
+              | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null || return 1
+            echo "$init_sha"
+          }
+
+          # Use createCommitOnBranch to produce a verified commit (with retry for races).
+          # The org ruleset requires signed commits, and plain `git push` of an
+          # unsigned github-actions[bot] commit is rejected (GH013). Commits
+          # created through the API as the bot carry GitHub's own signature.
           for attempt in 1 2 3; do
+            retry_reason=""
+
             BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
             if [ -z "$BRANCH_SHA" ]; then
-              EMPTY_TREE=$(jq -n '{tree: [{path: ".gitkeep", mode: "100644", type: "blob", content: ""}]}' \
-                | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
-              BRANCH_SHA=$(jq -n --arg tree "$EMPTY_TREE" '{message: "init gh-pages", tree: $tree}' \
-                | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
-              jq -n --arg sha "$BRANCH_SHA" '{ref: "refs/heads/gh-pages", sha: $sha}' \
-                | gh api "repos/$REPO/git/refs" --method POST --input - > /dev/null
+              if BOOT_SHA=$(bootstrap_ghpages); then
+                BRANCH_SHA="$BOOT_SHA"
+              else
+                # Either the ruleset rejected the unsigned bootstrap commit or a
+                # concurrent run created the branch first — re-read and retry.
+                BRANCH_SHA=$(gh api "repos/$REPO/git/ref/heads/gh-pages" --jq '.object.sha' 2>/dev/null || echo "")
+              fi
+              if [ -z "$BRANCH_SHA" ]; then
+                retry_reason="could not create gh-pages branch (if the org requires signed commits, create it once by hand with a verified commit)"
+              fi
             fi
+
+            # Re-apply this run's metrics onto the latest gh-pages data.json so
+            # a concurrent run's newer numbers are not overwritten by this run's
+            # earlier snapshot. Fetched after BRANCH_SHA on purpose: a commit
+            # landing in between fails the expectedHeadOid check and is retried
+            # with fresh state, so the merge can never race ahead of the SHA it
+            # is validated against.
+            if [ -z "$retry_reason" ]; then
+              if CONTENTS=$(gh api "repos/$REPO/contents/data.json?ref=gh-pages" \
+                  --jq '.content | gsub("\\n"; "")' 2>/tmp/ghpages_read_err.txt); then
+                printf '%s' "$CONTENTS" | base64 -d > /tmp/ghpages_data.json
+                # Merge rules, most specific first:
+                # - inject the baseline only if gh-pages does not have one yet;
+                # - a patch from a newer year rolls the data over to that year;
+                # - a patch from an older year is obsolete (the year-end rollover
+                #   already dropped its quarters) and is discarded entirely;
+                # - within the same year, a quarter entry is only replaced when
+                #   the patch's entry is at least as recent: by `collected_at`
+                #   (second resolution), falling back to the date-only
+                #   `updated` for entries written before collected_at existed.
+                #   A date-only value sorts before any same-day timestamp, so
+                #   a same-day rerun still refreshes a legacy entry, while an
+                #   older same-day snapshot cannot replace a newer one.
+                if MERGED=$(jq -n \
+                    --rawfile fresh /tmp/ghpages_data.json \
+                    --rawfile patch /tmp/metrics_patch.json \
+                    '($fresh | fromjson) as $f | ($patch | fromjson) as $p
+                     | $f
+                     | (if ($p.baseline != null) and (.baseline == null) then .baseline = $p.baseline else . end)
+                     | (if (($p.year // "0" | tonumber) > (.year // "0" | tonumber)) then
+                         .year = $p.year | .quarters = {} | .quarters[$p.quarter] = $p.entry
+                       elif .year == $p.year and
+                            ((.quarters[$p.quarter] == null) or
+                             ((.quarters[$p.quarter].collected_at // .quarters[$p.quarter].updated // "") <=
+                              ($p.entry.collected_at // $p.entry.updated // ""))) then
+                         .quarters[$p.quarter] = $p.entry
+                       else . end)' 2>/dev/null) && [ -n "$MERGED" ]; then
+                  ADDITIONS=$(build_additions "$(printf '%s' "$MERGED" | base64 -w0)")
+                else
+                  retry_reason="could not merge this run's metrics with the latest gh-pages data.json"
+                fi
+              elif grep -qE "Not Found|HTTP 404" /tmp/ghpages_read_err.txt; then
+                # No data.json on gh-pages yet — nothing newer can be lost, so
+                # this run's snapshot becomes the first version.
+                echo "No existing data.json on gh-pages; pushing run snapshot."
+              else
+                retry_reason="could not read gh-pages data.json: $(cat /tmp/ghpages_read_err.txt)"
+              fi
+            fi
+
+            # Never commit this run's (possibly stale) snapshot against a newer
+            # branch head: if the current data could not be read and merged,
+            # retry with fresh state and abort rather than risk reverting a
+            # concurrent run's updates.
+            if [ -n "$retry_reason" ]; then
+              echo "Attempt $attempt: $retry_reason"
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::Giving up after 3 attempts: $retry_reason"
+                exit 1
+              fi
+              sleep 3
+              continue
+            fi
+
+            # Safety net: never push an empty or garbled data.json. If the
+            # encoding pipeline failed silently somewhere above, fail loudly
+            # here instead of corrupting the dashboard.
+            echo "$ADDITIONS" | jq -e '(.[0].contents | @base64d | fromjson | type) == "object"' > /dev/null
 
             VARIABLES=$(jq -n \
                 --arg repo "$REPO" \
@@ -491,17 +613,33 @@ jobs:
                   expectedHeadOid: $oid
                 }}')
 
-            if output=$(gh api graphql \
-                -f query='mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
-                -f "variables=$VARIABLES" 2>&1); then
-              echo "Pushed verified commit to gh-pages"
+            # gh api graphql treats each -f field as an individual GraphQL
+            # variable, so the payload must be sent as a full request body
+            # via --input (variables as a JSON string is silently ignored).
+            # A failed mutation can also come back as a GraphQL "errors"
+            # body with HTTP 200; gh happens to exit 1 on those today, but
+            # that is not a documented contract — so success is decided by
+            # the returned commit oid, not by the exit code. Anything else
+            # fails this attempt and retries with fresh branch state.
+            COMMIT_OID=""
+            if output=$(jq -n \
+                --arg query 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
+                --argjson variables "$VARIABLES" \
+                '{query: $query, variables: $variables}' \
+                | gh api graphql --input - 2>&1); then
+              COMMIT_OID=$(printf '%s' "$output" \
+                | jq -r '.data.createCommitOnBranch.commit.oid // empty' 2>/dev/null || true)
+            fi
+
+            if [ -n "$COMMIT_OID" ]; then
+              echo "Pushed verified commit $COMMIT_OID to gh-pages"
               break
             fi
 
             echo "Attempt $attempt failed: $output"
-            sleep 3
             if [ "$attempt" -eq 3 ]; then
               echo "::error::Failed to push to gh-pages after 3 attempts. Last error: $output"
               exit 1
             fi
+            sleep 3
           done
