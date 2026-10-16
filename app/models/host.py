@@ -193,7 +193,7 @@ class LimitedHost(db.Model, HostTypeDeriver):
 
     @staticmethod
     def _update_profile_attributes(
-        profile: "HostStaticSystemProfile | HostDynamicSystemProfile",
+        profile: HostStaticSystemProfile | HostDynamicSystemProfile,
         data: dict,
         skip_keys: set[str] | None = None,
         reporter: str | None = None,
@@ -385,7 +385,7 @@ class Host(LimitedHost):
         self._cleanup_tags()
         db.session.add(self)
 
-    def update(self, input_host: "Host", update_system_profile: bool = False) -> None:
+    def update(self, input_host: Host, update_system_profile: bool = False) -> None:
         self.update_display_name(input_host.display_name, input_host.reporter, input_fqdn=input_host.fqdn)
 
         canonical_facts_to_update = {}
