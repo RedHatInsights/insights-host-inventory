@@ -381,14 +381,19 @@ def test_get_hosts_invalid_deep_object_params(query_params, api_get):
     assert_response_status(response_code, 400)
 
 
+def test_sparse_fields_rejects_unknown_system_profile_field(api_get):
+    response_status, response_data = api_get(build_hosts_url(query="?fields[system_profile]=not_a_real_field"))
+
+    assert response_status == 400
+    assert "not_a_real_field" in response_data["detail"]
+
+
 def test_validate_sp_sparse_fields_invalid_requests(api_get, subtests):
     for query in (
         "?fields[system_profile]=os_kernel_version&order_how=ASC",
         "?fields[system_profile]=os_kernel_version&order_by=modified",
         "?fields[system_profile]=os_kernel_version&order_how=display_name&order_by=NOO",
-        # Bypass until https://github.com/spec-first/connexion/issues/1920 is resolved,
-        # or until we make a workaround and re-enable strict_validation.
-        # "?fields[foo]=bar",
+        "?fields[foo]=bar",
     ):
         with subtests.test(query=query):
             host_one_id, host_two_id = generate_uuid(), generate_uuid()
@@ -1331,6 +1336,25 @@ def test_query_sp_by_id_list_sparse(
         assert sparse_request != ("owner_id" in response_host["system_profile"])
         for fact in ["arch", "os_kernel_version", "host_type"]:
             assert fact in response_host["system_profile"]
+
+
+@pytest.mark.parametrize("legacy_field", ("crowdstrike", "ibm_db2", "oracle_db"))
+@pytest.mark.parametrize("endpoint", ("list", "by_id", "system_profile"))
+def test_sparse_legacy_workload_root_fields_omitted(db_create_host, api_get, legacy_field, endpoint):
+    host = db_create_host(extra_data={"system_profile_facts": {"arch": "x86_64", "host_type": "edge"}})
+    query = f"?fields[system_profile]={legacy_field}"
+    if endpoint == "list":
+        url = build_hosts_url(query=query)
+    elif endpoint == "by_id":
+        url = build_hosts_url(host_list_or_id=host.id, query=query)
+    else:
+        url = build_system_profile_url(host.id, query=query)
+
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    for result in response_data["results"]:
+        assert legacy_field not in result.get("system_profile", {})
 
 
 def test_query_all_sparse_fields(db_create_multiple_hosts, api_get):
