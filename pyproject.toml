@@ -44,7 +44,7 @@ dependencies = [
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.9.0",
     "rpds-py==2026.9.1",
-    "starlette~=1.7.0",
+    "starlette~=1.8.0",
 ]
 
 [tool.ruff]
@@ -87,7 +87,7 @@ dev = [
     "pytest-mock~=3.16.0",
     "pytest-subtests~=0.15.0",
     "coverage",
-    "pre-commit~=4.6.0",
+    "pre-commit~=4.7.0",
     "pgxnclient",
     "ruff",
     "mypy",
