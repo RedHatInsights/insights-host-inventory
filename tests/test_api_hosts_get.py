@@ -381,6 +381,21 @@ def test_get_hosts_invalid_deep_object_params(query_params, api_get):
     assert_response_status(response_code, 400)
 
 
+@pytest.mark.parametrize(
+    "query, extra_param",
+    (
+        ("?id=11111111-1111-1111-1111-111111111111", "id"),
+        ("?foo=bar", "foo"),
+        ("?not_a_param=1", "not_a_param"),
+    ),
+)
+def test_get_hosts_rejects_undeclared_query_parameters(api_get, query, extra_param):
+    response_status, response_data = api_get(build_hosts_url(query=query))
+
+    assert response_status == 400
+    assert response_data["detail"] == f"Extra query parameter(s) {extra_param} not in spec"
+
+
 def test_sparse_fields_rejects_unknown_system_profile_field(api_get):
     response_status, response_data = api_get(build_hosts_url(query="?fields[system_profile]=not_a_real_field"))
 
