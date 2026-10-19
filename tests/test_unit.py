@@ -608,7 +608,7 @@ def test_v2_api_registration(translating_parser, _init_app, app, v2_enabled):
         assert v2_call.kwargs["resolver"].default_module_name == "api.v2"
         assert v2_call.kwargs["arguments"] == {"title": "HBI V2 API"}
         assert v2_call.kwargs["validate_responses"] is True
-        assert v2_call.kwargs["strict_validation"] is False
+        assert v2_call.kwargs["strict_validation"] is True
         assert v2_call.kwargs["validator_map"] is not None
     else:
         assert not v2_add_api_calls, "No V2 API should be registered when HBI_V2_API_ENABLED is not true"
@@ -2821,6 +2821,110 @@ def test_custom_fields_parser_query_parameter_parsing():
         assert root_key == parser_input[0]
         assert response == output
         assert is_deep_object is True
+
+
+def test_sparse_fields_validator_resolves_bracket_query_before_lookup():
+    """Bracket-style fields[system_profile] must be validated, not skipped.
+
+    ParameterValidator.validate() builds a ConnexionRequest whose query_params
+    property runs the URI parser. The sparse-field check then looks up "fields".
+    If that resolution did not happen first, the raw key fields[system_profile]
+    would miss the lookup and an unknown field would be accepted.
+    """
+    from connexion.lifecycle import ConnexionRequest
+
+    from app.custom_validator import CustomParameterValidator
+
+    parameters = [
+        {
+            "name": "fields",
+            "in": "query",
+            "style": "deepObject",
+            "explode": True,
+            "x-validator": "sparseFields",
+            "schema": {"type": "object"},
+        }
+    ]
+    parser = customURIParser(parameters, {})
+    validator = CustomParameterValidator(
+        parameters,
+        uri_parser=parser,
+        strict_validation=True,
+        system_profile_spec={"arch": {}},
+    )
+
+    def scope_for(query_string: str) -> dict:
+        return {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/hosts",
+            "raw_path": b"/hosts",
+            "query_string": query_string.encode(),
+            "headers": [],
+            "client": ("127.0.0.1", 123),
+            "server": ("testserver", 80),
+        }
+
+    unknown_scope = scope_for("fields[system_profile]=not_a_real_field")
+    request = ConnexionRequest(unknown_scope, uri_parser=parser)
+    assert list(request.query_params) == ["fields"]
+    assert request.query_params["fields"] == {"system_profile": {"not_a_real_field": True}}
+
+    with pytest.raises(BadRequestProblem, match="not_a_real_field"):
+        validator.validate(unknown_scope)
+
+    validator.validate(scope_for("fields[system_profile]=arch"))
+
+
+@pytest.mark.parametrize("legacy_field", ("crowdstrike", "ibm_db2", "oracle_db"))
+@pytest.mark.parametrize(
+    "query_string",
+    (
+        "fields[system_profile]={field}",
+        'fields[system_profile]=["{field}"]',
+    ),
+    ids=("comma-separated", "json-array"),
+)
+def test_sparse_fields_validator_allows_legacy_workload_root_fields_absent_from_schema(legacy_field, query_string):
+    from app.custom_validator import CustomParameterValidator
+
+    parameters = [
+        {
+            "name": "fields",
+            "in": "query",
+            "style": "deepObject",
+            "explode": True,
+            "x-validator": "sparseFields",
+            "schema": {"type": "object"},
+        }
+    ]
+    parser = customURIParser(parameters, {})
+    validator = CustomParameterValidator(
+        parameters,
+        uri_parser=parser,
+        strict_validation=True,
+        system_profile_spec={"arch": {}},
+    )
+
+    def scope_for(query: str) -> dict:
+        return {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/hosts",
+            "raw_path": b"/hosts",
+            "query_string": query.encode(),
+            "headers": [],
+            "client": ("127.0.0.1", 123),
+            "server": ("testserver", 80),
+        }
+
+    validator.validate(scope_for(query_string.format(field=legacy_field)))
 
 
 def test_valid_deep_object_list_query_parameter_parsing():
