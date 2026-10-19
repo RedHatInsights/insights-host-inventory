@@ -42,7 +42,7 @@ def get_oc_token():
     """Retrieve the OpenShift token using `oc whoami -t`."""
     try:
         return subprocess.check_output(["oc", "whoami", "-t"], text=True).strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         print("Failed to retrieve token using `oc`. Please provide the --auth argument.")
         sys.exit(1)
 
@@ -56,7 +56,7 @@ def get_oc_server():
             "",
             subprocess.check_output(["oc", "whoami", "--show-server"], text=True).strip(),
         )
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         print("Failed to retrieve server URL using `oc`. Please provide the --url argument.")
         sys.exit(1)
 

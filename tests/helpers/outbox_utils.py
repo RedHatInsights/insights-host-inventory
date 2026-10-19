@@ -10,7 +10,7 @@ from app.models.outbox import Outbox
 
 
 @contextmanager
-def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Generator[list[dict[str, Any]], None, None]:
+def capture_outbox_calls(target: str, *, capture_groups: bool = False) -> Generator[list[dict[str, Any]]]:
     """
     Context manager to capture calls to outbox write functions.
 
@@ -89,7 +89,7 @@ def wait_for_all_events(
 
 
 @contextmanager
-def assert_query_count(session, expected: int) -> Generator[list[str], None, None]:
+def assert_query_count(session, expected: int) -> Generator[list[str]]:
     """Assert that exactly `expected` SQL statements are emitted within the block.
 
     Hooks into SQLAlchemy's before_cursor_execute event to record every statement.

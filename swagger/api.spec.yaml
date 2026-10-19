@@ -133,10 +133,10 @@ paths:
         - $ref: '#/components/parameters/tagsParam'
         - $ref: '#/components/parameters/registered_with'
         - $ref: '#/components/parameters/systemTypeParam'
-        - $ref: '#/components/parameters/recommendationSeverityParam'
-        - $ref: '#/components/parameters/incidentStatusParam'
         - $ref: '#/components/parameters/hostViewCombinedFilterParam'
         - $ref: '#/components/parameters/hostViewCombinedFieldsParam'
+        - $ref: '#/components/parameters/recommendationSeverityParam'
+        - $ref: '#/components/parameters/incidentStatusParam'
       responses:
         '200':
           description: Successfully read host views.
