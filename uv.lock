@@ -921,7 +921,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "<3.0.0" },
     { name = "starlette", specifier = "~=1.8.0" },
     { name = "ujson", specifier = "==6.0.0" },
-    { name = "unleashclient", specifier = "==6.9.0" },
+    { name = "unleashclient", specifier = "==6.9.1" },
     { name = "urllib3", specifier = ">=1.26.5" },
     { name = "watchtower", specifier = ">=0.6.0,<4.0.0" },
 ]
@@ -2411,7 +2411,7 @@ wheels = [
 
 [[package]]
 name = "unleashclient"
-version = "6.9.0"
+version = "6.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apscheduler" },
@@ -2424,9 +2424,9 @@ dependencies = [
     { name = "semver" },
     { name = "yggdrasil-engine" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b0/f0/e5d9e5529bed19b135867d410833a4f275d48350e8c3e4e920dd2d81d83c/unleashclient-6.9.0.tar.gz", hash = "sha256:ec9c0f762ba432db94602079dd56fa674ae2e453c3fc441bd89e272e8af34e6b", size = 62990, upload-time = "2026-10-07T11:03:08.835Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/61/58de63130a7d50b62d22f80c9d8d297488d498256175c4e16308aef1717b/unleashclient-6.9.1.tar.gz", hash = "sha256:e58396c8e85762eb4beb8da6e3321fd2eba9378a622c1fe9873dee9a5e5e1bfd", size = 63047, upload-time = "2026-10-15T15:16:20.311Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/ae/635bd322a959c66a41e182690470bedd1c21d7a0f59478ceb246ade4cfce/unleashclient-6.9.0-py3-none-any.whl", hash = "sha256:b376d3ce9fe51e64be3b9c0194ea29ffbed0272d418f2fc2854371c5a6e32b8f", size = 53075, upload-time = "2026-10-07T11:03:07.237Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/c7/26ec148b3ad173f131f7e750e1614bfa01045fc82261c345cfe5fa6c8600/unleashclient-6.9.1-py3-none-any.whl", hash = "sha256:aaebbbe4883217e324c4e945c2a039df089f210544f268e4a8f3d349cb04c27a", size = 53081, upload-time = "2026-10-15T15:16:18.948Z" },
 ]
 
 [[package]]
