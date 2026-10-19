@@ -59,6 +59,7 @@ _COLLECTION_PARAMS = (
     "registered_with",
     "system_type",
     "recommendation_severity",
+    "cve_severity",
 )
 
 

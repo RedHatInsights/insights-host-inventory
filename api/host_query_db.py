@@ -46,6 +46,8 @@ from app.models import HostDynamicSystemProfile
 from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
+from app.models.host_app_data import HostAppDataAdvisor
+from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.models.system_profile_transformer import DYNAMIC_FIELDS
@@ -972,6 +974,26 @@ def _app_models_needed_for_filter(query_filter: dict | None) -> list:
     return [models[name] for name, spec in query_filter.items() if name in models and spec]
 
 
+def _app_models_needed_for_host_filter(host_filter: dict | None) -> list:
+    """App-data tables that must be LEFT JOINed for dedicated host-level filter params.
+
+    ``query_filters()`` adds these to its own query_base, but the export path
+    builds its own query and discards query_base.  This helper ensures
+    the export query also joins any app-data tables referenced by dedicated
+    host-level filter params (recommendation_severity, incident_status,
+    cve_severity, known_exploit).
+    """
+    if not host_filter:
+        return []
+
+    models = []
+    if host_filter.get("recommendation_severity") or host_filter.get("incident_status"):
+        models.append(HostAppDataAdvisor)
+    if host_filter.get("cve_severity") or host_filter.get("known_exploit"):
+        models.append(HostAppDataVulnerability)
+    return models
+
+
 def _row_to_export_host(row, labels: list[str]) -> SimpleNamespace:
     host = SimpleNamespace(**dict.fromkeys(_SP_ROW_ATTRS, None))
     for name, value in zip(labels, row, strict=True):
@@ -1060,6 +1082,12 @@ def get_hosts_to_export(
             ),
         )
     for model_class in _app_models_needed_for_filter(query_filter):
+        if not _is_table_already_joined(base_query, model_class):
+            base_query = base_query.outerjoin(
+                model_class,
+                and_(Host.id == model_class.host_id, Host.org_id == model_class.org_id),
+            )
+    for model_class in _app_models_needed_for_host_filter(host_filter):
         if not _is_table_already_joined(base_query, model_class):
             base_query = base_query.outerjoin(
                 model_class,

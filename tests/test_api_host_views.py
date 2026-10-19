@@ -3010,5 +3010,3 @@ class TestCombinedCveSeverityAndKnownExploitFilters:
         assert str(host_both.id) in result_ids
         assert str(host_critical_only.id) not in result_ids
         assert str(host_exploit_only.id) not in result_ids
-
-

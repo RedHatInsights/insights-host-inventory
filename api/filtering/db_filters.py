@@ -37,6 +37,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -549,8 +550,6 @@ def _vulnerability_filter(
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataVulnerability model class)
     """
-    from app.models.host_app_data import HostAppDataVulnerability
-
     filters = []
 
     if cve_severity:
