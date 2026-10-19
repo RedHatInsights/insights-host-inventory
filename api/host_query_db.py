@@ -374,6 +374,8 @@ def get_host_list_for_views(
     system_type: list[str] | None,
     recommendation_severity: list[str] | None = None,
     incident_status: str | None = None,
+    cve_severity: list[str] | None = None,
+    known_exploit: str | None = None,
     filter: dict | None = None,
     fields: dict | None = None,
     rbac_filter: dict | None = None,
@@ -412,6 +414,8 @@ def get_host_list_for_views(
         get_current_identity(),
         recommendation_severity=recommendation_severity,
         incident_status=incident_status,
+        cve_severity=cve_severity,
+        known_exploit=known_exploit,
     )
 
     # Automatically add LEFT JOIN for app data table if sorting by app field

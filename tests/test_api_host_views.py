@@ -2745,3 +2745,270 @@ class TestAdvisorFilterRBAC:
         response_status, _ = api_get(url)
 
         assert_response_status(response_status, 200)
+
+
+class TestCveSeverityFilter:
+    """Tests for the cve_severity query parameter."""
+
+    def test_single_severity_critical(self, api_get, db_create_host):
+        """Only hosts with critical_cves > 0 are returned."""
+        host_match = db_create_host(extra_data={"display_name": "host-critical-cve"})
+        host_no_match = db_create_host(extra_data={"display_name": "host-no-critical-cve"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-no-vuln"})
+
+        db_create_host_app_data(
+            host_match.id,
+            host_match.org_id,
+            "vulnerability",
+            critical_cves=3,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=0,
+        )
+        db_create_host_app_data(
+            host_no_match.id,
+            host_no_match.org_id,
+            "vulnerability",
+            critical_cves=0,
+            important_cves=5,
+            moderate_cves=2,
+            low_cves=1,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_match.id) in result_ids
+        assert str(host_no_match.id) not in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_multiple_severities_or_logic(self, api_get, db_create_host):
+        """Multiple severities use OR: critical + low returns hosts with either."""
+        host_critical = db_create_host(extra_data={"display_name": "host-critical-cve"})
+        host_low = db_create_host(extra_data={"display_name": "host-low-cve"})
+        host_important = db_create_host(extra_data={"display_name": "host-important-only-cve"})
+
+        db_create_host_app_data(
+            host_critical.id,
+            host_critical.org_id,
+            "vulnerability",
+            critical_cves=2,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=0,
+        )
+        db_create_host_app_data(
+            host_low.id,
+            host_low.org_id,
+            "vulnerability",
+            critical_cves=0,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=4,
+        )
+        db_create_host_app_data(
+            host_important.id,
+            host_important.org_id,
+            "vulnerability",
+            critical_cves=0,
+            important_cves=3,
+            moderate_cves=0,
+            low_cves=0,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical&cve_severity=low")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_critical.id) in result_ids
+        assert str(host_low.id) in result_ids
+        assert str(host_important.id) not in result_ids
+
+    def test_no_severity_selected_returns_all(self, api_get, db_create_host):
+        """No cve_severity param returns all hosts."""
+        host_a = db_create_host(extra_data={"display_name": "host-a"})
+        host_b = db_create_host(extra_data={"display_name": "host-b"})
+
+        db_create_host_app_data(
+            host_a.id,
+            host_a.org_id,
+            "vulnerability",
+            critical_cves=1,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=0,
+        )
+
+        url = build_host_view_url()
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_a.id) in result_ids
+        assert str(host_b.id) in result_ids
+
+    def test_null_severity_excluded(self, api_get, db_create_host):
+        """Hosts with no vulnerability data are excluded when cve_severity filter is active."""
+        host_with_data = db_create_host(extra_data={"display_name": "host-with"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-without"})
+
+        db_create_host_app_data(
+            host_with_data.id,
+            host_with_data.org_id,
+            "vulnerability",
+            critical_cves=1,
+            important_cves=0,
+            moderate_cves=0,
+            low_cves=0,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_with_data.id) in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_all_data_returned_for_matching_host(self, api_get, db_create_host):
+        """Matching hosts return all vulnerability fields, not just the filtered severity."""
+        host = db_create_host(extra_data={"display_name": "host-full-data"})
+        db_create_host_app_data(
+            host.id,
+            host.org_id,
+            "vulnerability",
+            total_cves=20,
+            critical_cves=2,
+            important_cves=3,
+            moderate_cves=5,
+            low_cves=10,
+            cves_with_known_exploits=1,
+            cves_with_security_rules=2,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result = response_data["results"][0]
+        vuln_data = result["app_data"]["vulnerability"]
+        assert vuln_data["critical_cves"] == 2
+        assert vuln_data["important_cves"] == 3
+        assert vuln_data["moderate_cves"] == 5
+        assert vuln_data["low_cves"] == 10
+        assert vuln_data["cves_with_known_exploits"] == 1
+
+    def test_invalid_severity_returns_400(self, api_get, db_create_host):
+        """Invalid cve_severity value returns 400."""
+        db_create_host()
+        url = build_host_view_url(query="?cve_severity=extreme")
+        response_status, _ = api_get(url)
+        assert_response_status(response_status, 400)
+
+
+class TestKnownExploitFilter:
+    """Tests for the known_exploit query parameter."""
+
+    def test_has_known_exploit_filter(self, api_get, db_create_host):
+        """known_exploit=has_known_exploit returns only hosts with cves_with_known_exploits > 0."""
+        host_with = db_create_host(extra_data={"display_name": "host-exploits"})
+        host_without = db_create_host(extra_data={"display_name": "host-no-exploits"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-no-vuln"})
+
+        db_create_host_app_data(host_with.id, host_with.org_id, "vulnerability", cves_with_known_exploits=3)
+        db_create_host_app_data(host_without.id, host_without.org_id, "vulnerability", cves_with_known_exploits=0)
+
+        url = build_host_view_url(query="?known_exploit=has_known_exploit")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_with.id) in result_ids
+        assert str(host_without.id) not in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_no_known_exploit_filter(self, api_get, db_create_host):
+        """known_exploit=no_known_exploit returns only hosts with cves_with_known_exploits = 0."""
+        host_with = db_create_host(extra_data={"display_name": "host-exploits"})
+        host_without = db_create_host(extra_data={"display_name": "host-no-exploits"})
+        host_no_data = db_create_host(extra_data={"display_name": "host-no-vuln"})
+
+        db_create_host_app_data(host_with.id, host_with.org_id, "vulnerability", cves_with_known_exploits=3)
+        db_create_host_app_data(host_without.id, host_without.org_id, "vulnerability", cves_with_known_exploits=0)
+
+        url = build_host_view_url(query="?known_exploit=no_known_exploit")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_without.id) in result_ids
+        assert str(host_with.id) not in result_ids
+        assert str(host_no_data.id) not in result_ids
+
+    def test_null_exploits_excluded_from_no_known_exploit(self, api_get, db_create_host):
+        """Hosts with no vulnerability data (NULL) are excluded from no_known_exploit."""
+        host_zero = db_create_host(extra_data={"display_name": "host-zero"})
+        host_null = db_create_host(extra_data={"display_name": "host-null"})
+
+        db_create_host_app_data(host_zero.id, host_zero.org_id, "vulnerability", cves_with_known_exploits=0)
+
+        url = build_host_view_url(query="?known_exploit=no_known_exploit")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_zero.id) in result_ids
+        assert str(host_null.id) not in result_ids
+
+    def test_invalid_known_exploit_returns_400(self, api_get, db_create_host):
+        """Invalid known_exploit value returns 400."""
+        db_create_host()
+        url = build_host_view_url(query="?known_exploit=maybe")
+        response_status, _ = api_get(url)
+        assert_response_status(response_status, 400)
+
+
+class TestCombinedCveSeverityAndKnownExploitFilters:
+    """Tests for using both cve_severity and known_exploit together."""
+
+    def test_severity_and_known_exploit_combined(self, api_get, db_create_host):
+        """Both filters are ANDed: host must have critical_cves > 0 AND cves_with_known_exploits > 0."""
+        host_both = db_create_host(extra_data={"display_name": "host-both"})
+        host_critical_only = db_create_host(extra_data={"display_name": "host-critical-only"})
+        host_exploit_only = db_create_host(extra_data={"display_name": "host-exploit-only"})
+
+        db_create_host_app_data(
+            host_both.id,
+            host_both.org_id,
+            "vulnerability",
+            critical_cves=2,
+            cves_with_known_exploits=3,
+        )
+        db_create_host_app_data(
+            host_critical_only.id,
+            host_critical_only.org_id,
+            "vulnerability",
+            critical_cves=1,
+            cves_with_known_exploits=0,
+        )
+        db_create_host_app_data(
+            host_exploit_only.id,
+            host_exploit_only.org_id,
+            "vulnerability",
+            critical_cves=0,
+            cves_with_known_exploits=5,
+        )
+
+        url = build_host_view_url(query="?cve_severity=critical&known_exploit=has_known_exploit")
+        response_status, response_data = api_get(url)
+
+        assert_response_status(response_status, 200)
+        result_ids = {str(r["id"]) for r in response_data["results"]}
+        assert str(host_both.id) in result_ids
+        assert str(host_critical_only.id) not in result_ids
+        assert str(host_exploit_only.id) not in result_ids
+
+
