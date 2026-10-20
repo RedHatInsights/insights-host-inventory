@@ -7,6 +7,7 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api import pagination_params
+from api.filtering.query_params import HostFilters
 from api.host_query_db import get_os_info
 from api.host_query_db import get_sap_sids_info
 from api.host_query_db import get_sap_system_info
@@ -34,11 +35,13 @@ def get_sap_system(
     results, total = get_sap_system_info(
         limit,
         offset,
-        staleness=staleness,
-        tags=tags,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+        HostFilters(
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            query_filter=filter,
+            rbac_filter=rbac_filter,
+        ),
         identity=get_current_identity(),
     )
     log_get_sap_system_succeeded(logger, results)
@@ -67,11 +70,13 @@ def get_sap_sids(
     results, total = get_sap_sids_info(
         limit,
         offset,
-        staleness=staleness,
-        tags=tags,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+        HostFilters(
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            query_filter=filter,
+            rbac_filter=rbac_filter,
+        ),
         search=escaped_search,
         identity=get_current_identity(),
     )
@@ -95,11 +100,13 @@ def get_operating_system(
     results, total = get_os_info(
         limit,
         offset,
-        staleness=staleness,
-        tags=tags,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+        HostFilters(
+            staleness=staleness,
+            tags=tags,
+            registered_with=registered_with,
+            query_filter=filter,
+            rbac_filter=rbac_filter,
+        ),
         identity=get_current_identity(),
     )
     log_get_operating_system_succeeded(logger, results)
