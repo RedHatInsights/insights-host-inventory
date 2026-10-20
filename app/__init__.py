@@ -400,9 +400,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     instrument_flask_app(flask_app)
     try:
         with flask_app.app_context():
-            instrument_sqlalchemy(db.engine)
-            if read_engine := flask_app.extensions.get("inventory_read_engine"):
-                instrument_sqlalchemy(read_engine)
+            instrument_sqlalchemy(db.engine, flask_app.extensions.get("inventory_read_engine"))
     except RuntimeError:
         logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
     instrument_outbound_http()

@@ -215,6 +215,8 @@ objects:
             value: inventory
           - name: PAYLOAD_TRACKER_ENABLED
             value: 'true'
+          - <<: *rbacPsks
+            name: RBAC_PSKS
           - name: BYPASS_RBAC
             value: ${BYPASS_RBAC}
           - name: BYPASS_KESSEL
