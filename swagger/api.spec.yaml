@@ -236,8 +236,16 @@ paths:
                     stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
                     culled_timestamp: '2023-03-31T16:04:02.588Z'
                     check_in_succeeded: true
-                groups: []
-                workspace: null
+                groups:
+                - &workspace_example
+                  id: ba6decfc-1956-4430-ab81-4bf8f70e8cef
+                  name: sre-group
+                  account: null
+                  org_id: '000102'
+                  ungrouped: false
+                  created: '2023-03-01T16:04:02.588Z'
+                  updated: '2023-03-01T16:04:02.588Z'
+                workspace: *workspace_example
                 openshift_cluster_id: null
                 tags: []
                 system_profile:
@@ -2311,8 +2319,9 @@ components:
             stale_warning_timestamp: '2023-03-08T16:04:02.588Z'
             culled_timestamp: '2023-03-31T16:04:02.588Z'
             check_in_succeeded: true
-        groups: []
-        workspace: null
+        groups:
+        - *workspace_example
+        workspace: *workspace_example
         openshift_cluster_id: null
       type: object
       allOf:
@@ -2483,7 +2492,7 @@ components:
             type: array
             items:
               type: string
-            example: []
+            example: ["vulnerability", "malware"]
     HostViewHost:
       title: Host with application data
       allOf:

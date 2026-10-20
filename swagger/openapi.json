@@ -430,8 +430,26 @@
                       "check_in_succeeded": true
                     }
                   },
-                  "groups": [],
-                  "workspace": null,
+                  "groups": [
+                    {
+                      "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+                      "name": "sre-group",
+                      "account": null,
+                      "org_id": "000102",
+                      "ungrouped": false,
+                      "created": "2023-03-01T16:04:02.588Z",
+                      "updated": "2023-03-01T16:04:02.588Z"
+                    }
+                  ],
+                  "workspace": {
+                    "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+                    "name": "sre-group",
+                    "account": null,
+                    "org_id": "000102",
+                    "ungrouped": false,
+                    "created": "2023-03-01T16:04:02.588Z",
+                    "updated": "2023-03-01T16:04:02.588Z"
+                  },
                   "openshift_cluster_id": null,
                   "tags": [],
                   "system_profile": {
@@ -3389,8 +3407,26 @@
               "check_in_succeeded": true
             }
           },
-          "groups": [],
-          "workspace": null,
+          "groups": [
+            {
+              "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+              "name": "sre-group",
+              "account": null,
+              "org_id": "000102",
+              "ungrouped": false,
+              "created": "2023-03-01T16:04:02.588Z",
+              "updated": "2023-03-01T16:04:02.588Z"
+            }
+          ],
+          "workspace": {
+            "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+            "name": "sre-group",
+            "account": null,
+            "org_id": "000102",
+            "ungrouped": false,
+            "created": "2023-03-01T16:04:02.588Z",
+            "updated": "2023-03-01T16:04:02.588Z"
+          },
           "openshift_cluster_id": null
         },
         "type": "object",
@@ -3600,8 +3636,26 @@
                   "check_in_succeeded": true
                 }
               },
-              "groups": [],
-              "workspace": null,
+              "groups": [
+                {
+                  "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+                  "name": "sre-group",
+                  "account": null,
+                  "org_id": "000102",
+                  "ungrouped": false,
+                  "created": "2023-03-01T16:04:02.588Z",
+                  "updated": "2023-03-01T16:04:02.588Z"
+                }
+              ],
+              "workspace": {
+                "id": "ba6decfc-1956-4430-ab81-4bf8f70e8cef",
+                "name": "sre-group",
+                "account": null,
+                "org_id": "000102",
+                "ungrouped": false,
+                "created": "2023-03-01T16:04:02.588Z",
+                "updated": "2023-03-01T16:04:02.588Z"
+              },
               "openshift_cluster_id": null
             }
           ]
@@ -3653,7 +3707,10 @@
                 "items": {
                   "type": "string"
                 },
-                "example": []
+                "example": [
+                  "vulnerability",
+                  "malware"
+                ]
               }
             }
           }
