@@ -550,13 +550,20 @@ arches:
     name: perl-Time-Local
     evr: 2:1.300-7.el9
     sourcerpm: perl-Time-Local-1.300-7.el9.src.rpm
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/perl-URI-5.09-3.el9.noarch.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/perl-URI-5.09-3.el9_8.1.noarch.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
-    size: 128279
-    checksum: sha256:1635b7d818e4f70445f7207f13e058c63c5d1f5aa081cfd2583912ae45f8e1bd
+    size: 130351
+    checksum: sha256:5dc2921a96c8dac9acbb3b2c36a45cf71c6c9bc81b12b01d08488692f7ff5bad
     name: perl-URI
-    evr: 5.09-3.el9
-    sourcerpm: perl-URI-5.09-3.el9.src.rpm
+    evr: 5.09-3.el9_8.1
+    sourcerpm: perl-URI-5.09-3.el9_8.1.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/perl-Unicode-Normalize-1.27-461.el9.x86_64.rpm
+    repoid: rhel-9-for-x86_64-appstream-rpms
+    size: 96049
+    checksum: sha256:9254f16bef6a0598320196378370728a4881557f5bfeca1ef864a0a25c93f4c0
+    name: perl-Unicode-Normalize
+    evr: 1.27-461.el9
+    sourcerpm: perl-Unicode-Normalize-1.27-461.el9.src.rpm
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/Packages/p/perl-base-2.27-484.el9_8.noarch.rpm
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 21601
@@ -1305,12 +1312,18 @@ arches:
     checksum: sha256:f9d3745fb10235d5097536f81976f8234921de7a5c4b5cd599aa2b790f4ad18b
     name: perl-Time-Local
     evr: 2:1.300-7.el9
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/perl-URI-5.09-3.el9.src.rpm
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/perl-URI-5.09-3.el9_8.1.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
-    size: 123780
-    checksum: sha256:20fa38e20285da9712b42fdb9a5dffbc72644c4d608db827e2a10e9d8055dce2
+    size: 130497
+    checksum: sha256:4831e3d3b3633960ef2fd74aae4af5afd02460b9fa4ee497d1fb79f051c26cf7
     name: perl-URI
-    evr: 5.09-3.el9
+    evr: 5.09-3.el9_8.1
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/perl-Unicode-Normalize-1.27-461.el9.src.rpm
+    repoid: rhel-9-for-x86_64-appstream-source-rpms
+    size: 55458
+    checksum: sha256:514286df911a40dad2269810466a25279f07d2efab97db7479de337cfcedd971
+    name: perl-Unicode-Normalize
+    evr: 1.27-461.el9
   - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/source/SRPMS/Packages/p/perl-constant-1.33-461.el9.src.rpm
     repoid: rhel-9-for-x86_64-appstream-source-rpms
     size: 32045
@@ -1654,7 +1667,7 @@ arches:
     name: zstd
     evr: 1.5.5-1.el9
   module_metadata:
-  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/dc6421846ac70596545e5cd8d0513a506a9aa63a19777532c5827eb3c2d6f2ec-modules.yaml.gz
+  - url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os/repodata/7dc0468cd3aeb93dca765eee66886c3ba63e4a39f339bf8aa202cc8ba241060a-modules.yaml.gz
     repoid: rhel-9-for-x86_64-appstream-rpms
     size: 72012
-    checksum: sha256:dc6421846ac70596545e5cd8d0513a506a9aa63a19777532c5827eb3c2d6f2ec
+    checksum: sha256:7dc0468cd3aeb93dca765eee66886c3ba63e4a39f339bf8aa202cc8ba241060a
