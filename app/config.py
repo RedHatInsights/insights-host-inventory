@@ -96,6 +96,11 @@ class Config:
         self._db_host = cfg.database.hostname
         self._db_port = cfg.database.port
         self._db_name = cfg.database.name
+        self._read_db_user = None
+        self._read_db_password = None
+        self._read_db_host = None
+        self._read_db_port = None
+        self._read_db_name = None
         if cfg.database.rdsCa:
             self._db_ssl_cert = cfg.rds_ca()
 
@@ -110,15 +115,15 @@ class Config:
         if use_read_replica and all(list(map(os.path.isfile, read_replica_file_list))):
             self.logger.info("Read replica files exist.")
             with open("/etc/db/readreplica/db_host") as file:
-                self._db_host = file.read().rstrip()
+                self._read_db_host = file.read().rstrip()
             with open("/etc/db/readreplica/db_port") as file:
-                self._db_port = file.read().rstrip()
+                self._read_db_port = file.read().rstrip()
             with open("/etc/db/readreplica/db_name") as file:
-                self._db_name = file.read().rstrip()
+                self._read_db_name = file.read().rstrip()
             with open("/etc/db/readreplica/db_user") as file:
-                self._db_user = file.read().rstrip()
+                self._read_db_user = file.read().rstrip()
             with open("/etc/db/readreplica/db_password") as file:
-                self._db_password = file.read().rstrip()
+                self._read_db_password = file.read().rstrip()
         self._cache_host = None
         self._cache_port = None
         if cfg.inMemoryDb:
@@ -223,6 +228,11 @@ class Config:
         self._db_host = os.getenv("INVENTORY_DB_HOST", "localhost")
         self._db_port = os.getenv("INVENTORY_DB_PORT", 5432)
         self._db_name = os.getenv("INVENTORY_DB_NAME", "insights")
+        self._read_db_user = os.getenv("INVENTORY_DB_READREPLICA_USER")
+        self._read_db_password = os.getenv("INVENTORY_DB_READREPLICA_PASS")
+        self._read_db_host = os.getenv("INVENTORY_DB_READREPLICA_HOST")
+        self._read_db_port = os.getenv("INVENTORY_DB_READREPLICA_PORT")
+        self._read_db_name = os.getenv("INVENTORY_DB_READREPLICA_NAME")
         self.rbac_endpoint = os.environ.get("RBAC_ENDPOINT", "http://localhost:8111")
         self.rbac_endpoint_ca_certificate = None
         self.rbac_endpoint_authenticated = False
@@ -288,6 +298,7 @@ class Config:
         self.redis_socket_connect_timeout = float(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS", "3"))
 
         self.db_uri = self._build_db_uri(self._db_ssl_mode)
+        self.read_db_uri = self._build_read_db_uri()
 
         self.base_url_path = self._build_base_url_path()
         self.api_url_path_prefix = self._build_api_path()
@@ -487,25 +498,37 @@ class Config:
         api_path = f"{base_url_path}/{version}"
         return api_path
 
-    def _build_db_uri(self, ssl_mode, hide_password=False):
-        db_user = self._db_user
-        db_password = self._db_password
+    def _build_db_uri(
+        self,
+        ssl_mode,
+        hide_password=False,
+        db_user=None,
+        db_password=None,
+        db_host=None,
+        db_port=None,
+        db_name=None,
+    ):
+        db_user = self._db_user if db_user is None else db_user
+        db_password = self._db_password if db_password is None else db_password
+        db_host = self._db_host if db_host is None else db_host
+        db_port = self._db_port if db_port is None else db_port
+        db_name = self._db_name if db_name is None else db_name
         query_parts = []
         socket_path = None
         netloc = ""
-        path = f"/{self._db_name}"
+        path = f"/{db_name}"
 
         if hide_password:
             db_user = "xxxx"
             db_password = "XXXX"
 
         # Check if the host is a Unix socket (e.g., starts with '/')
-        if self._db_host.startswith("/"):
+        if db_host.startswith("/"):
             # Unix socket: no host/port, use query param for socket path
-            socket_path = self._db_host  # Keep socket path unencoded
+            socket_path = db_host  # Keep socket path unencoded
         else:
             # TCP connection: include host and port
-            netloc = f"{self._db_host}:{self._db_port}"
+            netloc = f"{db_host}:{db_port}"
 
         # Add query parameters
         if socket_path:
@@ -523,6 +546,28 @@ class Config:
             db_uri += f"?{query_string}"
 
         return db_uri
+
+    def _build_read_db_uri(self):
+        if not all(
+            value is not None
+            for value in (
+                self._read_db_user,
+                self._read_db_password,
+                self._read_db_host,
+                self._read_db_port,
+                self._read_db_name,
+            )
+        ):
+            return None
+
+        return self._build_db_uri(
+            self._db_ssl_mode,
+            db_user=self._read_db_user,
+            db_password=self._read_db_password,
+            db_host=self._read_db_host,
+            db_port=self._read_db_port,
+            db_name=self._read_db_name,
+        )
 
     def _from_dict(self, dict, name, default):
         value = dict.get(os.environ.get(name, default))

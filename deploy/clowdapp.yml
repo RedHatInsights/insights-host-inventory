@@ -8,7 +8,7 @@ objects:
   metadata:
     name: ${CLOWDAPP_NAME}
   x-anchors:
-    # Base podSpec for gunicorn-based deployments (service-reads/writes)
+    # Base podSpec for the gunicorn-based inventory API
     gunicornPodSpec: &gunicornPodSpec
       image: ${IMAGE}:${IMAGE_TAG}
       args: [
@@ -182,65 +182,10 @@ objects:
       - kessel-kafkaconnect
     deployments:
     - name: service
-      podSpec:
-        command:
-        - nginx
-        - -g
-        - daemon off;
-        env:
-        - name: CLOWDER_ENABLED
-          value: ${CLOWDER_ENABLED}
-        - name: APP_POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        image: ${NGINX_IMAGE}:${NGINX_IMAGE_TAG}
-        imagePullPolicy: Always
-        livenessProbe:
-          failureThreshold: 5
-          httpGet:
-            path: /healthz
-            port: web
-            scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          successThreshold: 1
-          timeoutSeconds: 10
-        readinessProbe:
-          failureThreshold: 5
-          httpGet:
-            path: /healthz
-            port: web
-            scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
-          successThreshold: 1
-          timeoutSeconds: 10
-        resources:
-          limits:
-            cpu: ${NGINX_CPU_LIMIT}
-            memory: ${NGINX_MEMORY_LIMIT}
-          requests:
-            cpu: ${NGINX_CPU_REQUEST}
-            memory: ${NGINX_MEMORY_REQUEST}
-        volumeMounts:
-        - mountPath: /etc/nginx
-          name: api-nginx-conf
-        volumes:
-        - configMap:
-            name: inventory-nginx-conf
-          name: api-nginx-conf
-      replicas: ${{NGINX_REPLICAS}}
+      replicas: ${{REPLICAS_SVC}}
       webServices:
-        private:
-          enabled: false
         public:
           apiPath: inventory
-          enabled: true
-    - name: service-reads
-      replicas: ${{REPLICAS_SVC_READS}}
-      webServices:
-        public:
           enabled: true
       podSpec:
         <<: [ *gunicornPodSpec, *readProbes ]
@@ -384,151 +329,6 @@ objects:
                 path: db_port
               - key: db.user
                 path: db_user
-    - name: service-writes
-      replicas: ${{REPLICAS_SVC_WRITES}}
-      webServices:
-        public:
-          enabled: true
-      podSpec:
-        <<: *gunicornPodSpec
-        initContainers: *migrationWaitInitContainer
-        env:
-          - name: OPENSHIFT_BUILD_COMMIT
-            value: ${IMAGE_TAG}
-          - name: APP_NAME
-            value: ${APP_NAME}
-          - name: PATH_PREFIX
-            value: ${PATH_PREFIX}
-          - name: CONSOLEDOT_HOSTNAME
-            value: ${CONSOLEDOT_HOSTNAME}
-          - name: INVENTORY_LEGACY_API_URL
-            value: /r/insights/platform/inventory/v1
-          - name: PROMETHEUS_MULTIPROC_DIR
-            value: /tmp/inventory/prometheus
-          - name: INVENTORY_LOG_LEVEL
-            value: ${LOG_LEVEL}
-          - name: URLLIB3_LOG_LEVEL
-            value: ${URLLIB3_LOG_LEVEL}
-          - name: CONNEXION_LOG_LEVEL
-            value: ${CONNEXION_LOG_LEVEL}
-          - name: INVENTORY_DB_SSL_MODE
-            value: ${INVENTORY_DB_SSL_MODE}
-          - name: PAYLOAD_TRACKER_SERVICE_NAME
-            value: inventory
-          - name: PAYLOAD_TRACKER_ENABLED
-            value: 'true'
-          - name: BYPASS_RBAC
-            value: ${BYPASS_RBAC}
-          - name: BYPASS_KESSEL
-            value: ${BYPASS_KESSEL}
-          - name: INVENTORY_ADMIN_HOSTS_ENABLED
-            value: ${INVENTORY_ADMIN_HOSTS_ENABLED}
-          - name: OTEL_ENABLED
-            value: ${OTEL_ENABLED}
-          - name: OTEL_EXPORTER_OTLP_ENDPOINT
-            value: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-          - name: OTEL_SQL_ENABLED
-            value: ${OTEL_SQL_ENABLED}
-          - name: OTEL_SQL_COMMENTER_ENABLED
-            value: ${OTEL_SQL_COMMENTER_ENABLED}
-          - name: OTEL_HTTP_INBOUND_ENABLED
-            value: ${OTEL_HTTP_INBOUND_ENABLED}
-          - name: OTEL_HTTP_OUTBOUND_ENABLED
-            value: ${OTEL_HTTP_OUTBOUND_ENABLED}
-          - name: OTEL_SAMPLING_RATE
-            value: ${OTEL_SAMPLING_RATE}
-          - name: OTEL_BSP_MAX_QUEUE_SIZE
-            value: ${OTEL_BSP_MAX_QUEUE_SIZE}
-          - name: OTEL_BSP_MAX_EXPORT_BATCH_SIZE
-            value: ${OTEL_BSP_MAX_EXPORT_BATCH_SIZE}
-          - name: OTEL_BSP_SCHEDULE_DELAY
-            value: ${OTEL_BSP_SCHEDULE_DELAY}
-          - name: OTEL_BSP_EXPORT_TIMEOUT
-            value: ${OTEL_BSP_EXPORT_TIMEOUT}
-          - name: OTEL_EXPORTER_OTLP_COMPRESSION
-            value: ${OTEL_EXPORTER_OTLP_COMPRESSION}
-          - name: OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT
-            value: ${OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT}
-          - name: OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
-            value: ${OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT}
-          - name: KAFKA_PRODUCER_ACKS
-            value: ${KAFKA_PRODUCER_ACKS}
-          - name: KAFKA_PRODUCER_RETRIES
-            value: ${KAFKA_PRODUCER_RETRIES}
-          - name: KAFKA_PRODUCER_RETRY_BACKOFF_MS
-            value: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS}
-          - name: KAFKA_SECURITY_PROTOCOL
-            value: ${KAFKA_SECURITY_PROTOCOL}
-          - name: KAFKA_SASL_MECHANISM
-            value: ${KAFKA_SASL_MECHANISM}
-          - name: KAFKA_EVENT_TOPIC
-            value: ${KAFKA_EVENT_TOPIC}
-          - name: KAFKA_NOTIFICATION_TOPIC
-            value: ${KAFKA_NOTIFICATION_TOPIC}
-          - name: CLOWDER_ENABLED
-            value: "true"
-          - name: INVENTORY_DB_STATEMENT_TIMEOUT
-            value: "${INVENTORY_DB_STATEMENT_TIMEOUT}"
-          - name: INVENTORY_DB_LOCK_TIMEOUT
-            value: "${INVENTORY_DB_LOCK_TIMEOUT}"
-          - name: INVENTORY_DB_SCHEMA
-            value: "${INVENTORY_DB_SCHEMA}"
-          - name: INVENTORY_API_CACHE_TIMEOUT_SECONDS
-            value: "${INVENTORY_API_CACHE_TIMEOUT_SECONDS}"
-          - name: INVENTORY_API_CACHE_TYPE
-            value: "${INVENTORY_API_CACHE_TYPE}"
-          - name: INVENTORY_API_STALENESS_CACHE_ENABLED
-            value: "${INVENTORY_API_STALENESS_CACHE_ENABLED}"
-          - name: INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC
-            value: "${INVENTORY_CACHE_INSIGHTS_CLIENT_SYSTEM_TIMEOUT_SEC}"
-          - name: UNLEASH_URL
-            value: ${UNLEASH_URL}
-          - <<: *unleashToken
-            name: UNLEASH_TOKEN
-          - name: BYPASS_UNLEASH
-            value: ${BYPASS_UNLEASH}
-          - name: UNLEASH_REFRESH_INTERVAL
-            value: ${UNLEASH_REFRESH_INTERVAL}
-          - <<: *segmentioWriteKey
-            name: SEGMENTIO_WRITE_KEY
-          - name: REPLICA_NAMESPACE
-            value: ${REPLICA_NAMESPACE}
-          - <<: *rbacPsks
-            name: RBAC_PSKS
-          - name: KESSEL_AUTH_CLIENT_ID
-            <<: *kesselClientId
-          - name: KESSEL_AUTH_CLIENT_SECRET
-            <<: *kesselClientSecret
-          - name: KESSEL_INSECURE
-            value: ${KESSEL_INSECURE}
-          - name: KESSEL_AUTH_ENABLED
-            value: ${KESSEL_AUTH_ENABLED}
-          - name: KESSEL_AUTH_OIDC_ISSUER
-            value: ${KESSEL_AUTH_OIDC_ISSUER}
-          - name: KESSEL_INVENTORY_API_PORT
-            value: ${KESSEL_INVENTORY_API_PORT}
-          - name: WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS
-            value: ${WAIT_FOR_MIGRATIONS_TIMEOUT_SECONDS}
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_WRITES_LIVENESS_PROBE_TIMEOUT_SECONDS}}
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8000
-            scheme: HTTP
-          periodSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_PERIOD_SECONDS}}
-          successThreshold: 1
-          timeoutSeconds: ${{INVENTORY_API_WRITES_READINESS_PROBE_TIMEOUT_SECONDS}}
-        volumeMounts: *writeServiceVolumeMounts
-        volumes: *writeServiceVolumes
     - name: mq-pmin
       replicas: ${{REPLICAS_PMIN}}
       podSpec:
@@ -2509,7 +2309,9 @@ objects:
     jobs:
       - db-migration-downgrade
     runOnNotReady: true
-# this service proxies requests for the old URL (insights-inventory:8080) to the clowderized service (host-inventory-service:8000)
+# Preserve the legacy service name for callers that have not migrated to the
+# API gateway.  New traffic is routed by insights-3scale directly to the read
+# or write deployment.
 - apiVersion: v1
   kind: Service
   metadata:
@@ -2735,75 +2537,6 @@ objects:
           GROUP BY "groups"."id"
           ORDER BY "host_count" DESC;
 - apiVersion: v1
-  data:
-    nginx.conf: |-
-      worker_processes  1;
-      error_log  /dev/stderr warn;
-      pid        /run/nginx.pid;
-
-      events {
-        worker_connections  1024;
-      }
-      http {
-        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_proto" "$http_x_forwarded_for"';
-
-        access_log  /dev/stdout  main;
-
-        sendfile            on;
-        tcp_nopush          on;
-        tcp_nodelay         on;
-        keepalive_timeout   65;
-        server_tokens       off;
-
-        upstream host-inventory-service-reads {
-          server host-inventory-service-reads:8000;
-        }
-        upstream host-inventory-service-writes {
-          server host-inventory-service-writes:8000;
-        }
-        map $request_method $upstream_location {
-                    GET     host-inventory-service-reads;
-                    HEAD    host-inventory-service-reads;
-                    POST    host-inventory-service-writes;
-                    PUT     host-inventory-service-writes;
-                    DELETE  host-inventory-service-writes;
-                    default host-inventory-service-writes;
-        }
-        server {
-          error_log  stderr;
-          listen 8000;
-          listen 9000;
-
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-          proxy_set_header Host $http_host;
-          proxy_redirect off;
-
-          client_max_body_size 500M;
-          client_header_buffer_size 46k;
-          location /healthz {
-              auth_basic          off;
-              allow               all;
-              return              200;
-          }
-          location /metrics {
-              auth_basic          off;
-              allow               all;
-              return              200;
-          }
-          location / {
-            proxy_pass http://$upstream_location;
-            proxy_read_timeout 600s;
-          }
-        }
-      }
-  kind: ConfigMap
-  metadata:
-    name: inventory-nginx-conf
-
-- apiVersion: v1
   kind: Secret
   metadata:
     name: rbac-psks
@@ -2842,12 +2575,9 @@ parameters:
 # Controls scaling and resource allocation for each component.
 
 # -- Replica Counts --
-- description: Replica count for webservice reads
-  name: REPLICAS_SVC_READS
+- description: Replica count for the inventory API
+  name: REPLICAS_SVC
   value: "7"
-- description: Replica count for webservice writes
-  name: REPLICAS_SVC_WRITES
-  value: "3"
 - description: Replica count for pmin Kafka consumer
   name: REPLICAS_PMIN
   value: "3"
@@ -2870,25 +2600,7 @@ parameters:
   name: REPLICAS_HOST_APP_DATA
   value: "1"
 
-# -- NGINX Resources --
-- displayName: Minimum replicas for NGINX
-  name: NGINX_REPLICAS
-  required: true
-  value: "1"
-- name: NGINX_CPU_REQUEST
-  value: 100m
-- name: NGINX_CPU_LIMIT
-  value: 200m
-- name: NGINX_MEMORY_REQUEST
-  value: 100Mi
-- name: NGINX_MEMORY_LIMIT
-  value: 200Mi
-- name: NGINX_IMAGE
-  value: 'registry.access.redhat.com/ubi9/nginx-124'
-- name: NGINX_IMAGE_TAG
-  value: 'latest'
-
-# -- API Service Resources (service-reads/writes) --
+# -- API Service Resources (service) --
 - name: CPU_REQUEST_SERVICE
   value: 250m
 - name: CPU_LIMIT_SERVICE
