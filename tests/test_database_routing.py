@@ -55,8 +55,7 @@ def test_read_request_can_be_forced_to_primary(database_engines):
 
 
 def test_replica_error_retries_read_on_primary(database_engines):
-    app, primary, _ = database_engines
-    session = RoutingSession(bind=primary)
+    app, session, primary, _ = database_engines
     replica_error = DBAPIError("SELECT", {}, RuntimeError("replica unavailable"))
 
     with app.test_request_context("/", method="GET"):
