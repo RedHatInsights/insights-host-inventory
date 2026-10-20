@@ -113,8 +113,7 @@ class TestRBACGroupsNoReadPermission:
           title: Test that users without "groups:read" permission can't get a list of groups
         """
         with raises_apierror(403):
-            groups = host_inventory_no_read_permissions.apis.groups.get_groups()
-            logger.info(f"Returned groups: {groups}")
+            host_inventory_no_read_permissions.apis.groups.get_groups()
 
     def test_rbac_groups_no_read_permission_get_groups_by_id(
         self,
@@ -134,5 +133,4 @@ class TestRBACGroupsNoReadPermission:
 
         for group in groups:
             with raises_apierror(FORBIDDEN_OR_NOT_FOUND):
-                response = host_inventory_no_read_permissions.apis.groups.get_groups_by_id(group)
-                logger.info(f"Returned groups: {response}")
+                host_inventory_no_read_permissions.apis.groups.get_groups_by_id(group)

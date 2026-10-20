@@ -220,6 +220,7 @@ def enable_kessel_backend_flags(
         host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.hbi_rbac_v2_flag, enable=True
         )
+        # These flags are disabled for most orgs in Prod now. Uncomment when they get enabled.
         # host_inventory.unleash.toggle_feature_flag(
         #     host_inventory.unleash.rbac_workspaces_flag, enable=True
         # )
