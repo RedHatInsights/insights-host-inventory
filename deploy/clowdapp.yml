@@ -2310,8 +2310,8 @@ objects:
       - db-migration-downgrade
     runOnNotReady: true
 # Preserve the legacy service name for callers that have not migrated to the
-# API gateway.  New traffic is routed by insights-3scale directly to the read
-# or write deployment.
+# API gateway. The unified service handles both reads and writes; the
+# application selects the read-replica or primary database per request.
 - apiVersion: v1
   kind: Service
   metadata:
