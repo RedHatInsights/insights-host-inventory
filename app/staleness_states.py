@@ -59,6 +59,10 @@ class HostStalenessStatesDbFilters:
             return false()
 
         present_indices = sorted({CANONICAL_STATES.index(s) for s in states if s in CANONICAL_STATES})
+        # Any non-canonical state names (not in CANONICAL_STATES) are handled
+        # individually via a same-named method, e.g. self.some_state().
+        # In practice callers strip "unknown" before reaching here, so this
+        # list is normally empty; it exists as a safety net for future states.
         other_states = [s for s in dict.fromkeys(states) if s not in CANONICAL_STATES]
 
         runs: list[list[int]] = []
