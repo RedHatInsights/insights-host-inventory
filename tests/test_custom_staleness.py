@@ -12,6 +12,8 @@ import pytest
 from sqlalchemy.orm import Query
 
 from api.filtering.db_filters import _staleness_filter
+from api.filtering.db_filters import per_reporter_staleness_filter
+from api.filtering.db_filters import staleness_to_conditions
 from app.common import inventory_config
 from app.culling import CONVENTIONAL_TIME_TO_DELETE_SECONDS
 from app.culling import CONVENTIONAL_TIME_TO_STALE_SECONDS
@@ -23,6 +25,7 @@ from app.serialization import _serialize_per_reporter_staleness
 from app.staleness_serialization import AttrDict
 from app.staleness_serialization import get_staleness_timestamps
 from app.staleness_serialization import get_sys_default_staleness
+from app.staleness_states import HostStalenessStatesDbFilters
 from lib.host_repository import find_non_culled_hosts
 from tests.helpers.api_utils import build_hosts_url
 from tests.helpers.api_utils import create_host_with_reporter
@@ -505,3 +508,138 @@ def test_find_non_culled_excludes_compute_on_read_culled(db_create_host):
 
     base = Host.query.filter(Host.id == host.id)
     assert find_non_culled_hosts(base, host.org_id).count() == 0
+
+
+@pytest.fixture
+def staleness_test_hosts(db_create_host):
+    now_dt = datetime.now(tz=UTC)
+    offsets = {"fresh": 0, "stale": 3, "warn": 10, "culled": 40}
+    hosts = {k: db_create_host() for k in (*offsets, "null")}
+    for k, days in offsets.items():
+        hosts[k].last_check_in = now_dt - timedelta(days=days)
+    hosts["null"].last_check_in = None
+    db.session.commit()
+
+    return {
+        **hosts,
+        "org_id": hosts["fresh"].org_id,
+        "all_ids": [h.id for h in hosts.values()],
+    }
+
+
+@pytest.mark.parametrize(
+    "states,expected_keys",
+    [
+        (["fresh", "stale"], ["fresh", "stale"]),
+        (["stale", "stale_warning"], ["stale", "warn"]),
+        (["fresh", "stale", "stale_warning"], ["fresh", "stale", "warn"]),
+        (["fresh", "stale_warning"], ["fresh", "warn"]),
+        (["fresh", "stale", "stale_warning", "culled"], ["fresh", "stale", "warn", "culled"]),
+        ([], []),
+        (["stale_warning", "culled"], ["warn", "culled"]),
+        (["stale", "stale_warning", "culled"], ["stale", "warn", "culled"]),
+        (["fresh", "culled"], ["fresh", "culled"]),
+        (["fresh", "stale", "culled"], ["fresh", "stale", "culled"]),
+        (["stale", "fresh", "stale"], ["fresh", "stale"]),
+        (["unknown"], ["fresh", "stale", "warn"]),
+    ],
+)
+def test_staleness_db_filter_combinations(staleness_test_hosts, states, expected_keys):
+    """Verify _staleness_filter matches expected hosts across consecutive, non-consecutive,
+    and reordered states while excluding hosts with null last_check_in."""
+    org_id = staleness_test_hosts["org_id"]
+    expr = _staleness_filter(states, org_id)
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts[k].id for k in expected_keys}
+    assert staleness_test_hosts["null"].id not in matched_ids
+
+
+def test_staleness_db_filter_mixed_unknown_and_recognized(staleness_test_hosts):
+    """Mixed inputs containing unknown alongside recognized states handle unknown
+    separately and do not pass to combined_filter.
+    """
+    org_id = staleness_test_hosts["org_id"]
+    with patch.object(
+        HostStalenessStatesDbFilters,
+        "combined_filter",
+        autospec=True,
+        side_effect=HostStalenessStatesDbFilters.combined_filter,
+    ) as mock_combined:
+        expr = _staleness_filter(["fresh", "unknown"], org_id)
+        assert mock_combined.call_count == 1
+        assert mock_combined.call_args[0][1] == ["fresh"]
+
+    matched_ids = {h.id for h in Host.query.filter(Host.id.in_(staleness_test_hosts["all_ids"])).filter(*expr).all()}
+    assert matched_ids == {staleness_test_hosts["fresh"].id}
+
+
+@pytest.mark.usefixtures("flask_app")
+@pytest.mark.parametrize(
+    "states,expected_bounds",
+    [
+        (["fresh", "stale"], [(True, False)]),
+        (["stale", "stale_warning"], [(True, True)]),
+        (["fresh", "stale", "stale_warning"], [(True, False)]),
+        (["fresh", "stale", "stale_warning", "culled"], [(False, False)]),
+        (["fresh", "stale_warning"], [(True, False), (True, True)]),
+        (["not_culled"], [(True, False)]),
+        (["stale_warning", "culled"], [(False, True)]),
+        (["stale", "stale_warning", "culled"], [(False, True)]),
+        (["fresh", "stale", "culled"], [(True, False), (False, True)]),
+        (["stale", "fresh", "stale"], [(True, False)]),
+    ],
+)
+def test_staleness_to_conditions_merges_consecutive_states(states, expected_bounds):
+    """Verify staleness_to_conditions merges consecutive states into a single range condition."""
+    staleness = get_sys_default_staleness()
+    captured = []
+    list(staleness_to_conditions(staleness, states, lambda gt, lte: captured.append((gt, lte))))
+    assert [(gt is not None, lte is not None) for gt, lte in captured] == expected_bounds
+
+
+@pytest.fixture
+def reporter_test_hosts(db_create_host):
+    now_dt = datetime.now(tz=UTC)
+    reporter = "puptoo"
+    offsets = {"fresh": 0, "stale": 3, "warn": 10, "culled": 40}
+    hosts = {}
+    for k, days in offsets.items():
+        check_in = now_dt - timedelta(days=days)
+        h = db_create_host(
+            extra_data={"reporter": reporter, "per_reporter_staleness": {reporter: check_in.isoformat()}}
+        )
+        h.last_check_in = check_in
+        hosts[k] = h
+    db.session.commit()
+
+    return {
+        **hosts,
+        "org_id": hosts["fresh"].org_id,
+        "reporter": reporter,
+        "all_ids": [h.id for h in hosts.values()],
+    }
+
+
+@pytest.mark.parametrize(
+    "states,expected_keys",
+    [
+        (["fresh", "stale"], ["fresh", "stale"]),
+        (["stale", "stale_warning"], ["stale", "warn"]),
+        (["fresh", "stale", "stale_warning"], ["fresh", "stale", "warn"]),
+        (["fresh", "stale_warning"], ["fresh", "warn"]),
+        (["stale_warning", "culled"], ["warn"]),
+        (["stale", "stale_warning", "culled"], ["stale", "warn"]),
+        (["stale", "fresh", "stale"], ["fresh", "stale"]),
+        (["stale_warning", "stale", "fresh"], ["fresh", "stale", "warn"]),
+    ],
+)
+def test_per_reporter_staleness_filter_combinations(reporter_test_hosts, states, expected_keys):
+    """Verify per_reporter_staleness_filter correctly filters hosts for consecutive,
+    non-consecutive, and reordered states."""
+    org_id = reporter_test_hosts["org_id"]
+    reporter = reporter_test_hosts["reporter"]
+    all_ids = reporter_test_hosts["all_ids"]
+
+    expr = per_reporter_staleness_filter(states, reporter, org_id)
+    matched = {h.id for h in Host.query.filter(Host.id.in_(all_ids)).filter(*expr).all()}
+    assert matched == {reporter_test_hosts[k].id for k in expected_keys}

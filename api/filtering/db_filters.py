@@ -42,6 +42,7 @@ from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
 from app.serialization import serialize_staleness_to_dict
+from app.staleness_states import CANONICAL_STATES
 from app.staleness_states import HostStalenessStatesDbFilters
 from app.utils import Tag
 
@@ -305,10 +306,24 @@ def _staleness_filter(staleness: list[str], org_id: str) -> list:
     host_staleness_states_filters = HostStalenessStatesDbFilters(staleness_obj)
     if staleness == ["unknown"]:
         # "unknown" filter should be ignored, but shouldn't return culled hosts
-        filters = [not_(host_staleness_states_filters.culled())]
-    else:
-        filters = [getattr(host_staleness_states_filters, state)() for state in staleness if state != "unknown"]
-    return [or_(*filters)]
+        return [not_(host_staleness_states_filters.culled())]
+
+    recognized_states = [state for state in staleness if state != "unknown"]
+    if staleness and not recognized_states:
+        return [not_(host_staleness_states_filters.culled())]
+
+    # Expand "not_culled" into its constituent canonical states so that
+    # combined_filter can merge them with any other requested states.
+    expanded: list[str] = []
+    for s in recognized_states:
+        if s == "not_culled":
+            expanded.extend(["fresh", "stale", "stale_warning"])
+        else:
+            expanded.append(s)
+    # Deduplicate while preserving order
+    expanded = list(dict.fromkeys(expanded))
+
+    return [host_staleness_states_filters.combined_filter(expanded)]
 
 
 def staleness_to_conditions(
@@ -317,8 +332,28 @@ def staleness_to_conditions(
     timestamp_filter_func: Callable[..., Any],
 ):
     condition = Conditions(staleness)
-    filtered_states = (state for state in staleness_states if state != "unknown")
-    return (timestamp_filter_func(*getattr(condition, state)()) for state in filtered_states)
+    filtered_states = [state for state in staleness_states if state != "unknown"]
+
+    present_standard = [s for s in CANONICAL_STATES if s in filtered_states]
+    other_states = [s for s in dict.fromkeys(filtered_states) if s not in CANONICAL_STATES]
+
+    indices = [CANONICAL_STATES.index(s) for s in present_standard]
+    runs: list[list[int]] = []
+    for idx in indices:
+        if not runs or idx != runs[-1][-1] + 1:
+            runs.append([idx])
+        else:
+            runs[-1].append(idx)
+
+    for run in runs:
+        newest_state = CANONICAL_STATES[run[0]]
+        oldest_state = CANONICAL_STATES[run[-1]]
+        gt = getattr(condition, oldest_state)()[0]
+        lte = getattr(condition, newest_state)()[1]
+        yield timestamp_filter_func(gt, lte)
+
+    for state in other_states:
+        yield timestamp_filter_func(*getattr(condition, state)())
 
 
 def find_stale_host_in_window(staleness, last_run_secs, job_start_time):
