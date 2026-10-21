@@ -38,6 +38,7 @@ from app.models import HostGroupAssoc
 from app.models import db
 from app.models.constants import WORKLOADS_FIELDS
 from app.models.constants import SystemType
+from app.models.host_app_data import HostAppDataVulnerability
 from app.models.host_app_data import get_app_data_models
 from app.models.system_profile_dynamic import HostDynamicSystemProfile
 from app.models.system_profile_static import HostStaticSystemProfile
@@ -568,6 +569,40 @@ def _advisor_filter(
     return filters, HostAppDataAdvisor
 
 
+_CVE_SEVERITY_TO_COLUMN = {
+    "critical": "critical_cves",
+    "important": "important_cves",
+    "moderate": "moderate_cves",
+    "low": "low_cves",
+}
+
+
+def _vulnerability_filter(
+    cve_severity: list[str] | None,
+    known_exploit: str | None,
+) -> tuple[list, type]:
+    """Build filters for cve_severity and known_exploit params.
+
+    Returns:
+        (list of SQLAlchemy filter expressions, HostAppDataVulnerability model class)
+    """
+    filters = []
+
+    if cve_severity:
+        severity_conditions = [
+            getattr(HostAppDataVulnerability, _CVE_SEVERITY_TO_COLUMN[sev]) > 0 for sev in cve_severity
+        ]
+        filters.append(or_(*severity_conditions))
+
+    if known_exploit:
+        if known_exploit == "has_known_exploit":
+            filters.append(HostAppDataVulnerability.cves_with_known_exploits > 0)
+        else:
+            filters.append(HostAppDataVulnerability.cves_with_known_exploits == 0)
+
+    return filters, HostAppDataVulnerability
+
+
 def query_filters(
     filters: HostFilters | None = None,
     *,
@@ -601,6 +636,8 @@ def query_filters(
     rbac_filter = filters.rbac_filter
     recommendation_severity = filters.recommendation_severity
     incident_status = filters.incident_status
+    cve_severity = filters.cve_severity
+    known_exploit = filters.known_exploit
 
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -652,6 +689,11 @@ def query_filters(
         severity_incident_filters, advisor_model = _advisor_filter(recommendation_severity, incident_status)
         filter_expressions += severity_incident_filters
         app_data_models_to_join.add(advisor_model)
+
+    if cve_severity or known_exploit:
+        vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit)
+        filter_expressions += vuln_filters
+        app_data_models_to_join.add(vuln_model)
 
     filter_expressions = [and_(Host.org_id == identity.org_id, *filter_expressions)]
 

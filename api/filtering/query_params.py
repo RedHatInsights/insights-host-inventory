@@ -27,6 +27,8 @@ class HostFilters:
     rbac_filter: dict[str, Any] | None = None
     recommendation_severity: list[str] | None = None
     incident_status: str | None = None
+    cve_severity: list[str] | None = None
+    known_exploit: str | None = None
 
 
 @dataclass(slots=True)

@@ -31,6 +31,8 @@ class SortSchema(MarshmallowSchema):
 VALID_STALENESS_VALUES = ("fresh", "stale", "stale_warning", "unknown")
 VALID_RECOMMENDATION_SEVERITIES = ("critical", "important", "moderate", "low")
 VALID_INCIDENT_STATUSES = ("incident", "no_incident")
+VALID_CVE_SEVERITIES = ("critical", "important", "moderate", "low")
+VALID_KNOWN_EXPLOIT_STATUSES = ("has_known_exploit", "no_known_exploit")
 
 
 class HostFiltersSchema(MarshmallowSchema):
@@ -56,6 +58,14 @@ class HostFiltersSchema(MarshmallowSchema):
     )
     incident_status = fields.Str(
         validate=marshmallow_validate.OneOf(VALID_INCIDENT_STATUSES),
+        required=False,
+    )
+    cve_severity = fields.List(
+        fields.Str(validate=marshmallow_validate.OneOf(VALID_CVE_SEVERITIES)),
+        required=False,
+    )
+    known_exploit = fields.Str(
+        validate=marshmallow_validate.OneOf(VALID_KNOWN_EXPLOIT_STATUSES),
         required=False,
     )
 

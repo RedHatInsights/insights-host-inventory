@@ -65,6 +65,12 @@ class HostFilters(BaseModel):
     incident_status: StrictStr | None = Field(
         default=None, description="Filter by Advisor incident status."
     )
+    cve_severity: list[StrictStr] | None = Field(
+        default=None, description="Filter by Vulnerability CVE severity (OR logic)."
+    )
+    known_exploit: StrictStr | None = Field(
+        default=None, description="Filter by Vulnerability known exploit status."
+    )
     __properties: ClassVar[list[str]] = [
         "hostname_or_id",
         "staleness",
@@ -78,6 +84,8 @@ class HostFilters(BaseModel):
         "system_type",
         "recommendation_severity",
         "incident_status",
+        "cve_severity",
+        "known_exploit",
     ]
 
     @field_validator("staleness")
@@ -127,6 +135,29 @@ class HostFilters(BaseModel):
 
         if value not in {"incident", "no_incident"}:
             raise ValueError("must be one of ('incident', 'no_incident')")
+        return value
+
+    @field_validator("cve_severity")
+    def cve_severity_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        for i in value:
+            if i not in {"critical", "important", "moderate", "low"}:
+                raise ValueError(
+                    "each list item must be one of ('critical', 'important', 'moderate', 'low')"
+                )
+        return value
+
+    @field_validator("known_exploit")
+    def known_exploit_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in {"has_known_exploit", "no_known_exploit"}:
+            raise ValueError("must be one of ('has_known_exploit', 'no_known_exploit')")
         return value
 
     model_config = ConfigDict(
@@ -196,5 +227,9 @@ class HostFilters(BaseModel):
             "updated_start": obj.get("updated_start"),
             "updated_end": obj.get("updated_end"),
             "system_type": obj.get("system_type"),
+            "recommendation_severity": obj.get("recommendation_severity"),
+            "incident_status": obj.get("incident_status"),
+            "cve_severity": obj.get("cve_severity"),
+            "known_exploit": obj.get("known_exploit"),
         })
         return _obj
