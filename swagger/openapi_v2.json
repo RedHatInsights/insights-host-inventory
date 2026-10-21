@@ -2207,21 +2207,7 @@
       "SystemProfileNestedObject": {
         "type": "object",
         "description": "An arbitrary object that does not allow empty string keys.",
-        "x-propertyNames": {
-          "minLength": 1
-        },
-        "additionalProperties": {
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/SystemProfileNestedObject"
-            },
-            {
-              "not": {
-                "type": "object"
-              }
-            }
-          ]
-        }
+        "additionalProperties": true
       },
       "SystemProfileContainer": {
         "description": "A container on the system",
