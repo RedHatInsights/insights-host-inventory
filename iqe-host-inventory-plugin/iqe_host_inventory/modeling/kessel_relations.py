@@ -119,11 +119,14 @@ class HBIKesselRelationsGRPC:
     def read_tuples_turnpike_response(self, filter: RelationTupleFilter) -> Response:
         filter_dict = filter_to_dict(filter)
         logger.info(
-            f"Reading tuples from Kessel Relations via Turnpike with filter:\n{filter_dict}"
+            f"Reading tuples from Kessel Inventory via Turnpike with filter:\n{filter_dict}"
         )
-        return self.turnpike_http_client.post(
-            f"{self.turnpike_base_url}/relations/read_tuples/", json={"filter": filter_dict}
+        url = (
+            f"{self.turnpike_base_url}/inventory/read_tuples/"
+            if "stage" in self.env.lower()
+            else f"{self.turnpike_base_url}/relations/read_tuples/"
         )
+        return self.turnpike_http_client.post(url, json={"filter": filter_dict})
 
     def read_tuples_turnpike(self, filter: RelationTupleFilter) -> list[Relationship]:
         # Turnpike returns camelCase keys, so we need to convert them to snake_case
@@ -141,7 +144,7 @@ class HBIKesselRelationsGRPC:
         return [response.tuple for response in grpc_responses]
 
     def read_tuples_grpc_response(self, filter: RelationTupleFilter) -> list[ReadTuplesResponse]:
-        logger.info(f"Reading tuples from Kessel Relations via gRPC with filter:\n{filter}")
+        logger.info(f"Reading tuples from Kessel Inventory via gRPC with filter:\n{filter}")
         return list(self.grpc_service.ReadTuples(ReadTuplesRequest(filter=filter)))
 
     def read_tuples_grpc(self, filter: RelationTupleFilter) -> list[Relationship]:
@@ -192,7 +195,7 @@ class HBIKesselRelationsGRPC:
         retries: int = 50,
         error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
-        """Wait until the host changes are successfully synced to Kessel Relations
+        """Wait until the host changes are successfully synced to Kessel Inventory
 
         :param HOST_OR_ID host: (required) A single host
             A host can be represented either by its ID (str) or a host object
@@ -235,7 +238,7 @@ class HBIKesselRelationsGRPC:
         retries: int = 50,
         error: type[Exception] | Exception | None = HostNotSyncedError,
     ) -> HostWorkspaceRelationWrapper | None:
-        """Wait until the host is successfully deleted from Kessel Relations
+        """Wait until the host is successfully deleted from Kessel Inventory
 
         :param HOST_OR_ID host: (required) A single host
             A host can be represented either by its ID (str) or a host object
@@ -254,7 +257,7 @@ class HBIKesselRelationsGRPC:
         def host_deleted(response_tuple: HostWorkspaceRelationWrapper | None) -> bool:
             if response_tuple is not None:
                 logger.info(
-                    "This host is not yet deleted from Kessel Relations:\n"
+                    "This host is not yet deleted from Kessel Inventory:\n"
                     f"Host ID: {response_tuple.host_id}\n"
                     f"Workspace ID: {response_tuple.workspace_id}"
                 )

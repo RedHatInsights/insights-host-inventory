@@ -857,7 +857,7 @@ dependencies = [
     { name = "opentelemetry-instrumentation-flask" },
     { name = "opentelemetry-instrumentation-grpc" },
     { name = "opentelemetry-instrumentation-requests" },
-    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", extra = ["instruments"] },
     { name = "opentelemetry-sdk" },
     { name = "prance" },
     { name = "prometheus-client" },
@@ -927,7 +927,7 @@ requires-dist = [
     { name = "opentelemetry-instrumentation-flask", specifier = "==0.66b1" },
     { name = "opentelemetry-instrumentation-grpc", specifier = "==0.66b1" },
     { name = "opentelemetry-instrumentation-requests", specifier = "==0.66b1" },
-    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.66b1" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", extras = ["instruments"], specifier = "==0.66b1" },
     { name = "opentelemetry-sdk", specifier = "~=1.45.0" },
     { name = "prance", specifier = "==26.7.19.0" },
     { name = "prometheus-client", specifier = "~=0.26.0" },
@@ -940,8 +940,8 @@ requires-dist = [
     { name = "requests", specifier = "~=2.34.2" },
     { name = "rpds-py", specifier = "==2026.9.1" },
     { name = "segment-analytics-python" },
-    { name = "sqlalchemy", specifier = ">=2.0.0,<2.1.0" },
-    { name = "starlette", specifier = "~=1.8.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.0,<3.0.0" },
+    { name = "starlette", specifier = "~=1.9.0" },
     { name = "ujson", specifier = "==6.0.0" },
     { name = "unleashclient", specifier = "==6.9.1" },
     { name = "urllib3", specifier = ">=1.26.5" },
@@ -1531,6 +1531,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d4/3e/d69fb08dacc4c248daedf7357732ddca7a0aaff7072a55e311d3da3ea51c/opentelemetry_instrumentation_sqlalchemy-0.66b1.tar.gz", hash = "sha256:a10043953fcba71911bf29a024f8cc337260c1ef0b4fc844b96cae0de0947baa", size = 18181, upload-time = "2026-10-06T17:36:38.111Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/08/05/f8cff0c68a7f9ab8fab01904be5a49c5214435109c2a6b6d173a974c10d9/opentelemetry_instrumentation_sqlalchemy-0.66b1-py3-none-any.whl", hash = "sha256:aa30b10d880d7e91cf94b23a92ac85cec09ffddd8f0d40256d7c510e3dd33971", size = 14425, upload-time = "2026-10-06T17:35:53.436Z" },
+]
+
+[package.optional-dependencies]
+instruments = [
+    { name = "sqlalchemy" },
 ]
 
 [[package]]
@@ -2227,14 +2232,14 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "1.8.0"
+version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/0c/6efb252d091ecccd7d62048ae11f0ea35cd75a4fbaeea5e30f9c3bf91d10/starlette-1.8.0.tar.gz", hash = "sha256:1565dc0b35d5737a271ed1e0e04e949f4e81198799f216d2667b0a0fb9cf9522", size = 2730457, upload-time = "2026-10-13T07:54:39.53Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/eb/4e197bf26b023abafc5e9043ec8710d7de0fcb032d0969045236d72aa0b1/starlette-1.9.0.tar.gz", hash = "sha256:3d931de246ed870e35ce605974440816ef895e592f255d1396cfdf191d4c4318", size = 2732466, upload-time = "2026-10-18T15:50:33.189Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/b0/5742e4ac7af5eb58ec3470a537a49d7aa507e5539413e504b3a65ef50ba8/starlette-1.8.0-py3-none-any.whl", hash = "sha256:dfdd6b29c26483288088d990eee59631dedadd66ce20d203402a7ca8e3c4656f", size = 79612, upload-time = "2026-10-13T07:54:38.019Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/93/181df62699d9b5aca1d87e5cfda131dac87e3cdaebf668662f7206ca3470/starlette-1.9.0-py3-none-any.whl", hash = "sha256:fd3f159936e882d06c1108f84688f7cda2cf85fc6a592a50edbd175e882c2ddc", size = 80335, upload-time = "2026-10-18T15:50:31.526Z" },
 ]
 
 [[package]]

@@ -29,10 +29,11 @@
       ]
     },
     {
-      "groupName": "opentelemetry",
+      "groupName": "opentelemetry-and-sqlalchemy",
       "ignoreUnstable": false,
       "matchPackageNames": [
-        "/^opentelemetry-/"
+        "/^opentelemetry-/",
+        "sqlalchemy"
       ]
     }
   ]
