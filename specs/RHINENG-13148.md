@@ -10,6 +10,10 @@ The system profile schema (swagger/system_profile.spec.yaml) defines NestedObjec
 
 - `swagger/system_profile.spec.yaml` (modify): In the NestedObject definition (lines 5–15), remove the comment about x-propertyNames, remove the x-propertyNames property (and its minLength child), and replace the recursive additionalProperties (the oneOf with the self-referencing $ref and not-object) with a simple additionalProperties: true. The resulting NestedObject should be a plain object type with additionalProperties: true, retaining only its type and description.
 
+- `swagger/openapi.json` (modify): Update the inlined SystemProfileNestedObject schema to match the simplified NestedObject — remove `x-propertyNames` and replace the recursive `additionalProperties` (containing the self-referencing `$ref`) with `additionalProperties: true`.
+
+- `swagger/openapi_v2.json` (modify): Apply the same changes as `swagger/openapi.json` — remove `x-propertyNames` and replace the recursive `additionalProperties` with `additionalProperties: true`.
+
 ## Constraints
 - Do not modify the DiskDevice definition or any other schema that references NestedObject — only the NestedObject definition itself should change
 - Do not modify the check_empty_keys Python validator or any other Python validation code
