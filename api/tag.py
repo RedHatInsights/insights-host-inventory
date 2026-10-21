@@ -6,6 +6,7 @@ from api import custom_escape
 from api import flask_json_response
 from api import metrics
 from api import pagination_params
+from api.filtering.query_params import HostFilters
 from api.host_query_db import get_tag_list as get_tag_list_db
 from api.parsing import _normalize_workspace_filters
 from app.auth.rbac import KesselResourceTypes
@@ -57,30 +58,32 @@ def get_tags(
 
     try:
         results, total = get_tag_list_db(
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                subscription_manager_id=subscription_manager_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                last_check_in_start=last_check_in_start,
+                last_check_in_end=last_check_in_end,
+                group_name=workspace_name,
+                group_ids=workspace_id,
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                system_type=system_type,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
             limit=limit,
             offset=offset,
             search=escaped_search,
-            tags=tags,
-            display_name=display_name,
-            fqdn=fqdn,
-            hostname_or_id=hostname_or_id,
-            insights_id=insights_id,
-            subscription_manager_id=subscription_manager_id,
-            provider_id=provider_id,
-            provider_type=provider_type,
-            updated_start=updated_start,
-            updated_end=updated_end,
-            last_check_in_start=last_check_in_start,
-            last_check_in_end=last_check_in_end,
-            group_name=workspace_name,
-            group_id=workspace_id,
             order_by=order_by,
             order_how=order_how,
-            staleness=staleness,
-            registered_with=registered_with,
-            system_type=system_type,
-            filter=filter,
-            rbac_filter=rbac_filter,
         )
         log_get_tags_succeeded(logger, results)
         return flask_json_response(build_collection_response(results, page, per_page, total))
