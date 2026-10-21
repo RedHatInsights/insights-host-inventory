@@ -31,7 +31,7 @@ class HostFilters:
 
 @dataclass(slots=True)
 class HostListOptions:
-    """Pagination, ordering, and projection options for a host list query."""
+    """Pagination and ordering options for host list queries."""
 
     page: int = 1
     per_page: int = 100
