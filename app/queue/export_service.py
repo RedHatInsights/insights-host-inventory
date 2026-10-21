@@ -44,15 +44,14 @@ HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/c
 def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict, list[dict]]:
     """Load a saved view and extract its filters and columns.
 
-    The view stores all filters under ``configuration.filters``, but ``query_filters()``
-    accepts them in two different ways:
-    - ``"host"`` filters (staleness, tags, dates …) → unpacked as **kwargs
-    - everything else (system_profile, app-data) → passed as the ``filter=`` dict
+    The view stores all filters under ``configuration.filters``. Host-level filters
+    are converted to ``HostFilters`` fields, while system-profile and app-data
+    filters remain in its ``query_filter`` field.
 
     Returns:
         (host_filter, query_filter, columns):
-        - host_filter: query_filters() kwargs (staleness, tags, date ranges, etc.)
-        - query_filter: filter dict for query_filters() (system_profile, app-data, etc.)
+        - host_filter: HostFilters fields (staleness, tags, date ranges, etc.)
+        - query_filter: system-profile and app-data filter dictionary
         - columns: ordered list of column config dicts from the view
     """
     view = get_view_by_id(view_id, org_id, user_id)
