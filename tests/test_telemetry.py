@@ -401,6 +401,23 @@ def test_sql_commenter_toggled_by_env(monkeypatch):
 
     _cleanup_telemetry(monkeypatch)
 
+
+def test_sql_instrumentation_instruments_primary_and_read_engines(monkeypatch):
+    telemetry_mod = _reload_telemetry(monkeypatch, {"OTEL_ENABLED": "true", "OTEL_SQL_ENABLED": "true"})
+
+    with patch("opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor") as mock_cls:
+        instance = MagicMock()
+        mock_cls.return_value = instance
+        primary = MagicMock()
+        replica = MagicMock()
+
+        telemetry_mod.instrument_sqlalchemy(primary, replica)
+
+        _, kwargs = instance.instrument.call_args
+        assert kwargs["engines"] == [primary, replica]
+
+    _cleanup_telemetry(monkeypatch)
+
     telemetry_mod = _reload_telemetry(
         monkeypatch, {"OTEL_ENABLED": "true", "OTEL_SQL_ENABLED": "true", "OTEL_SQL_COMMENTER_ENABLED": "false"}
     )
