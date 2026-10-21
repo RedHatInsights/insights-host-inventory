@@ -654,6 +654,7 @@ def build_rhsm_payload():
     """Red Hat Subscription Manager hosts with RHSM-specific facts and metadata"""
     return {
         "org_id": org_id,
+        "groups": [],
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -698,6 +699,7 @@ def build_qpc_payload():
     """Quipucords Product Catalog (QPC) hosts with discovery-specific data"""
     return {
         "org_id": org_id,
+        "groups": [],
         "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
         "ip_addresses": ["10.8.29.119"],
@@ -749,6 +751,7 @@ def build_host_chunk():
     payload = {
         "insights_id": random_uuid(),
         "org_id": org_id,
+        "groups": [],
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
