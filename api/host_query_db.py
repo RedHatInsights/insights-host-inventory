@@ -33,6 +33,8 @@ from api.filtering.db_filters import hosts_field_filter
 from api.filtering.db_filters import query_filters
 from api.filtering.db_filters import rbac_permissions_filter
 from api.filtering.db_filters import update_query_for_owner_id
+from api.filtering.query_params import HostFilters
+from api.filtering.query_params import HostListOptions
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
 from app.auth.identity import Identity
@@ -181,68 +183,27 @@ def _get_host_list_using_filters(
 
 
 def get_host_list(
-    display_name: str | None,
-    fqdn: str | None,
-    hostname_or_id: str | None,
-    insights_id: str | None,
-    subscription_manager_id: str | None,
-    provider_id: str | None,
-    provider_type: str | None,
-    updated_start: str | None,
-    updated_end: str | None,
-    last_check_in_start: str | None,
-    last_check_in_end: str | None,
-    group_name: list[str] | None,
-    group_id: list[str] | None,
-    tags: list[str] | None,
-    page: int,
-    per_page: int,
-    param_order_by: str | None,
-    param_order_how: str | None,
-    staleness: list[str] | None,
-    registered_with: list[str] | None,
-    system_type: list[str] | None,
-    filter: dict | None,
-    fields: dict | None,
-    rbac_filter: dict | None,
-    get_total: bool = True,
+    filters: HostFilters,
+    options: HostListOptions,
 ) -> tuple[list[Host], int | None, tuple[str, ...], list[str]]:
     all_filters, query_base = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        subscription_manager_id,
-        provider_id,
-        provider_type,
-        updated_start,
-        updated_end,
-        last_check_in_start,
-        last_check_in_end,
-        group_name,
-        group_id,
-        tags,
-        staleness,
-        registered_with,
-        system_type,
-        filter,
-        rbac_filter,
-        param_order_by,
-        get_current_identity(),
+        filters,
+        order_by=options.order_by,
+        identity=get_current_identity(),
     )
 
     items, count, additional_fields, system_profile_fields = _get_host_list_using_filters(
         query_base,
         all_filters,
-        page,
-        per_page,
-        param_order_by,
-        param_order_how,
-        fields,
-        include_count=get_total,
+        options.page,
+        options.per_page,
+        options.order_by,
+        options.order_how,
+        options.fields,
+        include_count=options.get_total,
     )
 
-    return items, count if get_total else None, additional_fields, system_profile_fields
+    return items, count if options.get_total else None, additional_fields, system_profile_fields
 
 
 def get_host_list_by_id_list(
@@ -353,34 +314,8 @@ def _order_how(column, order_how: str):
 
 
 def get_host_list_for_views(
-    display_name: str | None,
-    fqdn: str | None,
-    hostname_or_id: str | None,
-    insights_id: str | None,
-    subscription_manager_id: str | None,
-    provider_id: str | None,
-    provider_type: str | None,
-    updated_start: str | None,
-    updated_end: str | None,
-    last_check_in_start: str | None,
-    last_check_in_end: str | None,
-    group_name: list[str] | None,
-    group_id: list[str] | None,
-    tags: list[str] | None,
-    page: int,
-    per_page: int,
-    param_order_by: str | None,
-    param_order_how: str | None,
-    staleness: list[str] | None,
-    registered_with: list[str] | None,
-    system_type: list[str] | None,
-    recommendation_severity: list[str] | None = None,
-    incident_status: str | None = None,
-    cve_severity: list[str] | None = None,
-    known_exploit: str | None = None,
-    filter: dict | None = None,
-    fields: dict | None = None,
-    rbac_filter: dict | None = None,
+    filters: HostFilters,
+    options: HostListOptions,
 ) -> tuple[list[Host], int, tuple[str, ...], list[str]]:
     """
     Get host list for views endpoint with unified sorting support.
@@ -393,35 +328,13 @@ def get_host_list_for_views(
         Tuple of (host_list, total_count, additional_fields, system_profile_fields)
     """
     all_filters, query_base = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        subscription_manager_id,
-        provider_id,
-        provider_type,
-        updated_start,
-        updated_end,
-        last_check_in_start,
-        last_check_in_end,
-        group_name,
-        group_id,
-        tags,
-        staleness,
-        registered_with,
-        system_type,
-        filter,
-        rbac_filter,
-        param_order_by,
-        get_current_identity(),
-        recommendation_severity=recommendation_severity,
-        incident_status=incident_status,
-        cve_severity=cve_severity,
-        known_exploit=known_exploit,
+        filters,
+        order_by=options.order_by,
+        identity=get_current_identity(),
     )
 
     # Automatically add LEFT JOIN for app data table if sorting by app field
-    resolved = resolve_app_sort(param_order_by)
+    resolved = resolve_app_sort(options.order_by)
     if resolved:
         app_sort_model, _ = resolved
         if not _is_table_already_joined(query_base, app_sort_model):
@@ -430,7 +343,14 @@ def get_host_list_for_views(
             )
 
     items, count, additional_fields, system_profile_fields = _get_host_list_using_filters(
-        query_base, all_filters, page, per_page, param_order_by, param_order_how, fields=fields, allow_app_fields=True
+        query_base,
+        all_filters,
+        options.page,
+        options.per_page,
+        options.order_by,
+        options.order_how,
+        fields=options.fields,
+        allow_app_fields=True,
     )
     return items, count, additional_fields, system_profile_fields
 
@@ -567,30 +487,13 @@ def _build_tags_aggregation_query(filtered_hosts, search: str | None, order_by: 
 
 
 def get_tag_list(
-    display_name: str | None,
-    fqdn: str | None,
-    hostname_or_id: str | None,
-    insights_id: str | None,
-    subscription_manager_id: str | None,
-    provider_id: str | None,
-    provider_type: str | None,
-    updated_start: str | None,
-    updated_end: str | None,
-    last_check_in_start: str | None,
-    last_check_in_end: str | None,
-    group_name: list[str] | None,
-    group_id: list[str] | None,
-    tags: list[str] | None,
+    filters: HostFilters,
+    *,
     limit: int,
     offset: int,
     order_by: str | None,
     order_how: str | None,
     search: str | None,
-    staleness: list[str] | None,
-    registered_with: list[str] | None,
-    system_type: list[str] | None,
-    filter: dict | None,
-    rbac_filter: dict | None,
 ) -> tuple[list, int]:
     if order_by not in ["tag", "count"]:
         raise ValueError('Unsupported ordering column: use "tag" or "count".')
@@ -600,27 +503,9 @@ def get_tag_list(
         )
 
     all_filters, query_base = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        subscription_manager_id,
-        provider_id,
-        provider_type,
-        updated_start,
-        updated_end,
-        last_check_in_start,
-        last_check_in_end,
-        group_name,
-        group_id,
-        tags,
-        staleness,
-        registered_with,
-        system_type,
-        filter,
-        rbac_filter,
-        order_by,
-        get_current_identity(),
+        filters,
+        order_by=order_by,
+        identity=get_current_identity(),
     )
 
     # Build a subquery of filtered host IDs with their tags_alt JSONB array
@@ -642,11 +527,7 @@ def get_tag_list(
 def get_os_info(
     limit: int,
     offset: int,
-    staleness: list[str] | None,
-    tags: list[str],
-    registered_with: list[str] | None,
-    filter: dict,
-    rbac_filter: dict,
+    host_filters: HostFilters,
     identity: Identity,
 ):
     os_field = HostStaticSystemProfile.operating_system
@@ -658,21 +539,17 @@ def get_os_info(
         func.count().label("count"),
     ]
 
-    filters, query_base = query_filters(
-        tags=tags,
-        staleness=staleness,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+    filter_expressions, query_base = query_filters(
+        host_filters,
         identity=identity,
         join_static_profile=True,
     )
     os_query = _find_hosts_entities_query(query=query_base, columns=columns, identity=identity)
 
     # Only include records that have set an operating_system.name
-    filters += (columns[0].isnot(None),)
+    filter_expressions += (columns[0].isnot(None),)
 
-    query_results = os_query.filter(*filters).group_by(*columns[:-1]).order_by(func.count().desc()).all()
+    query_results = os_query.filter(*filter_expressions).group_by(*columns[:-1]).order_by(func.count().desc()).all()
     db.session.close()
 
     os_count_list = []
@@ -691,11 +568,7 @@ def get_os_info(
 def get_sap_system_info(
     limit: int,
     offset: int,
-    staleness: list[str],
-    tags: list[str],
-    registered_with: list[str],
-    filter: dict,
-    rbac_filter: dict,
+    host_filters: HostFilters,
     identity: Identity,
 ):
     dynamic_sap_system = HostDynamicSystemProfile.workloads["sap"]["sap_system"]
@@ -704,12 +577,8 @@ def get_sap_system_info(
         dynamic_sap_system.label("value"),
     ]
 
-    filters, query_base = query_filters(
-        tags=tags,
-        staleness=staleness,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+    filter_expressions, query_base = query_filters(
+        host_filters,
         identity=identity,
         join_dynamic_profile=True,
     )
@@ -721,7 +590,7 @@ def get_sap_system_info(
         dynamic_sap_system.astext.cast(Boolean) != None,  # noqa:E711
     ]
 
-    sap_query = sap_query.filter(*filters).filter(*sap_filter)
+    sap_query = sap_query.filter(*filter_expressions).filter(*sap_filter)
 
     subquery = sap_query.subquery()
     agg_query = db.session.query(subquery, func.count()).group_by("value")
@@ -737,11 +606,7 @@ def get_sap_system_info(
 def get_sap_sids_info(
     limit: int,
     offset: int,
-    staleness: list[str],
-    tags: list[str],
-    registered_with: list[str],
-    filter: dict,
-    rbac_filter: dict,
+    host_filters: HostFilters,
     search: str,
     identity: Identity,
 ):
@@ -755,19 +620,15 @@ def get_sap_sids_info(
 
     # Request dynamic profile join since we need workloads data
     # query_filters will automatically add the join
-    filters, query_base = query_filters(
-        tags=tags,
-        staleness=staleness,
-        registered_with=registered_with,
-        filter=filter,
-        rbac_filter=rbac_filter,
+    filter_expressions, query_base = query_filters(
+        host_filters,
         identity=identity,
         join_dynamic_profile=True,  # Explicitly request HostDynamicSystemProfile join
     )
 
     sap_sids_query = _find_hosts_entities_query(query_base, columns)
 
-    query_results = sap_sids_query.filter(*filters).all()
+    query_results = sap_sids_query.filter(*filter_expressions).all()
     db.session.close()
     sap_sids = {}
     for result in query_results:
@@ -868,47 +729,12 @@ def get_sparse_system_profile(
 
 
 def get_host_ids_list(
-    display_name: str | None,
-    fqdn: str | None,
-    hostname_or_id: str | None,
-    insights_id: str | None,
-    subscription_manager_id: str | None,
-    provider_id: str | None,
-    provider_type: str | None,
-    updated_start: str | None,
-    updated_end: str | None,
-    last_check_in_start: str | None,
-    last_check_in_end: str | None,
-    group_name: list[str] | None,
-    group_id: list[str] | None,
-    registered_with: list[str] | None,
-    system_type: list[str] | None,
-    staleness: list[str] | None,
-    tags: list[str] | None,
-    filter: dict | None,
-    rbac_filter: dict | None,
+    filters: HostFilters,
+    *,
     identity: Identity,
 ) -> list[str]:
     all_filters, base_query = query_filters(
-        fqdn,
-        display_name,
-        hostname_or_id,
-        insights_id,
-        subscription_manager_id,
-        provider_id,
-        provider_type,
-        updated_start,
-        updated_end,
-        last_check_in_start,
-        last_check_in_end,
-        group_name,
-        group_id,
-        tags,
-        staleness,
-        registered_with,
-        system_type,
-        filter,
-        rbac_filter,
+        filters,
         identity=identity,
     )
     host_list = [str(res[0]) for res in _find_hosts_entities_query(base_query, [Host.id]).filter(*all_filters).all()]
@@ -1016,7 +842,7 @@ def get_hosts_to_export(
         identity: The authenticated user identity.
         rbac_filter: RBAC permission filter.
         batch_size: Number of rows per DB batch (yield_per).
-        query_filter: The ``filter=`` dict for query_filters() (system_profile + app-data).
+        query_filter: The system-profile and app-data filter dictionary.
         host_filter: Host-level filter kwargs (staleness, tags, date ranges, etc.).
         export_fields: Ordered list of flat field names to include in the export.
             When omitted, uses the legacy hosts-table field set (includes static
@@ -1039,15 +865,16 @@ def get_hosts_to_export(
         app_data_fields = {}
 
     staleness = get_staleness_obj(identity.org_id)
-
-    staleness_states = host_filter.pop("staleness", None) or ALL_STALENESS_STATES
+    staleness_states = host_filter.get("staleness") or ALL_STALENESS_STATES
+    host_filter = {**host_filter, "staleness": staleness_states}
 
     q_filters, _ = query_filters(
-        filter=query_filter or None,
-        rbac_filter=rbac_filter,
-        staleness=staleness_states,
+        HostFilters(
+            **host_filter,
+            query_filter=query_filter or None,
+            rbac_filter=rbac_filter,
+        ),
         identity=identity,
-        **host_filter,
     )
 
     resolved_export_fields = export_fields if export_fields is not None else _EXPORT_SERVICE_FIELDS

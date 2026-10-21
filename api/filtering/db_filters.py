@@ -21,6 +21,7 @@ from sqlalchemy.sql.expression import ColumnElement
 from api.filtering.db_app_data_filters import build_app_data_filters
 from api.filtering.db_custom_filters import build_system_profile_filter
 from api.filtering.filtering_common import escape_ilike_value
+from api.filtering.query_params import HostFilters
 from api.staleness_query import get_staleness_obj
 from app.auth.forwarded_identity import get_satellite_forwarded_identity
 from app.auth.identity import Identity
@@ -603,34 +604,41 @@ def _vulnerability_filter(
 
 
 def query_filters(
-    fqdn: str | None = None,
-    display_name: str | None = None,
-    hostname_or_id: str | None = None,
-    insights_id: str | None = None,
-    subscription_manager_id: str | None = None,
-    provider_id: str | None = None,
-    provider_type: str | None = None,
-    updated_start: str | None = None,
-    updated_end: str | None = None,
-    last_check_in_start: str | None = None,
-    last_check_in_end: str | None = None,
-    group_name: list[str] | None = None,
-    group_ids: list[str] | None = None,
-    tags: list[str] | None = None,
-    staleness: list[str] | None = None,
-    registered_with: list[str] | None = None,
-    system_type: list[str] | None = None,
-    filter: dict | None = None,
-    rbac_filter: dict | None = None,
+    filters: HostFilters | None = None,
+    *,
     order_by: str | None = None,
     identity=None,
     join_static_profile: bool = False,
     join_dynamic_profile: bool = False,
-    recommendation_severity: list[str] | None = None,
-    incident_status: str | None = None,
-    cve_severity: list[str] | None = None,
-    known_exploit: str | None = None,
 ) -> tuple[list, Query]:
+    filters = filters or HostFilters()
+    if identity is None:
+        raise ValueError("An identity is required to build host filters.")
+
+    fqdn = filters.fqdn
+    display_name = filters.display_name
+    hostname_or_id = filters.hostname_or_id
+    insights_id = filters.insights_id
+    subscription_manager_id = filters.subscription_manager_id
+    provider_id = filters.provider_id
+    provider_type = filters.provider_type
+    updated_start = filters.updated_start
+    updated_end = filters.updated_end
+    last_check_in_start = filters.last_check_in_start
+    last_check_in_end = filters.last_check_in_end
+    group_name = filters.group_name
+    group_ids = filters.group_ids
+    tags = filters.tags
+    staleness = filters.staleness
+    registered_with = filters.registered_with
+    system_type = filters.system_type
+    query_filter = filters.query_filter
+    rbac_filter = filters.rbac_filter
+    recommendation_severity = filters.recommendation_severity
+    incident_status = filters.incident_status
+    cve_severity = filters.cve_severity
+    known_exploit = filters.known_exploit
+
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
         raise ValidationException(
@@ -639,58 +647,58 @@ def query_filters(
 
     app_data_models_to_join = set[Any]()
 
-    filters = []
+    filter_expressions = []
     if fqdn:
-        filters += hosts_field_filter("fqdn", fqdn, True)
+        filter_expressions += hosts_field_filter("fqdn", fqdn, True)
     elif display_name:
-        filters += _display_name_filter(display_name)
+        filter_expressions += _display_name_filter(display_name)
     elif hostname_or_id:
-        filters += _hostname_or_id_filter(hostname_or_id)
+        filter_expressions += _hostname_or_id_filter(hostname_or_id)
     elif insights_id:
-        filters += hosts_field_filter("insights_id", insights_id.lower())
+        filter_expressions += hosts_field_filter("insights_id", insights_id.lower())
     elif subscription_manager_id:
-        filters += hosts_field_filter("subscription_manager_id", subscription_manager_id.lower())
+        filter_expressions += hosts_field_filter("subscription_manager_id", subscription_manager_id.lower())
 
     if system_type:
-        filters += _system_type_filter(system_type)
+        filter_expressions += _system_type_filter(system_type)
     if provider_id:
-        filters += hosts_field_filter("provider_id", provider_id, True)
+        filter_expressions += hosts_field_filter("provider_id", provider_id, True)
     if provider_type:
-        filters += hosts_field_filter("provider_type", provider_type)
+        filter_expressions += hosts_field_filter("provider_type", provider_type)
     if updated_start or updated_end:
-        filters += _modified_on_filter(updated_start, updated_end)
+        filter_expressions += _modified_on_filter(updated_start, updated_end)
     if last_check_in_start or last_check_in_end:
-        filters += _last_check_in_filter(last_check_in_start, last_check_in_end)
+        filter_expressions += _last_check_in_filter(last_check_in_start, last_check_in_end)
     if group_ids:
-        filters += _group_ids_filter(group_ids)
+        filter_expressions += _group_ids_filter(group_ids)
     if group_name:
-        filters += _group_names_filter(group_name)
+        filter_expressions += _group_names_filter(group_name)
     if tags:
-        filters += _tags_filter(tags)
-    if filter:
-        filter_exprs, app_data_models_to_join = _build_filter(filter)
-        filters += filter_exprs
+        filter_expressions += _tags_filter(tags)
+    if query_filter:
+        filter_exprs, app_data_models_to_join = _build_filter(query_filter)
+        filter_expressions += filter_exprs
     if staleness:
-        filters += _staleness_filter(staleness, identity.org_id)
+        filter_expressions += _staleness_filter(staleness, identity.org_id)
     if registered_with:
-        filters += _registered_with_filter(registered_with, identity.org_id)
+        filter_expressions += _registered_with_filter(registered_with, identity.org_id)
     if rbac_filter:
-        filters += rbac_permissions_filter(rbac_filter)
+        filter_expressions += rbac_permissions_filter(rbac_filter)
 
     if recommendation_severity or incident_status:
         severity_incident_filters, advisor_model = _advisor_filter(recommendation_severity, incident_status)
-        filters += severity_incident_filters
+        filter_expressions += severity_incident_filters
         app_data_models_to_join.add(advisor_model)
 
     if cve_severity or known_exploit:
         vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit)
-        filters += vuln_filters
+        filter_expressions += vuln_filters
         app_data_models_to_join.add(vuln_model)
 
-    filters = [and_(Host.org_id == identity.org_id, *filters)]
+    filter_expressions = [and_(Host.org_id == identity.org_id, *filter_expressions)]
 
     # Dynamically determine if we need system profile joins based on filtering and ordering
-    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(filter, order_by)
+    needs_static_join, needs_dynamic_join = _needs_system_profile_joins(query_filter, order_by)
     # Allow explicit join requests to override dynamic detection
     needs_static_join = needs_static_join or join_static_profile
     needs_dynamic_join = needs_dynamic_join or join_dynamic_profile
@@ -714,4 +722,4 @@ def query_filters(
                 model_class, and_(Host.org_id == model_class.org_id, Host.id == model_class.host_id)
             )
 
-    return filters, query_base
+    return filter_expressions, query_base

@@ -13,6 +13,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.filtering.app_data_sorting import get_app_name_from_sort
+from api.filtering.query_params import HostFilters
+from api.filtering.query_params import HostListOptions
 from api.host_query_db import get_host_list_for_views
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -253,34 +255,38 @@ def get_host_views(  # noqa: PLR0913, PLR0917
 
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_for_views(
-            display_name=display_name,
-            fqdn=fqdn,
-            hostname_or_id=hostname_or_id,
-            insights_id=insights_id,
-            subscription_manager_id=subscription_manager_id,
-            provider_id=provider_id,
-            provider_type=provider_type,
-            updated_start=updated_start,
-            updated_end=updated_end,
-            last_check_in_start=last_check_in_start,
-            last_check_in_end=last_check_in_end,
-            group_name=workspace_name,
-            group_id=workspace_id,
-            tags=tags,
-            page=page,
-            per_page=per_page,
-            param_order_by=order_by,
-            param_order_how=order_how,
-            staleness=staleness,
-            registered_with=registered_with,
-            system_type=system_type,
-            recommendation_severity=recommendation_severity,
-            incident_status=incident_status,
-            cve_severity=cve_severity,
-            known_exploit=known_exploit,
-            filter=filter,
-            fields=sp_fields,
-            rbac_filter=rbac_filter,
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                subscription_manager_id=subscription_manager_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                last_check_in_start=last_check_in_start,
+                last_check_in_end=last_check_in_end,
+                group_name=workspace_name,
+                group_ids=workspace_id,
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                system_type=system_type,
+                recommendation_severity=recommendation_severity,
+                incident_status=incident_status,
+                cve_severity=cve_severity,
+                known_exploit=known_exploit,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
+            HostListOptions(
+                page=page,
+                per_page=per_page,
+                order_by=order_by,
+                order_how=order_how,
+                fields=sp_fields,
+            ),
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
