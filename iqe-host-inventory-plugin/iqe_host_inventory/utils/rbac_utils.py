@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from iqe_bindings.v7.rbac_v1 import RoleOutDynamic
 from iqe_bindings.v7.rbac_v1 import RoleWithAccess
-from iqe_bindings.v7.rbac_v2 import Permission as RBACV2Permission
+from iqe_bindings.v7.rbac_v2 import PermissionWrite as RBACV2PermissionWrite
 from iqe_bindings.v7.rbac_v2 import Role as RBACV2Role
 
 if TYPE_CHECKING:
@@ -56,10 +56,10 @@ def get_role_id(role: RoleWithAccess | RoleOutDynamic | RBACV2Role) -> str:
     return getattr(role, "uuid", None) or role.id
 
 
-def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2Permission:
-    """Convert an RBACInventoryPermission enum to a V2 Permission model."""
+def permission_to_v2(permission: RBACInventoryPermission) -> RBACV2PermissionWrite:
+    """Convert an RBACInventoryPermission enum to a V2 PermissionWrite model."""
     app, resource_type, operation = permission.value.split(":")
-    return RBACV2Permission(application=app, resource_type=resource_type, operation=operation)
+    return RBACV2PermissionWrite(application=app, resource_type=resource_type, operation=operation)
 
 
 def wait_for_kessel_sync(host_inventory: ApplicationHostInventory) -> None:
