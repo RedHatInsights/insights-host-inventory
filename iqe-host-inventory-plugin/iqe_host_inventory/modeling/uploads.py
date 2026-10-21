@@ -54,7 +54,7 @@ class HostData:
     core_collect: bool = True
 
 
-def _build_archives_from_data(hosts_data: list[HostData]) -> list[InsightsArchiveInMemory]:
+def build_archives_from_data(hosts_data: list[HostData]) -> list[InsightsArchiveInMemory]:
     return [
         build_host_archive(
             display_name=host_data.display_name,
@@ -336,7 +336,7 @@ class HBIUploads(BaseEntity):
                 raise ValueError(
                     f"Requested number of hosts doesn't match hosts_data: {n} != {len(hosts_data)}"
                 )
-            archives = _build_archives_from_data(hosts_data)
+            archives = build_archives_from_data(hosts_data)
         else:
             archives = [build_host_archive() for _ in range(n)]  # type: ignore[arg-type]
 
