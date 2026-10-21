@@ -48,9 +48,7 @@ from app.payload_tracker import PayloadTrackerContext
 from app.payload_tracker import PayloadTrackerProcessingContext
 from app.payload_tracker import get_payload_tracker
 from app.queue.events import EventType
-from app.queue.events import build_event
-from app.queue.events import extract_system_profile_fields_for_headers
-from app.queue.events import message_headers
+from app.queue.events import build_event_and_headers
 from app.serialization import deserialize_canonical_facts
 from app.serialization import serialize_host
 from app.serialization import serialize_host_with_params
@@ -410,17 +408,13 @@ def get_host_system_profile_by_id(
 
 
 def _emit_patch_event(serialized_host, host):
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
-    headers = message_headers(
-        EventType.updated,
-        str(host.insights_id),
-        host.reporter,
-        host_type,
-        os_name,
-        bootc_booted,
-    )
     metadata = {"b64_identity": to_auth_header(get_current_identity())}
-    event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
+    event, headers = build_event_and_headers(
+        EventType.updated,
+        host,
+        serialized_host=serialized_host,
+        platform_metadata=metadata,
+    )
     if not host_exists(host.id, org_id=host.org_id, session=db.session):
         logger.warning(f"Skipping update event for host {host.id}: host no longer exists")
         return
