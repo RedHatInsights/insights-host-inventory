@@ -654,7 +654,6 @@ def build_rhsm_payload():
     """Red Hat Subscription Manager hosts with RHSM-specific facts and metadata"""
     return {
         "org_id": org_id,
-        "groups": [],
         "bios_uuid": "e56890e3-9ce5-4fb2-b677-3d84e3e4d4a9",
         "facts": [
             {
@@ -699,7 +698,6 @@ def build_qpc_payload():
     """Quipucords Product Catalog (QPC) hosts with discovery-specific data"""
     return {
         "org_id": org_id,
-        "groups": [],
         "display_name": "dhcp-8-29-119.lab.eng.rdu2.redhat.com",
         "bios_uuid": "7E681E42-FCBE-2831-E9E2-78983C7FA869",
         "ip_addresses": ["10.8.29.119"],
@@ -736,6 +734,14 @@ def random_uuid():
     return str(uuid.uuid4())
 
 
+def build_group_payload(name=None, host_ids=None):
+    """Build a POST /groups body using IDs of hosts already in Inventory."""
+    return {
+        "name": f"test-group-{random_uuid()}" if name is None else name,
+        "host_ids": list(host_ids) if host_ids is not None else [],
+    }
+
+
 IS_EDGE = os.environ.get("IS_EDGE", False)
 USE_RANDOMNESS = os.environ.get("USE_RANDOMNESS", "True").lower() == "true"
 
@@ -751,7 +757,6 @@ def build_host_chunk():
     payload = {
         "insights_id": random_uuid(),
         "org_id": org_id,
-        "groups": [],
         "display_name": fqdn,
         "tags": [
             {"namespace": "SPECIAL", "key": "key", "value": "val"},
