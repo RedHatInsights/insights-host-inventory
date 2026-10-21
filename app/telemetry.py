@@ -14,7 +14,7 @@ Usage:
     instrument_flask_app(flask_app)
 
     # After db.init_app():
-    instrument_sqlalchemy(db.engine)
+    instrument_sqlalchemy(db.engine, read_engine)
 
     # For outbound HTTP (e.g., RBAC calls):
     instrument_outbound_http()
@@ -276,8 +276,8 @@ def instrument_flask_app(flask_app):
     logger.info("Flask instrumented with OpenTelemetry")
 
 
-def instrument_sqlalchemy(engine):
-    """Instrument a SQLAlchemy engine with OpenTelemetry query tracing.
+def instrument_sqlalchemy(engine, read_engine=None):
+    """Instrument the SQLAlchemy engines with OpenTelemetry query tracing.
 
     Controlled by OTEL_SQL_ENABLED (master toggle) and OTEL_SQL_COMMENTER_ENABLED
     (adds traceparent to SQL comments for pg_stat_activity visibility).
@@ -287,8 +287,12 @@ def instrument_sqlalchemy(engine):
 
     from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
+    engines = [engine]
+    if read_engine is not None:
+        engines.append(read_engine)
+
     SQLAlchemyInstrumentor().instrument(
-        engine=engine,
+        engines=engines,
         enable_commenter=OTEL_SQL_COMMENTER_ENABLED,
         commenter_options={
             "db_framework": True,

@@ -13,6 +13,7 @@ from flask import jsonify
 from flask import request
 from prance import _TranslatingParser as TranslatingParser
 from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
+from sqlalchemy import create_engine
 
 from api.admin import admin_blueprint
 from api.cache import init_cache
@@ -318,6 +319,17 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
         logger.warning(unleash_fallback_msg)
 
     db.init_app(flask_app)
+    if app_config.read_db_uri:
+        flask_app.extensions["inventory_read_engine"] = create_engine(
+            app_config.read_db_uri,
+            pool_size=app_config.db_pool_size,
+            pool_timeout=app_config.db_pool_timeout,
+            pool_pre_ping=True,
+            connect_args={
+                "options": f"-c statement_timeout={app_config.db_statement_timeout} "
+                f"-c lock_timeout={app_config.db_lock_timeout}"
+            },
+        )
     init_kessel(app_config, flask_app)
 
     flask_app.register_blueprint(monitoring_blueprint, url_prefix=app_config.mgmt_url_path_prefix)
@@ -388,7 +400,7 @@ def create_app(runtime_environment) -> connexion.FlaskApp:
     instrument_flask_app(flask_app)
     try:
         with flask_app.app_context():
-            instrument_sqlalchemy(db.engine)
+            instrument_sqlalchemy(db.engine, flask_app.extensions.get("inventory_read_engine"))
     except RuntimeError:
         logger.debug("Skipping SQLAlchemy OTel instrumentation (no app context or db not initialized)")
     instrument_outbound_http()
