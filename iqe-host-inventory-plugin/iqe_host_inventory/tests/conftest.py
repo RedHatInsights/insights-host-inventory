@@ -20,6 +20,7 @@ from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.fixtures.cleanup_fixtures import HBICleanupRegistry
 from iqe_host_inventory.fixtures.feature_flag_fixtures import _ensure_ungrouped_group_exists
 from iqe_host_inventory.modeling.uploads import HostData
+from iqe_host_inventory.modeling.uploads import build_archives_from_data
 from iqe_host_inventory.modeling.wrappers import HostWrapper
 from iqe_host_inventory.utils import get_username
 from iqe_host_inventory.utils.datagen_utils import generate_uuid
@@ -1084,9 +1085,8 @@ def setup_ui_hosts_for_catchpoint(
 ) -> None:
     """Catchpoint tests (outage tests for Frontend integrated with Status page)
     run via Catchpoint monitoring tool:
-    - if account without required hosts - this fixture uploads them with
-    'register_for_cleanup=False' param to keep them in the account
-    - if account has required hosts - it updates them to keep their staleness "fresh"
+    - if the account doesn't have the required hosts - this fixture creates them
+    - if the account has the required hosts - it updates them to keep their staleness "fresh"
     to avoid deletion.
 
     https://issues.redhat.com/browse/RHINENG-16391
@@ -1101,7 +1101,11 @@ def setup_ui_hosts_for_catchpoint(
     if hbi_maybe_application_frontend is None:
         pytest.fail("frontend user is not properly defined in the config")
     else:
-        host_inventory_frontend = hbi_maybe_application_frontend.host_inventory
+        host_inventory_frontend: ApplicationHostInventory = (
+            hbi_maybe_application_frontend.host_inventory
+        )
+
+    logger.info("Setting up hosts in the frontend account for the catchpoint tests")
 
     catchpoint_rhel_archive = "rhel-82-vuln-patch-advisor.tar.gz"
     unique_id = "_catchpoint"
@@ -1127,4 +1131,6 @@ def setup_ui_hosts_for_catchpoint(
             for _ in range(3)
         ]
 
-    host_inventory_frontend.upload.create_hosts(hosts_data=hosts_data, register_for_cleanup=False)
+    # Do not wait for hosts creation, it's not relevant to backend tests
+    archives = build_archives_from_data(hosts_data)
+    host_inventory_frontend.upload.async_upload_archives(archives)
