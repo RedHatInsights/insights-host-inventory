@@ -144,12 +144,15 @@ def test_deploy_formatting_is_not_changed():
 
 
 def test_group_payload_defaults():
-    payload = build_group_payload()
-    another_payload = build_group_payload()
+    uuids = ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a", "a17a21c6-a4c4-44ec-a42c-5499ad511df2"]
+    with patch("utils.payloads.random_uuid", side_effect=uuids):
+        payload = build_group_payload()
+        another_payload = build_group_payload()
 
     assert InputGroupSchema().load(payload) == payload
     assert InputGroupSchema().load(another_payload) == another_payload
-    assert payload["name"] != another_payload["name"]
+    assert payload["name"] == f"test-group-{uuids[0]}"
+    assert another_payload["name"] == f"test-group-{uuids[1]}"
     assert payload["host_ids"] == []
 
     payload["host_ids"].append("489c5a7e-3d73-40ec-a873-a5eccebdcd6a")
