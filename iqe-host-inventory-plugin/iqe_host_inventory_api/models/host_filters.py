@@ -42,6 +42,8 @@ class HostFilters:
         "system_type": "list[str]",
         "recommendation_severity": "list[str]",
         "incident_status": "str",
+        "cve_severity": "list[str]",
+        "known_exploit": "str",
     }
 
     attribute_map = {
@@ -57,6 +59,8 @@ class HostFilters:
         "system_type": "system_type",
         "recommendation_severity": "recommendation_severity",
         "incident_status": "incident_status",
+        "cve_severity": "cve_severity",
+        "known_exploit": "known_exploit",
     }
 
     def __init__(
@@ -73,6 +77,8 @@ class HostFilters:
         system_type=None,
         recommendation_severity=None,
         incident_status=None,
+        cve_severity=None,
+        known_exploit=None,
         local_vars_configuration=None,
     ):
         """HostFilters - a model defined in OpenAPI"""
@@ -92,6 +98,8 @@ class HostFilters:
         self._system_type = None
         self._recommendation_severity = None
         self._incident_status = None
+        self._cve_severity = None
+        self._known_exploit = None
         self.discriminator = None
 
         if hostname_or_id is not None:
@@ -118,6 +126,10 @@ class HostFilters:
             self.recommendation_severity = recommendation_severity
         if incident_status is not None:
             self.incident_status = incident_status
+        if cve_severity is not None:
+            self.cve_severity = cve_severity
+        if known_exploit is not None:
+            self.known_exploit = known_exploit
 
     @property
     def hostname_or_id(self):
@@ -431,6 +443,69 @@ class HostFilters:
             )
 
         self._incident_status = incident_status
+
+    @property
+    def cve_severity(self):
+        """Gets the cve_severity of this HostFilters.  # noqa: E501
+
+        Filter by Vulnerability CVE severity (OR logic).  # noqa: E501
+
+        :return: The cve_severity of this HostFilters.  # noqa: E501
+        :rtype: list[str]
+        """
+        return self._cve_severity
+
+    @cve_severity.setter
+    def cve_severity(self, cve_severity):
+        """Sets the cve_severity of this HostFilters.
+
+        Filter by Vulnerability CVE severity (OR logic).  # noqa: E501
+
+        :param cve_severity: The cve_severity of this HostFilters.  # noqa: E501
+        :type: list[str]
+        """
+        allowed_values = ["critical", "important", "moderate", "low"]
+        if self.local_vars_configuration.client_side_validation and not set(cve_severity).issubset(
+            set(allowed_values)
+        ):
+            raise ValueError(
+                "Invalid values for `cve_severity` [{}], must be a subset of [{}]".format(
+                    ", ".join(map(str, set(cve_severity) - set(allowed_values))),
+                    ", ".join(map(str, allowed_values)),
+                )
+            )
+
+        self._cve_severity = cve_severity
+
+    @property
+    def known_exploit(self):
+        """Gets the known_exploit of this HostFilters.  # noqa: E501
+
+        Filter by Vulnerability known exploit status.  # noqa: E501
+
+        :return: The known_exploit of this HostFilters.  # noqa: E501
+        :rtype: str
+        """
+        return self._known_exploit
+
+    @known_exploit.setter
+    def known_exploit(self, known_exploit):
+        """Sets the known_exploit of this HostFilters.
+
+        Filter by Vulnerability known exploit status.  # noqa: E501
+
+        :param known_exploit: The known_exploit of this HostFilters.  # noqa: E501
+        :type: str
+        """
+        allowed_values = ["has_known_exploit", "no_known_exploit"]
+        if self.local_vars_configuration.client_side_validation and known_exploit not in allowed_values:
+            raise ValueError(
+                "Invalid value for `known_exploit` ({}), must be one of {}".format(
+                    known_exploit, allowed_values
+                )
+            )
+
+        self._known_exploit = known_exploit
 
     def to_dict(self):
         """Returns the model properties as a dict"""

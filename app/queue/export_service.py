@@ -40,19 +40,36 @@ logger = get_logger(__name__)
 
 HEADER_CONTENT_TYPE = {"json": "application/json; charset=utf-8", "csv": "text/csv; charset=utf-8"}
 
+_DEDICATED_HOST_FILTER_APPS = {
+    "advisor": ("recommendation_severity", "incident_status"),
+    "vulnerability": ("cve_severity", "known_exploit"),
+}
+
+
+def _check_dedicated_host_filter_permissions(
+    allowed_apps: set[str] | None,
+    host_filter: dict,
+) -> str | None:
+    """Return the name of the first app whose dedicated host filters are used without permission, or None."""
+    if allowed_apps is None:
+        return None
+    for app_name, filter_keys in _DEDICATED_HOST_FILTER_APPS.items():
+        if app_name not in allowed_apps and any(host_filter.get(k) for k in filter_keys):
+            return app_name
+    return None
+
 
 def _load_view_config(view_id: str, org_id: str, user_id: str) -> tuple[dict, dict, list[dict]]:
     """Load a saved view and extract its filters and columns.
 
-    The view stores all filters under ``configuration.filters``, but ``query_filters()``
-    accepts them in two different ways:
-    - ``"host"`` filters (staleness, tags, dates …) → unpacked as **kwargs
-    - everything else (system_profile, app-data) → passed as the ``filter=`` dict
+    The view stores all filters under ``configuration.filters``. Host-level filters
+    are converted to ``HostFilters`` fields, while system-profile and app-data
+    filters remain in its ``query_filter`` field.
 
     Returns:
         (host_filter, query_filter, columns):
-        - host_filter: query_filters() kwargs (staleness, tags, date ranges, etc.)
-        - query_filter: filter dict for query_filters() (system_profile, app-data, etc.)
+        - host_filter: HostFilters fields (staleness, tags, date ranges, etc.)
+        - query_filter: system-profile and app-data filter dictionary
         - columns: ordered list of column config dicts from the view
     """
     view = get_view_by_id(view_id, org_id, user_id)
@@ -446,17 +463,13 @@ def create_export(
                 session.close()
                 return export_created
 
-        # Dedicated Advisor host filters live in host_filter, not query_filter.
-        if (
-            allowed_apps is not None
-            and "advisor" not in allowed_apps
-            and (host_filter.get("recommendation_severity") or host_filter.get("incident_status"))
-        ):
+        denied_app = _check_dedicated_host_filter_permissions(allowed_apps, host_filter)
+        if denied_app:
             request_url = _build_export_request_url(
                 export_service_endpoint, exportUUID, applicationName, resourceUUID, "error"
             )
             _handle_export_error(
-                "Insufficient permissions to filter by advisor",
+                f"Insufficient permissions to filter by {denied_app}",
                 403,
                 request_url,
                 session,

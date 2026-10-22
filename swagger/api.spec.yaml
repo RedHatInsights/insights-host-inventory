@@ -137,6 +137,8 @@ paths:
         - $ref: '#/components/parameters/hostViewCombinedFieldsParam'
         - $ref: '#/components/parameters/recommendationSeverityParam'
         - $ref: '#/components/parameters/incidentStatusParam'
+        - $ref: '#/components/parameters/cveSeverityParam'
+        - $ref: '#/components/parameters/knownExploitParam'
       responses:
         '200':
           description: Successfully read host views.
@@ -1766,6 +1768,37 @@ components:
         enum:
           - incident
           - no_incident
+    cveSeverityParam:
+      in: query
+      name: cve_severity
+      required: false
+      description: >-
+        Filters hosts by Vulnerability CVE severity. Only hosts with at least
+        one CVE of the specified severity are returned. Multiple values
+        use OR logic (e.g. critical + low returns hosts with either).
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - critical
+            - important
+            - moderate
+            - low
+    knownExploitParam:
+      in: query
+      name: known_exploit
+      required: false
+      description: >-
+        Filters hosts by Vulnerability known exploit status. Mutually exclusive:
+        only one value may be provided. "has_known_exploit" returns hosts with
+        cves_with_known_exploits > 0. "no_known_exploit" returns hosts with
+        cves_with_known_exploits = 0 (excludes hosts with no Vulnerability data).
+      schema:
+        type: string
+        enum:
+          - has_known_exploit
+          - no_known_exploit
     hostViewCombinedFilterParam:
       in: query
       name: filter
@@ -3388,6 +3421,22 @@ components:
           enum:
             - incident
             - no_incident
+        cve_severity:
+          description: Filter by Vulnerability CVE severity (OR logic).
+          type: array
+          items:
+            type: string
+            enum:
+              - critical
+              - important
+              - moderate
+              - low
+        known_exploit:
+          description: Filter by Vulnerability known exploit status.
+          type: string
+          enum:
+            - has_known_exploit
+            - no_known_exploit
       additionalProperties: false
     ViewIn:
       title: View Create Payload

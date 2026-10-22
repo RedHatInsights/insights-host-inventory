@@ -13,6 +13,8 @@ from api import api_operation
 from api import flask_json_response
 from api import metrics
 from api.filtering.app_data_sorting import get_app_name_from_sort
+from api.filtering.query_params import HostFilters
+from api.filtering.query_params import HostListOptions
 from api.host_query_db import get_host_list_for_views
 from api.staleness_query import get_staleness_obj
 from app.auth import get_current_identity
@@ -54,6 +56,14 @@ def _validate_advisor_filter_authorization(recommendation_severity, incident_sta
         return
     if (recommendation_severity or incident_status) and "advisor" not in allowed_apps:
         flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by advisor")
+
+
+def _validate_vulnerability_filter_authorization(cve_severity, known_exploit, allowed_apps):
+    """Reject vulnerability host filters when the user lacks vulnerability read permission."""
+    if allowed_apps is None:
+        return
+    if (cve_severity or known_exploit) and "vulnerability" not in allowed_apps:
+        flask.abort(HTTPStatus.FORBIDDEN, "Insufficient permissions to filter by vulnerability")
 
 
 def _parse_sparse_fields(fields: dict | None) -> dict[str, list[str] | None]:
@@ -199,6 +209,8 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     system_type=None,
     recommendation_severity=None,
     incident_status=None,
+    cve_severity=None,
+    known_exploit=None,
     filter=None,
     fields=None,
     rbac_filter=None,
@@ -236,38 +248,45 @@ def get_host_views(  # noqa: PLR0913, PLR0917
     _validate_sort_authorization(order_by, allowed_apps)
     _validate_filter_authorization(filter, allowed_apps, known_apps)
     _validate_advisor_filter_authorization(recommendation_severity, incident_status, allowed_apps)
+    _validate_vulnerability_filter_authorization(cve_severity, known_exploit, allowed_apps)
 
     # Extract system_profile fields for the DB query layer; the rest is for app_data
     sp_fields = {"system_profile": fields["system_profile"]} if fields and "system_profile" in fields else None
 
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_for_views(
-            display_name=display_name,
-            fqdn=fqdn,
-            hostname_or_id=hostname_or_id,
-            insights_id=insights_id,
-            subscription_manager_id=subscription_manager_id,
-            provider_id=provider_id,
-            provider_type=provider_type,
-            updated_start=updated_start,
-            updated_end=updated_end,
-            last_check_in_start=last_check_in_start,
-            last_check_in_end=last_check_in_end,
-            group_name=workspace_name,
-            group_id=workspace_id,
-            tags=tags,
-            page=page,
-            per_page=per_page,
-            param_order_by=order_by,
-            param_order_how=order_how,
-            staleness=staleness,
-            registered_with=registered_with,
-            system_type=system_type,
-            recommendation_severity=recommendation_severity,
-            incident_status=incident_status,
-            filter=filter,
-            fields=sp_fields,
-            rbac_filter=rbac_filter,
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                subscription_manager_id=subscription_manager_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                last_check_in_start=last_check_in_start,
+                last_check_in_end=last_check_in_end,
+                group_name=workspace_name,
+                group_ids=workspace_id,
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                system_type=system_type,
+                recommendation_severity=recommendation_severity,
+                incident_status=incident_status,
+                cve_severity=cve_severity,
+                known_exploit=known_exploit,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
+            HostListOptions(
+                page=page,
+                per_page=per_page,
+                order_by=order_by,
+                order_how=order_how,
+                fields=sp_fields,
+            ),
         )
     except ValueError as e:
         log_get_host_list_failed(logger)

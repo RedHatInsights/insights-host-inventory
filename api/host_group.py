@@ -10,6 +10,8 @@ from api import api_operation
 from api import flask_json_response
 from api import json_error_response
 from api import metrics
+from api.filtering.query_params import HostFilters
+from api.filtering.query_params import HostListOptions
 from api.group_query import build_group_response
 from api.host_query import build_paginated_host_list_response
 from api.host_query_db import get_host_list
@@ -87,30 +89,25 @@ def get_host_list_by_group(
     # Get hosts from database (regardless of feature flag - host data is in DB)
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list(
-            display_name=display_name,
-            fqdn=fqdn,
-            hostname_or_id=hostname_or_id,
-            insights_id=insights_id,
-            subscription_manager_id=None,
-            provider_id=None,
-            provider_type=None,
-            updated_start=None,
-            updated_end=None,
-            last_check_in_start=None,
-            last_check_in_end=None,
-            group_name=None,
-            group_id=[str(group_id)],
-            tags=tags,
-            page=page,
-            per_page=per_page,
-            param_order_by=order_by,
-            param_order_how=order_how,
-            staleness=staleness,
-            registered_with=registered_with,
-            system_type=None,
-            filter=filter,
-            fields=fields,
-            rbac_filter=rbac_filter,
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                group_ids=[str(group_id)],
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
+            HostListOptions(
+                page=page,
+                per_page=per_page,
+                order_by=order_by,
+                order_how=order_how,
+                fields=fields,
+            ),
         )
     except ValueError as e:
         logger.exception(f"Error getting hosts for group {group_id}")
