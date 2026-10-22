@@ -23,8 +23,7 @@ dependencies = [
     "python-dateutil~=2.9.0",
     "prance==26.7.19.0",
     "app-common-python~=0.3.0",
-    # opentelemetry-instrumentation-sqlalchemy 0.66b1 does not support SQLAlchemy 2.1+.
-    "sqlalchemy>=2.0.0,<2.1.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
     "alembic>=1.12.0",
     "urllib3>=1.26.5",
     "flask-unleash",
@@ -38,14 +37,15 @@ dependencies = [
     "opentelemetry-sdk~=1.45.0",
     "opentelemetry-exporter-otlp-proto-http~=1.45.1",
     "opentelemetry-instrumentation-flask==0.66b1",
-    "opentelemetry-instrumentation-sqlalchemy==0.66b1",
+    # The extra carries the instrumentor's supported SQLAlchemy range.
+    "opentelemetry-instrumentation-sqlalchemy[instruments]==0.66b1",
     "opentelemetry-instrumentation-requests==0.66b1",
     "opentelemetry-instrumentation-grpc==0.66b1",
     "opentelemetry-instrumentation-botocore==0.66b1",
     "opentelemetry-instrumentation-confluent-kafka~=0.53b",
     "unleashclient==6.9.1",
     "rpds-py==2026.9.1",
-    "starlette~=1.8.0",
+    "starlette~=1.9.0",
 ]
 
 [tool.ruff]

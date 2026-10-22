@@ -1972,6 +1972,8 @@ class HostsApi:
         :param list[str] system_type: Filters systems by type
         :param list[str] recommendation_severity: Filter by Advisor recommendation severity (OR logic)
         :param str incident_status: Filter by Advisor incident status
+        :param list[str] cve_severity: Filter by Vulnerability CVE severity (OR logic)
+        :param str known_exploit: Filter by Vulnerability known exploit status
         :param dict(str, HostViewCombinedFilterValue) filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
         :param HostViewCombinedFields fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
         :param _preload_content: if False, the urllib3.HTTPResponse object will
@@ -2022,6 +2024,8 @@ class HostsApi:
         :param list[str] system_type: Filters systems by type
         :param list[str] recommendation_severity: Filter by Advisor recommendation severity (OR logic)
         :param str incident_status: Filter by Advisor incident status
+        :param list[str] cve_severity: Filter by Vulnerability CVE severity (OR logic)
+        :param str known_exploit: Filter by Vulnerability known exploit status
         :param dict(str, HostViewCombinedFilterValue) filter: Filters hosts based on system_profile fields and/or application data metrics. Both filter types can be combined in a single request. <br /><br /> **System profile filters** use the syntax `filter[system_profile][field][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][operating_system][name][eq]=rhel\" <br /><br /> **Application data filters** use the syntax `filter[app_name][field_name][operator]=value`. For example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[vulnerability][critical_cves][gte]=1\" <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[patch][template_name][eq]=production\" <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?filter[system_profile][host_type][eq]=edge&filter[vulnerability][critical_cves][gte]=1\"
         :param HostViewCombinedFields fields: Selects which system_profile fields and/or application data fields to include in the response. Both can be requested in a single call. <br /><br /> **System profile fields:** `fields[system_profile]=arch,host_type` returns only the requested system_profile fields on each host. When not specified, no system_profile data is returned (default behavior). <br /><br /> **Application data fields:** `fields[advisor]=recommendations` returns only the requested fields for that application. When not specified, all fields from all applications are returned by default. <br /><br /> **Application shorthand:** `fields[app_data]=true` explicitly requests all application data for all apps. <br /><br /> **Combined** example: <br /><br /> &nbsp;&nbsp;&nbsp;&nbsp;\"?fields[system_profile]=arch,os_release&fields[advisor]=recommendations\"
         :param _return_http_data_only: response data without head status code
@@ -2065,6 +2069,8 @@ class HostsApi:
             "system_type",
             "recommendation_severity",
             "incident_status",
+            "cve_severity",
+            "known_exploit",
             "filter",
             "fields",
         ]
@@ -2162,6 +2168,14 @@ class HostsApi:
             collection_formats["recommendation_severity"] = "multi"
         if "incident_status" in local_var_params and local_var_params["incident_status"] is not None:
             query_params.append(("incident_status", local_var_params["incident_status"]))
+        if (
+            "cve_severity" in local_var_params
+            and local_var_params["cve_severity"] is not None
+        ):
+            query_params.append(("cve_severity", local_var_params["cve_severity"]))
+            collection_formats["cve_severity"] = "multi"
+        if "known_exploit" in local_var_params and local_var_params["known_exploit"] is not None:
+            query_params.append(("known_exploit", local_var_params["known_exploit"]))
         if "filter" in local_var_params and local_var_params["filter"] is not None:
             query_params.append(("filter", local_var_params["filter"]))
         if "fields" in local_var_params and local_var_params["fields"] is not None:

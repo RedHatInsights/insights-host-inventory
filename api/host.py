@@ -16,6 +16,8 @@ from api.cache import delete_cached_system_keys
 from api.cache import get_system_cache_generation
 from api.cache_key import make_system_cache_key
 from api.filtering.db_filters import update_query_for_owner_id
+from api.filtering.query_params import HostFilters
+from api.filtering.query_params import HostListOptions
 from api.host_query import build_paginated_host_list_response
 from api.host_query_db import get_all_hosts
 from api.host_query_db import get_host_id_by_insights_id
@@ -160,31 +162,35 @@ def get_host_list(
 
     try:
         host_list, total, additional_fields, system_profile_fields = get_host_list_from_db(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            subscription_manager_id,
-            provider_id,
-            provider_type,
-            updated_start,
-            updated_end,
-            last_check_in_start,
-            last_check_in_end,
-            workspace_name,
-            workspace_id,
-            tags,
-            page,
-            per_page,
-            order_by,
-            order_how,
-            staleness,
-            registered_with,
-            system_type,
-            filter,
-            fields,
-            rbac_filter,
-            get_total=get_total,
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                subscription_manager_id=subscription_manager_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                last_check_in_start=last_check_in_start,
+                last_check_in_end=last_check_in_end,
+                group_name=workspace_name,
+                group_ids=workspace_id,
+                tags=tags,
+                staleness=staleness,
+                registered_with=registered_with,
+                system_type=system_type,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
+            HostListOptions(
+                page=page,
+                per_page=per_page,
+                order_by=order_by,
+                order_how=order_how,
+                fields=fields,
+                get_total=get_total,
+            ),
         )
     except ValueError as e:
         log_get_host_list_failed(logger)
@@ -256,26 +262,28 @@ def delete_hosts_by_filter(
 
     try:
         ids_list = get_host_ids_list(
-            display_name,
-            fqdn,
-            hostname_or_id,
-            insights_id,
-            subscription_manager_id,
-            provider_id,
-            provider_type,
-            updated_start,
-            updated_end,
-            last_check_in_start,
-            last_check_in_end,
-            workspace_name,
-            workspace_id,
-            registered_with,
-            system_type,
-            staleness,
-            tags,
-            filter,
-            rbac_filter,
-            get_current_identity(),
+            HostFilters(
+                display_name=display_name,
+                fqdn=fqdn,
+                hostname_or_id=hostname_or_id,
+                insights_id=insights_id,
+                subscription_manager_id=subscription_manager_id,
+                provider_id=provider_id,
+                provider_type=provider_type,
+                updated_start=updated_start,
+                updated_end=updated_end,
+                last_check_in_start=last_check_in_start,
+                last_check_in_end=last_check_in_end,
+                group_name=workspace_name,
+                group_ids=workspace_id,
+                registered_with=registered_with,
+                system_type=system_type,
+                staleness=staleness,
+                tags=tags,
+                query_filter=filter,
+                rbac_filter=rbac_filter,
+            ),
+            identity=get_current_identity(),
         )
     except ValueError as err:
         log_get_host_list_failed(logger)
