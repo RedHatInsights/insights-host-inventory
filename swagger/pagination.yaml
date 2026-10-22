@@ -70,15 +70,19 @@ components:
       type: integer
       nullable: true
       description: Total number of items
+      example: 1
     Count:
       type: integer
       description: The number of items on the current page
+      example: 1
     Page:
       type: integer
       description: The page number
+      example: 1
     PerPage:
       type: integer
       description: The number of items to return per page
+      example: 50
     Meta:
       description: The metadata for resource-types responses
       type: object
