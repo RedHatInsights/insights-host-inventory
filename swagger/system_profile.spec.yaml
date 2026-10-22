@@ -4,7 +4,7 @@ $schema: http://json-schema.org/draft-04/schema#
 $defs:
   NestedObject:
     type: object
-    description: An arbitrary object that does not allow empty string keys.
+    description: An arbitrary object that allows any additional properties.
     additionalProperties: true
   DiskDevice:
     description: Representation of one mounted device

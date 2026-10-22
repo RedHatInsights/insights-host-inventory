@@ -5905,7 +5905,7 @@
       },
       "SystemProfileNestedObject": {
         "type": "object",
-        "description": "An arbitrary object that does not allow empty string keys.",
+        "description": "An arbitrary object that allows any additional properties.",
         "additionalProperties": true
       },
       "SystemProfileDiskDevice": {
