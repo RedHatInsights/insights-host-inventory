@@ -16,13 +16,12 @@ is to provide REST service tests specific to Insight's inventory capabilities.
 * [Markers](#markers)
 * [Updating the REST service](#updating-rest-service)
 * [Updating insights archives](#updating-insights-archives)
-* [GitLab Configuration](#gitlab-configuration)
 * [Accounts Configuration](#accounts-configuration)
 * [Additional Accounts](#additional-accounts)
 * [Preparing accounts for Test Day](#preparing-accounts-for-test-day)
 * [Notifications testing](#notifications-testing)
 * [Promoting deployments to Prod](#promoting-deployments-to-prod)
-* [Jenkins Jobs](#jenkins-jobs)
+* [Testing pipelines](#testing-pipelines)
 * [Further Reading](#further-reading)
 
 ## Getting Started
@@ -37,10 +36,10 @@ looks like this:
 
 ```bash
 # run all rest tests
-$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and not ephemeral'
+$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'not ephemeral'
 
 # run only smoke tests
-$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'backend and smoke and not ephemeral'
+$ ENV_FOR_DYNACONF=stage_proxy iqe tests plugin host_inventory -m 'smoke and not ephemeral'
 ```
 
 Be forewarned that there are a considerable number of tests, so you will receive quite a
@@ -75,10 +74,10 @@ Then follow these steps:
 * Reserve a namespace with:
 `NAMESPACE=$(bonfire namespace reserve -d <hours_to_reserve (at least 2)>)`
 * Deploy HBI to that namespace: `bonfire deploy --source appsre --ref-env insights-stage host-inventory -n $NAMESPACE`
-* Run the tests: `POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
+* Run the tests: `POD=$(bonfire deploy-iqe-cji host-inventory -m "not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)`
 * To see the live results: `oc logs -n $NAMESPACE $POD -f`
 * Run graceful shutdown tests:
-`POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and resilience" -n $NAMESPACE)`
+`POD=$(bonfire deploy-iqe-cji host-inventory -m "resilience" -n $NAMESPACE)`
 * To see the live results: `oc logs -n $NAMESPACE $POD -f`
 
 You can run graceful shutdown tests together with other tests, but it is recommended to run them
@@ -105,7 +104,7 @@ the service accounts tests (`-m "not service_account"`), because of the same rea
 cert auth tests (see above). So, if you wanted to run all the tests now, the command would look
 like this:
 ```bash
-$ POD=$(bonfire deploy-iqe-cji host-inventory -m "backend and not resilience and not cert_auth and not service_account" -n $NAMESPACE)
+$ POD=$(bonfire deploy-iqe-cji host-inventory -m "not resilience and not cert_auth and not service_account" -n $NAMESPACE)
 ```
 
 ## Running tests with local changes in ephemeral environment
@@ -128,7 +127,7 @@ end of the `deploy-iqe-cji` command:
 
 3. Deploy the pod:
 ```bash
-POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "backend and not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)
+POD=$(bonfire deploy-iqe-cji --debug-pod host-inventory -m "not resilience and not cert_auth and not rbac_dependent" -n $NAMESPACE)
 ```
 
 4. Copy your local changes to the pod:
@@ -207,7 +206,6 @@ their meaning.
 If you are unfamiliar with pytest markers, you may wish to review the pytest project's
 documentation on the subject.
 
-* `backend` - All tests related to backend
 * `outage` - Tests intended to be used as an evaluation of whether the production environment is in
 a "working" state.
 * `core` - Tests for <prod/stage>-test-suite pipeline
@@ -337,22 +335,6 @@ other plugins, this code should first be deprecated to allow time for dependent 
 
 The IQE framework provides deprecation support.  Please refer to the IQE [deprecation instructions](https://insights-qe.pages.redhat.com/iqe-core-docs/deprecations.html) for
 guidance on this process.
-
-
-## GitLab Configuration
-
-If you review the GitLab CI file in this repo (`.gitlab-ci.yml`), you'll notice two jobs that can
-be manually executed as part of any pipeline.
-
-1. `unit_test` - This job will run the unit tests from the master branch of the service. Useful for
-getting coverage information.
-2. `functional_test` - This will run a subset of all the functional tests within an ephemeral
-environment.
-
-Both of these jobs should be considered experimental. The `unit_test` job tends to execute
-reliably. The `functional_test` job succeeds intermittently. Investment to stabilize these jobs has
-been minimal, primarily because there has been heavy investment in Jenkins as the tool of choice
-for executing test runs.
 
 
 ## Accounts Configuration
@@ -714,15 +696,13 @@ environments first. Here is what we need to do:
 1. Make sure Stage has the same configuration we want to release to Production (all
 [app-interface deployment config values](https://gitlab.cee.redhat.com/service/app-interface/-/blob/33eebcc3950ba1f06fa98985271adc73ef4e0ccd/data/services/insights/host-inventory/deploy-clowder.yml#L155),
 [feature flags](https://insights-stage.unleash.devshift.net/projects), code image tags, etc.)
-2. [Run tests in ephemeral environment](#running-tests-in-ephemeral-environment)
-3. Run [HBI backend Stage pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/-stage-basic/)
-(for backend release)
+2. [Run tests in ephemeral environment](#running-tests-in-ephemeral-environment) - or check the PR checks from the latest merged PR
+3. Check the results of the latest Stage [testing pipelines](#testing-pipelines), or
+[trigger them manually](#triggering-a-pipeline-manually) (for backend release)
 
 When everything passes, we can update Prod deploy config. For code releases, we need to update
-these refs to match the tested version from Stage for backend:
+this ref to match the tested version from Stage for backend:
 - [HBI Backend](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/host-inventory/deploy-clowder.yml#L191)
-- [cyndi-operator](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/xjoin/deploy-cyndi.yml#L76)
-- [xjoin-kafka-connect](https://gitlab.cee.redhat.com/service/app-interface/-/blob/30fb5afe7babc91fe971e16a192d17eabd75ce8d/data/services/insights/xjoin/deploy.yml#L82)
 
 The ref represents a commit hash of the latest commit we want to deploy to Production, so you can
 look for the commit hash of the latest commit in master branches. Also, update all desired config
@@ -768,22 +748,118 @@ approve it by adding a `/lgtm` comment.
 Once the MR is merged and the new versions have settled in Prod, we can update feature flag values
 in Prod, if needed.
 
-After any change to Production, we always have to trigger one of our
-[Prod pipelines](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/)
+After any change to Production, we always have to
+[trigger](#triggering-a-pipeline-manually) one of our Prod [testing pipelines](#testing-pipelines)
 to make sure everything is working fine. Also, the engineer who approved the MR is then responsible
 for monitoring the deployment.
 
-## Jenkins Jobs
+## Testing pipelines
 
-1. [Stage and Prod HBI backend testing pipelines](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/)
-2. [HBI backend outage check](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/outage-check/)
-3. [HBI RapiDAST pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/rapidast/job/Host-Inventory-rapidast-job/)
-4. [IQE Stage Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/stage-test-suite/)
-5. [IQE Prod Test Suite](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/common-pipelines/job/prod-test-suite/)
-6. [host-inventory build-master](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-gh-build-master/)
-7. [host-inventory pr-checker](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check/)
-8. [host-inventory pr-checker full test run](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-all-tests/)
-9. [host-inventory pr-checker rbac integration tests](https://ci.ext.devshift.net/job/RedHatInsights-insights-host-inventory-pr-check-rbac-tests/)
+Our Stage and Prod IQE tests run as Kubernetes CronJobs on the `appsres09ue1` cluster. Every run
+creates a new Job with a single pod, which runs the tests from the
+`quay.io/cloudservices/iqe-tests:host-inventory` image.
+
+| CronJob | Schedule (UTC) | Markers (`-m`) | Account |
+|---|---|---|---|
+| **Stage** (namespace `host-inventory-stage-tests`) | | | |
+| `inventory-stage-testing-pipeline` | 04:00, 22:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
+| `inventory-stage-extended-testing-pipeline` | 01:45 | `not ephemeral and longrun` | `insights-inventory-qe` |
+| `inventory-stage-secondary-testing-pipeline` | 04:00, 22:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-test` |
+| **Prod** (namespace `host-inventory-prod-tests`) | | | |
+| `inventory-prod-testing-pipeline` | 06:00, 13:00 | `not ephemeral and not longrun` | `insights-inventory-qe` |
+| `inventory-prod-secondary-testing-pipeline` | 06:00, 13:00 | `not ephemeral and not service_account and not longrun` (`-k 'not test_notifications_e2e'`) | `insights-inventory-testing` |
+| `inventory-prod-outage-testing-pipeline` | every 10 minutes | `outage` | `insights-inventory-testing` |
+
+The `insights-inventory-qe` account has the `hbi.rbac-v2` feature flag enabled, while the
+`insights-inventory-test` (Stage) and `insights-inventory-testing` (Prod) accounts have it disabled.
+
+The extended pipeline starts at 01:45 because its stale host notification test waits for the stale
+host detection, which runs every full hour.
+
+Runs time out after 3 hours (30 minutes for the outage check). If the previous run of the same
+CronJob is still running, the next scheduled run is skipped.
+
+### Where the pipelines are defined
+
+- The CronJobs and their parameters (markers, schedules, accounts, timeouts, ...) are defined in
+[cron-testing.yml](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/data/services/insights/host-inventory/cron-testing.yml)
+in app-interface. To change them, open an MR there. Members of the `host-inventory` role can
+approve it themselves (`/lgtm`). The change is deployed automatically after the MR is merged.
+- They are rendered from the shared
+[iqe-cronjob-template.yaml](https://github.com/RedHatInsights/sre-testing-templates/blob/main/common/iqe-cronjob-template.yaml)
+template, which lists all available parameters and their default values.
+
+### Finding the jobs and test results
+
+- **OpenShift console**: the CronJobs are in the
+[host-inventory-stage-tests](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-stage-tests/cronjobs)
+and
+[host-inventory-prod-tests](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-prod-tests/cronjobs)
+namespaces. Members of the `insights-qe` and `host-inventory` roles in app-interface have view
+access. Open a CronJob, go to its **Jobs** tab, open a Job, then its pod, and see the **Logs** tab
+(container `iqe-runner-...`). Only the last 3 successful and the last 8 failed Jobs of every CronJob
+are kept, older Jobs are deleted together with their logs.
+- **Alerts**: if there is no successful Prod outage check run for 20 minutes (usually 2 failed runs
+in a row, but also hung runs or runs that don't report results), an alert is sent to the
+[#team-consoledot-inventory](https://redhat-internal.slack.com/archives/team-consoledot-inventory)
+Slack channel. It is repeated every hour while it lasts, and a "resolved" message is sent after 2
+consecutive successful runs. See the
+[runbook](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/tenant-services/console.redhat.com/app-sops/host-inventory/IQETestFailures.md).
+
+### Triggering a pipeline manually
+
+Pipelines can be triggered manually with
+[Automated Actions](https://gitlab.cee.redhat.com/service/app-interface/-/blob/master/docs/platform-users/platform-services/automated-actions/README.md).
+You need the `insights-qe` role in app-interface.
+
+1. Install the CLI (see the linked docs for details):
+   ```bash
+   sudo dnf install krb5-devel python3-devel clang
+   uv tool install automated-actions-cli
+   ```
+2. Get a Kerberos ticket: `kinit <your-username>@IPA.REDHAT.COM` (it's not needed to do this manually on CSB Fedora)
+3. Trigger the CronJob:
+   ```bash
+   automated-actions openshift-trigger-cronjob \
+     --cluster appsres09ue1 \
+     --namespace host-inventory-stage-tests \
+     --cronjob inventory-stage-testing-pipeline
+   ```
+4. The command prints an `action_id`. Check the status of the action with
+`automated-actions action-detail --action-id <action-id>` (`status: SUCCESS` means the Job was
+created, not that the tests passed), or list your recent actions with
+`automated-actions action-list --max-age-minutes 60`.
+
+The action creates a Job named `aa-triggered-<cronjob-name>-<random-suffix>` in the same
+namespace. Keep in mind that:
+- The Job runs with the CronJob's current configuration; parameters can't be changed for a
+manual run.
+- The Job doesn't show up in the CronJob's **Jobs** tab. Find it in the namespace's list of Jobs
+(**Workloads → Jobs**).
+- Manually triggered Jobs are not affected by the "skip if still running" rule. They can run at
+the same time as a scheduled run, so avoid triggering a pipeline while it is already running.
+- Manually triggered Jobs are not deleted automatically (see
+[Stopping and deleting a job](#stopping-and-deleting-a-job)).
+- Every user can trigger at most 5 pipelines per hour.
+
+### Stopping and deleting a job
+
+Both scheduled and manually triggered Jobs can be deleted with Automated Actions (`insights-qe`
+role). Find the names of the Job and its pod in the OpenShift console (open the Job, then its
+**Pods** tab), then delete the Job first and its pod second (deleting only the Job may leave the
+pod running):
+
+```bash
+automated-actions openshift-workload-delete --cluster appsres09ue1 \
+  --namespace host-inventory-stage-tests --kind Job --name <job-name>
+automated-actions openshift-workload-delete --cluster appsres09ue1 \
+  --namespace host-inventory-stage-tests --kind Pod --name <pod-name>
+```
+
+Deleting the pod stops the tests immediately (their cleanup may not run, so some test data may be
+left on the account) and deletes the logs. Old scheduled Jobs are deleted automatically, so you
+only need to delete them to stop a run. The CronJobs themselves are managed in app-interface and
+can't be deleted this way.
 
 ## Further Reading
 

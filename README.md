@@ -372,7 +372,7 @@ The IQE smoke tests are automatically run as part of the PR check pipeline. When
 4. Deploys a CJI (ClowdJobInvocation) pod with `--debug-pod` option
 5. Copies the local IQE plugin from `iqe-host-inventory-plugin/` to the CJI pod
 6. Installs the plugin in editable mode inside the pod
-7. Runs IQE smoke tests (tests marked with `backend and smoke`) with your local changes
+7. Runs IQE smoke tests (tests marked with `smoke`) with your local changes
 8. Collects test artifacts
 
 This ensures that every PR is tested with the exact IQE test code in the repository, not the version from Nexus. The local IQE plugin deployment is controlled by the `IQE_INSTALL_LOCAL_PLUGIN` environment variable set in `pr_check_common.sh`.
