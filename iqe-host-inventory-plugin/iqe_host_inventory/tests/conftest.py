@@ -52,8 +52,9 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--kessel",
         action="store_true",
-        default=False,
-        help="Enable Kessel feature flags and tests",
+        default=getenv("IQE_HBI_KESSEL", "").lower() in ("true", "1"),
+        help="Enable Kessel feature flags and tests. "
+        "Can also be enabled with the IQE_HBI_KESSEL=true environment variable.",
     )
     parser.addoption(
         "--http-debug",

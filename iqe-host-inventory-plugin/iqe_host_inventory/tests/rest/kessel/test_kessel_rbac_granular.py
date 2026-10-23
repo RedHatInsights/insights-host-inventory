@@ -22,7 +22,7 @@ To run in the EE:
     - Clone https://github.com/project-kessel/insights-service-deployer
     - Run deploy.sh deploy_with_hbi_demo
 
-2. Run the tests with --kessel option
+2. Run the tests with --kessel option (or with IQE_HBI_KESSEL=true environment variable)
 """
 
 pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent]
