@@ -16,7 +16,6 @@ is to provide REST service tests specific to Insight's inventory capabilities.
 * [Markers](#markers)
 * [Updating the REST service](#updating-rest-service)
 * [Updating insights archives](#updating-insights-archives)
-* [GitLab Configuration](#gitlab-configuration)
 * [Accounts Configuration](#accounts-configuration)
 * [Additional Accounts](#additional-accounts)
 * [Preparing accounts for Test Day](#preparing-accounts-for-test-day)
