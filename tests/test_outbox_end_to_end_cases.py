@@ -817,18 +817,23 @@ class TestOutboxE2ECases:
 
         # Make PATCH request to update ansible_host
         # Outbox entry is created automatically via event listener when ansible_host changes
-        response_status, _ = api_patch(hosts_url, patch_data)
+        with capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", passthrough=True) as outbox_calls:
+            response_status, _ = api_patch(hosts_url, patch_data)
 
-        # Verify the API request was successful
-        assert response_status == 200
+            # Verify the API request was successful
+            assert response_status == 200
+
+        # Verify exactly one 'updated' outbox entry was written for the host
+        assert len(outbox_calls) == 1
+        assert outbox_calls[0]["event_type"] == EventType.updated
+        assert str(outbox_calls[0]["host_id"]) == host_id
 
         # Verify the host was actually updated in the database
         updated_host = db_get_host(host.id)
         assert updated_host.ansible_host == "updated.ansible.host"
         assert updated_host.display_name == "original-host-name"  # display_name unchanged
 
-        # Verify outbox entry was created and immediately deleted (write-ahead log pattern)
-        # The outbox entry is created during commit and then deleted immediately as part of the write-ahead log
+        # Verify the outbox entry didn't persist (write-ahead log pattern: it's deleted right after insert)
         assert_outbox_empty(db, host_id)
 
     @pytest.mark.usefixtures("notification_event_producer")
@@ -869,6 +874,7 @@ class TestOutboxE2ECases:
         with (
             patch("api.host.current_app.event_producer", MockEventProducerNoCleanup()),
             patch("lib.host_delete.kafka_available", return_value=True),
+            capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", passthrough=True) as outbox_calls,
         ):
             # Make DELETE request to delete the host
             response_status, _ = api_delete_host(host.id)
@@ -876,14 +882,17 @@ class TestOutboxE2ECases:
             # Verify the API request was successful
             assert response_status == 200
 
+            # Verify exactly one 'delete' outbox entry was written for the host
+            assert len(outbox_calls) == 1
+            assert outbox_calls[0]["event_type"] == EventType.delete
+            assert str(outbox_calls[0]["host_id"]) == host_id
+
             # Verify the host was actually deleted from the database
             deleted_host = db_get_host(host.id)
             assert deleted_host is None
 
-            # Verify that the outbox entry was created and immediately deleted (new behavior)
+            # Verify the outbox entry didn't persist (write-ahead log pattern: it's deleted right after insert)
             assert_outbox_empty(db, host_id)
-
-            # The success of the operation indicates the outbox entry was created, validated, and processed
 
         # Now test with the real event producer to verify automatic cleanup
         # Create another host to delete
@@ -899,12 +908,20 @@ class TestOutboxE2ECases:
         event_producer._kafka_producer.poll = Mock(return_value=True)
         event_producer._kafka_producer.produce = Mock(return_value=True)
 
-        with patch("lib.host_delete.kafka_available", return_value=True):
+        with (
+            patch("lib.host_delete.kafka_available", return_value=True),
+            capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", passthrough=True) as outbox_calls,
+        ):
             # Make DELETE request to delete the second host (using real event producer)
             response_status, _ = api_delete_host(host2.id)
 
         # Verify the API request was successful
         assert response_status == 200
+
+        # Verify exactly one 'delete' outbox entry was written for the second host
+        assert len(outbox_calls) == 1
+        assert outbox_calls[0]["event_type"] == EventType.delete
+        assert str(outbox_calls[0]["host_id"]) == host2_id
 
         # Verify the host was actually deleted from the database
         deleted_host2 = db_get_host(host2.id)
@@ -942,10 +959,19 @@ class TestOutboxE2ECases:
 
         # Make POST request to add host to group
         # Outbox entry is created automatically via event listener when groups change
-        response_status, _ = api_add_hosts_to_group(group_id, [host_id])
+        with capture_outbox_calls(
+            "lib.outbox_repository.write_event_to_outbox", capture_groups=True, passthrough=True
+        ) as outbox_calls:
+            response_status, _ = api_add_hosts_to_group(group_id, [host_id])
 
-        # Verify the API request was successful
-        assert response_status == 200
+            # Verify the API request was successful
+            assert response_status == 200
+
+        # Verify exactly one 'updated' outbox entry was written, after the host was moved to the new group
+        assert len(outbox_calls) == 1
+        assert outbox_calls[0]["event_type"] == EventType.updated
+        assert str(outbox_calls[0]["host_id"]) == host_id
+        assert outbox_calls[0]["groups"][0]["id"] == group_id
 
         # Verify the host was actually added to the group in the database
         # Use group_id (string) instead of group.id to avoid session issues
@@ -959,7 +985,7 @@ class TestOutboxE2ECases:
         assert updated_host.groups[0]["id"] == group_id
         assert updated_host.groups[0]["name"] == "test-outbox-group"
 
-        # Verify outbox entry was created and immediately deleted (write-ahead log pattern)
+        # Verify the outbox entry didn't persist (write-ahead log pattern: it's deleted right after insert)
         assert_outbox_empty(db, host_id)
 
     @pytest.mark.usefixtures("event_producer_mock")
@@ -1548,6 +1574,7 @@ class TestOutboxE2ECases:
         # Mock the RBAC workspace creation to avoid making actual API calls
         with (
             patch("lib.middleware.rbac_create_ungrouped_hosts_workspace", return_value=generate_uuid()),
+            capture_outbox_calls("lib.outbox_repository.write_event_to_outbox", passthrough=True) as outbox_calls,
         ):
             # Create MQ consumer and process message
             consumer = IngressMessageConsumer(None, flask_app, event_producer_mock, notification_event_producer_mock)
@@ -1561,6 +1588,11 @@ class TestOutboxE2ECases:
             host_id = str(created_host.id)
             assert str(created_host.insights_id) == test_host.insights_id
             assert created_host.fqdn == "test-host-kessel-mq.example.com"
+
+            # Verify exactly one 'created' outbox entry was written for the host
+            assert len(outbox_calls) == 1
+            assert outbox_calls[0]["event_type"] == EventType.created
+            assert str(outbox_calls[0]["host_id"]) == host_id
 
             # Note: EventProducer.write_event() may not be called in test environment due to disabled event producer
             # The main verification is that the host was created and associated with the "Ungrouped Hosts" group
@@ -1581,8 +1613,7 @@ class TestOutboxE2ECases:
             assert group.ungrouped is True
             assert group.org_id == SYSTEM_IDENTITY["org_id"]
 
-            # Verify outbox entry was created and immediately deleted (new behavior)
-            # The write_event_to_outbox should have been called automatically during host creation
+            # Verify the outbox entry didn't persist (write-ahead log pattern: it's deleted right after insert)
             assert_outbox_empty(db, host_id)
 
     def test_session_isolation_for_outbox_operations(self, request):
