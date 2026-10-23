@@ -167,6 +167,12 @@ def configure_robust_http_retries() -> Generator[None, None, None]:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def reset_staleness_settings(host_inventory: ApplicationHostInventory) -> None:
+    """Reset staleness in case it didn't get cleaned up after previous test session"""
+    host_inventory.apis.account_staleness.delete_staleness()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _flush_kafka(host_inventory: ApplicationHostInventory) -> Generator[None, None, None]:
     "temporary hack - dishka based cleans up itself"
 
