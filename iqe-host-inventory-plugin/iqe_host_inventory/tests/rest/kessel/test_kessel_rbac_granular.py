@@ -22,7 +22,7 @@ To run in the EE:
     - Clone https://github.com/project-kessel/insights-service-deployer
     - Run deploy.sh deploy_with_hbi_demo
 
-2. Run the tests with --kessel option
+2. Run the tests with --kessel option (or with IQE_HBI_KESSEL=true environment variable)
 """
 
 pytestmark = [pytest.mark.backend, pytest.mark.rbac_dependent]
@@ -83,11 +83,9 @@ def nested_workspace_read_rbac_setup(
     hbi_non_org_admin_user_rbac_setup_class,
 ):
     parent_group_id = nested_workspace_resources.parent_workspace.id
-    child_group_id = nested_workspace_resources.child_workspace.id
     hbi_non_org_admin_user_rbac_setup_class(
         permissions=[RBACInventoryPermission.HOSTS_READ, RBACInventoryPermission.GROUPS_READ],
         hbi_groups=[parent_group_id],
-        expected_hbi_groups=[parent_group_id, child_group_id],
     )
 
 
@@ -97,7 +95,6 @@ def nested_workspace_write_rbac_setup(
     hbi_non_org_admin_user_rbac_setup_class,
 ):
     parent_group_id = nested_workspace_resources.parent_workspace.id
-    child_group_id = nested_workspace_resources.child_workspace.id
     hbi_non_org_admin_user_rbac_setup_class(
         permissions=[
             RBACInventoryPermission.HOSTS_READ,
@@ -106,7 +103,6 @@ def nested_workspace_write_rbac_setup(
             RBACInventoryPermission.GROUPS_WRITE,
         ],
         hbi_groups=[parent_group_id],
-        expected_hbi_groups=[parent_group_id, child_group_id],
     )
 
 
