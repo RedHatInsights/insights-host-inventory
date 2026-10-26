@@ -5,6 +5,7 @@ import os
 from datetime import UTC
 from datetime import datetime
 from enum import Enum
+from typing import cast
 
 from marshmallow import Schema
 from marshmallow import fields
@@ -178,6 +179,32 @@ def build_event(event_type, host, **kwargs):
         schema, event = build(event_type, host, **kwargs)
         result = schema().dumps(event)
         return result
+
+
+_UNSET = object()
+
+
+def build_event_and_headers(
+    event_type: EventType,
+    host: Host,
+    serialized_host: dict | None = None,
+    reporter: str | None | object = _UNSET,
+    **kwargs,
+) -> tuple[str, dict]:
+    if reporter is _UNSET:
+        reporter = host.reporter
+
+    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
+    headers = message_headers(
+        event_type,
+        str(host.insights_id),
+        cast(str | None, reporter),
+        host_type,
+        os_name,
+        bootc_booted,
+    )
+    event = build_event(event_type, serialized_host if serialized_host is not None else host, **kwargs)
+    return event, headers
 
 
 def operation_results_to_event_type(results) -> EventType:

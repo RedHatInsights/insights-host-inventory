@@ -77,9 +77,7 @@ from app.queue.enums import ConsumerApplication
 from app.queue.event_producer import EventProducer
 from app.queue.events import HOST_EVENT_TYPE_CREATED
 from app.queue.events import EventType
-from app.queue.events import build_event
-from app.queue.events import extract_system_profile_fields_for_headers
-from app.queue.events import message_headers
+from app.queue.events import build_event_and_headers
 from app.queue.events import operation_results_to_event_type
 from app.queue.mq_common import common_message_parser
 from app.queue.mq_common import decode_kafka_headers
@@ -1297,15 +1295,10 @@ def sync_event_message(message, session, event_producer):
         if not query.count():
             host = deserialize_host({k: v for k, v in message["host"].items() if v}, schema=LimitedHostSchema)
             host.id = host_id
-            event = build_event(EventType.delete, host)
-            host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
-            headers = message_headers(
+            event, headers = build_event_and_headers(
                 EventType.delete,
-                str(host.insights_id),
-                message["host"].get("reporter"),
-                host_type,
-                os_name,
-                bootc_booted,
+                host,
+                reporter=message["host"].get("reporter"),
             )
             # add back "wait=True", if needed.
             event_producer.write_event(event, host.id, headers, wait=True)
@@ -1314,20 +1307,11 @@ def sync_event_message(message, session, event_producer):
 
 
 def write_delete_event_message(event_producer: EventProducer, result: OperationResult, initiated_by_frontend: bool):
-    event = build_event(
+    event, headers = build_event_and_headers(
         EventType.delete,
         result.row,
         platform_metadata=result.platform_metadata,
         initiated_by_frontend=initiated_by_frontend,
-    )
-    host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
-    headers = message_headers(
-        EventType.delete,
-        str(result.row.insights_id),
-        result.row.reporter,
-        host_type,
-        os_name,
-        bootc_booted,
     )
     event_producer.write_event(event, str(result.row.id), headers, wait=True)
     insights_id = serialize_uuid(result.row.insights_id)
@@ -1358,17 +1342,12 @@ def write_add_update_event_message(
     ) as tracker_ctx:
         staleness = result.staleness_object or get_staleness_obj(result.row.org_id)
         output_host = serialize_host(result.row, staleness)
-        insights_id = str(result.row.insights_id)
-        event = build_event(result.event_type, output_host, platform_metadata=result.platform_metadata)
-
-        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(result.row)
-        headers = message_headers(
+        event, headers = build_event_and_headers(
             result.event_type,
-            insights_id,
-            output_host.get("reporter"),
-            host_type,
-            os_name,
-            bootc_booted,
+            result.row,
+            serialized_host=output_host,
+            reporter=output_host.get("reporter"),
+            platform_metadata=result.platform_metadata,
         )
 
         if not host_exists(result.row.id, org_id=result.row.org_id, session=db.session):
@@ -1390,6 +1369,7 @@ def write_add_update_event_message(
 
         org_id = output_host.get("org_id")
         try:
+            insights_id = serialize_uuid(result.row.insights_id)
             owner_id = output_host.get("system_profile", {}).get("owner_id")
             if owner_id and insights_id and org_id:
                 generation = get_system_cache_generation(insights_id, org_id, owner_id)

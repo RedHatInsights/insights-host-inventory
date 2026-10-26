@@ -30,9 +30,7 @@ from app.models import db
 from app.models import deleted_by_this_query
 from app.queue.event_producer import EventProducer
 from app.queue.events import EventType
-from app.queue.events import build_event
-from app.queue.events import extract_system_profile_fields_for_headers
-from app.queue.events import message_headers
+from app.queue.events import build_event_and_headers
 from app.serialization import serialize_db_group_with_host_count
 from app.serialization import serialize_host
 from app.serialization import serialize_rbac_workspace_with_host_count
@@ -103,16 +101,12 @@ def _produce_host_update_events(event_producer, serialized_groups, host_list, id
 
         host.groups = serialized_groups
         serialized_host = serialize_host(host, staleness=staleness)
-        host_type, os_name, bootc_booted = extract_system_profile_fields_for_headers(host)
-        headers = message_headers(
+        event, headers = build_event_and_headers(
             EventType.updated,
-            str(host.insights_id),
-            host.reporter,
-            host_type,
-            os_name,
-            bootc_booted,
+            host,
+            serialized_host=serialized_host,
+            platform_metadata=metadata,
         )
-        event = build_event(EventType.updated, serialized_host, platform_metadata=metadata)
         event_producer.write_event(event, serialized_host["id"], headers, wait=True)
 
 
