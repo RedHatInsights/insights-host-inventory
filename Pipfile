@@ -41,7 +41,6 @@ ratelimit = "*"
 confluent-kafka = "==2.10.1"
 pyjwt = ">=2.14.0"
 sniffio = "==1.3.1"
-
 anyio = ">=4.14.2"
 
 [dev-packages]
