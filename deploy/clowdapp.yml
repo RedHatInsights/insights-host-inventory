@@ -173,6 +173,7 @@ objects:
       - kessel-inventory
       - kessel-relations
       - kessel-kafkaconnect
+      - kessel-inventory-consumer
     deployments:
     - name: service
       replicas: ${{REPLICAS_SVC}}

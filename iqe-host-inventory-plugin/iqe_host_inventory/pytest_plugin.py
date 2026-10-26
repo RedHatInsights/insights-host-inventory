@@ -43,6 +43,12 @@ def pytest_configure(config):
         "markers", "cert_auth: Tests that require certificates for authorization"
     )
     config.addinivalue_line("markers", "rbac_dependent: Tests that require RBAC to be running")
+    config.addinivalue_line(
+        "markers", "pipeline_1: Tests for the 1st of 2 parallel testing pipelines (automatic)"
+    )
+    config.addinivalue_line(
+        "markers", "pipeline_2: Tests for the 2nd of 2 parallel testing pipelines (automatic)"
+    )
 
 
 @pytest.fixture(scope="session")
