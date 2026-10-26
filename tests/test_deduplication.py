@@ -144,6 +144,23 @@ def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_mat
     assert first_host.id == second_host.id
 
 
+@pytest.mark.parametrize("dedup_by_subscription_manager_id, expected_same_host", ((False, True), (True, False)))
+def test_subscription_manager_id_prevents_insights_id_fallback(
+    mq_create_or_update_host, dedup_by_subscription_manager_id, expected_same_host
+):
+    """When enabled, a supplied subscription manager ID must not fall through to insights ID."""
+    with patch("lib.host_repository.get_flag_value", return_value=dedup_by_subscription_manager_id):
+        first_host = mq_create_or_update_host(
+            base_host(subscription_manager_id=generate_uuid(), insights_id=generate_uuid())
+        )
+        first_insights_id = first_host.insights_id
+        second_host = mq_create_or_update_host(
+            base_host(subscription_manager_id=generate_uuid(), insights_id=first_insights_id)
+        )
+
+    assert (first_host.id == second_host.id) is expected_same_host
+
+
 #
 # When mutable high priority facts change, match on lower level facts.
 # When immutable high priority facts are different, no match even when lower level facts match.

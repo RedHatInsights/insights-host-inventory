@@ -37,6 +37,8 @@ from app.serialization import serialize_staleness_to_dict
 from app.staleness_serialization import get_sys_default_staleness
 from app.staleness_states import HostStalenessStatesDbFilters
 from lib import metrics
+from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
+from lib.feature_flags import get_flag_value
 
 __all__ = (
     "AddHostResult",
@@ -82,12 +84,22 @@ def add_host(
 
     matched_host = None
     canonical_facts = serialize_canonical_facts(input_host, include_none=False)
+    dedup_ignore_insights_id = get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, identity.org_id)
     if existing_hosts:
         # First, try to match the host in memory - from the provided list of existing hosts
-        matched_host = find_existing_host(identity, canonical_facts, existing_hosts)
+        matched_host = find_existing_host(
+            identity,
+            canonical_facts,
+            existing_hosts,
+            nomatch_insights_id=dedup_ignore_insights_id,
+        )
     if matched_host is None:
         # If the list of existing hosts was not provided, or the match was not found, try querying DB
-        matched_host = find_existing_host(identity, canonical_facts)
+        matched_host = find_existing_host(
+            identity,
+            canonical_facts,
+            nomatch_insights_id=dedup_ignore_insights_id,
+        )
 
     group = get_or_create_ungrouped_hosts_group_for_identity(identity)
     input_host.groups = [
@@ -142,7 +154,10 @@ def extract_immutable_and_id_facts(canonical_facts: dict[str, Any]) -> tuple[dic
 
 @metrics.host_dedup_processing_time.time()
 def find_existing_host(
-    identity: Identity, canonical_facts: dict[str, Any], from_hosts: list[Host] | None = None
+    identity: Identity,
+    canonical_facts: dict[str, Any],
+    from_hosts: list[Host] | None = None,
+    nomatch_insights_id: bool = False,
 ) -> Host | None:
     logger.debug(f"find_existing_host({identity}, {canonical_facts}, {from_hosts})")
     immutable_facts, id_facts = extract_immutable_and_id_facts(canonical_facts)
@@ -154,6 +169,12 @@ def find_existing_host(
 
     if not id_facts:
         return None
+
+    # A subscription_manager_id identifies the host for this matching mode. Do not
+    # fall through to insights_id when the subscription manager supplied one but
+    # it did not match an existing host.
+    if nomatch_insights_id and "subscription_manager_id" in canonical_facts:
+        id_facts.pop("insights_id", None)
 
     # Now search based on other ID facts
     # Dicts have been ordered since Python 3.7, so the priority ordering will be respected
