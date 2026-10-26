@@ -247,6 +247,15 @@ def test_build_rbac_auth_request_headers_uses_service_account(mocker):
     token_mock.assert_called_once()
 
 
+def test_build_rbac_auth_request_headers_token_failure_returns_503(mocker):
+    mocker.patch("lib.middleware._get_rbac_access_token", side_effect=RuntimeError("token unavailable"))
+    abort_mock = mocker.patch("lib.middleware.abort")
+
+    lib.middleware._build_rbac_auth_request_headers("org-7")
+
+    abort_mock.assert_called_once_with(503, "Failed to authenticate with RBAC endpoint")
+
+
 def _mock_rbac_transport_config(mocker, authenticated=False, ca_certificate=None):
     config = mocker.Mock()
     config.rbac_retries = 0

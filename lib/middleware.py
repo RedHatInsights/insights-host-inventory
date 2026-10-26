@@ -139,7 +139,12 @@ def _build_rbac_auth_request_headers(org_id: str) -> dict:
         "X-RH-RBAC-CLIENT-ID": "inventory",
     }
 
-    access_token = _get_rbac_access_token()
+    try:
+        access_token = _get_rbac_access_token()
+    except Exception:
+        logger.exception("Failed to get OAuth2 token for authenticated RBAC endpoint")
+        abort(503, "Failed to authenticate with RBAC endpoint")
+
     headers["Authorization"] = f"Bearer {access_token}"
     return headers
 
