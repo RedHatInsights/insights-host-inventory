@@ -395,7 +395,11 @@ def update_system_profile(input_host: Host | LimitedHost, identity: Identity):
         existing_host = find_existing_host_by_id(identity, input_host.id)
     else:
         input_host_canonical_facts = serialize_canonical_facts(input_host, include_none=False)
-        existing_host = find_existing_host(identity, input_host_canonical_facts, nomatch_insights_id=True)
+        existing_host = find_existing_host(
+            identity,
+            input_host_canonical_facts,
+            nomatch_insights_id=get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, identity.org_id),
+        )
 
     if existing_host:
         logger.debug("Updating system profile on an existing host")
