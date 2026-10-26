@@ -41,6 +41,8 @@ ratelimit = "*"
 confluent-kafka = "==2.10.1"
 pyjwt = ">=2.14.0"
 
+anyio = ">=4.14.2"
+
 [dev-packages]
 pytest = "~=8.4.1"
 pytest-cov = "~=6.2.1"
