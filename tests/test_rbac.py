@@ -2,6 +2,7 @@ import json
 
 import pytest
 from requests import exceptions
+from werkzeug.exceptions import ServiceUnavailable
 
 import lib.middleware
 from tests.helpers.api_utils import RBACFilterOperation
@@ -249,9 +250,10 @@ def test_build_rbac_auth_request_headers_uses_service_account(mocker):
 
 def test_build_rbac_auth_request_headers_token_failure_returns_503(mocker):
     mocker.patch("lib.middleware._get_rbac_access_token", side_effect=RuntimeError("token unavailable"))
-    abort_mock = mocker.patch("lib.middleware.abort")
+    abort_mock = mocker.patch("lib.middleware.abort", side_effect=ServiceUnavailable())
 
-    lib.middleware._build_rbac_auth_request_headers("org-7")
+    with pytest.raises(ServiceUnavailable):
+        lib.middleware._build_rbac_auth_request_headers("org-7")
 
     abort_mock.assert_called_once_with(503, "Failed to authenticate with RBAC endpoint")
 
