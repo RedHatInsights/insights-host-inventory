@@ -40,7 +40,6 @@ certifi = "~=2025.7.14"
 ratelimit = "*"
 confluent-kafka = "==2.10.1"
 pyjwt = ">=2.14.0"
-
 anyio = ">=4.14.2"
 
 [dev-packages]
