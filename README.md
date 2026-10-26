@@ -18,6 +18,7 @@ please see the
     - [Run database migrations](#run-database-migrations)
     - [Create Hosts Data](#create-hosts-data)
         - [Using the Enhanced Kafka Producer](#using-the-enhanced-kafka-producer)
+        - [Creating groups](#creating-groups)
         - [Using the admin hosts endpoint](#using-the-admin-hosts-endpoint)
     - [Run the export service](#run-the-export-service)
     - [Testing](#testing)
@@ -243,6 +244,39 @@ python utils/kafka_producer.py --host-type sap --num-hosts 5 \
 - `HOST_TYPE`: Default host type (default: "default")
 - `KAFKA_BOOTSTRAP_SERVERS`: Kafka bootstrap servers (default: "localhost:29092")
 - `KAFKA_HOST_INGRESS_TOPIC`: Kafka topic for host ingress (default: "platform.inventory.host-ingress")
+
+#### Creating groups
+
+Use `utils.payloads.build_group_payload()` to build a request body for `POST /api/inventory/v1/groups`.
+It generates a unique sample name when `name` is omitted. The optional `host_ids` list defaults to
+an empty list, so you can create a group before assigning hosts to it.
+
+To create a group containing existing hosts, run the following from the repository root:
+
+```python
+import requests
+
+from utils import payloads
+
+group = payloads.build_group_payload(
+    name="development-group",
+    host_ids=["489c5a7e-3d73-40ec-a873-a5eccebdcd6a"],
+)
+response = requests.post(
+    "http://localhost:8080/api/inventory/v1/groups",
+    headers={"x-rh-identity": payloads.apiKey.decode("ascii")},
+    json=group,
+    timeout=30,
+)
+response.raise_for_status()
+print(response.json())
+```
+
+Replace the example UUID with an existing Inventory host ID from the same organization as the
+identity configured in `utils/payloads.py`. Use the host's `id`, rather than its `insights_id`.
+The request requires `inventory:groups:write` permission when RBAC is enabled.
+Group membership is managed through the Groups API; adding a `groups` field to Kafka host
+ingress payloads does not assign hosts to a group.
 
 #### Using the admin hosts endpoint
 
