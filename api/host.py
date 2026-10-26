@@ -595,7 +595,7 @@ def _build_paginated_host_tags_response(total, page, per_page, tags_list):
 def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API endpoints, not needed for host checkins
     current_identity = get_current_identity()
     canonical_facts = deserialize_canonical_facts(body)
-    existing_host = find_existing_host(current_identity, canonical_facts)
+    existing_host = find_existing_host(current_identity, canonical_facts, nomatch_insights_id=True)
     staleness = get_staleness_obj(current_identity.org_id)
     if existing_host:
         existing_host._update_last_check_in_date()
