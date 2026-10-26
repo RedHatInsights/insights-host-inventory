@@ -29,6 +29,7 @@ from app.logging import get_logger
 from app.models import Group
 from app.models import Host
 from app.models import HostGroupAssoc
+from app.models import HostStaticSystemProfile
 from app.models import LimitedHost
 from app.models import db
 from app.serialization import build_system_profile_from_normalized
@@ -568,3 +569,22 @@ def host_exists(host_id, org_id, session=None):
     """Return True when a specific host row still exists in the database."""
     session = session or db.session
     return session.query(Host.id).filter(Host.id == host_id, Host.org_id == org_id).first() is not None
+
+
+def insights_id_owner_has_multiple_hosts(org_id: str, insights_id: str, owner_id: str) -> bool:
+    """True when more than one visible host shares this insights ID and owner.
+
+    The system-client cache stores a single host for that pair. A second host
+    must not replace that entry, or GET /hosts returns only the cached one.
+    """
+    query = (
+        db.session.query(Host.id)
+        .join(Host.static_system_profile)
+        .filter(
+            Host.org_id == org_id,
+            Host.insights_id == insights_id,
+            HostStaticSystemProfile.org_id == org_id,
+            HostStaticSystemProfile.owner_id == owner_id,
+        )
+    )
+    return len(find_non_culled_hosts(query, org_id).limit(2).all()) > 1

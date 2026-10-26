@@ -38,6 +38,7 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
+from api.cache import delete_cached_system
 from api.cache import delete_cached_system_keys
 from api.cache import get_system_cache_generation
 from api.cache import set_cached_system
@@ -104,6 +105,7 @@ from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import UngroupedGroupCache
 from lib.host_repository import host_exists
+from lib.host_repository import insights_id_owner_has_multiple_hosts
 from utils.system_profile_log import extract_host_dict_sp_to_log
 
 logger = get_logger(__name__)
@@ -1322,6 +1324,52 @@ def write_delete_event_message(event_producer: EventProducer, result: OperationR
     result.success_logger()
 
 
+def system_cache_has_multiple_hosts(org_id: str, insights_id: str, owner_id: str) -> bool:
+    """Return whether more than one visible host shares this insights ID and owner.
+
+    The lookup runs in a savepoint so a database error does not abort the caller's transaction.
+    """
+    try:
+        with db.session.begin_nested():
+            return insights_id_owner_has_multiple_hosts(org_id, insights_id, owner_id)
+    except Exception:
+        logger.exception("Failed to check for hosts sharing an insights ID")
+        return False
+
+
+def cache_ingested_system(output_host: dict, insights_id: str | None, *, created: bool, groups: list) -> None:
+    """Refresh the system-client cache for one ingested host.
+
+    The cache stores a single host per insights ID and owner. When more than one
+    visible host shares that pair, drop the entry instead of writing the host
+    that was just ingested. Missing insights ID or owner is skipped so this never
+    falls through to a Redis scan.
+    """
+    org_id = output_host.get("org_id")
+    owner_id = (output_host.get("system_profile") or {}).get("owner_id")
+    if not (owner_id and insights_id and org_id):
+        return
+
+    multiple_hosts = system_cache_has_multiple_hosts(org_id, insights_id, owner_id)
+    created_with_shared_insights_id = created and get_flag_value(FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, org_id)
+    if multiple_hosts or created_with_shared_insights_id:
+        # Pass owner_id so this increments one generation counter.
+        delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
+
+    generation = get_system_cache_generation(insights_id, org_id, owner_id)
+    system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=generation)
+    if multiple_hosts:
+        delete_cached_system(system_key)
+        return
+
+    if "tags" in output_host:
+        del output_host["tags"]
+    if "system_profile" in output_host:
+        del output_host["system_profile"]
+    output_host["groups"] = groups
+    set_cached_system(system_key, output_host)
+
+
 def write_add_update_event_message(
     event_producer: EventProducer, notification_event_producer: EventProducer, result: OperationResult
 ):
@@ -1368,30 +1416,15 @@ def write_add_update_event_message(
             )
         result.success_logger(output_host)
 
-        org_id = output_host.get("org_id")
         try:
-            insights_id = serialize_uuid(result.row.insights_id)
-            owner_id = output_host.get("system_profile", {}).get("owner_id")
-            if owner_id and insights_id and org_id:
-                # Ownership is assigned before this post-commit write. Bump only that
-                # owner's generation when a new host may share an insights ID. Calling
-                # delete_cached_system_keys without owner_id scans Redis, and a missing
-                # insights ID scans every system key for the org.
-                if result.event_type.name == HOST_EVENT_TYPE_CREATED and get_flag_value(
-                    FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, org_id
-                ):
-                    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
-                generation = get_system_cache_generation(insights_id, org_id, owner_id)
-                system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=generation)
-                if "tags" in output_host:
-                    del output_host["tags"]
-                if "system_profile" in output_host:
-                    del output_host["system_profile"]
-                # Set full group details before caching
-                output_host["groups"] = result.row.groups or []
-                set_cached_system(system_key, output_host, inventory_config())
-        except Exception as ex:
-            logger.error("Error during set cache", ex)
+            cache_ingested_system(
+                output_host,
+                serialize_uuid(result.row.insights_id),
+                created=result.event_type.name == HOST_EVENT_TYPE_CREATED,
+                groups=result.row.groups or [],
+            )
+        except Exception:
+            logger.exception("Error during set cache")
 
 
 def write_message_batch(
