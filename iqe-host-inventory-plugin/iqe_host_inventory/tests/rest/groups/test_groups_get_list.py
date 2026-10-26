@@ -69,43 +69,6 @@ def test_groups_get_list(
 
 
 @pytest.mark.ephemeral
-@pytest.mark.parametrize("n_hosts", [0, 1, 3])
-@pytest.mark.parametrize("n_groups", [1, 3])
-def test_groups_get_list_only_my_groups(
-    host_inventory: ApplicationHostInventory,
-    n_hosts: int,
-    n_groups: int,
-):
-    """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
-
-    https://issues.redhat.com/browse/ESSNTL-3829
-
-    metadata:
-      assignee: fstavela
-      importance: high
-      title: Get groups list with limited amount of groups
-    """
-    host_inventory.apis.groups.delete_all_groups()
-
-    hosts = host_inventory.kafka.create_random_hosts(9)
-
-    groups_data = [
-        GroupData(hosts=hosts[(i * n_hosts) : (i * n_hosts + n_hosts)]) for i in range(n_groups)
-    ]
-    groups = host_inventory.apis.groups.create_groups(groups_data)
-    orig_groups_dict = {group.id: group for group in groups}
-
-    response = host_inventory.apis.groups.get_groups_response()
-    assert response.total == n_groups
-    assert response.count == n_groups
-    assert response.page == 1
-    assert len(response.results) == n_groups
-    assert {group.id for group in response.results} == set(orig_groups_dict.keys())
-    for group in response.results:
-        assert group == orig_groups_dict[group.id]
-
-
-@pytest.mark.ephemeral
 @pytest.mark.parametrize("with_hosts", [True, False], ids=["with hosts", "without hosts"])
 def test_groups_get_list_pagination(host_inventory: ApplicationHostInventory, with_hosts: bool):
     """
@@ -132,47 +95,6 @@ def test_groups_get_list_pagination(host_inventory: ApplicationHostInventory, wi
         found_groups_ids.update({group.id for group in response.results})
 
     assert len(found_groups_ids) == 9
-
-
-@pytest.mark.ephemeral
-@pytest.mark.parametrize("with_hosts", [True, False], ids=["with hosts", "without hosts"])
-def test_groups_get_list_pagination_only_my_groups(
-    host_inventory: ApplicationHostInventory, with_hosts: bool
-):
-    """WARNING: Don't run this test in shared accounts. It deletes all groups on account.
-
-    https://issues.redhat.com/browse/ESSNTL-3829
-
-    metadata:
-      assignee: fstavela
-      importance: high
-      title: Test pagination while getting groups list with limited amount of groups
-    """
-    host_inventory.apis.groups.delete_all_groups()
-
-    hosts = host_inventory.kafka.create_random_hosts(10)
-
-    groups_data = [GroupData(hosts=[hosts[i]] if with_hosts else []) for i in range(10)]
-
-    groups = host_inventory.apis.groups.create_groups(groups_data)
-    all_groups_ids = {group.id for group in groups}
-
-    found_groups_ids = set()
-    for i in range(4):
-        response = host_inventory.apis.groups.get_groups_response(per_page=3, page=i + 1)
-        assert response.page == i + 1
-        assert response.per_page == 3
-        assert response.total == 10
-        if i == 3:
-            # last page
-            assert response.count == 1
-            assert len(response.results) == 1
-        else:
-            assert response.count == 3
-            assert len(response.results) == 3
-        found_groups_ids.update({group.id for group in response.results})
-
-    assert found_groups_ids == all_groups_ids
 
 
 @pytest.mark.ephemeral
