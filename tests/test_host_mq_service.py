@@ -561,7 +561,7 @@ def test_shutdown_handler(handle_message_mock, mocker, flask_app):
 
 @pytest.mark.parametrize("display_name", ("\udce2\udce2", "\\udce2\\udce2", "\udce2\udce2\\udce2\\udce2"))
 def test_handle_message_failure_invalid_surrogates(mocker, display_name, ingress_message_consumer_mock):
-    mocker.patch("app.queue.host_mq.build_event")
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
     add_host = mocker.patch("lib.host_repository.add_host", return_value=(mocker.MagicMock(), mocker.MagicMock()))
 
     invalid_message = f'{{"operation": "", "data": {{"display_name": "hello{display_name}"}}}}'
@@ -581,7 +581,7 @@ def test_handle_message_failure_invalid_surrogates(mocker, display_name, ingress
 def test_handle_message_unicode_not_damaged(
     process_message_mock, mocker, db_create_host, ingress_message_consumer_mock, subtests
 ):
-    mocker.patch("app.queue.host_mq.build_event")
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
 
     operation_raw = "🧜🏿‍♂️"
     operation_escaped = json.dumps(operation_raw)[1:-1]
@@ -2912,12 +2912,7 @@ def test_write_add_update_event_message_skips_deleted_host(mocker):
         "app.queue.host_mq.serialize_host",
         return_value={"id": "host-id", "org_id": "org-id", "reporter": "puptoo"},
     )
-    mocker.patch("app.queue.host_mq.build_event", return_value="event")
-    mocker.patch(
-        "app.queue.host_mq.extract_system_profile_fields_for_headers",
-        return_value=(None, None, "False"),
-    )
-    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
     mock_send_notification = mocker.patch("app.queue.host_mq.send_notification")
     mock_set_cached_system = mocker.patch("app.queue.host_mq.set_cached_system")
     mocker.patch("app.queue.host_mq.host_exists", return_value=False)
@@ -3382,12 +3377,7 @@ def test_write_delete_event_message_invalidates_cache_synchronously(mocker):
     mock_event_producer = mocker.Mock()
     mock_success_logger = mocker.Mock()
     mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
-    mocker.patch("app.queue.host_mq.build_event", return_value="event")
-    mocker.patch(
-        "app.queue.host_mq.extract_system_profile_fields_for_headers",
-        return_value=(None, None, "False"),
-    )
-    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
 
     insights_id = generate_uuid()
     owner_id = generate_uuid()
@@ -3424,12 +3414,7 @@ def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mo
     mock_event_producer = mocker.Mock()
     mock_success_logger = mocker.Mock()
     mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
-    mocker.patch("app.queue.host_mq.build_event", return_value="event")
-    mocker.patch(
-        "app.queue.host_mq.extract_system_profile_fields_for_headers",
-        return_value=(None, None, "False"),
-    )
-    mocker.patch("app.queue.host_mq.message_headers", return_value={})
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
 
     insights_id = generate_uuid()
     org_id = "test-org"
