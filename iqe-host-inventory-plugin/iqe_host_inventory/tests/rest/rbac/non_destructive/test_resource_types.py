@@ -60,7 +60,10 @@ def check_resource_types_list_response(
 
     response_data: list[ResourceTypesOut] = response.data
     assert len(response_data) == 1
-    assert response_data[0].count == groups_count
+
+    # When Kessel is enabled, we also see the default workspace
+    assert response_data[0].count in (groups_count, groups_count + 1)
+
     assert response_data[0].value == "inventory-groups"
     assert response_data[0].path == f"{base_url}/inventory-groups"
 
@@ -118,9 +121,7 @@ def test_resource_types_get_list_without_groups(host_inventory: ApplicationHostI
     """
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_resource_types_response()
-    # In envs where BYPASS_KESSEL=false we have the default and ungrouped workspaces
-    group_count = 1 if host_inventory.application.config.current_env == "clowder_smoke" else 2
-    check_resource_types_list_response(response, group_count)
+    check_resource_types_list_response(response, 1)
 
 
 @pytest.mark.ephemeral
@@ -154,9 +155,8 @@ def test_resource_types_get_groups_without_groups(host_inventory):
     host_inventory.apis.groups.delete_all_groups()
     response = host_inventory.apis.resource_types.get_groups_response()
     # In envs where BYPASS_KESSEL=false we see the default workspace
-    group_count = 0 if host_inventory.application.config.current_env == "clowder_smoke" else 1
-    groups = check_resource_types_groups_response(response, group_count)
-    assert len(groups) == group_count
+    groups = check_resource_types_groups_response(response, 0)
+    assert len(groups) <= 1
     if groups:
         assert groups[0].name == "Default Workspace"
 
@@ -180,7 +180,8 @@ def test_resource_types_get_groups_with_group_with_host(host_inventory: Applicat
     if groups_count >= 10:
         assert len(groups) == 10
     else:
-        assert len(groups) == groups_count
+        # When Kessel is enabled, we also see the default workspace
+        assert len(groups) in (groups_count, groups_count + 1)
 
 
 @pytest.mark.ephemeral
@@ -214,12 +215,16 @@ def test_resource_types_get_groups_pagination_only_my_groups(
         )
         if i == 3:
             # last page
-            assert len(response_groups) == 1
+            # When Kessel is enabled, resource types also return the default workspace
+            assert len(response_groups) in (1, 2)
         else:
             assert len(response_groups) == 3
         found_groups_ids.update({group.id for group in response_groups})
 
-    assert found_groups_ids == all_groups_ids
+    # When Kessel is enabled, resource types also return the default workspace
+    assert (
+        found_groups_ids - {host_inventory.apis.workspaces.default_workspace.id} == all_groups_ids
+    )
 
 
 class TestResourceTypesEmptyGroups:

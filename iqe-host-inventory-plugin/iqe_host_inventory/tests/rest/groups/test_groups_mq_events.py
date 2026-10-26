@@ -3,8 +3,10 @@ from __future__ import annotations
 import logging
 from datetime import UTC
 from datetime import datetime
+from time import sleep
 
 import pytest
+from pytest import FixtureRequest
 
 from iqe_host_inventory import ApplicationHostInventory
 from iqe_host_inventory.modeling.wrappers import HostWrapper
@@ -588,8 +590,7 @@ def test_groups_mq_events_produce_delete_single_group(host_inventory: Applicatio
 @pytest.mark.ephemeral
 @pytest.mark.parametrize("all_with_hosts", [True, False], ids=["all with hosts", "one with hosts"])
 def test_groups_mq_events_produce_delete_multiple_groups(
-    host_inventory: ApplicationHostInventory,
-    all_with_hosts: bool,
+    host_inventory: ApplicationHostInventory, all_with_hosts: bool, request: FixtureRequest
 ):
     """
     https://issues.redhat.com/browse/ESSNTL-3855
@@ -600,6 +601,14 @@ def test_groups_mq_events_produce_delete_multiple_groups(
       title: Produce kafka event message when multiple groups are deleted
     """
     hosts = host_inventory.kafka.create_random_hosts(4 if all_with_hosts else 2)
+
+    @request.addfinalizer
+    def cleanup() -> None:
+        # The test deletes the groups first and then the cleanup tries to delete the hosts shortly
+        # after that. However, there is a small window when the host doesn't belong to any group in
+        # Kessel, so the host deletion fails. Adding a sleep to wait for the hosts to be reassigned
+        sleep(3)
+        host_inventory.apis.hosts.delete_by_id(hosts)
 
     group_name = generate_display_name()
     group1 = host_inventory.apis.groups.create_group(group_name, hosts=hosts[:2])
