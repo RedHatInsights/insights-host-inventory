@@ -22,6 +22,7 @@ from app.auth.identity import Identity
 from app.exceptions import InventoryException
 from app.logging import ContextualFilter
 from app.models import db
+from app.queue.export_service import COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS
 from app.queue.export_service import _build_export_request_url
 from app.queue.export_service import _format_compliance_policies
 from app.queue.export_service import _format_export_data
@@ -659,7 +660,7 @@ class TestLoadViewConfig:
                 },
                 created_by="51234567",
             )
-            host_filter, query_filter, columns = _load_view_config(str(view.id), "test", "51234567")
+            host_filter, query_filter, columns, _, _ = _load_view_config(str(view.id), "test", "51234567")
 
             assert host_filter == {
                 "staleness": ["fresh"],
@@ -678,7 +679,7 @@ class TestLoadViewConfig:
                 configuration={"columns": [{"key": "display_name"}]},
                 created_by="51234567",
             )
-            host_filter, query_filter, columns = _load_view_config(str(view.id), "test", "51234567")
+            host_filter, query_filter, columns, _, _ = _load_view_config(str(view.id), "test", "51234567")
 
             assert host_filter == {}
             assert query_filter == {}
@@ -697,10 +698,35 @@ class TestLoadViewConfig:
                 },
                 created_by="51234567",
             )
-            host_filter, _, _ = _load_view_config(str(view.id), "test", "51234567")
+            host_filter, _, _, _, _ = _load_view_config(str(view.id), "test", "51234567")
 
             assert "workspace_name" not in host_filter
             assert host_filter["group_name"] == expected
+
+    def test_extracts_sort(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={
+                    "columns": [{"key": "display_name"}],
+                    "sort": {"key": "display_name", "direction": "desc"},
+                },
+                created_by="51234567",
+            )
+            _, _, _, order_by, order_how = _load_view_config(str(view.id), "test", "51234567")
+
+            assert order_by == "display_name"
+            assert order_how == "DESC"
+
+    def test_no_sort_returns_none(self, flask_app, db_create_view):
+        with flask_app.app.app_context():
+            view = db_create_view(
+                configuration={"columns": [{"key": "display_name"}]},
+                created_by="51234567",
+            )
+            _, _, _, order_by, order_how = _load_view_config(str(view.id), "test", "51234567")
+
+            assert order_by is None
+            assert order_how is None
 
 
 class TestCreateExportWithView:
@@ -746,7 +772,9 @@ class TestCreateExportWithView:
             host2 = db_create_host(host=db_host(display_name="host-2"))
             host1_id = str(host1.id)
             host2_id = str(host2.id)
-            db_create_host_app_data(host1_id, "test", "advisor", recommendations=5)
+            db_create_host_app_data(
+                host1_id, "test", "advisor", recommendations=5, critical=2, important=1, moderate=3, low=0
+            )
             view = db_create_view(
                 configuration={"columns": [{"key": "display_name"}, {"key": "advisor:recommendations"}]},
                 created_by="51234567",
@@ -759,10 +787,18 @@ class TestCreateExportWithView:
             )
 
             by_id = {row["host_id"]: row for row in json.loads(captured[0])}
-            expected_keys = ["host_id", "display_name", "advisor:recommendations"]
+            expected_keys = [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+            ]
             assert list(by_id[host1_id].keys()) == expected_keys
-            assert by_id[host1_id]["advisor:recommendations"] == 5
-            assert by_id[host2_id]["advisor:recommendations"] is None
+            assert by_id[host1_id]["advisor:critical"] == 2
+            assert by_id[host1_id]["advisor:low"] == 0
+            assert by_id[host2_id]["advisor:critical"] is None
 
     def test_export_with_view_columns_csv_format(
         self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
@@ -771,7 +807,9 @@ class TestCreateExportWithView:
         with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
             host1 = db_create_host(host=db_host(display_name="host-1"))
             host1_id = str(host1.id)
-            db_create_host_app_data(host1_id, "test", "advisor", recommendations=12)
+            db_create_host_app_data(
+                host1_id, "test", "advisor", recommendations=12, critical=1, important=2, moderate=3, low=4
+            )
             view = db_create_view(
                 configuration={"columns": [{"key": "display_name"}, {"key": "advisor:recommendations"}]},
                 created_by="51234567",
@@ -785,8 +823,11 @@ class TestCreateExportWithView:
             )
 
             lines = captured[0].strip().splitlines()
-            assert lines[0] == '"host_id","display_name","advisor:recommendations"'
-            assert f'"{host1_id}","host-1",12' in lines[1]
+            assert (
+                lines[0]
+                == '"host_id","display_name","advisor:critical","advisor:important","advisor:moderate","advisor:low"'
+            )
+            assert f'"{host1_id}","host-1",1,2,3,4' in lines[1]
 
     def test_export_with_view_omits_unauthorized_app_columns(
         self, flask_app, db_create_host, db_create_host_app_data, db_create_view, inventory_config
@@ -798,8 +839,8 @@ class TestCreateExportWithView:
             mock.patch("app.queue.export_service.get_allowed_app_services", return_value={"advisor"}),
         ):
             host1 = db_create_host(host=db_host(display_name="host-1"))
-            db_create_host_app_data(str(host1.id), "test", "advisor", recommendations=5)
-            db_create_host_app_data(str(host1.id), "test", "vulnerability", total_cves=10)
+            db_create_host_app_data(str(host1.id), "test", "advisor", recommendations=5, critical=2, important=1)
+            db_create_host_app_data(str(host1.id), "test", "vulnerability", total_cves=10, critical_cves=7)
             view = db_create_view(
                 configuration={
                     "columns": [
@@ -818,8 +859,15 @@ class TestCreateExportWithView:
             )
 
             parsed = json.loads(captured[0])
-            assert list(parsed[0].keys()) == ["host_id", "display_name", "advisor:recommendations"]
-            assert parsed[0]["advisor:recommendations"] == 5
+            assert list(parsed[0].keys()) == [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+            ]
+            assert parsed[0]["advisor:critical"] == 2
 
     @mock.patch("app.queue.export_service._handle_export_error")
     def test_export_with_view_rejects_unauthorized_app_filter(
@@ -884,6 +932,218 @@ class TestCreateExportWithView:
             mock_handle_error.assert_called_once()
             assert mock_handle_error.call_args[0][1] == 403
             assert "Insufficient permissions to filter by advisor" in mock_handle_error.call_args[0][0]
+
+
+class TestCreateExportWithInlineConfiguration:
+    """Inline configuration carries the table's live (possibly unsaved) WYSIWYG state."""
+
+    def test_inline_config_respects_columns(
+        self, flask_app, db_create_host, db_create_host_app_data, inventory_config
+    ):
+        captured, capture_post = _capture_posted_body()
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            host1 = db_create_host(host=db_host(display_name="host-1"))
+            db_create_host_app_data(
+                str(host1.id), "test", "advisor", recommendations=7, critical=4, important=3, moderate=2, low=1
+            )
+
+            assert _create_export(
+                inventory_config,
+                filters={
+                    "configuration": {
+                        "columns": [{"key": "display_name"}, {"key": "advisor:recommendations"}],
+                    }
+                },
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+
+            parsed = json.loads(captured[0])
+            assert list(parsed[0].keys()) == [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+            ]
+            assert parsed[0]["advisor:critical"] == 4
+            assert parsed[0]["advisor:low"] == 1
+
+    def test_inline_config_respects_sort(self, flask_app, db_create_host, inventory_config):
+        captured, capture_post = _capture_posted_body()
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            db_create_host(host=db_host(display_name="bbb"))
+            db_create_host(host=db_host(display_name="aaa"))
+            db_create_host(host=db_host(display_name="ccc"))
+
+            assert _create_export(
+                inventory_config,
+                filters={
+                    "configuration": {
+                        "columns": [{"key": "display_name"}],
+                        "sort": {"key": "display_name", "direction": "asc"},
+                    }
+                },
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+
+            names = [row["display_name"] for row in json.loads(captured[0])]
+            assert names == ["aaa", "bbb", "ccc"]
+
+    def test_inline_config_sort_desc(self, flask_app, db_create_host, inventory_config):
+        captured, capture_post = _capture_posted_body()
+        with flask_app.app.app_context(), mock.patch("requests.Session.post", new=capture_post):
+            db_create_host(host=db_host(display_name="bbb"))
+            db_create_host(host=db_host(display_name="aaa"))
+            db_create_host(host=db_host(display_name="ccc"))
+
+            assert _create_export(
+                inventory_config,
+                filters={
+                    "configuration": {
+                        "columns": [{"key": "display_name"}],
+                        "sort": {"key": "display_name", "direction": "desc"},
+                    }
+                },
+                x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+            )
+
+            names = [row["display_name"] for row in json.loads(captured[0])]
+            assert names == ["ccc", "bbb", "aaa"]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_invalid_column_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"configuration": {"columns": [{"key": "not_a_real_column"}]}},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_rejects_unauthorized_app_sort(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        with (
+            flask_app.app.app_context(),
+            mock.patch("app.queue.export_service.get_allowed_app_services", return_value={"advisor"}),
+        ):
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "sort": {"key": "vulnerability:total_cves", "direction": "asc"},
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 403
+            assert "Insufficient permissions to sort" in mock_handle_error.call_args[0][0]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_empty_returns_error(self, mock_handle_error, flask_app, db_create_host, inventory_config):
+        """A supplied-but-empty configuration must be rejected, not silently export legacy data."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"configuration": {}},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "columns" in mock_handle_error.call_args[0][0]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_without_columns_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """A configuration carrying filters/sort but no columns must be rejected."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={"configuration": {"sort": {"key": "display_name", "direction": "asc"}}},
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_invalid_sort_direction_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """An unsupported sort direction must fail validation (400), not raise an unhandled
+        ValueError that leaves the export stuck."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "sort": {"key": "display_name", "direction": "sideways"},
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "direction" in mock_handle_error.call_args[0][0]
+
+    @mock.patch("app.queue.export_service._handle_export_error")
+    def test_inline_config_unsupported_core_sort_key_returns_error(
+        self, mock_handle_error, flask_app, db_create_host, inventory_config
+    ):
+        """Core keys that are valid as columns but unimplemented by params_to_order_by (e.g.
+        "tags") must be rejected at validation, not raise an unhandled ValueError."""
+        with flask_app.app.app_context():
+            db_create_host()
+
+            assert (
+                _create_export(
+                    inventory_config,
+                    filters={
+                        "configuration": {
+                            "columns": [{"key": "display_name"}],
+                            "sort": {"key": "tags", "direction": "asc"},
+                        }
+                    },
+                    x_rh_identity=es_utils.X_RH_IDENTITY_DEFAULT,
+                )
+                is False
+            )
+            mock_handle_error.assert_called_once()
+            assert mock_handle_error.call_args[0][1] == 400
+            assert "sort key" in mock_handle_error.call_args[0][0]
 
 
 class TestResolveExportColumns:
@@ -951,7 +1211,7 @@ class TestResolveExportColumns:
 
             dropped = []
             for key in picker_keys:
-                mapped = CORE_VIEW_FIELDS_TO_EXPORT_FIELDS.get(key)
+                mapped = CORE_VIEW_FIELDS_TO_EXPORT_FIELDS.get(key) or COMPOSITE_VIEW_FIELDS_TO_EXPORT_FIELDS.get(key)
                 if mapped:
                     if any(field not in fields for field in mapped):
                         dropped.append(key)
@@ -974,11 +1234,14 @@ class TestResolveExportColumns:
                 "host_id",
                 "tags",
                 "display_name",
-                "advisor:recommendations",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
                 "vulnerability:critical_cves",
             ]
             assert app_data == {
-                "advisor": ["recommendations"],
+                "advisor": ["critical", "important", "moderate", "low"],
                 "vulnerability": ["critical_cves"],
             }
 
@@ -999,8 +1262,15 @@ class TestResolveExportColumns:
             ]
             fields, app_data = resolve_export_columns(columns)
 
-            assert fields == ["host_id", "display_name", "advisor:recommendations"]
-            assert app_data == {"advisor": ["recommendations"]}
+            assert fields == [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+            ]
+            assert app_data == {"advisor": ["critical", "important", "moderate", "low"]}
 
     def test_resolve_export_columns_allowed_apps_none_allows_all(self, flask_app):
         with flask_app.app.app_context():
@@ -1011,8 +1281,87 @@ class TestResolveExportColumns:
             ]
             fields, app_data = resolve_export_columns(columns, allowed_apps=None)
 
-            assert fields == ["host_id", "display_name", "advisor:recommendations", "vulnerability:total_cves"]
-            assert app_data == {"advisor": ["recommendations"], "vulnerability": ["total_cves"]}
+            assert fields == [
+                "host_id",
+                "display_name",
+                "advisor:critical",
+                "advisor:important",
+                "advisor:moderate",
+                "advisor:low",
+                "vulnerability:critical_cves",
+                "vulnerability:important_cves",
+                "vulnerability:moderate_cves",
+                "vulnerability:low_cves",
+            ]
+            assert app_data == {
+                "advisor": ["critical", "important", "moderate", "low"],
+                "vulnerability": ["critical_cves", "important_cves", "moderate_cves", "low_cves"],
+            }
+
+    @pytest.mark.parametrize(
+        "composite_key, expected_fields",
+        [
+            (
+                "advisor:recommendations",
+                ["advisor:critical", "advisor:important", "advisor:moderate", "advisor:low"],
+            ),
+            (
+                "vulnerability:total_cves",
+                [
+                    "vulnerability:critical_cves",
+                    "vulnerability:important_cves",
+                    "vulnerability:moderate_cves",
+                    "vulnerability:low_cves",
+                ],
+            ),
+            (
+                "patch:advisories_rhsa_installable",
+                [
+                    "patch:advisories_rhsa_installable",
+                    "patch:advisories_rhba_installable",
+                    "patch:advisories_rhea_installable",
+                    "patch:advisories_other_installable",
+                ],
+            ),
+        ],
+    )
+    def test_composite_columns_expand_into_individual_fields(self, flask_app, composite_key, expected_fields):
+        """Composite UI columns export as their individual app-data fields instead of the combined value."""
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns([{"key": composite_key}])
+
+            assert fields == ["host_id", *expected_fields]
+            app_name = expected_fields[0].split(":", 1)[0]
+            assert app_data == {app_name: [field.split(":", 1)[1] for field in expected_fields]}
+
+    def test_composite_column_dropped_when_app_unauthorized(self, flask_app):
+        with flask_app.app.app_context():
+            fields, app_data = resolve_export_columns(
+                [{"key": "display_name"}, {"key": "vulnerability:total_cves"}],
+                allowed_apps={"advisor"},
+            )
+
+            assert fields == ["host_id", "display_name"]
+            assert app_data == {}
+
+    def test_composite_expansion_deduplicates_overlapping_individual_columns(self, flask_app):
+        with flask_app.app.app_context():
+            columns = [
+                {"key": "vulnerability:total_cves"},
+                {"key": "vulnerability:critical_cves"},
+            ]
+            fields, app_data = resolve_export_columns(columns)
+
+            assert fields == [
+                "host_id",
+                "vulnerability:critical_cves",
+                "vulnerability:important_cves",
+                "vulnerability:moderate_cves",
+                "vulnerability:low_cves",
+            ]
+            assert app_data == {
+                "vulnerability": ["critical_cves", "important_cves", "moderate_cves", "low_cves"],
+            }
 
 
 def _export_row(**overrides):
@@ -1080,6 +1429,61 @@ class TestGetHostsToExportWithColumns:
             assert "LEFT OUTER JOIN" in static_queries[0].upper()
             assert not any("system_profiles_dynamic" in q for q in queries)
             assert not any(table in q for q in queries for table in _APP_DATA_TABLES)
+
+    def test_operating_system_sort_joins_static_profile_once(self, flask_app, db_create_host):
+        """RHINENG-31802: sorting by operating_system must join the static profile table even
+        when no static profile columns are exported, else the ORDER BY expression adds an
+        unjoined FROM source that multiplies rows."""
+        with flask_app.app.app_context():
+            db_create_host(
+                host=db_host(display_name="rhel-9"),
+                extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": 9, "minor": 1}}},
+            )
+            db_create_host(
+                host=db_host(display_name="rhel-8"),
+                extra_data={"system_profile_facts": {"operating_system": {"name": "RHEL", "major": 8, "minor": 5}}},
+            )
+            identity = Identity(USER_IDENTITY)
+
+            with _capture_sql() as queries:
+                results = list(
+                    get_hosts_to_export(
+                        identity,
+                        export_fields=["host_id", "display_name"],
+                        order_by="operating_system",
+                        order_how="DESC",
+                    )
+                )
+
+            # No row multiplication: each host appears exactly once (the bug would
+            # Cartesian-product rows against an unjoined static profile table).
+            names = [r["display_name"] for r in results]
+            assert sorted(names) == ["rhel-8", "rhel-9"]
+            static_queries = [q for q in queries if "system_profiles_static" in q]
+            assert len(static_queries) == 1
+            assert "LEFT OUTER JOIN" in static_queries[0].upper()
+
+    def test_operating_system_sort_does_not_double_join_static_profile(self, flask_app, db_create_host):
+        """When a static profile column is already exported, the operating_system sort must not
+        join the table a second time."""
+        with flask_app.app.app_context():
+            db_create_host(extra_data={"system_profile_facts": _LEGACY_STATIC_PROFILE})
+            identity = Identity(USER_IDENTITY)
+
+            with _capture_sql() as queries:
+                results = list(
+                    get_hosts_to_export(
+                        identity,
+                        export_fields=["host_id", "os_release"],
+                        order_by="operating_system",
+                        order_how="ASC",
+                    )
+                )
+
+            assert len(results) == 1
+            static_queries = [q for q in queries if "system_profiles_static" in q]
+            assert len(static_queries) == 1
+            assert static_queries[0].upper().count("JOIN HBI.SYSTEM_PROFILES_STATIC") <= 1
 
     def test_inventory_only_view_omits_system_profile_fields(self, flask_app, db_create_host):
         with flask_app.app.app_context():
