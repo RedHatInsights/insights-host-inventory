@@ -15,6 +15,7 @@ from api.cache import delete_cached_system_keys
 from api.cache import get_system_cache_generation
 from api.cache_key import make_system_cache_key
 from api.system_cache_key import system_cache_key_base
+from app.models import InputGroupSchema
 from lib.feature_flags import FLAG_FALLBACK_VALUES
 from lib.feature_flags import UNLEASH
 from lib.feature_flags import get_flag_value
@@ -22,6 +23,7 @@ from lib.feature_flags import get_flag_value_and_fallback
 from tests.helpers.test_utils import SYSTEM_IDENTITY
 from tests.helpers.test_utils import generate_uuid
 from utils.deploy import main as deploy
+from utils.payloads import build_group_payload
 
 RESOURCE_TEMPLATES_INDEXES = {
     "insights-inventory-reaper": 0,
@@ -139,6 +141,58 @@ def test_deploy_image_tag_is_replaced(args_targets):
 def test_deploy_formatting_is_not_changed():
     result = _run_deploy("abcd1234", ["prod", "stage"], DEPLOY_YML)
     assert _head(result) == _head(DEPLOY_YML)
+
+
+def test_group_payload_defaults():
+    uuids = ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a", "a17a21c6-a4c4-44ec-a42c-5499ad511df2"]
+    with patch("utils.payloads.random_uuid", side_effect=uuids):
+        payload = build_group_payload()
+        another_payload = build_group_payload()
+
+    assert InputGroupSchema().load(payload) == payload
+    assert InputGroupSchema().load(another_payload) == another_payload
+    assert payload["name"] == f"test-group-{uuids[0]}"
+    assert another_payload["name"] == f"test-group-{uuids[1]}"
+    assert payload["host_ids"] == []
+
+    payload["host_ids"].append("489c5a7e-3d73-40ec-a873-a5eccebdcd6a")
+    assert another_payload["host_ids"] == []
+
+
+@mark.parametrize("name", ["development-group", "Production Servers_1", "a" * 255])
+@mark.parametrize(
+    "host_ids",
+    [
+        None,
+        [],
+        ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a", "a17a21c6-a4c4-44ec-a42c-5499ad511df2"],
+    ],
+)
+def test_group_payload_custom_values(name, host_ids):
+    payload = build_group_payload(name=name, host_ids=host_ids)
+
+    assert payload == {"name": name, "host_ids": host_ids if host_ids is not None else []}
+    assert InputGroupSchema().load(payload) == payload
+
+
+def test_group_payload_generated_name_with_existing_hosts():
+    host_ids = ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a"]
+
+    payload = build_group_payload(host_ids=host_ids)
+
+    assert payload["host_ids"] == host_ids
+    assert InputGroupSchema().load(payload) == payload
+
+
+def test_group_payload_does_not_share_host_ids():
+    host_ids = ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a"]
+    payload = build_group_payload(host_ids=host_ids)
+
+    payload["host_ids"].clear()
+    assert host_ids == ["489c5a7e-3d73-40ec-a873-a5eccebdcd6a"]
+
+    host_ids.append("a17a21c6-a4c4-44ec-a42c-5499ad511df2")
+    assert payload["host_ids"] == []
 
 
 @patch.dict(FLAG_FALLBACK_VALUES, {TEST_FEATURE_FLAG: False})
