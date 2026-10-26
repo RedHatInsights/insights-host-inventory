@@ -5,6 +5,7 @@ import logging
 from collections.abc import Generator
 from copy import deepcopy
 from os import getenv
+from pathlib import Path
 from random import sample
 
 import pytest
@@ -28,6 +29,18 @@ from iqe_host_inventory.utils.rbac_utils import wait_for_kessel_sync
 
 logger = logging.getLogger(__name__)
 
+# Tests are split between 2 testing pipelines that run in parallel, using the "pipeline_1" and
+# "pipeline_2" markers. Tests from these paths (dirs or files, relative to this directory) get the
+# "pipeline_2" marker, all other tests get the "pipeline_1" marker.
+PIPELINE_2_PATHS = (
+    "rest/exports",
+    "rest/groups",
+    "rest/kessel",
+    "rest/rbac",
+    "rest/staleness",
+    "rest/test_get_specific_fields.py",
+)
+
 
 def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
@@ -39,8 +52,9 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--kessel",
         action="store_true",
-        default=False,
-        help="Enable Kessel feature flags and tests",
+        default=getenv("IQE_HBI_KESSEL", "").lower() in ("true", "1"),
+        help="Enable Kessel feature flags and tests. "
+        "Can also be enabled with the IQE_HBI_KESSEL=true environment variable.",
     )
     parser.addoption(
         "--http-debug",
@@ -50,7 +64,21 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
+def _add_pipeline_marker(item: Item) -> None:
+    tests_dir = Path(__file__).parent
+    if not item.path.is_relative_to(tests_dir):
+        return
+    rel_path = item.path.relative_to(tests_dir).as_posix()
+    in_pipeline_2 = any(
+        rel_path == path or rel_path.startswith(f"{path}/") for path in PIPELINE_2_PATHS
+    )
+    item.add_marker("pipeline_2" if in_pipeline_2 else "pipeline_1")
+
+
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
+    for item in items:
+        _add_pipeline_marker(item)
+
     if getenv("ENV_FOR_DYNACONF", "stage_proxy").lower() != "clowder_smoke" or config.getoption(
         "--kessel"
     ):
@@ -197,14 +225,15 @@ def enable_kessel_backend_flags(
             host_inventory.unleash.kessel_force_single_checks_flag, enable=True
         )
         host_inventory.unleash.toggle_feature_flag(
-            host_inventory.unleash.rbac_workspaces_flag, enable=True
-        )
-        host_inventory.unleash.toggle_feature_flag(
-            host_inventory.unleash.rbac_workspace_access_check_v2_flag, enable=True
-        )
-        host_inventory.unleash.toggle_feature_flag(
             host_inventory.unleash.hbi_rbac_v2_flag, enable=True
         )
+        # These flags are disabled for most orgs in Prod now. Uncomment when they get enabled.
+        # host_inventory.unleash.toggle_feature_flag(
+        #     host_inventory.unleash.rbac_workspaces_flag, enable=True
+        # )
+        # host_inventory.unleash.toggle_feature_flag(
+        #     host_inventory.unleash.rbac_workspace_access_check_v2_flag, enable=True
+        # )
         _ensure_ungrouped_group_exists(host_inventory)
         _ensure_ungrouped_group_exists(host_inventory_secondary)
 
