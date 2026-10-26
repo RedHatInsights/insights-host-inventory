@@ -99,6 +99,7 @@ from lib import host_repository
 from lib.db import is_deadlock_error
 from lib.db import no_expire_on_commit
 from lib.db import raw_db_connection
+from lib.feature_flags import FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID
 from lib.feature_flags import FLAG_INVENTORY_REJECT_RHSM_PAYLOADS
 from lib.feature_flags import get_flag_value
 from lib.group_repository import UngroupedGroupCache
@@ -1372,6 +1373,14 @@ def write_add_update_event_message(
             insights_id = serialize_uuid(result.row.insights_id)
             owner_id = output_host.get("system_profile", {}).get("owner_id")
             if owner_id and insights_id and org_id:
+                # Ownership is assigned before this post-commit write. Bump only that
+                # owner's generation when a new host may share an insights ID. Calling
+                # delete_cached_system_keys without owner_id scans Redis, and a missing
+                # insights ID scans every system key for the org.
+                if result.event_type.name == HOST_EVENT_TYPE_CREATED and get_flag_value(
+                    FLAG_HBI_DEDUP_IGNORE_INSIGHTS_ID, org_id
+                ):
+                    delete_cached_system_keys(insights_id=insights_id, org_id=org_id, owner_id=owner_id)
                 generation = get_system_cache_generation(insights_id, org_id, owner_id)
                 system_key = make_system_cache_key(insights_id, org_id, owner_id, generation=generation)
                 if "tags" in output_host:

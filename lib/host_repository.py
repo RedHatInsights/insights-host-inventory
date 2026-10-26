@@ -13,7 +13,6 @@ from sqlalchemy import or_
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.sql.elements import BooleanClauseList
 
-from api.cache import delete_cached_system_keys
 from api.filtering.db_filters import find_stale_host_in_window
 from api.filtering.db_filters import stale_timestamp_filter
 from api.filtering.db_filters import staleness_to_conditions
@@ -313,9 +312,6 @@ def create_new_host(input_host: Host) -> tuple[Host, AddHostResult]:
     logger.debug("Creating a new host")
 
     input_host.save()
-    # A newly created host may share an insights ID with an existing host.
-    # Invalidate system-client lookups so they do not keep serving the old host.
-    delete_cached_system_keys(insights_id=input_host.insights_id, org_id=input_host.org_id)
 
     metrics.create_host_count.inc()
     logger.debug("Created host (uncommitted):%s", input_host)

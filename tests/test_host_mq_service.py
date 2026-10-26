@@ -3439,3 +3439,70 @@ def test_write_delete_event_message_without_owner_id_skips_cache_invalidation(mo
     mock_event_producer.write_event.assert_called_once()
     mock_delete_cache.assert_not_called()
     mock_success_logger.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("event_type", "flag_enabled", "insights_id", "owner_id", "expect_invalidate"),
+    (
+        (EventType.created, True, "11111111-1111-1111-1111-111111111111", "owner-id", True),
+        (EventType.created, False, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (EventType.updated, True, "11111111-1111-1111-1111-111111111111", "owner-id", False),
+        (EventType.created, True, None, "owner-id", False),
+        (EventType.created, True, "11111111-1111-1111-1111-111111111111", None, False),
+    ),
+)
+def test_created_host_invalidates_only_owner_system_cache(
+    mocker, event_type, flag_enabled, insights_id, owner_id, expect_invalidate
+):
+    mock_event_producer = mocker.Mock()
+    mock_notification_event_producer = mocker.Mock()
+    mock_success_logger = mocker.Mock()
+    mocker.patch("app.queue.host_mq.PayloadTrackerProcessingContext")
+    mocker.patch("app.queue.host_mq.get_payload_tracker", return_value=mocker.Mock())
+    mocker.patch("app.queue.host_mq.build_event_and_headers", return_value=("event", {}))
+    mocker.patch("app.queue.host_mq.send_notification")
+    mocker.patch("app.queue.host_mq.host_exists", return_value=True)
+    mocker.patch("app.queue.host_mq.inventory_config", return_value=mocker.Mock())
+    mocker.patch("app.queue.host_mq.get_flag_value", return_value=flag_enabled)
+    mock_delete_cache = mocker.patch("app.queue.host_mq.delete_cached_system_keys")
+    mock_get_generation = mocker.patch("app.queue.host_mq.get_system_cache_generation", return_value=1)
+    mocker.patch("app.queue.host_mq.set_cached_system")
+
+    system_profile = {"owner_id": owner_id} if owner_id else {}
+    mocker.patch(
+        "app.queue.host_mq.serialize_host",
+        return_value={
+            "id": "host-id",
+            "org_id": "org-id",
+            "reporter": "puptoo",
+            "system_profile": system_profile,
+            "groups": [],
+        },
+    )
+
+    host_row = mocker.Mock()
+    host_row.id = generate_uuid()
+    host_row.org_id = "org-id"
+    host_row.account = "acct"
+    host_row.insights_id = insights_id
+    host_row.reporter = "puptoo"
+
+    result = OperationResult(
+        row=host_row,
+        pm={"request_id": "abc"},
+        so=mocker.Mock(),
+        et=event_type,
+        sl=mock_success_logger,
+    )
+
+    call_order = []
+    mock_delete_cache.side_effect = lambda **_kwargs: call_order.append("delete")
+    mock_get_generation.side_effect = lambda *_args, **_kwargs: call_order.append("generation") or 1
+
+    write_add_update_event_message(mock_event_producer, mock_notification_event_producer, result)
+
+    if expect_invalidate:
+        mock_delete_cache.assert_called_once_with(insights_id=insights_id, org_id="org-id", owner_id=owner_id)
+        assert call_order[:2] == ["delete", "generation"]
+    else:
+        mock_delete_cache.assert_not_called()
