@@ -888,9 +888,6 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/insightsId"
-          },
-          {
-            "$ref": "#/components/parameters/branchId"
           }
         ],
         "responses": {
@@ -2335,7 +2332,7 @@
         "schema": {
           "type": "string"
         },
-        "description": "Accepted for compatibility. The value is ignored and does not filter the result.",
+        "description": "Filter by branch_id",
         "required": false
       },
       "displayName": {

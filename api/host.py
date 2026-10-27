@@ -616,11 +616,7 @@ def host_checkin(body, rbac_filter=None):  # noqa: ARG001, required for all API 
 @api_operation
 @access(KesselResourceTypes.HOST.view)
 @metrics.api_request_time.time()
-def get_host_exists(
-    insights_id,
-    branch_id=None,  # noqa: ARG001
-    rbac_filter=None,
-):
+def get_host_exists(insights_id, rbac_filter=None):
     host_id = get_host_id_by_insights_id(insights_id, rbac_filter)
 
     if not host_id:
