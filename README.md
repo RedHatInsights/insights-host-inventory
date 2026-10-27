@@ -748,9 +748,10 @@ The engineer who approved the MR is then **responsible for monitoring of the rol
 Once that happens,
 contact [@team-inventory-dev](https://redhat.enterprise.slack.com/admin/user_groups/S04F8720GKG) and
 request the image to be re-tested in the production environment.
-The new image will also be tested automatically when
-the [Full Prod Check pipeline](https://jenkins-csb-insights-qe-main.dno.corp.redhat.com/job/inventory/job/backend/job/-prod-basic/)
-is run (twice daily).
+The new image will also be tested automatically by the Prod
+[testing pipelines](iqe-host-inventory-plugin/README.md#testing-pipelines) (twice daily). Their
+results are on the
+[Inventory Ibutsu dashboard](https://ibutsu.insights.corp.redhat.com/project/3915c900-85fc-1222-833c-10d51af56f2e/dashboard/7dd36006-01ce-4976-b7b9-a2ef62c613ae).
 
 ### 5. Monitoring of deployment
 

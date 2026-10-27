@@ -796,6 +796,13 @@ template, which lists all available parameters and their default values.
 
 ### Finding the jobs and test results
 
+- **Ibutsu**: the
+[Inventory dashboard](https://ibutsu.insights.corp.redhat.com/project/3915c900-85fc-1222-833c-10d51af56f2e/dashboard/7dd36006-01ce-4976-b7b9-a2ef62c613ae)
+shows the pass rate of the latest runs of every pipeline. Click a run to see its results, then a
+test to see its traceback and `iqe.log`. Unlike the OpenShift Jobs, the results stay in Ibutsu
+for months (test logs for 3 months by default). The widgets find the runs by their Ibutsu source,
+which is the CronJob name without `-testing-pipeline`, followed by a random suffix (e.g.
+`inventory-stage-ab12cd`).
 - **OpenShift console**: the CronJobs are in the
 [host-inventory-stage-tests](https://console-openshift-console.apps.rosa.appsres09ue1.24ep.p3.openshiftapps.com/k8s/ns/host-inventory-stage-tests/cronjobs)
 and
