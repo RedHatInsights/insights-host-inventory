@@ -636,6 +636,7 @@ class HostsApi:
 
         :param async_req bool: execute request asynchronously
         :param str insights_id: Filter by insights_id
+        :param str branch_id: Filter by branch_id
         :param _preload_content: if False, the urllib3.HTTPResponse object will
                                  be returned without reading/decoding response
                                  data. Default is True.
@@ -661,6 +662,7 @@ class HostsApi:
 
         :param async_req bool: execute request asynchronously
         :param str insights_id: Filter by insights_id
+        :param str branch_id: Filter by branch_id
         :param _return_http_data_only: response data without head status code
                                        and headers
         :param _preload_content: if False, the urllib3.HTTPResponse object will
@@ -677,7 +679,7 @@ class HostsApi:
 
         local_var_params = locals()
 
-        all_params = ["insights_id"]
+        all_params = ["insights_id", "branch_id"]
         all_params.extend([
             "async_req",
             "_return_http_data_only",
@@ -701,6 +703,8 @@ class HostsApi:
         query_params = []
         if "insights_id" in local_var_params and local_var_params["insights_id"] is not None:
             query_params.append(("insights_id", local_var_params["insights_id"]))
+        if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
+            query_params.append(("branch_id", local_var_params["branch_id"]))
 
         header_params = {}
 
@@ -1411,6 +1415,7 @@ class HostsApi:
 
         :param async_req bool: execute request asynchronously
         :param CreateCheckIn create_check_in: Data required to create a check-in record for a host. (required)
+        :param str branch_id: Filter by branch_id
         :param _preload_content: if False, the urllib3.HTTPResponse object will
                                  be returned without reading/decoding response
                                  data. Default is True.
@@ -1436,6 +1441,7 @@ class HostsApi:
 
         :param async_req bool: execute request asynchronously
         :param CreateCheckIn create_check_in: Data required to create a check-in record for a host. (required)
+        :param str branch_id: Filter by branch_id
         :param _return_http_data_only: response data without head status code
                                        and headers
         :param _preload_content: if False, the urllib3.HTTPResponse object will
@@ -1452,7 +1458,7 @@ class HostsApi:
 
         local_var_params = locals()
 
-        all_params = ["create_check_in"]
+        all_params = ["create_check_in", "branch_id"]
         all_params.extend([
             "async_req",
             "_return_http_data_only",
@@ -1481,6 +1487,8 @@ class HostsApi:
         path_params = {}
 
         query_params = []
+        if "branch_id" in local_var_params and local_var_params["branch_id"] is not None:
+            query_params.append(("branch_id", local_var_params["branch_id"]))
 
         header_params = {}
 
