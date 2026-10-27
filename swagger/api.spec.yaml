@@ -509,7 +509,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/insightsId'
-        - $ref: '#/components/parameters/branchId'
+        - $ref: '#/components/parameters/ignoredBranchId'
       responses:
         '200':
           description: Found a matching host.
@@ -1414,6 +1414,13 @@ components:
       schema:
         type: string
       description: Filter by branch_id
+      required: false
+    ignoredBranchId:
+      in: query
+      name: branch_id
+      schema:
+        type: string
+      description: Accepted for compatibility. The value is ignored and does not filter the result.
       required: false
     displayName:
       in: query
