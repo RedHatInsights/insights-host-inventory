@@ -1637,6 +1637,7 @@ class HostsApi:
         insights_id: Annotated[
             StrictStr | None, Field(description="Filter by insights_id")
         ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -1651,6 +1652,8 @@ class HostsApi:
 
         :param insights_id: Filter by insights_id
         :type insights_id: str
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1675,6 +1678,7 @@ class HostsApi:
 
         _param = self._api_host_get_host_exists_serialize(
             insights_id=insights_id,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1700,6 +1704,7 @@ class HostsApi:
         insights_id: Annotated[
             StrictStr | None, Field(description="Filter by insights_id")
         ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -1714,6 +1719,8 @@ class HostsApi:
 
         :param insights_id: Filter by insights_id
         :type insights_id: str
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1738,6 +1745,7 @@ class HostsApi:
 
         _param = self._api_host_get_host_exists_serialize(
             insights_id=insights_id,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1763,6 +1771,7 @@ class HostsApi:
         insights_id: Annotated[
             StrictStr | None, Field(description="Filter by insights_id")
         ] = None,
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -1777,6 +1786,8 @@ class HostsApi:
 
         :param insights_id: Filter by insights_id
         :type insights_id: str
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1801,6 +1812,7 @@ class HostsApi:
 
         _param = self._api_host_get_host_exists_serialize(
             insights_id=insights_id,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1819,6 +1831,7 @@ class HostsApi:
     def _api_host_get_host_exists_serialize(
         self,
         insights_id,
+        branch_id,
         _request_auth,
         _content_type,
         _headers,
@@ -1840,6 +1853,8 @@ class HostsApi:
         # process the query parameters
         if insights_id is not None:
             _query_params.append(("insights_id", insights_id))
+        if branch_id is not None:
+            _query_params.append(("branch_id", branch_id))
 
         # process the header parameters
         # process the form parameters
@@ -3816,6 +3831,7 @@ class HostsApi:
             CreateCheckIn,
             Field(description="Data required to create a check-in record for a host."),
         ],
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -3830,6 +3846,8 @@ class HostsApi:
 
         :param create_check_in: Data required to create a check-in record for a host. (required)
         :type create_check_in: CreateCheckIn
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3854,6 +3872,7 @@ class HostsApi:
 
         _param = self._api_host_host_checkin_serialize(
             create_check_in=create_check_in,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3878,6 +3897,7 @@ class HostsApi:
             CreateCheckIn,
             Field(description="Data required to create a check-in record for a host."),
         ],
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -3892,6 +3912,8 @@ class HostsApi:
 
         :param create_check_in: Data required to create a check-in record for a host. (required)
         :type create_check_in: CreateCheckIn
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3916,6 +3938,7 @@ class HostsApi:
 
         _param = self._api_host_host_checkin_serialize(
             create_check_in=create_check_in,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3940,6 +3963,7 @@ class HostsApi:
             CreateCheckIn,
             Field(description="Data required to create a check-in record for a host."),
         ],
+        branch_id: Annotated[StrictStr | None, Field(description="Filter by branch_id")] = None,
         _request_timeout: None
         | Annotated[StrictFloat, Field(gt=0)]
         | tuple[Annotated[StrictFloat, Field(gt=0)], Annotated[StrictFloat, Field(gt=0)]] = None,
@@ -3954,6 +3978,8 @@ class HostsApi:
 
         :param create_check_in: Data required to create a check-in record for a host. (required)
         :type create_check_in: CreateCheckIn
+        :param branch_id: Filter by branch_id
+        :type branch_id: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3978,6 +4004,7 @@ class HostsApi:
 
         _param = self._api_host_host_checkin_serialize(
             create_check_in=create_check_in,
+            branch_id=branch_id,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3994,6 +4021,7 @@ class HostsApi:
     def _api_host_host_checkin_serialize(
         self,
         create_check_in,
+        branch_id,
         _request_auth,
         _content_type,
         _headers,
@@ -4013,6 +4041,8 @@ class HostsApi:
 
         # process the path parameters
         # process the query parameters
+        if branch_id is not None:
+            _query_params.append(("branch_id", branch_id))
         # process the header parameters
         # process the form parameters
         # process the body parameter
