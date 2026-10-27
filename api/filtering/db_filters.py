@@ -580,8 +580,9 @@ _CVE_SEVERITY_TO_COLUMN = {
 def _vulnerability_filter(
     cve_severity: list[str] | None,
     known_exploit: str | None,
+    security_rule: str | None,
 ) -> tuple[list, type]:
-    """Build filters for cve_severity and known_exploit params.
+    """Build filters for cve_severity, known_exploit, and security_rule params.
 
     Returns:
         (list of SQLAlchemy filter expressions, HostAppDataVulnerability model class)
@@ -599,6 +600,12 @@ def _vulnerability_filter(
             filters.append(HostAppDataVulnerability.cves_with_known_exploits > 0)
         else:
             filters.append(HostAppDataVulnerability.cves_with_known_exploits == 0)
+
+    if security_rule:
+        if security_rule == "present":
+            filters.append(HostAppDataVulnerability.cves_with_security_rules > 0)
+        else:
+            filters.append(HostAppDataVulnerability.cves_with_security_rules == 0)
 
     return filters, HostAppDataVulnerability
 
@@ -638,6 +645,7 @@ def query_filters(
     incident_status = filters.incident_status
     cve_severity = filters.cve_severity
     known_exploit = filters.known_exploit
+    security_rule = filters.security_rule
 
     num_ids = sum(bool(id_param) for id_param in [fqdn, display_name, hostname_or_id, insights_id])
     if num_ids > 1:
@@ -690,8 +698,8 @@ def query_filters(
         filter_expressions += severity_incident_filters
         app_data_models_to_join.add(advisor_model)
 
-    if cve_severity or known_exploit:
-        vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit)
+    if cve_severity or known_exploit or security_rule:
+        vuln_filters, vuln_model = _vulnerability_filter(cve_severity, known_exploit, security_rule)
         filter_expressions += vuln_filters
         app_data_models_to_join.add(vuln_model)
 
