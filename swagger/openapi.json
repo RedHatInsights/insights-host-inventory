@@ -890,7 +890,7 @@
             "$ref": "#/components/parameters/insightsId"
           },
           {
-            "$ref": "#/components/parameters/ignoredBranchId"
+            "$ref": "#/components/parameters/branchId"
           }
         ],
         "responses": {
@@ -2330,15 +2330,6 @@
         }
       },
       "branchId": {
-        "in": "query",
-        "name": "branch_id",
-        "schema": {
-          "type": "string"
-        },
-        "description": "Filter by branch_id",
-        "required": false
-      },
-      "ignoredBranchId": {
         "in": "query",
         "name": "branch_id",
         "schema": {
