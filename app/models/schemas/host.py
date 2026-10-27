@@ -225,6 +225,8 @@ class LimitedHostSchema(CanonicalFactsSchema):
         except JsonSchemaValidationError as error:
             raise MarshmallowValidationError(f"System profile does not conform to schema.\n{error}") from error
 
+        check_empty_keys(system_profile)
+
         for dd_i, disk_device in enumerate(system_profile.get("disk_devices", [])):
             if not check_empty_keys(disk_device.get("options")):
                 raise MarshmallowValidationError(f"Empty key in /system_profile/disk_devices/{dd_i}/options.")
