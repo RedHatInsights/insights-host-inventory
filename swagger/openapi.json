@@ -5917,22 +5917,8 @@
       },
       "SystemProfileNestedObject": {
         "type": "object",
-        "description": "An arbitrary object that does not allow empty string keys.",
-        "x-propertyNames": {
-          "minLength": 1
-        },
-        "additionalProperties": {
-          "oneOf": [
-            {
-              "$ref": "#/components/schemas/SystemProfileNestedObject"
-            },
-            {
-              "not": {
-                "type": "object"
-              }
-            }
-          ]
-        }
+        "description": "An arbitrary object that allows any additional properties.",
+        "additionalProperties": true
       },
       "SystemProfileDiskDevice": {
         "description": "Representation of one mounted device",
