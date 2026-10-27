@@ -4,8 +4,9 @@ import importlib
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import connexion
 import pytest
-from flask import Flask
+from opentelemetry import trace
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 from app.telemetry import _outbound_request_hook
@@ -66,7 +67,7 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
 
     _, exporter = otel_provider(set_global=True)
 
-    app = Flask(__name__)
+    app = connexion.FlaskApp(__name__)
 
     @app.route("/health")
     def health():
@@ -95,18 +96,50 @@ def test_instrument_flask_app_excludes_ops_urls_but_traces_other_routes(monkeypa
 
     try:
         telemetry_mod.instrument_flask_app(app)
-        client = app.test_client()
-        for path in excluded_paths:
+        with app.test_client() as client:
+            for path in excluded_paths:
+                exporter.clear()
+                client.get(path)
+                assert not exporter.get_finished_spans(), f"expected no spans for {path!r}"
             exporter.clear()
-            client.get(path)
-            assert not exporter.get_finished_spans(), f"expected no spans for {path!r}"
-        exporter.clear()
-        client.get("/ping")
-        assert len(exporter.get_finished_spans()) == 1
+            client.get("/ping")
+            spans = exporter.get_finished_spans()
+            assert len(spans) == 1
+            assert spans[0].attributes["http.status_code"] == 200
     finally:
-        FlaskInstrumentor().uninstrument_app(app)
+        FlaskInstrumentor().uninstrument_app(app.app)
         monkeypatch.setenv("OTEL_ENABLED", "false")
         importlib.reload(telemetry_mod)
+
+
+@pytest.mark.parametrize("status_code", [200, 400, 503])
+def test_connexion_request_span_records_response_status(monkeypatch, otel_provider, status_code):
+    """Exercise Connexion's ASGI-to-WSGI adapter, which caches the Flask callable."""
+    import app.telemetry as telemetry_mod
+
+    monkeypatch.setattr(telemetry_mod, "OTEL_ENABLED", True)
+    monkeypatch.setattr(telemetry_mod, "OTEL_HTTP_INBOUND_ENABLED", True)
+    _, exporter = otel_provider(set_global=True)
+    app = connexion.FlaskApp(__name__)
+
+    @app.route("/response")
+    def response():
+        return "response", status_code
+
+    telemetry_mod.instrument_flask_app(app)
+    try:
+        with app.test_client() as client:
+            response = client.get("/response")
+
+        assert response.status_code == status_code
+        spans = exporter.get_finished_spans()
+        assert len(spans) == 1
+        assert spans[0].kind == trace.SpanKind.SERVER
+        assert spans[0].attributes["http.status_code"] == status_code
+        expected_status = trace.StatusCode.ERROR if status_code >= 500 else trace.StatusCode.UNSET
+        assert spans[0].status.status_code == expected_status
+    finally:
+        FlaskInstrumentor().uninstrument_app(app.app)
 
 
 def test_flask_instrumentation_skipped_when_inbound_disabled(monkeypatch):
@@ -128,8 +161,8 @@ def test_flask_instrumentation_runs_when_inbound_enabled(monkeypatch):
     with patch("opentelemetry.instrumentation.flask.FlaskInstrumentor") as mock_cls:
         instance = MagicMock()
         mock_cls.return_value = instance
-        flask_app = MagicMock()
-        telemetry_mod.instrument_flask_app(flask_app)
+        connexion_app = connexion.FlaskApp(__name__)
+        telemetry_mod.instrument_flask_app(connexion_app)
         instance.instrument_app.assert_called_once()
 
     _cleanup_telemetry(monkeypatch)
