@@ -509,6 +509,7 @@ paths:
         - ApiKeyAuth: []
       parameters:
         - $ref: '#/components/parameters/insightsId'
+        - $ref: '#/components/parameters/branchId'
       responses:
         '200':
           description: Found a matching host.
