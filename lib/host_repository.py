@@ -171,12 +171,6 @@ def find_existing_host(
     if not id_facts:
         return None
 
-    # A subscription_manager_id identifies the host for this matching mode. Do not
-    # fall through to insights_id when the subscription manager supplied one but
-    # it did not match an existing host.
-    if nomatch_insights_id and "subscription_manager_id" in canonical_facts:
-        id_facts.pop("insights_id", None)
-
     # Now search based on other ID facts
     # Dicts have been ordered since Python 3.7, so the priority ordering will be respected
     for target_key, target_value in id_facts.items():
@@ -187,6 +181,12 @@ def find_existing_host(
         if compound_fact := COMPOUND_ID_FACTS_MAP.get(target_key):  # noqa: SIM102
             if compound_fact_value := canonical_facts.get(compound_fact):
                 target_facts[compound_fact] = compound_fact_value
+
+        # A stored subscription manager ID may be missing, but it must not disagree.
+        # This still matches a host known only by insights ID, and rejects a clone
+        # whose subscription manager ID is different.
+        if nomatch_insights_id and target_key == "insights_id" and "subscription_manager_id" in canonical_facts:
+            target_facts["subscription_manager_id"] = canonical_facts["subscription_manager_id"]
 
         if existing_host := _find_host_by_multiple_facts_in_db_or_in_memory(identity, target_facts, from_hosts):
             return existing_host
