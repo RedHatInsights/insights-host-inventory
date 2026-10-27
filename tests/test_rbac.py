@@ -2,6 +2,7 @@ import json
 
 import pytest
 from requests import exceptions
+from werkzeug.exceptions import ServiceUnavailable
 
 import lib.middleware
 from tests.helpers.api_utils import RBACFilterOperation
@@ -226,11 +227,6 @@ def test_build_rbac_auth_request_headers(mocker):
     """
     mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_abc")
 
-    mock_config = mocker.Mock()
-    mock_config.bypass_kessel = False
-    mock_config.kessel_auth_enabled = True
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
-
     headers = lib.middleware._build_rbac_auth_request_headers("org-42")
 
     assert headers["Authorization"] == "Bearer sa_token_abc"
@@ -240,37 +236,26 @@ def test_build_rbac_auth_request_headers(mocker):
     assert "x-rh-identity" not in {k.lower() for k in headers}
 
 
-def test_build_rbac_auth_request_headers_authenticated_forces_bearer(mocker):
-    """authenticated=True forces the kessel-sdk bearer even when kessel_auth_enabled is False,
-    and must never emit a PSK alongside it."""
-    mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_xyz")
-
-    mock_config = mocker.Mock()
-    mock_config.kessel_auth_enabled = False
-    mock_config.rbac_endpoint_authenticated = True
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+def test_build_rbac_auth_request_headers_uses_service_account(mocker):
+    """Service-account authentication is used for RBAC requests."""
+    token_mock = mocker.patch("lib.middleware._get_rbac_access_token", return_value="sa_token_xyz")
 
     headers = lib.middleware._build_rbac_auth_request_headers("org-7")
 
     assert headers["Authorization"] == "Bearer sa_token_xyz"
-    assert "X-RH-RBAC-PSK" not in headers
+    assert headers["X-RH-RBAC-ORG-ID"] == "org-7"
+    assert headers["X-RH-RBAC-CLIENT-ID"] == "inventory"
+    token_mock.assert_called_once()
 
 
-def test_build_rbac_auth_request_headers_psk_fallback(mocker):
-    """When neither authenticated nor kessel_auth_enabled, fall back to PSK and emit no bearer."""
-    token_mock = mocker.patch("lib.middleware._get_rbac_access_token")
+def test_build_rbac_auth_request_headers_token_failure_returns_503(mocker):
+    mocker.patch("lib.middleware._get_rbac_access_token", side_effect=RuntimeError("token unavailable"))
+    abort_mock = mocker.patch("lib.middleware.abort", side_effect=ServiceUnavailable())
 
-    mock_config = mocker.Mock()
-    mock_config.kessel_auth_enabled = False
-    mock_config.rbac_endpoint_authenticated = False
-    mock_config.rbac_psk = "psk-secret"
-    mocker.patch("lib.middleware.inventory_config", return_value=mock_config)
+    with pytest.raises(ServiceUnavailable):
+        lib.middleware._build_rbac_auth_request_headers("org-7")
 
-    headers = lib.middleware._build_rbac_auth_request_headers("org-7")
-
-    assert headers["X-RH-RBAC-PSK"] == "psk-secret"
-    assert "Authorization" not in headers
-    token_mock.assert_not_called()
+    abort_mock.assert_called_once_with(503, "Failed to authenticate with RBAC endpoint")
 
 
 def _mock_rbac_transport_config(mocker, authenticated=False, ca_certificate=None):
