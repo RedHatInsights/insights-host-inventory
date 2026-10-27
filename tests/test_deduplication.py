@@ -145,7 +145,7 @@ def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_mat
 
 
 @pytest.mark.parametrize(
-    ("dedup_by_subscription_manager_id", "existing_host_has_subscription_manager_id", "expected_same_host"),
+    ("dedup_ignore_insights_id", "existing_host_has_subscription_manager_id", "expected_same_host"),
     (
         (False, True, True),
         (False, False, True),
@@ -155,7 +155,7 @@ def test_high_prio_match_low_prio_change(mq_create_or_update_host, high_prio_mat
 )
 def test_subscription_manager_id_constrains_insights_id_match(
     mq_create_or_update_host,
-    dedup_by_subscription_manager_id,
+    dedup_ignore_insights_id,
     existing_host_has_subscription_manager_id,
     expected_same_host,
 ):
@@ -165,7 +165,7 @@ def test_subscription_manager_id_constrains_insights_id_match(
     if existing_host_has_subscription_manager_id:
         first_host_facts["subscription_manager_id"] = generate_uuid()
 
-    with patch("lib.host_repository.get_flag_value", return_value=dedup_by_subscription_manager_id):
+    with patch("lib.host_repository.get_flag_value", return_value=dedup_ignore_insights_id):
         first_host = mq_create_or_update_host(base_host(**first_host_facts))
         second_host = mq_create_or_update_host(
             base_host(subscription_manager_id=generate_uuid(), insights_id=insights_id)
