@@ -2463,6 +2463,17 @@ def test_get_host_exists_found(db_create_host, api_get):
     assert response_data["id"] == str(created_host.id)
 
 
+def test_get_host_exists_ignores_branch_id(db_create_host, api_get):
+    insights_id = generate_uuid()
+    created_host = db_create_host(extra_data={"insights_id": insights_id})
+
+    url = f"{build_host_exists_url(insights_id)}&branch_id=54b80cb3-7fca-4444-9faf-aa43e8a560c3"
+    response_status, response_data = api_get(url)
+
+    assert response_status == 200
+    assert response_data["id"] == str(created_host.id)
+
+
 def test_get_host_exists_not_found(api_get):
     url = build_host_exists_url(generate_uuid())
     response_status, _ = api_get(url)
