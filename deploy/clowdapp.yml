@@ -2348,7 +2348,8 @@ objects:
             "spd"."workloads"->'mssql' AS "mssql_workload",
             "spd"."workloads"->'sap' AS "sap_workload",
             "sps"."rhc_client_id"::text AS "rhc_client_id",
-            "sps"."virtual_host_uuid"::text AS "hypervisor_id"
+            "sps"."virtual_host_uuid"::text AS "hypervisor_id",
+            "sps"."image_builder"->>'blueprint_id' AS "blueprint_id"
           FROM "hbi"."hosts" AS "h"
           LEFT JOIN "hbi"."system_profiles_static" AS "sps"
             ON "h"."org_id" = "sps"."org_id" AND "h"."id" = "sps"."host_id"
