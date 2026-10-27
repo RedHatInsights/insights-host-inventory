@@ -48,6 +48,7 @@ from app.auth.identity import Identity
 from app.auth.identity import IdentityType
 from app.auth.identity import create_mock_identity_with_org_id
 from app.common import inventory_config
+from app.config import DEFAULT_INSIGHTS_ID
 from app.exceptions import InventoryException
 from app.exceptions import OutboxSaveException
 from app.exceptions import ValidationException
@@ -1347,7 +1348,7 @@ def cache_ingested_system(output_host: dict, insights_id: str | None, *, created
     """
     org_id = output_host.get("org_id")
     owner_id = (output_host.get("system_profile") or {}).get("owner_id")
-    if not (owner_id and insights_id and org_id):
+    if not (owner_id and insights_id and insights_id != DEFAULT_INSIGHTS_ID and org_id):
         return
 
     multiple_hosts = system_cache_has_multiple_hosts(org_id, insights_id, owner_id)
